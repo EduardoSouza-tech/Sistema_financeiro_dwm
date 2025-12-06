@@ -18,14 +18,30 @@ import sqlite3
 app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]}})
 
+# Log de configuração
+print("=" * 60)
+print("CONFIGURAÇÃO DO SISTEMA")
+print("=" * 60)
+print(f"DATABASE_TYPE: {os.getenv('DATABASE_TYPE', 'sqlite')}")
+print(f"DATABASE_URL exists: {bool(os.getenv('DATABASE_URL'))}")
+print(f"PGHOST: {os.getenv('PGHOST', 'not set')}")
+print(f"PGDATABASE: {os.getenv('PGDATABASE', 'not set')}")
+print("=" * 60)
+
 # Inicializar banco de dados
-db = DatabaseManager()
+try:
+    print("Inicializando DatabaseManager...")
+    db = DatabaseManager()
+    print("✅ DatabaseManager inicializado com sucesso!")
+except Exception as e:
+    print(f"❌ ERRO ao inicializar DatabaseManager: {e}")
+    raise
 
 # Migrar dados JSON se existir
 if os.path.exists('dados_financeiros.json'):
-    print("Migrando dados do JSON para SQLite...")
+    print("Migrando dados do JSON...")
     db.migrar_dados_json('dados_financeiros.json')
-    print("Migração concluída!")
+    print("✅ Migração concluída!")
 
 
 # === ROTAS DE CONTAS BANCÁRIAS ===
