@@ -41,13 +41,24 @@ __all__ = [
 ]
 
 # Configurações do PostgreSQL (Railway fornece via variáveis de ambiente)
-POSTGRESQL_CONFIG = {
-    'host': os.getenv('PGHOST', 'localhost'),
-    'port': int(os.getenv('PGPORT', '5432')),
-    'user': os.getenv('PGUSER', 'postgres'),
-    'password': os.getenv('PGPASSWORD', ''),
-    'database': os.getenv('PGDATABASE', 'sistema_financeiro')
-}
+# Suporta DATABASE_URL ou variáveis individuais
+def _get_postgresql_config():
+    database_url = os.getenv('DATABASE_URL')
+    
+    if database_url:
+        # Usar DATABASE_URL se disponível (Railway fornece automaticamente)
+        return {'dsn': database_url}
+    else:
+        # Fallback para variáveis individuais
+        return {
+            'host': os.getenv('PGHOST', 'localhost'),
+            'port': int(os.getenv('PGPORT', '5432')),
+            'user': os.getenv('PGUSER', 'postgres'),
+            'password': os.getenv('PGPASSWORD', ''),
+            'database': os.getenv('PGDATABASE', 'sistema_financeiro')
+        }
+
+POSTGRESQL_CONFIG = _get_postgresql_config()
 
 
 class DatabaseManager:
@@ -60,11 +71,18 @@ class DatabaseManager:
     def get_connection(self):
         """Cria uma conexão com o banco de dados"""
         try:
-            conn = psycopg2.connect(**self.config, cursor_factory=RealDictCursor)
+            if 'dsn' in self.config:
+                # Conectar usando DATABASE_URL
+                conn = psycopg2.connect(self.config['dsn'], cursor_factory=RealDictCursor)
+            else:
+                # Conectar usando variáveis individuais
+                conn = psycopg2.connect(**self.config, cursor_factory=RealDictCursor)
+            
             conn.autocommit = True
             return conn
         except Error as e:
             print(f"Erro ao conectar ao PostgreSQL: {e}")
+            print(f"Config: {self.config if 'dsn' not in self.config else 'usando DATABASE_URL'}")
             raise
     
     def criar_tabelas(self):
