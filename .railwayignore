@@ -1,0 +1,22 @@
+# Arquivos locais
+sistema_financeiro.db
+*.pyc
+__pycache__/
+.venv/
+.vscode/
+backups/
+
+# Arquivos de desenvolvimento
+teste*.py
+verificar*.py
+demo*.py
+exemplo*.py
+app_gui.py
+main.py
+migrar_sqlite_para_mysql.py
+
+# Arquivos temporários
+*_backup_*.py
+*_old.py
+*_temp.py
+*.bak

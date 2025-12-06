@@ -1923,9 +1923,14 @@ def exportar_fornecedores_excel():
 
 
 if __name__ == '__main__':
+    # Porta configurável (Railway usa variável de ambiente PORT)
+    port = int(os.getenv('PORT', 5000))
+    
     print("="*60)
     print("Sistema Financeiro - Versão Web")
     print("="*60)
-    print("Servidor iniciado em: http://localhost:5000")
+    print(f"Servidor iniciado em: http://0.0.0.0:{port}")
+    print(f"Banco de dados: {os.getenv('DATABASE_TYPE', 'sqlite')}")
     print("="*60)
-    app.run(debug=False, host='0.0.0.0', port=5000, use_reloader=False)
+    
+    app.run(debug=False, host='0.0.0.0', port=port, use_reloader=False)

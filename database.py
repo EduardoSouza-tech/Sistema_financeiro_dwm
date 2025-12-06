@@ -1,6 +1,8 @@
 """
-Módulo de gerenciamento do banco de dados SQLite
+Módulo de gerenciamento do banco de dados
+Suporta SQLite, MySQL e PostgreSQL
 """
+import os
 import sqlite3
 from datetime import datetime, date
 from typing import List, Optional, Dict, Any
@@ -9,6 +11,7 @@ from models import (
     ContaBancaria, Lancamento, Categoria,
     TipoLancamento, StatusLancamento
 )
+from config import DATABASE_TYPE
 
 __all__ = [
     'criar_tabelas',
@@ -30,11 +33,28 @@ __all__ = [
     'excluir_lancamento',
     'pagar_lancamento',
     'cancelar_lancamento',
-    'migrar_dados_json'
+    'migrar_dados_json',
+    'obter_lancamento',
+    'atualizar_cliente',
+    'atualizar_fornecedor',
+    'DatabaseManager'
 ]
 
 
-class DatabaseManager:
+# Importar o DatabaseManager correto baseado na configuração
+def _get_database_manager():
+    """Retorna o DatabaseManager correto baseado na configuração"""
+    if DATABASE_TYPE == 'postgresql':
+        from database_postgresql import DatabaseManager as PostgreSQLManager
+        return PostgreSQLManager
+    elif DATABASE_TYPE == 'mysql':
+        from database_mysql import DatabaseManager as MySQLManager
+        return MySQLManager
+    else:  # sqlite (padrão)
+        return _SQLiteDatabaseManager
+
+# Manter a classe SQLite com novo nome interno
+class _SQLiteDatabaseManager:
     """Gerenciador do banco de dados SQLite"""
     
     def __init__(self, db_path: str = "sistema_financeiro.db"):
@@ -906,10 +926,7 @@ class DatabaseManager:
 
 import os
 
-# Instância global do gerenciador
-_db = DatabaseManager()
-
-# Funções de nível de módulo (wrappers)
+# As funções de nível de módulo (wrappers) usarão a instância global definida no final do arquivo
 def criar_tabelas():
     """Cria as tabelas do banco de dados"""
     _db.criar_tabelas()
@@ -1252,3 +1269,8 @@ def excluir_fornecedor(nome: str) -> bool:
 def migrar_dados_json(arquivo_json: str = "dados_financeiros.json"):
     """Migra dados do arquivo JSON para o banco de dados"""
     _db.migrar_dados_json(arquivo_json)
+
+
+# Instância global do DatabaseManager (escolhe automaticamente o tipo correto)
+DatabaseManager = _get_database_manager()
+_db = DatabaseManager()
