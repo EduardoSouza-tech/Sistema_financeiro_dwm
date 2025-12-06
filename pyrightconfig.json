@@ -1,0 +1,24 @@
+{
+    "include": [
+        "."
+    ],
+    "exclude": [
+        "**/__pycache__",
+        "**/site-packages/**",
+        "**/LocalCache/**"
+    ],
+    "executionEnvironments": [
+        {
+            "root": ".",
+            "pythonVersion": "3.13",
+            "extraPaths": [
+                "."
+            ]
+        }
+    ],
+    "reportMissingImports": false,
+    "reportMissingModuleSource": false,
+    "reportGeneralTypeIssues": false,
+    "reportArgumentType": false,
+    "reportIncompatibleMethodOverride": false
+}
