@@ -1026,31 +1026,35 @@ def excluir_lancamento(lancamento_id: int) -> bool:
     """Exclui um lançamento"""
     return _db.excluir_lancamento(lancamento_id)
 
-def pagar_lancamento(lancamento_id: int, conta: str, data_pagamento: datetime, juros: float = 0) -> bool:
+def pagar_lancamento(lancamento_id: int, conta: str, data_pagamento: datetime, juros: float = 0, desconto: float = 0, observacoes: str = '') -> bool:
     """Marca um lançamento como pago e registra a conta bancária"""
     conn = get_connection()
     cursor = conn.cursor()
     
-    # Se houver juros, atualizar o valor do lançamento
-    if juros != 0:
+    # Calcular valor ajustado com juros e desconto
+    valor_ajuste = juros - desconto
+    
+    if valor_ajuste != 0:
         cursor.execute("SELECT valor FROM lancamentos WHERE id = ?", (lancamento_id,))
         row = cursor.fetchone()
         if row:
             valor_original = row[0]
-            novo_valor = valor_original + juros
+            novo_valor = valor_original + valor_ajuste
             cursor.execute("""
                 UPDATE lancamentos 
-                SET data_pagamento = ?, status = 'PAGO', conta_bancaria = ?, valor = ?
+                SET data_pagamento = ?, status = 'PAGO', conta_bancaria = ?, valor = ?, 
+                    juros = ?, desconto = ?, observacoes = ?
                 WHERE id = ?
-            """, (data_pagamento.isoformat(), conta, novo_valor, lancamento_id))
+            """, (data_pagamento.isoformat(), conta, novo_valor, juros, desconto, observacoes, lancamento_id))
         else:
             success = False
     else:
         cursor.execute("""
             UPDATE lancamentos 
-            SET data_pagamento = ?, status = 'PAGO', conta_bancaria = ?
+            SET data_pagamento = ?, status = 'PAGO', conta_bancaria = ?,
+                juros = ?, desconto = ?, observacoes = ?
             WHERE id = ?
-        """, (data_pagamento.isoformat(), conta, lancamento_id))
+        """, (data_pagamento.isoformat(), conta, juros, desconto, observacoes, lancamento_id))
     
     success = cursor.rowcount > 0
     conn.commit()
