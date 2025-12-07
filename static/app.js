@@ -4276,9 +4276,9 @@ async function carregarIndicadores() {
             console.log('🔍 Tipos encontrados:', [...new Set(lancamentosFiltrados.map(l => l.tipo))]);
         }
         
-        // Calcular indicadores
-        const receitas = lancamentosFiltrados.filter(l => l.tipo === 'RECEITA');
-        const despesas = lancamentosFiltrados.filter(l => l.tipo === 'DESPESA');
+        // Calcular indicadores (comparar em minúsculas)
+        const receitas = lancamentosFiltrados.filter(l => l.tipo && l.tipo.toLowerCase() === 'receita');
+        const despesas = lancamentosFiltrados.filter(l => l.tipo && l.tipo.toLowerCase() === 'despesa');
         
         console.log('💰 Receitas:', receitas.length);
         console.log('💸 Despesas:', despesas.length);
@@ -4291,14 +4291,14 @@ async function carregarIndicadores() {
         console.log('💸 Total Despesas: R$', totalDespesas.toFixed(2));
         console.log('💵 Saldo: R$', saldoPeriodo.toFixed(2));
         
-        const receitasRecebidas = receitas.filter(l => l.status === 'PAGO');
-        const despesasPagas = despesas.filter(l => l.status === 'PAGO');
+        const receitasRecebidas = receitas.filter(l => l.status && l.status.toLowerCase() === 'pago');
+        const despesasPagas = despesas.filter(l => l.status && l.status.toLowerCase() === 'pago');
         
         const totalReceitasRecebidas = receitasRecebidas.reduce((sum, l) => sum + (l.valor || 0), 0);
         const totalDespesasPagas = despesasPagas.reduce((sum, l) => sum + (l.valor || 0), 0);
         
-        const receitasPendentes = receitas.filter(l => l.status === 'PENDENTE');
-        const despesasPendentes = despesas.filter(l => l.status === 'PENDENTE');
+        const receitasPendentes = receitas.filter(l => l.status && l.status.toLowerCase() === 'pendente');
+        const despesasPendentes = despesas.filter(l => l.status && l.status.toLowerCase() === 'pendente');
         
         const totalReceitasPendentes = receitasPendentes.reduce((sum, l) => sum + (l.valor || 0), 0);
         const totalDespesasPendentes = despesasPendentes.reduce((sum, l) => sum + (l.valor || 0), 0);
