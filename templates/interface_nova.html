@@ -1286,15 +1286,26 @@
                 <h2>📊 Dashboard Financeiro</h2>
                 
                 <!-- Filtros -->
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 25px;">
-                    <div style="display: flex; gap: 15px; align-items: end; flex-wrap: wrap;">
-                        <div class="form-group" style="margin: 0;">
-                            <label style="font-weight: 600; margin-bottom: 5px; display: block;">📅 Ano:</label>
-                            <input type="number" id="filter-ano-dashboard" placeholder="2025" min="2000" max="2100" style="width: 120px; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">
+                    <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+                        <div style="flex: 0 0 auto;">
+                            <label style="font-weight: 600; margin-bottom: 8px; display: block; color: white; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">📅 Ano</label>
+                            <input type="number" id="filter-ano-dashboard" placeholder="2025" min="2000" max="2100" 
+                                   style="width: 120px; padding: 12px 16px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; 
+                                          box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.3s; outline: none; background: white;"
+                                   onfocus="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)'; this.style.transform='translateY(-2px)';"
+                                   onblur="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'; this.style.transform='translateY(0)';">
                         </div>
-                        <div class="form-group" style="margin: 0;">
-                            <label style="font-weight: 600; margin-bottom: 5px; display: block;">📆 Mês:</label>
-                            <select id="filter-mes-dashboard" style="width: 180px; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                        <div style="flex: 0 0 auto;">
+                            <label style="font-weight: 600; margin-bottom: 8px; display: block; color: white; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">📆 Mês</label>
+                            <select id="filter-mes-dashboard" 
+                                    style="width: 200px; padding: 12px 16px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
+                                           box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.3s; outline: none; cursor: pointer; background: white;
+                                           appearance: none; -webkit-appearance: none; -moz-appearance: none; 
+                                           background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%278%27%3e%3cpath fill=%27%23667eea%27 d=%27M0 0l6 8 6-8z%27/%3e%3c/svg%3e');
+                                           background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px;"
+                                    onfocus="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)'; this.style.transform='translateY(-2px)';"
+                                    onblur="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'; this.style.transform='translateY(0)';">
                                 <option value="">Ano inteiro</option>
                                 <option value="1">Janeiro</option>
                                 <option value="2">Fevereiro</option>
@@ -1310,7 +1321,18 @@
                                 <option value="12">Dezembro</option>
                             </select>
                         </div>
-                        <button class="btn btn-primary" onclick="carregarDashboard()" style="padding: 10px 24px; font-size: 14px; font-weight: 600;">🔍 Atualizar</button>
+                        <button onclick="carregarDashboard()" 
+                                style="padding: 12px 32px; font-size: 15px; font-weight: 700; border: none; border-radius: 8px; 
+                                       background: white; color: #667eea; cursor: pointer; transition: all 0.3s; 
+                                       box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-transform: uppercase; letter-spacing: 0.5px;
+                                       display: flex; align-items: center; gap: 8px; height: 48px;"
+                                onmouseover="this.style.background='#f8f9fa'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)';"
+                                onmouseout="this.style.background='white'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)';"
+                                onmousedown="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 4px rgba(0,0,0,0.1)';"
+                                onmouseup="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)';">
+                            <span style="font-size: 18px;">🔍</span>
+                            <span>Atualizar</span>
+                        </button>
                     </div>
                 </div>
                 
