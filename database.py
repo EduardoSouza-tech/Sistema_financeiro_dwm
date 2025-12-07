@@ -991,36 +991,20 @@ def listar_lancamentos() -> List[Lancamento]:
 
 def obter_lancamento(lancamento_id: int):
     """Obtém um lançamento específico por ID"""
-    conn = get_connection()
-    cursor = conn.cursor()
+    print(f"\n🔍 database.py obter_lancamento() wrapper chamada")
+    print(f"   lancamento_id: {lancamento_id}")
+    print(f"   DATABASE_TYPE: {DATABASE_TYPE}")
     
-    cursor.execute("""
-        SELECT id, tipo, descricao, valor, data_vencimento, data_pagamento, 
-               status, categoria, subcategoria, pessoa, observacoes, num_documento, conta_bancaria
-        FROM lancamentos 
-        WHERE id = ?
-    """, (lancamento_id,))
+    # Usar o DatabaseManager correto baseado na configuração
+    db = DatabaseManager()
+    print(f"   DatabaseManager type: {type(db)}")
     
-    row = cursor.fetchone()
-    conn.close()
+    # Chamar o método do DatabaseManager
+    resultado = db.obter_lancamento(lancamento_id)
+    print(f"   Resultado: {resultado}")
+    print(f"   Tipo resultado: {type(resultado)}\n")
     
-    if row:
-        return {
-            'id': row[0],
-            'tipo': row[1],
-            'descricao': row[2],
-            'valor': row[3],
-            'data_vencimento': row[4],
-            'data_pagamento': row[5],
-            'status': row[6],
-            'categoria': row[7],
-            'subcategoria': row[8],
-            'pessoa': row[9],
-            'observacoes': row[10],
-            'num_documento': row[11],
-            'conta_bancaria': row[12]
-        }
-    return {}
+    return resultado
 
 def excluir_lancamento(lancamento_id: int) -> bool:
     """Exclui um lançamento"""
@@ -1044,17 +1028,14 @@ def pagar_lancamento(lancamento_id: int, conta: str, data_pagamento: datetime, j
 
 def cancelar_lancamento(lancamento_id: int) -> bool:
     """Cancela um lançamento (remove data de pagamento)"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE lancamentos 
-        SET data_pagamento = NULL, status = 'PENDENTE'
-        WHERE id = ?
-    """, (lancamento_id,))
-    success = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
-    return success
+    print(f"\n🔍 database.py cancelar_lancamento() wrapper chamada")
+    print(f"   DATABASE_TYPE: {DATABASE_TYPE}")
+    
+    # Usar o DatabaseManager correto baseado na configuração
+    db = DatabaseManager()
+    print(f"   DatabaseManager type: {type(db)}")
+    
+    return db.cancelar_lancamento(lancamento_id)
 
 def excluir_categoria(nome: str) -> bool:
     """Exclui uma categoria"""
