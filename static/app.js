@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', function() {
         filterAno2.value = anoAtual;
         console.log(`✓ Período 2 preenchido com ano ${anoAtual}`);
     }
+    
+    // Carregar badge de inadimplência no início
+    atualizarBadgeInadimplencia();
 });
 
 // Função auxiliar para mostrar mensagens
@@ -4604,6 +4607,43 @@ function exportarInadimplenciaExcel() {
     alert('Funcionalidade de exportação Excel em desenvolvimento');
 }
 
+// Função para atualizar apenas o badge de inadimplência (mais rápida)
+async function atualizarBadgeInadimplencia() {
+    try {
+        console.log('🔄 Atualizando badge de inadimplência...');
+        
+        const hoje = new Date().toISOString().split('T')[0];
+        const response = await fetch(`/api/lancamentos?status=PENDENTE&data_fim=${hoje}`);
+        
+        if (!response.ok) {
+            throw new Error(`Erro na API: ${response.status}`);
+        }
+        
+        const lancamentos = await response.json();
+        
+        // Filtrar apenas vencidos (data_vencimento < hoje)
+        const inadimplentes = lancamentos.filter(l => {
+            if (l.data_vencimento) {
+                const vencimento = new Date(l.data_vencimento + 'T00:00:00');
+                const hj = new Date(hoje + 'T00:00:00');
+                return vencimento < hj;
+            }
+            return false;
+        });
+        
+        // Atualizar badge
+        const badge = document.getElementById('badge-inadimplencia');
+        if (badge) {
+            badge.textContent = inadimplentes.length;
+            console.log(`✅ Badge atualizado: ${inadimplentes.length} inadimplência(s)`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar badge de inadimplência:', error);
+        // Não mostra erro ao usuário, apenas mantém o badge com valor anterior
+    }
+}
+
 // Exportar funções globalmente
 window.carregarDashboard = carregarDashboard;
 window.carregarIndicadores = carregarIndicadores;
@@ -4611,7 +4651,8 @@ window.aplicarFiltroPeriodoIndicadores = aplicarFiltroPeriodoIndicadores;
 window.exportarIndicadoresPDF = exportarIndicadoresPDF;
 window.exportarIndicadoresExcel = exportarIndicadoresExcel;
 window.carregarInadimplencia = carregarInadimplencia;
+window.atualizarBadgeInadimplencia = atualizarBadgeInadimplencia;
 window.exportarInadimplenciaPDF = exportarInadimplenciaPDF;
 window.exportarInadimplenciaExcel = exportarInadimplenciaExcel;
 
-console.log('✓ Sistema Financeiro - app.js v20251205filtro3 carregado');
+console.log('✓ Sistema Financeiro - app.js v20251207badge carregado');
