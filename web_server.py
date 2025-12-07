@@ -1232,7 +1232,12 @@ def pagar_lancamento(lancamento_id):
 def liquidar_lancamento(lancamento_id):
     """Liquida um lançamento (marca como pago com dados completos)"""
     try:
+        print("\n" + "="*80)
+        print(f"🔍 DEBUG LIQUIDAÇÃO - ID: {lancamento_id}")
+        print("="*80)
+        
         data = request.json or {}
+        print(f"📥 Dados recebidos: {data}")
         
         conta = data.get('conta_bancaria', '')
         data_pagamento_str = data.get('data_pagamento', '')
@@ -1240,17 +1245,40 @@ def liquidar_lancamento(lancamento_id):
         desconto = float(data.get('desconto', 0))
         observacoes = data.get('observacoes', '')
         
+        print(f"📊 Parâmetros extraídos:")
+        print(f"   - Conta: {conta}")
+        print(f"   - Data: {data_pagamento_str}")
+        print(f"   - Juros: {juros}")
+        print(f"   - Desconto: {desconto}")
+        print(f"   - Observações: {observacoes}")
+        
         if not conta:
+            print("❌ ERRO: Conta bancária vazia")
             return jsonify({'success': False, 'error': 'Conta bancária é obrigatória'}), 400
         
         if not data_pagamento_str or data_pagamento_str.strip() == '':
+            print("❌ ERRO: Data de pagamento vazia")
             return jsonify({'success': False, 'error': 'Data de pagamento é obrigatória'}), 400
         
         data_pagamento = datetime.fromisoformat(data_pagamento_str).date()
+        print(f"📅 Data convertida: {data_pagamento} (tipo: {type(data_pagamento)})")
+        
+        print(f"🔧 Chamando db_pagar_lancamento...")
+        print(f"   Argumentos: ({lancamento_id}, {conta}, {data_pagamento}, {juros}, {desconto}, {observacoes})")
         
         success = db_pagar_lancamento(lancamento_id, conta, data_pagamento, juros, desconto, observacoes)
+        
+        print(f"✅ Resultado: {success}")
+        print("="*80 + "\n")
+        
         return jsonify({'success': success})
     except Exception as e:
+        print(f"❌ EXCEÇÃO CAPTURADA:")
+        print(f"   Tipo: {type(e).__name__}")
+        print(f"   Mensagem: {str(e)}")
+        import traceback
+        print(f"   Traceback:\n{traceback.format_exc()}")
+        print("="*80 + "\n")
         return jsonify({'success': False, 'error': str(e)}), 400
 
 

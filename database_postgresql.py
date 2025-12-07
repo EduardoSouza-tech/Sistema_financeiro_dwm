@@ -646,33 +646,54 @@ class DatabaseManager:
                         juros: float = 0, desconto: float = 0, observacoes: str = '',
                         valor_pago: Optional[Decimal] = None) -> bool:
         """Marca um lançamento como pago"""
+        print(f"\n🔍 DatabaseManager.pagar_lancamento() chamada:")
+        print(f"   - lancamento_id: {lancamento_id} (tipo: {type(lancamento_id)})")
+        print(f"   - conta: {conta} (tipo: {type(conta)})")
+        print(f"   - data_pagamento: {data_pagamento} (tipo: {type(data_pagamento)})")
+        print(f"   - juros: {juros} (tipo: {type(juros)})")
+        print(f"   - desconto: {desconto} (tipo: {type(desconto)})")
+        print(f"   - observacoes: {observacoes} (tipo: {type(observacoes)})")
+        print(f"   - valor_pago: {valor_pago} (tipo: {type(valor_pago)})")
+        
         conn = self.get_connection()
         cursor = conn.cursor()
         
         # Se não passar data_pagamento, usar a data atual
         if not data_pagamento:
             data_pagamento = date.today()
+            print(f"⚠️  Data não fornecida, usando hoje: {data_pagamento}")
         
         if valor_pago:
-            cursor.execute("""
+            query = """
                 UPDATE lancamentos 
                 SET status = %s, data_pagamento = %s, valor = %s, 
                     conta_bancaria = %s, juros = %s, desconto = %s, observacoes = %s,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
-            """, (StatusLancamento.PAGO.value, data_pagamento, float(valor_pago), 
-                  conta, juros, desconto, observacoes, lancamento_id))
+            """
+            params = (StatusLancamento.PAGO.value, data_pagamento, float(valor_pago), 
+                  conta, juros, desconto, observacoes, lancamento_id)
+            print(f"📝 Query COM valor_pago:")
+            print(f"   SQL: {query}")
+            print(f"   Params: {params}")
+            cursor.execute(query, params)
         else:
-            cursor.execute("""
+            query = """
                 UPDATE lancamentos 
                 SET status = %s, data_pagamento = %s,
                     conta_bancaria = %s, juros = %s, desconto = %s, observacoes = %s,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
-            """, (StatusLancamento.PAGO.value, data_pagamento, 
-                  conta, juros, desconto, observacoes, lancamento_id))
+            """
+            params = (StatusLancamento.PAGO.value, data_pagamento, 
+                  conta, juros, desconto, observacoes, lancamento_id)
+            print(f"📝 Query SEM valor_pago:")
+            print(f"   SQL: {query}")
+            print(f"   Params: {params}")
+            cursor.execute(query, params)
         
         sucesso = cursor.rowcount > 0
+        print(f"✅ Linhas afetadas: {cursor.rowcount}, Sucesso: {sucesso}")
         cursor.close()
         conn.close()
         return sucesso
@@ -816,8 +837,13 @@ def excluir_lancamento(lancamento_id: int) -> bool:
 def pagar_lancamento(lancamento_id: int, conta: str = '', data_pagamento: date = None,
                     juros: float = 0, desconto: float = 0, observacoes: str = '',
                     valor_pago: Optional[Decimal] = None) -> bool:
+    print(f"\n🔍 pagar_lancamento() wrapper chamada:")
+    print(f"   Args: ({lancamento_id}, {conta}, {data_pagamento}, {juros}, {desconto}, {observacoes}, {valor_pago})")
     db = DatabaseManager()
-    return db.pagar_lancamento(lancamento_id, conta, data_pagamento, juros, desconto, observacoes, valor_pago)
+    print(f"   DatabaseManager criado: {type(db)}")
+    resultado = db.pagar_lancamento(lancamento_id, conta, data_pagamento, juros, desconto, observacoes, valor_pago)
+    print(f"   Resultado: {resultado}\n")
+    return resultado
 
 def cancelar_lancamento(lancamento_id: int) -> bool:
     db = DatabaseManager()
