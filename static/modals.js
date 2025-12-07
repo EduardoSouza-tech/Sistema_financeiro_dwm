@@ -719,6 +719,12 @@ function openModalCliente(clienteEdit = null) {
             <input type="hidden" id="cliente-nome-original" value="${nomeOriginalEscaped}">
             
             <div class="form-group">
+                <label>*CNPJ:</label>
+                <input type="text" id="cliente-cnpj" value="${isEdit ? (clienteEdit.cnpj || '') : ''}" required placeholder="00.000.000/0000-00" onblur="buscarDadosCNPJ()">
+                <small style="color: #7f8c8d; font-size: 11px;">Digite o CNPJ para buscar dados automaticamente</small>
+            </div>
+            
+            <div class="form-group">
                 <label>*Razão Social:</label>
                 <input type="text" id="cliente-razao" value="${isEdit ? (clienteEdit.razao_social || '') : ''}" required>
             </div>
@@ -726,11 +732,6 @@ function openModalCliente(clienteEdit = null) {
             <div class="form-group">
                 <label>*Nome Fantasia:</label>
                 <input type="text" id="cliente-fantasia" value="${isEdit ? (clienteEdit.nome_fantasia || '') : ''}" required>
-            </div>
-            
-            <div class="form-group">
-                <label>*CNPJ:</label>
-                <input type="text" id="cliente-cnpj" value="${isEdit ? (clienteEdit.cnpj || '') : ''}" required placeholder="00.000.000/0000-00">
             </div>
             
             <div class="form-row">
@@ -1361,9 +1362,99 @@ async function salvarTransferencia() {
     }
 }
 
+// Buscar dados do CNPJ na API BrasilAPI
+async function buscarDadosCNPJ() {
+    const cnpjInput = document.getElementById('cliente-cnpj');
+    if (!cnpjInput) return;
+    
+    let cnpj = cnpjInput.value.replace(/\D/g, ''); // Remove caracteres não numéricos
+    
+    if (cnpj.length !== 14) {
+        console.log('CNPJ incompleto, aguardando...');
+        return;
+    }
+    
+    console.log('🔍 Buscando dados do CNPJ:', cnpj);
+    
+    try {
+        // Mostrar loading
+        cnpjInput.style.background = '#fff3cd';
+        cnpjInput.disabled = true;
+        
+        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+        
+        if (!response.ok) {
+            throw new Error('CNPJ não encontrado');
+        }
+        
+        const dados = await response.json();
+        console.log('✅ Dados recebidos:', dados);
+        
+        // Preencher campos
+        if (dados.razao_social) {
+            document.getElementById('cliente-razao').value = dados.razao_social;
+        }
+        
+        if (dados.nome_fantasia) {
+            document.getElementById('cliente-fantasia').value = dados.nome_fantasia;
+        } else {
+            document.getElementById('cliente-fantasia').value = dados.razao_social; // Usar razão social se não tiver fantasia
+        }
+        
+        // Endereço
+        if (dados.cep) {
+            document.getElementById('cliente-cep').value = dados.cep.replace(/(\d{5})(\d{3})/, '$1-$2');
+        }
+        
+        if (dados.logradouro) {
+            document.getElementById('cliente-rua').value = dados.logradouro;
+        }
+        
+        if (dados.numero) {
+            document.getElementById('cliente-numero').value = dados.numero;
+        }
+        
+        if (dados.complemento) {
+            document.getElementById('cliente-complemento').value = dados.complemento;
+        }
+        
+        if (dados.bairro) {
+            document.getElementById('cliente-bairro').value = dados.bairro;
+        }
+        
+        if (dados.municipio) {
+            document.getElementById('cliente-cidade').value = dados.municipio;
+        }
+        
+        if (dados.uf) {
+            document.getElementById('cliente-estado').value = dados.uf;
+        }
+        
+        // Contatos
+        if (dados.ddd_telefone_1) {
+            const tel = dados.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
+            document.getElementById('cliente-telefone').value = tel;
+        }
+        
+        if (dados.email) {
+            document.getElementById('cliente-email').value = dados.email;
+        }
+        
+        showToast('✅ Dados do CNPJ carregados com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar CNPJ:', error);
+        showToast('⚠️ CNPJ não encontrado ou inválido', 'warning');
+    } finally {
+        cnpjInput.style.background = '';
+        cnpjInput.disabled = false;
+    }
+}
+
 window.createModal = createModal;
 window.openModalTransferencia = openModalTransferencia;
 window.closeModalTransferencia = closeModalTransferencia;
 window.salvarTransferencia = salvarTransferencia;
+window.buscarDadosCNPJ = buscarDadosCNPJ;
 
 console.log('✓ Modals.js v20251204lancamentos5 carregado com sucesso');
