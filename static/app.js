@@ -4048,4 +4048,36 @@ async function exportarContasReceberPDF() {
 window.exportarContasPagarPDF = exportarContasPagarPDF;
 window.exportarContasReceberPDF = exportarContasReceberPDF;
 
+// === FUNÇÕES DO DASHBOARD ===
+
+function carregarDashboard() {
+    console.log('Carregando dashboard...');
+    // Recarregar os dados do dashboard
+    if (typeof loadDashboardData === 'function') {
+        loadDashboardData();
+    }
+    // Atualizar gráfico se existir
+    if (typeof atualizarGraficoCrescimento === 'function') {
+        atualizarGraficoCrescimento();
+    }
+}
+
+function carregarIndicadores() {
+    console.log('Carregando indicadores...');
+    // Carregar indicadores financeiros
+    if (typeof loadDashboardData === 'function') {
+        loadDashboardData();
+    }
+}
+
+function aplicarFiltroPeriodoIndicadores() {
+    console.log('Aplicando filtro de período...');
+    carregarIndicadores();
+}
+
+// Exportar funções globalmente
+window.carregarDashboard = carregarDashboard;
+window.carregarIndicadores = carregarIndicadores;
+window.aplicarFiltroPeriodoIndicadores = aplicarFiltroPeriodoIndicadores;
+
 console.log('✓ Sistema Financeiro - app.js v20251205filtro3 carregado');
