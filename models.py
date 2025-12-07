@@ -24,11 +24,14 @@ class StatusLancamento(Enum):
 
 class Categoria:
     """Categoria de lançamento financeiro"""
-    def __init__(self, nome: str, tipo: TipoLancamento, descricao: str = "", subcategorias: Optional[List[str]] = None):
+    def __init__(self, nome: str, tipo: TipoLancamento, descricao: str = "", subcategorias: Optional[List[str]] = None, id: Optional[int] = None, cor: str = "#000000", icone: str = "📊"):
+        self.id = id
         self.nome = nome
         self.tipo = tipo
         self.descricao = descricao
         self.subcategorias = subcategorias if subcategorias is not None else []
+        self.cor = cor
+        self.icone = icone
     
     def adicionar_subcategoria(self, nome_subcategoria: str):
         """Adiciona uma subcategoria"""
@@ -48,19 +51,25 @@ class Categoria:
     
     def to_dict(self):
         return {
+            "id": self.id,
             "nome": self.nome,
             "tipo": self.tipo.value,
             "descricao": self.descricao,
-            "subcategorias": self.subcategorias
+            "subcategorias": self.subcategorias,
+            "cor": self.cor,
+            "icone": self.icone
         }
     
     @classmethod
     def from_dict(cls, data):
         return cls(
+            id=data.get("id"),
             nome=data["nome"],
             tipo=TipoLancamento(data["tipo"]),
             descricao=data.get("descricao", ""),
-            subcategorias=data.get("subcategorias", [])
+            subcategorias=data.get("subcategorias", []),
+            cor=data.get("cor", "#000000"),
+            icone=data.get("icone", "📊")
         )
 
 
@@ -133,12 +142,22 @@ class Lancamento:
                  data_pagamento: Optional[datetime] = None,
                  conta_bancaria: Optional[str] = None,
                  pessoa: str = "", observacoes: str = "",
-                 num_documento: str = "", subcategoria: str = ""):
+                 num_documento: str = "", subcategoria: str = "",
+                 id: Optional[int] = None, cliente_fornecedor: str = "",
+                 status: Optional[StatusLancamento] = None,
+                 anexo: str = "", recorrente: bool = False,
+                 frequencia_recorrencia: str = "", dia_vencimento: int = 0):
         if valor <= 0:
             raise ValueError("O valor deve ser maior que zero")
         
-        self.id = Lancamento._contador
-        Lancamento._contador += 1
+        if id is None:
+            self.id = Lancamento._contador
+            Lancamento._contador += 1
+        else:
+            self.id = id
+            if id >= Lancamento._contador:
+                Lancamento._contador = id + 1
+        
         self.descricao = descricao
         self.valor = valor
         self.tipo = tipo
@@ -150,7 +169,12 @@ class Lancamento:
         self.pessoa = pessoa
         self.observacoes = observacoes
         self.num_documento = num_documento
-        self.status = self._calcular_status()
+        self.cliente_fornecedor = cliente_fornecedor
+        self.anexo = anexo
+        self.recorrente = recorrente
+        self.frequencia_recorrencia = frequencia_recorrencia
+        self.dia_vencimento = dia_vencimento
+        self.status = status if status is not None else self._calcular_status()
     
     def _calcular_status(self) -> StatusLancamento:
         """Calcula o status do lançamento"""

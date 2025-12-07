@@ -387,12 +387,15 @@ class DatabaseManager:
         conn.close()
         return cliente_id
     
-    def listar_clientes(self) -> List[Dict]:
+    def listar_clientes(self, ativos: bool = True) -> List[Dict]:
         """Lista todos os clientes"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT * FROM clientes WHERE ativo = TRUE ORDER BY nome")
+        if ativos:
+            cursor.execute("SELECT * FROM clientes WHERE ativo = TRUE ORDER BY nome")
+        else:
+            cursor.execute("SELECT * FROM clientes ORDER BY nome")
         rows = cursor.fetchall()
         
         clientes = [dict(row) for row in rows]
@@ -442,12 +445,15 @@ class DatabaseManager:
         conn.close()
         return fornecedor_id
     
-    def listar_fornecedores(self) -> List[Dict]:
+    def listar_fornecedores(self, ativos: bool = True) -> List[Dict]:
         """Lista todos os fornecedores"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT * FROM fornecedores WHERE ativo = TRUE ORDER BY nome")
+        if ativos:
+            cursor.execute("SELECT * FROM fornecedores WHERE ativo = TRUE ORDER BY nome")
+        else:
+            cursor.execute("SELECT * FROM fornecedores ORDER BY nome")
         rows = cursor.fetchall()
         
         fornecedores = [dict(row) for row in rows]
@@ -552,7 +558,7 @@ class DatabaseManager:
         for row in rows:
             lancamento = Lancamento(
                 id=row['id'],
-                tipo=TipoLancamento(row['tipo']),
+                tipo=TipoLancamento(row['tipo'].lower()),
                 descricao=row['descricao'],
                 valor=Decimal(str(row['valor'])),
                 data_vencimento=row['data_vencimento'],
@@ -562,7 +568,7 @@ class DatabaseManager:
                 conta_bancaria=row['conta_bancaria'],
                 cliente_fornecedor=row['cliente_fornecedor'],
                 pessoa=row['pessoa'],
-                status=StatusLancamento(row['status']),
+                status=StatusLancamento(row['status'].lower()),
                 observacoes=row['observacoes'],
                 anexo=row['anexo'],
                 recorrente=row['recorrente'],
@@ -590,7 +596,7 @@ class DatabaseManager:
         
         lancamento = Lancamento(
             id=row['id'],
-            tipo=TipoLancamento(row['tipo']),
+            tipo=TipoLancamento(row['tipo'].lower()),
             descricao=row['descricao'],
             valor=Decimal(str(row['valor'])),
             data_vencimento=row['data_vencimento'],
@@ -600,7 +606,7 @@ class DatabaseManager:
             conta_bancaria=row['conta_bancaria'],
             cliente_fornecedor=row['cliente_fornecedor'],
             pessoa=row['pessoa'],
-            status=StatusLancamento(row['status']),
+            status=StatusLancamento(row['status'].lower()),
             observacoes=row['observacoes'],
             anexo=row['anexo'],
             recorrente=row['recorrente'],
@@ -749,9 +755,9 @@ def adicionar_cliente(nome: str, cpf_cnpj: str = None, email: str = None,
     db = DatabaseManager()
     return db.adicionar_cliente(nome, cpf_cnpj, email, telefone, endereco)
 
-def listar_clientes() -> List[Dict]:
+def listar_clientes(ativos: bool = True) -> List[Dict]:
     db = DatabaseManager()
-    return db.listar_clientes()
+    return db.listar_clientes(ativos)
 
 def atualizar_cliente(cliente_id: int, dados: Dict) -> bool:
     db = DatabaseManager()
@@ -762,9 +768,9 @@ def adicionar_fornecedor(nome: str, cpf_cnpj: str = None, email: str = None,
     db = DatabaseManager()
     return db.adicionar_fornecedor(nome, cpf_cnpj, email, telefone, endereco)
 
-def listar_fornecedores() -> List[Dict]:
+def listar_fornecedores(ativos: bool = True) -> List[Dict]:
     db = DatabaseManager()
-    return db.listar_fornecedores()
+    return db.listar_fornecedores(ativos)
 
 def atualizar_fornecedor(fornecedor_id: int, dados: Dict) -> bool:
     db = DatabaseManager()
