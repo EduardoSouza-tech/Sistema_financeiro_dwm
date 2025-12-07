@@ -2191,10 +2191,20 @@
         function toggleSidebar() {
             const sidebar = document.querySelector('.sidebar');
             const mainContent = document.querySelector('.main-content');
+            const toggleBtn = document.querySelector('.toggle-sidebar-btn');
             
             if (sidebar && mainContent) {
-                sidebar.classList.toggle('collapsed');
+                sidebar.classList.toggle('hidden');
                 mainContent.classList.toggle('expanded');
+                
+                // Mudar o ícone do botão
+                if (sidebar.classList.contains('hidden')) {
+                    toggleBtn.textContent = '»';
+                    toggleBtn.title = 'Mostrar Menu';
+                } else {
+                    toggleBtn.textContent = '«';
+                    toggleBtn.title = 'Ocultar Menu';
+                }
             }
         }
         
