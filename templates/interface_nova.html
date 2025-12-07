@@ -1233,42 +1233,6 @@
                 <button class="submenu-button" onclick="showSection('clientes')">👤 Clientes</button>
                 <button class="submenu-button" onclick="showSection('fornecedores')">🏭 Fornecedores</button>
             </div>
-
-            <!-- Calculadora -->
-            <div style="position: absolute; bottom: 20px; width: 100%; padding: 0 20px;">
-                <div style="border-top: 2px solid #34495e; padding-top: 15px;">
-                    <div style="color: #3498db; font-size: 14px; font-weight: bold; margin-bottom: 10px; text-align: center;">
-                        🧮 Calculadora
-                    </div>
-                    <div style="background: #34495e; padding: 15px; border-radius: 8px;">
-                        <input type="text" id="calc-display" readonly style="width: 100%; padding: 12px; margin-bottom: 10px; font-size: 18px; text-align: right; border: none; border-radius: 5px; background: #2c3e50; color: white; font-weight: bold;">
-                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
-                            <button onclick="calcInput('7')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #95a5a6; color: white; cursor: pointer; font-weight: bold;">7</button>
-                            <button onclick="calcInput('8')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #95a5a6; color: white; cursor: pointer; font-weight: bold;">8</button>
-                            <button onclick="calcInput('9')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #95a5a6; color: white; cursor: pointer; font-weight: bold;">9</button>
-                            <button onclick="calcInput('/')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #3498db; color: white; cursor: pointer; font-weight: bold;">÷</button>
-                            
-                            <button onclick="calcInput('4')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #95a5a6; color: white; cursor: pointer; font-weight: bold;">4</button>
-                            <button onclick="calcInput('5')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #95a5a6; color: white; cursor: pointer; font-weight: bold;">5</button>
-                            <button onclick="calcInput('6')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #95a5a6; color: white; cursor: pointer; font-weight: bold;">6</button>
-                            <button onclick="calcInput('*')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #3498db; color: white; cursor: pointer; font-weight: bold;">×</button>
-                            
-                            <button onclick="calcInput('1')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #95a5a6; color: white; cursor: pointer; font-weight: bold;">1</button>
-                            <button onclick="calcInput('2')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #95a5a6; color: white; cursor: pointer; font-weight: bold;">2</button>
-                            <button onclick="calcInput('3')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #95a5a6; color: white; cursor: pointer; font-weight: bold;">3</button>
-                            <button onclick="calcInput('-')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #3498db; color: white; cursor: pointer; font-weight: bold;">−</button>
-                            
-                            <button onclick="calcInput('0')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #95a5a6; color: white; cursor: pointer; font-weight: bold;">0</button>
-                            <button onclick="calcInput('.')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #95a5a6; color: white; cursor: pointer; font-weight: bold;">.</button>
-                            <button onclick="calcEqual()" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #27ae60; color: white; cursor: pointer; font-weight: bold;">=</button>
-                            <button onclick="calcInput('+')" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #3498db; color: white; cursor: pointer; font-weight: bold;">+</button>
-                            
-                            <button onclick="calcClear()" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #e74c3c; color: white; cursor: pointer; font-weight: bold; grid-column: span 2;">C</button>
-                            <button onclick="calcBackspace()" style="padding: 12px; font-size: 16px; border: none; border-radius: 5px; background: #e67e22; color: white; cursor: pointer; font-weight: bold; grid-column: span 2;">⌫</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- Botão Toggle Sidebar -->
@@ -1325,7 +1289,7 @@
                                 style="padding: 12px 32px; font-size: 15px; font-weight: 700; border: none; border-radius: 8px; 
                                        background: white; color: #667eea; cursor: pointer; transition: all 0.3s; 
                                        box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-transform: uppercase; letter-spacing: 0.5px;
-                                       display: flex; align-items: center; gap: 8px; height: 48px;"
+                                       display: flex; align-items: center; gap: 8px; height: 43px;"
                                 onmouseover="this.style.background='#f8f9fa'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)';"
                                 onmouseout="this.style.background='white'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)';"
                                 onmousedown="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 4px rgba(0,0,0,0.1)';"
@@ -2187,85 +2151,8 @@
     </div>
     
     <script>
-        // Funções da Calculadora
-        function calcInput(value) {
-            const display = document.getElementById('calc-display');
-            if (display.value === '0' || display.value === 'Erro') {
-                display.value = value;
-            } else {
-                display.value += value;
-            }
-        }
-
-        function calcClear() {
-            document.getElementById('calc-display').value = '0';
-        }
-
-        function calcBackspace() {
-            const display = document.getElementById('calc-display');
-            if (display.value.length > 1) {
-                display.value = display.value.slice(0, -1);
-            } else {
-                display.value = '0';
-            }
-        }
-
-        function calcEqual() {
-            const display = document.getElementById('calc-display');
-            try {
-                const result = eval(display.value);
-                display.value = result;
-            } catch (error) {
-                display.value = 'Erro';
-            }
-        }
-
-        // Suporte a teclado para calculadora
-        document.addEventListener('keydown', function(event) {
-            const display = document.getElementById('calc-display');
-            if (!display) return;
-            
-            // Apenas processar se o display da calculadora está focado
-            if (document.activeElement !== display) return;
-            
-            const key = event.key;
-            
-            // Números
-            if (key >= '0' && key <= '9') {
-                event.preventDefault();
-                calcInput(key);
-            }
-            // Operadores
-            else if (key === '+' || key === '-' || key === '*' || key === '/') {
-                event.preventDefault();
-                calcInput(key);
-            }
-            // Ponto decimal
-            else if (key === '.' || key === ',') {
-                event.preventDefault();
-                calcInput('.');
-            }
-            // Enter = Calcular
-            else if (key === 'Enter' || key === '=') {
-                event.preventDefault();
-                calcEqual();
-            }
-            // Backspace
-            else if (key === 'Backspace') {
-                event.preventDefault();
-                calcBackspace();
-            }
-            // Escape ou Delete = Limpar
-            else if (key === 'Escape' || key === 'Delete') {
-                event.preventDefault();
-                calcClear();
-            }
-        });
-
-        // Inicializar display da calculadora
+        // Inicializar dados ao carregar a página
         document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('calc-display').value = '0';
-            
             // Definir ano e mês atuais nos filtros do dashboard
             const hoje = new Date();
             const anoAtual = hoje.getFullYear();
@@ -2580,9 +2467,8 @@
         function aplicarMaiusculas(input) {
             // Ignora campos de tipo específico que não devem ser maiúsculos
             const tiposIgnorados = ['date', 'month', 'email', 'password', 'number'];
-            const idsIgnorados = ['calc-display']; // Ignorar calculadora
             
-            if (tiposIgnorados.includes(input.type) || idsIgnorados.includes(input.id)) {
+            if (tiposIgnorados.includes(input.type)) {
                 return;
             }
             
