@@ -1217,10 +1217,12 @@ def pagar_lancamento(lancamento_id):
     try:
         data = request.json
         conta = data.get('conta_bancaria', '') if data else ''
-        data_pagamento = datetime.fromisoformat(data.get('data_pagamento', datetime.now().isoformat())) if data else datetime.now()
+        data_pagamento = datetime.fromisoformat(data.get('data_pagamento', datetime.now().isoformat())).date() if data else date.today()
         juros = float(data.get('juros', 0)) if data else 0
+        desconto = float(data.get('desconto', 0)) if data else 0
+        observacoes = data.get('observacoes', '') if data else ''
         
-        success = db_pagar_lancamento(lancamento_id, conta, data_pagamento, juros)
+        success = db_pagar_lancamento(lancamento_id, conta, data_pagamento, juros, desconto, observacoes)
         return jsonify({'success': success})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400

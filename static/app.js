@@ -1244,42 +1244,22 @@ async function liquidarLancamento(id, tipo) {
 async function confirmarLiquidacao(event) {
     event.preventDefault();
     
-    console.log('=== DEBUG LIQUIDAÇÃO ===');
-    const dataElement = document.getElementById('liquidacao-data');
-    const contaElement = document.getElementById('liquidacao-conta');
-    console.log('Elemento data:', dataElement);
-    console.log('Elemento conta:', contaElement);
-    console.log('Data getAttribute value:', dataElement?.getAttribute('value'));
-    console.log('Data defaultValue:', dataElement?.defaultValue);
-    console.log('Todos os elementos liquidacao-data:', document.querySelectorAll('[id="liquidacao-data"]'));
-    
-    const data = dataElement?.value;
-    const conta = contaElement?.value;
+    const data = document.getElementById('liquidacao-data')?.value;
+    const conta = document.getElementById('liquidacao-conta')?.value;
     const juros = parseFloat(document.getElementById('liquidacao-juros')?.value) || 0;
     const desconto = parseFloat(document.getElementById('liquidacao-desconto')?.value) || 0;
     const observacoes = document.getElementById('liquidacao-observacoes')?.value || '';
     
-    console.log('Valor data:', data);
-    console.log('Valor conta:', conta);
-    console.log('Tipo data:', typeof data);
-    console.log('Data vazio?', !data);
-    
-    // Validação adicional
+    // Validação
     if (!data) {
-        console.log('[ERROR] ❌ Data de pagamento é obrigatória');
         showToast('❌ Data de pagamento é obrigatória', 'error');
         return;
     }
     
     if (!conta) {
-        console.log('[ERROR] ❌ Conta bancária é obrigatória');
         showToast('❌ Conta bancária é obrigatória', 'error');
         return;
     }
-    
-    console.log('Validação passou! Enviando...');
-    
-    // Enviando dados de liquidação
     
     try {
         const response = await fetch(`/api/lancamentos/${lancamentoParaLiquidar}/liquidar`, {
