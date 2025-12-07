@@ -171,10 +171,36 @@ class DatabaseManager:
                 recorrente BOOLEAN DEFAULT FALSE,
                 frequencia_recorrencia VARCHAR(50),
                 dia_vencimento INTEGER,
+                juros DECIMAL(15,2) DEFAULT 0,
+                desconto DECIMAL(15,2) DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        
+        # Adicionar colunas juros e desconto se não existirem (migration)
+        try:
+            cursor.execute("""
+                DO $$ 
+                BEGIN 
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='lancamentos' AND column_name='juros'
+                    ) THEN
+                        ALTER TABLE lancamentos ADD COLUMN juros DECIMAL(15,2) DEFAULT 0;
+                    END IF;
+                    
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='lancamentos' AND column_name='desconto'
+                    ) THEN
+                        ALTER TABLE lancamentos ADD COLUMN desconto DECIMAL(15,2) DEFAULT 0;
+                    END IF;
+                END $$;
+            """)
+            print("✅ Migração: Colunas juros e desconto adicionadas/verificadas")
+        except Exception as e:
+            print(f"⚠️  Aviso na migração de colunas: {e}")
         
         cursor.close()
         conn.close()
