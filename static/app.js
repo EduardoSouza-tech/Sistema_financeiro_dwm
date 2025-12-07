@@ -4536,12 +4536,12 @@ async function carregarInadimplencia() {
                 <div style="overflow-x: auto;">
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead>
-                            <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
-                                <th style="padding: 12px; text-align: left; font-size: 13px; color: #495057;">Descrição</th>
-                                <th style="padding: 12px; text-align: left; font-size: 13px; color: #495057;">Cliente</th>
-                                <th style="padding: 12px; text-align: center; font-size: 13px; color: #495057;">Vencimento</th>
-                                <th style="padding: 12px; text-align: center; font-size: 13px; color: #495057;">Dias Atraso</th>
-                                <th style="padding: 12px; text-align: right; font-size: 13px; color: #495057;">Valor</th>
+                            <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 2px solid #764ba2;">
+                                <th style="padding: 12px; text-align: left; font-size: 13px; color: #ffffff;">Descrição</th>
+                                <th style="padding: 12px; text-align: left; font-size: 13px; color: #ffffff;">Cliente</th>
+                                <th style="padding: 12px; text-align: center; font-size: 13px; color: #ffffff;">Vencimento</th>
+                                <th style="padding: 12px; text-align: center; font-size: 13px; color: #ffffff;">Dias Atraso</th>
+                                <th style="padding: 12px; text-align: right; font-size: 13px; color: #ffffff;">Valor</th>
                             </tr>
                         </thead>
                         <tbody>
