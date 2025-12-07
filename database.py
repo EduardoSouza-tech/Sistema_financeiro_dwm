@@ -11,7 +11,9 @@ from models import (
     ContaBancaria, Lancamento, Categoria,
     TipoLancamento, StatusLancamento
 )
-from config import DATABASE_TYPE
+
+# Configuração do tipo de banco de dados
+DATABASE_TYPE = os.getenv('DATABASE_TYPE', 'sqlite')
 
 __all__ = [
     'criar_tabelas',
