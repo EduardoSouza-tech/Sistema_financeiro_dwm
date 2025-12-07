@@ -1,11 +1,11 @@
+# Python
+providers = ["python"]
+
 [phases.setup]
-nixPkgs = ["python311", "gcc"]
+nixPkgs = ["python311"]
 
 [phases.install]
 cmds = ["pip install -r requirements_web.txt"]
-
-[phases.build]
-cmds = []
 
 [start]
 cmd = "python web_server.py"
