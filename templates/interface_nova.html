@@ -2208,18 +2208,21 @@
                 
                 // Redimensionar gráficos após transição (300ms)
                 setTimeout(() => {
-                    if (window.dashboardChart) {
-                        window.dashboardChart.resize();
-                        console.log('✓ Gráfico do dashboard redimensionado');
+                    // Redimensionar o gráfico de evolução financeira
+                    if (window.graficoCrescimento) {
+                        window.graficoCrescimento.resize();
+                        console.log('✓ Gráfico de evolução redimensionado');
                     }
                     
                     // Redimensionar todos os gráficos Chart.js ativos
-                    Object.keys(Chart.instances).forEach(key => {
-                        const chart = Chart.instances[key];
-                        if (chart) {
-                            chart.resize();
-                        }
-                    });
+                    if (typeof Chart !== 'undefined' && Chart.instances) {
+                        Object.keys(Chart.instances).forEach(key => {
+                            const chart = Chart.instances[key];
+                            if (chart && typeof chart.resize === 'function') {
+                                chart.resize();
+                            }
+                        });
+                    }
                 }, 350);
             }
         }
