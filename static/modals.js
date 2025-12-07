@@ -1376,9 +1376,51 @@ async function buscarDadosCNPJ() {
     
     console.log('🔍 Buscando dados do CNPJ:', cnpj);
     
+    // Criar elemento de loading
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'cnpj-loading';
+    loadingDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 30px 40px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        z-index: 10001;
+        text-align: center;
+    `;
+    loadingDiv.innerHTML = `
+        <div style="display: inline-block; width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p style="margin: 15px 0 0 0; color: #2c3e50; font-weight: 600; font-size: 15px;">🔍 Buscando dados do CNPJ...</p>
+        <p style="margin: 5px 0 0 0; color: #7f8c8d; font-size: 12px;">Aguarde, estamos consultando a Receita Federal</p>
+        <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    `;
+    
+    // Adicionar backdrop
+    const backdrop = document.createElement('div');
+    backdrop.id = 'cnpj-backdrop';
+    backdrop.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 10000;
+    `;
+    
+    document.body.appendChild(backdrop);
+    document.body.appendChild(loadingDiv);
+    
     try {
-        // Mostrar loading
-        cnpjInput.style.background = '#fff3cd';
+        // Desabilitar campo
         cnpjInput.disabled = true;
         
         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
@@ -1446,7 +1488,12 @@ async function buscarDadosCNPJ() {
         console.error('❌ Erro ao buscar CNPJ:', error);
         showToast('⚠️ CNPJ não encontrado ou inválido', 'warning');
     } finally {
-        cnpjInput.style.background = '';
+        // Remover loading
+        const loadingDiv = document.getElementById('cnpj-loading');
+        const backdrop = document.getElementById('cnpj-backdrop');
+        if (loadingDiv) loadingDiv.remove();
+        if (backdrop) backdrop.remove();
+        
         cnpjInput.disabled = false;
     }
 }
