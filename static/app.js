@@ -4270,6 +4270,12 @@ async function carregarIndicadores() {
         
         console.log('📦 Lançamentos filtrados:', lancamentosFiltrados.length);
         
+        // Debug: mostrar amostra de lançamentos
+        if (lancamentosFiltrados.length > 0) {
+            console.log('🔍 Amostra de lançamento:', lancamentosFiltrados[0]);
+            console.log('🔍 Tipos encontrados:', [...new Set(lancamentosFiltrados.map(l => l.tipo))]);
+        }
+        
         // Calcular indicadores
         const receitas = lancamentosFiltrados.filter(l => l.tipo === 'RECEITA');
         const despesas = lancamentosFiltrados.filter(l => l.tipo === 'DESPESA');
