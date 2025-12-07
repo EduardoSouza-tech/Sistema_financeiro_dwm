@@ -2554,14 +2554,23 @@
             </div>
             
             <div class="form-group">
-                <label>Juros/Desconto (R$):</label>
+                <label>Juros (R$):</label>
                 <input type="number" id="liquidacao-juros" step="0.01" placeholder="0.00" value="0">
-                <small style="color: #7f8c8d; display: block; margin-top: 5px;">Valores positivos = juros | Valores negativos = desconto</small>
+            </div>
+            
+            <div class="form-group">
+                <label>Desconto (R$):</label>
+                <input type="number" id="liquidacao-desconto" step="0.01" placeholder="0.00" value="0">
+            </div>
+            
+            <div class="form-group">
+                <label>Observações:</label>
+                <textarea id="liquidacao-observacoes" placeholder="OPCIONAL" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
             </div>
             
             <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn btn-primary" onclick="confirmarLiquidacao()" style="flex: 1;">✔️ Confirmar</button>
-                <button class="btn btn-secondary" onclick="fecharModalLiquidacao()" style="flex: 1;">❌ Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmarLiquidacao(event)" style="flex: 1;">💰 Liquidar</button>
+                <button class="btn btn-secondary" onclick="fecharModalLiquidacao()" style="flex: 1;">Cancelar</button>
             </div>
         </div>
     </div>
