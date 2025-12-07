@@ -687,6 +687,60 @@ class DatabaseManager:
         conn.close()
         return sucesso
     
+    def atualizar_lancamento(self, lancamento: Lancamento) -> bool:
+        """Atualiza um lançamento existente"""
+        print(f"\n🔍 DatabaseManager.atualizar_lancamento() chamada:")
+        print(f"   ID: {lancamento.id}")
+        
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            UPDATE lancamentos 
+            SET tipo = %s, descricao = %s, valor = %s, data_vencimento = %s,
+                data_pagamento = %s, categoria = %s, subcategoria = %s,
+                conta_bancaria = %s, cliente_fornecedor = %s, pessoa = %s,
+                status = %s, observacoes = %s, anexo = %s,
+                recorrente = %s, frequencia_recorrencia = %s, dia_vencimento = %s,
+                juros = %s, desconto = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """
+        
+        params = (
+            lancamento.tipo.value if hasattr(lancamento.tipo, 'value') else str(lancamento.tipo),
+            lancamento.descricao,
+            float(lancamento.valor),
+            lancamento.data_vencimento,
+            lancamento.data_pagamento,
+            lancamento.categoria,
+            lancamento.subcategoria,
+            lancamento.conta_bancaria or '',
+            lancamento.cliente_fornecedor or '',
+            lancamento.pessoa or '',
+            lancamento.status.value if hasattr(lancamento.status, 'value') else str(lancamento.status),
+            lancamento.observacoes or '',
+            lancamento.anexo or '',
+            lancamento.recorrente,
+            lancamento.frequencia_recorrencia or '',
+            lancamento.dia_vencimento or 0,
+            getattr(lancamento, 'juros', 0),
+            getattr(lancamento, 'desconto', 0),
+            lancamento.id
+        )
+        
+        print(f"📝 Query: {query}")
+        print(f"📝 Params: {params}")
+        
+        cursor.execute(query, params)
+        sucesso = cursor.rowcount > 0
+        
+        print(f"✅ Linhas afetadas: {cursor.rowcount}, Sucesso: {sucesso}\n")
+        
+        cursor.close()
+        conn.close()
+        return sucesso
+    
     def pagar_lancamento(self, lancamento_id: int, conta: str = '', data_pagamento: date = None,
                         juros: float = 0, desconto: float = 0, observacoes: str = '',
                         valor_pago: Optional[Decimal] = None) -> bool:

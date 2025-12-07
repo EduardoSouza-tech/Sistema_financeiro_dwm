@@ -646,70 +646,81 @@ def gerenciar_lancamento(lancamento_id):
         return jsonify({'success': True}), 200
     
     if request.method == 'PUT':
-        conn = None
         try:
-            data = request.get_json()
+            print(f"\n{'='*80}")
+            print(f"🔍 PUT /api/lancamentos/{lancamento_id}")
+            print(f"{'='*80}")
             
-            # Atualizar lançamento
-            conn = sqlite3.connect(db.db_path)
-            cursor = conn.cursor()
+            data = request.get_json()
+            print(f"📥 Dados recebidos: {data}")
             
             # Verificar se lançamento existe
-            cursor.execute('SELECT id FROM lancamentos WHERE id = ?', (lancamento_id,))
-            if not cursor.fetchone():
-                print("ERRO: Lançamento não encontrado")
+            lancamento_atual = db_obter_lancamento(lancamento_id)
+            if not lancamento_atual:
+                print("❌ Lançamento não encontrado")
                 return jsonify({'success': False, 'error': 'Lançamento não encontrado'}), 404
             
-            # Buscar status e data_pagamento atual para preservar se já foi pago
-            cursor.execute('SELECT status, data_pagamento, conta_bancaria FROM lancamentos WHERE id = ?', (lancamento_id,))
-            row = cursor.fetchone()
-            status_atual = row[0] if row else 'PENDENTE'
-            data_pgto_atual = row[1] if row else None
-            conta_bancaria_atual = row[2] if row else None
+            # Preservar dados de pagamento se já foi pago
+            status_atual = lancamento_atual.status.value if hasattr(lancamento_atual.status, 'value') else str(lancamento_atual.status)
+            data_pgto_atual = lancamento_atual.data_pagamento
+            conta_bancaria_atual = lancamento_atual.conta_bancaria
+            juros_atual = getattr(lancamento_atual, 'juros', 0)
+            desconto_atual = getattr(lancamento_atual, 'desconto', 0)
             
-            cursor.execute('''
-                UPDATE lancamentos 
-                SET tipo = ?,
-                    pessoa = ?,
-                    categoria = ?,
-                    subcategoria = ?,
-                    num_documento = ?,
-                    data_vencimento = ?,
-                    descricao = ?,
-                    valor = ?,
-                    observacoes = ?,
-                    status = ?,
-                    data_pagamento = ?,
-                    conta_bancaria = ?
-                WHERE id = ?
-            ''', (
-                data['tipo'],
-                data.get('pessoa', ''),
-                data.get('categoria', ''),
-                data.get('subcategoria', ''),
-                data.get('num_documento', ''),
-                data['data_vencimento'],
-                data.get('descricao', ''),
-                data['valor'],
-                data.get('observacoes', ''),
-                status_atual,  # Preserva status atual
-                data_pgto_atual,  # Preserva data de pagamento
-                conta_bancaria_atual,  # Preserva conta bancária
-                lancamento_id
-            ))
+            print(f"📊 Preservando dados de pagamento:")
+            print(f"   - Status: {status_atual}")
+            print(f"   - Data pagamento: {data_pgto_atual}")
+            print(f"   - Conta: {conta_bancaria_atual}")
             
-            conn.commit()
-            print(f"Lançamento atualizado com sucesso! Linhas afetadas: {cursor.rowcount}")
-            return jsonify({'success': True, 'id': lancamento_id})
+            # Criar objeto Lancamento atualizado
+            from models import TipoLancamento, StatusLancamento
+            from decimal import Decimal
+            
+            tipo_enum = TipoLancamento(data['tipo'].lower())
+            status_enum = StatusLancamento(status_atual.lower()) if status_atual else StatusLancamento.PENDENTE
+            
+            lancamento_atualizado = Lancamento(
+                id=lancamento_id,
+                tipo=tipo_enum,
+                descricao=data.get('descricao', ''),
+                valor=Decimal(str(data['valor'])),
+                data_vencimento=datetime.fromisoformat(data['data_vencimento']),
+                data_pagamento=data_pgto_atual,
+                categoria=data.get('categoria', ''),
+                subcategoria=data.get('subcategoria', ''),
+                conta_bancaria=conta_bancaria_atual,
+                cliente_fornecedor=data.get('cliente_fornecedor', ''),
+                pessoa=data.get('pessoa', ''),
+                status=status_enum,
+                observacoes=data.get('observacoes', ''),
+                anexo=data.get('anexo', ''),
+                recorrente=data.get('recorrente', False),
+                frequencia_recorrencia=data.get('frequencia_recorrencia', ''),
+                dia_vencimento=data.get('dia_vencimento', 0),
+                num_documento=data.get('num_documento', ''),
+                juros=juros_atual,
+                desconto=desconto_atual
+            )
+            
+            # Atualizar no banco
+            success = db.atualizar_lancamento(lancamento_atualizado)
+            
+            print(f"✅ Resultado: {success}")
+            print(f"{'='*80}\n")
+            
+            if success:
+                return jsonify({'success': True, 'id': lancamento_id})
+            else:
+                return jsonify({'success': False, 'error': 'Falha ao atualizar'}), 400
             
         except Exception as e:
-            print(f"ERRO ao atualizar lançamento: {str(e)}")
+            print(f"❌ ERRO ao atualizar lançamento:")
+            print(f"   Tipo: {type(e).__name__}")
+            print(f"   Mensagem: {str(e)}")
             import traceback
-            traceback.print_exc()
+            print(f"   Traceback:\n{traceback.format_exc()}")
+            print(f"{'='*80}\n")
             return jsonify({'success': False, 'error': str(e)}), 400
-        finally:
-            if conn:
-                conn.close()
     
     # DELETE
     try:
