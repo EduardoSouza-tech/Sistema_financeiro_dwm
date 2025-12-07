@@ -49,44 +49,50 @@ if os.path.exists('dados_financeiros.json'):
 @app.route('/api/contas', methods=['GET'])
 def listar_contas():
     """Lista todas as contas bancárias com saldo real"""
-    contas = db.listar_contas()
-    lancamentos = db.listar_lancamentos()
-    
-    # Calcular saldo real de cada conta
-    contas_com_saldo = []
-    for c in contas:
-        saldo_real = Decimal(str(c.saldo_inicial))
+    try:
+        contas = db.listar_contas()
+        lancamentos = db.listar_lancamentos()
         
-        # Somar/subtrair lançamentos pagos desta conta
-        for lanc in lancamentos:
-            if lanc.status == StatusLancamento.PAGO:
-                valor_decimal = Decimal(str(lanc.valor))
-                
-                if lanc.tipo == TipoLancamento.TRANSFERENCIA:
-                    # Transferência: origem está em conta_bancaria, destino em subcategoria
-                    if hasattr(lanc, 'conta_bancaria') and lanc.conta_bancaria == c.nome:
-                        # Esta é a conta de origem - subtrai
-                        saldo_real -= valor_decimal
-                    if hasattr(lanc, 'subcategoria') and lanc.subcategoria == c.nome:
-                        # Esta é a conta de destino - adiciona
-                        saldo_real += valor_decimal
-                elif hasattr(lanc, 'conta_bancaria') and lanc.conta_bancaria == c.nome:
-                    # Receitas e despesas normais
-                    if lanc.tipo == TipoLancamento.RECEITA:
-                        saldo_real += valor_decimal
-                    elif lanc.tipo == TipoLancamento.DESPESA:
-                        saldo_real -= valor_decimal
+        # Calcular saldo real de cada conta
+        contas_com_saldo = []
+        for c in contas:
+            saldo_real = Decimal(str(c.saldo_inicial))
+            
+            # Somar/subtrair lançamentos pagos desta conta
+            for lanc in lancamentos:
+                if lanc.status == StatusLancamento.PAGO:
+                    valor_decimal = Decimal(str(lanc.valor))
+                    
+                    if lanc.tipo == TipoLancamento.TRANSFERENCIA:
+                        # Transferência: origem está em conta_bancaria, destino em subcategoria
+                        if hasattr(lanc, 'conta_bancaria') and lanc.conta_bancaria == c.nome:
+                            # Esta é a conta de origem - subtrai
+                            saldo_real -= valor_decimal
+                        if hasattr(lanc, 'subcategoria') and lanc.subcategoria == c.nome:
+                            # Esta é a conta de destino - adiciona
+                            saldo_real += valor_decimal
+                    elif hasattr(lanc, 'conta_bancaria') and lanc.conta_bancaria == c.nome:
+                        # Receitas e despesas normais
+                        if lanc.tipo == TipoLancamento.RECEITA:
+                            saldo_real += valor_decimal
+                        elif lanc.tipo == TipoLancamento.DESPESA:
+                            saldo_real -= valor_decimal
+            
+            contas_com_saldo.append({
+                'nome': c.nome,
+                'banco': c.banco,
+                'agencia': c.agencia,
+                'conta': c.conta,
+                'saldo_inicial': float(c.saldo_inicial),
+                'saldo': float(saldo_real)  # Saldo real com movimentações
+            })
         
-        contas_com_saldo.append({
-            'nome': c.nome,
-            'banco': c.banco,
-            'agencia': c.agencia,
-            'conta': c.conta,
-            'saldo_inicial': float(c.saldo_inicial),
-            'saldo': float(saldo_real)  # Saldo real com movimentações
-        })
-    
-    return jsonify(contas_com_saldo)
+        return jsonify(contas_com_saldo)
+    except Exception as e:
+        print(f"❌ Erro em /api/contas: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/contas', methods=['POST'])

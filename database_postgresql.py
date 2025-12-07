@@ -556,26 +556,34 @@ class DatabaseManager:
         
         lancamentos = []
         for row in rows:
-            lancamento = Lancamento(
-                id=row['id'],
-                tipo=TipoLancamento(row['tipo'].lower()),
-                descricao=row['descricao'],
-                valor=Decimal(str(row['valor'])),
-                data_vencimento=row['data_vencimento'],
-                data_pagamento=row['data_pagamento'],
-                categoria=row['categoria'],
-                subcategoria=row['subcategoria'],
-                conta_bancaria=row['conta_bancaria'],
-                cliente_fornecedor=row['cliente_fornecedor'],
-                pessoa=row['pessoa'],
-                status=StatusLancamento(row['status'].lower()),
-                observacoes=row['observacoes'],
-                anexo=row['anexo'],
-                recorrente=row['recorrente'],
-                frequencia_recorrencia=row['frequencia_recorrencia'],
-                dia_vencimento=row['dia_vencimento']
-            )
-            lancamentos.append(lancamento)
+            try:
+                # Tratar valores que podem ser None
+                tipo_value = row['tipo'].lower() if row['tipo'] else 'receita'
+                status_value = row['status'].lower() if row['status'] else 'pendente'
+                
+                lancamento = Lancamento(
+                    id=row['id'],
+                    tipo=TipoLancamento(tipo_value),
+                    descricao=row['descricao'],
+                    valor=Decimal(str(row['valor'])),
+                    data_vencimento=row['data_vencimento'],
+                    data_pagamento=row['data_pagamento'],
+                    categoria=row['categoria'] or '',
+                    subcategoria=row['subcategoria'] or '',
+                    conta_bancaria=row['conta_bancaria'] or '',
+                    cliente_fornecedor=row['cliente_fornecedor'] or '',
+                    pessoa=row['pessoa'] or '',
+                    status=StatusLancamento(status_value),
+                    observacoes=row['observacoes'] or '',
+                    anexo=row['anexo'] or '',
+                    recorrente=row['recorrente'] or False,
+                    frequencia_recorrencia=row['frequencia_recorrencia'] or '',
+                    dia_vencimento=row['dia_vencimento'] or 0
+                )
+                lancamentos.append(lancamento)
+            except Exception as e:
+                print(f"❌ Erro ao processar lançamento ID {row.get('id', 'unknown')}: {e}")
+                continue
         
         cursor.close()
         conn.close()
@@ -594,24 +602,28 @@ class DatabaseManager:
             conn.close()
             return None
         
+        # Tratar valores que podem ser None
+        tipo_value = row['tipo'].lower() if row['tipo'] else 'receita'
+        status_value = row['status'].lower() if row['status'] else 'pendente'
+        
         lancamento = Lancamento(
             id=row['id'],
-            tipo=TipoLancamento(row['tipo'].lower()),
+            tipo=TipoLancamento(tipo_value),
             descricao=row['descricao'],
             valor=Decimal(str(row['valor'])),
             data_vencimento=row['data_vencimento'],
             data_pagamento=row['data_pagamento'],
-            categoria=row['categoria'],
-            subcategoria=row['subcategoria'],
-            conta_bancaria=row['conta_bancaria'],
-            cliente_fornecedor=row['cliente_fornecedor'],
-            pessoa=row['pessoa'],
-            status=StatusLancamento(row['status'].lower()),
-            observacoes=row['observacoes'],
-            anexo=row['anexo'],
-            recorrente=row['recorrente'],
-            frequencia_recorrencia=row['frequencia_recorrencia'],
-            dia_vencimento=row['dia_vencimento']
+            categoria=row['categoria'] or '',
+            subcategoria=row['subcategoria'] or '',
+            conta_bancaria=row['conta_bancaria'] or '',
+            cliente_fornecedor=row['cliente_fornecedor'] or '',
+            pessoa=row['pessoa'] or '',
+            status=StatusLancamento(status_value),
+            observacoes=row['observacoes'] or '',
+            anexo=row['anexo'] or '',
+            recorrente=row['recorrente'] or False,
+            frequencia_recorrencia=row['frequencia_recorrencia'] or '',
+            dia_vencimento=row['dia_vencimento'] or 0
         )
         
         cursor.close()
