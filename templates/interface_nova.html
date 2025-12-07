@@ -2205,6 +2205,22 @@
                     toggleBtn.textContent = '«';
                     toggleBtn.title = 'Ocultar Menu';
                 }
+                
+                // Redimensionar gráficos após transição (300ms)
+                setTimeout(() => {
+                    if (window.dashboardChart) {
+                        window.dashboardChart.resize();
+                        console.log('✓ Gráfico do dashboard redimensionado');
+                    }
+                    
+                    // Redimensionar todos os gráficos Chart.js ativos
+                    Object.keys(Chart.instances).forEach(key => {
+                        const chart = Chart.instances[key];
+                        if (chart) {
+                            chart.resize();
+                        }
+                    });
+                }, 350);
             }
         }
         
