@@ -642,26 +642,35 @@ class DatabaseManager:
         conn.close()
         return sucesso
     
-    def pagar_lancamento(self, lancamento_id: int, data_pagamento: date,
+    def pagar_lancamento(self, lancamento_id: int, conta: str = '', data_pagamento: date = None,
+                        juros: float = 0, desconto: float = 0, observacoes: str = '',
                         valor_pago: Optional[Decimal] = None) -> bool:
         """Marca um lançamento como pago"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
+        # Se não passar data_pagamento, usar a data atual
+        if not data_pagamento:
+            data_pagamento = date.today()
+        
         if valor_pago:
             cursor.execute("""
                 UPDATE lancamentos 
-                SET status = %s, data_pagamento = %s, valor = %s,
+                SET status = %s, data_pagamento = %s, valor = %s, 
+                    conta_bancaria = %s, juros = %s, desconto = %s, observacoes = %s,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
-            """, (StatusLancamento.PAGO.value, data_pagamento, float(valor_pago), lancamento_id))
+            """, (StatusLancamento.PAGO.value, data_pagamento, float(valor_pago), 
+                  conta, juros, desconto, observacoes, lancamento_id))
         else:
             cursor.execute("""
                 UPDATE lancamentos 
                 SET status = %s, data_pagamento = %s,
+                    conta_bancaria = %s, juros = %s, desconto = %s, observacoes = %s,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
-            """, (StatusLancamento.PAGO.value, data_pagamento, lancamento_id))
+            """, (StatusLancamento.PAGO.value, data_pagamento, 
+                  conta, juros, desconto, observacoes, lancamento_id))
         
         sucesso = cursor.rowcount > 0
         cursor.close()
@@ -804,10 +813,11 @@ def excluir_lancamento(lancamento_id: int) -> bool:
     db = DatabaseManager()
     return db.excluir_lancamento(lancamento_id)
 
-def pagar_lancamento(lancamento_id: int, data_pagamento: date,
+def pagar_lancamento(lancamento_id: int, conta: str = '', data_pagamento: date = None,
+                    juros: float = 0, desconto: float = 0, observacoes: str = '',
                     valor_pago: Optional[Decimal] = None) -> bool:
     db = DatabaseManager()
-    return db.pagar_lancamento(lancamento_id, data_pagamento, valor_pago)
+    return db.pagar_lancamento(lancamento_id, conta, data_pagamento, juros, desconto, observacoes, valor_pago)
 
 def cancelar_lancamento(lancamento_id: int) -> bool:
     db = DatabaseManager()

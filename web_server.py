@@ -1235,6 +1235,8 @@ def liquidar_lancamento(lancamento_id):
         conta = data.get('conta_bancaria', '')
         data_pagamento_str = data.get('data_pagamento', '')
         juros = float(data.get('juros', 0))
+        desconto = float(data.get('desconto', 0))
+        observacoes = data.get('observacoes', '')
         
         if not conta:
             return jsonify({'success': False, 'error': 'Conta bancária é obrigatória'}), 400
@@ -1242,9 +1244,9 @@ def liquidar_lancamento(lancamento_id):
         if not data_pagamento_str or data_pagamento_str.strip() == '':
             return jsonify({'success': False, 'error': 'Data de pagamento é obrigatória'}), 400
         
-        data_pagamento = datetime.fromisoformat(data_pagamento_str)
+        data_pagamento = datetime.fromisoformat(data_pagamento_str).date()
         
-        success = db_pagar_lancamento(lancamento_id, conta, data_pagamento, juros)
+        success = db_pagar_lancamento(lancamento_id, conta, data_pagamento, juros, desconto, observacoes)
         return jsonify({'success': success})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
