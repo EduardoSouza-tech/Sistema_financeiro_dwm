@@ -2244,10 +2244,32 @@
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('calc-display').value = '0';
             
+            // Definir ano e mês atuais nos filtros do dashboard
+            const hoje = new Date();
+            const anoAtual = hoje.getFullYear();
+            const mesAtual = hoje.getMonth() + 1; // getMonth() retorna 0-11
+            
+            const inputAno = document.getElementById('filter-ano-dashboard');
+            const selectMes = document.getElementById('filter-mes-dashboard');
+            
+            if (inputAno) {
+                inputAno.value = anoAtual;
+            }
+            if (selectMes) {
+                selectMes.value = mesAtual;
+            }
+            
             // Carregar contas bancárias no início
             if (typeof loadContasBancarias === 'function') {
                 console.log('Carregando contas bancárias...');
                 loadContasBancarias();
+            }
+            
+            // Carregar dashboard automaticamente
+            if (typeof carregarDashboard === 'function') {
+                setTimeout(() => {
+                    carregarDashboard();
+                }, 1000);
             }
         });
 

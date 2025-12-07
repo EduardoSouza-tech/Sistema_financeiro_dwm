@@ -4059,24 +4059,161 @@ window.exportarContasReceberPDF = exportarContasReceberPDF;
 
 // === FUNÇÕES DO DASHBOARD ===
 
-function carregarDashboard() {
+async function carregarDashboard() {
     console.log('Carregando dashboard...');
-    // Recarregar os dados do dashboard
-    if (typeof loadDashboardData === 'function') {
-        loadDashboardData();
+    
+    try {
+        // Obter filtros
+        const ano = document.getElementById('filter-ano-dashboard')?.value || new Date().getFullYear();
+        const mes = document.getElementById('filter-mes-dashboard')?.value || '';
+        
+        // Definir período baseado nos filtros
+        let dataInicio, dataFim;
+        
+        if (mes) {
+            // Mês específico
+            dataInicio = `${ano}-${mes.padStart(2, '0')}-01`;
+            const ultimoDia = new Date(ano, parseInt(mes), 0).getDate();
+            dataFim = `${ano}-${mes.padStart(2, '0')}-${ultimoDia}`;
+        } else {
+            // Ano inteiro
+            dataInicio = `${ano}-01-01`;
+            dataFim = `${ano}-12-31`;
+        }
+        
+        // Buscar lançamentos do período
+        const [receitas, despesas] = await Promise.all([
+            fetch(`/api/lancamentos?tipo=RECEITA&data_inicio=${dataInicio}&data_fim=${dataFim}`).then(r => r.json()),
+            fetch(`/api/lancamentos?tipo=DESPESA&data_inicio=${dataInicio}&data_fim=${dataFim}`).then(r => r.json())
+        ]);
+        
+        console.log(`📊 Dashboard: ${receitas.length} receitas, ${despesas.length} despesas`);
+        
+        // Atualizar gráfico
+        atualizarGraficoCrescimento(receitas, despesas, ano, mes);
+        
+        // Atualizar análises detalhadas se a função existir
+        if (typeof atualizarAnalisesDetalhadas === 'function') {
+            atualizarAnalisesDetalhadas(receitas, despesas);
+        }
+        
+    } catch (error) {
+        console.error('Erro ao carregar dashboard:', error);
+        showToast('Erro ao carregar dados do dashboard', 'error');
     }
-    // Atualizar gráfico se existir
-    if (typeof atualizarGraficoCrescimento === 'function') {
-        atualizarGraficoCrescimento();
+}
+
+function atualizarGraficoCrescimento(receitas, despesas, ano, mes) {
+    const canvas = document.getElementById('grafico-crescimento');
+    if (!canvas) {
+        console.log('Canvas do gráfico não encontrado');
+        return;
     }
+    
+    // Preparar dados mensais
+    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const dadosReceitas = new Array(12).fill(0);
+    const dadosDespesas = new Array(12).fill(0);
+    
+    // Agrupar receitas por mês
+    receitas.forEach(r => {
+        if (r.status === 'pago' || r.status === 'PAGO') {
+            const data = new Date(r.data_pagamento || r.data_vencimento);
+            const mesIndex = data.getMonth();
+            dadosReceitas[mesIndex] += parseFloat(r.valor);
+        }
+    });
+    
+    // Agrupar despesas por mês
+    despesas.forEach(d => {
+        if (d.status === 'pago' || d.status === 'PAGO') {
+            const data = new Date(d.data_pagamento || d.data_vencimento);
+            const mesIndex = data.getMonth();
+            dadosDespesas[mesIndex] += parseFloat(d.valor);
+        }
+    });
+    
+    // Calcular saldo acumulado
+    const saldoAcumulado = [];
+    let acumulado = 0;
+    for (let i = 0; i < 12; i++) {
+        acumulado += dadosReceitas[i] - dadosDespesas[i];
+        saldoAcumulado.push(acumulado);
+    }
+    
+    // Se Chart.js não estiver disponível, mostrar mensagem
+    if (typeof Chart === 'undefined') {
+        canvas.parentElement.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">' +
+            '<p style="font-size: 16px; margin-bottom: 10px;">📊 Gráfico de Evolução Financeira</p>' +
+            '<p style="font-size: 14px;">Receitas: R$ ' + dadosReceitas.reduce((a, b) => a + b, 0).toLocaleString('pt-BR', {minimumFractionDigits: 2}) + '</p>' +
+            '<p style="font-size: 14px;">Despesas: R$ ' + dadosDespesas.reduce((a, b) => a + b, 0).toLocaleString('pt-BR', {minimumFractionDigits: 2}) + '</p>' +
+            '<p style="font-size: 14px; font-weight: bold; color: ' + (acumulado >= 0 ? '#27ae60' : '#e74c3c') + ';">Saldo: R$ ' + acumulado.toLocaleString('pt-BR', {minimumFractionDigits: 2}) + '</p>' +
+            '</div>';
+        return;
+    }
+    
+    // Destruir gráfico anterior se existir
+    if (window.graficoCrescimento) {
+        window.graficoCrescimento.destroy();
+    }
+    
+    // Criar novo gráfico
+    const ctx = canvas.getContext('2d');
+    window.graficoCrescimento = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: meses,
+            datasets: [{
+                label: 'Receitas',
+                data: dadosReceitas,
+                borderColor: '#27ae60',
+                backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                tension: 0.4
+            }, {
+                label: 'Despesas',
+                data: dadosDespesas,
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                tension: 0.4
+            }, {
+                label: 'Saldo Acumulado',
+                data: saldoAcumulado,
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: `Evolução Financeira - ${ano}`
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'R$ ' + value.toLocaleString('pt-BR');
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    console.log('✅ Gráfico atualizado com sucesso');
 }
 
 function carregarIndicadores() {
     console.log('Carregando indicadores...');
-    // Carregar indicadores financeiros
-    if (typeof loadDashboardData === 'function') {
-        loadDashboardData();
-    }
+    carregarDashboard();
 }
 
 function aplicarFiltroPeriodoIndicadores() {
