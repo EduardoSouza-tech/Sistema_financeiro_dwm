@@ -4612,8 +4612,7 @@ async function atualizarBadgeInadimplencia() {
     try {
         console.log('🔄 Atualizando badge de inadimplência...');
         
-        const hoje = new Date().toISOString().split('T')[0];
-        const response = await fetch(`/api/lancamentos?status=PENDENTE&data_fim=${hoje}`);
+        const response = await fetch('/api/lancamentos');
         
         if (!response.ok) {
             throw new Error(`Erro na API: ${response.status}`);
@@ -4621,14 +4620,16 @@ async function atualizarBadgeInadimplencia() {
         
         const lancamentos = await response.json();
         
-        // Filtrar apenas vencidos (data_vencimento < hoje)
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        
+        // Filtrar apenas RECEITAS pendentes e vencidas (mesma lógica da carregarInadimplencia)
         const inadimplentes = lancamentos.filter(l => {
-            if (l.data_vencimento) {
-                const vencimento = new Date(l.data_vencimento + 'T00:00:00');
-                const hj = new Date(hoje + 'T00:00:00');
-                return vencimento < hj;
-            }
-            return false;
+            if (!l.status || l.status.toLowerCase() !== 'pendente') return false;
+            if (!l.tipo || l.tipo.toLowerCase() !== 'receita') return false;
+            
+            const dataVenc = new Date(l.data_vencimento);
+            return dataVenc < hoje;
         });
         
         // Atualizar badge
