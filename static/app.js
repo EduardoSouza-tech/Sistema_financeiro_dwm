@@ -1244,19 +1244,17 @@ async function liquidarLancamento(id, tipo) {
 async function confirmarLiquidacao(event) {
     event.preventDefault();
     
-    const data = document.getElementById('liquidacao-data').value;
-    const conta = document.getElementById('liquidacao-conta').value;
-    const juros = parseFloat(document.getElementById('liquidacao-juros').value) || 0;
-    const desconto = parseFloat(document.getElementById('liquidacao-desconto').value) || 0;
-    const observacoes = document.getElementById('liquidacao-observacoes').value;
+    const data = document.getElementById('liquidacao-data')?.value;
+    const conta = document.getElementById('liquidacao-banco')?.value; // Corrigido: era liquidacao-conta
+    const juros = parseFloat(document.getElementById('liquidacao-juros')?.value) || 0;
     
     // Validação adicional
-    if (!data || data.trim() === '') {
+    if (!data) {
         showToast('❌ Data de pagamento é obrigatória', 'error');
         return;
     }
     
-    if (!conta || conta.trim() === '') {
+    if (!conta) {
         showToast('❌ Conta bancária é obrigatória', 'error');
         return;
     }
@@ -1270,9 +1268,7 @@ async function confirmarLiquidacao(event) {
             body: JSON.stringify({ 
                 data_pagamento: data,
                 conta_bancaria: conta,
-                juros: juros,
-                desconto: desconto,
-                observacoes: observacoes
+                juros: juros
             })
         });
         
