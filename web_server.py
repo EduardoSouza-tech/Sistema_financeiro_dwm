@@ -591,13 +591,51 @@ def adicionar_lancamento():
 def obter_lancamento_route(lancamento_id):
     """Retorna os dados de um lançamento específico"""
     try:
+        print(f"\n{'='*80}")
+        print(f"🔍 GET /api/lancamentos/{lancamento_id}")
+        print(f"{'='*80}")
+        
         lancamento = db_obter_lancamento(lancamento_id)
+        print(f"Resultado db_obter_lancamento: {lancamento}")
+        print(f"Tipo: {type(lancamento)}")
+        
         if lancamento:
-            return jsonify(lancamento), 200
+            # Converter Lancamento para dict
+            lancamento_dict = {
+                'id': lancamento.id,
+                'tipo': lancamento.tipo.value if hasattr(lancamento.tipo, 'value') else str(lancamento.tipo),
+                'descricao': lancamento.descricao,
+                'valor': float(lancamento.valor),
+                'data_vencimento': lancamento.data_vencimento.isoformat() if lancamento.data_vencimento else None,
+                'data_pagamento': lancamento.data_pagamento.isoformat() if lancamento.data_pagamento else None,
+                'categoria': lancamento.categoria,
+                'subcategoria': lancamento.subcategoria,
+                'conta_bancaria': lancamento.conta_bancaria,
+                'cliente_fornecedor': lancamento.cliente_fornecedor,
+                'pessoa': lancamento.pessoa,
+                'status': lancamento.status.value if hasattr(lancamento.status, 'value') else str(lancamento.status),
+                'observacoes': lancamento.observacoes,
+                'anexo': lancamento.anexo,
+                'recorrente': lancamento.recorrente,
+                'frequencia_recorrencia': lancamento.frequencia_recorrencia,
+                'dia_vencimento': lancamento.dia_vencimento,
+                'juros': float(getattr(lancamento, 'juros', 0)),
+                'desconto': float(getattr(lancamento, 'desconto', 0))
+            }
+            print(f"✅ Lançamento convertido para dict: {lancamento_dict}")
+            print(f"{'='*80}\n")
+            return jsonify(lancamento_dict), 200
         else:
+            print(f"❌ Lançamento não encontrado")
+            print(f"{'='*80}\n")
             return jsonify({'error': 'Lançamento não encontrado'}), 404
     except Exception as e:
-        print(f"ERRO ao obter lançamento: {str(e)}")
+        print(f"❌ ERRO ao obter lançamento:")
+        print(f"   Tipo: {type(e).__name__}")
+        print(f"   Mensagem: {str(e)}")
+        import traceback
+        print(f"   Traceback:\n{traceback.format_exc()}")
+        print(f"{'='*80}\n")
         return jsonify({'error': str(e)}), 500
 
 
