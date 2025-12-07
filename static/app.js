@@ -4460,11 +4460,158 @@ function exportarIndicadoresExcel() {
     alert('Funcionalidade de exportação Excel em desenvolvimento');
 }
 
+async function carregarInadimplencia() {
+    console.log('Carregando inadimplência...');
+    
+    try {
+        const response = await fetch('/api/lancamentos');
+        const lancamentos = await response.json();
+        
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        
+        // Filtrar lançamentos vencidos e pendentes
+        const inadimplentes = lancamentos.filter(l => {
+            if (!l.status || l.status.toLowerCase() !== 'pendente') return false;
+            if (!l.tipo || l.tipo.toLowerCase() !== 'receita') return false;
+            
+            const dataVenc = new Date(l.data_vencimento);
+            return dataVenc < hoje;
+        });
+        
+        console.log('📊 Total inadimplentes:', inadimplentes.length);
+        
+        // Calcular valores
+        const totalInadimplente = inadimplentes.reduce((sum, l) => sum + (l.valor || 0), 0);
+        
+        // Agrupar por dias de atraso
+        const atrasos = {
+            '0-30': [],
+            '31-60': [],
+            '61-90': [],
+            '90+': []
+        };
+        
+        inadimplentes.forEach(l => {
+            const dataVenc = new Date(l.data_vencimento);
+            const diasAtraso = Math.floor((hoje - dataVenc) / (1000 * 60 * 60 * 24));
+            
+            if (diasAtraso <= 30) atrasos['0-30'].push(l);
+            else if (diasAtraso <= 60) atrasos['31-60'].push(l);
+            else if (diasAtraso <= 90) atrasos['61-90'].push(l);
+            else atrasos['90+'].push(l);
+        });
+        
+        // Renderizar HTML
+        const content = document.getElementById('inadimplencia-content');
+        content.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 20px; border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">⚠️ Total Inadimplente</div>
+                    <div style="font-size: 28px; font-weight: bold;">R$ ${totalInadimplente.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-top: 8px;">${inadimplentes.length} lançamentos</div>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); padding: 20px; border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">⏰ 0-30 dias</div>
+                    <div style="font-size: 28px; font-weight: bold;">R$ ${atrasos['0-30'].reduce((s, l) => s + l.valor, 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-top: 8px;">${atrasos['0-30'].length} lançamentos</div>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #e67e22 0%, #d35400 100%); padding: 20px; border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">⏰ 31-60 dias</div>
+                    <div style="font-size: 28px; font-weight: bold;">R$ ${atrasos['31-60'].reduce((s, l) => s + l.valor, 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-top: 8px;">${atrasos['31-60'].length} lançamentos</div>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #c0392b 0%, #8e44ad 100%); padding: 20px; border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">🚨 90+ dias</div>
+                    <div style="font-size: 28px; font-weight: bold;">R$ ${atrasos['90+'].reduce((s, l) => s + l.valor, 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-top: 8px;">${atrasos['90+'].length} lançamentos</div>
+                </div>
+            </div>
+            
+            <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                <h3 style="margin: 0 0 20px 0; color: #2c3e50;">📋 Lançamentos Inadimplentes</h3>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                <th style="padding: 12px; text-align: left; font-size: 13px; color: #495057;">Descrição</th>
+                                <th style="padding: 12px; text-align: left; font-size: 13px; color: #495057;">Cliente</th>
+                                <th style="padding: 12px; text-align: center; font-size: 13px; color: #495057;">Vencimento</th>
+                                <th style="padding: 12px; text-align: center; font-size: 13px; color: #495057;">Dias Atraso</th>
+                                <th style="padding: 12px; text-align: right; font-size: 13px; color: #495057;">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${inadimplentes.length === 0 ? 
+                                '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #27ae60;">✅ Nenhum lançamento inadimplente</td></tr>' :
+                                inadimplentes.map(l => {
+                                    const dataVenc = new Date(l.data_vencimento);
+                                    const diasAtraso = Math.floor((hoje - dataVenc) / (1000 * 60 * 60 * 24));
+                                    let corAtraso = '#f39c12';
+                                    if (diasAtraso > 60) corAtraso = '#e74c3c';
+                                    else if (diasAtraso > 30) corAtraso = '#e67e22';
+                                    
+                                    return `
+                                        <tr style="border-bottom: 1px solid #dee2e6;">
+                                            <td style="padding: 12px; font-size: 13px;">${l.descricao || '-'}</td>
+                                            <td style="padding: 12px; font-size: 13px;">${l.cliente_nome || '-'}</td>
+                                            <td style="padding: 12px; text-align: center; font-size: 13px;">${dataVenc.toLocaleDateString('pt-BR')}</td>
+                                            <td style="padding: 12px; text-align: center; font-size: 13px;">
+                                                <span style="background: ${corAtraso}; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;">
+                                                    ${diasAtraso} dias
+                                                </span>
+                                            </td>
+                                            <td style="padding: 12px; text-align: right; font-size: 13px; font-weight: bold; color: #e74c3c;">
+                                                R$ ${l.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        // Atualizar badge
+        const badge = document.getElementById('badge-inadimplencia');
+        if (badge) badge.textContent = inadimplentes.length;
+        
+        console.log('✅ Inadimplência carregada com sucesso');
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar inadimplência:', error);
+        document.getElementById('inadimplencia-content').innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #e74c3c;">
+                <p>❌ Erro ao carregar inadimplência</p>
+                <p style="font-size: 14px;">${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+function exportarInadimplenciaPDF() {
+    console.log('Exportando inadimplência em PDF...');
+    alert('Funcionalidade de exportação PDF em desenvolvimento');
+}
+
+function exportarInadimplenciaExcel() {
+    console.log('Exportando inadimplência em Excel...');
+    alert('Funcionalidade de exportação Excel em desenvolvimento');
+}
+
 // Exportar funções globalmente
 window.carregarDashboard = carregarDashboard;
 window.carregarIndicadores = carregarIndicadores;
 window.aplicarFiltroPeriodoIndicadores = aplicarFiltroPeriodoIndicadores;
 window.exportarIndicadoresPDF = exportarIndicadoresPDF;
 window.exportarIndicadoresExcel = exportarIndicadoresExcel;
+window.carregarInadimplencia = carregarInadimplencia;
+window.exportarInadimplenciaPDF = exportarInadimplenciaPDF;
+window.exportarInadimplenciaExcel = exportarInadimplenciaExcel;
 
 console.log('✓ Sistema Financeiro - app.js v20251205filtro3 carregado');
