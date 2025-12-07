@@ -1822,17 +1822,17 @@ async function carregarFluxoCaixa() {
         
         html += `
             <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <table style="width: 100%; border-collapse: collapse;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                     <thead>
-                        <tr style="background: #34495e; color: white;">
-                            <th style="padding: 12px; text-align: left;">Data Pagamento</th>
-                            <th style="padding: 12px; text-align: left;">Tipo</th>
-                            <th style="padding: 12px; text-align: left;">Razão Social</th>
-                            <th style="padding: 12px; text-align: left;">Categoria</th>
-                            <th style="padding: 12px; text-align: left;">Subcategoria</th>
-                            <th style="padding: 12px; text-align: left;">Descrição</th>
-                            <th style="padding: 12px; text-align: left;">Banco</th>
-                            <th style="padding: 12px; text-align: right;">Valor</th>
+                        <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <th style="padding: 10px 12px; text-align: left; color: #ffffff; font-weight: 600; font-size: 12px;">Data Pagamento</th>
+                            <th style="padding: 10px 12px; text-align: left; color: #ffffff; font-weight: 600; font-size: 12px;">Tipo</th>
+                            <th style="padding: 10px 12px; text-align: left; color: #ffffff; font-weight: 600; font-size: 12px;">Razão Social</th>
+                            <th style="padding: 10px 12px; text-align: left; color: #ffffff; font-weight: 600; font-size: 12px;">Categoria</th>
+                            <th style="padding: 10px 12px; text-align: left; color: #ffffff; font-weight: 600; font-size: 12px;">Subcategoria</th>
+                            <th style="padding: 10px 12px; text-align: left; color: #ffffff; font-weight: 600; font-size: 12px;">Descrição</th>
+                            <th style="padding: 10px 12px; text-align: left; color: #ffffff; font-weight: 600; font-size: 12px;">Banco</th>
+                            <th style="padding: 10px 12px; text-align: right; color: #ffffff; font-weight: 600; font-size: 12px;">Valor</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1857,14 +1857,14 @@ async function carregarFluxoCaixa() {
                 
                 html += `
                     <tr style="border-bottom: 1px solid #ecf0f1;">
-                        <td style="padding: 12px; color: #2c3e50; font-weight: 500;">${dataPagamento}</td>
-                        <td style="padding: 12px;"><span style="color: ${cor}; font-weight: 600;">${tipo}</span></td>
-                        <td style="padding: 12px; color: #2c3e50; font-weight: 500;">${l.pessoa || '-'}</td>
-                        <td style="padding: 12px; color: #2c3e50; font-weight: 500;">${l.categoria || '-'}</td>
-                        <td style="padding: 12px; color: #2c3e50; font-weight: 500;">${l.subcategoria || '-'}</td>
-                        <td style="padding: 12px; color: #2c3e50;">${l.descricao || '-'}</td>
-                        <td style="padding: 12px; color: #2c3e50; font-weight: 500;">${l.conta_bancaria || '-'}</td>
-                        <td style="padding: 12px; text-align: right; font-weight: bold; color: ${cor};">R$ ${l.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                        <td style="padding: 10px 12px; color: #2c3e50; font-size: 12px;">${dataPagamento}</td>
+                        <td style="padding: 10px 12px;"><span style="color: ${cor}; font-weight: 600; font-size: 12px;">${tipo}</span></td>
+                        <td style="padding: 10px 12px; color: #2c3e50; font-size: 12px;">${l.pessoa || '-'}</td>
+                        <td style="padding: 10px 12px; color: #2c3e50; font-size: 12px;">${l.categoria || '-'}</td>
+                        <td style="padding: 10px 12px; color: #2c3e50; font-size: 12px;">${l.subcategoria || '-'}</td>
+                        <td style="padding: 10px 12px; color: #7f8c8d; font-size: 11px;">${l.descricao || '-'}</td>
+                        <td style="padding: 10px 12px; color: #34495e; font-size: 11px;">${l.conta_bancaria || '-'}</td>
+                        <td style="padding: 10px 12px; text-align: right; font-weight: bold; color: ${cor}; font-size: 13px;">R$ ${l.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
                     </tr>
                 `;
             });
