@@ -1246,7 +1246,7 @@ async function confirmarLiquidacao(event) {
     
     console.log('=== DEBUG LIQUIDAÇÃO ===');
     const dataElement = document.getElementById('liquidacao-data');
-    const contaElement = document.getElementById('liquidacao-banco');
+    const contaElement = document.getElementById('liquidacao-conta'); // Corrigido: era liquidacao-banco
     console.log('Elemento data:', dataElement);
     console.log('Elemento conta:', contaElement);
     
