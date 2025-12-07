@@ -2189,6 +2189,16 @@
         // NAVEGAÇÃO DE SEÇÕES
         // ====================================
         
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('.main-content');
+            
+            if (sidebar && mainContent) {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('expanded');
+            }
+        }
+        
         function showSection(sectionId) {
             // Ocultar todas as seções
             const sections = document.querySelectorAll('.content-card');

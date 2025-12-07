@@ -4236,6 +4236,8 @@ async function carregarIndicadores() {
         const periodoSelect = document.getElementById('filter-periodo-indicadores');
         const periodo = periodoSelect ? periodoSelect.value : '365';
         
+        console.log('📅 Período selecionado:', periodo);
+        
         // Calcular data inicial baseada no período
         const dataFim = new Date();
         const dataInicio = new Date();
@@ -4251,9 +4253,14 @@ async function carregarIndicadores() {
             dataInicio.setDate(dataFim.getDate() - parseInt(periodo));
         }
         
+        console.log('📅 Data início:', dataInicio.toLocaleDateString('pt-BR'));
+        console.log('📅 Data fim:', dataFim.toLocaleDateString('pt-BR'));
+        
         // Buscar lançamentos
         const response = await fetch('/api/lancamentos');
         const lancamentos = await response.json();
+        
+        console.log('📦 Total de lançamentos:', lancamentos.length);
         
         // Filtrar por período
         const lancamentosFiltrados = lancamentos.filter(l => {
@@ -4261,13 +4268,22 @@ async function carregarIndicadores() {
             return dataLanc >= dataInicio && dataLanc <= dataFim;
         });
         
+        console.log('📦 Lançamentos filtrados:', lancamentosFiltrados.length);
+        
         // Calcular indicadores
         const receitas = lancamentosFiltrados.filter(l => l.tipo === 'RECEITA');
         const despesas = lancamentosFiltrados.filter(l => l.tipo === 'DESPESA');
         
+        console.log('💰 Receitas:', receitas.length);
+        console.log('💸 Despesas:', despesas.length);
+        
         const totalReceitas = receitas.reduce((sum, l) => sum + (l.valor || 0), 0);
         const totalDespesas = despesas.reduce((sum, l) => sum + (l.valor || 0), 0);
         const saldoPeriodo = totalReceitas - totalDespesas;
+        
+        console.log('💰 Total Receitas: R$', totalReceitas.toFixed(2));
+        console.log('💸 Total Despesas: R$', totalDespesas.toFixed(2));
+        console.log('💵 Saldo: R$', saldoPeriodo.toFixed(2));
         
         const receitasRecebidas = receitas.filter(l => l.status === 'PAGO');
         const despesasPagas = despesas.filter(l => l.status === 'PAGO');
