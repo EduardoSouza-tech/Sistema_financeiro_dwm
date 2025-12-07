@@ -4228,19 +4228,221 @@ function atualizarGraficoCrescimento(receitas, despesas, ano, mes) {
     console.log('✅ Gráfico atualizado com sucesso');
 }
 
-function carregarIndicadores() {
+async function carregarIndicadores() {
     console.log('Carregando indicadores...');
-    carregarDashboard();
+    
+    try {
+        // Obter período selecionado
+        const periodoSelect = document.getElementById('filter-periodo-indicadores');
+        const periodo = periodoSelect ? periodoSelect.value : '365';
+        
+        // Calcular data inicial baseada no período
+        const dataFim = new Date();
+        const dataInicio = new Date();
+        
+        if (periodo === 'custom') {
+            const dataInicioInput = document.getElementById('filter-data-inicio-indicadores');
+            const dataFimInput = document.getElementById('filter-data-fim-indicadores');
+            if (dataInicioInput && dataFimInput) {
+                dataInicio.setTime(new Date(dataInicioInput.value).getTime());
+                dataFim.setTime(new Date(dataFimInput.value).getTime());
+            }
+        } else {
+            dataInicio.setDate(dataFim.getDate() - parseInt(periodo));
+        }
+        
+        // Buscar lançamentos
+        const response = await fetch('/api/lancamentos');
+        const lancamentos = await response.json();
+        
+        // Filtrar por período
+        const lancamentosFiltrados = lancamentos.filter(l => {
+            const dataLanc = new Date(l.data_vencimento);
+            return dataLanc >= dataInicio && dataLanc <= dataFim;
+        });
+        
+        // Calcular indicadores
+        const receitas = lancamentosFiltrados.filter(l => l.tipo === 'RECEITA');
+        const despesas = lancamentosFiltrados.filter(l => l.tipo === 'DESPESA');
+        
+        const totalReceitas = receitas.reduce((sum, l) => sum + (l.valor || 0), 0);
+        const totalDespesas = despesas.reduce((sum, l) => sum + (l.valor || 0), 0);
+        const saldoPeriodo = totalReceitas - totalDespesas;
+        
+        const receitasRecebidas = receitas.filter(l => l.status === 'PAGO');
+        const despesasPagas = despesas.filter(l => l.status === 'PAGO');
+        
+        const totalReceitasRecebidas = receitasRecebidas.reduce((sum, l) => sum + (l.valor || 0), 0);
+        const totalDespesasPagas = despesasPagas.reduce((sum, l) => sum + (l.valor || 0), 0);
+        
+        const receitasPendentes = receitas.filter(l => l.status === 'PENDENTE');
+        const despesasPendentes = despesas.filter(l => l.status === 'PENDENTE');
+        
+        const totalReceitasPendentes = receitasPendentes.reduce((sum, l) => sum + (l.valor || 0), 0);
+        const totalDespesasPendentes = despesasPendentes.reduce((sum, l) => sum + (l.valor || 0), 0);
+        
+        // Taxa de recebimento
+        const taxaRecebimento = receitas.length > 0 ? (receitasRecebidas.length / receitas.length * 100) : 0;
+        const taxaPagamento = despesas.length > 0 ? (despesasPagas.length / despesas.length * 100) : 0;
+        
+        // Ticket médio
+        const ticketMedioReceita = receitas.length > 0 ? totalReceitas / receitas.length : 0;
+        const ticketMedioDespesa = despesas.length > 0 ? totalDespesas / despesas.length : 0;
+        
+        // Renderizar HTML
+        const content = document.getElementById('indicadores-content');
+        content.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">💰 Total Receitas</div>
+                    <div style="font-size: 28px; font-weight: bold;">R$ ${totalReceitas.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-top: 8px;">${receitas.length} lançamentos</div>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">💸 Total Despesas</div>
+                    <div style="font-size: 28px; font-weight: bold;">R$ ${totalDespesas.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-top: 8px;">${despesas.length} lançamentos</div>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, ${saldoPeriodo >= 0 ? '#11998e 0%, #38ef7d' : '#ee0979 0%, #ff6a00'} 100%); padding: 20px; border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">${saldoPeriodo >= 0 ? '✅' : '⚠️'} Saldo do Período</div>
+                    <div style="font-size: 28px; font-weight: bold;">R$ ${saldoPeriodo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-top: 8px;">${((totalReceitas / (totalDespesas || 1)) * 100).toFixed(1)}% de margem</div>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">📊 Ticket Médio Receita</div>
+                    <div style="font-size: 28px; font-weight: bold;">R$ ${ticketMedioReceita.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-top: 8px;">Por lançamento</div>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                <div style="background: white; padding: 20px; border-radius: 12px; border: 2px solid #27ae60; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                    <div style="font-size: 14px; color: #27ae60; margin-bottom: 8px; font-weight: 600;">✅ Receitas Recebidas</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #27ae60;">R$ ${totalReceitasRecebidas.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div style="font-size: 12px; color: #666; margin-top: 8px;">${receitasRecebidas.length} de ${receitas.length} (${taxaRecebimento.toFixed(1)}%)</div>
+                </div>
+                
+                <div style="background: white; padding: 20px; border-radius: 12px; border: 2px solid #e74c3c; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                    <div style="font-size: 14px; color: #e74c3c; margin-bottom: 8px; font-weight: 600;">✅ Despesas Pagas</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #e74c3c;">R$ ${totalDespesasPagas.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div style="font-size: 12px; color: #666; margin-top: 8px;">${despesasPagas.length} de ${despesas.length} (${taxaPagamento.toFixed(1)}%)</div>
+                </div>
+                
+                <div style="background: white; padding: 20px; border-radius: 12px; border: 2px solid #f39c12; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                    <div style="font-size: 14px; color: #f39c12; margin-bottom: 8px; font-weight: 600;">⏳ Receitas Pendentes</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #f39c12;">R$ ${totalReceitasPendentes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div style="font-size: 12px; color: #666; margin-top: 8px;">${receitasPendentes.length} lançamentos</div>
+                </div>
+                
+                <div style="background: white; padding: 20px; border-radius: 12px; border: 2px solid #e67e22; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                    <div style="font-size: 14px; color: #e67e22; margin-bottom: 8px; font-weight: 600;">⏳ Despesas Pendentes</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #e67e22;">R$ ${totalDespesasPendentes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div style="font-size: 12px; color: #666; margin-top: 8px;">${despesasPendentes.length} lançamentos</div>
+                </div>
+            </div>
+            
+            <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 30px;">
+                <h3 style="margin: 0 0 20px 0; color: #2c3e50;">📈 Distribuição Receitas vs Despesas</h3>
+                <canvas id="chart-indicadores" style="max-height: 400px;"></canvas>
+            </div>
+        `;
+        
+        // Criar gráfico
+        const ctx = document.getElementById('chart-indicadores');
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Receitas', 'Despesas'],
+                    datasets: [{
+                        data: [totalReceitas, totalDespesas],
+                        backgroundColor: [
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(231, 76, 60, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(102, 126, 234, 1)',
+                            'rgba(231, 76, 60, 1)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Distribuição de Receitas e Despesas'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: R$ ${value.toLocaleString('pt-BR', {minimumFractionDigits: 2})} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            console.log('✅ Gráfico de indicadores criado com sucesso');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar indicadores:', error);
+        document.getElementById('indicadores-content').innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #e74c3c;">
+                <p>❌ Erro ao carregar indicadores</p>
+                <p style="font-size: 14px;">${error.message}</p>
+            </div>
+        `;
+    }
 }
 
 function aplicarFiltroPeriodoIndicadores() {
     console.log('Aplicando filtro de período...');
-    carregarIndicadores();
+    
+    // Mostrar/ocultar campos de data personalizada
+    const periodo = document.getElementById('filter-periodo-indicadores').value;
+    const divInicio = document.getElementById('filtro-data-inicio-indicadores');
+    const divFim = document.getElementById('filtro-data-fim-indicadores');
+    
+    if (periodo === 'custom') {
+        if (divInicio) divInicio.style.display = 'block';
+        if (divFim) divFim.style.display = 'block';
+    } else {
+        if (divInicio) divInicio.style.display = 'none';
+        if (divFim) divFim.style.display = 'none';
+        carregarIndicadores();
+    }
+}
+
+function exportarIndicadoresPDF() {
+    console.log('Exportando indicadores em PDF...');
+    alert('Funcionalidade de exportação PDF em desenvolvimento');
+}
+
+function exportarIndicadoresExcel() {
+    console.log('Exportando indicadores em Excel...');
+    alert('Funcionalidade de exportação Excel em desenvolvimento');
 }
 
 // Exportar funções globalmente
 window.carregarDashboard = carregarDashboard;
 window.carregarIndicadores = carregarIndicadores;
 window.aplicarFiltroPeriodoIndicadores = aplicarFiltroPeriodoIndicadores;
+window.exportarIndicadoresPDF = exportarIndicadoresPDF;
+window.exportarIndicadoresExcel = exportarIndicadoresExcel;
 
 console.log('✓ Sistema Financeiro - app.js v20251205filtro3 carregado');
