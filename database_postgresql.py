@@ -617,11 +617,23 @@ class DatabaseManager:
     
     def obter_lancamento(self, lancamento_id: int) -> Optional[Lancamento]:
         """Obtém um lançamento específico por ID"""
+        print(f"\n🔍 obter_lancamento() chamado com ID: {lancamento_id}")
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT * FROM lancamentos WHERE id = %s", (lancamento_id,))
-        row = cursor.fetchone()
+        query = "SELECT * FROM lancamentos WHERE id = %s"
+        print(f"📝 Query: {query}")
+        print(f"📝 Params: ({lancamento_id},)")
+        
+        try:
+            cursor.execute(query, (lancamento_id,))
+            row = cursor.fetchone()
+            print(f"✅ Row encontrada: {row is not None}")
+        except Exception as e:
+            print(f"❌ ERRO ao executar query: {e}")
+            cursor.close()
+            conn.close()
+            raise
         
         if not row:
             cursor.close()
@@ -631,6 +643,10 @@ class DatabaseManager:
         # Tratar valores que podem ser None
         tipo_value = row['tipo'].lower() if row['tipo'] else 'receita'
         status_value = row['status'].lower() if row['status'] else 'pendente'
+        
+        print(f"📊 Construindo Lancamento com:")
+        print(f"   - juros: {row.get('juros', 0)}")
+        print(f"   - desconto: {row.get('desconto', 0)}")
         
         lancamento = Lancamento(
             id=row['id'],
@@ -649,9 +665,12 @@ class DatabaseManager:
             anexo=row['anexo'] or '',
             recorrente=row['recorrente'] or False,
             frequencia_recorrencia=row['frequencia_recorrencia'] or '',
-            dia_vencimento=row['dia_vencimento'] or 0
+            dia_vencimento=row['dia_vencimento'] or 0,
+            juros=float(row.get('juros', 0)) if row.get('juros') is not None else 0,
+            desconto=float(row.get('desconto', 0)) if row.get('desconto') is not None else 0
         )
         
+        print(f"✅ Lancamento criado com sucesso\n")
         cursor.close()
         conn.close()
         return lancamento

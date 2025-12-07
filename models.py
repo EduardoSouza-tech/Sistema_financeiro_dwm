@@ -153,7 +153,8 @@ class Lancamento:
                  id: Optional[int] = None, cliente_fornecedor: str = "",
                  status: Optional[StatusLancamento] = None,
                  anexo: str = "", recorrente: bool = False,
-                 frequencia_recorrencia: str = "", dia_vencimento: int = 0):
+                 frequencia_recorrencia: str = "", dia_vencimento: int = 0,
+                 juros: float = 0, desconto: float = 0):
         if valor <= 0:
             raise ValueError("O valor deve ser maior que zero")
         
@@ -181,6 +182,8 @@ class Lancamento:
         self.recorrente = recorrente
         self.frequencia_recorrencia = frequencia_recorrencia
         self.dia_vencimento = dia_vencimento
+        self.juros = juros
+        self.desconto = desconto
         self.status = status if status is not None else self._calcular_status()
     
     def _calcular_status(self) -> StatusLancamento:
