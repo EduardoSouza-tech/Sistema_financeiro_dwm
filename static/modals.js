@@ -960,6 +960,12 @@ function openModalFornecedor(fornecedorEdit = null) {
             <input type="hidden" id="fornecedor-nome-original" value="${nomeOriginalEscaped}">
             
             <div class="form-group">
+                <label>*CNPJ:</label>
+                <input type="text" id="fornecedor-cnpj" value="${isEdit ? (fornecedorEdit.cnpj || '') : ''}" required placeholder="00.000.000/0000-00" onblur="buscarDadosCNPJFornecedor()">
+                <small style="color: #7f8c8d; font-size: 11px;">Digite o CNPJ para buscar dados automaticamente</small>
+            </div>
+            
+            <div class="form-group">
                 <label>*Razão Social:</label>
                 <input type="text" id="fornecedor-razao" value="${isEdit ? (fornecedorEdit.razao_social || '') : ''}" required>
             </div>
@@ -967,11 +973,6 @@ function openModalFornecedor(fornecedorEdit = null) {
             <div class="form-group">
                 <label>*Nome Fantasia:</label>
                 <input type="text" id="fornecedor-fantasia" value="${isEdit ? (fornecedorEdit.nome_fantasia || '') : ''}" required>
-            </div>
-            
-            <div class="form-group">
-                <label>*CNPJ:</label>
-                <input type="text" id="fornecedor-cnpj" value="${isEdit ? (fornecedorEdit.cnpj || '') : ''}" required placeholder="00.000.000/0000-00">
             </div>
             
             <div class="form-row">
@@ -1498,10 +1499,144 @@ async function buscarDadosCNPJ() {
     }
 }
 
+// Buscar dados do CNPJ para Fornecedor
+async function buscarDadosCNPJFornecedor() {
+    const cnpjInput = document.getElementById('fornecedor-cnpj');
+    if (!cnpjInput) return;
+    
+    let cnpj = cnpjInput.value.replace(/\D/g, '');
+    
+    if (cnpj.length !== 14) {
+        console.log('CNPJ incompleto, aguardando...');
+        return;
+    }
+    
+    console.log('🔍 Buscando dados do CNPJ (Fornecedor):', cnpj);
+    
+    // Criar elemento de loading
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'cnpj-loading';
+    loadingDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 30px 40px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        z-index: 10001;
+        text-align: center;
+    `;
+    loadingDiv.innerHTML = `
+        <div style="display: inline-block; width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p style="margin: 15px 0 0 0; color: #2c3e50; font-weight: 600; font-size: 15px;">🔍 Buscando dados do CNPJ...</p>
+        <p style="margin: 5px 0 0 0; color: #7f8c8d; font-size: 12px;">Aguarde, estamos consultando a Receita Federal</p>
+        <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    `;
+    
+    const backdrop = document.createElement('div');
+    backdrop.id = 'cnpj-backdrop';
+    backdrop.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 10000;
+    `;
+    
+    document.body.appendChild(backdrop);
+    document.body.appendChild(loadingDiv);
+    
+    try {
+        cnpjInput.disabled = true;
+        
+        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+        
+        if (!response.ok) {
+            throw new Error('CNPJ não encontrado');
+        }
+        
+        const dados = await response.json();
+        console.log('✅ Dados recebidos:', dados);
+        
+        // Preencher campos
+        if (dados.razao_social) {
+            document.getElementById('fornecedor-razao').value = dados.razao_social;
+        }
+        
+        if (dados.nome_fantasia) {
+            document.getElementById('fornecedor-fantasia').value = dados.nome_fantasia;
+        } else {
+            document.getElementById('fornecedor-fantasia').value = dados.razao_social;
+        }
+        
+        // Endereço
+        if (dados.cep) {
+            document.getElementById('fornecedor-cep').value = dados.cep.replace(/(\d{5})(\d{3})/, '$1-$2');
+        }
+        
+        if (dados.logradouro) {
+            document.getElementById('fornecedor-rua').value = dados.logradouro;
+        }
+        
+        if (dados.numero) {
+            document.getElementById('fornecedor-numero').value = dados.numero;
+        }
+        
+        if (dados.complemento) {
+            document.getElementById('fornecedor-complemento').value = dados.complemento;
+        }
+        
+        if (dados.bairro) {
+            document.getElementById('fornecedor-bairro').value = dados.bairro;
+        }
+        
+        if (dados.municipio) {
+            document.getElementById('fornecedor-cidade').value = dados.municipio;
+        }
+        
+        if (dados.uf) {
+            document.getElementById('fornecedor-estado').value = dados.uf;
+        }
+        
+        // Contatos
+        if (dados.ddd_telefone_1) {
+            const tel = dados.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
+            document.getElementById('fornecedor-telefone').value = tel;
+        }
+        
+        if (dados.email) {
+            document.getElementById('fornecedor-email').value = dados.email;
+        }
+        
+        showToast('✅ Dados do CNPJ carregados com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar CNPJ:', error);
+        showToast('⚠️ CNPJ não encontrado ou inválido', 'warning');
+    } finally {
+        const loadingDiv = document.getElementById('cnpj-loading');
+        const backdrop = document.getElementById('cnpj-backdrop');
+        if (loadingDiv) loadingDiv.remove();
+        if (backdrop) backdrop.remove();
+        
+        cnpjInput.disabled = false;
+    }
+}
+
 window.createModal = createModal;
 window.openModalTransferencia = openModalTransferencia;
 window.closeModalTransferencia = closeModalTransferencia;
 window.salvarTransferencia = salvarTransferencia;
 window.buscarDadosCNPJ = buscarDadosCNPJ;
+window.buscarDadosCNPJFornecedor = buscarDadosCNPJFornecedor;
 
 console.log('✓ Modals.js v20251204lancamentos5 carregado com sucesso');
