@@ -78,7 +78,8 @@ class ContaBancaria:
     _next_id = 1
     
     def __init__(self, nome: str, banco: str, agencia: str, conta: str, 
-                 saldo_inicial: float = 0.0, id: Optional[int] = None):
+                 saldo_inicial: float = 0.0, id: Optional[int] = None, 
+                 ativa: bool = True, data_criacao: Optional[str] = None):
         if saldo_inicial < 0:
             raise ValueError("O saldo inicial não pode ser negativo")
         
@@ -96,6 +97,8 @@ class ContaBancaria:
         self.conta = conta
         self.saldo_inicial = saldo_inicial
         self.saldo_atual = saldo_inicial
+        self.ativa = ativa
+        self.data_criacao = data_criacao
     
     def depositar(self, valor: float):
         """Adiciona valor ao saldo"""
@@ -116,7 +119,9 @@ class ContaBancaria:
             "agencia": self.agencia,
             "conta": self.conta,
             "saldo_inicial": self.saldo_inicial,
-            "saldo_atual": self.saldo_atual
+            "saldo_atual": self.saldo_atual,
+            "ativa": self.ativa,
+            "data_criacao": self.data_criacao
         }
     
     @classmethod
@@ -127,9 +132,11 @@ class ContaBancaria:
             agencia=data["agencia"],
             conta=data["conta"],
             saldo_inicial=data["saldo_inicial"],
-            id=data.get("id")
+            id=data.get("id"),
+            ativa=data.get("ativa", True),
+            data_criacao=data.get("data_criacao")
         )
-        conta.saldo_atual = data["saldo_atual"]
+        conta.saldo_atual = data.get("saldo_atual", data["saldo_inicial"])
         return conta
 
 
