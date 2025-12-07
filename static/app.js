@@ -10,6 +10,15 @@ window.addEventListener('error', function(e) {
     }
 });
 
+// Função auxiliar para mostrar mensagens
+function showToast(message, type = 'info') {
+    console.log(`[${type.toUpperCase()}] ${message}`);
+    // Implementação simples - pode ser melhorada com UI toast real
+    if (type === 'error') {
+        console.error(message);
+    }
+}
+
 // Estados das tabs
 window.clienteTabAtiva = 'ativos';
 window.fornecedorTabAtiva = 'ativos';
