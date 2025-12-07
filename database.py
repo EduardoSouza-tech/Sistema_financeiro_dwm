@@ -1028,38 +1028,19 @@ def excluir_lancamento(lancamento_id: int) -> bool:
 
 def pagar_lancamento(lancamento_id: int, conta: str, data_pagamento: datetime, juros: float = 0, desconto: float = 0, observacoes: str = '') -> bool:
     """Marca um lançamento como pago e registra a conta bancária"""
-    conn = get_connection()
-    cursor = conn.cursor()
+    print(f"\n🔍 database.py pagar_lancamento() wrapper chamada")
+    print(f"   DATABASE_TYPE: {DATABASE_TYPE}")
     
-    # Calcular valor ajustado com juros e desconto
-    valor_ajuste = juros - desconto
+    # Usar o DatabaseManager correto baseado na configuração
+    db = DatabaseManager()
+    print(f"   DatabaseManager type: {type(db)}")
     
-    if valor_ajuste != 0:
-        cursor.execute("SELECT valor FROM lancamentos WHERE id = ?", (lancamento_id,))
-        row = cursor.fetchone()
-        if row:
-            valor_original = row[0]
-            novo_valor = valor_original + valor_ajuste
-            cursor.execute("""
-                UPDATE lancamentos 
-                SET data_pagamento = ?, status = 'PAGO', conta_bancaria = ?, valor = ?, 
-                    juros = ?, desconto = ?, observacoes = ?
-                WHERE id = ?
-            """, (data_pagamento.isoformat(), conta, novo_valor, juros, desconto, observacoes, lancamento_id))
-        else:
-            success = False
-    else:
-        cursor.execute("""
-            UPDATE lancamentos 
-            SET data_pagamento = ?, status = 'PAGO', conta_bancaria = ?,
-                juros = ?, desconto = ?, observacoes = ?
-            WHERE id = ?
-        """, (data_pagamento.isoformat(), conta, juros, desconto, observacoes, lancamento_id))
+    # Converter datetime para date se necessário
+    if isinstance(data_pagamento, datetime):
+        data_pagamento = data_pagamento.date()
     
-    success = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
-    return success
+    # Chamar o método do DatabaseManager
+    return db.pagar_lancamento(lancamento_id, conta, data_pagamento, juros, desconto, observacoes)
 
 def cancelar_lancamento(lancamento_id: int) -> bool:
     """Cancela um lançamento (remove data de pagamento)"""
