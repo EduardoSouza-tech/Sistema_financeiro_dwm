@@ -10,6 +10,25 @@ window.addEventListener('error', function(e) {
     }
 });
 
+// Inicialização ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    // Preencher anos no Comparativo de Períodos
+    const anoAtual = new Date().getFullYear();
+    const anoAnterior = anoAtual - 1;
+    
+    const filterAno1 = document.getElementById('filter-ano1');
+    const filterAno2 = document.getElementById('filter-ano2');
+    
+    if (filterAno1) {
+        filterAno1.value = anoAnterior;
+        console.log(`✓ Período 1 preenchido com ano ${anoAnterior}`);
+    }
+    if (filterAno2) {
+        filterAno2.value = anoAtual;
+        console.log(`✓ Período 2 preenchido com ano ${anoAtual}`);
+    }
+});
+
 // Função auxiliar para mostrar mensagens
 function showToast(message, type = 'info') {
     console.log(`[${type.toUpperCase()}] ${message}`);
