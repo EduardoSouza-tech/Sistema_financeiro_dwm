@@ -7,6 +7,10 @@
         "**/site-packages/**",
         "**/LocalCache/**"
     ],
+    "ignore": [
+        "database_postgresql.py",
+        "web_server.py"
+    ],
     "executionEnvironments": [
         {
             "root": ".",
