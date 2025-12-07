@@ -1833,13 +1833,12 @@
                         </div>
                         <div id="filtro-data-inicio-indicadores" style="display: none;">
                             <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Data Inicial:</label>
-                            <input type="date" id="filter-data-inicio-indicadores" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="date" id="filter-data-inicio-indicadores" onchange="carregarIndicadores()" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
                         </div>
                         <div id="filtro-data-fim-indicadores" style="display: none;">
                             <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Data Final:</label>
-                            <input type="date" id="filter-data-fim-indicadores" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="date" id="filter-data-fim-indicadores" onchange="carregarIndicadores()" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
                         </div>
-                        <button class="btn btn-primary" onclick="carregarIndicadores()" style="padding: 6px 16px;">🔍 Gerar Indicadores</button>
                     </div>
                 </div>
                 
