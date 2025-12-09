@@ -1233,6 +1233,13 @@
                 <button class="submenu-button" onclick="showSection('clientes')">👤 Clientes</button>
                 <button class="submenu-button" onclick="showSection('fornecedores')">🏭 Fornecedores</button>
             </div>
+            
+            <!-- Botão de Logout -->
+            <div style="padding: 20px; border-top: 2px solid #34495e; margin-top: auto;">
+                <button class="nav-button" onclick="logout()" style="background: #e74c3c; width: 100%;">
+                    🚪 Sair
+                </button>
+            </div>
         </div>
 
         <!-- Botão Toggle Sidebar -->
@@ -2592,6 +2599,29 @@
                 loadContasBancarias();
             }
         }, 500);
+        
+        // Função de logout
+        async function logout() {
+            if (confirm('Deseja realmente sair do sistema?')) {
+                try {
+                    const response = await fetch('/api/logout', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        window.location.href = '/login';
+                    } else {
+                        alert('Erro ao fazer logout');
+                    }
+                } catch (error) {
+                    console.error('Erro ao fazer logout:', error);
+                    alert('Erro ao fazer logout');
+                }
+            }
+        }
     </script>
 </body>
 </html>

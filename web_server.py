@@ -1,8 +1,9 @@
 """
 Servidor Web para o Sistema Financeiro
 """
-from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
+from functools import wraps
 from database import DatabaseManager
 from database import pagar_lancamento as db_pagar_lancamento
 from database import cancelar_lancamento as db_cancelar_lancamento
@@ -16,7 +17,23 @@ import os
 import sqlite3
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
+app.secret_key = 'sua-chave-secreta-super-segura-aqui-2025'  # Altere em produção
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]}})
+
+# Credenciais pré-definidas
+USUARIO_ADMIN = {
+    'email': 'Admin@admin.com',
+    'senha': 'admin123'
+}
+
+# Decorator para proteger rotas
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return redirect(url_for('login_page'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Log de configuração
 print("=" * 60)
@@ -42,6 +59,24 @@ if os.path.exists('dados_financeiros.json'):
     print("Migrando dados do JSON...")
     db.migrar_dados_json('dados_financeiros.json')
     print("✅ Migração concluída!")
+
+
+# Middleware para proteger todas as rotas da API
+@app.before_request
+def verificar_autenticacao():
+    """Verifica se o usuário está autenticado antes de acessar as rotas protegidas"""
+    # Rotas públicas que não precisam de autenticação
+    rotas_publicas = ['/login', '/api/login', '/static']
+    
+    # Verifica se a rota atual é pública
+    if any(request.path.startswith(rota) for rota in rotas_publicas):
+        return None
+    
+    # Se for uma rota da API (exceto login) e não estiver logado, retorna erro 401
+    if request.path.startswith('/api/') and 'logged_in' not in session:
+        return jsonify({'erro': 'Não autenticado'}), 401
+    
+    return None
 
 
 # === ROTAS DE CONTAS BANCÁRIAS ===
@@ -1343,17 +1378,53 @@ def cancelar_lancamento_route(lancamento_id):
 
 # === ROTA PRINCIPAL ===
 
+# === ROTAS DE AUTENTICAÇÃO ===
+
+@app.route('/login')
+def login_page():
+    """Página de login"""
+    # Se já estiver logado, redireciona para a página principal
+    if 'logged_in' in session:
+        return redirect(url_for('index'))
+    return render_template('login.html')
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    """API de login"""
+    data = request.json
+    email = data.get('email', '')
+    senha = data.get('senha', '')
+    
+    # Verificar credenciais
+    if email == USUARIO_ADMIN['email'] and senha == USUARIO_ADMIN['senha']:
+        session['logged_in'] = True
+        session['user_email'] = email
+        return jsonify({'sucesso': True, 'mensagem': 'Login realizado com sucesso'})
+    else:
+        return jsonify({'sucesso': False, 'erro': 'Email ou senha incorretos'}), 401
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    """API de logout"""
+    session.clear()
+    return jsonify({'sucesso': True, 'mensagem': 'Logout realizado com sucesso'})
+
+# === ROTAS DA APLICAÇÃO ===
+
 @app.route('/')
+@login_required
 def index():
     """Página principal - Nova interface moderna"""
     return render_template('interface_nova.html')
 
 @app.route('/old')
+@login_required
 def old_index():
     """Página antiga (backup)"""
     return render_template('interface.html')
 
 @app.route('/legacy')
+@login_required
 def legacy_index():
     """Página legado"""
     return render_template('index.html')
