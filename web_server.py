@@ -22,7 +22,7 @@ CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT
 
 # Credenciais pré-definidas
 USUARIO_ADMIN = {
-    'email': 'Admin@admin.com',
+    'email': 'admin@admin.com',
     'senha': 'admin123'
 }
 
