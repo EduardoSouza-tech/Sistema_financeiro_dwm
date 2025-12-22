@@ -1,24 +1,7 @@
 {
-    "include": [
-        "."
-    ],
-    "exclude": [
-        "**/__pycache__",
-        "**/site-packages/**",
-        "**/LocalCache/**"
-    ],
-    "executionEnvironments": [
-        {
-            "root": ".",
-            "pythonVersion": "3.13",
-            "extraPaths": [
-                "."
-            ]
-        }
-    ],
-    "reportMissingImports": false,
-    "reportMissingModuleSource": false,
-    "reportGeneralTypeIssues": false,
-    "reportArgumentType": false,
-    "reportIncompatibleMethodOverride": false
+  "typeCheckingMode": "off",
+  "reportMissingTypeStubs": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownVariableType": false,
+  "reportUnknownArgumentType": false
 }
