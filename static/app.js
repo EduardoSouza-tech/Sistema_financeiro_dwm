@@ -40,6 +40,24 @@ function showToast(message, type = 'info') {
     }
 }
 
+// Função auxiliar para converter data GMT para formato yyyy-MM-dd
+function formatDateForInput(dateString) {
+    if (!dateString) return '';
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '';
+        
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        console.error('Erro ao formatar data:', error);
+        return '';
+    }
+}
+
 // Estados das tabs
 window.clienteTabAtiva = 'ativos';
 window.fornecedorTabAtiva = 'ativos';
@@ -6187,11 +6205,11 @@ async function openModalContrato(contrato = null) {
             <div class="form-row">
                 <div class="form-group">
                     <label>*Data Início:</label>
-                    <input type="date" id="contrato-data-inicio" value="${isEdit ? contrato.data_inicio : ''}" required>
+                    <input type="date" id="contrato-data-inicio" value="${isEdit ? formatDateForInput(contrato.data_inicio) : ''}" required>
                 </div>
                 <div class="form-group">
                     <label>Data Fim:</label>
-                    <input type="date" id="contrato-data-fim" value="${isEdit ? (contrato.data_fim || '') : ''}">
+                    <input type="date" id="contrato-data-fim" value="${isEdit ? formatDateForInput(contrato.data_fim) : ''}">
                 </div>
             </div>
             
@@ -6325,7 +6343,7 @@ async function openModalAgenda(agenda = null) {
             <div class="form-row">
                 <div class="form-group">
                     <label>*Data:</label>
-                    <input type="date" id="agenda-data" value="${isEdit ? agenda.data_evento : ''}" required>
+                    <input type="date" id="agenda-data" value="${isEdit ? formatDateForInput(agenda.data_evento) : ''}" required>
                 </div>
                 <div class="form-group">
                     <label>Hora Início:</label>
