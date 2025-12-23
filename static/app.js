@@ -149,21 +149,21 @@ function showContratoTab(tipo) {
         btnSessoes.style.color = 'white';
         btnSessoes.style.fontWeight = 'bold';
         contentSessoes.style.display = 'block';
-        // if (typeof loadSessoes === 'function') loadSessoes(); // DESATIVADO - endpoint não existe
+        if (typeof loadSessoes === 'function') loadSessoes();
     } else if (tipo === 'comissoes') {
         btnComissoes.classList.add('active');
         btnComissoes.style.background = '#9b59b6';
         btnComissoes.style.color = 'white';
         btnComissoes.style.fontWeight = 'bold';
         contentComissoes.style.display = 'block';
-        // if (typeof loadComissoes === 'function') loadComissoes(); // DESATIVADO - endpoint não existe
+        if (typeof loadComissoes === 'function') loadComissoes();
     } else if (tipo === 'equipe') {
         btnEquipe.classList.add('active');
         btnEquipe.style.background = '#9b59b6';
         btnEquipe.style.color = 'white';
         btnEquipe.style.fontWeight = 'bold';
         contentEquipe.style.display = 'block';
-        // if (typeof loadSessaoEquipe === 'function') loadSessaoEquipe(); // DESATIVADO - endpoint não existe
+        if (typeof loadSessaoEquipe === 'function') loadSessaoEquipe();
     }
 }
 
@@ -1800,45 +1800,44 @@ async function excluirTipoSessao(id) {
     }
 }
 
-// FUNÇÃO DESATIVADA - Endpoint /api/contratos não existe mais
-// async function loadContratos() {
-//     const tbody = document.getElementById('tbody-contratos');
-//     if (!tbody) return;
-//     
-//     try {
-//         const response = await fetch('/api/contratos');
-//         const contratos = await response.json();
-//         
-//         tbody.innerHTML = '';
-//         
-//         if (contratos.length === 0) {
-//             tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum contrato cadastrado</td></tr>';
-//             return;
-//         }
-//         
-//         contratos.forEach(contrato => {
-//             const tr = document.createElement('tr');
-//             const valorFormatado = parseFloat(contrato.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-//             const dataFormatada = contrato.data_assinatura ? new Date(contrato.data_assinatura).toLocaleDateString('pt-BR') : '-';
-//             
-//             tr.innerHTML = `
-//                 <td>${contrato.numero}</td>
-//                 <td>${contrato.cliente_nome || '-'}</td>
-//                 <td>R$ ${valorFormatado}</td>
-//                 <td>${dataFormatada}</td>
-//                 <td>${contrato.status}</td>
-//                 <td>
-//                     <button class="btn btn-warning btn-small" onclick='editarContrato(${JSON.stringify(contrato)})'>✏️</button>
-//                     <button class="btn btn-danger btn-small" onclick="excluirContrato(${contrato.id})">🗑️</button>
-//                 </td>
-//             `;
-//             tbody.appendChild(tr);
-//         });
-//     } catch (error) {
-//         console.error('Erro ao carregar contratos:', error);
-//         tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
-//     }
-// }
+async function loadContratos() {
+    const tbody = document.getElementById('tbody-contratos');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/contratos');
+        const contratos = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (contratos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum contrato cadastrado</td></tr>';
+            return;
+        }
+        
+        contratos.forEach(contrato => {
+            const tr = document.createElement('tr');
+            const valorFormatado = parseFloat(contrato.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            const dataFormatada = contrato.data_assinatura ? new Date(contrato.data_assinatura).toLocaleDateString('pt-BR') : '-';
+            
+            tr.innerHTML = `
+                <td>${contrato.numero}</td>
+                <td>${contrato.cliente_nome || '-'}</td>
+                <td>R$ ${valorFormatado}</td>
+                <td>${dataFormatada}</td>
+                <td>${contrato.status}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarContrato(${JSON.stringify(contrato)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirContrato(${contrato.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar contratos:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
 
 function editarContrato(contrato) {
     openModalContrato(contrato);
@@ -1863,45 +1862,44 @@ async function excluirContrato(id) {
     }
 }
 
-// FUNÇÃO DESATIVADA - Endpoint /api/sessoes não existe mais
-// async function loadSessoes() {
-//     const tbody = document.getElementById('tbody-sessoes');
-//     if (!tbody) return;
-//     
-//     try {
-//         const response = await fetch('/api/sessoes');
-//         const sessoes = await response.json();
-//         
-//         tbody.innerHTML = '';
-//         
-//         if (sessoes.length === 0) {
-//             tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma sessão cadastrada</td></tr>';
-//             return;
-//         }
-//         
-//         sessoes.forEach(sessao => {
-//             const tr = document.createElement('tr');
-//             const dataPrevista = sessao.data_prevista ? new Date(sessao.data_prevista).toLocaleString('pt-BR') : '-';
-//             const dataRealizada = sessao.data_realizada ? new Date(sessao.data_realizada).toLocaleString('pt-BR') : '-';
-//             
-//             tr.innerHTML = `
-//                 <td>${sessao.contrato_numero || '-'}</td>
-//                 <td>${sessao.tipo_sessao_nome || '-'}</td>
-//                 <td>${dataPrevista}</td>
-//                 <td>${dataRealizada}</td>
-//                 <td>${sessao.status}</td>
-//                 <td>
-//                     <button class="btn btn-warning btn-small" onclick='editarSessao(${JSON.stringify(sessao)})'>✏️</button>
-//                     <button class="btn btn-danger btn-small" onclick="excluirSessao(${sessao.id})">🗑️</button>
-//                 </td>
-//             `;
-//             tbody.appendChild(tr);
-//         });
-//     } catch (error) {
-//         console.error('Erro ao carregar sessões:', error);
-//         tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
-//     }
-// }
+async function loadSessoes() {
+    const tbody = document.getElementById('tbody-sessoes');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/sessoes');
+        const sessoes = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (sessoes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma sessão cadastrada</td></tr>';
+            return;
+        }
+        
+        sessoes.forEach(sessao => {
+            const tr = document.createElement('tr');
+            const dataPrevista = sessao.data_prevista ? new Date(sessao.data_prevista).toLocaleString('pt-BR') : '-';
+            const dataRealizada = sessao.data_realizada ? new Date(sessao.data_realizada).toLocaleString('pt-BR') : '-';
+            
+            tr.innerHTML = `
+                <td>${sessao.contrato_numero || '-'}</td>
+                <td>${sessao.tipo_sessao_nome || '-'}</td>
+                <td>${dataPrevista}</td>
+                <td>${dataRealizada}</td>
+                <td>${sessao.status}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarSessao(${JSON.stringify(sessao)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirSessao(${sessao.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar sessões:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
 
 function editarSessao(sessao) {
     openModalSessao(sessao);
@@ -1926,44 +1924,43 @@ async function excluirSessao(id) {
     }
 }
 
-// FUNÇÃO DESATIVADA - Endpoint /api/agenda não existe mais
-// async function loadAgenda() {
-//     const tbody = document.getElementById('tbody-agenda');
-//     if (!tbody) return;
-//     
-//     try {
-//         const response = await fetch('/api/agenda');
-//         const agendamentos = await response.json();
-//         
-//         tbody.innerHTML = '';
-//         
-//         if (agendamentos.length === 0) {
-//             tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum agendamento cadastrado</td></tr>';
-//             return;
-//         }
-//         
-//         agendamentos.forEach(agenda => {
-//             const tr = document.createElement('tr');
-//             const dataHora = agenda.data_hora ? new Date(agenda.data_hora).toLocaleString('pt-BR') : '-';
-//             
-//             tr.innerHTML = `
-//                 <td>${dataHora}</td>
-//                 <td>${agenda.cliente_nome || '-'}</td>
-//                 <td>${agenda.local || '-'}</td>
-//                 <td>${agenda.tipo || '-'}</td>
-//                 <td>${agenda.status}</td>
-//                 <td>
-//                     <button class="btn btn-warning btn-small" onclick='editarAgenda(${JSON.stringify(agenda)})'>✏️</button>
-//                     <button class="btn btn-danger btn-small" onclick="excluirAgenda(${agenda.id})">🗑️</button>
-//                 </td>
-//             `;
-//             tbody.appendChild(tr);
-//         });
-//     } catch (error) {
-//         console.error('Erro ao carregar agenda:', error);
-//         tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
-//     }
-// }
+async function loadAgenda() {
+    const tbody = document.getElementById('tbody-agenda');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/agenda');
+        const agendamentos = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (agendamentos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum agendamento cadastrado</td></tr>';
+            return;
+        }
+        
+        agendamentos.forEach(agenda => {
+            const tr = document.createElement('tr');
+            const dataHora = agenda.data_hora ? new Date(agenda.data_hora).toLocaleString('pt-BR') : '-';
+            
+            tr.innerHTML = `
+                <td>${dataHora}</td>
+                <td>${agenda.cliente_nome || '-'}</td>
+                <td>${agenda.local || '-'}</td>
+                <td>${agenda.tipo || '-'}</td>
+                <td>${agenda.status}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarAgenda(${JSON.stringify(agenda)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirAgenda(${agenda.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar agenda:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
 
 function editarAgenda(agenda) {
     openModalAgenda(agenda);
@@ -1992,59 +1989,58 @@ function visualizarCalendario() {
     alert('Visualização de calendário será implementada em breve!');
 }
 
-// FUNÇÃO DESATIVADA - Endpoint /api/estoque/produtos não existe mais
-// async function loadProdutos() {
-//     const tbody = document.getElementById('tbody-produtos');
-//     if (!tbody) return;
-//     
-//     try {
-//         const response = await fetch('/api/estoque/produtos');
-//         const produtos = await response.json();
-//         
-//         // Armazenar produtos para uso em movimentações
-//         window.produtosEstoque = produtos;
-//         
-//         // Atualizar select de produtos no modal de movimentação
-//         const selectProduto = document.getElementById('movimentacao-produto-id');
-//         if (selectProduto) {
-//             selectProduto.innerHTML = '<option value="">Selecione o produto</option>';
-//             produtos.forEach(prod => {
-//                 const option = document.createElement('option');
-//                 option.value = prod.id;
-//                 option.textContent = prod.nome;
-//                 selectProduto.appendChild(option);
-//             });
-//         }
-//         
-//         tbody.innerHTML = '';
-//         
-//         if (produtos.length === 0) {
-//             tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum produto cadastrado</td></tr>';
-//             return;
-//         }
-//         
-//         produtos.forEach(prod => {
-//             const tr = document.createElement('tr');
-//             const valorFormatado = parseFloat(prod.valor_unitario || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-//             
-//             tr.innerHTML = `
-//                 <td>${prod.nome}</td>
-//                 <td>${prod.codigo || '-'}</td>
-//                 <td>${prod.quantidade}</td>
-//                 <td>${prod.unidade}</td>
-//                 <td>R$ ${valorFormatado}</td>
-//                 <td>
-//                     <button class="btn btn-warning btn-small" onclick='editarProduto(${JSON.stringify(prod)})'>✏️</button>
-//                     <button class="btn btn-danger btn-small" onclick="excluirProduto(${prod.id})">🗑️</button>
-//                 </td>
-//             `;
-//             tbody.appendChild(tr);
-//         });
-//     } catch (error) {
-//         console.error('Erro ao carregar produtos:', error);
-//         tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
-//     }
-// }
+async function loadProdutos() {
+    const tbody = document.getElementById('tbody-produtos');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/estoque/produtos');
+        const produtos = await response.json();
+        
+        // Armazenar produtos para uso em movimentações
+        window.produtosEstoque = produtos;
+        
+        // Atualizar select de produtos no modal de movimentação
+        const selectProduto = document.getElementById('movimentacao-produto-id');
+        if (selectProduto) {
+            selectProduto.innerHTML = '<option value="">Selecione o produto</option>';
+            produtos.forEach(prod => {
+                const option = document.createElement('option');
+                option.value = prod.id;
+                option.textContent = prod.nome;
+                selectProduto.appendChild(option);
+            });
+        }
+        
+        tbody.innerHTML = '';
+        
+        if (produtos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum produto cadastrado</td></tr>';
+            return;
+        }
+        
+        produtos.forEach(prod => {
+            const tr = document.createElement('tr');
+            const valorFormatado = parseFloat(prod.valor_unitario || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            
+            tr.innerHTML = `
+                <td>${prod.nome}</td>
+                <td>${prod.codigo || '-'}</td>
+                <td>${prod.quantidade}</td>
+                <td>${prod.unidade}</td>
+                <td>R$ ${valorFormatado}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarProduto(${JSON.stringify(prod)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirProduto(${prod.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar produtos:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
 
 function editarProduto(produto) {
     openModalProduto(produto);
@@ -2131,44 +2127,43 @@ function exportarEstoquePDF() {
     alert('Exportação PDF será implementada em breve!');
 }
 
-// FUNÇÃO DESATIVADA - Endpoint /api/kits não existe mais
-// async function loadKits() {
-//     const tbody = document.getElementById('tbody-kits');
-//     if (!tbody) return;
-//     
-//     try {
-//         const response = await fetch('/api/kits');
-//         const kits = await response.json();
-//         
-//         tbody.innerHTML = '';
-//         
-//         if (kits.length === 0) {
-//             tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum kit cadastrado</td></tr>';
-//             return;
-//         }
-//         
-//         kits.forEach(kit => {
-//             const tr = document.createElement('tr');
-//             const valorFormatado = parseFloat(kit.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-//             const numItens = kit.itens ? kit.itens.length : 0;
-//             
-//             tr.innerHTML = `
-//                 <td>${kit.nome}</td>
-//                 <td>${kit.descricao || '-'}</td>
-//                 <td>${numItens} ${numItens === 1 ? 'item' : 'itens'}</td>
-//                 <td>R$ ${valorFormatado}</td>
-//                 <td>
-//                     <button class="btn btn-warning btn-small" onclick='editarKit(${JSON.stringify(kit)})'>✏️</button>
-//                     <button class="btn btn-danger btn-small" onclick="excluirKit(${kit.id})">🗑️</button>
-//                 </td>
-//             `;
-//             tbody.appendChild(tr);
-//         });
-//     } catch (error) {
-//         console.error('Erro ao carregar kits:', error);
-//         tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
-//     }
-// }
+async function loadKits() {
+    const tbody = document.getElementById('tbody-kits');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/kits');
+        const kits = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (kits.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum kit cadastrado</td></tr>';
+            return;
+        }
+        
+        kits.forEach(kit => {
+            const tr = document.createElement('tr');
+            const valorFormatado = parseFloat(kit.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            const numItens = kit.itens ? kit.itens.length : 0;
+            
+            tr.innerHTML = `
+                <td>${kit.nome}</td>
+                <td>${kit.descricao || '-'}</td>
+                <td>${numItens} ${numItens === 1 ? 'item' : 'itens'}</td>
+                <td>R$ ${valorFormatado}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarKit(${JSON.stringify(kit)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirKit(${kit.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar kits:', error);
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
 
 function editarKit(kit) {
     openModalKit(kit);
@@ -2195,44 +2190,43 @@ async function excluirKit(id) {
 
 // === CARREGAMENTO - COMISSÕES ===
 
-// FUNÇÃO DESATIVADA - Endpoint /api/comissoes não existe mais
-// async function loadComissoes() {
-//     const tbody = document.getElementById('tbody-comissoes');
-//     if (!tbody) return;
-//     
-//     try {
-//         const response = await fetch('/api/comissoes');
-//         const comissoes = await response.json();
-//         
-//         tbody.innerHTML = '';
-//         
-//         if (comissoes.length === 0) {
-//             tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma comissão cadastrada</td></tr>';
-//             return;
-//         }
-//         
-//         comissoes.forEach(comissao => {
-//             const tr = document.createElement('tr');
-//             const valorFormatado = parseFloat(comissao.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-//             
-//             tr.innerHTML = `
-//                 <td>${comissao.contrato_numero || '-'}</td>
-//                 <td>${comissao.pessoa}</td>
-//                 <td>${comissao.tipo}</td>
-//                 <td>R$ ${valorFormatado}</td>
-//                 <td>${comissao.percentual || 0}%</td>
-//                 <td>
-//                     <button class="btn btn-warning btn-small" onclick='editarComissao(${JSON.stringify(comissao)})'>✏️</button>
-//                     <button class="btn btn-danger btn-small" onclick="excluirComissao(${comissao.id})">🗑️</button>
-//                 </td>
-//             `;
-//             tbody.appendChild(tr);
-//         });
-//     } catch (error) {
-//         console.error('Erro ao carregar comissões:', error);
-//         tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
-//     }
-// }
+async function loadComissoes() {
+    const tbody = document.getElementById('tbody-comissoes');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/comissoes');
+        const comissoes = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (comissoes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma comissão cadastrada</td></tr>';
+            return;
+        }
+        
+        comissoes.forEach(comissao => {
+            const tr = document.createElement('tr');
+            const valorFormatado = parseFloat(comissao.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            
+            tr.innerHTML = `
+                <td>${comissao.contrato_numero || '-'}</td>
+                <td>${comissao.pessoa}</td>
+                <td>${comissao.tipo}</td>
+                <td>R$ ${valorFormatado}</td>
+                <td>${comissao.percentual || 0}%</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarComissao(${JSON.stringify(comissao)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirComissao(${comissao.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar comissões:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
 
 function editarComissao(comissao) {
     openModalComissao(comissao);
@@ -2259,42 +2253,41 @@ async function excluirComissao(id) {
 
 // === CARREGAMENTO - SESSÃO EQUIPE ===
 
-// FUNÇÃO DESATIVADA - Endpoint /api/sessao-equipe não existe mais
-// async function loadSessaoEquipe() {
-//     const tbody = document.getElementById('tbody-sessao-equipe');
-//     if (!tbody) return;
-//     
-//     try {
-//         const response = await fetch('/api/sessao-equipe');
-//         const membros = await response.json();
-//         
-//         tbody.innerHTML = '';
-//         
-//         if (membros.length === 0) {
-//             tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum membro cadastrado</td></tr>';
-//             return;
-//         }
-//         
-//         membros.forEach(membro => {
-//             const tr = document.createElement('tr');
-//             
-//             tr.innerHTML = `
-//                 <td>${membro.sessao_info || '-'}</td>
-//                 <td>${membro.membro}</td>
-//                 <td>${membro.funcao || '-'}</td>
-//                 <td>${membro.observacoes || '-'}</td>
-//                 <td>
-//                     <button class="btn btn-warning btn-small" onclick='editarSessaoEquipe(${JSON.stringify(membro)})'>✏️</button>
-//                     <button class="btn btn-danger btn-small" onclick="excluirSessaoEquipe(${membro.id})">🗑️</button>
-//                 </td>
-//             `;
-//             tbody.appendChild(tr);
-//         });
-//     } catch (error) {
-//         console.error('Erro ao carregar equipe:', error);
-//         tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
-//     }
-// }
+async function loadSessaoEquipe() {
+    const tbody = document.getElementById('tbody-sessao-equipe');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/sessao-equipe');
+        const membros = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (membros.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum membro cadastrado</td></tr>';
+            return;
+        }
+        
+        membros.forEach(membro => {
+            const tr = document.createElement('tr');
+            
+            tr.innerHTML = `
+                <td>${membro.sessao_info || '-'}</td>
+                <td>${membro.membro}</td>
+                <td>${membro.funcao || '-'}</td>
+                <td>${membro.observacoes || '-'}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarSessaoEquipe(${JSON.stringify(membro)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirSessaoEquipe(${membro.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar equipe:', error);
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
 
 function editarSessaoEquipe(membro) {
     openModalSessaoEquipe(membro);
@@ -2321,40 +2314,39 @@ async function excluirSessaoEquipe(id) {
 
 // === CARREGAMENTO - TAGS ===
 
-// FUNÇÃO DESATIVADA - Endpoint /api/tags não existe mais
-// async function loadTags() {
-//     const tbody = document.getElementById('tbody-tags');
-//     if (!tbody) return;
-//     
-//     try {
-//         const response = await fetch('/api/tags');
-//         const tags = await response.json();
-//         
-//         tbody.innerHTML = '';
-//         
-//         if (tags.length === 0) {
-//             tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Nenhuma tag cadastrada</td></tr>';
-//             return;
-//         }
-//         
-//         tags.forEach(tag => {
-//             const tr = document.createElement('tr');
-//             
-//             tr.innerHTML = `
-//                 <td>${tag.nome}</td>
-//                 <td><span style="display: inline-block; width: 30px; height: 20px; background: ${tag.cor}; border-radius: 3px;"></span> ${tag.cor}</td>
-//                 <td>
-//                     <button class="btn btn-warning btn-small" onclick='editarTag(${JSON.stringify(tag)})'>✏️</button>
-//                     <button class="btn btn-danger btn-small" onclick="excluirTag(${tag.id})">🗑️</button>
-//                 </td>
-//             `;
-//             tbody.appendChild(tr);
-//         });
-//     } catch (error) {
-//         console.error('Erro ao carregar tags:', error);
-//         tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Erro ao carregar dados</td></tr>';
-//     }
-// }
+async function loadTags() {
+    const tbody = document.getElementById('tbody-tags');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/tags');
+        const tags = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (tags.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Nenhuma tag cadastrada</td></tr>';
+            return;
+        }
+        
+        tags.forEach(tag => {
+            const tr = document.createElement('tr');
+            
+            tr.innerHTML = `
+                <td>${tag.nome}</td>
+                <td><span style="display: inline-block; width: 30px; height: 20px; background: ${tag.cor}; border-radius: 3px;"></span> ${tag.cor}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarTag(${JSON.stringify(tag)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirTag(${tag.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar tags:', error);
+        tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
 
 function editarTag(tag) {
     openModalTag(tag);
@@ -2527,11 +2519,11 @@ window.salvarTemplate = salvarTemplate;
 
 // Funções de carregamento
 window.loadTiposSessao = loadTiposSessao;
-// window.loadContratos = loadContratos; // DESATIVADO - função não existe
-// window.loadSessoes = loadSessoes; // DESATIVADO - endpoint não existe
-// window.loadComissoes = loadComissoes; // DESATIVADO - endpoint não existe
-// window.loadSessaoEquipe = loadSessaoEquipe; // DESATIVADO - endpoint não existe
-// window.loadAgenda = loadAgenda; // DESATIVADO - endpoint não existe
+window.loadContratos = loadContratos;
+window.loadSessoes = loadSessoes;
+window.loadComissoes = loadComissoes;
+window.loadSessaoEquipe = loadSessaoEquipe;
+window.loadAgenda = loadAgenda;
 window.loadProdutos = loadProdutos;
 window.loadMovimentacoes = loadMovimentacoes;
 window.loadKits = loadKits;
