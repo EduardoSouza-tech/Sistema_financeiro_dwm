@@ -1926,43 +1926,44 @@ async function excluirSessao(id) {
     }
 }
 
-async function loadAgenda() {
-    const tbody = document.getElementById('tbody-agenda');
-    if (!tbody) return;
-    
-    try {
-        const response = await fetch('/api/agenda');
-        const agendamentos = await response.json();
-        
-        tbody.innerHTML = '';
-        
-        if (agendamentos.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum agendamento cadastrado</td></tr>';
-            return;
-        }
-        
-        agendamentos.forEach(agenda => {
-            const tr = document.createElement('tr');
-            const dataHora = agenda.data_hora ? new Date(agenda.data_hora).toLocaleString('pt-BR') : '-';
-            
-            tr.innerHTML = `
-                <td>${dataHora}</td>
-                <td>${agenda.cliente_nome || '-'}</td>
-                <td>${agenda.local || '-'}</td>
-                <td>${agenda.tipo || '-'}</td>
-                <td>${agenda.status}</td>
-                <td>
-                    <button class="btn btn-warning btn-small" onclick='editarAgenda(${JSON.stringify(agenda)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirAgenda(${agenda.id})">🗑️</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (error) {
-        console.error('Erro ao carregar agenda:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
-}
+// FUNÇÃO DESATIVADA - Endpoint /api/agenda não existe mais
+// async function loadAgenda() {
+//     const tbody = document.getElementById('tbody-agenda');
+//     if (!tbody) return;
+//     
+//     try {
+//         const response = await fetch('/api/agenda');
+//         const agendamentos = await response.json();
+//         
+//         tbody.innerHTML = '';
+//         
+//         if (agendamentos.length === 0) {
+//             tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum agendamento cadastrado</td></tr>';
+//             return;
+//         }
+//         
+//         agendamentos.forEach(agenda => {
+//             const tr = document.createElement('tr');
+//             const dataHora = agenda.data_hora ? new Date(agenda.data_hora).toLocaleString('pt-BR') : '-';
+//             
+//             tr.innerHTML = `
+//                 <td>${dataHora}</td>
+//                 <td>${agenda.cliente_nome || '-'}</td>
+//                 <td>${agenda.local || '-'}</td>
+//                 <td>${agenda.tipo || '-'}</td>
+//                 <td>${agenda.status}</td>
+//                 <td>
+//                     <button class="btn btn-warning btn-small" onclick='editarAgenda(${JSON.stringify(agenda)})'>✏️</button>
+//                     <button class="btn btn-danger btn-small" onclick="excluirAgenda(${agenda.id})">🗑️</button>
+//                 </td>
+//             `;
+//             tbody.appendChild(tr);
+//         });
+//     } catch (error) {
+//         console.error('Erro ao carregar agenda:', error);
+//         tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+//     }
+// }
 
 function editarAgenda(agenda) {
     openModalAgenda(agenda);
@@ -2130,43 +2131,44 @@ function exportarEstoquePDF() {
     alert('Exportação PDF será implementada em breve!');
 }
 
-async function loadKits() {
-    const tbody = document.getElementById('tbody-kits');
-    if (!tbody) return;
-    
-    try {
-        const response = await fetch('/api/kits');
-        const kits = await response.json();
-        
-        tbody.innerHTML = '';
-        
-        if (kits.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum kit cadastrado</td></tr>';
-            return;
-        }
-        
-        kits.forEach(kit => {
-            const tr = document.createElement('tr');
-            const valorFormatado = parseFloat(kit.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-            const numItens = kit.itens ? kit.itens.length : 0;
-            
-            tr.innerHTML = `
-                <td>${kit.nome}</td>
-                <td>${kit.descricao || '-'}</td>
-                <td>${numItens} ${numItens === 1 ? 'item' : 'itens'}</td>
-                <td>R$ ${valorFormatado}</td>
-                <td>
-                    <button class="btn btn-warning btn-small" onclick='editarKit(${JSON.stringify(kit)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirKit(${kit.id})">🗑️</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (error) {
-        console.error('Erro ao carregar kits:', error);
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
-}
+// FUNÇÃO DESATIVADA - Endpoint /api/kits não existe mais
+// async function loadKits() {
+//     const tbody = document.getElementById('tbody-kits');
+//     if (!tbody) return;
+//     
+//     try {
+//         const response = await fetch('/api/kits');
+//         const kits = await response.json();
+//         
+//         tbody.innerHTML = '';
+//         
+//         if (kits.length === 0) {
+//             tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum kit cadastrado</td></tr>';
+//             return;
+//         }
+//         
+//         kits.forEach(kit => {
+//             const tr = document.createElement('tr');
+//             const valorFormatado = parseFloat(kit.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+//             const numItens = kit.itens ? kit.itens.length : 0;
+//             
+//             tr.innerHTML = `
+//                 <td>${kit.nome}</td>
+//                 <td>${kit.descricao || '-'}</td>
+//                 <td>${numItens} ${numItens === 1 ? 'item' : 'itens'}</td>
+//                 <td>R$ ${valorFormatado}</td>
+//                 <td>
+//                     <button class="btn btn-warning btn-small" onclick='editarKit(${JSON.stringify(kit)})'>✏️</button>
+//                     <button class="btn btn-danger btn-small" onclick="excluirKit(${kit.id})">🗑️</button>
+//                 </td>
+//             `;
+//             tbody.appendChild(tr);
+//         });
+//     } catch (error) {
+//         console.error('Erro ao carregar kits:', error);
+//         tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
+//     }
+// }
 
 function editarKit(kit) {
     openModalKit(kit);
@@ -2319,39 +2321,40 @@ async function excluirSessaoEquipe(id) {
 
 // === CARREGAMENTO - TAGS ===
 
-async function loadTags() {
-    const tbody = document.getElementById('tbody-tags');
-    if (!tbody) return;
-    
-    try {
-        const response = await fetch('/api/tags');
-        const tags = await response.json();
-        
-        tbody.innerHTML = '';
-        
-        if (tags.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Nenhuma tag cadastrada</td></tr>';
-            return;
-        }
-        
-        tags.forEach(tag => {
-            const tr = document.createElement('tr');
-            
-            tr.innerHTML = `
-                <td>${tag.nome}</td>
-                <td><span style="display: inline-block; width: 30px; height: 20px; background: ${tag.cor}; border-radius: 3px;"></span> ${tag.cor}</td>
-                <td>
-                    <button class="btn btn-warning btn-small" onclick='editarTag(${JSON.stringify(tag)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirTag(${tag.id})">🗑️</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (error) {
-        console.error('Erro ao carregar tags:', error);
-        tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
-}
+// FUNÇÃO DESATIVADA - Endpoint /api/tags não existe mais
+// async function loadTags() {
+//     const tbody = document.getElementById('tbody-tags');
+//     if (!tbody) return;
+//     
+//     try {
+//         const response = await fetch('/api/tags');
+//         const tags = await response.json();
+//         
+//         tbody.innerHTML = '';
+//         
+//         if (tags.length === 0) {
+//             tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Nenhuma tag cadastrada</td></tr>';
+//             return;
+//         }
+//         
+//         tags.forEach(tag => {
+//             const tr = document.createElement('tr');
+//             
+//             tr.innerHTML = `
+//                 <td>${tag.nome}</td>
+//                 <td><span style="display: inline-block; width: 30px; height: 20px; background: ${tag.cor}; border-radius: 3px;"></span> ${tag.cor}</td>
+//                 <td>
+//                     <button class="btn btn-warning btn-small" onclick='editarTag(${JSON.stringify(tag)})'>✏️</button>
+//                     <button class="btn btn-danger btn-small" onclick="excluirTag(${tag.id})">🗑️</button>
+//                 </td>
+//             `;
+//             tbody.appendChild(tr);
+//         });
+//     } catch (error) {
+//         console.error('Erro ao carregar tags:', error);
+//         tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Erro ao carregar dados</td></tr>';
+//     }
+// }
 
 function editarTag(tag) {
     openModalTag(tag);
@@ -2378,41 +2381,42 @@ async function excluirTag(id) {
 
 // === CARREGAMENTO - TEMPLATES ===
 
-async function loadTemplates() {
-    const tbody = document.getElementById('tbody-templates');
-    if (!tbody) return;
-    
-    try {
-        const response = await fetch('/api/templates-equipe');
-        const templates = await response.json();
-        
-        tbody.innerHTML = '';
-        
-        if (templates.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhum template cadastrado</td></tr>';
-            return;
-        }
-        
-        templates.forEach(template => {
-            const tr = document.createElement('tr');
-            const numMembros = template.membros ? template.membros.length : 0;
-            
-            tr.innerHTML = `
-                <td>${template.nome}</td>
-                <td>${template.descricao || '-'}</td>
-                <td>${numMembros} ${numMembros === 1 ? 'membro' : 'membros'}</td>
-                <td>
-                    <button class="btn btn-warning btn-small" onclick='editarTemplate(${JSON.stringify(template)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirTemplate(${template.id})">🗑️</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (error) {
-        console.error('Erro ao carregar templates:', error);
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
-}
+// FUNÇÃO DESATIVADA - Endpoint /api/templates-equipe não existe mais
+// async function loadTemplates() {
+//     const tbody = document.getElementById('tbody-templates');
+//     if (!tbody) return;
+//     
+//     try {
+//         const response = await fetch('/api/templates-equipe');
+//         const templates = await response.json();
+//         
+//         tbody.innerHTML = '';
+//         
+//         if (templates.length === 0) {
+//             tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhum template cadastrado</td></tr>';
+//             return;
+//         }
+//         
+//         templates.forEach(template => {
+//             const tr = document.createElement('tr');
+//             const numMembros = template.membros ? template.membros.length : 0;
+//             
+//             tr.innerHTML = `
+//                 <td>${template.nome}</td>
+//                 <td>${template.descricao || '-'}</td>
+//                 <td>${numMembros} ${numMembros === 1 ? 'membro' : 'membros'}</td>
+//                 <td>
+//                     <button class="btn btn-warning btn-small" onclick='editarTemplate(${JSON.stringify(template)})'>✏️</button>
+//                     <button class="btn btn-danger btn-small" onclick="excluirTemplate(${template.id})">🗑️</button>
+//                 </td>
+//             `;
+//             tbody.appendChild(tr);
+//         });
+//     } catch (error) {
+//         console.error('Erro ao carregar templates:', error);
+//         tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Erro ao carregar dados</td></tr>';
+//     }
+// }
 
 function editarTemplate(template) {
     openModalTemplate(template);
@@ -2523,11 +2527,11 @@ window.salvarTemplate = salvarTemplate;
 
 // Funções de carregamento
 window.loadTiposSessao = loadTiposSessao;
-window.loadContratos = loadContratos;
-window.loadSessoes = loadSessoes;
-window.loadComissoes = loadComissoes;
-window.loadSessaoEquipe = loadSessaoEquipe;
-window.loadAgenda = loadAgenda;
+// window.loadContratos = loadContratos; // DESATIVADO - função não existe
+// window.loadSessoes = loadSessoes; // DESATIVADO - endpoint não existe
+// window.loadComissoes = loadComissoes; // DESATIVADO - endpoint não existe
+// window.loadSessaoEquipe = loadSessaoEquipe; // DESATIVADO - endpoint não existe
+// window.loadAgenda = loadAgenda; // DESATIVADO - endpoint não existe
 window.loadProdutos = loadProdutos;
 window.loadMovimentacoes = loadMovimentacoes;
 window.loadKits = loadKits;
