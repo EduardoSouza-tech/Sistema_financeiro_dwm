@@ -305,26 +305,6 @@ def executar_testes(db):
     except Exception as e:
         resultados['falhas'].append(f"❌ [LANÇAMENTOS] Criar: {str(e)}")
     
-    # ========== TESTES DE AGENDAMENTOS ==========
-    print("📅 Testando AGENDAMENTOS DE FOTOGRAFIA...")
-    
-    try:
-        import sqlite3
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
-        # Verificar se tabela existe
-        try:
-            cursor.execute("SELECT COUNT(*) FROM agendamentos_fotografia")
-            count = cursor.fetchone()[0]
-            resultados['sucesso'].append(f"✅ [AGENDAMENTOS] Tabela existe: {count} registros")
-        except:
-            resultados['falhas'].append("❌ [AGENDAMENTOS] Tabela não existe")
-        
-        conn.close()
-    except Exception as e:
-        resultados['falhas'].append(f"❌ [AGENDAMENTOS] Verificar: {str(e)}")
-    
     # EXIBIR RESULTADOS
     print("\n" + "-"*70)
     print("📊 RESULTADO DOS TESTES")

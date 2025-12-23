@@ -356,13 +356,16 @@ class DatabaseManager:
         conn.close()
         return categorias
     
-    def excluir_categoria(self, categoria_id: int) -> bool:
-        """Exclui uma categoria"""
+    def excluir_categoria(self, nome: str) -> bool:
+        """Exclui uma categoria pelo nome"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute("DELETE FROM categorias WHERE id = %s", (categoria_id,))
+        # Normalizar nome
+        nome_normalizado = nome.upper().strip()
+        cursor.execute("DELETE FROM categorias WHERE UPPER(TRIM(nome)) = %s", (nome_normalizado,))
         sucesso = cursor.rowcount > 0
+        conn.commit()
         
         cursor.close()
         conn.close()
@@ -421,12 +424,22 @@ class DatabaseManager:
             conn.close()
             return False
     
-    def adicionar_cliente(self, nome: str, cpf_cnpj: str = None, 
+    def adicionar_cliente(self, cliente_data, cpf_cnpj: str = None, 
                          email: str = None, telefone: str = None,
                          endereco: str = None) -> int:
-        """Adiciona um novo cliente"""
+        """Adiciona um novo cliente (aceita dict ou parâmetros individuais)"""
         conn = self.get_connection()
         cursor = conn.cursor()
+        
+        # Aceitar dict ou parâmetros individuais
+        if isinstance(cliente_data, dict):
+            nome = cliente_data.get('nome')
+            cpf_cnpj = cliente_data.get('cpf', cliente_data.get('cpf_cnpj'))
+            email = cliente_data.get('email')
+            telefone = cliente_data.get('telefone')
+            endereco = cliente_data.get('endereco')
+        else:
+            nome = cliente_data
         
         cursor.execute("""
             INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco)
@@ -435,6 +448,7 @@ class DatabaseManager:
         """, (nome, cpf_cnpj, email, telefone, endereco))
         
         cliente_id = cursor.fetchone()['id']
+        conn.commit()
         cursor.close()
         conn.close()
         return cliente_id
@@ -479,12 +493,22 @@ class DatabaseManager:
         conn.close()
         return sucesso
     
-    def adicionar_fornecedor(self, nome: str, cpf_cnpj: str = None,
+    def adicionar_fornecedor(self, fornecedor_data, cpf_cnpj: str = None,
                            email: str = None, telefone: str = None,
                            endereco: str = None) -> int:
-        """Adiciona um novo fornecedor"""
+        """Adiciona um novo fornecedor (aceita dict ou parâmetros individuais)"""
         conn = self.get_connection()
         cursor = conn.cursor()
+        
+        # Aceitar dict ou parâmetros individuais
+        if isinstance(fornecedor_data, dict):
+            nome = fornecedor_data.get('nome')
+            cpf_cnpj = fornecedor_data.get('cnpj', fornecedor_data.get('cpf_cnpj'))
+            email = fornecedor_data.get('email')
+            telefone = fornecedor_data.get('telefone')
+            endereco = fornecedor_data.get('endereco')
+        else:
+            nome = fornecedor_data
         
         cursor.execute("""
             INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco)
@@ -493,6 +517,7 @@ class DatabaseManager:
         """, (nome, cpf_cnpj, email, telefone, endereco))
         
         fornecedor_id = cursor.fetchone()['id']
+        conn.commit()
         cursor.close()
         conn.close()
         return fornecedor_id
@@ -909,9 +934,9 @@ def listar_categorias(tipo: Optional[TipoLancamento] = None) -> List[Categoria]:
     db = DatabaseManager()
     return db.listar_categorias(tipo)
 
-def excluir_categoria(categoria_id: int) -> bool:
+def excluir_categoria(nome: str) -> bool:
     db = DatabaseManager()
-    return db.excluir_categoria(categoria_id)
+    return db.excluir_categoria(nome)
 
 def atualizar_categoria(categoria: Categoria) -> bool:
     db = DatabaseManager()
@@ -921,10 +946,10 @@ def atualizar_nome_categoria(nome_antigo: str, nome_novo: str) -> bool:
     db = DatabaseManager()
     return db.atualizar_nome_categoria(nome_antigo, nome_novo)
 
-def adicionar_cliente(nome: str, cpf_cnpj: str = None, email: str = None,
+def adicionar_cliente(cliente_data, cpf_cnpj: str = None, email: str = None,
                      telefone: str = None, endereco: str = None) -> int:
     db = DatabaseManager()
-    return db.adicionar_cliente(nome, cpf_cnpj, email, telefone, endereco)
+    return db.adicionar_cliente(cliente_data, cpf_cnpj, email, telefone, endereco)
 
 def listar_clientes(ativos: bool = True) -> List[Dict]:
     db = DatabaseManager()
@@ -934,10 +959,10 @@ def atualizar_cliente(cliente_id: int, dados: Dict) -> bool:
     db = DatabaseManager()
     return db.atualizar_cliente(cliente_id, dados)
 
-def adicionar_fornecedor(nome: str, cpf_cnpj: str = None, email: str = None,
+def adicionar_fornecedor(fornecedor_data, cpf_cnpj: str = None, email: str = None,
                         telefone: str = None, endereco: str = None) -> int:
     db = DatabaseManager()
-    return db.adicionar_fornecedor(nome, cpf_cnpj, email, telefone, endereco)
+    return db.adicionar_fornecedor(fornecedor_data, cpf_cnpj, email, telefone, endereco)
 
 def listar_fornecedores(ativos: bool = True) -> List[Dict]:
     db = DatabaseManager()
