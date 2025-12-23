@@ -2288,3 +2288,43 @@ def migrar_dados_json(arquivo_json: str = "dados_financeiros.json"):
 # Instância global do DatabaseManager (escolhe automaticamente o tipo correto)
 DatabaseManager = _get_database_manager()
 _db = DatabaseManager()
+
+
+# ==================== OVERRIDE: Garantir que delegadoras sejam usadas ====================
+# Sobrescrever qualquer implementação antiga com delegadores para PostgreSQL/MySQL/SQLite
+
+def adicionar_sessao(dados: Dict) -> int:
+    return _delegate_to_specific_db('adicionar_sessao', dados)
+
+def listar_sessoes() -> List[Dict]:
+    return _delegate_to_specific_db('listar_sessoes')
+
+def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
+    return _delegate_to_specific_db('atualizar_sessao', sessao_id, dados)
+
+def deletar_sessao(sessao_id: int) -> bool:
+    return _delegate_to_specific_db('deletar_sessao', sessao_id)
+
+def adicionar_comissao(dados: Dict) -> int:
+    return _delegate_to_specific_db('adicionar_comissao', dados)
+
+def listar_comissoes() -> List[Dict]:
+    return _delegate_to_specific_db('listar_comissoes')
+
+def atualizar_comissao(comissao_id: int, dados: Dict) -> bool:
+    return _delegate_to_specific_db('atualizar_comissao', comissao_id, dados)
+
+def deletar_comissao(comissao_id: int) -> bool:
+    return _delegate_to_specific_db('deletar_comissao', comissao_id)
+
+def adicionar_sessao_equipe(dados: Dict) -> int:
+    return _delegate_to_specific_db('adicionar_sessao_equipe', dados)
+
+def listar_sessao_equipe(sessao_id: int = None) -> List[Dict]:
+    return _delegate_to_specific_db('listar_sessao_equipe', sessao_id)
+
+def atualizar_sessao_equipe(membro_id: int, dados: Dict) -> bool:
+    return _delegate_to_specific_db('atualizar_sessao_equipe', membro_id, dados)
+
+def deletar_sessao_equipe(membro_id: int) -> bool:
+    return _delegate_to_specific_db('deletar_sessao_equipe', membro_id)
