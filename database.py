@@ -1197,109 +1197,144 @@ def excluir_categoria(nome: str) -> bool:
     cursor.execute("DELETE FROM categorias WHERE nome = ?", (nome,))
     success = cursor.rowcount > 0
     conn.commit()
-    conn.close()
-    return success
+# ==================== FUNÇÕES CRUD - MENU OPERACIONAL ====================
+# Todas as funções delegam para o database específico (PostgreSQL, MySQL ou SQLite)
+
+def _delegate_to_specific_db(func_name, *args, **kwargs):
+    """Função auxiliar para delegar para o database correto"""
+    if DATABASE_TYPE == 'postgresql':
+        import database_postgresql
+        return getattr(database_postgresql, func_name)(*args, **kwargs)
+    elif DATABASE_TYPE == 'mysql':
+        import database_mysql
+        return getattr(database_mysql, func_name)(*args, **kwargs)
+    else:  # sqlite - precisa implementar aqui
+        raise NotImplementedError(f"Função {func_name} não implementada para SQLite. Use PostgreSQL ou MySQL em produção.")
 
 # ===== CONTRATOS =====
-
-def adicionar_contrato(contrato: Dict) -> int:
-    """Adiciona um novo contrato"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        INSERT INTO contratos (numero, cliente_id, descricao, valor, data_inicio, data_fim, status, observacoes, data_criacao)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        contrato['numero'],
-        contrato.get('cliente_id'),
-        contrato['descricao'],
-        contrato['valor'],
-        contrato['data_inicio'],
-        contrato.get('data_fim'),
-        contrato.get('status', 'ativo'),
-        contrato.get('observacoes'),
-        datetime.now().isoformat()
-    ))
-    
-    contrato_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
-    return contrato_id
+def adicionar_contrato(dados: Dict) -> int:
+    return _delegate_to_specific_db('adicionar_contrato', dados)
 
 def listar_contratos() -> List[Dict]:
-    """Lista todos os contratos"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        SELECT c.id, c.numero, c.cliente_id, cl.nome as cliente_nome, c.descricao, c.valor, 
-               c.data_inicio, c.data_fim, c.status, c.observacoes, c.data_criacao
-        FROM contratos c
-        LEFT JOIN clientes cl ON c.cliente_id = cl.id
-        ORDER BY c.data_criacao DESC
-    """)
-    
-    contratos = []
-    for row in cursor.fetchall():
-        contratos.append({
-            'id': row[0],
-            'numero': row[1],
-            'cliente_id': row[2],
-            'cliente_nome': row[3],
-            'descricao': row[4],
-            'valor': row[5],
-            'data_inicio': row[6],
-            'data_fim': row[7],
-            'status': row[8],
-            'observacoes': row[9],
-            'data_criacao': row[10]
-        })
-    
-    conn.close()
-    return contratos
+    return _delegate_to_specific_db('listar_contratos')
 
-def atualizar_contrato(id: int, contrato: Dict) -> bool:
-    """Atualiza um contrato existente"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        UPDATE contratos
-        SET numero = ?, cliente_id = ?, descricao = ?, valor = ?, data_inicio = ?, data_fim = ?, status = ?, observacoes = ?
-        WHERE id = ?
-    """, (
-        contrato['numero'],
-        contrato.get('cliente_id'),
-        contrato['descricao'],
-        contrato['valor'],
-        contrato['data_inicio'],
-        contrato.get('data_fim'),
-        contrato.get('status', 'ativo'),
-        contrato.get('observacoes'),
-        id
-    ))
-    
-    success = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
-    return success
+def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
+    return _delegate_to_specific_db('atualizar_contrato', contrato_id, dados)
 
-def deletar_contrato(id: int) -> bool:
-    """Deleta um contrato"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("DELETE FROM contratos WHERE id = ?", (id,))
-    
-    success = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
-    return success
+def deletar_contrato(contrato_id: int) -> bool:
+    return _delegate_to_specific_db('deletar_contrato', contrato_id)
 
 # ===== AGENDA =====
+def adicionar_agenda(dados: Dict) -> int:
+    return _delegate_to_specific_db('adicionar_agenda', dados)
 
-def adicionar_agenda(agenda: Dict) -> int:
+def listar_agenda() -> List[Dict]:
+    return _delegate_to_specific_db('listar_agenda')
+
+def atualizar_agenda(agenda_id: int, dados: Dict) -> bool:
+    return _delegate_to_specific_db('atualizar_agenda', agenda_id, dados)
+
+def deletar_agenda(agenda_id: int) -> bool:
+    return _delegate_to_specific_db('deletar_agenda', agenda_id)
+
+# ===== PRODUTOS =====
+def adicionar_produto(dados: Dict) -> int:
+    return _delegate_to_specific_db('adicionar_produto', dados)
+
+def listar_produtos() -> List[Dict]:
+    return _delegate_to_specific_db('listar_produtos')
+
+def atualizar_produto(produto_id: int, dados: Dict) -> bool:
+    return _delegate_to_specific_db('atualizar_produto', produto_id, dados)
+
+def deletar_produto(produto_id: int) -> bool:
+    return _delegate_to_specific_db('deletar_produto', produto_id)
+
+# ===== KITS =====
+def adicionar_kit(dados: Dict) -> int:
+    return _delegate_to_specific_db('adicionar_kit', dados)
+
+def listar_kits() -> List[Dict]:
+    return _delegate_to_specific_db('listar_kits')
+
+def atualizar_kit(kit_id: int, dados: Dict) -> bool:
+    return _delegate_to_specific_db('atualizar_kit', kit_id, dados)
+
+def deletar_kit(kit_id: int) -> bool:
+    return _delegate_to_specific_db('deletar_kit', kit_id)
+
+# ===== TAGS =====
+def adicionar_tag(dados: Dict) -> int:
+    return _delegate_to_specific_db('adicionar_tag', dados)
+
+def listar_tags() -> List[Dict]:
+    return _delegate_to_specific_db('listar_tags')
+
+def atualizar_tag(tag_id: int, dados: Dict) -> bool:
+    return _delegate_to_specific_db('atualizar_tag', tag_id, dados)
+
+def deletar_tag(tag_id: int) -> bool:
+    return _delegate_to_specific_db('deletar_tag', tag_id)
+
+# ===== TEMPLATES DE EQUIPE =====
+def adicionar_template(dados: Dict) -> int:
+    return _delegate_to_specific_db('adicionar_template', dados)
+
+def listar_templates() -> List[Dict]:
+    return _delegate_to_specific_db('listar_templates')
+
+def atualizar_template(template_id: int, dados: Dict) -> bool:
+    return _delegate_to_specific_db('atualizar_template', template_id, dados)
+
+def deletar_template(template_id: int) -> bool:
+    return _delegate_to_specific_db('deletar_template', template_id)
+
+# ===== SESSÕES =====
+def adicionar_sessao(dados: Dict) -> int:
+    return _delegate_to_specific_db('adicionar_sessao', dados)
+
+def listar_sessoes() -> List[Dict]:
+    return _delegate_to_specific_db('listar_sessoes')
+
+def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
+    return _delegate_to_specific_db('atualizar_sessao', sessao_id, dados)
+
+def deletar_sessao(sessao_id: int) -> bool:
+    return _delegate_to_specific_db('deletar_sessao', sessao_id)
+
+# ===== COMISSÕES =====
+def adicionar_comissao(dados: Dict) -> int:
+    return _delegate_to_specific_db('adicionar_comissao', dados)
+
+def listar_comissoes() -> List[Dict]:
+    return _delegate_to_specific_db('listar_comissoes')
+
+def atualizar_comissao(comissao_id: int, dados: Dict) -> bool:
+    return _delegate_to_specific_db('atualizar_comissao', comissao_id, dados)
+
+def deletar_comissao(comissao_id: int) -> bool:
+    return _delegate_to_specific_db('deletar_comissao', comissao_id)
+
+
+# ==================== FUNÇÕES ANTIGAS (mantidas para compatibilidade) ====================
+
+def atualizar_categoria(categoria: Categoria) -> bool:
+    """Atualiza uma categoria existente"""
+    return _db.atualizar_categoria(categoria)
+
+def atualizar_nome_categoria(nome_antigo: str, nome_novo: str) -> bool:
+    """Atualiza o nome de uma categoria e seus relacionamentos"""
+    return _db.atualizar_nome_categoria(nome_antigo, nome_novo)
+
+
+# ==================== FUNÇÕES DE CLIENTES E FORNECEDORES ====================
+
+def atualizar_cliente(nome_antigo: str, cliente: Dict) -> bool:
+    """Atualiza um cliente existente"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    novo_nome = cliente.get('nome', cliente.get('razao_social', ''))
     """Adiciona um novo evento na agenda"""
     conn = get_connection()
     cursor = conn.cursor()
