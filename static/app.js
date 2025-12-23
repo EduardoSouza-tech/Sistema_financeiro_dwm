@@ -2042,7 +2042,7 @@ function visualizarCalendario() {
 //         console.error('Erro ao carregar produtos:', error);
 //         tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
 //     }
-}
+// }
 
 function editarProduto(produto) {
     openModalProduto(produto);
