@@ -1886,7 +1886,15 @@ def listar_sessoes() -> List[Dict]:
         LEFT JOIN clientes c ON s.cliente_id = c.id
         ORDER BY s.data_sessao DESC
     """)
-    sessoes = [dict(row) for row in cursor.fetchall()]
+    sessoes = []
+    for row in cursor.fetchall():
+        sessao = dict(row)
+        # Converter objetos time para string para serialização JSON
+        if 'hora_inicio' in sessao and sessao['hora_inicio']:
+            sessao['hora_inicio'] = str(sessao['hora_inicio'])
+        if 'hora_fim' in sessao and sessao['hora_fim']:
+            sessao['hora_fim'] = str(sessao['hora_fim'])
+        sessoes.append(sessao)
     
     # Buscar equipe de cada sessão
     for sessao in sessoes:
@@ -2050,17 +2058,15 @@ def listar_sessao_equipe(sessao_id: int = None) -> List[Dict]:
     
     if sessao_id:
         cursor.execute("""
-            SELECT se.*, s.titulo as sessao_titulo
+            SELECT se.*
             FROM sessao_equipe se
-            JOIN sessoes s ON se.sessao_id = s.id
             WHERE se.sessao_id = %s
             ORDER BY se.created_at
         """, (sessao_id,))
     else:
         cursor.execute("""
-            SELECT se.*, s.titulo as sessao_titulo
+            SELECT se.*
             FROM sessao_equipe se
-            JOIN sessoes s ON se.sessao_id = s.id
             ORDER BY se.created_at DESC
         """)
     
