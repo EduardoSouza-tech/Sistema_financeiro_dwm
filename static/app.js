@@ -111,39 +111,57 @@ function showFornecedorTab(tipo) {
 function showContratoTab(tipo) {
     const btnContratos = document.getElementById('tab-contratos');
     const btnSessoes = document.getElementById('tab-sessoes');
+    const btnComissoes = document.getElementById('tab-comissoes');
+    const btnEquipe = document.getElementById('tab-equipe');
     const contentContratos = document.getElementById('tab-content-contratos');
     const contentSessoes = document.getElementById('tab-content-sessoes');
+    const contentComissoes = document.getElementById('tab-content-comissoes');
+    const contentEquipe = document.getElementById('tab-content-equipe');
     
+    // Reset all buttons
+    [btnContratos, btnSessoes, btnComissoes, btnEquipe].forEach(btn => {
+        if (btn) {
+            btn.classList.remove('active');
+            btn.style.background = '#bdc3c7';
+            btn.style.color = '#555';
+            btn.style.fontWeight = 'normal';
+        }
+    });
+    
+    // Hide all content
+    [contentContratos, contentSessoes, contentComissoes, contentEquipe].forEach(content => {
+        if (content) content.style.display = 'none';
+    });
+    
+    // Show selected tab
     if (tipo === 'contratos') {
         btnContratos.classList.add('active');
         btnContratos.style.background = '#9b59b6';
         btnContratos.style.color = 'white';
         btnContratos.style.fontWeight = 'bold';
-        
-        btnSessoes.classList.remove('active');
-        btnSessoes.style.background = '#bdc3c7';
-        btnSessoes.style.color = '#555';
-        btnSessoes.style.fontWeight = 'normal';
-        
         contentContratos.style.display = 'block';
-        contentSessoes.style.display = 'none';
-        
         if (typeof loadContratos === 'function') loadContratos();
-    } else {
+    } else if (tipo === 'sessoes') {
         btnSessoes.classList.add('active');
         btnSessoes.style.background = '#9b59b6';
         btnSessoes.style.color = 'white';
         btnSessoes.style.fontWeight = 'bold';
-        
-        btnContratos.classList.remove('active');
-        btnContratos.style.background = '#bdc3c7';
-        btnContratos.style.color = '#555';
-        btnContratos.style.fontWeight = 'normal';
-        
         contentSessoes.style.display = 'block';
-        contentContratos.style.display = 'none';
-        
         if (typeof loadSessoes === 'function') loadSessoes();
+    } else if (tipo === 'comissoes') {
+        btnComissoes.classList.add('active');
+        btnComissoes.style.background = '#9b59b6';
+        btnComissoes.style.color = 'white';
+        btnComissoes.style.fontWeight = 'bold';
+        contentComissoes.style.display = 'block';
+        if (typeof loadComissoes === 'function') loadComissoes();
+    } else if (tipo === 'equipe') {
+        btnEquipe.classList.add('active');
+        btnEquipe.style.background = '#9b59b6';
+        btnEquipe.style.color = 'white';
+        btnEquipe.style.fontWeight = 'bold';
+        contentEquipe.style.display = 'block';
+        if (typeof loadSessaoEquipe === 'function') loadSessaoEquipe();
     }
 }
 
@@ -713,6 +731,269 @@ async function salvarKit() {
     } catch (error) {
         console.error('Erro ao salvar kit:', error);
         alert('Erro ao salvar kit');
+    }
+}
+
+// === FUNÇÕES MODAL - COMISSÕES ===
+
+function openModalComissao(comissao = null) {
+    document.getElementById('comissao-id').value = '';
+    document.getElementById('comissao-contrato-id').value = '';
+    document.getElementById('comissao-pessoa').value = '';
+    document.getElementById('comissao-tipo').value = 'percentual';
+    document.getElementById('comissao-valor').value = '';
+    document.getElementById('comissao-percentual').value = '';
+    
+    if (comissao) {
+        document.getElementById('comissao-id').value = comissao.id || '';
+        document.getElementById('comissao-contrato-id').value = comissao.contrato_id || '';
+        document.getElementById('comissao-pessoa').value = comissao.pessoa || '';
+        document.getElementById('comissao-tipo').value = comissao.tipo || 'percentual';
+        document.getElementById('comissao-valor').value = comissao.valor || '';
+        document.getElementById('comissao-percentual').value = comissao.percentual || '';
+    }
+    
+    document.getElementById('modal-comissao').style.display = 'flex';
+}
+
+function closeModalComissao() {
+    document.getElementById('modal-comissao').style.display = 'none';
+}
+
+async function salvarComissao() {
+    const id = document.getElementById('comissao-id').value;
+    const contrato_id = document.getElementById('comissao-contrato-id').value;
+    const pessoa = document.getElementById('comissao-pessoa').value.trim();
+    const tipo = document.getElementById('comissao-tipo').value;
+    const valor = parseFloat(document.getElementById('comissao-valor').value) || 0;
+    const percentual = parseFloat(document.getElementById('comissao-percentual').value) || 0;
+    
+    if (!contrato_id || !pessoa) {
+        alert('Por favor, preencha os campos obrigatórios (contrato e pessoa)');
+        return;
+    }
+    
+    const dados = {
+        contrato_id: parseInt(contrato_id),
+        pessoa,
+        tipo,
+        valor,
+        percentual
+    };
+    
+    try {
+        const url = id ? `/api/comissoes/${id}` : '/api/comissoes';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(id ? 'Comissão atualizada com sucesso!' : 'Comissão cadastrada com sucesso!');
+            closeModalComissao();
+            if (typeof loadComissoes === 'function') loadComissoes();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar comissão:', error);
+        alert('Erro ao salvar comissão');
+    }
+}
+
+// === FUNÇÕES MODAL - SESSÃO EQUIPE ===
+
+function openModalSessaoEquipe(sessaoEquipe = null) {
+    document.getElementById('sessao-equipe-id').value = '';
+    document.getElementById('sessao-equipe-sessao-id').value = '';
+    document.getElementById('sessao-equipe-membro').value = '';
+    document.getElementById('sessao-equipe-funcao').value = '';
+    document.getElementById('sessao-equipe-observacoes').value = '';
+    
+    if (sessaoEquipe) {
+        document.getElementById('sessao-equipe-id').value = sessaoEquipe.id || '';
+        document.getElementById('sessao-equipe-sessao-id').value = sessaoEquipe.sessao_id || '';
+        document.getElementById('sessao-equipe-membro').value = sessaoEquipe.membro || '';
+        document.getElementById('sessao-equipe-funcao').value = sessaoEquipe.funcao || '';
+        document.getElementById('sessao-equipe-observacoes').value = sessaoEquipe.observacoes || '';
+    }
+    
+    document.getElementById('modal-sessao-equipe').style.display = 'flex';
+}
+
+function closeModalSessaoEquipe() {
+    document.getElementById('modal-sessao-equipe').style.display = 'none';
+}
+
+async function salvarSessaoEquipe() {
+    const id = document.getElementById('sessao-equipe-id').value;
+    const sessao_id = document.getElementById('sessao-equipe-sessao-id').value;
+    const membro = document.getElementById('sessao-equipe-membro').value.trim();
+    const funcao = document.getElementById('sessao-equipe-funcao').value.trim();
+    const observacoes = document.getElementById('sessao-equipe-observacoes').value.trim();
+    
+    if (!sessao_id || !membro) {
+        alert('Por favor, preencha os campos obrigatórios (sessão e membro)');
+        return;
+    }
+    
+    const dados = {
+        sessao_id: parseInt(sessao_id),
+        membro,
+        funcao,
+        observacoes
+    };
+    
+    try {
+        const url = id ? `/api/sessao-equipe/${id}` : '/api/sessao-equipe';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(id ? 'Membro atualizado com sucesso!' : 'Membro adicionado com sucesso!');
+            closeModalSessaoEquipe();
+            if (typeof loadSessaoEquipe === 'function') loadSessaoEquipe();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar membro da equipe:', error);
+        alert('Erro ao salvar membro da equipe');
+    }
+}
+
+// === FUNÇÕES MODAL - TAGS ===
+
+function openModalTag(tag = null) {
+    document.getElementById('tag-id').value = '';
+    document.getElementById('tag-nome').value = '';
+    document.getElementById('tag-cor').value = '#9b59b6';
+    
+    if (tag) {
+        document.getElementById('tag-id').value = tag.id || '';
+        document.getElementById('tag-nome').value = tag.nome || '';
+        document.getElementById('tag-cor').value = tag.cor || '#9b59b6';
+    }
+    
+    document.getElementById('modal-tag').style.display = 'flex';
+}
+
+function closeModalTag() {
+    document.getElementById('modal-tag').style.display = 'none';
+}
+
+async function salvarTag() {
+    const id = document.getElementById('tag-id').value;
+    const nome = document.getElementById('tag-nome').value.trim();
+    const cor = document.getElementById('tag-cor').value;
+    
+    if (!nome) {
+        alert('Por favor, preencha o nome da tag');
+        return;
+    }
+    
+    const dados = { nome, cor };
+    
+    try {
+        const url = id ? `/api/tags/${id}` : '/api/tags';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(id ? 'Tag atualizada com sucesso!' : 'Tag cadastrada com sucesso!');
+            closeModalTag();
+            if (typeof loadTags === 'function') loadTags();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar tag:', error);
+        alert('Erro ao salvar tag');
+    }
+}
+
+// === FUNÇÕES MODAL - TEMPLATES ===
+
+function openModalTemplate(template = null) {
+    document.getElementById('template-id').value = '';
+    document.getElementById('template-nome').value = '';
+    document.getElementById('template-descricao').value = '';
+    document.getElementById('template-membros').value = '';
+    
+    if (template) {
+        document.getElementById('template-id').value = template.id || '';
+        document.getElementById('template-nome').value = template.nome || '';
+        document.getElementById('template-descricao').value = template.descricao || '';
+        document.getElementById('template-membros').value = template.membros ? template.membros.join('\n') : '';
+    }
+    
+    document.getElementById('modal-template').style.display = 'flex';
+}
+
+function closeModalTemplate() {
+    document.getElementById('modal-template').style.display = 'none';
+}
+
+async function salvarTemplate() {
+    const id = document.getElementById('template-id').value;
+    const nome = document.getElementById('template-nome').value.trim();
+    const descricao = document.getElementById('template-descricao').value.trim();
+    const membrosTexto = document.getElementById('template-membros').value.trim();
+    
+    if (!nome) {
+        alert('Por favor, preencha o nome do template');
+        return;
+    }
+    
+    const membros = membrosTexto.split('\n').map(m => m.trim()).filter(m => m.length > 0);
+    
+    const dados = {
+        nome,
+        descricao,
+        membros
+    };
+    
+    try {
+        const url = id ? `/api/templates-equipe/${id}` : '/api/templates-equipe';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(id ? 'Template atualizado com sucesso!' : 'Template cadastrado com sucesso!');
+            closeModalTemplate();
+            if (typeof loadTemplates === 'function') loadTemplates();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar template:', error);
+        alert('Erro ao salvar template');
     }
 }
 
@@ -1905,6 +2186,250 @@ async function excluirKit(id) {
     }
 }
 
+// === CARREGAMENTO - COMISSÕES ===
+
+async function loadComissoes() {
+    const tbody = document.getElementById('tbody-comissoes');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/comissoes');
+        const comissoes = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (comissoes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma comissão cadastrada</td></tr>';
+            return;
+        }
+        
+        comissoes.forEach(comissao => {
+            const tr = document.createElement('tr');
+            const valorFormatado = parseFloat(comissao.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            
+            tr.innerHTML = `
+                <td>${comissao.contrato_numero || '-'}</td>
+                <td>${comissao.pessoa}</td>
+                <td>${comissao.tipo}</td>
+                <td>R$ ${valorFormatado}</td>
+                <td>${comissao.percentual || 0}%</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarComissao(${JSON.stringify(comissao)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirComissao(${comissao.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar comissões:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
+
+function editarComissao(comissao) {
+    openModalComissao(comissao);
+}
+
+async function excluirComissao(id) {
+    if (!confirm('Deseja realmente excluir esta comissão?')) return;
+    
+    try {
+        const response = await fetch(`/api/comissoes/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Comissão excluída com sucesso!');
+            loadComissoes();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir comissão:', error);
+        alert('Erro ao excluir comissão');
+    }
+}
+
+// === CARREGAMENTO - SESSÃO EQUIPE ===
+
+async function loadSessaoEquipe() {
+    const tbody = document.getElementById('tbody-sessao-equipe');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/sessao-equipe');
+        const membros = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (membros.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum membro cadastrado</td></tr>';
+            return;
+        }
+        
+        membros.forEach(membro => {
+            const tr = document.createElement('tr');
+            
+            tr.innerHTML = `
+                <td>${membro.sessao_info || '-'}</td>
+                <td>${membro.membro}</td>
+                <td>${membro.funcao || '-'}</td>
+                <td>${membro.observacoes || '-'}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarSessaoEquipe(${JSON.stringify(membro)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirSessaoEquipe(${membro.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar equipe:', error);
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
+
+function editarSessaoEquipe(membro) {
+    openModalSessaoEquipe(membro);
+}
+
+async function excluirSessaoEquipe(id) {
+    if (!confirm('Deseja realmente remover este membro?')) return;
+    
+    try {
+        const response = await fetch(`/api/sessao-equipe/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Membro removido com sucesso!');
+            loadSessaoEquipe();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao remover membro:', error);
+        alert('Erro ao remover membro');
+    }
+}
+
+// === CARREGAMENTO - TAGS ===
+
+async function loadTags() {
+    const tbody = document.getElementById('tbody-tags');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/tags');
+        const tags = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (tags.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Nenhuma tag cadastrada</td></tr>';
+            return;
+        }
+        
+        tags.forEach(tag => {
+            const tr = document.createElement('tr');
+            
+            tr.innerHTML = `
+                <td>${tag.nome}</td>
+                <td><span style="display: inline-block; width: 30px; height: 20px; background: ${tag.cor}; border-radius: 3px;"></span> ${tag.cor}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarTag(${JSON.stringify(tag)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirTag(${tag.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar tags:', error);
+        tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
+
+function editarTag(tag) {
+    openModalTag(tag);
+}
+
+async function excluirTag(id) {
+    if (!confirm('Deseja realmente excluir esta tag?')) return;
+    
+    try {
+        const response = await fetch(`/api/tags/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Tag excluída com sucesso!');
+            loadTags();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir tag:', error);
+        alert('Erro ao excluir tag');
+    }
+}
+
+// === CARREGAMENTO - TEMPLATES ===
+
+async function loadTemplates() {
+    const tbody = document.getElementById('tbody-templates');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/templates-equipe');
+        const templates = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (templates.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhum template cadastrado</td></tr>';
+            return;
+        }
+        
+        templates.forEach(template => {
+            const tr = document.createElement('tr');
+            const numMembros = template.membros ? template.membros.length : 0;
+            
+            tr.innerHTML = `
+                <td>${template.nome}</td>
+                <td>${template.descricao || '-'}</td>
+                <td>${numMembros} ${numMembros === 1 ? 'membro' : 'membros'}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarTemplate(${JSON.stringify(template)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirTemplate(${template.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar templates:', error);
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
+
+function editarTemplate(template) {
+    openModalTemplate(template);
+}
+
+async function excluirTemplate(id) {
+    if (!confirm('Deseja realmente excluir este template?')) return;
+    
+    try {
+        const response = await fetch(`/api/templates-equipe/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Template excluído com sucesso!');
+            loadTemplates();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir template:', error);
+        alert('Erro ao excluir template');
+    }
+}
+
 function exportarContratosPDF() {
     alert('Exportação PDF de contratos será implementada em breve!');
 }
@@ -1969,14 +2494,38 @@ window.openModalKit = openModalKit;
 window.closeModalKit = closeModalKit;
 window.salvarKit = salvarKit;
 
+// Comissões
+window.openModalComissao = openModalComissao;
+window.closeModalComissao = closeModalComissao;
+window.salvarComissao = salvarComissao;
+
+// Sessão Equipe
+window.openModalSessaoEquipe = openModalSessaoEquipe;
+window.closeModalSessaoEquipe = closeModalSessaoEquipe;
+window.salvarSessaoEquipe = salvarSessaoEquipe;
+
+// Tags
+window.openModalTag = openModalTag;
+window.closeModalTag = closeModalTag;
+window.salvarTag = salvarTag;
+
+// Templates
+window.openModalTemplate = openModalTemplate;
+window.closeModalTemplate = closeModalTemplate;
+window.salvarTemplate = salvarTemplate;
+
 // Funções de carregamento
 window.loadTiposSessao = loadTiposSessao;
 window.loadContratos = loadContratos;
 window.loadSessoes = loadSessoes;
+window.loadComissoes = loadComissoes;
+window.loadSessaoEquipe = loadSessaoEquipe;
 window.loadAgenda = loadAgenda;
 window.loadProdutos = loadProdutos;
 window.loadMovimentacoes = loadMovimentacoes;
 window.loadKits = loadKits;
+window.loadTags = loadTags;
+window.loadTemplates = loadTemplates;
 
 // Funções de exportação
 window.exportarContratosPDF = exportarContratosPDF;

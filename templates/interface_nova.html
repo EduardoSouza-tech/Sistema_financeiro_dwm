@@ -1244,6 +1244,8 @@
                 <button class="submenu-button" onclick="showSection('agenda-fotografia')">📷 Agenda de Fotografia</button>
                 <button class="submenu-button" onclick="showSection('gestao-estoque')">📦 Gestão de Estoque</button>
                 <button class="submenu-button" onclick="showSection('kits-equipamentos')">🎒 Kits de Equipamentos</button>
+                <button class="submenu-button" onclick="showSection('tags-trabalho')">🏷️ Tags de Trabalho</button>
+                <button class="submenu-button" onclick="showSection('templates-equipe')">👥 Templates de Equipe</button>
             </div>
         </div>
 
@@ -2066,6 +2068,12 @@
                     <button class="tab-button" onclick="showContratoTab('sessoes')" id="tab-sessoes" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
                         Sessões
                     </button>
+                    <button class="tab-button" onclick="showContratoTab('comissoes')" id="tab-comissoes" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
+                        Comissões
+                    </button>
+                    <button class="tab-button" onclick="showContratoTab('equipe')" id="tab-equipe" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
+                        Equipe
+                    </button>
                 </div>
 
                 <!-- Tab Contratos -->
@@ -2112,6 +2120,53 @@
                             </thead>
                             <tbody id="tbody-sessoes">
                                 <tr><td colspan="6" class="loading">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab Comissões -->
+                <div id="tab-content-comissoes" style="display: none;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button class="btn btn-primary" onclick="openModalComissao()">➕ Nova Comissão</button>
+                    </div>
+                    <div class="table-scroll-container">
+                        <table id="table-comissoes">
+                            <thead>
+                                <tr>
+                                    <th>Contrato</th>
+                                    <th>Pessoa</th>
+                                    <th>Tipo</th>
+                                    <th>Valor</th>
+                                    <th>Percentual</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-comissoes">
+                                <tr><td colspan="6" class="loading">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab Equipe -->
+                <div id="tab-content-equipe" style="display: none;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button class="btn btn-primary" onclick="openModalSessaoEquipe()">➕ Adicionar Membro</button>
+                    </div>
+                    <div class="table-scroll-container">
+                        <table id="table-sessao-equipe">
+                            <thead>
+                                <tr>
+                                    <th>Sessão</th>
+                                    <th>Membro</th>
+                                    <th>Função</th>
+                                    <th>Observações</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-sessao-equipe">
+                                <tr><td colspan="5" class="loading">Carregando...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -2227,6 +2282,51 @@
                         </thead>
                         <tbody id="tbody-kits">
                             <tr><td colspan="5" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tags de Trabalho -->
+            <div id="tags-trabalho-section" class="content-card hidden">
+                <h2>Tags de Trabalho</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn btn-primary" onclick="openModalTag()">➕ Nova Tag</button>
+                </div>
+                <div class="table-scroll-container">
+                    <table id="table-tags">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Cor</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-tags">
+                            <tr><td colspan="3" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Templates de Equipe -->
+            <div id="templates-equipe-section" class="content-card hidden">
+                <h2>Templates de Equipe</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn btn-primary" onclick="openModalTemplate()">➕ Novo Template</button>
+                </div>
+                <div class="table-scroll-container">
+                    <table id="table-templates">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Descrição</th>
+                                <th>Membros</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-templates">
+                            <tr><td colspan="4" class="loading">Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -2656,6 +2756,139 @@
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                 <button class="btn btn-secondary" onclick="closeModalKit()">Cancelar</button>
                 <button class="btn btn-success" onclick="salvarKit()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Comissão -->
+    <div id="modal-comissao" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <h2 style="margin-top: 0; color: #9b59b6;">💰 Comissão</h2>
+            
+            <input type="hidden" id="comissao-id">
+            
+            <div class="form-group">
+                <label>Contrato:</label>
+                <select id="comissao-contrato-id" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="">Selecione o contrato</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Pessoa:</label>
+                <input type="text" id="comissao-pessoa" required placeholder="Nome da pessoa" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Tipo:</label>
+                <select id="comissao-tipo" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="percentual">Percentual</option>
+                    <option value="fixo">Valor Fixo</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Valor:</label>
+                <input type="number" id="comissao-valor" step="0.01" min="0" placeholder="0.00" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Percentual (%):</label>
+                <input type="number" id="comissao-percentual" step="0.01" min="0" max="100" placeholder="0.00" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeModalComissao()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarComissao()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Sessão Equipe -->
+    <div id="modal-sessao-equipe" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <h2 style="margin-top: 0; color: #9b59b6;">👥 Membro da Equipe</h2>
+            
+            <input type="hidden" id="sessao-equipe-id">
+            
+            <div class="form-group">
+                <label>Sessão:</label>
+                <select id="sessao-equipe-sessao-id" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="">Selecione a sessão</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Membro:</label>
+                <input type="text" id="sessao-equipe-membro" required placeholder="Nome do membro" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Função:</label>
+                <input type="text" id="sessao-equipe-funcao" placeholder="Ex: Fotógrafo, Assistente" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Observações:</label>
+                <textarea id="sessao-equipe-observacoes" rows="3" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeModalSessaoEquipe()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarSessaoEquipe()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Tag -->
+    <div id="modal-tag" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <h2 style="margin-top: 0; color: #9b59b6;">🏷️ Tag de Trabalho</h2>
+            
+            <input type="hidden" id="tag-id">
+            
+            <div class="form-group">
+                <label>Nome:</label>
+                <input type="text" id="tag-nome" required placeholder="Ex: Urgente, Revisão" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Cor:</label>
+                <input type="color" id="tag-cor" value="#9b59b6" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; height: 50px;">
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeModalTag()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarTag()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Template -->
+    <div id="modal-template" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <h2 style="margin-top: 0; color: #9b59b6;">👥 Template de Equipe</h2>
+            
+            <input type="hidden" id="template-id">
+            
+            <div class="form-group">
+                <label>Nome do Template:</label>
+                <input type="text" id="template-nome" required placeholder="Ex: Equipe Casamento Grande" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Descrição:</label>
+                <textarea id="template-descricao" rows="3" placeholder="Descrição do template..." style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Membros (um por linha):</label>
+                <textarea id="template-membros" rows="5" placeholder="Fotógrafo Principal&#10;Fotógrafo Assistente&#10;Videomaker&#10;Assistente Geral" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeModalTemplate()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarTemplate()">💾 Salvar</button>
             </div>
         </div>
     </div>
