@@ -17,9 +17,10 @@ Sistema completo de gestão financeira com controle de receitas, despesas, fluxo
 ### Passo 2: Configurar o Projeto
 
 1. Conecte este repositório ao Railway
-2. Adicione a variável de ambiente:
+2. Adicione as variáveis de ambiente:
    ```
    DATABASE_TYPE=postgresql
+   ENABLE_AUTO_TEST=true  # (Opcional) Ativa auto-teste na inicialização
    ```
 
 ### Passo 3: Deploy

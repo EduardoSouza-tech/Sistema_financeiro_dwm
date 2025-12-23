@@ -43,6 +43,25 @@ if os.path.exists('dados_financeiros.json'):
     db.migrar_dados_json('dados_financeiros.json')
     print("✅ Migração concluída!")
 
+# Auto-teste do sistema (executar apenas se variável de ambiente ENABLE_AUTO_TEST estiver definida)
+if os.getenv('ENABLE_AUTO_TEST', 'false').lower() == 'true':
+    try:
+        from auto_test import executar_testes
+        import threading
+        
+        def executar_testes_async():
+            """Executa testes em thread separada para não bloquear a inicialização"""
+            import time
+            time.sleep(2)  # Aguarda 2 segundos para garantir que o servidor iniciou
+            executar_testes(db)
+        
+        # Executar testes em background
+        thread_teste = threading.Thread(target=executar_testes_async, daemon=True)
+        thread_teste.start()
+        print("🧪 Auto-teste agendado para execução em background")
+    except Exception as e:
+        print(f"⚠️ Não foi possível executar auto-teste: {e}")
+
 
 # === ROTAS DE CONTAS BANCÁRIAS ===
 
