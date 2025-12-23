@@ -81,6 +81,12 @@ def executar_testes(db):
     # TESTE 6-8: CRUD Completo de Categoria
     cat_teste_nome = f"TESTE-AUTO-{timestamp}"
     try:
+        # Limpar categoria de teste anterior se existir
+        try:
+            db.excluir_categoria(cat_teste_nome)
+        except:
+            pass
+        
         cat_teste = Categoria(
             nome=cat_teste_nome,
             tipo=TipoLancamento.RECEITA,
@@ -126,10 +132,19 @@ def executar_testes(db):
     # TESTE 10-13: CRUD Completo de Cliente
     cliente_teste_nome = f"CLIENTE-TESTE-{timestamp}"
     try:
+        # Limpar cliente de teste anterior se existir
+        try:
+            db.inativar_cliente(cliente_teste_nome, "Limpeza auto-teste")
+        except:
+            pass
+        
+        # Gerar CPF único baseado em timestamp
+        cpf_unico = timestamp.ljust(11, '0')  # Preencher com zeros até 11 dígitos
+        
         cliente_data = {
             'nome': cliente_teste_nome,
-            'cpf': '12345678900',
-            'email': 'teste@teste.com',
+            'cpf': cpf_unico,
+            'email': f'teste{timestamp}@teste.com',
             'telefone': '11999999999',
             'endereco': 'Rua Teste, 123'
         }
@@ -183,11 +198,20 @@ def executar_testes(db):
     # TESTE 15-18: CRUD Completo de Fornecedor
     fornecedor_teste_nome = f"FORNECEDOR-TESTE-{timestamp}"
     try:
+        # Limpar fornecedor de teste anterior se existir
+        try:
+            db.inativar_fornecedor(fornecedor_teste_nome, "Limpeza auto-teste")
+        except:
+            pass
+        
+        # Gerar CNPJ único baseado em timestamp
+        cnpj_unico = timestamp.ljust(14, '0')  # Preencher com zeros até 14 dígitos
+        
         fornecedor_data = {
             'nome': fornecedor_teste_nome,
-            'cnpj': '12345678000100',
+            'cnpj': cnpj_unico,
             'razao_social': 'Teste LTDA',
-            'email': 'fornecedor@teste.com',
+            'email': f'fornecedor{timestamp}@teste.com',
             'telefone': '11888888888'
         }
         fornecedor_id = db.adicionar_fornecedor(fornecedor_data)
