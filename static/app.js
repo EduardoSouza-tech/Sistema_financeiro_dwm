@@ -2373,42 +2373,41 @@ async function excluirTag(id) {
 
 // === CARREGAMENTO - TEMPLATES ===
 
-// FUNÇÃO DESATIVADA - Endpoint /api/templates-equipe não existe mais
-// async function loadTemplates() {
-//     const tbody = document.getElementById('tbody-templates');
-//     if (!tbody) return;
-//     
-//     try {
-//         const response = await fetch('/api/templates-equipe');
-//         const templates = await response.json();
-//         
-//         tbody.innerHTML = '';
-//         
-//         if (templates.length === 0) {
-//             tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhum template cadastrado</td></tr>';
-//             return;
-//         }
-//         
-//         templates.forEach(template => {
-//             const tr = document.createElement('tr');
-//             const numMembros = template.membros ? template.membros.length : 0;
-//             
-//             tr.innerHTML = `
-//                 <td>${template.nome}</td>
-//                 <td>${template.descricao || '-'}</td>
-//                 <td>${numMembros} ${numMembros === 1 ? 'membro' : 'membros'}</td>
-//                 <td>
-//                     <button class="btn btn-warning btn-small" onclick='editarTemplate(${JSON.stringify(template)})'>✏️</button>
-//                     <button class="btn btn-danger btn-small" onclick="excluirTemplate(${template.id})">🗑️</button>
-//                 </td>
-//             `;
-//             tbody.appendChild(tr);
-//         });
-//     } catch (error) {
-//         console.error('Erro ao carregar templates:', error);
-//         tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Erro ao carregar dados</td></tr>';
-//     }
-// }
+async function loadTemplates() {
+    const tbody = document.getElementById('tbody-templates');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/templates-equipe');
+        const templates = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (templates.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhum template cadastrado</td></tr>';
+            return;
+        }
+        
+        templates.forEach(template => {
+            const tr = document.createElement('tr');
+            const numMembros = template.membros ? template.membros.length : 0;
+            
+            tr.innerHTML = `
+                <td>${template.nome}</td>
+                <td>${template.descricao || '-'}</td>
+                <td>${numMembros} ${numMembros === 1 ? 'membro' : 'membros'}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarTemplate(${JSON.stringify(template)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirTemplate(${template.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar templates:', error);
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
 
 function editarTemplate(template) {
     openModalTemplate(template);
