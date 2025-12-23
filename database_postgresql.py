@@ -213,7 +213,7 @@ class DatabaseManager:
         cursor.execute("""
             INSERT INTO contas_bancarias 
             (nome, banco, agencia, conta, saldo_inicial, ativa, data_criacao)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, COALESCE(%s, CURRENT_TIMESTAMP))
             RETURNING id
         """, (
             conta.nome,
