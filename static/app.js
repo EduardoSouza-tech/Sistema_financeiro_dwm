@@ -106,6 +106,616 @@ function showFornecedorTab(tipo) {
     loadFornecedoresTable();
 }
 
+// === FUNÇÕES DE ABAS - CONTRATOS E ESTOQUE ===
+
+function showContratoTab(tipo) {
+    const btnContratos = document.getElementById('tab-contratos');
+    const btnSessoes = document.getElementById('tab-sessoes');
+    const contentContratos = document.getElementById('tab-content-contratos');
+    const contentSessoes = document.getElementById('tab-content-sessoes');
+    
+    if (tipo === 'contratos') {
+        btnContratos.classList.add('active');
+        btnContratos.style.background = '#9b59b6';
+        btnContratos.style.color = 'white';
+        btnContratos.style.fontWeight = 'bold';
+        
+        btnSessoes.classList.remove('active');
+        btnSessoes.style.background = '#bdc3c7';
+        btnSessoes.style.color = '#555';
+        btnSessoes.style.fontWeight = 'normal';
+        
+        contentContratos.style.display = 'block';
+        contentSessoes.style.display = 'none';
+        
+        if (typeof loadContratos === 'function') loadContratos();
+    } else {
+        btnSessoes.classList.add('active');
+        btnSessoes.style.background = '#9b59b6';
+        btnSessoes.style.color = 'white';
+        btnSessoes.style.fontWeight = 'bold';
+        
+        btnContratos.classList.remove('active');
+        btnContratos.style.background = '#bdc3c7';
+        btnContratos.style.color = '#555';
+        btnContratos.style.fontWeight = 'normal';
+        
+        contentSessoes.style.display = 'block';
+        contentContratos.style.display = 'none';
+        
+        if (typeof loadSessoes === 'function') loadSessoes();
+    }
+}
+
+function showEstoqueTab(tipo) {
+    const btnProdutos = document.getElementById('tab-produtos');
+    const btnMovimentacoes = document.getElementById('tab-movimentacoes');
+    const contentProdutos = document.getElementById('tab-content-produtos');
+    const contentMovimentacoes = document.getElementById('tab-content-movimentacoes');
+    
+    if (tipo === 'produtos') {
+        btnProdutos.classList.add('active');
+        btnProdutos.style.background = '#9b59b6';
+        btnProdutos.style.color = 'white';
+        btnProdutos.style.fontWeight = 'bold';
+        
+        btnMovimentacoes.classList.remove('active');
+        btnMovimentacoes.style.background = '#bdc3c7';
+        btnMovimentacoes.style.color = '#555';
+        btnMovimentacoes.style.fontWeight = 'normal';
+        
+        contentProdutos.style.display = 'block';
+        contentMovimentacoes.style.display = 'none';
+        
+        if (typeof loadProdutos === 'function') loadProdutos();
+    } else {
+        btnMovimentacoes.classList.add('active');
+        btnMovimentacoes.style.background = '#9b59b6';
+        btnMovimentacoes.style.color = 'white';
+        btnMovimentacoes.style.fontWeight = 'bold';
+        
+        btnProdutos.classList.remove('active');
+        btnProdutos.style.background = '#bdc3c7';
+        btnProdutos.style.color = '#555';
+        btnProdutos.style.fontWeight = 'normal';
+        
+        contentMovimentacoes.style.display = 'block';
+        contentProdutos.style.display = 'none';
+        
+        if (typeof loadMovimentacoes === 'function') loadMovimentacoes();
+    }
+}
+
+// === FUNÇÕES MODAL - TIPOS DE SESSÃO ===
+
+function openModalTipoSessao(tipoSessao = null) {
+    document.getElementById('tipo-sessao-id').value = '';
+    document.getElementById('tipo-sessao-nome').value = '';
+    document.getElementById('tipo-sessao-ativa').checked = true;
+    
+    if (tipoSessao) {
+        document.getElementById('tipo-sessao-id').value = tipoSessao.id || '';
+        document.getElementById('tipo-sessao-nome').value = tipoSessao.nome || '';
+        document.getElementById('tipo-sessao-ativa').checked = tipoSessao.ativa !== false;
+    }
+    
+    document.getElementById('modal-tipo-sessao').style.display = 'flex';
+}
+
+function closeModalTipoSessao() {
+    document.getElementById('modal-tipo-sessao').style.display = 'none';
+}
+
+async function salvarTipoSessao() {
+    const id = document.getElementById('tipo-sessao-id').value;
+    const nome = document.getElementById('tipo-sessao-nome').value.trim();
+    const ativa = document.getElementById('tipo-sessao-ativa').checked;
+    
+    if (!nome) {
+        alert('Por favor, preencha o nome do tipo de sessão');
+        return;
+    }
+    
+    const dados = { nome, ativa };
+    
+    try {
+        const url = id ? `/api/tipos-sessao/${id}` : '/api/tipos-sessao';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(id ? 'Tipo de sessão atualizado com sucesso!' : 'Tipo de sessão cadastrado com sucesso!');
+            closeModalTipoSessao();
+            if (typeof loadTiposSessao === 'function') loadTiposSessao();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar tipo de sessão:', error);
+        alert('Erro ao salvar tipo de sessão');
+    }
+}
+
+// === FUNÇÕES MODAL - CONTRATOS ===
+
+function openModalContrato(contrato = null) {
+    document.getElementById('contrato-id').value = '';
+    document.getElementById('contrato-numero').value = '';
+    document.getElementById('contrato-cliente-id').value = '';
+    document.getElementById('contrato-valor-total').value = '';
+    document.getElementById('contrato-data-assinatura').value = '';
+    document.getElementById('contrato-status').value = 'ativo';
+    document.getElementById('contrato-observacoes').value = '';
+    
+    if (contrato) {
+        document.getElementById('contrato-id').value = contrato.id || '';
+        document.getElementById('contrato-numero').value = contrato.numero || '';
+        document.getElementById('contrato-cliente-id').value = contrato.cliente_id || '';
+        document.getElementById('contrato-valor-total').value = contrato.valor_total || '';
+        document.getElementById('contrato-data-assinatura').value = contrato.data_assinatura || '';
+        document.getElementById('contrato-status').value = contrato.status || 'ativo';
+        document.getElementById('contrato-observacoes').value = contrato.observacoes || '';
+    }
+    
+    // Carregar clientes no select
+    if (typeof loadClientes === 'function') {
+        loadClientes().then(clientes => {
+            const select = document.getElementById('contrato-cliente-id');
+            select.innerHTML = '<option value="">Selecione o cliente</option>';
+            clientes.forEach(cli => {
+                const option = document.createElement('option');
+                option.value = cli.id;
+                option.textContent = cli.razao_social || cli.nome || '-';
+                select.appendChild(option);
+            });
+            if (contrato && contrato.cliente_id) {
+                select.value = contrato.cliente_id;
+            }
+        });
+    }
+    
+    document.getElementById('modal-contrato').style.display = 'flex';
+}
+
+function closeModalContrato() {
+    document.getElementById('modal-contrato').style.display = 'none';
+}
+
+async function salvarContrato() {
+    const id = document.getElementById('contrato-id').value;
+    const numero = document.getElementById('contrato-numero').value.trim();
+    const cliente_id = document.getElementById('contrato-cliente-id').value;
+    const valor_total = parseFloat(document.getElementById('contrato-valor-total').value);
+    const data_assinatura = document.getElementById('contrato-data-assinatura').value;
+    const status = document.getElementById('contrato-status').value;
+    const observacoes = document.getElementById('contrato-observacoes').value.trim();
+    
+    if (!numero || !cliente_id || !valor_total || !data_assinatura) {
+        alert('Por favor, preencha todos os campos obrigatórios');
+        return;
+    }
+    
+    const dados = {
+        numero,
+        cliente_id: parseInt(cliente_id),
+        valor_total,
+        data_assinatura,
+        status,
+        observacoes
+    };
+    
+    try {
+        const url = id ? `/api/contratos/${id}` : '/api/contratos';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(id ? 'Contrato atualizado com sucesso!' : 'Contrato cadastrado com sucesso!');
+            closeModalContrato();
+            if (typeof loadContratos === 'function') loadContratos();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar contrato:', error);
+        alert('Erro ao salvar contrato');
+    }
+}
+
+// === FUNÇÕES MODAL - SESSÕES ===
+
+function openModalSessao(sessao = null) {
+    document.getElementById('sessao-id').value = '';
+    document.getElementById('sessao-contrato-id').value = '';
+    document.getElementById('sessao-tipo-sessao-id').value = '';
+    document.getElementById('sessao-data-prevista').value = '';
+    document.getElementById('sessao-data-realizada').value = '';
+    document.getElementById('sessao-status').value = 'agendada';
+    
+    if (sessao) {
+        document.getElementById('sessao-id').value = sessao.id || '';
+        document.getElementById('sessao-contrato-id').value = sessao.contrato_id || '';
+        document.getElementById('sessao-tipo-sessao-id').value = sessao.tipo_sessao_id || '';
+        document.getElementById('sessao-data-prevista').value = sessao.data_prevista || '';
+        document.getElementById('sessao-data-realizada').value = sessao.data_realizada || '';
+        document.getElementById('sessao-status').value = sessao.status || 'agendada';
+    }
+    
+    document.getElementById('modal-sessao').style.display = 'flex';
+}
+
+function closeModalSessao() {
+    document.getElementById('modal-sessao').style.display = 'none';
+}
+
+async function salvarSessao() {
+    const id = document.getElementById('sessao-id').value;
+    const contrato_id = document.getElementById('sessao-contrato-id').value;
+    const tipo_sessao_id = document.getElementById('sessao-tipo-sessao-id').value;
+    const data_prevista = document.getElementById('sessao-data-prevista').value;
+    const data_realizada = document.getElementById('sessao-data-realizada').value;
+    const status = document.getElementById('sessao-status').value;
+    
+    if (!contrato_id || !tipo_sessao_id || !data_prevista) {
+        alert('Por favor, preencha todos os campos obrigatórios');
+        return;
+    }
+    
+    const dados = {
+        contrato_id: parseInt(contrato_id),
+        tipo_sessao_id: parseInt(tipo_sessao_id),
+        data_prevista,
+        data_realizada: data_realizada || null,
+        status
+    };
+    
+    try {
+        const url = id ? `/api/sessoes/${id}` : '/api/sessoes';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(id ? 'Sessão atualizada com sucesso!' : 'Sessão cadastrada com sucesso!');
+            closeModalSessao();
+            if (typeof loadSessoes === 'function') loadSessoes();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar sessão:', error);
+        alert('Erro ao salvar sessão');
+    }
+}
+
+// === FUNÇÕES MODAL - AGENDA ===
+
+function openModalAgenda(agenda = null) {
+    document.getElementById('agenda-id').value = '';
+    document.getElementById('agenda-cliente-id').value = '';
+    document.getElementById('agenda-data-hora').value = '';
+    document.getElementById('agenda-local').value = '';
+    document.getElementById('agenda-tipo').value = '';
+    document.getElementById('agenda-status').value = 'confirmado';
+    document.getElementById('agenda-observacoes').value = '';
+    
+    if (agenda) {
+        document.getElementById('agenda-id').value = agenda.id || '';
+        document.getElementById('agenda-cliente-id').value = agenda.cliente_id || '';
+        document.getElementById('agenda-data-hora').value = agenda.data_hora || '';
+        document.getElementById('agenda-local').value = agenda.local || '';
+        document.getElementById('agenda-tipo').value = agenda.tipo || '';
+        document.getElementById('agenda-status').value = agenda.status || 'confirmado';
+        document.getElementById('agenda-observacoes').value = agenda.observacoes || '';
+    }
+    
+    // Carregar clientes no select
+    if (typeof loadClientes === 'function') {
+        loadClientes().then(clientes => {
+            const select = document.getElementById('agenda-cliente-id');
+            select.innerHTML = '<option value="">Selecione o cliente</option>';
+            clientes.forEach(cli => {
+                const option = document.createElement('option');
+                option.value = cli.id;
+                option.textContent = cli.razao_social || cli.nome || '-';
+                select.appendChild(option);
+            });
+            if (agenda && agenda.cliente_id) {
+                select.value = agenda.cliente_id;
+            }
+        });
+    }
+    
+    document.getElementById('modal-agenda').style.display = 'flex';
+}
+
+function closeModalAgenda() {
+    document.getElementById('modal-agenda').style.display = 'none';
+}
+
+async function salvarAgenda() {
+    const id = document.getElementById('agenda-id').value;
+    const cliente_id = document.getElementById('agenda-cliente-id').value;
+    const data_hora = document.getElementById('agenda-data-hora').value;
+    const local = document.getElementById('agenda-local').value.trim();
+    const tipo = document.getElementById('agenda-tipo').value.trim();
+    const status = document.getElementById('agenda-status').value;
+    const observacoes = document.getElementById('agenda-observacoes').value.trim();
+    
+    if (!cliente_id || !data_hora) {
+        alert('Por favor, preencha os campos obrigatórios (cliente e data/hora)');
+        return;
+    }
+    
+    const dados = {
+        cliente_id: parseInt(cliente_id),
+        data_hora,
+        local,
+        tipo,
+        status,
+        observacoes
+    };
+    
+    try {
+        const url = id ? `/api/agenda/${id}` : '/api/agenda';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(id ? 'Agendamento atualizado com sucesso!' : 'Agendamento cadastrado com sucesso!');
+            closeModalAgenda();
+            if (typeof loadAgenda === 'function') loadAgenda();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar agendamento:', error);
+        alert('Erro ao salvar agendamento');
+    }
+}
+
+// === FUNÇÕES MODAL - PRODUTOS ===
+
+function openModalProduto(produto = null) {
+    document.getElementById('produto-id').value = '';
+    document.getElementById('produto-nome').value = '';
+    document.getElementById('produto-codigo').value = '';
+    document.getElementById('produto-quantidade').value = '';
+    document.getElementById('produto-unidade').value = 'un';
+    document.getElementById('produto-valor-unitario').value = '';
+    
+    if (produto) {
+        document.getElementById('produto-id').value = produto.id || '';
+        document.getElementById('produto-nome').value = produto.nome || '';
+        document.getElementById('produto-codigo').value = produto.codigo || '';
+        document.getElementById('produto-quantidade').value = produto.quantidade || '';
+        document.getElementById('produto-unidade').value = produto.unidade || 'un';
+        document.getElementById('produto-valor-unitario').value = produto.valor_unitario || '';
+    }
+    
+    document.getElementById('modal-produto').style.display = 'flex';
+}
+
+function closeModalProduto() {
+    document.getElementById('modal-produto').style.display = 'none';
+}
+
+async function salvarProduto() {
+    const id = document.getElementById('produto-id').value;
+    const nome = document.getElementById('produto-nome').value.trim();
+    const codigo = document.getElementById('produto-codigo').value.trim();
+    const quantidade = parseInt(document.getElementById('produto-quantidade').value);
+    const unidade = document.getElementById('produto-unidade').value;
+    const valor_unitario = parseFloat(document.getElementById('produto-valor-unitario').value) || 0;
+    
+    if (!nome || isNaN(quantidade)) {
+        alert('Por favor, preencha os campos obrigatórios (nome e quantidade)');
+        return;
+    }
+    
+    const dados = {
+        nome,
+        codigo,
+        quantidade,
+        unidade,
+        valor_unitario
+    };
+    
+    try {
+        const url = id ? `/api/estoque/produtos/${id}` : '/api/estoque/produtos';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(id ? 'Produto atualizado com sucesso!' : 'Produto cadastrado com sucesso!');
+            closeModalProduto();
+            if (typeof loadProdutos === 'function') loadProdutos();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar produto:', error);
+        alert('Erro ao salvar produto');
+    }
+}
+
+// === FUNÇÕES MODAL - MOVIMENTAÇÕES ===
+
+function openModalMovimentacao(movimentacao = null) {
+    document.getElementById('movimentacao-id').value = '';
+    document.getElementById('movimentacao-produto-id').value = '';
+    document.getElementById('movimentacao-tipo').value = 'entrada';
+    document.getElementById('movimentacao-quantidade').value = '';
+    document.getElementById('movimentacao-data').value = new Date().toISOString().split('T')[0];
+    document.getElementById('movimentacao-observacoes').value = '';
+    
+    if (movimentacao) {
+        document.getElementById('movimentacao-id').value = movimentacao.id || '';
+        document.getElementById('movimentacao-produto-id').value = movimentacao.produto_id || '';
+        document.getElementById('movimentacao-tipo').value = movimentacao.tipo || 'entrada';
+        document.getElementById('movimentacao-quantidade').value = movimentacao.quantidade || '';
+        document.getElementById('movimentacao-data').value = movimentacao.data || '';
+        document.getElementById('movimentacao-observacoes').value = movimentacao.observacoes || '';
+    }
+    
+    document.getElementById('modal-movimentacao').style.display = 'flex';
+}
+
+function closeModalMovimentacao() {
+    document.getElementById('modal-movimentacao').style.display = 'none';
+}
+
+async function salvarMovimentacao() {
+    const id = document.getElementById('movimentacao-id').value;
+    const produto_id = document.getElementById('movimentacao-produto-id').value;
+    const tipo = document.getElementById('movimentacao-tipo').value;
+    const quantidade = parseInt(document.getElementById('movimentacao-quantidade').value);
+    const data = document.getElementById('movimentacao-data').value;
+    const observacoes = document.getElementById('movimentacao-observacoes').value.trim();
+    
+    if (!produto_id || isNaN(quantidade) || quantidade <= 0 || !data) {
+        alert('Por favor, preencha todos os campos obrigatórios corretamente');
+        return;
+    }
+    
+    const dados = {
+        produto_id: parseInt(produto_id),
+        tipo,
+        quantidade,
+        data,
+        observacoes
+    };
+    
+    try {
+        const url = id ? `/api/estoque/movimentacoes/${id}` : '/api/estoque/movimentacoes';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(id ? 'Movimentação atualizada com sucesso!' : 'Movimentação cadastrada com sucesso!');
+            closeModalMovimentacao();
+            if (typeof loadMovimentacoes === 'function') loadMovimentacoes();
+            if (typeof loadProdutos === 'function') loadProdutos(); // Atualizar estoque
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar movimentação:', error);
+        alert('Erro ao salvar movimentação');
+    }
+}
+
+// === FUNÇÕES MODAL - KITS ===
+
+function openModalKit(kit = null) {
+    document.getElementById('kit-id').value = '';
+    document.getElementById('kit-nome').value = '';
+    document.getElementById('kit-descricao').value = '';
+    document.getElementById('kit-itens').value = '';
+    document.getElementById('kit-valor-total').value = '';
+    
+    if (kit) {
+        document.getElementById('kit-id').value = kit.id || '';
+        document.getElementById('kit-nome').value = kit.nome || '';
+        document.getElementById('kit-descricao').value = kit.descricao || '';
+        document.getElementById('kit-itens').value = kit.itens ? kit.itens.join('\n') : '';
+        document.getElementById('kit-valor-total').value = kit.valor_total || '';
+    }
+    
+    document.getElementById('modal-kit').style.display = 'flex';
+}
+
+function closeModalKit() {
+    document.getElementById('modal-kit').style.display = 'none';
+}
+
+async function salvarKit() {
+    const id = document.getElementById('kit-id').value;
+    const nome = document.getElementById('kit-nome').value.trim();
+    const descricao = document.getElementById('kit-descricao').value.trim();
+    const itensTexto = document.getElementById('kit-itens').value.trim();
+    const valor_total = parseFloat(document.getElementById('kit-valor-total').value) || 0;
+    
+    if (!nome) {
+        alert('Por favor, preencha o nome do kit');
+        return;
+    }
+    
+    const itens = itensTexto.split('\n').map(i => i.trim()).filter(i => i.length > 0);
+    
+    const dados = {
+        nome,
+        descricao,
+        itens,
+        valor_total
+    };
+    
+    try {
+        const url = id ? `/api/kits/${id}` : '/api/kits';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(id ? 'Kit atualizado com sucesso!' : 'Kit cadastrado com sucesso!');
+            closeModalKit();
+            if (typeof loadKits === 'function') loadKits();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar kit:', error);
+        alert('Erro ao salvar kit');
+    }
+}
+
 // === FUNÇÕES DE CARREGAMENTO ===
 
 // Função auxiliar para carregar categorias no array global
@@ -849,6 +1459,456 @@ async function excluirCategoria(nome) {
     }
 }
 
+// === FUNÇÕES DE CARREGAMENTO DAS NOVAS SEÇÕES ===
+
+async function loadTiposSessao() {
+    const tbody = document.getElementById('tbody-tipos-sessao');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/tipos-sessao');
+        const tipos = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (tipos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Nenhum tipo de sessão cadastrado</td></tr>';
+            return;
+        }
+        
+        tipos.forEach(tipo => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${tipo.nome}</td>
+                <td>${tipo.ativa ? '<span style="color: #27ae60;">✓ Ativa</span>' : '<span style="color: #e74c3c;">✗ Inativa</span>'}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarTipoSessao(${JSON.stringify(tipo)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirTipoSessao(${tipo.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar tipos de sessão:', error);
+        tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
+
+function editarTipoSessao(tipo) {
+    openModalTipoSessao(tipo);
+}
+
+async function excluirTipoSessao(id) {
+    if (!confirm('Deseja realmente excluir este tipo de sessão?')) return;
+    
+    try {
+        const response = await fetch(`/api/tipos-sessao/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Tipo de sessão excluído com sucesso!');
+            loadTiposSessao();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir tipo:', error);
+        alert('Erro ao excluir tipo de sessão');
+    }
+}
+
+async function loadContratos() {
+    const tbody = document.getElementById('tbody-contratos');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/contratos');
+        const contratos = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (contratos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum contrato cadastrado</td></tr>';
+            return;
+        }
+        
+        contratos.forEach(contrato => {
+            const tr = document.createElement('tr');
+            const valorFormatado = parseFloat(contrato.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            const dataFormatada = contrato.data_assinatura ? new Date(contrato.data_assinatura).toLocaleDateString('pt-BR') : '-';
+            
+            tr.innerHTML = `
+                <td>${contrato.numero}</td>
+                <td>${contrato.cliente_nome || '-'}</td>
+                <td>R$ ${valorFormatado}</td>
+                <td>${dataFormatada}</td>
+                <td>${contrato.status}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarContrato(${JSON.stringify(contrato)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirContrato(${contrato.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar contratos:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
+
+function editarContrato(contrato) {
+    openModalContrato(contrato);
+}
+
+async function excluirContrato(id) {
+    if (!confirm('Deseja realmente excluir este contrato?')) return;
+    
+    try {
+        const response = await fetch(`/api/contratos/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Contrato excluído com sucesso!');
+            loadContratos();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir contrato:', error);
+        alert('Erro ao excluir contrato');
+    }
+}
+
+async function loadSessoes() {
+    const tbody = document.getElementById('tbody-sessoes');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/sessoes');
+        const sessoes = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (sessoes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma sessão cadastrada</td></tr>';
+            return;
+        }
+        
+        sessoes.forEach(sessao => {
+            const tr = document.createElement('tr');
+            const dataPrevista = sessao.data_prevista ? new Date(sessao.data_prevista).toLocaleString('pt-BR') : '-';
+            const dataRealizada = sessao.data_realizada ? new Date(sessao.data_realizada).toLocaleString('pt-BR') : '-';
+            
+            tr.innerHTML = `
+                <td>${sessao.contrato_numero || '-'}</td>
+                <td>${sessao.tipo_sessao_nome || '-'}</td>
+                <td>${dataPrevista}</td>
+                <td>${dataRealizada}</td>
+                <td>${sessao.status}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarSessao(${JSON.stringify(sessao)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirSessao(${sessao.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar sessões:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
+
+function editarSessao(sessao) {
+    openModalSessao(sessao);
+}
+
+async function excluirSessao(id) {
+    if (!confirm('Deseja realmente excluir esta sessão?')) return;
+    
+    try {
+        const response = await fetch(`/api/sessoes/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Sessão excluída com sucesso!');
+            loadSessoes();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir sessão:', error);
+        alert('Erro ao excluir sessão');
+    }
+}
+
+async function loadAgenda() {
+    const tbody = document.getElementById('tbody-agenda');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/agenda');
+        const agendamentos = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (agendamentos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum agendamento cadastrado</td></tr>';
+            return;
+        }
+        
+        agendamentos.forEach(agenda => {
+            const tr = document.createElement('tr');
+            const dataHora = agenda.data_hora ? new Date(agenda.data_hora).toLocaleString('pt-BR') : '-';
+            
+            tr.innerHTML = `
+                <td>${dataHora}</td>
+                <td>${agenda.cliente_nome || '-'}</td>
+                <td>${agenda.local || '-'}</td>
+                <td>${agenda.tipo || '-'}</td>
+                <td>${agenda.status}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarAgenda(${JSON.stringify(agenda)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirAgenda(${agenda.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar agenda:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
+
+function editarAgenda(agenda) {
+    openModalAgenda(agenda);
+}
+
+async function excluirAgenda(id) {
+    if (!confirm('Deseja realmente excluir este agendamento?')) return;
+    
+    try {
+        const response = await fetch(`/api/agenda/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Agendamento excluído com sucesso!');
+            loadAgenda();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir agendamento:', error);
+        alert('Erro ao excluir agendamento');
+    }
+}
+
+function visualizarCalendario() {
+    alert('Visualização de calendário será implementada em breve!');
+}
+
+async function loadProdutos() {
+    const tbody = document.getElementById('tbody-produtos');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/estoque/produtos');
+        const produtos = await response.json();
+        
+        // Armazenar produtos para uso em movimentações
+        window.produtosEstoque = produtos;
+        
+        // Atualizar select de produtos no modal de movimentação
+        const selectProduto = document.getElementById('movimentacao-produto-id');
+        if (selectProduto) {
+            selectProduto.innerHTML = '<option value="">Selecione o produto</option>';
+            produtos.forEach(prod => {
+                const option = document.createElement('option');
+                option.value = prod.id;
+                option.textContent = prod.nome;
+                selectProduto.appendChild(option);
+            });
+        }
+        
+        tbody.innerHTML = '';
+        
+        if (produtos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum produto cadastrado</td></tr>';
+            return;
+        }
+        
+        produtos.forEach(prod => {
+            const tr = document.createElement('tr');
+            const valorFormatado = parseFloat(prod.valor_unitario || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            
+            tr.innerHTML = `
+                <td>${prod.nome}</td>
+                <td>${prod.codigo || '-'}</td>
+                <td>${prod.quantidade}</td>
+                <td>${prod.unidade}</td>
+                <td>R$ ${valorFormatado}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarProduto(${JSON.stringify(prod)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirProduto(${prod.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar produtos:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
+
+function editarProduto(produto) {
+    openModalProduto(produto);
+}
+
+async function excluirProduto(id) {
+    if (!confirm('Deseja realmente excluir este produto?')) return;
+    
+    try {
+        const response = await fetch(`/api/estoque/produtos/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Produto excluído com sucesso!');
+            loadProdutos();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir produto:', error);
+        alert('Erro ao excluir produto');
+    }
+}
+
+async function loadMovimentacoes() {
+    const tbody = document.getElementById('tbody-movimentacoes');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/estoque/movimentacoes');
+        const movimentacoes = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (movimentacoes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma movimentação cadastrada</td></tr>';
+            return;
+        }
+        
+        movimentacoes.forEach(mov => {
+            const tr = document.createElement('tr');
+            const dataFormatada = mov.data ? new Date(mov.data).toLocaleDateString('pt-BR') : '-';
+            const tipoColor = mov.tipo === 'entrada' ? '#27ae60' : '#e74c3c';
+            
+            tr.innerHTML = `
+                <td>${dataFormatada}</td>
+                <td>${mov.produto_nome || '-'}</td>
+                <td><span style="color: ${tipoColor};">${mov.tipo}</span></td>
+                <td>${mov.quantidade}</td>
+                <td>${mov.observacoes || '-'}</td>
+                <td>
+                    <button class="btn btn-danger btn-small" onclick="excluirMovimentacao(${mov.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar movimentações:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
+
+async function excluirMovimentacao(id) {
+    if (!confirm('Deseja realmente excluir esta movimentação?')) return;
+    
+    try {
+        const response = await fetch(`/api/estoque/movimentacoes/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Movimentação excluída com sucesso!');
+            loadMovimentacoes();
+            loadProdutos(); // Atualizar estoque
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir movimentação:', error);
+        alert('Erro ao excluir movimentação');
+    }
+}
+
+function exportarEstoquePDF() {
+    alert('Exportação PDF será implementada em breve!');
+}
+
+async function loadKits() {
+    const tbody = document.getElementById('tbody-kits');
+    if (!tbody) return;
+    
+    try {
+        const response = await fetch('/api/kits');
+        const kits = await response.json();
+        
+        tbody.innerHTML = '';
+        
+        if (kits.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum kit cadastrado</td></tr>';
+            return;
+        }
+        
+        kits.forEach(kit => {
+            const tr = document.createElement('tr');
+            const valorFormatado = parseFloat(kit.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            const numItens = kit.itens ? kit.itens.length : 0;
+            
+            tr.innerHTML = `
+                <td>${kit.nome}</td>
+                <td>${kit.descricao || '-'}</td>
+                <td>${numItens} ${numItens === 1 ? 'item' : 'itens'}</td>
+                <td>R$ ${valorFormatado}</td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick='editarKit(${JSON.stringify(kit)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirKit(${kit.id})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar kits:', error);
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
+    }
+}
+
+function editarKit(kit) {
+    openModalKit(kit);
+}
+
+async function excluirKit(id) {
+    if (!confirm('Deseja realmente excluir este kit?')) return;
+    
+    try {
+        const response = await fetch(`/api/kits/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Kit excluído com sucesso!');
+            loadKits();
+        } else {
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir kit:', error);
+        alert('Erro ao excluir kit');
+    }
+}
+
+function exportarContratosPDF() {
+    alert('Exportação PDF de contratos será implementada em breve!');
+}
+
 // Tornar funções globais
 window.showClienteTab = showClienteTab;
 window.showFornecedorTab = showFornecedorTab;
@@ -869,6 +1929,60 @@ window.reativarFornecedor = reativarFornecedor;
 window.excluirFornecedor = excluirFornecedor;
 window.verMotivoInativacao = verMotivoInativacao;
 window.closeModalMotivoInativacao = closeModalMotivoInativacao;
+
+// Novas funcionalidades operacionais
+window.showContratoTab = showContratoTab;
+window.showEstoqueTab = showEstoqueTab;
+
+// Tipos de Sessão
+window.openModalTipoSessao = openModalTipoSessao;
+window.closeModalTipoSessao = closeModalTipoSessao;
+window.salvarTipoSessao = salvarTipoSessao;
+
+// Contratos
+window.openModalContrato = openModalContrato;
+window.closeModalContrato = closeModalContrato;
+window.salvarContrato = salvarContrato;
+
+// Sessões
+window.openModalSessao = openModalSessao;
+window.closeModalSessao = closeModalSessao;
+window.salvarSessao = salvarSessao;
+
+// Agenda
+window.openModalAgenda = openModalAgenda;
+window.closeModalAgenda = closeModalAgenda;
+window.salvarAgenda = salvarAgenda;
+
+// Estoque - Produtos
+window.openModalProduto = openModalProduto;
+window.closeModalProduto = closeModalProduto;
+window.salvarProduto = salvarProduto;
+
+// Estoque - Movimentações
+window.openModalMovimentacao = openModalMovimentacao;
+window.closeModalMovimentacao = closeModalMovimentacao;
+window.salvarMovimentacao = salvarMovimentacao;
+
+// Kits
+window.openModalKit = openModalKit;
+window.closeModalKit = closeModalKit;
+window.salvarKit = salvarKit;
+
+// Funções de carregamento
+window.loadTiposSessao = loadTiposSessao;
+window.loadContratos = loadContratos;
+window.loadSessoes = loadSessoes;
+window.loadAgenda = loadAgenda;
+window.loadProdutos = loadProdutos;
+window.loadMovimentacoes = loadMovimentacoes;
+window.loadKits = loadKits;
+
+// Funções de exportação
+window.exportarContratosPDF = exportarContratosPDF;
+window.exportarEstoquePDF = exportarEstoquePDF;
+window.visualizarCalendario = visualizarCalendario;
+
 // === FUNÇÕES DE CONTAS A RECEBER/PAGAR ===
 
 // Função auxiliar para formatar data no padrão brasileiro

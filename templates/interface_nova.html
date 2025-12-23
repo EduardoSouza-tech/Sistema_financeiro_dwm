@@ -1232,6 +1232,18 @@
                 <button class="submenu-button" onclick="showSection('categorias')">📁 Categorias</button>
                 <button class="submenu-button" onclick="showSection('clientes')">👤 Clientes</button>
                 <button class="submenu-button" onclick="showSection('fornecedores')">🏭 Fornecedores</button>
+                <button class="submenu-button" onclick="showSection('tipos-sessao')">📸 Tipos de Sessão</button>
+            </div>
+            
+            <!-- Menu Operacional com Submenu -->
+            <button class="nav-button" onclick="toggleSubmenu('operacional')" id="btn-operacional">
+                ⚙️ Operacional ▼
+            </button>
+            <div class="submenu" id="submenu-operacional" style="display: none;">
+                <button class="submenu-button" onclick="showSection('contratos')">📋 Contratos e Sessões</button>
+                <button class="submenu-button" onclick="showSection('agenda-fotografia')">📷 Agenda de Fotografia</button>
+                <button class="submenu-button" onclick="showSection('gestao-estoque')">📦 Gestão de Estoque</button>
+                <button class="submenu-button" onclick="showSection('kits-equipamentos')">🎒 Kits de Equipamentos</button>
             </div>
         </div>
 
@@ -2019,6 +2031,206 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Tipos de Sessão -->
+            <div id="tipos-sessao-section" class="content-card hidden">
+                <h2>Tipos de Sessão</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn btn-primary" onclick="openModalTipoSessao()">➕ Novo Tipo</button>
+                </div>
+                <div class="table-scroll-container">
+                    <table id="table-tipos-sessao">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Ativa</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-tipos-sessao">
+                            <tr><td colspan="3" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Contratos e Sessões -->
+            <div id="contratos-section" class="content-card hidden">
+                <h2>Contratos e Sessões</h2>
+                
+                <!-- Tabs -->
+                <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd;">
+                    <button class="tab-button active" onclick="showContratoTab('contratos')" id="tab-contratos" style="padding: 10px 20px; border: none; background: #9b59b6; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;">
+                        Contratos
+                    </button>
+                    <button class="tab-button" onclick="showContratoTab('sessoes')" id="tab-sessoes" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
+                        Sessões
+                    </button>
+                </div>
+
+                <!-- Tab Contratos -->
+                <div id="tab-content-contratos">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button class="btn btn-primary" onclick="openModalContrato()">➕ Novo Contrato</button>
+                        <button class="btn" onclick="exportarContratosPDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
+                    </div>
+                    <div class="table-scroll-container">
+                        <table id="table-contratos">
+                            <thead>
+                                <tr>
+                                    <th>Número</th>
+                                    <th>Cliente</th>
+                                    <th>Valor Total</th>
+                                    <th>Data Assinatura</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-contratos">
+                                <tr><td colspan="6" class="loading">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab Sessões -->
+                <div id="tab-content-sessoes" style="display: none;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button class="btn btn-primary" onclick="openModalSessao()">➕ Nova Sessão</button>
+                    </div>
+                    <div class="table-scroll-container">
+                        <table id="table-sessoes">
+                            <thead>
+                                <tr>
+                                    <th>Contrato</th>
+                                    <th>Tipo Sessão</th>
+                                    <th>Data Prevista</th>
+                                    <th>Data Realizada</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-sessoes">
+                                <tr><td colspan="6" class="loading">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agenda de Fotografia -->
+            <div id="agenda-section" class="content-card hidden">
+                <h2>Agenda de Fotografia</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn btn-primary" onclick="openModalAgenda()">➕ Novo Agendamento</button>
+                    <button class="btn" onclick="visualizarCalendario()" style="background: #3498db; color: white;">📅 Ver Calendário</button>
+                </div>
+                <div class="table-scroll-container">
+                    <table id="table-agenda">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Cliente</th>
+                                <th>Local</th>
+                                <th>Tipo</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-agenda">
+                            <tr><td colspan="6" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Gestão de Estoque -->
+            <div id="gestao-estoque-section" class="content-card hidden">
+                <h2>Gestão de Estoque</h2>
+                
+                <!-- Tabs -->
+                <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd;">
+                    <button class="tab-button active" onclick="showEstoqueTab('produtos')" id="tab-produtos" style="padding: 10px 20px; border: none; background: #9b59b6; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;">
+                        Produtos
+                    </button>
+                    <button class="tab-button" onclick="showEstoqueTab('movimentacoes')" id="tab-movimentacoes" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
+                        Movimentações
+                    </button>
+                </div>
+
+                <!-- Tab Produtos -->
+                <div id="tab-content-produtos">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button class="btn btn-primary" onclick="openModalProduto()">➕ Novo Produto</button>
+                        <button class="btn" onclick="exportarEstoquePDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
+                    </div>
+                    <div class="table-scroll-container">
+                        <table id="table-produtos">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Código</th>
+                                    <th>Quantidade</th>
+                                    <th>Unidade</th>
+                                    <th>Valor Unitário</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-produtos">
+                                <tr><td colspan="6" class="loading">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab Movimentações -->
+                <div id="tab-content-movimentacoes" style="display: none;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button class="btn btn-primary" onclick="openModalMovimentacao()">➕ Nova Movimentação</button>
+                    </div>
+                    <div class="table-scroll-container">
+                        <table id="table-movimentacoes">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Produto</th>
+                                    <th>Tipo</th>
+                                    <th>Quantidade</th>
+                                    <th>Observações</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-movimentacoes">
+                                <tr><td colspan="6" class="loading">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kits de Equipamentos -->
+            <div id="kits-section" class="content-card hidden">
+                <h2>Kits de Equipamentos</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn btn-primary" onclick="openModalKit()">➕ Novo Kit</button>
+                </div>
+                <div class="table-scroll-container">
+                    <table id="table-kits">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Descrição</th>
+                                <th>Itens</th>
+                                <th>Valor Total</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-kits">
+                            <tr><td colspan="5" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2152,6 +2364,302 @@
         </div>
     </div>
     
+    <!-- Modal Tipo de Sessão -->
+    <div id="modal-tipo-sessao" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <h2 style="margin-top: 0; color: #9b59b6;">📸 Tipo de Sessão</h2>
+            
+            <input type="hidden" id="tipo-sessao-id">
+            
+            <div class="form-group">
+                <label>Nome do Tipo:</label>
+                <input type="text" id="tipo-sessao-nome" required placeholder="Ex: Ensaio Newborn" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="tipo-sessao-ativa" checked>
+                    Ativa
+                </label>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeModalTipoSessao()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarTipoSessao()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Contrato -->
+    <div id="modal-contrato" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; overflow-y: auto;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 700px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: 20px;">
+            <h2 style="margin-top: 0; color: #9b59b6;">📄 Contrato</h2>
+            
+            <input type="hidden" id="contrato-id">
+            
+            <div class="form-group">
+                <label>Número do Contrato:</label>
+                <input type="text" id="contrato-numero" required placeholder="Ex: 001/2024" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Cliente:</label>
+                <select id="contrato-cliente-id" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="">Selecione o cliente</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Valor Total:</label>
+                <input type="number" id="contrato-valor-total" step="0.01" min="0" required placeholder="0.00" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Data de Assinatura:</label>
+                <input type="date" id="contrato-data-assinatura" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Status:</label>
+                <select id="contrato-status" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="ativo">Ativo</option>
+                    <option value="concluido">Concluído</option>
+                    <option value="cancelado">Cancelado</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Observações:</label>
+                <textarea id="contrato-observacoes" rows="3" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeModalContrato()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarContrato()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Sessão -->
+    <div id="modal-sessao" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <h2 style="margin-top: 0; color: #9b59b6;">📸 Sessão Fotográfica</h2>
+            
+            <input type="hidden" id="sessao-id">
+            
+            <div class="form-group">
+                <label>Contrato:</label>
+                <select id="sessao-contrato-id" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="">Selecione o contrato</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Tipo de Sessão:</label>
+                <select id="sessao-tipo-sessao-id" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="">Selecione o tipo</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Data Prevista:</label>
+                <input type="datetime-local" id="sessao-data-prevista" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Data Realizada:</label>
+                <input type="datetime-local" id="sessao-data-realizada" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Status:</label>
+                <select id="sessao-status" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="agendada">Agendada</option>
+                    <option value="realizada">Realizada</option>
+                    <option value="cancelada">Cancelada</option>
+                </select>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeModalSessao()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarSessao()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Agenda -->
+    <div id="modal-agenda" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <h2 style="margin-top: 0; color: #9b59b6;">📅 Agendamento</h2>
+            
+            <input type="hidden" id="agenda-id">
+            
+            <div class="form-group">
+                <label>Cliente:</label>
+                <select id="agenda-cliente-id" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="">Selecione o cliente</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Data e Hora:</label>
+                <input type="datetime-local" id="agenda-data-hora" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Local:</label>
+                <input type="text" id="agenda-local" placeholder="Ex: Estúdio, Externa, Casa do cliente" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Tipo:</label>
+                <input type="text" id="agenda-tipo" placeholder="Ex: Ensaio Família" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Status:</label>
+                <select id="agenda-status" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="confirmado">Confirmado</option>
+                    <option value="pendente">Pendente</option>
+                    <option value="cancelado">Cancelado</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Observações:</label>
+                <textarea id="agenda-observacoes" rows="3" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeModalAgenda()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarAgenda()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Produto -->
+    <div id="modal-produto" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <h2 style="margin-top: 0; color: #9b59b6;">📦 Produto</h2>
+            
+            <input type="hidden" id="produto-id">
+            
+            <div class="form-group">
+                <label>Nome:</label>
+                <input type="text" id="produto-nome" required placeholder="Ex: Papel Fotográfico A4" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Código:</label>
+                <input type="text" id="produto-codigo" placeholder="Ex: PF-A4-001" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Quantidade:</label>
+                <input type="number" id="produto-quantidade" min="0" step="1" required placeholder="0" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Unidade:</label>
+                <select id="produto-unidade" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="un">Unidade</option>
+                    <option value="cx">Caixa</option>
+                    <option value="pc">Pacote</option>
+                    <option value="kg">Quilograma</option>
+                    <option value="l">Litro</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Valor Unitário:</label>
+                <input type="number" id="produto-valor-unitario" step="0.01" min="0" placeholder="0.00" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeModalProduto()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarProduto()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Movimentação -->
+    <div id="modal-movimentacao" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <h2 style="margin-top: 0; color: #9b59b6;">📋 Movimentação de Estoque</h2>
+            
+            <input type="hidden" id="movimentacao-id">
+            
+            <div class="form-group">
+                <label>Produto:</label>
+                <select id="movimentacao-produto-id" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="">Selecione o produto</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Tipo:</label>
+                <select id="movimentacao-tipo" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="entrada">Entrada</option>
+                    <option value="saida">Saída</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Quantidade:</label>
+                <input type="number" id="movimentacao-quantidade" min="1" step="1" required placeholder="0" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Data:</label>
+                <input type="date" id="movimentacao-data" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Observações:</label>
+                <textarea id="movimentacao-observacoes" rows="3" placeholder="Motivo da movimentação..." style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeModalMovimentacao()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarMovimentacao()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Kit -->
+    <div id="modal-kit" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <h2 style="margin-top: 0; color: #9b59b6;">🎒 Kit de Equipamentos</h2>
+            
+            <input type="hidden" id="kit-id">
+            
+            <div class="form-group">
+                <label>Nome do Kit:</label>
+                <input type="text" id="kit-nome" required placeholder="Ex: Kit Ensaio Externo" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Descrição:</label>
+                <textarea id="kit-descricao" rows="3" placeholder="Descrição dos itens incluídos no kit..." style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Itens (um por linha):</label>
+                <textarea id="kit-itens" rows="5" placeholder="Câmera Canon 5D&#10;Lente 50mm&#10;Flash Speedlite&#10;Tripé" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Valor Total:</label>
+                <input type="number" id="kit-valor-total" step="0.01" min="0" placeholder="0.00" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeModalKit()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarKit()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+    
     <script>
         // Inicializar dados ao carregar a página
         document.addEventListener('DOMContentLoaded', function() {
@@ -2250,6 +2758,16 @@
                 if (typeof carregarIndicadores === 'function') carregarIndicadores();
             } else if (sectionId === 'inadimplencia') {
                 if (typeof carregarInadimplencia === 'function') carregarInadimplencia();
+            } else if (sectionId === 'tipos-sessao') {
+                if (typeof loadTiposSessao === 'function') loadTiposSessao();
+            } else if (sectionId === 'contratos') {
+                if (typeof loadContratos === 'function') loadContratos();
+            } else if (sectionId === 'agenda') {
+                if (typeof loadAgenda === 'function') loadAgenda();
+            } else if (sectionId === 'gestao-estoque') {
+                if (typeof loadProdutos === 'function') loadProdutos();
+            } else if (sectionId === 'kits') {
+                if (typeof loadKits === 'function') loadKits();
             }
         }
         

@@ -311,7 +311,7 @@ class DatabaseManager:
         
         categorias = []
         for row in rows:
-            subcategorias = json.loads(row['subcategorias']) if row['subcategorias'] else []
+            subcategorias = json.loads(row['subcategorias']) if row['subcategorias'] else []  # type: ignore
             
             categoria = Categoria(
                 id=row['id'],
