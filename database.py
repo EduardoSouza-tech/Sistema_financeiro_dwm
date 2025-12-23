@@ -1340,7 +1340,7 @@ def atualizar_nome_categoria(nome_antigo: str, nome_novo: str) -> bool:
     return _db.atualizar_nome_categoria(nome_antigo, nome_novo)
 
 
-# ==================== FUNÇÕES DE CLIENTES E FORNECEDORES ====================
+# ==================== FUNÇÕES DE CLIENTES E FORNECEDORES (implementação SQLite antiga) ====================
 
 def atualizar_cliente(nome_antigo: str, cliente: Dict) -> bool:
     """Atualiza um cliente existente"""
@@ -1348,33 +1348,8 @@ def atualizar_cliente(nome_antigo: str, cliente: Dict) -> bool:
     cursor = conn.cursor()
     
     novo_nome = cliente.get('nome', cliente.get('razao_social', ''))
-    """Adiciona um novo evento na agenda"""
-    conn = get_connection()
-    cursor = conn.cursor()
     
-    cursor.execute("""
-        INSERT INTO agenda (titulo, descricao, data_evento, hora_inicio, hora_fim, local, tipo, status, cliente_id, observacoes, data_criacao)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        agenda['titulo'],
-        agenda.get('descricao'),
-        agenda['data_evento'],
-        agenda.get('hora_inicio'),
-        agenda.get('hora_fim'),
-        agenda.get('local'),
-        agenda.get('tipo', 'evento'),
-        agenda.get('status', 'agendado'),
-        agenda.get('cliente_id'),
-        agenda.get('observacoes'),
-        datetime.now().isoformat()
-    ))
-    
-    agenda_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
-    return agenda_id
-
-def listar_agenda() -> List[Dict]:
+    print(f"\n=== atualizar_cliente (database.py) ===")
     """Lista todos os eventos da agenda"""
     conn = get_connection()
     cursor = conn.cursor()
