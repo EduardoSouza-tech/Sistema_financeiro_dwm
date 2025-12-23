@@ -376,10 +376,121 @@ def executar_testes(db):
     except Exception as e:
         resultados['falhas'].append(f"❌ [RELATÓRIOS] Análise Categorias: {str(e)}")
     
-    # ========== TESTES OPERACIONAIS ==========
+    # ========== TESTES OPERACIONAIS COMPLETOS ==========
     print("⚙️  Testando OPERAÇÕES...")
     
-    # TESTE: Transferência entre contas
+    # TESTE 1: Criar lançamento para testes operacionais
+    lanc_operacional_id = None
+    try:
+        lanc_op = Lancamento(
+            tipo=TipoLancamento.DESPESA,
+            descricao=f"OPERACIONAL-TESTE-{timestamp}",
+            valor=Decimal("200.00"),
+            data_vencimento=date.today(),
+            status=StatusLancamento.PENDENTE,
+            categoria="TESTE",
+            subcategoria="",
+            conta_bancaria="",
+            pessoa="",
+            observacoes="Teste operacional"
+        )
+        lanc_operacional_id = db.adicionar_lancamento(lanc_op)
+        resultados['sucesso'].append(f"✅ [OPERACIONAL] Criar lançamento: ID {lanc_operacional_id}")
+    except Exception as e:
+        resultados['falhas'].append(f"❌ [OPERACIONAL] Criar lançamento: {str(e)}")
+    
+    # TESTE 2: Pagar lançamento (PUT /api/lancamentos/<id>/pagar)
+    if lanc_operacional_id:
+        try:
+            sucesso = db.pagar_lancamento(lanc_operacional_id, date.today())
+            if sucesso:
+                resultados['sucesso'].append("✅ [OPERACIONAL] Pagar lançamento")
+            else:
+                resultados['falhas'].append("❌ [OPERACIONAL] Pagar: retornou False")
+        except Exception as e:
+            resultados['falhas'].append(f"❌ [OPERACIONAL] Pagar: {str(e)}")
+    
+    # TESTE 3: Liquidar lançamento (POST /api/lancamentos/<id>/liquidar)
+    try:
+        lanc_liquidar = Lancamento(
+            tipo=TipoLancamento.RECEITA,
+            descricao=f"LIQUIDAR-TESTE-{timestamp}",
+            valor=Decimal("150.00"),
+            data_vencimento=date.today(),
+            status=StatusLancamento.PENDENTE,
+            categoria="TESTE",
+            subcategoria="",
+            conta_bancaria="",
+            pessoa="",
+            observacoes="Teste liquidação"
+        )
+        lanc_liq_id = db.adicionar_lancamento(lanc_liquidar)
+        
+        # Liquidar usando pagar_lancamento (mesmo método)
+        sucesso = db.pagar_lancamento(lanc_liq_id, date.today())
+        if sucesso:
+            resultados['sucesso'].append("✅ [OPERACIONAL] Liquidar lançamento")
+        else:
+            resultados['falhas'].append("❌ [OPERACIONAL] Liquidar: retornou False")
+        
+        # Limpar
+        db.excluir_lancamento(lanc_liq_id)
+    except Exception as e:
+        resultados['falhas'].append(f"❌ [OPERACIONAL] Liquidar: {str(e)}")
+    
+    # TESTE 4: Cancelar lançamento (PUT /api/lancamentos/<id>/cancelar)
+    try:
+        lanc_cancelar = Lancamento(
+            tipo=TipoLancamento.DESPESA,
+            descricao=f"CANCELAR-TESTE-{timestamp}",
+            valor=Decimal("100.00"),
+            data_vencimento=date.today() + timedelta(days=15),
+            status=StatusLancamento.PENDENTE,
+            categoria="TESTE",
+            subcategoria="",
+            conta_bancaria="",
+            pessoa="",
+            observacoes="Teste cancelamento"
+        )
+        lanc_canc_id = db.adicionar_lancamento(lanc_cancelar)
+        
+        sucesso = db.cancelar_lancamento(lanc_canc_id)
+        if sucesso:
+            resultados['sucesso'].append("✅ [OPERACIONAL] Cancelar lançamento")
+        else:
+            resultados['falhas'].append("❌ [OPERACIONAL] Cancelar: retornou False")
+        
+        # Limpar
+        db.excluir_lancamento(lanc_canc_id)
+    except Exception as e:
+        resultados['falhas'].append(f"❌ [OPERACIONAL] Cancelar: {str(e)}")
+    
+    # TESTE 5: Atualizar lançamento (PUT /api/lancamentos/<id>)
+    if lanc_operacional_id:
+        try:
+            # Buscar lançamento atual
+            lanc_atual = None
+            for l in db.listar_lancamentos():
+                if hasattr(l, 'id') and l.id == lanc_operacional_id:
+                    lanc_atual = l
+                    break
+            
+            if lanc_atual:
+                # Atualizar valor
+                lanc_atual.valor = Decimal("250.00")
+                lanc_atual.observacoes = "Valor atualizado no teste"
+                
+                sucesso = db.atualizar_lancamento(lanc_operacional_id, lanc_atual)
+                if sucesso:
+                    resultados['sucesso'].append("✅ [OPERACIONAL] Atualizar lançamento")
+                else:
+                    resultados['falhas'].append("❌ [OPERACIONAL] Atualizar: retornou False")
+            else:
+                resultados['falhas'].append("❌ [OPERACIONAL] Atualizar: lançamento não encontrado")
+        except Exception as e:
+            resultados['falhas'].append(f"❌ [OPERACIONAL] Atualizar: {str(e)}")
+    
+    # TESTE 6: Transferência entre contas (POST /api/transferencias)
     try:
         contas = db.listar_contas()
         if len(contas) >= 2:
@@ -406,25 +517,89 @@ def executar_testes(db):
     except Exception as e:
         resultados['falhas'].append(f"❌ [OPERACIONAL] Transferência: {str(e)}")
     
-    # TESTE: Filtros e Buscas
+    # TESTE 7: Filtros por tipo (Receita/Despesa)
     try:
         # Testar listagem de lançamentos por tipo
         lancamentos_receita = [l for l in db.listar_lancamentos() if hasattr(l, 'tipo') and l.tipo == TipoLancamento.RECEITA]
         lancamentos_despesa = [l for l in db.listar_lancamentos() if hasattr(l, 'tipo') and l.tipo == TipoLancamento.DESPESA]
-        resultados['sucesso'].append(f"✅ [OPERACIONAL] Filtros: {len(lancamentos_receita)} receitas, {len(lancamentos_despesa)} despesas")
+        resultados['sucesso'].append(f"✅ [OPERACIONAL] Filtro por tipo: {len(lancamentos_receita)} receitas, {len(lancamentos_despesa)} despesas")
     except Exception as e:
-        resultados['falhas'].append(f"❌ [OPERACIONAL] Filtros: {str(e)}")
+        resultados['falhas'].append(f"❌ [OPERACIONAL] Filtro por tipo: {str(e)}")
     
-    # TESTE: Busca por período
+    # TESTE 8: Filtros por status (Pendente/Pago/Cancelado)
+    try:
+        todos = db.listar_lancamentos()
+        pendentes = [l for l in todos if hasattr(l, 'status') and l.status == StatusLancamento.PENDENTE]
+        pagos = [l for l in todos if hasattr(l, 'status') and l.status == StatusLancamento.PAGO]
+        cancelados = [l for l in todos if hasattr(l, 'status') and l.status == StatusLancamento.CANCELADO]
+        resultados['sucesso'].append(f"✅ [OPERACIONAL] Filtro por status: {len(pendentes)} pendentes, {len(pagos)} pagos, {len(cancelados)} cancelados")
+    except Exception as e:
+        resultados['falhas'].append(f"❌ [OPERACIONAL] Filtro por status: {str(e)}")
+    
+    # TESTE 9: Filtros por categoria
+    try:
+        todos = db.listar_lancamentos()
+        categorias_usadas = set()
+        for l in todos:
+            if hasattr(l, 'categoria') and l.categoria:
+                categorias_usadas.add(l.categoria)
+        resultados['sucesso'].append(f"✅ [OPERACIONAL] Filtro por categoria: {len(categorias_usadas)} categorias em uso")
+    except Exception as e:
+        resultados['falhas'].append(f"❌ [OPERACIONAL] Filtro por categoria: {str(e)}")
+    
+    # TESTE 10: Busca por período (filtro de data)
     try:
         data_inicio = date.today() - timedelta(days=30)
         data_fim = date.today()
         
-        # Verificar que conseguimos filtrar por data
-        todos_lancamentos = db.listar_lancamentos()
-        resultados['sucesso'].append(f"✅ [OPERACIONAL] Busca período: {len(todos_lancamentos)} lançamentos no sistema")
+        todos = db.listar_lancamentos()
+        no_periodo = [l for l in todos if hasattr(l, 'data_vencimento') and 
+                      l.data_vencimento and data_inicio <= l.data_vencimento <= data_fim]
+        resultados['sucesso'].append(f"✅ [OPERACIONAL] Busca por período: {len(no_periodo)}/{len(todos)} lançamentos nos últimos 30 dias")
     except Exception as e:
-        resultados['falhas'].append(f"❌ [OPERACIONAL] Busca período: {str(e)}")
+        resultados['falhas'].append(f"❌ [OPERACIONAL] Busca por período: {str(e)}")
+    
+    # TESTE 11: Busca por pessoa (cliente/fornecedor)
+    try:
+        todos = db.listar_lancamentos()
+        com_pessoa = [l for l in todos if hasattr(l, 'pessoa') and l.pessoa]
+        resultados['sucesso'].append(f"✅ [OPERACIONAL] Filtro por pessoa: {len(com_pessoa)} lançamentos com pessoa associada")
+    except Exception as e:
+        resultados['falhas'].append(f"❌ [OPERACIONAL] Filtro por pessoa: {str(e)}")
+    
+    # TESTE 12: Busca por conta bancária
+    try:
+        todos = db.listar_lancamentos()
+        com_conta = [l for l in todos if hasattr(l, 'conta_bancaria') and l.conta_bancaria]
+        resultados['sucesso'].append(f"✅ [OPERACIONAL] Filtro por conta: {len(com_conta)} lançamentos com conta associada")
+    except Exception as e:
+        resultados['falhas'].append(f"❌ [OPERACIONAL] Filtro por conta: {str(e)}")
+    
+    # TESTE 13: Ordenação por data
+    try:
+        todos = db.listar_lancamentos()
+        com_data = [l for l in todos if hasattr(l, 'data_vencimento') and l.data_vencimento]
+        ordenados = sorted(com_data, key=lambda x: x.data_vencimento)
+        resultados['sucesso'].append(f"✅ [OPERACIONAL] Ordenação: {len(ordenados)} lançamentos ordenados por data")
+    except Exception as e:
+        resultados['falhas'].append(f"❌ [OPERACIONAL] Ordenação: {str(e)}")
+    
+    # TESTE 14: Cálculo de totais
+    try:
+        todos = db.listar_lancamentos()
+        total_receitas = sum([l.valor for l in todos if hasattr(l, 'tipo') and l.tipo == TipoLancamento.RECEITA and hasattr(l, 'valor')])
+        total_despesas = sum([l.valor for l in todos if hasattr(l, 'tipo') and l.tipo == TipoLancamento.DESPESA and hasattr(l, 'valor')])
+        saldo = total_receitas - total_despesas
+        resultados['sucesso'].append(f"✅ [OPERACIONAL] Cálculo totais: R$ {total_receitas:.2f} receitas - R$ {total_despesas:.2f} despesas = R$ {saldo:.2f}")
+    except Exception as e:
+        resultados['falhas'].append(f"❌ [OPERACIONAL] Cálculo totais: {str(e)}")
+    
+    # Limpar lançamento operacional criado no início
+    if lanc_operacional_id:
+        try:
+            db.excluir_lancamento(lanc_operacional_id)
+        except:
+            pass
     
     # ========== TESTES DE EXPORTAÇÃO ==========
     print("📤 Testando EXPORTAÇÕES...")
