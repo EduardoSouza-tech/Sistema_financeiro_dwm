@@ -2043,6 +2043,206 @@ def exportar_fornecedores_excel():
         return jsonify({'error': str(e)}), 500
 
 
+# === ROTAS DO MENU OPERACIONAL ===
+
+@app.route('/api/contratos', methods=['GET', 'POST'])
+def contratos():
+    """Gerenciar contratos"""
+    if request.method == 'GET':
+        # TODO: Implementar lógica de listagem de contratos
+        return jsonify([])
+    else:  # POST
+        # TODO: Implementar lógica de criação de contrato
+        return jsonify({'message': 'Contrato criado', 'id': 1}), 201
+
+
+@app.route('/api/contratos/<int:contrato_id>', methods=['PUT', 'DELETE'])
+def contrato_detalhes(contrato_id):
+    """Atualizar ou excluir contrato"""
+    if request.method == 'PUT':
+        # TODO: Implementar lógica de atualização
+        return jsonify({'message': 'Contrato atualizado'})
+    else:  # DELETE
+        # TODO: Implementar lógica de exclusão
+        return jsonify({'message': 'Contrato excluído'})
+
+
+@app.route('/api/sessoes', methods=['GET', 'POST'])
+def sessoes():
+    """Gerenciar sessões"""
+    if request.method == 'GET':
+        # TODO: Implementar lógica de listagem de sessões
+        return jsonify([])
+    else:  # POST
+        # TODO: Implementar lógica de criação de sessão
+        return jsonify({'message': 'Sessão criada', 'id': 1}), 201
+
+
+@app.route('/api/sessoes/<int:sessao_id>', methods=['PUT', 'DELETE'])
+def sessao_detalhes(sessao_id):
+    """Atualizar ou excluir sessão"""
+    if request.method == 'PUT':
+        # TODO: Implementar lógica de atualização
+        return jsonify({'message': 'Sessão atualizada'})
+    else:  # DELETE
+        # TODO: Implementar lógica de exclusão
+        return jsonify({'message': 'Sessão excluída'})
+
+
+@app.route('/api/comissoes', methods=['GET', 'POST'])
+def comissoes():
+    """Gerenciar comissões"""
+    if request.method == 'GET':
+        # TODO: Implementar lógica de listagem de comissões
+        return jsonify([])
+    else:  # POST
+        # TODO: Implementar lógica de criação de comissão
+        return jsonify({'message': 'Comissão criada', 'id': 1}), 201
+
+
+@app.route('/api/comissoes/<int:comissao_id>', methods=['PUT', 'DELETE'])
+def comissao_detalhes(comissao_id):
+    """Atualizar ou excluir comissão"""
+    if request.method == 'PUT':
+        # TODO: Implementar lógica de atualização
+        return jsonify({'message': 'Comissão atualizada'})
+    else:  # DELETE
+        # TODO: Implementar lógica de exclusão
+        return jsonify({'message': 'Comissão excluída'})
+
+
+@app.route('/api/sessao-equipe', methods=['GET', 'POST'])
+def sessao_equipe():
+    """Gerenciar equipe de sessão"""
+    if request.method == 'GET':
+        # TODO: Implementar lógica de listagem
+        return jsonify([])
+    else:  # POST
+        # TODO: Implementar lógica de criação
+        return jsonify({'message': 'Membro adicionado', 'id': 1}), 201
+
+
+@app.route('/api/sessao-equipe/<int:membro_id>', methods=['PUT', 'DELETE'])
+def sessao_equipe_detalhes(membro_id):
+    """Atualizar ou excluir membro da equipe"""
+    if request.method == 'PUT':
+        # TODO: Implementar lógica de atualização
+        return jsonify({'message': 'Membro atualizado'})
+    else:  # DELETE
+        # TODO: Implementar lógica de exclusão
+        return jsonify({'message': 'Membro removido'})
+
+
+@app.route('/api/agenda', methods=['GET', 'POST'])
+def agenda():
+    """Gerenciar agenda de fotografia"""
+    if request.method == 'GET':
+        # TODO: Implementar lógica de listagem
+        return jsonify([])
+    else:  # POST
+        # TODO: Implementar lógica de criação
+        return jsonify({'message': 'Agendamento criado', 'id': 1}), 201
+
+
+@app.route('/api/agenda/<int:agendamento_id>', methods=['PUT', 'DELETE'])
+def agenda_detalhes(agendamento_id):
+    """Atualizar ou excluir agendamento"""
+    if request.method == 'PUT':
+        # TODO: Implementar lógica de atualização
+        return jsonify({'message': 'Agendamento atualizado'})
+    else:  # DELETE
+        # TODO: Implementar lógica de exclusão
+        return jsonify({'message': 'Agendamento excluído'})
+
+
+@app.route('/api/estoque/produtos', methods=['GET', 'POST'])
+def produtos():
+    """Gerenciar produtos do estoque"""
+    if request.method == 'GET':
+        # TODO: Implementar lógica de listagem
+        return jsonify([])
+    else:  # POST
+        # TODO: Implementar lógica de criação
+        return jsonify({'message': 'Produto criado', 'id': 1}), 201
+
+
+@app.route('/api/estoque/produtos/<int:produto_id>', methods=['PUT', 'DELETE'])
+def produto_detalhes(produto_id):
+    """Atualizar ou excluir produto"""
+    if request.method == 'PUT':
+        # TODO: Implementar lógica de atualização
+        return jsonify({'message': 'Produto atualizado'})
+    else:  # DELETE
+        # TODO: Implementar lógica de exclusão
+        return jsonify({'message': 'Produto excluído'})
+
+
+@app.route('/api/kits', methods=['GET', 'POST'])
+def kits():
+    """Gerenciar kits de equipamentos"""
+    if request.method == 'GET':
+        # TODO: Implementar lógica de listagem
+        return jsonify([])
+    else:  # POST
+        # TODO: Implementar lógica de criação
+        return jsonify({'message': 'Kit criado', 'id': 1}), 201
+
+
+@app.route('/api/kits/<int:kit_id>', methods=['PUT', 'DELETE'])
+def kit_detalhes(kit_id):
+    """Atualizar ou excluir kit"""
+    if request.method == 'PUT':
+        # TODO: Implementar lógica de atualização
+        return jsonify({'message': 'Kit atualizado'})
+    else:  # DELETE
+        # TODO: Implementar lógica de exclusão
+        return jsonify({'message': 'Kit excluído'})
+
+
+@app.route('/api/tags', methods=['GET', 'POST'])
+def tags():
+    """Gerenciar tags de trabalho"""
+    if request.method == 'GET':
+        # TODO: Implementar lógica de listagem
+        return jsonify([])
+    else:  # POST
+        # TODO: Implementar lógica de criação
+        return jsonify({'message': 'Tag criada', 'id': 1}), 201
+
+
+@app.route('/api/tags/<int:tag_id>', methods=['PUT', 'DELETE'])
+def tag_detalhes(tag_id):
+    """Atualizar ou excluir tag"""
+    if request.method == 'PUT':
+        # TODO: Implementar lógica de atualização
+        return jsonify({'message': 'Tag atualizada'})
+    else:  # DELETE
+        # TODO: Implementar lógica de exclusão
+        return jsonify({'message': 'Tag excluída'})
+
+
+@app.route('/api/templates-equipe', methods=['GET', 'POST'])
+def templates_equipe():
+    """Gerenciar templates de equipe"""
+    if request.method == 'GET':
+        # TODO: Implementar lógica de listagem
+        return jsonify([])
+    else:  # POST
+        # TODO: Implementar lógica de criação
+        return jsonify({'message': 'Template criado', 'id': 1}), 201
+
+
+@app.route('/api/templates-equipe/<int:template_id>', methods=['PUT', 'DELETE'])
+def template_equipe_detalhes(template_id):
+    """Atualizar ou excluir template"""
+    if request.method == 'PUT':
+        # TODO: Implementar lógica de atualização
+        return jsonify({'message': 'Template atualizado'})
+    else:  # DELETE
+        # TODO: Implementar lógica de exclusão
+        return jsonify({'message': 'Template excluído'})
+
+
 if __name__ == '__main__':
     # Porta configurável (Railway usa variável de ambiente PORT)
     port = int(os.getenv('PORT', 5000))
