@@ -2049,198 +2049,360 @@ def exportar_fornecedores_excel():
 def contratos():
     """Gerenciar contratos"""
     if request.method == 'GET':
-        # TODO: Implementar lógica de listagem de contratos
-        return jsonify([])
+        try:
+            contratos = database.listar_contratos()
+            return jsonify(contratos)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # POST
-        # TODO: Implementar lógica de criação de contrato
-        return jsonify({'message': 'Contrato criado', 'id': 1}), 201
+        try:
+            data = request.json
+            contrato_id = database.adicionar_contrato(data)
+            return jsonify({'message': 'Contrato criado com sucesso', 'id': contrato_id}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/contratos/<int:contrato_id>', methods=['PUT', 'DELETE'])
 def contrato_detalhes(contrato_id):
     """Atualizar ou excluir contrato"""
     if request.method == 'PUT':
-        # TODO: Implementar lógica de atualização
-        return jsonify({'message': 'Contrato atualizado'})
+        try:
+            data = request.json
+            success = database.atualizar_contrato(contrato_id, data)
+            if success:
+                return jsonify({'message': 'Contrato atualizado com sucesso'})
+            return jsonify({'error': 'Contrato não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # DELETE
-        # TODO: Implementar lógica de exclusão
-        return jsonify({'message': 'Contrato excluído'})
+        try:
+            success = database.deletar_contrato(contrato_id)
+            if success:
+                return jsonify({'message': 'Contrato excluído com sucesso'})
+            return jsonify({'error': 'Contrato não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/sessoes', methods=['GET', 'POST'])
 def sessoes():
     """Gerenciar sessões"""
     if request.method == 'GET':
-        # TODO: Implementar lógica de listagem de sessões
-        return jsonify([])
+        try:
+            sessoes = database.listar_sessoes()
+            return jsonify(sessoes)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # POST
-        # TODO: Implementar lógica de criação de sessão
-        return jsonify({'message': 'Sessão criada', 'id': 1}), 201
+        try:
+            data = request.json
+            sessao_id = database.adicionar_sessao(data)
+            return jsonify({'message': 'Sessão criada com sucesso', 'id': sessao_id}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/sessoes/<int:sessao_id>', methods=['PUT', 'DELETE'])
 def sessao_detalhes(sessao_id):
     """Atualizar ou excluir sessão"""
     if request.method == 'PUT':
-        # TODO: Implementar lógica de atualização
-        return jsonify({'message': 'Sessão atualizada'})
+        try:
+            data = request.json
+            success = database.atualizar_sessao(sessao_id, data)
+            if success:
+                return jsonify({'message': 'Sessão atualizada com sucesso'})
+            return jsonify({'error': 'Sessão não encontrada'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # DELETE
-        # TODO: Implementar lógica de exclusão
-        return jsonify({'message': 'Sessão excluída'})
+        try:
+            success = database.deletar_sessao(sessao_id)
+            if success:
+                return jsonify({'message': 'Sessão excluída com sucesso'})
+            return jsonify({'error': 'Sessão não encontrada'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/comissoes', methods=['GET', 'POST'])
 def comissoes():
     """Gerenciar comissões"""
     if request.method == 'GET':
-        # TODO: Implementar lógica de listagem de comissões
-        return jsonify([])
+        try:
+            comissoes = database.listar_comissoes()
+            return jsonify(comissoes)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # POST
-        # TODO: Implementar lógica de criação de comissão
-        return jsonify({'message': 'Comissão criada', 'id': 1}), 201
+        try:
+            data = request.json
+            comissao_id = database.adicionar_comissao(data)
+            return jsonify({'message': 'Comissão criada com sucesso', 'id': comissao_id}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/comissoes/<int:comissao_id>', methods=['PUT', 'DELETE'])
 def comissao_detalhes(comissao_id):
     """Atualizar ou excluir comissão"""
     if request.method == 'PUT':
-        # TODO: Implementar lógica de atualização
-        return jsonify({'message': 'Comissão atualizada'})
+        try:
+            data = request.json
+            success = database.atualizar_comissao(comissao_id, data)
+            if success:
+                return jsonify({'message': 'Comissão atualizada com sucesso'})
+            return jsonify({'error': 'Comissão não encontrada'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # DELETE
-        # TODO: Implementar lógica de exclusão
-        return jsonify({'message': 'Comissão excluída'})
+        try:
+            success = database.deletar_comissao(comissao_id)
+            if success:
+                return jsonify({'message': 'Comissão excluída com sucesso'})
+            return jsonify({'error': 'Comissão não encontrada'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/sessao-equipe', methods=['GET', 'POST'])
 def sessao_equipe():
     """Gerenciar equipe de sessão"""
     if request.method == 'GET':
-        # TODO: Implementar lógica de listagem
-        return jsonify([])
+        try:
+            lista = database.listar_sessao_equipe()
+            return jsonify(lista)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # POST
-        # TODO: Implementar lógica de criação
-        return jsonify({'message': 'Membro adicionado', 'id': 1}), 201
+        try:
+            data = request.json
+            se_id = database.adicionar_sessao_equipe(data)
+            return jsonify({'message': 'Membro adicionado com sucesso', 'id': se_id}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/sessao-equipe/<int:membro_id>', methods=['PUT', 'DELETE'])
 def sessao_equipe_detalhes(membro_id):
     """Atualizar ou excluir membro da equipe"""
     if request.method == 'PUT':
-        # TODO: Implementar lógica de atualização
-        return jsonify({'message': 'Membro atualizado'})
+        try:
+            data = request.json
+            success = database.atualizar_sessao_equipe(membro_id, data)
+            if success:
+                return jsonify({'message': 'Membro atualizado com sucesso'})
+            return jsonify({'error': 'Membro não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # DELETE
-        # TODO: Implementar lógica de exclusão
-        return jsonify({'message': 'Membro removido'})
+        try:
+            success = database.deletar_sessao_equipe(membro_id)
+            if success:
+                return jsonify({'message': 'Membro removido com sucesso'})
+            return jsonify({'error': 'Membro não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/agenda', methods=['GET', 'POST'])
 def agenda():
-    """Gerenciar agenda de fotografia"""
+    """Gerenciar agenda"""
     if request.method == 'GET':
-        # TODO: Implementar lógica de listagem
-        return jsonify([])
+        try:
+            eventos = database.listar_agenda()
+            return jsonify(eventos)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # POST
-        # TODO: Implementar lógica de criação
-        return jsonify({'message': 'Agendamento criado', 'id': 1}), 201
+        try:
+            data = request.json
+            agenda_id = database.adicionar_agenda(data)
+            return jsonify({'message': 'Agendamento criado com sucesso', 'id': agenda_id}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/agenda/<int:agendamento_id>', methods=['PUT', 'DELETE'])
 def agenda_detalhes(agendamento_id):
     """Atualizar ou excluir agendamento"""
     if request.method == 'PUT':
-        # TODO: Implementar lógica de atualização
-        return jsonify({'message': 'Agendamento atualizado'})
+        try:
+            data = request.json
+            success = database.atualizar_agenda(agendamento_id, data)
+            if success:
+                return jsonify({'message': 'Agendamento atualizado com sucesso'})
+            return jsonify({'error': 'Agendamento não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # DELETE
-        # TODO: Implementar lógica de exclusão
-        return jsonify({'message': 'Agendamento excluído'})
+        try:
+            success = database.deletar_agenda(agendamento_id)
+            if success:
+                return jsonify({'message': 'Agendamento excluído com sucesso'})
+            return jsonify({'error': 'Agendamento não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/estoque/produtos', methods=['GET', 'POST'])
 def produtos():
     """Gerenciar produtos do estoque"""
     if request.method == 'GET':
-        # TODO: Implementar lógica de listagem
-        return jsonify([])
+        try:
+            produtos = database.listar_produtos()
+            return jsonify(produtos)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # POST
-        # TODO: Implementar lógica de criação
-        return jsonify({'message': 'Produto criado', 'id': 1}), 201
+        try:
+            data = request.json
+            produto_id = database.adicionar_produto(data)
+            return jsonify({'message': 'Produto criado com sucesso', 'id': produto_id}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/estoque/produtos/<int:produto_id>', methods=['PUT', 'DELETE'])
 def produto_detalhes(produto_id):
     """Atualizar ou excluir produto"""
     if request.method == 'PUT':
-        # TODO: Implementar lógica de atualização
-        return jsonify({'message': 'Produto atualizado'})
+        try:
+            data = request.json
+            success = database.atualizar_produto(produto_id, data)
+            if success:
+                return jsonify({'message': 'Produto atualizado com sucesso'})
+            return jsonify({'error': 'Produto não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # DELETE
-        # TODO: Implementar lógica de exclusão
-        return jsonify({'message': 'Produto excluído'})
+        try:
+            success = database.deletar_produto(produto_id)
+            if success:
+                return jsonify({'message': 'Produto excluído com sucesso'})
+            return jsonify({'error': 'Produto não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/kits', methods=['GET', 'POST'])
 def kits():
-    """Gerenciar kits de equipamentos"""
+    """Gerenciar kits"""
     if request.method == 'GET':
-        # TODO: Implementar lógica de listagem
-        return jsonify([])
+        try:
+            kits = database.listar_kits()
+            return jsonify(kits)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # POST
-        # TODO: Implementar lógica de criação
-        return jsonify({'message': 'Kit criado', 'id': 1}), 201
+        try:
+            data = request.json
+            kit_id = database.adicionar_kit(data)
+            return jsonify({'message': 'Kit criado com sucesso', 'id': kit_id}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/kits/<int:kit_id>', methods=['PUT', 'DELETE'])
 def kit_detalhes(kit_id):
     """Atualizar ou excluir kit"""
     if request.method == 'PUT':
-        # TODO: Implementar lógica de atualização
-        return jsonify({'message': 'Kit atualizado'})
+        try:
+            data = request.json
+            success = database.atualizar_kit(kit_id, data)
+            if success:
+                return jsonify({'message': 'Kit atualizado com sucesso'})
+            return jsonify({'error': 'Kit não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # DELETE
-        # TODO: Implementar lógica de exclusão
-        return jsonify({'message': 'Kit excluído'})
+        try:
+            success = database.deletar_kit(kit_id)
+            if success:
+                return jsonify({'message': 'Kit excluído com sucesso'})
+            return jsonify({'error': 'Kit não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/tags', methods=['GET', 'POST'])
 def tags():
-    """Gerenciar tags de trabalho"""
+    """Gerenciar tags"""
     if request.method == 'GET':
-        # TODO: Implementar lógica de listagem
-        return jsonify([])
+        try:
+            tags = database.listar_tags()
+            return jsonify(tags)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # POST
-        # TODO: Implementar lógica de criação
-        return jsonify({'message': 'Tag criada', 'id': 1}), 201
+        try:
+            data = request.json
+            tag_id = database.adicionar_tag(data)
+            return jsonify({'message': 'Tag criada com sucesso', 'id': tag_id}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/tags/<int:tag_id>', methods=['PUT', 'DELETE'])
 def tag_detalhes(tag_id):
     """Atualizar ou excluir tag"""
     if request.method == 'PUT':
-        # TODO: Implementar lógica de atualização
-        return jsonify({'message': 'Tag atualizada'})
+        try:
+            data = request.json
+            success = database.atualizar_tag(tag_id, data)
+            if success:
+                return jsonify({'message': 'Tag atualizada com sucesso'})
+            return jsonify({'error': 'Tag não encontrada'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # DELETE
-        # TODO: Implementar lógica de exclusão
-        return jsonify({'message': 'Tag excluída'})
+        try:
+            success = database.deletar_tag(tag_id)
+            if success:
+                return jsonify({'message': 'Tag excluída com sucesso'})
+            return jsonify({'error': 'Tag não encontrada'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/templates-equipe', methods=['GET', 'POST'])
 def templates_equipe():
     """Gerenciar templates de equipe"""
     if request.method == 'GET':
-        # TODO: Implementar lógica de listagem
-        return jsonify([])
+        try:
+            templates = database.listar_templates_equipe()
+            return jsonify(templates)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # POST
-        # TODO: Implementar lógica de criação
-        return jsonify({'message': 'Template criado', 'id': 1}), 201
+        try:
+            data = request.json
+            template_id = database.adicionar_template_equipe(data)
+            return jsonify({'message': 'Template criado com sucesso', 'id': template_id}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/templates-equipe/<int:template_id>', methods=['PUT', 'DELETE'])
 def template_equipe_detalhes(template_id):
     """Atualizar ou excluir template"""
     if request.method == 'PUT':
-        # TODO: Implementar lógica de atualização
-        return jsonify({'message': 'Template atualizado'})
+        try:
+            data = request.json
+            success = database.atualizar_template_equipe(template_id, data)
+            if success:
+                return jsonify({'message': 'Template atualizado com sucesso'})
+            return jsonify({'error': 'Template não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:  # DELETE
-        # TODO: Implementar lógica de exclusão
-        return jsonify({'message': 'Template excluído'})
+        try:
+            success = database.deletar_template_equipe(template_id)
+            if success:
+                return jsonify({'message': 'Template excluído com sucesso'})
+            return jsonify({'error': 'Template não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

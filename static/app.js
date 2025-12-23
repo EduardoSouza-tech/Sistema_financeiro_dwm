@@ -1811,54 +1811,33 @@ async function loadContratos() {
         tbody.innerHTML = '';
         
         if (contratos.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum contrato cadastrado</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Nenhum contrato cadastrado</td></tr>';
             return;
         }
         
         contratos.forEach(contrato => {
             const tr = document.createElement('tr');
-            const valorFormatado = parseFloat(contrato.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-            const dataFormatada = contrato.data_assinatura ? new Date(contrato.data_assinatura).toLocaleDateString('pt-BR') : '-';
+            const valorFormatado = parseFloat(contrato.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            const dataInicioFormatada = contrato.data_inicio ? new Date(contrato.data_inicio).toLocaleDateString('pt-BR') : '-';
+            const dataFimFormatada = contrato.data_fim ? new Date(contrato.data_fim).toLocaleDateString('pt-BR') : '-';
             
             tr.innerHTML = `
                 <td>${contrato.numero}</td>
                 <td>${contrato.cliente_nome || '-'}</td>
+                <td>${contrato.descricao}</td>
                 <td>R$ ${valorFormatado}</td>
-                <td>${dataFormatada}</td>
-                <td>${contrato.status}</td>
+                <td>${dataInicioFormatada}</td>
+                <td><span class="badge badge-${contrato.status === 'ativo' ? 'success' : 'secondary'}">${contrato.status}</span></td>
                 <td>
-                    <button class="btn btn-warning btn-small" onclick='editarContrato(${JSON.stringify(contrato)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirContrato(${contrato.id})">🗑️</button>
+                    <button class="btn btn-warning btn-small" onclick='openModalContrato(${JSON.stringify(contrato).replace(/'/g, "&#39;")})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="deletarContrato(${contrato.id})">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     } catch (error) {
         console.error('Erro ao carregar contratos:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
-}
-
-function editarContrato(contrato) {
-    openModalContrato(contrato);
-}
-
-async function excluirContrato(id) {
-    if (!confirm('Deseja realmente excluir este contrato?')) return;
-    
-    try {
-        const response = await fetch(`/api/contratos/${id}`, { method: 'DELETE' });
-        const result = await response.json();
-        
-        if (result.success) {
-            alert('Contrato excluído com sucesso!');
-            loadContratos();
-        } else {
-            alert('Erro: ' + (result.error || 'Erro desconhecido'));
-        }
-    } catch (error) {
-        console.error('Erro ao excluir contrato:', error);
-        alert('Erro ao excluir contrato');
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Erro ao carregar dados</td></tr>';
     }
 }
 
@@ -1930,63 +1909,40 @@ async function loadAgenda() {
     
     try {
         const response = await fetch('/api/agenda');
-        const agendamentos = await response.json();
+        const eventos = await response.json();
         
         tbody.innerHTML = '';
         
-        if (agendamentos.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum agendamento cadastrado</td></tr>';
+        if (eventos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Nenhum evento cadastrado</td></tr>';
             return;
         }
         
-        agendamentos.forEach(agenda => {
+        eventos.forEach(evento => {
             const tr = document.createElement('tr');
-            const dataHora = agenda.data_hora ? new Date(agenda.data_hora).toLocaleString('pt-BR') : '-';
+            const dataFormatada = evento.data_evento ? new Date(evento.data_evento).toLocaleDateString('pt-BR') : '-';
+            const horaInicio = evento.hora_inicio || '';
+            const horaFim = evento.hora_fim || '';
+            const horario = horaInicio ? `${horaInicio}${horaFim ? ' - ' + horaFim : ''}` : '-';
             
             tr.innerHTML = `
-                <td>${dataHora}</td>
-                <td>${agenda.cliente_nome || '-'}</td>
-                <td>${agenda.local || '-'}</td>
-                <td>${agenda.tipo || '-'}</td>
-                <td>${agenda.status}</td>
+                <td>${evento.titulo}</td>
+                <td>${dataFormatada}</td>
+                <td>${horario}</td>
+                <td>${evento.local || '-'}</td>
+                <td>${evento.tipo}</td>
+                <td><span class="badge badge-${evento.status === 'agendado' ? 'info' : evento.status === 'confirmado' ? 'success' : 'secondary'}">${evento.status}</span></td>
                 <td>
-                    <button class="btn btn-warning btn-small" onclick='editarAgenda(${JSON.stringify(agenda)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirAgenda(${agenda.id})">🗑️</button>
+                    <button class="btn btn-warning btn-small" onclick='openModalAgenda(${JSON.stringify(evento).replace(/'/g, "&#39;")})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="deletarAgenda(${evento.id})">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     } catch (error) {
         console.error('Erro ao carregar agenda:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Erro ao carregar dados</td></tr>';
     }
-}
-
-function editarAgenda(agenda) {
-    openModalAgenda(agenda);
-}
-
-async function excluirAgenda(id) {
-    if (!confirm('Deseja realmente excluir este agendamento?')) return;
-    
-    try {
-        const response = await fetch(`/api/agenda/${id}`, { method: 'DELETE' });
-        const result = await response.json();
-        
-        if (result.success) {
-            alert('Agendamento excluído com sucesso!');
-            loadAgenda();
-        } else {
-            alert('Erro: ' + (result.error || 'Erro desconhecido'));
-        }
-    } catch (error) {
-        console.error('Erro ao excluir agendamento:', error);
-        alert('Erro ao excluir agendamento');
-    }
-}
-
-function visualizarCalendario() {
-    alert('Visualização de calendário será implementada em breve!');
 }
 
 async function loadProdutos() {
@@ -2000,68 +1956,37 @@ async function loadProdutos() {
         // Armazenar produtos para uso em movimentações
         window.produtosEstoque = produtos;
         
-        // Atualizar select de produtos no modal de movimentação
-        const selectProduto = document.getElementById('movimentacao-produto-id');
-        if (selectProduto) {
-            selectProduto.innerHTML = '<option value="">Selecione o produto</option>';
-            produtos.forEach(prod => {
-                const option = document.createElement('option');
-                option.value = prod.id;
-                option.textContent = prod.nome;
-                selectProduto.appendChild(option);
-            });
-        }
-        
         tbody.innerHTML = '';
         
         if (produtos.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum produto cadastrado</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Nenhum produto cadastrado</td></tr>';
             return;
         }
         
         produtos.forEach(prod => {
             const tr = document.createElement('tr');
-            const valorFormatado = parseFloat(prod.valor_unitario || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            const precoCustoFormatado = parseFloat(prod.preco_custo || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            const precoVendaFormatado = parseFloat(prod.preco_venda || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            const alertaEstoque = prod.quantidade <= prod.quantidade_minima ? 'style="color: #e74c3c; font-weight: bold;"' : '';
             
             tr.innerHTML = `
+                <td>${prod.codigo}</td>
                 <td>${prod.nome}</td>
-                <td>${prod.codigo || '-'}</td>
-                <td>${prod.quantidade}</td>
-                <td>${prod.unidade}</td>
-                <td>R$ ${valorFormatado}</td>
+                <td>${prod.categoria || '-'}</td>
+                <td ${alertaEstoque}>${prod.quantidade} ${prod.unidade}</td>
+                <td>R$ ${precoCustoFormatado}</td>
+                <td>R$ ${precoVendaFormatado}</td>
+                <td>${prod.fornecedor_nome || '-'}</td>
                 <td>
-                    <button class="btn btn-warning btn-small" onclick='editarProduto(${JSON.stringify(prod)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirProduto(${prod.id})">🗑️</button>
+                    <button class="btn btn-warning btn-small" onclick='openModalProduto(${JSON.stringify(prod).replace(/'/g, "&#39;")})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="deletarProduto(${prod.id})">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     } catch (error) {
         console.error('Erro ao carregar produtos:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
-}
-
-function editarProduto(produto) {
-    openModalProduto(produto);
-}
-
-async function excluirProduto(id) {
-    if (!confirm('Deseja realmente excluir este produto?')) return;
-    
-    try {
-        const response = await fetch(`/api/estoque/produtos/${id}`, { method: 'DELETE' });
-        const result = await response.json();
-        
-        if (result.success) {
-            alert('Produto excluído com sucesso!');
-            loadProdutos();
-        } else {
-            alert('Erro: ' + (result.error || 'Erro desconhecido'));
-        }
-    } catch (error) {
-        console.error('Erro ao excluir produto:', error);
-        alert('Erro ao excluir produto');
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Erro ao carregar dados</td></tr>';
     }
 }
 
@@ -2144,17 +2069,17 @@ async function loadKits() {
         
         kits.forEach(kit => {
             const tr = document.createElement('tr');
-            const valorFormatado = parseFloat(kit.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            const precoFormatado = parseFloat(kit.preco || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
             const numItens = kit.itens ? kit.itens.length : 0;
             
             tr.innerHTML = `
+                <td>${kit.codigo}</td>
                 <td>${kit.nome}</td>
                 <td>${kit.descricao || '-'}</td>
-                <td>${numItens} ${numItens === 1 ? 'item' : 'itens'}</td>
-                <td>R$ ${valorFormatado}</td>
+                <td>R$ ${precoFormatado}</td>
                 <td>
-                    <button class="btn btn-warning btn-small" onclick='editarKit(${JSON.stringify(kit)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirKit(${kit.id})">🗑️</button>
+                    <button class="btn btn-warning btn-small" onclick='openModalKit(${JSON.stringify(kit).replace(/'/g, "&#39;")})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="deletarKit(${kit.id})">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -2162,29 +2087,6 @@ async function loadKits() {
     } catch (error) {
         console.error('Erro ao carregar kits:', error);
         tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
-}
-
-function editarKit(kit) {
-    openModalKit(kit);
-}
-
-async function excluirKit(id) {
-    if (!confirm('Deseja realmente excluir este kit?')) return;
-    
-    try {
-        const response = await fetch(`/api/kits/${id}`, { method: 'DELETE' });
-        const result = await response.json();
-        
-        if (result.success) {
-            alert('Kit excluído com sucesso!');
-            loadKits();
-        } else {
-            alert('Erro: ' + (result.error || 'Erro desconhecido'));
-        }
-    } catch (error) {
-        console.error('Erro ao excluir kit:', error);
-        alert('Erro ao excluir kit');
     }
 }
 
@@ -2325,7 +2227,7 @@ async function loadTags() {
         tbody.innerHTML = '';
         
         if (tags.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Nenhuma tag cadastrada</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhuma tag cadastrada</td></tr>';
             return;
         }
         
@@ -2335,39 +2237,17 @@ async function loadTags() {
             tr.innerHTML = `
                 <td>${tag.nome}</td>
                 <td><span style="display: inline-block; width: 30px; height: 20px; background: ${tag.cor}; border-radius: 3px;"></span> ${tag.cor}</td>
+                <td>${tag.descricao || '-'}</td>
                 <td>
-                    <button class="btn btn-warning btn-small" onclick='editarTag(${JSON.stringify(tag)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirTag(${tag.id})">🗑️</button>
+                    <button class="btn btn-warning btn-small" onclick='openModalTag(${JSON.stringify(tag).replace(/'/g, "&#39;")})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="deletarTag(${tag.id})">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     } catch (error) {
         console.error('Erro ao carregar tags:', error);
-        tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
-}
-
-function editarTag(tag) {
-    openModalTag(tag);
-}
-
-async function excluirTag(id) {
-    if (!confirm('Deseja realmente excluir esta tag?')) return;
-    
-    try {
-        const response = await fetch(`/api/tags/${id}`, { method: 'DELETE' });
-        const result = await response.json();
-        
-        if (result.success) {
-            alert('Tag excluída com sucesso!');
-            loadTags();
-        } else {
-            alert('Erro: ' + (result.error || 'Erro desconhecido'));
-        }
-    } catch (error) {
-        console.error('Erro ao excluir tag:', error);
-        alert('Erro ao excluir tag');
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Erro ao carregar dados</td></tr>';
     }
 }
 
@@ -2384,51 +2264,28 @@ async function loadTemplates() {
         tbody.innerHTML = '';
         
         if (templates.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhum template cadastrado</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum template cadastrado</td></tr>';
             return;
         }
         
         templates.forEach(template => {
             const tr = document.createElement('tr');
-            const numMembros = template.membros ? template.membros.length : 0;
             
             tr.innerHTML = `
                 <td>${template.nome}</td>
+                <td>${template.tipo}</td>
                 <td>${template.descricao || '-'}</td>
-                <td>${numMembros} ${numMembros === 1 ? 'membro' : 'membros'}</td>
+                <td><span class="badge badge-${template.ativo ? 'success' : 'secondary'}">${template.ativo ? 'Ativo' : 'Inativo'}</span></td>
                 <td>
-                    <button class="btn btn-warning btn-small" onclick='editarTemplate(${JSON.stringify(template)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirTemplate(${template.id})">🗑️</button>
+                    <button class="btn btn-warning btn-small" onclick='openModalTemplate(${JSON.stringify(template).replace(/'/g, "&#39;")})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="deletarTemplate(${template.id})">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     } catch (error) {
         console.error('Erro ao carregar templates:', error);
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
-}
-
-function editarTemplate(template) {
-    openModalTemplate(template);
-}
-
-async function excluirTemplate(id) {
-    if (!confirm('Deseja realmente excluir este template?')) return;
-    
-    try {
-        const response = await fetch(`/api/templates-equipe/${id}`, { method: 'DELETE' });
-        const result = await response.json();
-        
-        if (result.success) {
-            alert('Template excluído com sucesso!');
-            loadTemplates();
-        } else {
-            alert('Erro: ' + (result.error || 'Erro desconhecido'));
-        }
-    } catch (error) {
-        console.error('Erro ao excluir template:', error);
-        alert('Erro ao excluir template');
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
     }
 }
 
@@ -6283,61 +6140,781 @@ function exportarInadimplenciaExcel() {
     alert('Funcionalidade de exportação Excel em desenvolvimento');
 }
 
-// ===== STUBS PARA FUNÇÕES REMOVIDAS/NÃO IMPLEMENTADAS =====
-// Contratos (funcionalidade removida)
-function openModalContrato() {
-    console.warn('⚠️ Funcionalidade de Contratos foi removida');
-    showToast('Funcionalidade de Contratos não está mais disponível', 'warning');
+// ===== FUNÇÕES DO MENU OPERACIONAL - IMPLEMENTADAS =====
+
+// === CONTRATOS ===
+async function openModalContrato(contrato = null) {
+    console.log('Abrindo modal de contrato:', contrato);
+    const isEdit = contrato !== null;
+    const titulo = isEdit ? 'Editar Contrato' : 'Novo Contrato';
+    
+    // Carregar clientes para o select
+    let clientesOptions = '<option value="">Selecione um cliente</option>';
+    try {
+        const response = await fetch('/api/clientes');
+        const clientes = await response.json();
+        clientesOptions += clientes.map(c => 
+            `<option value="${c.id}" ${isEdit && contrato.cliente_id === c.id ? 'selected' : ''}>${c.nome}</option>`
+        ).join('');
+    } catch (error) {
+        console.error('Erro ao carregar clientes:', error);
+    }
+    
+    const modal = createModal(titulo, `
+        <form id="form-contrato" onsubmit="salvarContrato(event)">
+            <input type="hidden" id="contrato-id" value="${isEdit ? contrato.id : ''}">
+            
+            <div class="form-group">
+                <label>*Número do Contrato:</label>
+                <input type="text" id="contrato-numero" value="${isEdit ? contrato.numero : ''}" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Cliente:</label>
+                <select id="contrato-cliente">${clientesOptions}</select>
+            </div>
+            
+            <div class="form-group">
+                <label>*Descrição:</label>
+                <textarea id="contrato-descricao" required rows="3">${isEdit ? contrato.descricao : ''}</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>*Valor:</label>
+                <input type="text" id="contrato-valor" inputmode="numeric" value="${isEdit ? formatarValorParaExibicao(contrato.valor) : ''}" required>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>*Data Início:</label>
+                    <input type="date" id="contrato-data-inicio" value="${isEdit ? contrato.data_inicio : ''}" required>
+                </div>
+                <div class="form-group">
+                    <label>Data Fim:</label>
+                    <input type="date" id="contrato-data-fim" value="${isEdit ? (contrato.data_fim || '') : ''}">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Status:</label>
+                <select id="contrato-status">
+                    <option value="ativo" ${isEdit && contrato.status === 'ativo' ? 'selected' : ''}>Ativo</option>
+                    <option value="concluido" ${isEdit && contrato.status === 'concluido' ? 'selected' : ''}>Concluído</option>
+                    <option value="cancelado" ${isEdit && contrato.status === 'cancelado' ? 'selected' : ''}>Cancelado</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Observações:</label>
+                <textarea id="contrato-observacoes" rows="2">${isEdit ? (contrato.observacoes || '') : ''}</textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </div>
+        </form>
+    `);
+    
+    setTimeout(() => {
+        const campoValor = document.getElementById('contrato-valor');
+        if (campoValor && typeof aplicarFormatacaoMoeda === 'function') {
+            aplicarFormatacaoMoeda(campoValor);
+        }
+    }, 100);
+}
+
+async function salvarContrato(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('contrato-id').value;
+    const isEdit = id !== '';
+    
+    const dados = {
+        numero: document.getElementById('contrato-numero').value.trim(),
+        cliente_id: document.getElementById('contrato-cliente').value || null,
+        descricao: document.getElementById('contrato-descricao').value.trim(),
+        valor: parseFloat(document.getElementById('contrato-valor').value.replace(/\./g, '').replace(',', '.')),
+        data_inicio: document.getElementById('contrato-data-inicio').value,
+        data_fim: document.getElementById('contrato-data-fim').value || null,
+        status: document.getElementById('contrato-status').value,
+        observacoes: document.getElementById('contrato-observacoes').value.trim()
+    };
+    
+    try {
+        const url = isEdit ? `/api/contratos/${id}` : '/api/contratos';
+        const method = isEdit ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            closeModal();
+            loadContratos();
+        } else {
+            showToast(result.error || 'Erro ao salvar contrato', 'error');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showToast('Erro ao salvar contrato', 'error');
+    }
+}
+
+async function deletarContrato(id) {
+    if (!confirm('Deseja realmente excluir este contrato?')) return;
+    
+    try {
+        const response = await fetch(`/api/contratos/${id}`, {method: 'DELETE'});
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            loadContratos();
+        } else {
+            showToast(result.error, 'error');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showToast('Erro ao excluir contrato', 'error');
+    }
 }
 
 function exportarContratosPDF() {
-    console.warn('⚠️ Funcionalidade de Contratos foi removida');
-    showToast('Funcionalidade de Contratos não está mais disponível', 'warning');
+    console.log('Exportando contratos em PDF...');
+    showToast('Exportação PDF em desenvolvimento', 'info');
+    // TODO: Implementar exportação PDF
 }
 
-// Agenda (funcionalidade removida)
-function openModalAgenda() {
-    console.warn('⚠️ Funcionalidade de Agenda foi removida');
-    showToast('Funcionalidade de Agenda não está mais disponível', 'warning');
+// === AGENDA ===
+async function openModalAgenda(agenda = null) {
+    console.log('Abrindo modal de agenda:', agenda);
+    const isEdit = agenda !== null;
+    const titulo = isEdit ? 'Editar Evento' : 'Novo Evento';
+    
+    let clientesOptions = '<option value="">Nenhum</option>';
+    try {
+        const response = await fetch('/api/clientes');
+        const clientes = await response.json();
+        clientesOptions += clientes.map(c => 
+            `<option value="${c.id}" ${isEdit && agenda.cliente_id === c.id ? 'selected' : ''}>${c.nome}</option>`
+        ).join('');
+    } catch (error) {
+        console.error('Erro ao carregar clientes:', error);
+    }
+    
+    const modal = createModal(titulo, `
+        <form id="form-agenda" onsubmit="salvarAgenda(event)">
+            <input type="hidden" id="agenda-id" value="${isEdit ? agenda.id : ''}">
+            
+            <div class="form-group">
+                <label>*Título:</label>
+                <input type="text" id="agenda-titulo" value="${isEdit ? agenda.titulo : ''}" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Descrição:</label>
+                <textarea id="agenda-descricao" rows="2">${isEdit ? (agenda.descricao || '') : ''}</textarea>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>*Data:</label>
+                    <input type="date" id="agenda-data" value="${isEdit ? agenda.data_evento : ''}" required>
+                </div>
+                <div class="form-group">
+                    <label>Hora Início:</label>
+                    <input type="time" id="agenda-hora-inicio" value="${isEdit ? (agenda.hora_inicio || '') : ''}">
+                </div>
+                <div class="form-group">
+                    <label>Hora Fim:</label>
+                    <input type="time" id="agenda-hora-fim" value="${isEdit ? (agenda.hora_fim || '') : ''}">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Local:</label>
+                <input type="text" id="agenda-local" value="${isEdit ? (agenda.local || '') : ''}">
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Tipo:</label>
+                    <select id="agenda-tipo">
+                        <option value="evento" ${isEdit && agenda.tipo === 'evento' ? 'selected' : ''}>Evento</option>
+                        <option value="reuniao" ${isEdit && agenda.tipo === 'reuniao' ? 'selected' : ''}>Reunião</option>
+                        <option value="compromisso" ${isEdit && agenda.tipo === 'compromisso' ? 'selected' : ''}>Compromisso</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Status:</label>
+                    <select id="agenda-status">
+                        <option value="agendado" ${isEdit && agenda.status === 'agendado' ? 'selected' : ''}>Agendado</option>
+                        <option value="confirmado" ${isEdit && agenda.status === 'confirmado' ? 'selected' : ''}>Confirmado</option>
+                        <option value="concluido" ${isEdit && agenda.status === 'concluido' ? 'selected' : ''}>Concluído</option>
+                        <option value="cancelado" ${isEdit && agenda.status === 'cancelado' ? 'selected' : ''}>Cancelado</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Cliente:</label>
+                <select id="agenda-cliente">${clientesOptions}</select>
+            </div>
+            
+            <div class="form-group">
+                <label>Observações:</label>
+                <textarea id="agenda-observacoes" rows="2">${isEdit ? (agenda.observacoes || '') : ''}</textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </div>
+        </form>
+    `);
+}
+
+async function salvarAgenda(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('agenda-id').value;
+    const isEdit = id !== '';
+    
+    const dados = {
+        titulo: document.getElementById('agenda-titulo').value.trim(),
+        descricao: document.getElementById('agenda-descricao').value.trim(),
+        data_evento: document.getElementById('agenda-data').value,
+        hora_inicio: document.getElementById('agenda-hora-inicio').value || null,
+        hora_fim: document.getElementById('agenda-hora-fim').value || null,
+        local: document.getElementById('agenda-local').value.trim(),
+        tipo: document.getElementById('agenda-tipo').value,
+        status: document.getElementById('agenda-status').value,
+        cliente_id: document.getElementById('agenda-cliente').value || null,
+        observacoes: document.getElementById('agenda-observacoes').value.trim()
+    };
+    
+    try {
+        const url = isEdit ? `/api/agenda/${id}` : '/api/agenda';
+        const method = isEdit ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            closeModal();
+            loadAgenda();
+        } else {
+            showToast(result.error || 'Erro ao salvar evento', 'error');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showToast('Erro ao salvar evento', 'error');
+    }
+}
+
+async function deletarAgenda(id) {
+    if (!confirm('Deseja realmente excluir este evento?')) return;
+    
+    try {
+        const response = await fetch(`/api/agenda/${id}`, {method: 'DELETE'});
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            loadAgenda();
+        } else {
+            showToast(result.error, 'error');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showToast('Erro ao excluir evento', 'error');
+    }
 }
 
 function visualizarCalendario() {
-    console.warn('⚠️ Funcionalidade de Agenda foi removida');
-    showToast('Funcionalidade de Agenda não está mais disponível', 'warning');
+    console.log('Visualizando calendário...');
+    showToast('Visualização de calendário em desenvolvimento', 'info');
+    // TODO: Implementar visualização de calendário
 }
 
-// Estoque de Produtos (funcionalidade removida)
-function openModalProduto() {
-    console.warn('⚠️ Funcionalidade de Estoque de Produtos foi removida');
-    showToast('Funcionalidade de Estoque não está mais disponível', 'warning');
+// === ESTOQUE DE PRODUTOS ===
+async function openModalProduto(produto = null) {
+    console.log('Abrindo modal de produto:', produto);
+    const isEdit = produto !== null;
+    const titulo = isEdit ? 'Editar Produto' : 'Novo Produto';
+    
+    let fornecedoresOptions = '<option value="">Nenhum</option>';
+    try {
+        const response = await fetch('/api/fornecedores');
+        const fornecedores = await response.json();
+        fornecedoresOptions += fornecedores.map(f => 
+            `<option value="${f.id}" ${isEdit && produto.fornecedor_id === f.id ? 'selected' : ''}>${f.nome}</option>`
+        ).join('');
+    } catch (error) {
+        console.error('Erro ao carregar fornecedores:', error);
+    }
+    
+    const modal = createModal(titulo, `
+        <form id="form-produto" onsubmit="salvarProduto(event)">
+            <input type="hidden" id="produto-id" value="${isEdit ? produto.id : ''}">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>*Código:</label>
+                    <input type="text" id="produto-codigo" value="${isEdit ? produto.codigo : ''}" required>
+                </div>
+                <div class="form-group">
+                    <label>*Nome:</label>
+                    <input type="text" id="produto-nome" value="${isEdit ? produto.nome : ''}" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Descrição:</label>
+                <textarea id="produto-descricao" rows="2">${isEdit ? (produto.descricao || '') : ''}</textarea>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Categoria:</label>
+                    <input type="text" id="produto-categoria" value="${isEdit ? (produto.categoria || '') : ''}">
+                </div>
+                <div class="form-group">
+                    <label>Unidade:</label>
+                    <select id="produto-unidade">
+                        <option value="un" ${isEdit && produto.unidade === 'un' ? 'selected' : ''}>un</option>
+                        <option value="kg" ${isEdit && produto.unidade === 'kg' ? 'selected' : ''}>kg</option>
+                        <option value="l" ${isEdit && produto.unidade === 'l' ? 'selected' : ''}>l</option>
+                        <option value="m" ${isEdit && produto.unidade === 'm' ? 'selected' : ''}>m</option>
+                        <option value="cx" ${isEdit && produto.unidade === 'cx' ? 'selected' : ''}>cx</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Quantidade:</label>
+                    <input type="number" id="produto-quantidade" step="0.01" value="${isEdit ? produto.quantidade : 0}">
+                </div>
+                <div class="form-group">
+                    <label>Qtd. Mínima:</label>
+                    <input type="number" id="produto-quantidade-minima" step="0.01" value="${isEdit ? produto.quantidade_minima : 0}">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Preço Custo:</label>
+                    <input type="text" id="produto-preco-custo" inputmode="numeric" value="${isEdit ? formatarValorParaExibicao(produto.preco_custo) : ''}">
+                </div>
+                <div class="form-group">
+                    <label>Preço Venda:</label>
+                    <input type="text" id="produto-preco-venda" inputmode="numeric" value="${isEdit ? formatarValorParaExibicao(produto.preco_venda) : ''}">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Fornecedor:</label>
+                <select id="produto-fornecedor">${fornecedoresOptions}</select>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </div>
+        </form>
+    `);
+    
+    setTimeout(() => {
+        ['produto-preco-custo', 'produto-preco-venda'].forEach(id => {
+            const campo = document.getElementById(id);
+            if (campo && typeof aplicarFormatacaoMoeda === 'function') {
+                aplicarFormatacaoMoeda(campo);
+            }
+        });
+    }, 100);
+}
+
+async function salvarProduto(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('produto-id').value;
+    const isEdit = id !== '';
+    
+    const dados = {
+        codigo: document.getElementById('produto-codigo').value.trim(),
+        nome: document.getElementById('produto-nome').value.trim(),
+        descricao: document.getElementById('produto-descricao').value.trim(),
+        categoria: document.getElementById('produto-categoria').value.trim(),
+        unidade: document.getElementById('produto-unidade').value,
+        quantidade: parseFloat(document.getElementById('produto-quantidade').value) || 0,
+        quantidade_minima: parseFloat(document.getElementById('produto-quantidade-minima').value) || 0,
+        preco_custo: parseFloat(document.getElementById('produto-preco-custo').value.replace(/\./g, '').replace(',', '.')) || 0,
+        preco_venda: parseFloat(document.getElementById('produto-preco-venda').value.replace(/\./g, '').replace(',', '.')) || 0,
+        fornecedor_id: document.getElementById('produto-fornecedor').value || null,
+        ativo: 1
+    };
+    
+    try {
+        const url = isEdit ? `/api/estoque/produtos/${id}` : '/api/estoque/produtos';
+        const method = isEdit ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            closeModal();
+            loadProdutos();
+        } else {
+            showToast(result.error || 'Erro ao salvar produto', 'error');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showToast('Erro ao salvar produto', 'error');
+    }
+}
+
+async function deletarProduto(id) {
+    if (!confirm('Deseja realmente excluir este produto?')) return;
+    
+    try {
+        const response = await fetch(`/api/estoque/produtos/${id}`, {method: 'DELETE'});
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            loadProdutos();
+        } else {
+            showToast(result.error, 'error');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showToast('Erro ao excluir produto', 'error');
+    }
 }
 
 function exportarEstoquePDF() {
-    console.warn('⚠️ Funcionalidade de Estoque de Produtos foi removida');
-    showToast('Funcionalidade de Estoque não está mais disponível', 'warning');
+    console.log('Exportando estoque em PDF...');
+    showToast('Exportação PDF em desenvolvimento', 'info');
+    // TODO: Implementar exportação PDF
 }
 
 function showEstoqueTab(tipo) {
-    console.warn('⚠️ Funcionalidade de Estoque de Produtos foi removida');
-    showToast('Funcionalidade de Estoque não está mais disponível', 'warning');
+    console.log('Mostrando aba de estoque:', tipo);
+    // TODO: Implementar abas de estoque
 }
 
-// Kits (funcionalidade removida)
-function openModalKit() {
-    console.warn('⚠️ Funcionalidade de Kits foi removida');
-    showToast('Funcionalidade de Kits não está mais disponível', 'warning');
+// === KITS ===
+async function openModalKit(kit = null) {
+    console.log('Abrindo modal de kit:', kit);
+    const isEdit = kit !== null;
+    const titulo = isEdit ? 'Editar Kit' : 'Novo Kit';
+    
+    const modal = createModal(titulo, `
+        <form id="form-kit" onsubmit="salvarKit(event)">
+            <input type="hidden" id="kit-id" value="${isEdit ? kit.id : ''}">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>*Código:</label>
+                    <input type="text" id="kit-codigo" value="${isEdit ? kit.codigo : ''}" required>
+                </div>
+                <div class="form-group">
+                    <label>*Nome:</label>
+                    <input type="text" id="kit-nome" value="${isEdit ? kit.nome : ''}" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Descrição:</label>
+                <textarea id="kit-descricao" rows="2">${isEdit ? (kit.descricao || '') : ''}</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Preço:</label>
+                <input type="text" id="kit-preco" inputmode="numeric" value="${isEdit ? formatarValorParaExibicao(kit.preco) : ''}">
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </div>
+        </form>
+    `);
+    
+    setTimeout(() => {
+        const campoPreco = document.getElementById('kit-preco');
+        if (campoPreco && typeof aplicarFormatacaoMoeda === 'function') {
+            aplicarFormatacaoMoeda(campoPreco);
+        }
+    }, 100);
 }
 
-// Tags (funcionalidade removida)
-function openModalTag() {
-    console.warn('⚠️ Funcionalidade de Tags foi removida');
-    showToast('Funcionalidade de Tags não está mais disponível', 'warning');
+async function salvarKit(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('kit-id').value;
+    const isEdit = id !== '';
+    
+    const dados = {
+        codigo: document.getElementById('kit-codigo').value.trim(),
+        nome: document.getElementById('kit-nome').value.trim(),
+        descricao: document.getElementById('kit-descricao').value.trim(),
+        preco: parseFloat(document.getElementById('kit-preco').value.replace(/\./g, '').replace(',', '.')) || 0,
+        ativo: 1,
+        itens: []
+    };
+    
+    try {
+        const url = isEdit ? `/api/kits/${id}` : '/api/kits';
+        const method = isEdit ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            closeModal();
+            loadKits();
+        } else {
+            showToast(result.error || 'Erro ao salvar kit', 'error');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showToast('Erro ao salvar kit', 'error');
+    }
 }
 
-// Templates (funcionalidade removida)
-function openModalTemplate() {
-    console.warn('⚠️ Funcionalidade de Templates foi removida');
-    showToast('Funcionalidade de Templates não está mais disponível', 'warning');
+async function deletarKit(id) {
+    if (!confirm('Deseja realmente excluir este kit?')) return;
+    
+    try {
+        const response = await fetch(`/api/kits/${id}`, {method: 'DELETE'});
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            loadKits();
+        } else {
+            showToast(result.error, 'error');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showToast('Erro ao excluir kit', 'error');
+    }
+}
+
+// === TAGS ===
+async function openModalTag(tag = null) {
+    console.log('Abrindo modal de tag:', tag);
+    const isEdit = tag !== null;
+    const titulo = isEdit ? 'Editar Tag' : 'Nova Tag';
+    
+    const modal = createModal(titulo, `
+        <form id="form-tag" onsubmit="salvarTag(event)">
+            <input type="hidden" id="tag-id" value="${isEdit ? tag.id : ''}">
+            
+            <div class="form-group">
+                <label>*Nome:</label>
+                <input type="text" id="tag-nome" value="${isEdit ? tag.nome : ''}" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Cor:</label>
+                <input type="color" id="tag-cor" value="${isEdit ? tag.cor : '#3498db'}">
+            </div>
+            
+            <div class="form-group">
+                <label>Descrição:</label>
+                <textarea id="tag-descricao" rows="2">${isEdit ? (tag.descricao || '') : ''}</textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </div>
+        </form>
+    `);
+}
+
+async function salvarTag(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('tag-id').value;
+    const isEdit = id !== '';
+    
+    const dados = {
+        nome: document.getElementById('tag-nome').value.trim(),
+        cor: document.getElementById('tag-cor').value,
+        descricao: document.getElementById('tag-descricao').value.trim()
+    };
+    
+    try {
+        const url = isEdit ? `/api/tags/${id}` : '/api/tags';
+        const method = isEdit ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            closeModal();
+            loadTags();
+        } else {
+            showToast(result.error || 'Erro ao salvar tag', 'error');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showToast('Erro ao salvar tag', 'error');
+    }
+}
+
+async function deletarTag(id) {
+    if (!confirm('Deseja realmente excluir esta tag?')) return;
+    
+    try {
+        const response = await fetch(`/api/tags/${id}`, {method: 'DELETE'});
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            loadTags();
+        } else {
+            showToast(result.error, 'error');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showToast('Erro ao excluir tag', 'error');
+    }
+}
+
+// === TEMPLATES ===
+async function openModalTemplate(template = null) {
+    console.log('Abrindo modal de template:', template);
+    const isEdit = template !== null;
+    const titulo = isEdit ? 'Editar Template' : 'Novo Template';
+    
+    const modal = createModal(titulo, `
+        <form id="form-template" onsubmit="salvarTemplate(event)">
+            <input type="hidden" id="template-id" value="${isEdit ? template.id : ''}">
+            
+            <div class="form-group">
+                <label>*Nome:</label>
+                <input type="text" id="template-nome" value="${isEdit ? template.nome : ''}" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Tipo:</label>
+                <select id="template-tipo">
+                    <option value="geral" ${isEdit && template.tipo === 'geral' ? 'selected' : ''}>Geral</option>
+                    <option value="email" ${isEdit && template.tipo === 'email' ? 'selected' : ''}>E-mail</option>
+                    <option value="contrato" ${isEdit && template.tipo === 'contrato' ? 'selected' : ''}>Contrato</option>
+                    <option value="relatorio" ${isEdit && template.tipo === 'relatorio' ? 'selected' : ''}>Relatório</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Descrição:</label>
+                <textarea id="template-descricao" rows="2">${isEdit ? (template.descricao || '') : ''}</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>*Conteúdo:</label>
+                <textarea id="template-conteudo" rows="8" required>${isEdit ? template.conteudo : ''}</textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </div>
+        </form>
+    `);
+}
+
+async function salvarTemplate(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('template-id').value;
+    const isEdit = id !== '';
+    
+    const dados = {
+        nome: document.getElementById('template-nome').value.trim(),
+        tipo: document.getElementById('template-tipo').value,
+        descricao: document.getElementById('template-descricao').value.trim(),
+        conteudo: document.getElementById('template-conteudo').value.trim(),
+        ativo: 1
+    };
+    
+    try {
+        const url = isEdit ? `/api/templates-equipe/${id}` : '/api/templates-equipe';
+        const method = isEdit ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            closeModal();
+            loadTemplates();
+        } else {
+            showToast(result.error || 'Erro ao salvar template', 'error');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showToast('Erro ao salvar template', 'error');
+    }
+}
+
+async function deletarTemplate(id) {
+    if (!confirm('Deseja realmente excluir este template?')) return;
+    
+    try {
+        const response = await fetch(`/api/templates-equipe/${id}`, {method: 'DELETE'});
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            loadTemplates();
+        } else {
+            showToast(result.error, 'error');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showToast('Erro ao excluir template', 'error');
+    }
 }
 
 // Exportar funções globalmente

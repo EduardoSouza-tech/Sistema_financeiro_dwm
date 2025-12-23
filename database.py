@@ -213,6 +213,159 @@ class _SQLiteDatabaseManager:
         except:
             pass
         
+        # Tabela de contratos
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS contratos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero TEXT UNIQUE NOT NULL,
+                cliente_id INTEGER,
+                descricao TEXT NOT NULL,
+                valor REAL NOT NULL,
+                data_inicio TEXT NOT NULL,
+                data_fim TEXT,
+                status TEXT DEFAULT 'ativo',
+                observacoes TEXT,
+                data_criacao TEXT NOT NULL,
+                FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+            )
+        """)
+        
+        # Tabela de agenda
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS agenda (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                titulo TEXT NOT NULL,
+                descricao TEXT,
+                data_evento TEXT NOT NULL,
+                hora_inicio TEXT,
+                hora_fim TEXT,
+                local TEXT,
+                tipo TEXT DEFAULT 'evento',
+                status TEXT DEFAULT 'agendado',
+                cliente_id INTEGER,
+                observacoes TEXT,
+                data_criacao TEXT NOT NULL,
+                FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+            )
+        """)
+        
+        # Tabela de produtos (estoque)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS produtos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                codigo TEXT UNIQUE NOT NULL,
+                nome TEXT NOT NULL,
+                descricao TEXT,
+                categoria TEXT,
+                unidade TEXT DEFAULT 'un',
+                quantidade REAL DEFAULT 0,
+                quantidade_minima REAL DEFAULT 0,
+                preco_custo REAL DEFAULT 0,
+                preco_venda REAL DEFAULT 0,
+                fornecedor_id INTEGER,
+                ativo INTEGER DEFAULT 1,
+                data_criacao TEXT NOT NULL,
+                FOREIGN KEY (fornecedor_id) REFERENCES fornecedores(id)
+            )
+        """)
+        
+        # Tabela de kits
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS kits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                codigo TEXT UNIQUE NOT NULL,
+                nome TEXT NOT NULL,
+                descricao TEXT,
+                preco REAL DEFAULT 0,
+                ativo INTEGER DEFAULT 1,
+                data_criacao TEXT NOT NULL
+            )
+        """)
+        
+        # Tabela de itens de kits
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS kit_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kit_id INTEGER NOT NULL,
+                produto_id INTEGER NOT NULL,
+                quantidade REAL NOT NULL,
+                FOREIGN KEY (kit_id) REFERENCES kits(id) ON DELETE CASCADE,
+                FOREIGN KEY (produto_id) REFERENCES produtos(id)
+            )
+        """)
+        
+        # Tabela de tags
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT UNIQUE NOT NULL,
+                cor TEXT DEFAULT '#3498db',
+                descricao TEXT,
+                data_criacao TEXT NOT NULL
+            )
+        """)
+        
+        # Tabela de templates de equipe
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS templates_equipe (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT UNIQUE NOT NULL,
+                descricao TEXT,
+                conteudo TEXT NOT NULL,
+                tipo TEXT DEFAULT 'geral',
+                ativo INTEGER DEFAULT 1,
+                data_criacao TEXT NOT NULL
+            )
+        """)
+        
+        # Tabela de sessões
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sessoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                titulo TEXT NOT NULL,
+                descricao TEXT,
+                data_sessao TEXT NOT NULL,
+                duracao INTEGER DEFAULT 60,
+                cliente_id INTEGER,
+                valor REAL DEFAULT 0,
+                status TEXT DEFAULT 'agendada',
+                observacoes TEXT,
+                data_criacao TEXT NOT NULL,
+                FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+            )
+        """)
+        
+        # Tabela de comissões
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS comissoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                descricao TEXT NOT NULL,
+                valor REAL NOT NULL,
+                percentual REAL DEFAULT 0,
+                data_referencia TEXT NOT NULL,
+                data_pagamento TEXT,
+                status TEXT DEFAULT 'pendente',
+                beneficiario TEXT,
+                lancamento_id INTEGER,
+                observacoes TEXT,
+                data_criacao TEXT NOT NULL,
+                FOREIGN KEY (lancamento_id) REFERENCES lancamentos(id)
+            )
+        """)
+        
+        # Tabela de relação sessão-equipe
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sessao_equipe (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sessao_id INTEGER NOT NULL,
+                membro_nome TEXT NOT NULL,
+                funcao TEXT,
+                observacoes TEXT,
+                data_criacao TEXT NOT NULL,
+                FOREIGN KEY (sessao_id) REFERENCES sessoes(id) ON DELETE CASCADE
+            )
+        """)
+        
         conn.commit()
         conn.close()
     
@@ -1042,6 +1195,878 @@ def excluir_categoria(nome: str) -> bool:
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM categorias WHERE nome = ?", (nome,))
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+# ===== CONTRATOS =====
+
+def adicionar_contrato(contrato: Dict) -> int:
+    """Adiciona um novo contrato"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO contratos (numero, cliente_id, descricao, valor, data_inicio, data_fim, status, observacoes, data_criacao)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        contrato['numero'],
+        contrato.get('cliente_id'),
+        contrato['descricao'],
+        contrato['valor'],
+        contrato['data_inicio'],
+        contrato.get('data_fim'),
+        contrato.get('status', 'ativo'),
+        contrato.get('observacoes'),
+        datetime.now().isoformat()
+    ))
+    
+    contrato_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return contrato_id
+
+def listar_contratos() -> List[Dict]:
+    """Lista todos os contratos"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT c.id, c.numero, c.cliente_id, cl.nome as cliente_nome, c.descricao, c.valor, 
+               c.data_inicio, c.data_fim, c.status, c.observacoes, c.data_criacao
+        FROM contratos c
+        LEFT JOIN clientes cl ON c.cliente_id = cl.id
+        ORDER BY c.data_criacao DESC
+    """)
+    
+    contratos = []
+    for row in cursor.fetchall():
+        contratos.append({
+            'id': row[0],
+            'numero': row[1],
+            'cliente_id': row[2],
+            'cliente_nome': row[3],
+            'descricao': row[4],
+            'valor': row[5],
+            'data_inicio': row[6],
+            'data_fim': row[7],
+            'status': row[8],
+            'observacoes': row[9],
+            'data_criacao': row[10]
+        })
+    
+    conn.close()
+    return contratos
+
+def atualizar_contrato(id: int, contrato: Dict) -> bool:
+    """Atualiza um contrato existente"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE contratos
+        SET numero = ?, cliente_id = ?, descricao = ?, valor = ?, data_inicio = ?, data_fim = ?, status = ?, observacoes = ?
+        WHERE id = ?
+    """, (
+        contrato['numero'],
+        contrato.get('cliente_id'),
+        contrato['descricao'],
+        contrato['valor'],
+        contrato['data_inicio'],
+        contrato.get('data_fim'),
+        contrato.get('status', 'ativo'),
+        contrato.get('observacoes'),
+        id
+    ))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+def deletar_contrato(id: int) -> bool:
+    """Deleta um contrato"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM contratos WHERE id = ?", (id,))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+# ===== AGENDA =====
+
+def adicionar_agenda(agenda: Dict) -> int:
+    """Adiciona um novo evento na agenda"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO agenda (titulo, descricao, data_evento, hora_inicio, hora_fim, local, tipo, status, cliente_id, observacoes, data_criacao)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        agenda['titulo'],
+        agenda.get('descricao'),
+        agenda['data_evento'],
+        agenda.get('hora_inicio'),
+        agenda.get('hora_fim'),
+        agenda.get('local'),
+        agenda.get('tipo', 'evento'),
+        agenda.get('status', 'agendado'),
+        agenda.get('cliente_id'),
+        agenda.get('observacoes'),
+        datetime.now().isoformat()
+    ))
+    
+    agenda_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return agenda_id
+
+def listar_agenda() -> List[Dict]:
+    """Lista todos os eventos da agenda"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT a.id, a.titulo, a.descricao, a.data_evento, a.hora_inicio, a.hora_fim, a.local, 
+               a.tipo, a.status, a.cliente_id, cl.nome as cliente_nome, a.observacoes, a.data_criacao
+        FROM agenda a
+        LEFT JOIN clientes cl ON a.cliente_id = cl.id
+        ORDER BY a.data_evento DESC, a.hora_inicio DESC
+    """)
+    
+    eventos = []
+    for row in cursor.fetchall():
+        eventos.append({
+            'id': row[0],
+            'titulo': row[1],
+            'descricao': row[2],
+            'data_evento': row[3],
+            'hora_inicio': row[4],
+            'hora_fim': row[5],
+            'local': row[6],
+            'tipo': row[7],
+            'status': row[8],
+            'cliente_id': row[9],
+            'cliente_nome': row[10],
+            'observacoes': row[11],
+            'data_criacao': row[12]
+        })
+    
+    conn.close()
+    return eventos
+
+def atualizar_agenda(id: int, agenda: Dict) -> bool:
+    """Atualiza um evento da agenda"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE agenda
+        SET titulo = ?, descricao = ?, data_evento = ?, hora_inicio = ?, hora_fim = ?, local = ?, tipo = ?, status = ?, cliente_id = ?, observacoes = ?
+        WHERE id = ?
+    """, (
+        agenda['titulo'],
+        agenda.get('descricao'),
+        agenda['data_evento'],
+        agenda.get('hora_inicio'),
+        agenda.get('hora_fim'),
+        agenda.get('local'),
+        agenda.get('tipo', 'evento'),
+        agenda.get('status', 'agendado'),
+        agenda.get('cliente_id'),
+        agenda.get('observacoes'),
+        id
+    ))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+def deletar_agenda(id: int) -> bool:
+    """Deleta um evento da agenda"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM agenda WHERE id = ?", (id,))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+# ===== PRODUTOS =====
+
+def adicionar_produto(produto: Dict) -> int:
+    """Adiciona um novo produto"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO produtos (codigo, nome, descricao, categoria, unidade, quantidade, quantidade_minima, preco_custo, preco_venda, fornecedor_id, ativo, data_criacao)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        produto['codigo'],
+        produto['nome'],
+        produto.get('descricao'),
+        produto.get('categoria'),
+        produto.get('unidade', 'un'),
+        produto.get('quantidade', 0),
+        produto.get('quantidade_minima', 0),
+        produto.get('preco_custo', 0),
+        produto.get('preco_venda', 0),
+        produto.get('fornecedor_id'),
+        produto.get('ativo', 1),
+        datetime.now().isoformat()
+    ))
+    
+    produto_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return produto_id
+
+def listar_produtos() -> List[Dict]:
+    """Lista todos os produtos"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT p.id, p.codigo, p.nome, p.descricao, p.categoria, p.unidade, p.quantidade, p.quantidade_minima, 
+               p.preco_custo, p.preco_venda, p.fornecedor_id, f.nome as fornecedor_nome, p.ativo, p.data_criacao
+        FROM produtos p
+        LEFT JOIN fornecedores f ON p.fornecedor_id = f.id
+        ORDER BY p.nome
+    """)
+    
+    produtos = []
+    for row in cursor.fetchall():
+        produtos.append({
+            'id': row[0],
+            'codigo': row[1],
+            'nome': row[2],
+            'descricao': row[3],
+            'categoria': row[4],
+            'unidade': row[5],
+            'quantidade': row[6],
+            'quantidade_minima': row[7],
+            'preco_custo': row[8],
+            'preco_venda': row[9],
+            'fornecedor_id': row[10],
+            'fornecedor_nome': row[11],
+            'ativo': row[12],
+            'data_criacao': row[13]
+        })
+    
+    conn.close()
+    return produtos
+
+def atualizar_produto(id: int, produto: Dict) -> bool:
+    """Atualiza um produto existente"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE produtos
+        SET codigo = ?, nome = ?, descricao = ?, categoria = ?, unidade = ?, quantidade = ?, quantidade_minima = ?, preco_custo = ?, preco_venda = ?, fornecedor_id = ?, ativo = ?
+        WHERE id = ?
+    """, (
+        produto['codigo'],
+        produto['nome'],
+        produto.get('descricao'),
+        produto.get('categoria'),
+        produto.get('unidade', 'un'),
+        produto.get('quantidade', 0),
+        produto.get('quantidade_minima', 0),
+        produto.get('preco_custo', 0),
+        produto.get('preco_venda', 0),
+        produto.get('fornecedor_id'),
+        produto.get('ativo', 1),
+        id
+    ))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+def deletar_produto(id: int) -> bool:
+    """Deleta um produto"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM produtos WHERE id = ?", (id,))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+# ===== KITS =====
+
+def adicionar_kit(kit: Dict) -> int:
+    """Adiciona um novo kit"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO kits (codigo, nome, descricao, preco, ativo, data_criacao)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (
+        kit['codigo'],
+        kit['nome'],
+        kit.get('descricao'),
+        kit.get('preco', 0),
+        kit.get('ativo', 1),
+        datetime.now().isoformat()
+    ))
+    
+    kit_id = cursor.lastrowid
+    
+    # Adicionar itens do kit
+    if 'itens' in kit and kit['itens']:
+        for item in kit['itens']:
+            cursor.execute("""
+                INSERT INTO kit_itens (kit_id, produto_id, quantidade)
+                VALUES (?, ?, ?)
+            """, (kit_id, item['produto_id'], item['quantidade']))
+    
+    conn.commit()
+    conn.close()
+    return kit_id
+
+def listar_kits() -> List[Dict]:
+    """Lista todos os kits"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT id, codigo, nome, descricao, preco, ativo, data_criacao
+        FROM kits
+        ORDER BY nome
+    """)
+    
+    kits = []
+    for row in cursor.fetchall():
+        kit_id = row[0]
+        
+        # Buscar itens do kit
+        cursor.execute("""
+            SELECT ki.id, ki.produto_id, p.nome, ki.quantidade
+            FROM kit_itens ki
+            JOIN produtos p ON ki.produto_id = p.id
+            WHERE ki.kit_id = ?
+        """, (kit_id,))
+        
+        itens = []
+        for item_row in cursor.fetchall():
+            itens.append({
+                'id': item_row[0],
+                'produto_id': item_row[1],
+                'produto_nome': item_row[2],
+                'quantidade': item_row[3]
+            })
+        
+        kits.append({
+            'id': kit_id,
+            'codigo': row[1],
+            'nome': row[2],
+            'descricao': row[3],
+            'preco': row[4],
+            'ativo': row[5],
+            'data_criacao': row[6],
+            'itens': itens
+        })
+    
+    conn.close()
+    return kits
+
+def atualizar_kit(id: int, kit: Dict) -> bool:
+    """Atualiza um kit existente"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE kits
+        SET codigo = ?, nome = ?, descricao = ?, preco = ?, ativo = ?
+        WHERE id = ?
+    """, (
+        kit['codigo'],
+        kit['nome'],
+        kit.get('descricao'),
+        kit.get('preco', 0),
+        kit.get('ativo', 1),
+        id
+    ))
+    
+    # Remover itens antigos e adicionar novos
+    cursor.execute("DELETE FROM kit_itens WHERE kit_id = ?", (id,))
+    
+    if 'itens' in kit and kit['itens']:
+        for item in kit['itens']:
+            cursor.execute("""
+                INSERT INTO kit_itens (kit_id, produto_id, quantidade)
+                VALUES (?, ?, ?)
+            """, (id, item['produto_id'], item['quantidade']))
+    
+    success = cursor.rowcount >= 0
+    conn.commit()
+    conn.close()
+    return success
+
+def deletar_kit(id: int) -> bool:
+    """Deleta um kit"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Os itens serão deletados automaticamente pelo CASCADE
+    cursor.execute("DELETE FROM kits WHERE id = ?", (id,))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+# ===== TAGS =====
+
+def adicionar_tag(tag: Dict) -> int:
+    """Adiciona uma nova tag"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO tags (nome, cor, descricao, data_criacao)
+        VALUES (?, ?, ?, ?)
+    """, (
+        tag['nome'],
+        tag.get('cor', '#3498db'),
+        tag.get('descricao'),
+        datetime.now().isoformat()
+    ))
+    
+    tag_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return tag_id
+
+def listar_tags() -> List[Dict]:
+    """Lista todas as tags"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT id, nome, cor, descricao, data_criacao
+        FROM tags
+        ORDER BY nome
+    """)
+    
+    tags = []
+    for row in cursor.fetchall():
+        tags.append({
+            'id': row[0],
+            'nome': row[1],
+            'cor': row[2],
+            'descricao': row[3],
+            'data_criacao': row[4]
+        })
+    
+    conn.close()
+    return tags
+
+def atualizar_tag(id: int, tag: Dict) -> bool:
+    """Atualiza uma tag existente"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE tags
+        SET nome = ?, cor = ?, descricao = ?
+        WHERE id = ?
+    """, (
+        tag['nome'],
+        tag.get('cor', '#3498db'),
+        tag.get('descricao'),
+        id
+    ))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+def deletar_tag(id: int) -> bool:
+    """Deleta uma tag"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM tags WHERE id = ?", (id,))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+# ===== TEMPLATES DE EQUIPE =====
+
+def adicionar_template_equipe(template: Dict) -> int:
+    """Adiciona um novo template de equipe"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO templates_equipe (nome, descricao, conteudo, tipo, ativo, data_criacao)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (
+        template['nome'],
+        template.get('descricao'),
+        template['conteudo'],
+        template.get('tipo', 'geral'),
+        template.get('ativo', 1),
+        datetime.now().isoformat()
+    ))
+    
+    template_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return template_id
+
+def listar_templates_equipe() -> List[Dict]:
+    """Lista todos os templates de equipe"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT id, nome, descricao, conteudo, tipo, ativo, data_criacao
+        FROM templates_equipe
+        ORDER BY nome
+    """)
+    
+    templates = []
+    for row in cursor.fetchall():
+        templates.append({
+            'id': row[0],
+            'nome': row[1],
+            'descricao': row[2],
+            'conteudo': row[3],
+            'tipo': row[4],
+            'ativo': row[5],
+            'data_criacao': row[6]
+        })
+    
+    conn.close()
+    return templates
+
+def atualizar_template_equipe(id: int, template: Dict) -> bool:
+    """Atualiza um template de equipe existente"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE templates_equipe
+        SET nome = ?, descricao = ?, conteudo = ?, tipo = ?, ativo = ?
+        WHERE id = ?
+    """, (
+        template['nome'],
+        template.get('descricao'),
+        template['conteudo'],
+        template.get('tipo', 'geral'),
+        template.get('ativo', 1),
+        id
+    ))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+def deletar_template_equipe(id: int) -> bool:
+    """Deleta um template de equipe"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM templates_equipe WHERE id = ?", (id,))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+# ===== SESSÕES =====
+
+def adicionar_sessao(sessao: Dict) -> int:
+    """Adiciona uma nova sessão"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO sessoes (titulo, descricao, data_sessao, duracao, cliente_id, valor, status, observacoes, data_criacao)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        sessao['titulo'],
+        sessao.get('descricao'),
+        sessao['data_sessao'],
+        sessao.get('duracao', 60),
+        sessao.get('cliente_id'),
+        sessao.get('valor', 0),
+        sessao.get('status', 'agendada'),
+        sessao.get('observacoes'),
+        datetime.now().isoformat()
+    ))
+    
+    sessao_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return sessao_id
+
+def listar_sessoes() -> List[Dict]:
+    """Lista todas as sessões"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT s.id, s.titulo, s.descricao, s.data_sessao, s.duracao, s.cliente_id, cl.nome as cliente_nome, s.valor, s.status, s.observacoes, s.data_criacao
+        FROM sessoes s
+        LEFT JOIN clientes cl ON s.cliente_id = cl.id
+        ORDER BY s.data_sessao DESC
+    """)
+    
+    sessoes = []
+    for row in cursor.fetchall():
+        sessoes.append({
+            'id': row[0],
+            'titulo': row[1],
+            'descricao': row[2],
+            'data_sessao': row[3],
+            'duracao': row[4],
+            'cliente_id': row[5],
+            'cliente_nome': row[6],
+            'valor': row[7],
+            'status': row[8],
+            'observacoes': row[9],
+            'data_criacao': row[10]
+        })
+    
+    conn.close()
+    return sessoes
+
+def atualizar_sessao(id: int, sessao: Dict) -> bool:
+    """Atualiza uma sessão existente"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE sessoes
+        SET titulo = ?, descricao = ?, data_sessao = ?, duracao = ?, cliente_id = ?, valor = ?, status = ?, observacoes = ?
+        WHERE id = ?
+    """, (
+        sessao['titulo'],
+        sessao.get('descricao'),
+        sessao['data_sessao'],
+        sessao.get('duracao', 60),
+        sessao.get('cliente_id'),
+        sessao.get('valor', 0),
+        sessao.get('status', 'agendada'),
+        sessao.get('observacoes'),
+        id
+    ))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+def deletar_sessao(id: int) -> bool:
+    """Deleta uma sessão"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM sessoes WHERE id = ?", (id,))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+# ===== COMISSÕES =====
+
+def adicionar_comissao(comissao: Dict) -> int:
+    """Adiciona uma nova comissão"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO comissoes (descricao, valor, percentual, data_referencia, data_pagamento, status, beneficiario, lancamento_id, observacoes, data_criacao)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        comissao['descricao'],
+        comissao['valor'],
+        comissao.get('percentual', 0),
+        comissao['data_referencia'],
+        comissao.get('data_pagamento'),
+        comissao.get('status', 'pendente'),
+        comissao.get('beneficiario'),
+        comissao.get('lancamento_id'),
+        comissao.get('observacoes'),
+        datetime.now().isoformat()
+    ))
+    
+    comissao_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return comissao_id
+
+def listar_comissoes() -> List[Dict]:
+    """Lista todas as comissões"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT id, descricao, valor, percentual, data_referencia, data_pagamento, status, beneficiario, lancamento_id, observacoes, data_criacao
+        FROM comissoes
+        ORDER BY data_referencia DESC
+    """)
+    
+    comissoes = []
+    for row in cursor.fetchall():
+        comissoes.append({
+            'id': row[0],
+            'descricao': row[1],
+            'valor': row[2],
+            'percentual': row[3],
+            'data_referencia': row[4],
+            'data_pagamento': row[5],
+            'status': row[6],
+            'beneficiario': row[7],
+            'lancamento_id': row[8],
+            'observacoes': row[9],
+            'data_criacao': row[10]
+        })
+    
+    conn.close()
+    return comissoes
+
+def atualizar_comissao(id: int, comissao: Dict) -> bool:
+    """Atualiza uma comissão existente"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE comissoes
+        SET descricao = ?, valor = ?, percentual = ?, data_referencia = ?, data_pagamento = ?, status = ?, beneficiario = ?, lancamento_id = ?, observacoes = ?
+        WHERE id = ?
+    """, (
+        comissao['descricao'],
+        comissao['valor'],
+        comissao.get('percentual', 0),
+        comissao['data_referencia'],
+        comissao.get('data_pagamento'),
+        comissao.get('status', 'pendente'),
+        comissao.get('beneficiario'),
+        comissao.get('lancamento_id'),
+        comissao.get('observacoes'),
+        id
+    ))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+def deletar_comissao(id: int) -> bool:
+    """Deleta uma comissão"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM comissoes WHERE id = ?", (id,))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+# ===== SESSÃO-EQUIPE =====
+
+def adicionar_sessao_equipe(sessao_equipe: Dict) -> int:
+    """Adiciona um novo membro de equipe a uma sessão"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO sessao_equipe (sessao_id, membro_nome, funcao, observacoes, data_criacao)
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        sessao_equipe['sessao_id'],
+        sessao_equipe['membro_nome'],
+        sessao_equipe.get('funcao'),
+        sessao_equipe.get('observacoes'),
+        datetime.now().isoformat()
+    ))
+    
+    se_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return se_id
+
+def listar_sessao_equipe() -> List[Dict]:
+    """Lista todos os membros de equipe por sessão"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT se.id, se.sessao_id, s.titulo as sessao_titulo, se.membro_nome, se.funcao, se.observacoes, se.data_criacao
+        FROM sessao_equipe se
+        JOIN sessoes s ON se.sessao_id = s.id
+        ORDER BY se.sessao_id DESC, se.membro_nome
+    """)
+    
+    lista = []
+    for row in cursor.fetchall():
+        lista.append({
+            'id': row[0],
+            'sessao_id': row[1],
+            'sessao_titulo': row[2],
+            'membro_nome': row[3],
+            'funcao': row[4],
+            'observacoes': row[5],
+            'data_criacao': row[6]
+        })
+    
+    conn.close()
+    return lista
+
+def atualizar_sessao_equipe(id: int, sessao_equipe: Dict) -> bool:
+    """Atualiza um membro de equipe de uma sessão"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE sessao_equipe
+        SET sessao_id = ?, membro_nome = ?, funcao = ?, observacoes = ?
+        WHERE id = ?
+    """, (
+        sessao_equipe['sessao_id'],
+        sessao_equipe['membro_nome'],
+        sessao_equipe.get('funcao'),
+        sessao_equipe.get('observacoes'),
+        id
+    ))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+def deletar_sessao_equipe(id: int) -> bool:
+    """Deleta um membro de equipe de uma sessão"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM sessao_equipe WHERE id = ?", (id,))
+    
     success = cursor.rowcount > 0
     conn.commit()
     conn.close()
