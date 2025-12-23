@@ -1876,6 +1876,8 @@ def adicionar_sessao(dados: Dict) -> int:
 
 def listar_sessoes() -> List[Dict]:
     """Lista todas as sessões"""
+    import datetime
+    import decimal
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -1888,12 +1890,15 @@ def listar_sessoes() -> List[Dict]:
     """)
     sessoes = []
     for row in cursor.fetchall():
-        sessao = dict(row)
-        # Converter objetos time para string para serialização JSON
-        if 'hora_inicio' in sessao and sessao['hora_inicio']:
-            sessao['hora_inicio'] = str(sessao['hora_inicio'])
-        if 'hora_fim' in sessao and sessao['hora_fim']:
-            sessao['hora_fim'] = str(sessao['hora_fim'])
+        sessao = {}
+        for key, value in dict(row).items():
+            # Converter tipos não-serializáveis para JSON
+            if isinstance(value, (datetime.time, datetime.datetime, datetime.date)):
+                sessao[key] = value.isoformat()
+            elif isinstance(value, decimal.Decimal):
+                sessao[key] = float(value)
+            else:
+                sessao[key] = value
         sessoes.append(sessao)
     
     # Buscar equipe de cada sessão
