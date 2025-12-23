@@ -202,6 +202,48 @@ class DatabaseManager:
         except Exception as e:
             print(f"⚠️  Aviso na migração de colunas: {e}")
         
+        # Sincronizar sequências de auto-incremento com valores máximos atuais
+        try:
+            cursor.execute("""
+                DO $$ 
+                DECLARE
+                    max_id INTEGER;
+                BEGIN
+                    -- Sincronizar sequência de categorias
+                    SELECT COALESCE(MAX(id), 0) INTO max_id FROM categorias;
+                    IF max_id > 0 THEN
+                        EXECUTE 'SELECT setval(''categorias_id_seq'', ' || max_id || ')';
+                    END IF;
+                    
+                    -- Sincronizar sequência de contas_bancarias
+                    SELECT COALESCE(MAX(id), 0) INTO max_id FROM contas_bancarias;
+                    IF max_id > 0 THEN
+                        EXECUTE 'SELECT setval(''contas_bancarias_id_seq'', ' || max_id || ')';
+                    END IF;
+                    
+                    -- Sincronizar sequência de clientes
+                    SELECT COALESCE(MAX(id), 0) INTO max_id FROM clientes;
+                    IF max_id > 0 THEN
+                        EXECUTE 'SELECT setval(''clientes_id_seq'', ' || max_id || ')';
+                    END IF;
+                    
+                    -- Sincronizar sequência de fornecedores
+                    SELECT COALESCE(MAX(id), 0) INTO max_id FROM fornecedores;
+                    IF max_id > 0 THEN
+                        EXECUTE 'SELECT setval(''fornecedores_id_seq'', ' || max_id || ')';
+                    END IF;
+                    
+                    -- Sincronizar sequência de lancamentos
+                    SELECT COALESCE(MAX(id), 0) INTO max_id FROM lancamentos;
+                    IF max_id > 0 THEN
+                        EXECUTE 'SELECT setval(''lancamentos_id_seq'', ' || max_id || ')';
+                    END IF;
+                END $$;
+            """)
+            print("✅ Migração: Sequências de ID sincronizadas com sucesso")
+        except Exception as e:
+            print(f"⚠️  Aviso na sincronização de sequências: {e}")
+        
         cursor.close()
         conn.close()
     
