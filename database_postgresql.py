@@ -368,30 +368,28 @@ class DatabaseManager:
         conn.close()
         return sucesso
     
-    def atualizar_categoria(self, categoria_id: int, categoria: Categoria) -> bool:
-        """Atualiza uma categoria"""
+    def atualizar_categoria(self, categoria: Categoria) -> bool:
+        """Atualiza uma categoria pelo nome"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
         subcategorias_json = json.dumps(categoria.subcategorias) if categoria.subcategorias else None
         
+        # Normalizar nome
+        nome_normalizado = categoria.nome.strip().upper()
+        
         cursor.execute("""
             UPDATE categorias 
-            SET nome = %s, tipo = %s, subcategorias = %s, 
-                cor = %s, icone = %s, descricao = %s,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
+            SET tipo = %s, subcategorias = %s
+            WHERE UPPER(TRIM(nome)) = %s
         """, (
-            categoria.nome,
             categoria.tipo.value,
             subcategorias_json,
-            categoria.cor,
-            categoria.icone,
-            categoria.descricao,
-            categoria_id
+            nome_normalizado
         ))
         
         sucesso = cursor.rowcount > 0
+        conn.commit()
         cursor.close()
         conn.close()
         return sucesso
@@ -915,9 +913,9 @@ def excluir_categoria(categoria_id: int) -> bool:
     db = DatabaseManager()
     return db.excluir_categoria(categoria_id)
 
-def atualizar_categoria(categoria_id: int, categoria: Categoria) -> bool:
+def atualizar_categoria(categoria: Categoria) -> bool:
     db = DatabaseManager()
-    return db.atualizar_categoria(categoria_id, categoria)
+    return db.atualizar_categoria(categoria)
 
 def atualizar_nome_categoria(nome_antigo: str, nome_novo: str) -> bool:
     db = DatabaseManager()
