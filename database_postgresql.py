@@ -60,7 +60,7 @@ __all__ = [
     'atualizar_tag',
     'deletar_tag',
     'adicionar_template',
-    'listar_templates',
+    'listar_templates_equipe',
     'atualizar_template',
     'deletar_template',
     'adicionar_sessao',
@@ -1540,7 +1540,9 @@ def listar_produtos() -> List[Dict]:
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT p.*, f.nome as fornecedor_nome
+        SELECT p.id, p.codigo, p.nome, p.categoria, p.quantidade, 
+               p.preco_custo, p.preco_venda, p.fornecedor_id, p.observacoes,
+               p.created_at, p.updated_at, f.nome as fornecedor_nome
         FROM produtos p
         LEFT JOIN fornecedores f ON p.fornecedor_id = f.id
         ORDER BY p.nome
@@ -1632,7 +1634,7 @@ def listar_kits() -> List[Dict]:
     conn = db.get_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT * FROM kits ORDER BY nome")
+    cursor.execute("SELECT id, codigo, nome, preco, observacoes, created_at, updated_at FROM kits ORDER BY nome")
     kits = [dict(row) for row in cursor.fetchall()]
     
     # Buscar itens de cada kit
@@ -1724,7 +1726,7 @@ def listar_tags() -> List[Dict]:
     conn = db.get_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT * FROM tags ORDER BY nome")
+    cursor.execute("SELECT id, nome, cor, descricao, created_at, updated_at FROM tags ORDER BY nome")
     
     tags = [dict(row) for row in cursor.fetchall()]
     cursor.close()
@@ -1790,13 +1792,13 @@ def adicionar_template(dados: Dict) -> int:
     conn.close()
     return template_id
 
-def listar_templates() -> List[Dict]:
+def listar_templates_equipe() -> List[Dict]:
     """Lista todos os templates de equipe"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT * FROM templates_equipe ORDER BY nome")
+    cursor.execute("SELECT id, nome, tipo, conteudo, created_at, updated_at FROM templates_equipe ORDER BY nome")
     
     templates = [dict(row) for row in cursor.fetchall()]
     cursor.close()
