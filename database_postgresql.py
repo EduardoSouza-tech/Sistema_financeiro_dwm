@@ -318,6 +318,7 @@ class DatabaseManager:
         ))
         
         categoria_id = cursor.fetchone()['id']
+        conn.commit()
         cursor.close()
         conn.close()
         return categoria_id
@@ -469,26 +470,64 @@ class DatabaseManager:
         conn.close()
         return clientes
     
-    def atualizar_cliente(self, cliente_id: int, dados: Dict) -> bool:
-        """Atualiza os dados de um cliente"""
+    def atualizar_cliente(self, nome_antigo: str, dados: Dict) -> bool:
+        """Atualiza os dados de um cliente pelo nome"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
+        nome_normalizado = nome_antigo.upper().strip()
         cursor.execute("""
             UPDATE clientes 
             SET nome = %s, cpf_cnpj = %s, email = %s, 
                 telefone = %s, endereco = %s, updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
+            WHERE UPPER(TRIM(nome)) = %s
         """, (
             dados.get('nome'),
-            dados.get('cpf_cnpj'),
+            dados.get('cpf', dados.get('cpf_cnpj')),
             dados.get('email'),
             dados.get('telefone'),
             dados.get('endereco'),
-            cliente_id
+            nome_normalizado
         ))
         
         sucesso = cursor.rowcount > 0
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return sucesso
+    
+    def inativar_cliente(self, nome: str, motivo: str = "") -> tuple[bool, str]:
+        """Inativa um cliente pelo nome"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        nome_normalizado = nome.upper().strip()
+        cursor.execute("""
+            UPDATE clientes 
+            SET ativo = FALSE, updated_at = CURRENT_TIMESTAMP
+            WHERE UPPER(TRIM(nome)) = %s
+        """, (nome_normalizado,))
+        
+        sucesso = cursor.rowcount > 0
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return (sucesso, "Cliente inativado com sucesso" if sucesso else "Cliente não encontrado")
+    
+    def reativar_cliente(self, nome: str) -> bool:
+        """Reativa um cliente pelo nome"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        nome_normalizado = nome.upper().strip()
+        cursor.execute("""
+            UPDATE clientes 
+            SET ativo = TRUE, updated_at = CURRENT_TIMESTAMP
+            WHERE UPPER(TRIM(nome)) = %s
+        """, (nome_normalizado,))
+        
+        sucesso = cursor.rowcount > 0
+        conn.commit()
         cursor.close()
         conn.close()
         return sucesso
@@ -538,26 +577,64 @@ class DatabaseManager:
         conn.close()
         return fornecedores
     
-    def atualizar_fornecedor(self, fornecedor_id: int, dados: Dict) -> bool:
-        """Atualiza os dados de um fornecedor"""
+    def atualizar_fornecedor(self, nome_antigo: str, dados: Dict) -> bool:
+        """Atualiza os dados de um fornecedor pelo nome"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
+        nome_normalizado = nome_antigo.upper().strip()
         cursor.execute("""
             UPDATE fornecedores 
             SET nome = %s, cpf_cnpj = %s, email = %s, 
                 telefone = %s, endereco = %s, updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
+            WHERE UPPER(TRIM(nome)) = %s
         """, (
             dados.get('nome'),
-            dados.get('cpf_cnpj'),
+            dados.get('cnpj', dados.get('cpf_cnpj')),
             dados.get('email'),
             dados.get('telefone'),
             dados.get('endereco'),
-            fornecedor_id
+            nome_normalizado
         ))
         
         sucesso = cursor.rowcount > 0
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return sucesso
+    
+    def inativar_fornecedor(self, nome: str, motivo: str = "") -> tuple[bool, str]:
+        """Inativa um fornecedor pelo nome"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        nome_normalizado = nome.upper().strip()
+        cursor.execute("""
+            UPDATE fornecedores 
+            SET ativo = FALSE, updated_at = CURRENT_TIMESTAMP
+            WHERE UPPER(TRIM(nome)) = %s
+        """, (nome_normalizado,))
+        
+        sucesso = cursor.rowcount > 0
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return (sucesso, "Fornecedor inativado com sucesso" if sucesso else "Fornecedor não encontrado")
+    
+    def reativar_fornecedor(self, nome: str) -> bool:
+        """Reativa um fornecedor pelo nome"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        nome_normalizado = nome.upper().strip()
+        cursor.execute("""
+            UPDATE fornecedores 
+            SET ativo = TRUE, updated_at = CURRENT_TIMESTAMP
+            WHERE UPPER(TRIM(nome)) = %s
+        """, (nome_normalizado,))
+        
+        sucesso = cursor.rowcount > 0
+        conn.commit()
         cursor.close()
         conn.close()
         return sucesso
@@ -955,9 +1032,17 @@ def listar_clientes(ativos: bool = True) -> List[Dict]:
     db = DatabaseManager()
     return db.listar_clientes(ativos)
 
-def atualizar_cliente(cliente_id: int, dados: Dict) -> bool:
+def atualizar_cliente(nome_antigo: str, dados: Dict) -> bool:
     db = DatabaseManager()
-    return db.atualizar_cliente(cliente_id, dados)
+    return db.atualizar_cliente(nome_antigo, dados)
+
+def inativar_cliente(nome: str, motivo: str = "") -> tuple[bool, str]:
+    db = DatabaseManager()
+    return db.inativar_cliente(nome, motivo)
+
+def reativar_cliente(nome: str) -> bool:
+    db = DatabaseManager()
+    return db.reativar_cliente(nome)
 
 def adicionar_fornecedor(fornecedor_data, cpf_cnpj: str = None, email: str = None,
                         telefone: str = None, endereco: str = None) -> int:
@@ -968,9 +1053,17 @@ def listar_fornecedores(ativos: bool = True) -> List[Dict]:
     db = DatabaseManager()
     return db.listar_fornecedores(ativos)
 
-def atualizar_fornecedor(fornecedor_id: int, dados: Dict) -> bool:
+def atualizar_fornecedor(nome_antigo: str, dados: Dict) -> bool:
     db = DatabaseManager()
-    return db.atualizar_fornecedor(fornecedor_id, dados)
+    return db.atualizar_fornecedor(nome_antigo, dados)
+
+def inativar_fornecedor(nome: str, motivo: str = "") -> tuple[bool, str]:
+    db = DatabaseManager()
+    return db.inativar_fornecedor(nome, motivo)
+
+def reativar_fornecedor(nome: str) -> bool:
+    db = DatabaseManager()
+    return db.reativar_fornecedor(nome)
 
 def adicionar_lancamento(lancamento: Lancamento) -> int:
     db = DatabaseManager()
