@@ -283,14 +283,15 @@ class DatabaseManager:
         conn.close()
         return success
     
-    def excluir_conta(self, conta_id: int) -> bool:
-        """Exclui uma conta bancária"""
+    def excluir_conta(self, nome: str) -> bool:
+        """Exclui uma conta bancária pelo nome"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute("DELETE FROM contas_bancarias WHERE id = %s", (conta_id,))
+        cursor.execute("DELETE FROM contas_bancarias WHERE nome = %s", (nome,))
         sucesso = cursor.rowcount > 0
         
+        conn.commit()
         cursor.close()
         conn.close()
         return sucesso
@@ -898,9 +899,9 @@ def atualizar_conta(nome_antigo: str, conta: ContaBancaria) -> bool:
     db = DatabaseManager()
     return db.atualizar_conta(nome_antigo, conta)
 
-def excluir_conta(conta_id: int) -> bool:
+def excluir_conta(nome: str) -> bool:
     db = DatabaseManager()
-    return db.excluir_conta(conta_id)
+    return db.excluir_conta(nome)
 
 def adicionar_categoria(categoria: Categoria) -> int:
     db = DatabaseManager()
