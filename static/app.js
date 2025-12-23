@@ -149,21 +149,21 @@ function showContratoTab(tipo) {
         btnSessoes.style.color = 'white';
         btnSessoes.style.fontWeight = 'bold';
         contentSessoes.style.display = 'block';
-        if (typeof loadSessoes === 'function') loadSessoes();
+        // if (typeof loadSessoes === 'function') loadSessoes(); // DESATIVADO - endpoint não existe
     } else if (tipo === 'comissoes') {
         btnComissoes.classList.add('active');
         btnComissoes.style.background = '#9b59b6';
         btnComissoes.style.color = 'white';
         btnComissoes.style.fontWeight = 'bold';
         contentComissoes.style.display = 'block';
-        if (typeof loadComissoes === 'function') loadComissoes();
+        // if (typeof loadComissoes === 'function') loadComissoes(); // DESATIVADO - endpoint não existe
     } else if (tipo === 'equipe') {
         btnEquipe.classList.add('active');
         btnEquipe.style.background = '#9b59b6';
         btnEquipe.style.color = 'white';
         btnEquipe.style.fontWeight = 'bold';
         contentEquipe.style.display = 'block';
-        if (typeof loadSessaoEquipe === 'function') loadSessaoEquipe();
+        // if (typeof loadSessaoEquipe === 'function') loadSessaoEquipe(); // DESATIVADO - endpoint não existe
     }
 }
 
@@ -1863,44 +1863,45 @@ async function excluirContrato(id) {
     }
 }
 
-async function loadSessoes() {
-    const tbody = document.getElementById('tbody-sessoes');
-    if (!tbody) return;
-    
-    try {
-        const response = await fetch('/api/sessoes');
-        const sessoes = await response.json();
-        
-        tbody.innerHTML = '';
-        
-        if (sessoes.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma sessão cadastrada</td></tr>';
-            return;
-        }
-        
-        sessoes.forEach(sessao => {
-            const tr = document.createElement('tr');
-            const dataPrevista = sessao.data_prevista ? new Date(sessao.data_prevista).toLocaleString('pt-BR') : '-';
-            const dataRealizada = sessao.data_realizada ? new Date(sessao.data_realizada).toLocaleString('pt-BR') : '-';
-            
-            tr.innerHTML = `
-                <td>${sessao.contrato_numero || '-'}</td>
-                <td>${sessao.tipo_sessao_nome || '-'}</td>
-                <td>${dataPrevista}</td>
-                <td>${dataRealizada}</td>
-                <td>${sessao.status}</td>
-                <td>
-                    <button class="btn btn-warning btn-small" onclick='editarSessao(${JSON.stringify(sessao)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirSessao(${sessao.id})">🗑️</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (error) {
-        console.error('Erro ao carregar sessões:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
-}
+// FUNÇÃO DESATIVADA - Endpoint /api/sessoes não existe mais
+// async function loadSessoes() {
+//     const tbody = document.getElementById('tbody-sessoes');
+//     if (!tbody) return;
+//     
+//     try {
+//         const response = await fetch('/api/sessoes');
+//         const sessoes = await response.json();
+//         
+//         tbody.innerHTML = '';
+//         
+//         if (sessoes.length === 0) {
+//             tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma sessão cadastrada</td></tr>';
+//             return;
+//         }
+//         
+//         sessoes.forEach(sessao => {
+//             const tr = document.createElement('tr');
+//             const dataPrevista = sessao.data_prevista ? new Date(sessao.data_prevista).toLocaleString('pt-BR') : '-';
+//             const dataRealizada = sessao.data_realizada ? new Date(sessao.data_realizada).toLocaleString('pt-BR') : '-';
+//             
+//             tr.innerHTML = `
+//                 <td>${sessao.contrato_numero || '-'}</td>
+//                 <td>${sessao.tipo_sessao_nome || '-'}</td>
+//                 <td>${dataPrevista}</td>
+//                 <td>${dataRealizada}</td>
+//                 <td>${sessao.status}</td>
+//                 <td>
+//                     <button class="btn btn-warning btn-small" onclick='editarSessao(${JSON.stringify(sessao)})'>✏️</button>
+//                     <button class="btn btn-danger btn-small" onclick="excluirSessao(${sessao.id})">🗑️</button>
+//                 </td>
+//             `;
+//             tbody.appendChild(tr);
+//         });
+//     } catch (error) {
+//         console.error('Erro ao carregar sessões:', error);
+//         tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+//     }
+// }
 
 function editarSessao(sessao) {
     openModalSessao(sessao);
@@ -2192,43 +2193,44 @@ async function excluirKit(id) {
 
 // === CARREGAMENTO - COMISSÕES ===
 
-async function loadComissoes() {
-    const tbody = document.getElementById('tbody-comissoes');
-    if (!tbody) return;
-    
-    try {
-        const response = await fetch('/api/comissoes');
-        const comissoes = await response.json();
-        
-        tbody.innerHTML = '';
-        
-        if (comissoes.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma comissão cadastrada</td></tr>';
-            return;
-        }
-        
-        comissoes.forEach(comissao => {
-            const tr = document.createElement('tr');
-            const valorFormatado = parseFloat(comissao.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-            
-            tr.innerHTML = `
-                <td>${comissao.contrato_numero || '-'}</td>
-                <td>${comissao.pessoa}</td>
-                <td>${comissao.tipo}</td>
-                <td>R$ ${valorFormatado}</td>
-                <td>${comissao.percentual || 0}%</td>
-                <td>
-                    <button class="btn btn-warning btn-small" onclick='editarComissao(${JSON.stringify(comissao)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirComissao(${comissao.id})">🗑️</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (error) {
-        console.error('Erro ao carregar comissões:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
-}
+// FUNÇÃO DESATIVADA - Endpoint /api/comissoes não existe mais
+// async function loadComissoes() {
+//     const tbody = document.getElementById('tbody-comissoes');
+//     if (!tbody) return;
+//     
+//     try {
+//         const response = await fetch('/api/comissoes');
+//         const comissoes = await response.json();
+//         
+//         tbody.innerHTML = '';
+//         
+//         if (comissoes.length === 0) {
+//             tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma comissão cadastrada</td></tr>';
+//             return;
+//         }
+//         
+//         comissoes.forEach(comissao => {
+//             const tr = document.createElement('tr');
+//             const valorFormatado = parseFloat(comissao.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+//             
+//             tr.innerHTML = `
+//                 <td>${comissao.contrato_numero || '-'}</td>
+//                 <td>${comissao.pessoa}</td>
+//                 <td>${comissao.tipo}</td>
+//                 <td>R$ ${valorFormatado}</td>
+//                 <td>${comissao.percentual || 0}%</td>
+//                 <td>
+//                     <button class="btn btn-warning btn-small" onclick='editarComissao(${JSON.stringify(comissao)})'>✏️</button>
+//                     <button class="btn btn-danger btn-small" onclick="excluirComissao(${comissao.id})">🗑️</button>
+//                 </td>
+//             `;
+//             tbody.appendChild(tr);
+//         });
+//     } catch (error) {
+//         console.error('Erro ao carregar comissões:', error);
+//         tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+//     }
+// }
 
 function editarComissao(comissao) {
     openModalComissao(comissao);
@@ -2255,41 +2257,42 @@ async function excluirComissao(id) {
 
 // === CARREGAMENTO - SESSÃO EQUIPE ===
 
-async function loadSessaoEquipe() {
-    const tbody = document.getElementById('tbody-sessao-equipe');
-    if (!tbody) return;
-    
-    try {
-        const response = await fetch('/api/sessao-equipe');
-        const membros = await response.json();
-        
-        tbody.innerHTML = '';
-        
-        if (membros.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum membro cadastrado</td></tr>';
-            return;
-        }
-        
-        membros.forEach(membro => {
-            const tr = document.createElement('tr');
-            
-            tr.innerHTML = `
-                <td>${membro.sessao_info || '-'}</td>
-                <td>${membro.membro}</td>
-                <td>${membro.funcao || '-'}</td>
-                <td>${membro.observacoes || '-'}</td>
-                <td>
-                    <button class="btn btn-warning btn-small" onclick='editarSessaoEquipe(${JSON.stringify(membro)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirSessaoEquipe(${membro.id})">🗑️</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (error) {
-        console.error('Erro ao carregar equipe:', error);
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
-}
+// FUNÇÃO DESATIVADA - Endpoint /api/sessao-equipe não existe mais
+// async function loadSessaoEquipe() {
+//     const tbody = document.getElementById('tbody-sessao-equipe');
+//     if (!tbody) return;
+//     
+//     try {
+//         const response = await fetch('/api/sessao-equipe');
+//         const membros = await response.json();
+//         
+//         tbody.innerHTML = '';
+//         
+//         if (membros.length === 0) {
+//             tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum membro cadastrado</td></tr>';
+//             return;
+//         }
+//         
+//         membros.forEach(membro => {
+//             const tr = document.createElement('tr');
+//             
+//             tr.innerHTML = `
+//                 <td>${membro.sessao_info || '-'}</td>
+//                 <td>${membro.membro}</td>
+//                 <td>${membro.funcao || '-'}</td>
+//                 <td>${membro.observacoes || '-'}</td>
+//                 <td>
+//                     <button class="btn btn-warning btn-small" onclick='editarSessaoEquipe(${JSON.stringify(membro)})'>✏️</button>
+//                     <button class="btn btn-danger btn-small" onclick="excluirSessaoEquipe(${membro.id})">🗑️</button>
+//                 </td>
+//             `;
+//             tbody.appendChild(tr);
+//         });
+//     } catch (error) {
+//         console.error('Erro ao carregar equipe:', error);
+//         tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
+//     }
+// }
 
 function editarSessaoEquipe(membro) {
     openModalSessaoEquipe(membro);
