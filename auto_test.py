@@ -480,7 +480,7 @@ def executar_testes(db):
                 lanc_atual.valor = Decimal("250.00")
                 lanc_atual.observacoes = "Valor atualizado no teste"
                 
-                sucesso = db.atualizar_lancamento(lanc_operacional_id, lanc_atual)
+                sucesso = db.atualizar_lancamento(lanc_atual)  # Passa apenas o objeto
                 if sucesso:
                     resultados['sucesso'].append("✅ [OPERACIONAL] Atualizar lançamento")
                 else:
