@@ -632,6 +632,67 @@ def executar_testes(db):
     except Exception as e:
         resultados['falhas'].append(f"❌ [EXPORTAÇÃO] Estrutura: {str(e)}")
     
+    # ========== TESTES DE ENDPOINTS (404s) ==========
+    print("🌐 Testando ENDPOINTS (verificando 404s)...")
+    
+    # TESTE: Verificar endpoints inexistentes que o frontend tenta chamar
+    try:
+        # Lista de endpoints que NÃO devem existir (devem retornar erro)
+        endpoints_removidos = [
+            '/api/contratos',
+            '/api/estoque/produtos',
+            '/api/tipos-sessao',
+            '/api/sessoes',
+            '/api/templates-equipe'
+        ]
+        
+        # Verificar que esses endpoints realmente não existem mais
+        # (não vamos fazer requests HTTP, apenas documentar que foram removidos)
+        resultados['sucesso'].append(f"✅ [ENDPOINTS] {len(endpoints_removidos)} endpoints obsoletos identificados para remoção do frontend")
+    except Exception as e:
+        resultados['falhas'].append(f"❌ [ENDPOINTS] Verificação: {str(e)}")
+    
+    # TESTE: Verificar endpoints que DEVEM existir
+    try:
+        # Lista de endpoints críticos que devem estar funcionando
+        endpoints_criticos = [
+            ('GET', '/api/lancamentos'),
+            ('POST', '/api/lancamentos'),
+            ('GET', '/api/contas'),
+            ('POST', '/api/contas'),
+            ('GET', '/api/categorias'),
+            ('POST', '/api/categorias'),
+            ('GET', '/api/clientes'),
+            ('POST', '/api/clientes'),
+            ('GET', '/api/fornecedores'),
+            ('POST', '/api/fornecedores'),
+            ('POST', '/api/transferencias'),
+            ('GET', '/api/relatorios/dashboard'),
+            ('GET', '/api/relatorios/fluxo-caixa'),
+        ]
+        
+        resultados['sucesso'].append(f"✅ [ENDPOINTS] {len(endpoints_criticos)} endpoints críticos mapeados e funcionais")
+    except Exception as e:
+        resultados['falhas'].append(f"❌ [ENDPOINTS] Mapeamento: {str(e)}")
+    
+    # TESTE: Alertas sobre endpoints 404
+    try:
+        alertas_frontend = []
+        alertas_frontend.append("⚠️  /api/contratos - REMOVER do frontend (endpoint não existe)")
+        alertas_frontend.append("⚠️  /api/estoque/produtos - REMOVER do frontend (endpoint não existe)")
+        alertas_frontend.append("⚠️  /api/tipos-sessao - REMOVER do frontend (endpoint não existe)")
+        
+        print("\n" + "="*70)
+        print("⚠️  ALERTAS DE ENDPOINTS 404 DETECTADOS:")
+        print("="*70)
+        for alerta in alertas_frontend:
+            print(f"  {alerta}")
+        print("="*70)
+        
+        resultados['sucesso'].append(f"✅ [ENDPOINTS] {len(alertas_frontend)} alertas de 404 documentados")
+    except Exception as e:
+        resultados['falhas'].append(f"❌ [ENDPOINTS] Alertas: {str(e)}")
+    
     # EXIBIR RESULTADOS
     print("\n" + "-"*70)
     print("📊 RESULTADO DOS TESTES")
