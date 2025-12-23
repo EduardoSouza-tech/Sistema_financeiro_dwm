@@ -70,7 +70,11 @@ __all__ = [
     'adicionar_comissao',
     'listar_comissoes',
     'atualizar_comissao',
-    'deletar_comissao'
+    'deletar_comissao',
+    'adicionar_sessao_equipe',
+    'listar_sessao_equipe',
+    'atualizar_sessao_equipe',
+    'deletar_sessao_equipe'
 ]
 
 # Configurações do PostgreSQL (Railway fornece via variáveis de ambiente)
@@ -2009,6 +2013,91 @@ def deletar_comissao(comissao_id: int) -> bool:
     cursor = conn.cursor()
     
     cursor.execute("DELETE FROM comissoes WHERE id = %s", (comissao_id,))
+    
+    sucesso = cursor.rowcount > 0
+    cursor.close()
+    conn.close()
+    return sucesso
+
+
+# ==================== FUNÇÕES CRUD - SESSÃO EQUIPE ====================
+def adicionar_sessao_equipe(dados: Dict) -> int:
+    """Adiciona um membro à equipe de uma sessão"""
+    db = DatabaseManager()
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO sessao_equipe (sessao_id, membro_nome, funcao)
+        VALUES (%s, %s, %s)
+        RETURNING id
+    """, (
+        dados.get('sessao_id'),
+        dados.get('membro_nome'),
+        dados.get('funcao')
+    ))
+    
+    se_id = cursor.fetchone()['id']
+    cursor.close()
+    conn.close()
+    return se_id
+
+def listar_sessao_equipe(sessao_id: int = None) -> List[Dict]:
+    """Lista membros da equipe de sessão"""
+    db = DatabaseManager()
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    if sessao_id:
+        cursor.execute("""
+            SELECT se.*, s.titulo as sessao_titulo
+            FROM sessao_equipe se
+            JOIN sessoes s ON se.sessao_id = s.id
+            WHERE se.sessao_id = %s
+            ORDER BY se.created_at
+        """, (sessao_id,))
+    else:
+        cursor.execute("""
+            SELECT se.*, s.titulo as sessao_titulo
+            FROM sessao_equipe se
+            JOIN sessoes s ON se.sessao_id = s.id
+            ORDER BY se.created_at DESC
+        """)
+    
+    membros = [dict(row) for row in cursor.fetchall()]
+    cursor.close()
+    conn.close()
+    return membros
+
+def atualizar_sessao_equipe(membro_id: int, dados: Dict) -> bool:
+    """Atualiza um membro da equipe"""
+    db = DatabaseManager()
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE sessao_equipe
+        SET sessao_id = %s, membro_nome = %s, funcao = %s
+        WHERE id = %s
+    """, (
+        dados.get('sessao_id'),
+        dados.get('membro_nome'),
+        dados.get('funcao'),
+        membro_id
+    ))
+    
+    sucesso = cursor.rowcount > 0
+    cursor.close()
+    conn.close()
+    return sucesso
+
+def deletar_sessao_equipe(membro_id: int) -> bool:
+    """Deleta um membro da equipe"""
+    db = DatabaseManager()
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM sessao_equipe WHERE id = %s", (membro_id,))
     
     sucesso = cursor.rowcount > 0
     cursor.close()
