@@ -1,10 +1,12 @@
-// Sistema Financeiro - v20251204lancamentos2
+// Sistema Financeiro - v20251223debug
 // Gerenciamento completo do sistema financeiro
-console.log('%c ✓ Sistema Financeiro - app.js v20251204lancamentos2 carregado ', 'background: #4CAF50; color: white; font-size: 16px; font-weight: bold');
+console.log('%c ✓ Sistema Financeiro - app.js v20251223debug carregado ', 'background: #4CAF50; color: white; font-size: 16px; font-weight: bold');
+console.log('%c 🔍 Iniciando carregamento de funções... ', 'background: #FF9800; color: white; font-weight: bold');
 
 // Suprimir erros de extensões do navegador
 window.addEventListener('error', function(e) {
     if (e.message.includes('message channel closed')) {
+        console.log('⚠️ Erro de extensão suprimido:', e.message);
         e.preventDefault();
         return;
     }
@@ -2533,6 +2535,20 @@ window.loadTemplates = loadTemplates;
 window.exportarContratosPDF = exportarContratosPDF;
 window.exportarEstoquePDF = exportarEstoquePDF;
 window.visualizarCalendario = visualizarCalendario;
+
+// Debug: Verificar se funções foram exportadas corretamente
+console.log('%c 🔍 DEBUG - Funções Operacionais Exportadas: ', 'background: #2196F3; color: white; font-weight: bold');
+console.log('  ✓ showContratoTab:', typeof window.showContratoTab);
+console.log('  ✓ showEstoqueTab:', typeof window.showEstoqueTab);
+console.log('  ✓ openModalContrato:', typeof window.openModalContrato);
+console.log('  ✓ exportarContratosPDF:', typeof window.exportarContratosPDF);
+console.log('  ✓ openModalAgenda:', typeof window.openModalAgenda);
+console.log('  ✓ visualizarCalendario:', typeof window.visualizarCalendario);
+console.log('  ✓ openModalProduto:', typeof window.openModalProduto);
+console.log('  ✓ exportarEstoquePDF:', typeof window.exportarEstoquePDF);
+console.log('  ✓ openModalKit:', typeof window.openModalKit);
+console.log('  ✓ openModalTag:', typeof window.openModalTag);
+console.log('  ✓ openModalTemplate:', typeof window.openModalTemplate);
 
 // === FUNÇÕES DE CONTAS A RECEBER/PAGAR ===
 
@@ -6269,6 +6285,63 @@ function exportarInadimplenciaExcel() {
     alert('Funcionalidade de exportação Excel em desenvolvimento');
 }
 
+// ===== STUBS PARA FUNÇÕES REMOVIDAS/NÃO IMPLEMENTADAS =====
+// Contratos (funcionalidade removida)
+function openModalContrato() {
+    console.warn('⚠️ Funcionalidade de Contratos foi removida');
+    showToast('Funcionalidade de Contratos não está mais disponível', 'warning');
+}
+
+function exportarContratosPDF() {
+    console.warn('⚠️ Funcionalidade de Contratos foi removida');
+    showToast('Funcionalidade de Contratos não está mais disponível', 'warning');
+}
+
+// Agenda (funcionalidade removida)
+function openModalAgenda() {
+    console.warn('⚠️ Funcionalidade de Agenda foi removida');
+    showToast('Funcionalidade de Agenda não está mais disponível', 'warning');
+}
+
+function visualizarCalendario() {
+    console.warn('⚠️ Funcionalidade de Agenda foi removida');
+    showToast('Funcionalidade de Agenda não está mais disponível', 'warning');
+}
+
+// Estoque de Produtos (funcionalidade removida)
+function openModalProduto() {
+    console.warn('⚠️ Funcionalidade de Estoque de Produtos foi removida');
+    showToast('Funcionalidade de Estoque não está mais disponível', 'warning');
+}
+
+function exportarEstoquePDF() {
+    console.warn('⚠️ Funcionalidade de Estoque de Produtos foi removida');
+    showToast('Funcionalidade de Estoque não está mais disponível', 'warning');
+}
+
+function showEstoqueTab(tipo) {
+    console.warn('⚠️ Funcionalidade de Estoque de Produtos foi removida');
+    showToast('Funcionalidade de Estoque não está mais disponível', 'warning');
+}
+
+// Kits (funcionalidade removida)
+function openModalKit() {
+    console.warn('⚠️ Funcionalidade de Kits foi removida');
+    showToast('Funcionalidade de Kits não está mais disponível', 'warning');
+}
+
+// Tags (funcionalidade removida)
+function openModalTag() {
+    console.warn('⚠️ Funcionalidade de Tags foi removida');
+    showToast('Funcionalidade de Tags não está mais disponível', 'warning');
+}
+
+// Templates (funcionalidade removida)
+function openModalTemplate() {
+    console.warn('⚠️ Funcionalidade de Templates foi removida');
+    showToast('Funcionalidade de Templates não está mais disponível', 'warning');
+}
+
 // Exportar funções globalmente
 window.carregarDashboard = carregarDashboard;
 window.carregarIndicadores = carregarIndicadores;
@@ -6279,4 +6352,29 @@ window.carregarInadimplencia = carregarInadimplencia;
 window.exportarInadimplenciaPDF = exportarInadimplenciaPDF;
 window.exportarInadimplenciaExcel = exportarInadimplenciaExcel;
 
-console.log('✓ Sistema Financeiro - app.js v20251205filtro3 carregado');
+// Exportar stubs de funcionalidades removidas
+window.openModalContrato = openModalContrato;
+window.exportarContratosPDF = exportarContratosPDF;
+window.openModalAgenda = openModalAgenda;
+window.visualizarCalendario = visualizarCalendario;
+window.openModalProduto = openModalProduto;
+window.exportarEstoquePDF = exportarEstoquePDF;
+window.showEstoqueTab = showEstoqueTab;
+window.openModalKit = openModalKit;
+window.openModalTag = openModalTag;
+window.openModalTemplate = openModalTemplate;
+
+console.log('%c ✓ Sistema Financeiro - app.js v20251223debug carregado ', 'background: #4CAF50; color: white; font-weight: bold');
+console.log('%c 📊 Funções disponíveis (incluindo stubs de funcionalidades removidas): ', 'background: #2196F3; color: white; font-weight: bold');
+console.log('  ✓ showContratoTab:', typeof window.showContratoTab);
+console.log('  ✓ openModalContrato:', typeof window.openModalContrato, '(stub)');
+console.log('  ✓ exportarContratosPDF:', typeof window.exportarContratosPDF, '(stub)');
+console.log('  ✓ openModalAgenda:', typeof window.openModalAgenda, '(stub)');
+console.log('  ✓ visualizarCalendario:', typeof window.visualizarCalendario, '(stub)');
+console.log('  ✓ openModalProduto:', typeof window.openModalProduto, '(stub)');
+console.log('  ✓ exportarEstoquePDF:', typeof window.exportarEstoquePDF, '(stub)');
+console.log('  ✓ showEstoqueTab:', typeof window.showEstoqueTab, '(stub)');
+console.log('  ✓ openModalKit:', typeof window.openModalKit, '(stub)');
+console.log('  ✓ openModalTag:', typeof window.openModalTag, '(stub)');
+console.log('  ✓ openModalTemplate:', typeof window.openModalTemplate, '(stub)');
+
