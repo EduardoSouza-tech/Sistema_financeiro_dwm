@@ -278,6 +278,24 @@ class DatabaseManager:
             print(f"⚠️  Aviso na sincronização de sequências: {e}")
         
         # Tabela de contratos
+        # Primeiro, dropar tabela antiga se existir com estrutura incompatível
+        try:
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    -- Verificar se existe coluna numero_nf (estrutura antiga)
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='contratos' AND column_name='numero_nf'
+                    ) THEN
+                        -- Dropar tabela antiga
+                        DROP TABLE IF EXISTS contratos CASCADE;
+                    END IF;
+                END $$;
+            """)
+        except Exception as e:
+            print(f"⚠️  Aviso ao verificar tabela contratos: {e}")
+        
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS contratos (
                 id SERIAL PRIMARY KEY,
