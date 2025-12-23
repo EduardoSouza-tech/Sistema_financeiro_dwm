@@ -334,15 +334,7 @@ def executar_testes(db):
     
     # TESTE: Relatórios Fluxo de Caixa
     try:
-        # Simular requisição de relatório
-        import requests
-        base_url = "http://localhost:8080"
-        
-        # Usar session para simular browser
-        from datetime import datetime as dt
-        
-        # Testar apenas se o endpoint responde (sem fazer request HTTP real)
-        # Apenas verificamos que as funções do DB existem
+        # Verificar que as funções do DB existem e retornam dados
         lancamentos = db.listar_lancamentos()
         resultados['sucesso'].append(f"✅ [RELATÓRIOS] Fluxo Caixa: dados disponíveis ({len(lancamentos)} lançamentos)")
     except Exception as e:
@@ -400,7 +392,7 @@ def executar_testes(db):
                 status=StatusLancamento.PAGO,
                 categoria="TRANSFERENCIA",
                 subcategoria="",
-                conta_bancaria=contas[0]['nome'],
+                conta_bancaria=contas[0].nome,  # Objeto, não dict
                 pessoa="",
                 observacoes="Teste transferência automática"
             )
@@ -425,7 +417,6 @@ def executar_testes(db):
     
     # TESTE: Busca por período
     try:
-        from datetime import timedelta
         data_inicio = date.today() - timedelta(days=30)
         data_fim = date.today()
         
