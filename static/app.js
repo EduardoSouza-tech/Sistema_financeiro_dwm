@@ -140,7 +140,7 @@ function showContratoTab(tipo) {
         btnContratos.style.color = 'white';
         btnContratos.style.fontWeight = 'bold';
         contentContratos.style.display = 'block';
-        if (typeof loadContratos === 'function') loadContratos();
+        // if (typeof loadContratos === 'function') loadContratos(); // DESATIVADO - endpoint não existe
     } else if (tipo === 'sessoes') {
         btnSessoes.classList.add('active');
         btnSessoes.style.background = '#9b59b6';
@@ -185,7 +185,7 @@ function showEstoqueTab(tipo) {
         contentProdutos.style.display = 'block';
         contentMovimentacoes.style.display = 'none';
         
-        if (typeof loadProdutos === 'function') loadProdutos();
+        // if (typeof loadProdutos === 'function') loadProdutos(); // DESATIVADO - endpoint não existe
     } else {
         btnMovimentacoes.classList.add('active');
         btnMovimentacoes.style.background = '#9b59b6';
@@ -1798,44 +1798,45 @@ async function excluirTipoSessao(id) {
     }
 }
 
-async function loadContratos() {
-    const tbody = document.getElementById('tbody-contratos');
-    if (!tbody) return;
-    
-    try {
-        const response = await fetch('/api/contratos');
-        const contratos = await response.json();
-        
-        tbody.innerHTML = '';
-        
-        if (contratos.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum contrato cadastrado</td></tr>';
-            return;
-        }
-        
-        contratos.forEach(contrato => {
-            const tr = document.createElement('tr');
-            const valorFormatado = parseFloat(contrato.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-            const dataFormatada = contrato.data_assinatura ? new Date(contrato.data_assinatura).toLocaleDateString('pt-BR') : '-';
-            
-            tr.innerHTML = `
-                <td>${contrato.numero}</td>
-                <td>${contrato.cliente_nome || '-'}</td>
-                <td>R$ ${valorFormatado}</td>
-                <td>${dataFormatada}</td>
-                <td>${contrato.status}</td>
-                <td>
-                    <button class="btn btn-warning btn-small" onclick='editarContrato(${JSON.stringify(contrato)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirContrato(${contrato.id})">🗑️</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (error) {
-        console.error('Erro ao carregar contratos:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
-}
+// FUNÇÃO DESATIVADA - Endpoint /api/contratos não existe mais
+// async function loadContratos() {
+//     const tbody = document.getElementById('tbody-contratos');
+//     if (!tbody) return;
+//     
+//     try {
+//         const response = await fetch('/api/contratos');
+//         const contratos = await response.json();
+//         
+//         tbody.innerHTML = '';
+//         
+//         if (contratos.length === 0) {
+//             tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum contrato cadastrado</td></tr>';
+//             return;
+//         }
+//         
+//         contratos.forEach(contrato => {
+//             const tr = document.createElement('tr');
+//             const valorFormatado = parseFloat(contrato.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+//             const dataFormatada = contrato.data_assinatura ? new Date(contrato.data_assinatura).toLocaleDateString('pt-BR') : '-';
+//             
+//             tr.innerHTML = `
+//                 <td>${contrato.numero}</td>
+//                 <td>${contrato.cliente_nome || '-'}</td>
+//                 <td>R$ ${valorFormatado}</td>
+//                 <td>${dataFormatada}</td>
+//                 <td>${contrato.status}</td>
+//                 <td>
+//                     <button class="btn btn-warning btn-small" onclick='editarContrato(${JSON.stringify(contrato)})'>✏️</button>
+//                     <button class="btn btn-danger btn-small" onclick="excluirContrato(${contrato.id})">🗑️</button>
+//                 </td>
+//             `;
+//             tbody.appendChild(tr);
+//         });
+//     } catch (error) {
+//         console.error('Erro ao carregar contratos:', error);
+//         tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+//     }
+// }
 
 function editarContrato(contrato) {
     openModalContrato(contrato);
@@ -1987,57 +1988,58 @@ function visualizarCalendario() {
     alert('Visualização de calendário será implementada em breve!');
 }
 
-async function loadProdutos() {
-    const tbody = document.getElementById('tbody-produtos');
-    if (!tbody) return;
-    
-    try {
-        const response = await fetch('/api/estoque/produtos');
-        const produtos = await response.json();
-        
-        // Armazenar produtos para uso em movimentações
-        window.produtosEstoque = produtos;
-        
-        // Atualizar select de produtos no modal de movimentação
-        const selectProduto = document.getElementById('movimentacao-produto-id');
-        if (selectProduto) {
-            selectProduto.innerHTML = '<option value="">Selecione o produto</option>';
-            produtos.forEach(prod => {
-                const option = document.createElement('option');
-                option.value = prod.id;
-                option.textContent = prod.nome;
-                selectProduto.appendChild(option);
-            });
-        }
-        
-        tbody.innerHTML = '';
-        
-        if (produtos.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum produto cadastrado</td></tr>';
-            return;
-        }
-        
-        produtos.forEach(prod => {
-            const tr = document.createElement('tr');
-            const valorFormatado = parseFloat(prod.valor_unitario || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-            
-            tr.innerHTML = `
-                <td>${prod.nome}</td>
-                <td>${prod.codigo || '-'}</td>
-                <td>${prod.quantidade}</td>
-                <td>${prod.unidade}</td>
-                <td>R$ ${valorFormatado}</td>
-                <td>
-                    <button class="btn btn-warning btn-small" onclick='editarProduto(${JSON.stringify(prod)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirProduto(${prod.id})">🗑️</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (error) {
-        console.error('Erro ao carregar produtos:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
-    }
+// FUNÇÃO DESATIVADA - Endpoint /api/estoque/produtos não existe mais
+// async function loadProdutos() {
+//     const tbody = document.getElementById('tbody-produtos');
+//     if (!tbody) return;
+//     
+//     try {
+//         const response = await fetch('/api/estoque/produtos');
+//         const produtos = await response.json();
+//         
+//         // Armazenar produtos para uso em movimentações
+//         window.produtosEstoque = produtos;
+//         
+//         // Atualizar select de produtos no modal de movimentação
+//         const selectProduto = document.getElementById('movimentacao-produto-id');
+//         if (selectProduto) {
+//             selectProduto.innerHTML = '<option value="">Selecione o produto</option>';
+//             produtos.forEach(prod => {
+//                 const option = document.createElement('option');
+//                 option.value = prod.id;
+//                 option.textContent = prod.nome;
+//                 selectProduto.appendChild(option);
+//             });
+//         }
+//         
+//         tbody.innerHTML = '';
+//         
+//         if (produtos.length === 0) {
+//             tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum produto cadastrado</td></tr>';
+//             return;
+//         }
+//         
+//         produtos.forEach(prod => {
+//             const tr = document.createElement('tr');
+//             const valorFormatado = parseFloat(prod.valor_unitario || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+//             
+//             tr.innerHTML = `
+//                 <td>${prod.nome}</td>
+//                 <td>${prod.codigo || '-'}</td>
+//                 <td>${prod.quantidade}</td>
+//                 <td>${prod.unidade}</td>
+//                 <td>R$ ${valorFormatado}</td>
+//                 <td>
+//                     <button class="btn btn-warning btn-small" onclick='editarProduto(${JSON.stringify(prod)})'>✏️</button>
+//                     <button class="btn btn-danger btn-small" onclick="excluirProduto(${prod.id})">🗑️</button>
+//                 </td>
+//             `;
+//             tbody.appendChild(tr);
+//         });
+//     } catch (error) {
+//         console.error('Erro ao carregar produtos:', error);
+//         tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+//     }
 }
 
 function editarProduto(produto) {
