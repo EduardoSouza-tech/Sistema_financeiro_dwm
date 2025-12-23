@@ -256,6 +256,33 @@ class DatabaseManager:
         conn.close()
         return contas
     
+    def atualizar_conta(self, nome_antigo: str, conta: ContaBancaria) -> bool:
+        """Atualiza uma conta bancária"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        # Se o nome mudou, verificar se o novo nome já existe
+        if nome_antigo != conta.nome:
+            cursor.execute("SELECT COUNT(*) FROM contas_bancarias WHERE nome = %s AND nome != %s", 
+                         (conta.nome, nome_antigo))
+            if cursor.fetchone()[0] > 0:
+                cursor.close()
+                conn.close()
+                raise ValueError("Já existe uma conta com este nome")
+        
+        cursor.execute("""
+            UPDATE contas_bancarias
+            SET nome = %s, banco = %s, agencia = %s, conta = %s, saldo_inicial = %s
+            WHERE nome = %s
+        """, (conta.nome, conta.banco, conta.agencia, conta.conta,
+              float(conta.saldo_inicial), nome_antigo))
+        
+        success = cursor.rowcount > 0
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return success
+    
     def excluir_conta(self, conta_id: int) -> bool:
         """Exclui uma conta bancária"""
         conn = self.get_connection()
@@ -866,6 +893,10 @@ def adicionar_conta(conta: ContaBancaria) -> int:
 def listar_contas() -> List[ContaBancaria]:
     db = DatabaseManager()
     return db.listar_contas()
+
+def atualizar_conta(nome_antigo: str, conta: ContaBancaria) -> bool:
+    db = DatabaseManager()
+    return db.atualizar_conta(nome_antigo, conta)
 
 def excluir_conta(conta_id: int) -> bool:
     db = DatabaseManager()
