@@ -1,9 +1,9 @@
 """
 Módulo de gerenciamento do banco de dados PostgreSQL
 """
-import psycopg2
-from psycopg2 import Error, sql
-from psycopg2.extras import RealDictCursor
+import psycopg2  # type: ignore
+from psycopg2 import Error, sql  # type: ignore
+from psycopg2.extras import RealDictCursor  # type: ignore
 from datetime import datetime, date
 from typing import List, Optional, Dict, Any
 from decimal import Decimal

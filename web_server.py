@@ -524,7 +524,7 @@ def adicionar_lancamento():
         
         if parcelas > 1:
             # Criar múltiplos lançamentos para parcelas
-            from dateutil.relativedelta import relativedelta
+            from dateutil.relativedelta import relativedelta  # type: ignore
             data_base = datetime.fromisoformat(data['data_vencimento']) if data and data.get('data_vencimento') else datetime.now()
             valor_parcela = float(data['valor']) / parcelas if data else 0.0
             tipo_str = data['tipo'].lower() if data and data.get('tipo') else 'receita'
@@ -1737,12 +1737,12 @@ def favicon():
 def exportar_clientes_pdf():
     """Exporta clientes para PDF"""
     try:
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import cm
-        from reportlab.pdfgen import canvas
+        from reportlab.lib import colors  # type: ignore
+        from reportlab.lib.pagesizes import A4, landscape  # type: ignore
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer  # type: ignore
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle  # type: ignore
+        from reportlab.lib.units import cm  # type: ignore
+        from reportlab.pdfgen import canvas  # type: ignore
         from io import BytesIO
         
         clientes = db.listar_clientes()
@@ -1830,9 +1830,9 @@ def exportar_clientes_pdf():
 def exportar_clientes_excel():
     """Exporta clientes para Excel"""
     try:
-        import openpyxl
-        from openpyxl.styles import Font, Alignment, PatternFill
-        from openpyxl.worksheet.worksheet import Worksheet
+        import openpyxl  # type: ignore
+        from openpyxl.styles import Font, Alignment, PatternFill  # type: ignore
+        from openpyxl.worksheet.worksheet import Worksheet  # type: ignore
         from io import BytesIO
         
         clientes = db.listar_clientes()
@@ -1886,12 +1886,12 @@ def exportar_clientes_excel():
 def exportar_fornecedores_pdf():
     """Exporta fornecedores para PDF"""
     try:
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import cm
-        from reportlab.pdfgen import canvas
+        from reportlab.lib import colors  # type: ignore
+        from reportlab.lib.pagesizes import A4, landscape  # type: ignore
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer  # type: ignore
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle  # type: ignore
+        from reportlab.lib.units import cm  # type: ignore
+        from reportlab.pdfgen import canvas  # type: ignore
         from io import BytesIO
         
         fornecedores = db.listar_fornecedores()
@@ -1973,9 +1973,9 @@ def exportar_fornecedores_pdf():
 def exportar_fornecedores_excel():
     """Exporta fornecedores para Excel"""
     try:
-        import openpyxl
-        from openpyxl.styles import Font, Alignment, PatternFill
-        from openpyxl.worksheet.worksheet import Worksheet
+        import openpyxl  # type: ignore
+        from openpyxl.styles import Font, Alignment, PatternFill  # type: ignore
+        from openpyxl.worksheet.worksheet import Worksheet  # type: ignore
         from io import BytesIO
         
         fornecedores = db.listar_fornecedores()
