@@ -8,6 +8,7 @@ from database import pagar_lancamento as db_pagar_lancamento
 from database import cancelar_lancamento as db_cancelar_lancamento
 from database import obter_lancamento as db_obter_lancamento
 from database import atualizar_cliente, atualizar_fornecedor
+import database  # Importar módulo database para acessar funções CRUD
 from models import ContaBancaria, Lancamento, Categoria, TipoLancamento, StatusLancamento
 from decimal import Decimal
 from datetime import datetime, date, timedelta
