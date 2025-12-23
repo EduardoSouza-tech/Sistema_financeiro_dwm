@@ -2950,14 +2950,20 @@
         }
         
         function showSection(sectionId) {
+            console.log('%c 🔍 DEBUG - showSection() chamada ', 'background: #FF6B6B; color: white; font-weight: bold; padding: 4px;');
+            console.log('  📍 sectionId:', sectionId);
+            console.log('  📍 event.target:', event?.target);
+            
             // Ocultar todas as seções
             const sections = document.querySelectorAll('.content-card');
+            console.log('  📊 Total de seções encontradas:', sections.length);
             sections.forEach(section => {
                 section.classList.add('hidden');
             });
             
             // Mostrar a seção selecionada
             const targetSection = document.getElementById(sectionId + '-section');
+            console.log('  🎯 Seção alvo:', sectionId + '-section', targetSection ? '✅ Encontrada' : '❌ NÃO ENCONTRADA');
             if (targetSection) {
                 targetSection.classList.remove('hidden');
             }
@@ -2969,39 +2975,68 @@
             });
             
             // Marcar o botão clicado como ativo
-            event.target.classList.add('active');
+            if (event?.target) {
+                event.target.classList.add('active');
+            }
             
             // Carregar dados da seção se necessário
+            console.log('  🔄 Verificando qual função carregar para:', sectionId);
+            
             if (sectionId === 'clientes') {
+                console.log('  ➡️ loadClientesTable:', typeof loadClientesTable);
                 if (typeof loadClientesTable === 'function') loadClientesTable();
             } else if (sectionId === 'fornecedores') {
+                console.log('  ➡️ loadFornecedoresTable:', typeof loadFornecedoresTable);
                 if (typeof loadFornecedoresTable === 'function') loadFornecedoresTable();
             } else if (sectionId === 'categorias') {
+                console.log('  ➡️ loadCategoriasTable:', typeof loadCategoriasTable);
                 if (typeof loadCategoriasTable === 'function') loadCategoriasTable();
             } else if (sectionId === 'contas-bancarias') {
+                console.log('  ➡️ loadContasBancarias:', typeof loadContasBancarias);
                 if (typeof loadContasBancarias === 'function') loadContasBancarias();
             } else if (sectionId === 'contas-receber') {
+                console.log('  ➡️ loadContasReceber:', typeof loadContasReceber);
                 if (typeof loadContasReceber === 'function') loadContasReceber();
             } else if (sectionId === 'contas-pagar') {
+                console.log('  ➡️ loadContasPagar:', typeof loadContasPagar);
                 if (typeof loadContasPagar === 'function') loadContasPagar();
             } else if (sectionId === 'fluxo-caixa') {
+                console.log('  ➡️ carregarBancosFluxo:', typeof carregarBancosFluxo);
+                console.log('  ➡️ carregarFluxoCaixa:', typeof carregarFluxoCaixa);
                 if (typeof carregarBancosFluxo === 'function') carregarBancosFluxo();
                 if (typeof carregarFluxoCaixa === 'function') carregarFluxoCaixa();
             } else if (sectionId === 'indicadores') {
+                console.log('  ➡️ carregarIndicadores:', typeof carregarIndicadores);
                 if (typeof carregarIndicadores === 'function') carregarIndicadores();
             } else if (sectionId === 'inadimplencia') {
+                console.log('  ➡️ carregarInadimplencia:', typeof carregarInadimplencia);
                 if (typeof carregarInadimplencia === 'function') carregarInadimplencia();
             } else if (sectionId === 'tipos-sessao') {
+                console.log('  ➡️ loadTiposSessao:', typeof loadTiposSessao);
                 if (typeof loadTiposSessao === 'function') loadTiposSessao();
             } else if (sectionId === 'contratos') {
-                if (typeof loadContratos === 'function') loadContratos();
-            } else if (sectionId === 'agenda') {
+                console.log('  ➡️ loadContratos:', typeof loadContratos, '(DESATIVADO - endpoint não existe)');
+                // if (typeof loadContratos === 'function') loadContratos();
+            } else if (sectionId === 'agenda-fotografia') {
+                console.log('  ➡️ loadAgenda:', typeof loadAgenda);
                 if (typeof loadAgenda === 'function') loadAgenda();
             } else if (sectionId === 'gestao-estoque') {
-                if (typeof loadProdutos === 'function') loadProdutos();
-            } else if (sectionId === 'kits') {
+                console.log('  ➡️ loadProdutos:', typeof loadProdutos, '(DESATIVADO - endpoint não existe)');
+                // if (typeof loadProdutos === 'function') loadProdutos();
+            } else if (sectionId === 'kits-equipamentos') {
+                console.log('  ➡️ loadKits:', typeof loadKits);
                 if (typeof loadKits === 'function') loadKits();
+            } else if (sectionId === 'tags-trabalho') {
+                console.log('  ➡️ loadTags:', typeof loadTags);
+                if (typeof loadTags === 'function') loadTags();
+            } else if (sectionId === 'templates-equipe') {
+                console.log('  ➡️ loadTemplates:', typeof loadTemplates);
+                if (typeof loadTemplates === 'function') loadTemplates();
+            } else {
+                console.log('  ⚠️ Nenhuma função de carregamento definida para:', sectionId);
             }
+            
+            console.log('%c ✅ showSection() finalizada ', 'background: #4CAF50; color: white; font-weight: bold; padding: 4px;');
         }
         
         function showCategoriaTab(tipo) {
@@ -3042,19 +3077,35 @@
         }
         
         function toggleSubmenu(submenuId) {
+            console.log('%c 🔍 DEBUG - toggleSubmenu() chamada ', 'background: #9C27B0; color: white; font-weight: bold; padding: 4px;');
+            console.log('  📍 submenuId:', submenuId);
+            
             const submenu = document.getElementById('submenu-' + submenuId);
             const button = document.getElementById('btn-' + submenuId);
             
-            if (!submenu || !button) return;
+            console.log('  🎯 submenu element:', submenu ? '✅ Encontrado' : '❌ NÃO ENCONTRADO');
+            console.log('  🎯 button element:', button ? '✅ Encontrado' : '❌ NÃO ENCONTRADO');
+            
+            if (!submenu || !button) {
+                console.warn('  ⚠️ Elementos não encontrados, abortando toggleSubmenu');
+                return;
+            }
             
             // Alternar visibilidade do submenu
-            if (submenu.style.display === 'none' || submenu.style.display === '') {
+            const isHidden = submenu.style.display === 'none' || submenu.style.display === '';
+            console.log('  📊 Estado atual:', isHidden ? 'Oculto' : 'Visível');
+            
+            if (isHidden) {
+                console.log('  ➡️ Mostrando submenu');
                 submenu.style.display = 'block';
                 button.classList.add('active');
             } else {
+                console.log('  ➡️ Ocultando submenu');
                 submenu.style.display = 'none';
                 button.classList.remove('active');
             }
+            
+            console.log('%c ✅ toggleSubmenu() finalizada ', 'background: #4CAF50; color: white; font-weight: bold; padding: 4px;');
         }
 
         // ====================================
