@@ -2073,9 +2073,14 @@ def contratos():
 def proximo_numero_contrato():
     """Retorna o próximo número de contrato disponível"""
     try:
+        print("🔍 Gerando próximo número de contrato...")
         numero = database.gerar_proximo_numero_contrato()
+        print(f"✅ Número gerado: {numero}")
         return jsonify({'numero': numero})
     except Exception as e:
+        print(f"❌ Erro ao gerar número: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 

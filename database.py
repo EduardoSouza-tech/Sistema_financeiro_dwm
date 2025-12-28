@@ -1212,6 +1212,9 @@ def _delegate_to_specific_db(func_name, *args, **kwargs):
         raise NotImplementedError(f"Função {func_name} não implementada para SQLite. Use PostgreSQL ou MySQL em produção.")
 
 # ===== CONTRATOS =====
+def gerar_proximo_numero_contrato() -> str:
+    return _delegate_to_specific_db('gerar_proximo_numero_contrato')
+
 def adicionar_contrato(dados: Dict) -> int:
     return _delegate_to_specific_db('adicionar_contrato', dados)
 

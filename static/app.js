@@ -307,12 +307,24 @@ function openModalContrato(contrato = null) {
     } else {
         // Gerar número automaticamente para novo contrato
         fetch('/api/contratos/proximo-numero')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erro ao buscar número');
+                }
+                return response.json();
+            })
             .then(data => {
-                document.getElementById('contrato-numero').value = data.numero;
+                if (data.numero) {
+                    document.getElementById('contrato-numero').value = data.numero;
+                } else {
+                    console.error('Número não retornado:', data);
+                    document.getElementById('contrato-numero').value = 'ERRO';
+                }
             })
             .catch(error => {
                 console.error('Erro ao gerar número:', error);
+                document.getElementById('contrato-numero').value = 'ERRO';
+                alert('Erro ao gerar número do contrato. Por favor, recarregue a página.');
             });
     }
     
