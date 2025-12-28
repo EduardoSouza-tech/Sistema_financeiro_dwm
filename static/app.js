@@ -300,6 +300,16 @@ function openModalContrato(contrato = null) {
         document.getElementById('contrato-data-assinatura').value = contrato.data_assinatura || '';
         document.getElementById('contrato-status').value = contrato.status || 'ativo';
         document.getElementById('contrato-observacoes').value = contrato.observacoes || '';
+    } else {
+        // Gerar número automaticamente para novo contrato
+        fetch('/api/contratos/proximo-numero')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('contrato-numero').value = data.numero;
+            })
+            .catch(error => {
+                console.error('Erro ao gerar número:', error);
+            });
     }
     
     // Carregar clientes no select
