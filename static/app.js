@@ -287,8 +287,10 @@ function openModalContrato(contrato = null) {
     document.getElementById('contrato-id').value = '';
     document.getElementById('contrato-numero').value = '';
     document.getElementById('contrato-cliente-id').value = '';
+    document.getElementById('contrato-descricao').value = '';
     document.getElementById('contrato-valor-total').value = '';
-    document.getElementById('contrato-data-assinatura').value = '';
+    document.getElementById('contrato-data-inicio').value = '';
+    document.getElementById('contrato-data-fim').value = '';
     document.getElementById('contrato-status').value = 'ativo';
     document.getElementById('contrato-observacoes').value = '';
     
@@ -296,8 +298,10 @@ function openModalContrato(contrato = null) {
         document.getElementById('contrato-id').value = contrato.id || '';
         document.getElementById('contrato-numero').value = contrato.numero || '';
         document.getElementById('contrato-cliente-id').value = contrato.cliente_id || '';
-        document.getElementById('contrato-valor-total').value = contrato.valor_total || '';
-        document.getElementById('contrato-data-assinatura').value = contrato.data_assinatura || '';
+        document.getElementById('contrato-descricao').value = contrato.descricao || '';
+        document.getElementById('contrato-valor-total').value = contrato.valor || '';
+        document.getElementById('contrato-data-inicio').value = contrato.data_inicio || '';
+        document.getElementById('contrato-data-fim').value = contrato.data_fim || '';
         document.getElementById('contrato-status').value = contrato.status || 'ativo';
         document.getElementById('contrato-observacoes').value = contrato.observacoes || '';
     } else {
@@ -340,21 +344,25 @@ async function salvarContrato() {
     const id = document.getElementById('contrato-id').value;
     const numero = document.getElementById('contrato-numero').value.trim();
     const cliente_id = document.getElementById('contrato-cliente-id').value;
-    const valor_total = parseFloat(document.getElementById('contrato-valor-total').value);
-    const data_assinatura = document.getElementById('contrato-data-assinatura').value;
+    const descricao = document.getElementById('contrato-descricao').value.trim();
+    const valor = parseFloat(document.getElementById('contrato-valor-total').value);
+    const data_inicio = document.getElementById('contrato-data-inicio').value;
+    const data_fim = document.getElementById('contrato-data-fim').value || null;
     const status = document.getElementById('contrato-status').value;
     const observacoes = document.getElementById('contrato-observacoes').value.trim();
     
-    if (!numero || !cliente_id || !valor_total || !data_assinatura) {
-        alert('Por favor, preencha todos os campos obrigatórios');
+    if (!numero || !descricao || !valor || !data_inicio) {
+        alert('Por favor, preencha todos os campos obrigatórios (*)');
         return;
     }
     
     const dados = {
         numero,
-        cliente_id: parseInt(cliente_id),
-        valor_total,
-        data_assinatura,
+        cliente_id: cliente_id ? parseInt(cliente_id) : null,
+        descricao,
+        valor,
+        data_inicio,
+        data_fim,
         status,
         observacoes
     };
