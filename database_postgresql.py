@@ -1338,38 +1338,44 @@ def migrar_dados_json(json_path: str):
 # ==================== FUNÇÕES CRUD - CONTRATOS ====================
 def gerar_proximo_numero_contrato() -> str:
     """Gera o próximo número de contrato no formato CONT-YYYY-NNNN"""
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
-    
-    ano_atual = datetime.now().year
-    
-    # Buscar o último número de contrato do ano atual
-    cursor.execute("""
-        SELECT numero FROM contratos 
-        WHERE numero LIKE %s
-        ORDER BY numero DESC 
-        LIMIT 1
-    """, (f'CONT-{ano_atual}-%',))
-    
-    resultado = cursor.fetchone()
-    
-    if resultado:
-        # Extrair o número sequencial do último contrato
-        ultimo_numero = resultado['numero']
-        try:
-            sequencial = int(ultimo_numero.split('-')[-1])
-            proximo_numero = sequencial + 1
-        except (ValueError, IndexError):
+    try:
+        db = DatabaseManager()
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        ano_atual = datetime.now().year
+        
+        # Buscar o último número de contrato do ano atual
+        cursor.execute("""
+            SELECT numero FROM contratos 
+            WHERE numero LIKE %s
+            ORDER BY numero DESC 
+            LIMIT 1
+        """, (f'CONT-{ano_atual}-%',))
+        
+        resultado = cursor.fetchone()
+        
+        if resultado:
+            # Extrair o número sequencial do último contrato
+            ultimo_numero = resultado['numero']
+            try:
+                sequencial = int(ultimo_numero.split('-')[-1])
+                proximo_numero = sequencial + 1
+            except (ValueError, IndexError):
+                proximo_numero = 1
+        else:
             proximo_numero = 1
-    else:
-        proximo_numero = 1
-    
-    cursor.close()
-    conn.close()
-    
-    # Formatar: CONT-2025-0001
-    return f'CONT-{ano_atual}-{proximo_numero:04d}'
+        
+        cursor.close()
+        conn.close()
+        
+        # Formatar: CONT-2025-0001
+        return f'CONT-{ano_atual}-{proximo_numero:04d}'
+    except Exception as e:
+        print(f"❌ Erro ao gerar número do contrato: {e}")
+        # Em caso de erro, retornar um número padrão
+        ano_atual = datetime.now().year
+        return f'CONT-{ano_atual}-0001'
 
 def adicionar_contrato(dados: Dict) -> int:
     """Adiciona um novo contrato"""
