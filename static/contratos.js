@@ -77,6 +77,18 @@ async function novoContrato() {
     
     document.getElementById('contrato-id').value = '';
     
+    // Gerar número automaticamente
+    try {
+        const response = await fetch('/api/contratos/proximo-numero');
+        if (response.ok) {
+            const data = await response.json();
+            document.getElementById('contrato-numero').value = data.numero;
+            console.log('✅ Número gerado automaticamente:', data.numero);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao gerar número:', error);
+    }
+    
     // Carregar dropdowns
     console.log('🔄 Carregando dropdowns...');
     await carregarClientesDropdown('contrato-cliente');

@@ -2058,10 +2058,25 @@ def contratos():
     else:  # POST
         try:
             data = request.json
+            
+            # Gerar número automaticamente se não fornecido
+            if not data.get('numero'):
+                data['numero'] = database.gerar_proximo_numero_contrato()
+            
             contrato_id = database.adicionar_contrato(data)
             return jsonify({'message': 'Contrato criado com sucesso', 'id': contrato_id}), 201
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/contratos/proximo-numero', methods=['GET'])
+def proximo_numero_contrato():
+    """Retorna o próximo número de contrato disponível"""
+    try:
+        numero = database.gerar_proximo_numero_contrato()
+        return jsonify({'numero': numero})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/contratos/<int:contrato_id>', methods=['PUT', 'DELETE'])
