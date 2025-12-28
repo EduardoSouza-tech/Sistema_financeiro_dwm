@@ -2058,15 +2058,24 @@ def contratos():
     else:  # POST
         try:
             data = request.json
+            print(f"🔍 Criando contrato com dados: {data}")
             
             # Gerar número automaticamente se não fornecido
             if not data.get('numero'):
                 data['numero'] = database.gerar_proximo_numero_contrato()
             
             contrato_id = database.adicionar_contrato(data)
-            return jsonify({'message': 'Contrato criado com sucesso', 'id': contrato_id}), 201
+            print(f"✅ Contrato criado com ID: {contrato_id}")
+            return jsonify({
+                'success': True,
+                'message': 'Contrato criado com sucesso',
+                'id': contrato_id
+            }), 201
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            print(f"❌ Erro ao criar contrato: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/contratos/proximo-numero', methods=['GET'])
@@ -2090,20 +2099,32 @@ def contrato_detalhes(contrato_id):
     if request.method == 'PUT':
         try:
             data = request.json
+            print(f"🔍 Atualizando contrato {contrato_id} com dados: {data}")
             success = database.atualizar_contrato(contrato_id, data)
             if success:
-                return jsonify({'message': 'Contrato atualizado com sucesso'})
-            return jsonify({'error': 'Contrato não encontrado'}), 404
+                print(f"✅ Contrato {contrato_id} atualizado")
+                return jsonify({'success': True, 'message': 'Contrato atualizado com sucesso'})
+            print(f"❌ Contrato {contrato_id} não encontrado")
+            return jsonify({'success': False, 'error': 'Contrato não encontrado'}), 404
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            print(f"❌ Erro ao atualizar contrato {contrato_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
     else:  # DELETE
         try:
+            print(f"🔍 Deletando contrato {contrato_id}")
             success = database.deletar_contrato(contrato_id)
             if success:
-                return jsonify({'message': 'Contrato excluído com sucesso'})
-            return jsonify({'error': 'Contrato não encontrado'}), 404
+                print(f"✅ Contrato {contrato_id} deletado")
+                return jsonify({'success': True, 'message': 'Contrato excluído com sucesso'})
+            print(f"❌ Contrato {contrato_id} não encontrado")
+            return jsonify({'success': False, 'error': 'Contrato não encontrado'}), 404
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            print(f"❌ Erro ao deletar contrato {contrato_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/sessoes', methods=['GET', 'POST'])
