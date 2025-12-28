@@ -6171,49 +6171,7 @@ function exportarInadimplenciaExcel() {
 // ===== FUNÇÕES DO MENU OPERACIONAL - IMPLEMENTADAS =====
 
 // === CONTRATOS ===
-// Função openModalContrato está definida na linha 286 (não duplicar aqui)
-
-async function salvarContrato(event) {
-    event.preventDefault();
-    
-    const id = document.getElementById('contrato-id').value;
-    const isEdit = id !== '';
-    
-    const dados = {
-        numero: document.getElementById('contrato-numero').value.trim(),
-        cliente_id: document.getElementById('contrato-cliente').value || null,
-        descricao: document.getElementById('contrato-descricao').value.trim(),
-        valor: parseFloat(document.getElementById('contrato-valor').value.replace(/\./g, '').replace(',', '.')),
-        data_inicio: document.getElementById('contrato-data-inicio').value,
-        data_fim: document.getElementById('contrato-data-fim').value || null,
-        status: document.getElementById('contrato-status').value,
-        observacoes: document.getElementById('contrato-observacoes').value.trim()
-    };
-    
-    try {
-        const url = isEdit ? `/api/contratos/${id}` : '/api/contratos';
-        const method = isEdit ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method: method,
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(dados)
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            showToast(result.message, 'success');
-            closeModal();
-            loadContratos();
-        } else {
-            showToast(result.error || 'Erro ao salvar contrato', 'error');
-        }
-    } catch (error) {
-        console.error('Erro:', error);
-        showToast('Erro ao salvar contrato', 'error');
-    }
-}
+// Função openModalContrato e salvarContrato estão definidas na linha 286 (não duplicar aqui)
 
 async function deletarContrato(id) {
     if (!confirm('Deseja realmente excluir este contrato?')) return;
