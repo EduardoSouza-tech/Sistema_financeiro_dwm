@@ -423,6 +423,46 @@ function openModalSessao(sessao = null) {
         document.getElementById('sessao-status').value = sessao.status || 'agendada';
     }
     
+    // Carregar contratos no select
+    fetch('/api/contratos')
+        .then(response => response.json())
+        .then(contratos => {
+            const select = document.getElementById('sessao-contrato-id');
+            select.innerHTML = '<option value="">Selecione o contrato</option>';
+            contratos.forEach(contrato => {
+                const option = document.createElement('option');
+                option.value = contrato.id;
+                option.textContent = `${contrato.numero} - ${contrato.descricao}`;
+                select.appendChild(option);
+            });
+            if (sessao && sessao.contrato_id) {
+                select.value = sessao.contrato_id;
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao carregar contratos:', error);
+        });
+    
+    // Carregar tipos de sessão no select
+    fetch('/api/tipos-sessao')
+        .then(response => response.json())
+        .then(tipos => {
+            const select = document.getElementById('sessao-tipo-sessao-id');
+            select.innerHTML = '<option value="">Selecione o tipo</option>';
+            tipos.forEach(tipo => {
+                const option = document.createElement('option');
+                option.value = tipo.id;
+                option.textContent = tipo.nome;
+                select.appendChild(option);
+            });
+            if (sessao && sessao.tipo_sessao_id) {
+                select.value = sessao.tipo_sessao_id;
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao carregar tipos de sessão:', error);
+        });
+    
     document.getElementById('modal-sessao').style.display = 'flex';
 }
 
