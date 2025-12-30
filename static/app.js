@@ -2426,39 +2426,57 @@ async function excluirComissao(id) {
 // === CARREGAMENTO - SESSÃO EQUIPE ===
 
 async function loadSessaoEquipe() {
-    console.log('🔍 [LOAD EQUIPE] Iniciando loadSessaoEquipe()...');
+    console.log('\n======== LOAD START ========');
     
     const tbody = document.getElementById('tbody-sessao-equipe');
-    console.log('🎯 [LOAD EQUIPE] tbody element:', tbody ? '✅ Encontrado' : '❌ NÃO ENCONTRADO');
+    console.log('[1/9] tbody:', tbody ? 'OK' : 'NULL');
     
     if (!tbody) {
-        console.error('❌ [LOAD EQUIPE] tbody-sessao-equipe não existe no DOM!');
+        console.error('[1/9] ERRO: tbody nao encontrado!');
         return;
     }
     
+    console.log('[1/9] tbody.innerHTML antes:', tbody.innerHTML.substring(0, 50));
+    
     try {
-        console.log('🌐 [LOAD EQUIPE] Fazendo fetch /api/sessao-equipe...');
+        console.log('[2/9] Fetch iniciado:', new Date().toISOString());
         const response = await fetch('/api/sessao-equipe');
-        console.log('📡 [LOAD EQUIPE] Response status:', response.status);
+        console.log('[3/9] Response.status:', response.status);
+        console.log('[3/9] Response.ok:', response.ok);
         
-        const membros = await response.json();
-        console.log('📊 [LOAD EQUIPE] Membros recebidos:', membros.length);
-        console.log('📋 [LOAD EQUIPE] Dados:', membros);
+        const rawText = await response.text();
+        console.log('[4/9] Raw response:', rawText);
         
+        let membros;
+        try {
+            membros = JSON.parse(rawText);
+            console.log('[5/9] JSON parsed OK');
+        } catch (e) {
+            console.error('[5/9] JSON parse ERROR:', e);
+            throw e;
+        }
+        
+        console.log('[6/9] Tipo:', typeof membros, Array.isArray(membros) ? 'ARRAY' : 'NOT-ARRAY');
+        console.log('[6/9] Length:', membros.length);
+        console.log('[6/9] Data:', JSON.stringify(membros));
+        
+        console.log('[7/9] Limpando tbody...');
         tbody.innerHTML = '';
-        console.log('🧹 [LOAD EQUIPE] tbody limpo');
+        console.log('[7/9] tbody vazio:', tbody.innerHTML === '');
         
-        if (membros.length === 0) {
-            console.log('⚠️ [LOAD EQUIPE] Nenhum membro encontrado');
+        if (!Array.isArray(membros) || membros.length === 0) {
+            console.log('[8/9] VAZIO - mostrando msg');
             tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum membro cadastrado</td></tr>';
+            console.log('[8/9] tbody depois msg:', tbody.innerHTML.substring(0, 50));
+            console.log('======== LOAD END (empty) ========\n');
             return;
         }
         
-        console.log('🔄 [LOAD EQUIPE] Renderizando', membros.length, 'membros...');
+        console.log('[8/9] Renderizando', membros.length, 'membros...');
         membros.forEach((membro, index) => {
             const tr = document.createElement('tr');
             
-            console.log(`  📝 [LOAD EQUIPE] Membro ${index + 1}:`, {
+            console.log(`[8/9] Membro ${index + 1}:`, {
                 id: membro.id,
                 sessao_info: membro.sessao_info,
                 membro_nome: membro.membro_nome,
@@ -2471,18 +2489,24 @@ async function loadSessaoEquipe() {
                 <td>${membro.funcao || '-'}</td>
                 <td>${membro.observacoes || '-'}</td>
                 <td>
-                    <button class="btn btn-warning btn-small" onclick='editarSessaoEquipe(${JSON.stringify(membro)})'>✏️</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirSessaoEquipe(${membro.id})">🗑️</button>
+                    <button class="btn btn-warning btn-small" onclick='editarSessaoEquipe(${JSON.stringify(membro)})'>Edit</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirSessaoEquipe(${membro.id})">Del</button>
                 </td>
             `;
             tbody.appendChild(tr);
+            console.log(`[8/9] Membro ${index + 1} adicionado ao tbody`);
         });
         
-        console.log('✅ [LOAD EQUIPE] Tabela renderizada com sucesso!');
+        console.log('[9/9] tbody.children.length:', tbody.children.length);
+        console.log('[9/9] tbody.innerHTML (100 chars):', tbody.innerHTML.substring(0, 100));
+        console.log('======== LOAD END (success) ========\n');
     } catch (error) {
-        console.error('💥 [LOAD EQUIPE] Exceção capturada:', error);
-        console.error('📍 [LOAD EQUIPE] Stack trace:', error.stack);
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
+        console.error('======== LOAD ERROR ========');
+        console.error('[ERROR] Name:', error.name);
+        console.error('[ERROR] Message:', error.message);
+        console.error('[ERROR] Stack:', error.stack);
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar</td></tr>';
+        console.error('======== LOAD ERROR END ========\n');
     }
 }
 
