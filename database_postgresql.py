@@ -431,6 +431,60 @@ class DatabaseManager:
             END $$;
         """)
         
+        # Migração: Adicionar colunas que podem faltar em sessoes
+        cursor.execute("""
+            DO $$ 
+            BEGIN
+                -- Adicionar titulo se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='titulo'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN titulo VARCHAR(255) NOT NULL DEFAULT 'Sessão';
+                END IF;
+                
+                -- Adicionar data_sessao se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='data_sessao'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN data_sessao DATE NOT NULL DEFAULT CURRENT_DATE;
+                END IF;
+                
+                -- Adicionar duracao se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='duracao'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN duracao INTEGER;
+                END IF;
+                
+                -- Adicionar cliente_id se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='cliente_id'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN cliente_id INTEGER REFERENCES clientes(id);
+                END IF;
+                
+                -- Adicionar valor se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='valor'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN valor DECIMAL(15,2);
+                END IF;
+                
+                -- Adicionar observacoes se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='observacoes'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN observacoes TEXT;
+                END IF;
+            END $$;
+        """)
+        
         # Tabela de tipos de sessão
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS tipos_sessao (
