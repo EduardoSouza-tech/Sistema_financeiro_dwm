@@ -2140,9 +2140,9 @@ def sessoes():
         try:
             data = request.json
             sessao_id = database.adicionar_sessao(data)
-            return jsonify({'message': 'Sessão criada com sucesso', 'id': sessao_id}), 201
+            return jsonify({'success': True, 'message': 'Sessão criada com sucesso', 'id': sessao_id}), 201
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/sessoes/<int:sessao_id>', methods=['PUT', 'DELETE'])
@@ -2153,18 +2153,18 @@ def sessao_detalhes(sessao_id):
             data = request.json
             success = database.atualizar_sessao(sessao_id, data)
             if success:
-                return jsonify({'message': 'Sessão atualizada com sucesso'})
-            return jsonify({'error': 'Sessão não encontrada'}), 404
+                return jsonify({'success': True, 'message': 'Sessão atualizada com sucesso'})
+            return jsonify({'success': False, 'error': 'Sessão não encontrada'}), 404
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'success': False, 'error': str(e)}), 500
     else:  # DELETE
         try:
             success = database.deletar_sessao(sessao_id)
             if success:
-                return jsonify({'message': 'Sessão excluída com sucesso'})
-            return jsonify({'error': 'Sessão não encontrada'}), 404
+                return jsonify({'success': True, 'message': 'Sessão excluída com sucesso'})
+            return jsonify({'success': False, 'error': 'Sessão não encontrada'}), 404
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/comissoes', methods=['GET', 'POST'])

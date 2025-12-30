@@ -563,7 +563,7 @@ async function salvarSessao() {
         }
     } catch (error) {
         console.error('Erro ao salvar sessão:', error);
-        alert('Erro ao salvar sessão');
+        alert('Erro ao salvar sessão: ' + error.message);
     }
 }
 
