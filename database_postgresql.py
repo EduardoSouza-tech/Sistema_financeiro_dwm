@@ -2175,13 +2175,14 @@ def adicionar_sessao(dados: Dict) -> int:
     cursor = conn.cursor()
     
     cursor.execute("""
-        INSERT INTO sessoes (titulo, data_sessao, duracao, cliente_id, valor, observacoes)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        INSERT INTO sessoes (titulo, data_sessao, duracao, contrato_id, cliente_id, valor, observacoes)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         RETURNING id
     """, (
         dados.get('titulo'),
         dados.get('data_sessao'),
         dados.get('duracao'),
+        dados.get('contrato_id'),
         dados.get('cliente_id'),
         dados.get('valor'),
         dados.get('observacoes')
@@ -2248,13 +2249,14 @@ def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
     
     cursor.execute("""
         UPDATE sessoes
-        SET titulo = %s, data_sessao = %s, duracao = %s, cliente_id = %s,
+        SET titulo = %s, data_sessao = %s, duracao = %s, contrato_id = %s, cliente_id = %s,
             valor = %s, observacoes = %s, updated_at = CURRENT_TIMESTAMP
         WHERE id = %s
     """, (
         dados.get('titulo'),
         dados.get('data_sessao'),
         dados.get('duracao'),
+        dados.get('contrato_id'),
         dados.get('cliente_id'),
         dados.get('valor'),
         dados.get('observacoes'),
