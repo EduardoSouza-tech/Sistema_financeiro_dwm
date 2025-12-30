@@ -499,6 +499,94 @@ class DatabaseManager:
             END $$;
         """)
         
+        # Migração: Adicionar colunas que podem faltar em produtos
+        cursor.execute("""
+            DO $$ 
+            BEGIN
+                -- Adicionar descricao se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='produtos' AND column_name='descricao'
+                ) THEN
+                    ALTER TABLE produtos ADD COLUMN descricao TEXT;
+                END IF;
+            END $$;
+        """)
+        
+        # Migração: Adicionar colunas que podem faltar em kits
+        cursor.execute("""
+            DO $$ 
+            BEGIN
+                -- Adicionar descricao se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='kits' AND column_name='descricao'
+                ) THEN
+                    ALTER TABLE kits ADD COLUMN descricao TEXT;
+                END IF;
+                
+                -- Adicionar ativo se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='kits' AND column_name='ativo'
+                ) THEN
+                    ALTER TABLE kits ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
+                END IF;
+                
+                -- Adicionar data_criacao se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='kits' AND column_name='data_criacao'
+                ) THEN
+                    ALTER TABLE kits ADD COLUMN data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+                END IF;
+            END $$;
+        """)
+        
+        # Migração: Adicionar colunas que podem faltar em tags
+        cursor.execute("""
+            DO $$ 
+            BEGIN
+                -- Adicionar data_criacao se não existir  
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='tags' AND column_name='data_criacao'
+                ) THEN
+                    ALTER TABLE tags ADD COLUMN data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+                END IF;
+            END $$;
+        """)
+        
+        # Migração: Adicionar colunas que podem faltar em templates_equipe
+        cursor.execute("""
+            DO $$ 
+            BEGIN
+                -- Adicionar descricao se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='templates_equipe' AND column_name='descricao'
+                ) THEN
+                    ALTER TABLE templates_equipe ADD COLUMN descricao TEXT;
+                END IF;
+                
+                -- Adicionar ativo se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='templates_equipe' AND column_name='ativo'
+                ) THEN
+                    ALTER TABLE templates_equipe ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
+                END IF;
+                
+                -- Adicionar data_criacao se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='templates_equipe' AND column_name='data_criacao'
+                ) THEN
+                    ALTER TABLE templates_equipe ADD COLUMN data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+                END IF;
+            END $$;
+        """)
+        
         # Tabela de comissões
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS comissoes (
