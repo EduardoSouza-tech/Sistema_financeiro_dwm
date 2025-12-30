@@ -526,6 +526,14 @@ class DatabaseManager:
                 ) THEN
                     ALTER TABLE produtos ADD COLUMN quantidade_minima DECIMAL(15,3) DEFAULT 0;
                 END IF;
+                
+                -- Adicionar ativo se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='produtos' AND column_name='ativo'
+                ) THEN
+                    ALTER TABLE produtos ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
+                END IF;
             END $$;
         """)
         
