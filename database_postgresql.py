@@ -445,6 +445,44 @@ class DatabaseManager:
             )
         """)
         
+        # Migração: Adicionar colunas que podem faltar em tipos_sessao
+        cursor.execute("""
+            DO $$ 
+            BEGIN
+                -- Adicionar descricao se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='tipos_sessao' AND column_name='descricao'
+                ) THEN
+                    ALTER TABLE tipos_sessao ADD COLUMN descricao TEXT;
+                END IF;
+                
+                -- Adicionar duracao_padrao se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='tipos_sessao' AND column_name='duracao_padrao'
+                ) THEN
+                    ALTER TABLE tipos_sessao ADD COLUMN duracao_padrao INTEGER;
+                END IF;
+                
+                -- Adicionar valor_padrao se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='tipos_sessao' AND column_name='valor_padrao'
+                ) THEN
+                    ALTER TABLE tipos_sessao ADD COLUMN valor_padrao DECIMAL(15,2);
+                END IF;
+                
+                -- Adicionar ativo se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='tipos_sessao' AND column_name='ativo'
+                ) THEN
+                    ALTER TABLE tipos_sessao ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
+                END IF;
+            END $$;
+        """)
+        
         # Tabela de comissões
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS comissoes (
