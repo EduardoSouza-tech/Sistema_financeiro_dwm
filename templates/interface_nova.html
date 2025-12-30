@@ -5,6 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema Financeiro</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    
+    <!-- SUPRESSOR DE ERROS DE EXTENSÕES - DEVE SER A PRIMEIRA COISA -->
+    <script>
+        (function() {
+            window.addEventListener('error', function(e) {
+                if (e.message && (e.message.includes('message channel closed') || 
+                                  e.message.includes('Extension context invalidated') ||
+                                  e.message.includes('chrome-extension'))) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    return true;
+                }
+            }, true);
+            
+            window.addEventListener('unhandledrejection', function(e) {
+                if (e.reason && e.reason.message && 
+                    (e.reason.message.includes('message channel closed') || 
+                     e.reason.message.includes('Extension context invalidated') ||
+                     e.reason.message.includes('chrome-extension'))) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                }
+            }, true);
+        })();
+    </script>
+    
     <style>
         * {
             margin: 0;
