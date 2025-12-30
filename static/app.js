@@ -877,18 +877,32 @@ async function salvarKit() {
 
 // === FUNÇÕES MODAL - COMISSÕES ===
 
-function openModalComissao(comissao = null) {
+async function openModalComissao(comissao = null) {
     document.getElementById('comissao-id').value = '';
     document.getElementById('comissao-contrato-id').value = '';
-    document.getElementById('comissao-pessoa').value = '';
     document.getElementById('comissao-tipo').value = 'percentual';
     document.getElementById('comissao-valor').value = '';
     document.getElementById('comissao-percentual').value = '';
     
+    // Carregar contratos
+    await loadContratos();
+    const selectContrato = document.getElementById('comissao-contrato-id');
+    if (selectContrato && selectContrato.options.length === 1) {
+        try {
+            const response = await fetch('/api/contratos');
+            const contratos = await response.json();
+            selectContrato.innerHTML = '<option value="">Selecione o contrato</option>';
+            contratos.forEach(c => {
+                selectContrato.innerHTML += `<option value="${c.id}">${c.numero} - ${c.cliente_nome}</option>`;
+            });
+        } catch (error) {
+            console.error('Erro ao carregar contratos:', error);
+        }
+    }
+    
     if (comissao) {
         document.getElementById('comissao-id').value = comissao.id || '';
         document.getElementById('comissao-contrato-id').value = comissao.contrato_id || '';
-        document.getElementById('comissao-pessoa').value = comissao.pessoa || '';
         document.getElementById('comissao-tipo').value = comissao.tipo || 'percentual';
         document.getElementById('comissao-valor').value = comissao.valor || '';
         document.getElementById('comissao-percentual').value = comissao.percentual || '';
@@ -904,19 +918,31 @@ function closeModalComissao() {
 async function salvarComissao() {
     const id = document.getElementById('comissao-id').value;
     const contrato_id = document.getElementById('comissao-contrato-id').value;
-    const pessoa = document.getElementById('comissao-pessoa').value.trim();
     const tipo = document.getElementById('comissao-tipo').value;
     const valor = parseFloat(document.getElementById('comissao-valor').value) || 0;
     const percentual = parseFloat(document.getElementById('comissao-percentual').value) || 0;
     
-    if (!contrato_id || !pessoa) {
-        alert('Por favor, preencha os campos obrigatórios (contrato e pessoa)');
+    if (!contrato_id) {
+        alert('Por favor, selecione um contrato');
         return;
+    }
+    
+    // Buscar cliente_id do contrato selecionado
+    let cliente_id = null;
+    try {
+        const response = await fetch(`/api/contratos`);
+        const contratos = await response.json();
+        const contrato = contratos.find(c => c.id == contrato_id);
+        if (contrato) {
+            cliente_id = contrato.cliente_id;
+        }
+    } catch (error) {
+        console.error('Erro ao buscar cliente do contrato:', error);
     }
     
     const dados = {
         contrato_id: parseInt(contrato_id),
-        pessoa,
+        cliente_id: cliente_id,
         tipo,
         valor,
         percentual
@@ -2253,8 +2279,8 @@ async function loadComissoes() {
             
             tr.innerHTML = `
                 <td>${comissao.contrato_numero || '-'}</td>
-                <td>${comissao.pessoa}</td>
-                <td>${comissao.tipo}</td>
+                <td>${comissao.cliente_nome || '-'}</td>
+                <td>${comissao.tipo || 'percentual'}</td>
                 <td>R$ ${valorFormatado}</td>
                 <td>${comissao.percentual || 0}%</td>
                 <td>

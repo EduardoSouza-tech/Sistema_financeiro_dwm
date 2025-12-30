@@ -701,12 +701,47 @@ class DatabaseManager:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS comissoes (
                 id SERIAL PRIMARY KEY,
-                descricao TEXT NOT NULL,
-                valor DECIMAL(15,2) NOT NULL,
-                percentual DECIMAL(5,2),
+                contrato_id INTEGER REFERENCES contratos(id) ON DELETE CASCADE,
+                cliente_id INTEGER REFERENCES clientes(id) ON DELETE CASCADE,
+                tipo VARCHAR(50) DEFAULT 'percentual',
+                descricao TEXT,
+                valor DECIMAL(15,2) DEFAULT 0,
+                percentual DECIMAL(5,2) DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        """)
+        
+        # Migração: adicionar campos faltantes em comissoes
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                              WHERE table_name='comissoes' AND column_name='contrato_id') THEN
+                    ALTER TABLE comissoes ADD COLUMN contrato_id INTEGER REFERENCES contratos(id) ON DELETE CASCADE;
+                END IF;
+                
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                              WHERE table_name='comissoes' AND column_name='cliente_id') THEN
+                    ALTER TABLE comissoes ADD COLUMN cliente_id INTEGER REFERENCES clientes(id) ON DELETE CASCADE;
+                END IF;
+                
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                              WHERE table_name='comissoes' AND column_name='tipo') THEN
+                    ALTER TABLE comissoes ADD COLUMN tipo VARCHAR(50) DEFAULT 'percentual';
+                END IF;
+            END $$;
+        """)
+        
+        # Migração: tornar campos nullable em comissoes
+        cursor.execute("""
+            DO $$
+            BEGIN
+                ALTER TABLE comissoes ALTER COLUMN descricao DROP NOT NULL;
+                ALTER TABLE comissoes ALTER COLUMN valor DROP NOT NULL;
+            EXCEPTION WHEN OTHERS THEN
+                NULL;
+            END $$;
         """)
         
         # Tabela de equipe de sessão
@@ -2299,13 +2334,16 @@ def adicionar_comissao(dados: Dict) -> int:
     cursor = conn.cursor()
     
     cursor.execute("""
-        INSERT INTO comissoes (descricao, valor, percentual)
-        VALUES (%s, %s, %s)
+        INSERT INTO comissoes (contrato_id, cliente_id, tipo, descricao, valor, percentual)
+        VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING id
     """, (
+        dados.get('contrato_id'),
+        dados.get('cliente_id'),
+        dados.get('tipo', 'percentual'),
         dados.get('descricao'),
-        dados.get('valor'),
-        dados.get('percentual')
+        dados.get('valor', 0),
+        dados.get('percentual', 0)
     ))
     
     comissao_id = cursor.fetchone()['id']
@@ -2314,12 +2352,22 @@ def adicionar_comissao(dados: Dict) -> int:
     return comissao_id
 
 def listar_comissoes() -> List[Dict]:
-    """Lista todas as comissões"""
+    """Lista todas as comissões com informações de contrato e cliente"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT * FROM comissoes ORDER BY created_at DESC")
+    cursor.execute("""
+        SELECT 
+            com.*,
+            ct.numero as contrato_numero,
+            ct.valor as contrato_valor,
+            cl.nome as cliente_nome
+        FROM comissoes com
+        LEFT JOIN contratos ct ON com.contrato_id = ct.id
+        LEFT JOIN clientes cl ON com.cliente_id = cl.id
+        ORDER BY com.created_at DESC
+    """)
     
     comissoes = [dict(row) for row in cursor.fetchall()]
     cursor.close()
@@ -2334,13 +2382,17 @@ def atualizar_comissao(comissao_id: int, dados: Dict) -> bool:
     
     cursor.execute("""
         UPDATE comissoes
-        SET descricao = %s, valor = %s, percentual = %s,
+        SET contrato_id = %s, cliente_id = %s, tipo = %s, 
+            descricao = %s, valor = %s, percentual = %s,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = %s
     """, (
+        dados.get('contrato_id'),
+        dados.get('cliente_id'),
+        dados.get('tipo', 'percentual'),
         dados.get('descricao'),
-        dados.get('valor'),
-        dados.get('percentual'),
+        dados.get('valor', 0),
+        dados.get('percentual', 0),
         comissao_id
     ))
     
