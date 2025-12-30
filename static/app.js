@@ -187,12 +187,24 @@ function showContratoTab(tipo) {
         contentComissoes.style.display = 'block';
         if (typeof loadComissoes === 'function') loadComissoes();
     } else if (tipo === 'equipe') {
+        console.log('👥 [SHOW TAB] Mostrando aba EQUIPE...');
+        console.log('🎯 [SHOW TAB] btnEquipe:', btnEquipe ? '✅' : '❌');
+        console.log('🎯 [SHOW TAB] contentEquipe:', contentEquipe ? '✅' : '❌');
+        
         btnEquipe.classList.add('active');
         btnEquipe.style.background = '#9b59b6';
         btnEquipe.style.color = 'white';
         btnEquipe.style.fontWeight = 'bold';
         contentEquipe.style.display = 'block';
-        if (typeof loadSessaoEquipe === 'function') loadSessaoEquipe();
+        
+        console.log('✅ [SHOW TAB] Aba Equipe ativada, display:', contentEquipe.style.display);
+        console.log('🔄 [SHOW TAB] Chamando loadSessaoEquipe()...');
+        
+        if (typeof loadSessaoEquipe === 'function') {
+            loadSessaoEquipe();
+        } else {
+            console.error('❌ [SHOW TAB] loadSessaoEquipe não é uma função!');
+        }
     }
 }
 
@@ -1031,7 +1043,13 @@ async function openModalSessaoEquipe(sessaoEquipe = null) {
 }
 
 function closeModalSessaoEquipe() {
-    document.getElementById('modal-sessao-equipe').style.display = 'none';
+    console.log('🚪 [CLOSE MODAL EQUIPE] Fechando modal...');
+    const modal = document.getElementById('modal-sessao-equipe');
+    console.log('🎯 [CLOSE MODAL EQUIPE] Modal element:', modal ? '✅ Encontrado' : '❌ NÃO ENCONTRADO');
+    if (modal) {
+        modal.style.display = 'none';
+        console.log('✅ [CLOSE MODAL EQUIPE] Modal fechado');
+    }
 }
 
 async function salvarSessaoEquipe() {
@@ -1084,12 +1102,38 @@ async function salvarSessaoEquipe() {
         console.log('📥 [EQUIPE] Response data:', result);
         
         if (result.success) {
-            console.log('✅ [EQUIPE] Salvo com sucesso!');
-            alert(id ? 'Membro atualizado com sucesso!' : 'Membro adicionado com sucesso!');
+            console.log('=== INICIO FLUXO SALVAMENTO ===');
+            console.log('[STEP 1/5] Salvo! ID:', result.id);
+            
+            alert(id ? 'Membro atualizado!' : 'Membro adicionado!');
+            
+            console.log('[STEP 2/5] Fechando modal...');
             closeModalSessaoEquipe();
-            // Garantir que a aba Equipe está visível
-            if (typeof showContratoTab === 'function') showContratoTab('equipe');
-            if (typeof loadSessaoEquipe === 'function') loadSessaoEquipe();
+            console.log('[STEP 2/5] Modal fechado');
+            
+            console.log('[STEP 3/5] Aguardando 100ms...');
+            await new Promise(r => setTimeout(r, 100));
+            
+            console.log('[STEP 4/5] Mostrando aba...');
+            if (typeof showContratoTab === 'function') {
+                showContratoTab('equipe');
+                console.log('[STEP 4/5] Aba mostrada');
+            } else {
+                console.error('[STEP 4/5] ERRO: showContratoTab undefined');
+            }
+            
+            console.log('[STEP 5/5] Aguardando 200ms...');
+            await new Promise(r => setTimeout(r, 200));
+            
+            console.log('[STEP 5/5] Carregando lista...');
+            if (typeof loadSessaoEquipe === 'function') {
+                await loadSessaoEquipe();
+                console.log('[STEP 5/5] Lista carregada');
+            } else {
+                console.error('[STEP 5/5] ERRO: loadSessaoEquipe undefined');
+            }
+            
+            console.log('=== FIM FLUXO SALVAMENTO ===');
         } else {
             console.error('❌ [EQUIPE] Erro do servidor:', result.error || result.message);
             alert('Erro: ' + (result.error || result.message || 'Erro desconhecido'));
@@ -2382,22 +2426,44 @@ async function excluirComissao(id) {
 // === CARREGAMENTO - SESSÃO EQUIPE ===
 
 async function loadSessaoEquipe() {
+    console.log('🔍 [LOAD EQUIPE] Iniciando loadSessaoEquipe()...');
+    
     const tbody = document.getElementById('tbody-sessao-equipe');
-    if (!tbody) return;
+    console.log('🎯 [LOAD EQUIPE] tbody element:', tbody ? '✅ Encontrado' : '❌ NÃO ENCONTRADO');
+    
+    if (!tbody) {
+        console.error('❌ [LOAD EQUIPE] tbody-sessao-equipe não existe no DOM!');
+        return;
+    }
     
     try {
+        console.log('🌐 [LOAD EQUIPE] Fazendo fetch /api/sessao-equipe...');
         const response = await fetch('/api/sessao-equipe');
+        console.log('📡 [LOAD EQUIPE] Response status:', response.status);
+        
         const membros = await response.json();
+        console.log('📊 [LOAD EQUIPE] Membros recebidos:', membros.length);
+        console.log('📋 [LOAD EQUIPE] Dados:', membros);
         
         tbody.innerHTML = '';
+        console.log('🧹 [LOAD EQUIPE] tbody limpo');
         
         if (membros.length === 0) {
+            console.log('⚠️ [LOAD EQUIPE] Nenhum membro encontrado');
             tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum membro cadastrado</td></tr>';
             return;
         }
         
-        membros.forEach(membro => {
+        console.log('🔄 [LOAD EQUIPE] Renderizando', membros.length, 'membros...');
+        membros.forEach((membro, index) => {
             const tr = document.createElement('tr');
+            
+            console.log(`  📝 [LOAD EQUIPE] Membro ${index + 1}:`, {
+                id: membro.id,
+                sessao_info: membro.sessao_info,
+                membro_nome: membro.membro_nome,
+                funcao: membro.funcao
+            });
             
             tr.innerHTML = `
                 <td>${membro.sessao_info || '-'}</td>
@@ -2411,8 +2477,11 @@ async function loadSessaoEquipe() {
             `;
             tbody.appendChild(tr);
         });
+        
+        console.log('✅ [LOAD EQUIPE] Tabela renderizada com sucesso!');
     } catch (error) {
-        console.error('Erro ao carregar equipe:', error);
+        console.error('💥 [LOAD EQUIPE] Exceção capturada:', error);
+        console.error('📍 [LOAD EQUIPE] Stack trace:', error.stack);
         tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erro ao carregar dados</td></tr>';
     }
 }
