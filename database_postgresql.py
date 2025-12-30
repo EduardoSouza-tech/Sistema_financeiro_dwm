@@ -480,6 +480,22 @@ class DatabaseManager:
                 ) THEN
                     ALTER TABLE tipos_sessao ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
                 END IF;
+                
+                -- Adicionar created_at se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='tipos_sessao' AND column_name='created_at'
+                ) THEN
+                    ALTER TABLE tipos_sessao ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+                END IF;
+                
+                -- Adicionar updated_at se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='tipos_sessao' AND column_name='updated_at'
+                ) THEN
+                    ALTER TABLE tipos_sessao ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+                END IF;
             END $$;
         """)
         
