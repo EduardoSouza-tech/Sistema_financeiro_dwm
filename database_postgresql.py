@@ -755,6 +755,31 @@ class DatabaseManager:
             )
         """)
         
+        # Migração: Garantir que sessao_equipe tem membro_nome
+        cursor.execute("""
+            DO $$
+            BEGIN
+                -- Verificar se a coluna 'membro' existe (nome antigo errado)
+                IF EXISTS (SELECT 1 FROM information_schema.columns 
+                          WHERE table_name='sessao_equipe' AND column_name='membro') THEN
+                    -- Renomear 'membro' para 'membro_nome'
+                    ALTER TABLE sessao_equipe RENAME COLUMN membro TO membro_nome;
+                END IF;
+                
+                -- Se membro_nome não existe, adicionar
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                              WHERE table_name='sessao_equipe' AND column_name='membro_nome') THEN
+                    ALTER TABLE sessao_equipe ADD COLUMN membro_nome VARCHAR(255);
+                END IF;
+                
+                -- Tornar NOT NULL se necessário
+                ALTER TABLE sessao_equipe ALTER COLUMN membro_nome SET NOT NULL;
+            EXCEPTION WHEN OTHERS THEN
+                -- Se der erro (por exemplo, já existe NOT NULL), continuar
+                NULL;
+            END $$;
+        """)
+        
         cursor.close()
         conn.close()
     
