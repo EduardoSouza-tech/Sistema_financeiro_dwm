@@ -751,6 +751,7 @@ class DatabaseManager:
                 sessao_id INTEGER REFERENCES sessoes(id) ON DELETE CASCADE,
                 membro_nome VARCHAR(255) NOT NULL,
                 funcao VARCHAR(100),
+                observacoes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -776,6 +777,20 @@ class DatabaseManager:
                 ALTER TABLE sessao_equipe ALTER COLUMN membro_nome SET NOT NULL;
             EXCEPTION WHEN OTHERS THEN
                 -- Se der erro (por exemplo, já existe NOT NULL), continuar
+                NULL;
+            END $$;
+        """)
+        
+        # Migração: Garantir que sessao_equipe tem observacoes
+        cursor.execute("""
+            DO $$
+            BEGIN
+                -- Se observacoes não existe, adicionar
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                              WHERE table_name='sessao_equipe' AND column_name='observacoes') THEN
+                    ALTER TABLE sessao_equipe ADD COLUMN observacoes TEXT;
+                END IF;
+            EXCEPTION WHEN OTHERS THEN
                 NULL;
             END $$;
         """)
@@ -2468,13 +2483,14 @@ def adicionar_sessao_equipe(dados: Dict) -> int:
     cursor = conn.cursor()
     
     cursor.execute("""
-        INSERT INTO sessao_equipe (sessao_id, membro_nome, funcao)
-        VALUES (%s, %s, %s)
+        INSERT INTO sessao_equipe (sessao_id, membro_nome, funcao, observacoes)
+        VALUES (%s, %s, %s, %s)
         RETURNING id
     """, (
         dados.get('sessao_id'),
         dados.get('membro_nome'),
-        dados.get('funcao')
+        dados.get('funcao'),
+        dados.get('observacoes', '')
     ))
     
     se_id = cursor.fetchone()['id']
@@ -2515,12 +2531,13 @@ def atualizar_sessao_equipe(membro_id: int, dados: Dict) -> bool:
     
     cursor.execute("""
         UPDATE sessao_equipe
-        SET sessao_id = %s, membro_nome = %s, funcao = %s
+        SET sessao_id = %s, membro_nome = %s, funcao = %s, observacoes = %s
         WHERE id = %s
     """, (
         dados.get('sessao_id'),
         dados.get('membro_nome'),
         dados.get('funcao'),
+        dados.get('observacoes', ''),
         membro_id
     ))
     
