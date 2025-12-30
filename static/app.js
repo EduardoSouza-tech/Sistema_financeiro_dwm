@@ -878,6 +878,8 @@ async function salvarKit() {
 // === FUNÇÕES MODAL - COMISSÕES ===
 
 async function openModalComissao(comissao = null) {
+    console.log('🔍 [MODAL COMISSÃO] Abrindo modal...', comissao ? 'Edição' : 'Novo');
+    
     document.getElementById('comissao-id').value = '';
     document.getElementById('comissao-contrato-id').value = '';
     document.getElementById('comissao-tipo').value = 'percentual';
@@ -885,22 +887,26 @@ async function openModalComissao(comissao = null) {
     document.getElementById('comissao-percentual').value = '';
     
     // Carregar contratos
+    console.log('📋 [MODAL COMISSÃO] Carregando contratos...');
     await loadContratos();
     const selectContrato = document.getElementById('comissao-contrato-id');
     if (selectContrato && selectContrato.options.length === 1) {
         try {
+            console.log('🌐 [MODAL COMISSÃO] Buscando contratos da API...');
             const response = await fetch('/api/contratos');
             const contratos = await response.json();
+            console.log(`📊 [MODAL COMISSÃO] ${contratos.length} contratos carregados`);
             selectContrato.innerHTML = '<option value="">Selecione o contrato</option>';
             contratos.forEach(c => {
                 selectContrato.innerHTML += `<option value="${c.id}">${c.numero} - ${c.cliente_nome}</option>`;
             });
         } catch (error) {
-            console.error('Erro ao carregar contratos:', error);
+            console.error('❌ [MODAL COMISSÃO] Erro ao carregar contratos:', error);
         }
     }
     
     if (comissao) {
+        console.log('📝 [MODAL COMISSÃO] Preenchendo dados para edição:', comissao);
         document.getElementById('comissao-id').value = comissao.id || '';
         document.getElementById('comissao-contrato-id').value = comissao.contrato_id || '';
         document.getElementById('comissao-tipo').value = comissao.tipo || 'percentual';
@@ -908,6 +914,7 @@ async function openModalComissao(comissao = null) {
         document.getElementById('comissao-percentual').value = comissao.percentual || '';
     }
     
+    console.log('✅ [MODAL COMISSÃO] Modal aberto com sucesso');
     document.getElementById('modal-comissao').style.display = 'flex';
 }
 
@@ -916,13 +923,24 @@ function closeModalComissao() {
 }
 
 async function salvarComissao() {
+    console.log('🔍 [COMISSÃO] Iniciando salvarComissao()...');
+    
     const id = document.getElementById('comissao-id').value;
     const contrato_id = document.getElementById('comissao-contrato-id').value;
     const tipo = document.getElementById('comissao-tipo').value;
     const valor = parseFloat(document.getElementById('comissao-valor').value) || 0;
     const percentual = parseFloat(document.getElementById('comissao-percentual').value) || 0;
     
+    console.log('📊 [COMISSÃO] Valores capturados:', {
+        id: id || 'novo',
+        contrato_id,
+        tipo,
+        valor,
+        percentual
+    });
+    
     if (!contrato_id) {
+        console.warn('⚠️ [COMISSÃO] Contrato não selecionado');
         alert('Por favor, selecione um contrato');
         return;
     }
@@ -934,9 +952,13 @@ async function salvarComissao() {
         percentual
     };
     
+    console.log('📦 [COMISSÃO] Dados preparados para envio:', dados);
+    
     try {
         const url = id ? `/api/comissoes/${id}` : '/api/comissoes';
         const method = id ? 'PUT' : 'POST';
+        
+        console.log(`🌐 [COMISSÃO] Enviando ${method} para ${url}...`);
         
         const response = await fetch(url, {
             method: method,
@@ -944,18 +966,24 @@ async function salvarComissao() {
             body: JSON.stringify(dados)
         });
         
+        console.log(`📡 [COMISSÃO] Response status: ${response.status}`);
+        
         const result = await response.json();
+        console.log('📥 [COMISSÃO] Response data:', result);
         
         if (result.success) {
+            console.log('✅ [COMISSÃO] Salvo com sucesso!');
             alert(id ? 'Comissão atualizada com sucesso!' : 'Comissão cadastrada com sucesso!');
             closeModalComissao();
             if (typeof loadComissoes === 'function') loadComissoes();
         } else {
-            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+            console.error('❌ [COMISSÃO] Erro do servidor:', result.error || result.message);
+            alert('Erro: ' + (result.error || result.message || 'Erro desconhecido'));
         }
     } catch (error) {
-        console.error('Erro ao salvar comissão:', error);
-        alert('Erro ao salvar comissão');
+        console.error('💥 [COMISSÃO] Exceção capturada:', error);
+        console.error('Stack trace:', error.stack);
+        alert('Erro ao salvar comissão: ' + error.message);
     }
 }
 

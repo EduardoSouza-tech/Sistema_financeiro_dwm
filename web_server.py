@@ -2175,14 +2175,22 @@ def comissoes():
             comissoes = database.listar_comissoes()
             return jsonify(comissoes)
         except Exception as e:
+            print(f"❌ [COMISSÃO GET] Erro: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'error': str(e)}), 500
     else:  # POST
         try:
             data = request.json
+            print(f"🔍 [COMISSÃO POST] Dados recebidos: {data}")
             comissao_id = database.adicionar_comissao(data)
-            return jsonify({'message': 'Comissão criada com sucesso', 'id': comissao_id}), 201
+            print(f"✅ [COMISSÃO POST] Criada com ID: {comissao_id}")
+            return jsonify({'success': True, 'message': 'Comissão criada com sucesso', 'id': comissao_id}), 201
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            print(f"❌ [COMISSÃO POST] Erro: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/comissoes/<int:comissao_id>', methods=['PUT', 'DELETE'])
@@ -2191,20 +2199,32 @@ def comissao_detalhes(comissao_id):
     if request.method == 'PUT':
         try:
             data = request.json
+            print(f"🔍 [COMISSÃO PUT] ID: {comissao_id}, Dados: {data}")
             success = database.atualizar_comissao(comissao_id, data)
             if success:
-                return jsonify({'message': 'Comissão atualizada com sucesso'})
-            return jsonify({'error': 'Comissão não encontrada'}), 404
+                print(f"✅ [COMISSÃO PUT] Atualizada com sucesso")
+                return jsonify({'success': True, 'message': 'Comissão atualizada com sucesso'})
+            print(f"⚠️ [COMISSÃO PUT] Não encontrada")
+            return jsonify({'success': False, 'error': 'Comissão não encontrada'}), 404
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            print(f"❌ [COMISSÃO PUT] Erro: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
     else:  # DELETE
         try:
+            print(f"🔍 [COMISSÃO DELETE] ID: {comissao_id}")
             success = database.deletar_comissao(comissao_id)
             if success:
-                return jsonify({'message': 'Comissão excluída com sucesso'})
-            return jsonify({'error': 'Comissão não encontrada'}), 404
+                print(f"✅ [COMISSÃO DELETE] Excluída com sucesso")
+                return jsonify({'success': True, 'message': 'Comissão excluída com sucesso'})
+            print(f"⚠️ [COMISSÃO DELETE] Não encontrada")
+            return jsonify({'success': False, 'error': 'Comissão não encontrada'}), 404
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            print(f"❌ [COMISSÃO DELETE] Erro: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/sessao-equipe', methods=['GET', 'POST'])
