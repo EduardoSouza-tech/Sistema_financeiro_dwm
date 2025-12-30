@@ -989,14 +989,36 @@ async function salvarComissao() {
 
 // === FUNÇÕES MODAL - SESSÃO EQUIPE ===
 
-function openModalSessaoEquipe(sessaoEquipe = null) {
+async function openModalSessaoEquipe(sessaoEquipe = null) {
+    console.log('🔍 [MODAL EQUIPE] Abrindo modal...', sessaoEquipe ? 'Edição' : 'Novo');
+    
     document.getElementById('sessao-equipe-id').value = '';
     document.getElementById('sessao-equipe-sessao-id').value = '';
     document.getElementById('sessao-equipe-membro').value = '';
     document.getElementById('sessao-equipe-funcao').value = '';
     document.getElementById('sessao-equipe-observacoes').value = '';
     
+    // Carregar sessões
+    console.log('📋 [MODAL EQUIPE] Carregando sessões...');
+    const selectSessao = document.getElementById('sessao-equipe-sessao-id');
+    try {
+        console.log('🌐 [MODAL EQUIPE] Buscando sessões da API...');
+        const response = await fetch('/api/sessoes');
+        const sessoes = await response.json();
+        console.log(`📊 [MODAL EQUIPE] ${sessoes.length} sessões carregadas`);
+        selectSessao.innerHTML = '<option value="">Selecione a sessão</option>';
+        sessoes.forEach(s => {
+            const titulo = s.titulo || `Sessão ${s.id}`;
+            const data = s.data_sessao ? ` - ${s.data_sessao}` : '';
+            const cliente = s.cliente_nome ? ` - ${s.cliente_nome}` : '';
+            selectSessao.innerHTML += `<option value="${s.id}">${titulo}${data}${cliente}</option>`;
+        });
+    } catch (error) {
+        console.error('❌ [MODAL EQUIPE] Erro ao carregar sessões:', error);
+    }
+    
     if (sessaoEquipe) {
+        console.log('📝 [MODAL EQUIPE] Preenchendo dados para edição:', sessaoEquipe);
         document.getElementById('sessao-equipe-id').value = sessaoEquipe.id || '';
         document.getElementById('sessao-equipe-sessao-id').value = sessaoEquipe.sessao_id || '';
         document.getElementById('sessao-equipe-membro').value = sessaoEquipe.membro || '';
@@ -1004,6 +1026,7 @@ function openModalSessaoEquipe(sessaoEquipe = null) {
         document.getElementById('sessao-equipe-observacoes').value = sessaoEquipe.observacoes || '';
     }
     
+    console.log('✅ [MODAL EQUIPE] Modal aberto com sucesso');
     document.getElementById('modal-sessao-equipe').style.display = 'flex';
 }
 
@@ -1012,13 +1035,24 @@ function closeModalSessaoEquipe() {
 }
 
 async function salvarSessaoEquipe() {
+    console.log('🔍 [EQUIPE] Iniciando salvarSessaoEquipe()...');
+    
     const id = document.getElementById('sessao-equipe-id').value;
     const sessao_id = document.getElementById('sessao-equipe-sessao-id').value;
     const membro = document.getElementById('sessao-equipe-membro').value.trim();
     const funcao = document.getElementById('sessao-equipe-funcao').value.trim();
     const observacoes = document.getElementById('sessao-equipe-observacoes').value.trim();
     
+    console.log('📊 [EQUIPE] Valores capturados:', {
+        id: id || 'novo',
+        sessao_id,
+        membro,
+        funcao,
+        observacoes
+    });
+    
     if (!sessao_id || !membro) {
+        console.warn('⚠️ [EQUIPE] Campos obrigatórios não preenchidos');
         alert('Por favor, preencha os campos obrigatórios (sessão e membro)');
         return;
     }
@@ -1030,9 +1064,13 @@ async function salvarSessaoEquipe() {
         observacoes
     };
     
+    console.log('📦 [EQUIPE] Dados preparados para envio:', dados);
+    
     try {
         const url = id ? `/api/sessao-equipe/${id}` : '/api/sessao-equipe';
         const method = id ? 'PUT' : 'POST';
+        
+        console.log(`🌐 [EQUIPE] Enviando ${method} para ${url}...`);
         
         const response = await fetch(url, {
             method: method,
@@ -1040,18 +1078,24 @@ async function salvarSessaoEquipe() {
             body: JSON.stringify(dados)
         });
         
+        console.log(`📡 [EQUIPE] Response status: ${response.status}`);
+        
         const result = await response.json();
+        console.log('📥 [EQUIPE] Response data:', result);
         
         if (result.success) {
+            console.log('✅ [EQUIPE] Salvo com sucesso!');
             alert(id ? 'Membro atualizado com sucesso!' : 'Membro adicionado com sucesso!');
             closeModalSessaoEquipe();
             if (typeof loadSessaoEquipe === 'function') loadSessaoEquipe();
         } else {
-            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+            console.error('❌ [EQUIPE] Erro do servidor:', result.error || result.message);
+            alert('Erro: ' + (result.error || result.message || 'Erro desconhecido'));
         }
     } catch (error) {
-        console.error('Erro ao salvar membro da equipe:', error);
-        alert('Erro ao salvar membro da equipe');
+        console.error('💥 [EQUIPE] Exceção capturada:', error);
+        console.error('Stack trace:', error.stack);
+        alert('Erro ao salvar membro da equipe: ' + error.message);
     }
 }
 

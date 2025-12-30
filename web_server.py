@@ -2235,14 +2235,22 @@ def sessao_equipe():
             lista = database.listar_sessao_equipe()
             return jsonify(lista)
         except Exception as e:
+            print(f"❌ [EQUIPE GET] Erro: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'error': str(e)}), 500
     else:  # POST
         try:
             data = request.json
+            print(f"🔍 [EQUIPE POST] Dados recebidos: {data}")
             se_id = database.adicionar_sessao_equipe(data)
-            return jsonify({'message': 'Membro adicionado com sucesso', 'id': se_id}), 201
+            print(f"✅ [EQUIPE POST] Membro adicionado com ID: {se_id}")
+            return jsonify({'success': True, 'message': 'Membro adicionado com sucesso', 'id': se_id}), 201
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            print(f"❌ [EQUIPE POST] Erro: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/sessao-equipe/<int:membro_id>', methods=['PUT', 'DELETE'])
@@ -2251,20 +2259,32 @@ def sessao_equipe_detalhes(membro_id):
     if request.method == 'PUT':
         try:
             data = request.json
+            print(f"🔍 [EQUIPE PUT] ID: {membro_id}, Dados: {data}")
             success = database.atualizar_sessao_equipe(membro_id, data)
             if success:
-                return jsonify({'message': 'Membro atualizado com sucesso'})
-            return jsonify({'error': 'Membro não encontrado'}), 404
+                print(f"✅ [EQUIPE PUT] Membro atualizado com sucesso")
+                return jsonify({'success': True, 'message': 'Membro atualizado com sucesso'})
+            print(f"⚠️ [EQUIPE PUT] Membro não encontrado")
+            return jsonify({'success': False, 'error': 'Membro não encontrado'}), 404
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            print(f"❌ [EQUIPE PUT] Erro: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
     else:  # DELETE
         try:
+            print(f"🔍 [EQUIPE DELETE] ID: {membro_id}")
             success = database.deletar_sessao_equipe(membro_id)
             if success:
-                return jsonify({'message': 'Membro removido com sucesso'})
-            return jsonify({'error': 'Membro não encontrado'}), 404
+                print(f"✅ [EQUIPE DELETE] Membro removido com sucesso")
+                return jsonify({'success': True, 'message': 'Membro removido com sucesso'})
+            print(f"⚠️ [EQUIPE DELETE] Membro não encontrado")
+            return jsonify({'success': False, 'error': 'Membro não encontrado'}), 404
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            print(f"❌ [EQUIPE DELETE] Erro: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/tipos-sessao', methods=['GET', 'POST'])
