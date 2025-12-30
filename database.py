@@ -1331,6 +1331,19 @@ def atualizar_sessao_equipe(membro_id: int, dados: Dict) -> bool:
 def deletar_sessao_equipe(membro_id: int) -> bool:
     return _delegate_to_specific_db('deletar_sessao_equipe', membro_id)
 
+# Tipos de sessão
+def adicionar_tipo_sessao(dados: Dict) -> int:
+    return _delegate_to_specific_db('adicionar_tipo_sessao', dados)
+
+def listar_tipos_sessao() -> List[Dict]:
+    return _delegate_to_specific_db('listar_tipos_sessao')
+
+def atualizar_tipo_sessao(tipo_id: int, dados: Dict) -> bool:
+    return _delegate_to_specific_db('atualizar_tipo_sessao', tipo_id, dados)
+
+def deletar_tipo_sessao(tipo_id: int) -> bool:
+    return _delegate_to_specific_db('deletar_tipo_sessao', tipo_id)
+
 
 # ==================== FUNÇÕES ANTIGAS (mantidas para compatibilidade) ====================
 

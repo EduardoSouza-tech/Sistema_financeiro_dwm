@@ -74,7 +74,11 @@ __all__ = [
     'adicionar_sessao_equipe',
     'listar_sessao_equipe',
     'atualizar_sessao_equipe',
-    'deletar_sessao_equipe'
+    'deletar_sessao_equipe',
+    'adicionar_tipo_sessao',
+    'listar_tipos_sessao',
+    'atualizar_tipo_sessao',
+    'deletar_tipo_sessao'
 ]
 
 # Configurações do PostgreSQL (Railway fornece via variáveis de ambiente)
@@ -425,6 +429,20 @@ class DatabaseManager:
                     ALTER TABLE sessoes ADD COLUMN contrato_id INTEGER REFERENCES contratos(id);
                 END IF;
             END $$;
+        """)
+        
+        # Tabela de tipos de sessão
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tipos_sessao (
+                id SERIAL PRIMARY KEY,
+                nome VARCHAR(255) NOT NULL,
+                descricao TEXT,
+                duracao_padrao INTEGER,
+                valor_padrao DECIMAL(15,2),
+                ativo BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
         """)
         
         # Tabela de comissões
@@ -2167,6 +2185,99 @@ def deletar_sessao_equipe(membro_id: int) -> bool:
     cursor = conn.cursor()
     
     cursor.execute("DELETE FROM sessao_equipe WHERE id = %s", (membro_id,))
+    
+    sucesso = cursor.rowcount > 0
+    cursor.close()
+    conn.close()
+    return sucesso
+
+# ==================== TIPOS DE SESSÃO ====================
+
+def adicionar_tipo_sessao(dados: Dict) -> int:
+    """Adiciona um novo tipo de sessão"""
+    db = DatabaseManager()
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO tipos_sessao (nome, descricao, duracao_padrao, valor_padrao, ativo)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id
+    """, (
+        dados['nome'],
+        dados.get('descricao'),
+        dados.get('duracao_padrao'),
+        dados.get('valor_padrao'),
+        dados.get('ativo', True)
+    ))
+    
+    tipo_id = cursor.fetchone()['id']
+    cursor.close()
+    conn.close()
+    return tipo_id
+
+def listar_tipos_sessao() -> List[Dict]:
+    """Lista todos os tipos de sessão"""
+    import datetime
+    import decimal
+    db = DatabaseManager()
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT id, nome, descricao, duracao_padrao, valor_padrao, ativo, created_at, updated_at
+        FROM tipos_sessao
+        ORDER BY nome
+    """)
+    
+    tipos = []
+    for row in cursor.fetchall():
+        tipo = {}
+        for key, value in dict(row).items():
+            if isinstance(value, (datetime.time, datetime.datetime, datetime.date)):
+                tipo[key] = value.isoformat()
+            elif isinstance(value, decimal.Decimal):
+                tipo[key] = float(value)
+            else:
+                tipo[key] = value
+        tipos.append(tipo)
+    
+    cursor.close()
+    conn.close()
+    return tipos
+
+def atualizar_tipo_sessao(tipo_id: int, dados: Dict) -> bool:
+    """Atualiza um tipo de sessão"""
+    db = DatabaseManager()
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE tipos_sessao 
+        SET nome = %s, descricao = %s, duracao_padrao = %s, valor_padrao = %s, ativo = %s,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+    """, (
+        dados['nome'],
+        dados.get('descricao'),
+        dados.get('duracao_padrao'),
+        dados.get('valor_padrao'),
+        dados.get('ativo', True),
+        tipo_id
+    ))
+    
+    sucesso = cursor.rowcount > 0
+    cursor.close()
+    conn.close()
+    return sucesso
+
+def deletar_tipo_sessao(tipo_id: int) -> bool:
+    """Deleta um tipo de sessão"""
+    db = DatabaseManager()
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM tipos_sessao WHERE id = %s", (tipo_id,))
     
     sucesso = cursor.rowcount > 0
     cursor.close()
