@@ -1087,6 +1087,8 @@ async function salvarSessaoEquipe() {
             console.log('✅ [EQUIPE] Salvo com sucesso!');
             alert(id ? 'Membro atualizado com sucesso!' : 'Membro adicionado com sucesso!');
             closeModalSessaoEquipe();
+            // Garantir que a aba Equipe está visível
+            if (typeof showContratoTab === 'function') showContratoTab('equipe');
             if (typeof loadSessaoEquipe === 'function') loadSessaoEquipe();
         } else {
             console.error('❌ [EQUIPE] Erro do servidor:', result.error || result.message);
