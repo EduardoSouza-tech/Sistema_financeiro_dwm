@@ -518,6 +518,14 @@ class DatabaseManager:
                 ) THEN
                     ALTER TABLE produtos ADD COLUMN unidade VARCHAR(20) DEFAULT 'UN';
                 END IF;
+                
+                -- Adicionar quantidade_minima se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='produtos' AND column_name='quantidade_minima'
+                ) THEN
+                    ALTER TABLE produtos ADD COLUMN quantidade_minima DECIMAL(15,3) DEFAULT 0;
+                END IF;
             END $$;
         """)
         
@@ -575,6 +583,14 @@ class DatabaseManager:
                     WHERE table_name='templates_equipe' AND column_name='conteudo'
                 ) THEN
                     ALTER TABLE templates_equipe ADD COLUMN conteudo TEXT;
+                END IF;
+                
+                -- Adicionar tipo se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='templates_equipe' AND column_name='tipo'
+                ) THEN
+                    ALTER TABLE templates_equipe ADD COLUMN tipo VARCHAR(50);
                 END IF;
                 
                 -- Adicionar descricao se não existir
