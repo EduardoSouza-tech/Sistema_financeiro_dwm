@@ -2111,15 +2111,16 @@
                             <thead>
                                 <tr>
                                     <th>Contrato</th>
-                                    <th>Tipo Sessão</th>
-                                    <th>Data Prevista</th>
-                                    <th>Data Realizada</th>
-                                    <th>Status</th>
+                                    <th>Título</th>
+                                    <th>Data Sessão</th>
+                                    <th>Duração</th>
+                                    <th>Cliente</th>
+                                    <th>Valor</th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-sessoes">
-                                <tr><td colspan="6" class="loading">Carregando...</td></tr>
+                                <tr><td colspan="7" class="loading">Carregando...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -2548,36 +2549,42 @@
             <input type="hidden" id="sessao-id">
             
             <div class="form-group">
+                <label>Título:</label>
+                <input type="text" id="sessao-titulo" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;" placeholder="Ex: Ensaio Gestante - Maria Silva">
+            </div>
+            
+            <div class="form-group">
+                <label>Data da Sessão:</label>
+                <input type="date" id="sessao-data-sessao" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Duração (minutos):</label>
+                <input type="number" id="sessao-duracao" min="0" step="15" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;" placeholder="Ex: 60">
+            </div>
+            
+            <div class="form-group">
                 <label>Contrato:</label>
-                <select id="sessao-contrato-id" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
-                    <option value="">Selecione o contrato</option>
+                <select id="sessao-contrato-id" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="">Selecione o contrato (opcional)</option>
                 </select>
             </div>
             
             <div class="form-group">
-                <label>Tipo de Sessão:</label>
-                <select id="sessao-tipo-sessao-id" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
-                    <option value="">Selecione o tipo</option>
+                <label>Cliente:</label>
+                <select id="sessao-cliente-id" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                    <option value="">Selecione o cliente (opcional)</option>
                 </select>
             </div>
             
             <div class="form-group">
-                <label>Data Prevista:</label>
-                <input type="datetime-local" id="sessao-data-prevista" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                <label>Valor (R$):</label>
+                <input type="number" id="sessao-valor" min="0" step="0.01" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;" placeholder="0,00">
             </div>
             
             <div class="form-group">
-                <label>Data Realizada:</label>
-                <input type="datetime-local" id="sessao-data-realizada" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
-            </div>
-            
-            <div class="form-group">
-                <label>Status:</label>
-                <select id="sessao-status" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
-                    <option value="agendada">Agendada</option>
-                    <option value="realizada">Realizada</option>
-                    <option value="cancelada">Cancelada</option>
-                </select>
+                <label>Observações:</label>
+                <textarea id="sessao-observacoes" rows="3" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;" placeholder="Observações adicionais..."></textarea>
             </div>
             
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">

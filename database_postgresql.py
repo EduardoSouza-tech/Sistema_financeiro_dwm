@@ -405,12 +405,26 @@ class DatabaseManager:
                 titulo VARCHAR(255) NOT NULL,
                 data_sessao DATE NOT NULL,
                 duracao INTEGER,
+                contrato_id INTEGER REFERENCES contratos(id),
                 cliente_id INTEGER REFERENCES clientes(id),
                 valor DECIMAL(15,2),
                 observacoes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        """)
+        
+        # Adicionar coluna contrato_id se não existir
+        cursor.execute("""
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='contrato_id'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN contrato_id INTEGER REFERENCES contratos(id);
+                END IF;
+            END $$;
         """)
         
         # Tabela de comissões
@@ -1885,9 +1899,10 @@ def listar_sessoes() -> List[Dict]:
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT s.*, c.nome as cliente_nome
+        SELECT s.*, c.nome as cliente_nome, ct.numero as contrato_numero
         FROM sessoes s
         LEFT JOIN clientes c ON s.cliente_id = c.id
+        LEFT JOIN contratos ct ON s.contrato_id = ct.id
         ORDER BY s.data_sessao DESC
     """)
     sessoes = []

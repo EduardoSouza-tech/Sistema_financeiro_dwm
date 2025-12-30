@@ -5,10 +5,19 @@ console.log('%c 🔍 Iniciando carregamento de funções... ', 'background: #FF9
 
 // Suprimir erros de extensões do navegador
 window.addEventListener('error', function(e) {
-    if (e.message.includes('message channel closed')) {
+    if (e.message && e.message.includes('message channel closed')) {
         console.log('⚠️ Erro de extensão suprimido:', e.message);
         e.preventDefault();
-        return;
+        return true;
+    }
+});
+
+// Suprimir erros de Promise de extensões
+window.addEventListener('unhandledrejection', function(e) {
+    if (e.reason && e.reason.message && e.reason.message.includes('message channel closed')) {
+        console.log('⚠️ Promise rejeitada por extensão suprimida:', e.reason.message);
+        e.preventDefault();
+        return true;
     }
 });
 
@@ -376,21 +385,57 @@ async function salvarContrato() {
 
 // === FUNÇÕES MODAL - SESSÕES ===
 
-function openModalSessao(sessao = null) {
+async function openModalSessao(sessao = null) {
     document.getElementById('sessao-id').value = '';
+    document.getElementById('sessao-titulo').value = '';
+    document.getElementById('sessao-data-sessao').value = '';
+    document.getElementById('sessao-duracao').value = '';
     document.getElementById('sessao-contrato-id').value = '';
-    document.getElementById('sessao-tipo-sessao-id').value = '';
-    document.getElementById('sessao-data-prevista').value = '';
-    document.getElementById('sessao-data-realizada').value = '';
-    document.getElementById('sessao-status').value = 'agendada';
+    document.getElementById('sessao-cliente-id').value = '';
+    document.getElementById('sessao-valor').value = '';
+    document.getElementById('sessao-observacoes').value = '';
+    
+    // Carregar contratos
+    try {
+        const response = await fetch('/api/contratos');
+        const contratos = await response.json();
+        const selectContrato = document.getElementById('sessao-contrato-id');
+        selectContrato.innerHTML = '<option value="">Selecione o contrato (opcional)</option>';
+        contratos.forEach(contrato => {
+            const option = document.createElement('option');
+            option.value = contrato.id;
+            option.textContent = `${contrato.numero} - ${contrato.descricao}`;
+            selectContrato.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar contratos:', error);
+    }
+    
+    // Carregar clientes
+    try {
+        const response = await fetch('/api/clientes');
+        const clientes = await response.json();
+        const selectCliente = document.getElementById('sessao-cliente-id');
+        selectCliente.innerHTML = '<option value="">Selecione o cliente (opcional)</option>';
+        clientes.forEach(cliente => {
+            const option = document.createElement('option');
+            option.value = cliente.id;
+            option.textContent = cliente.nome;
+            selectCliente.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar clientes:', error);
+    }
     
     if (sessao) {
         document.getElementById('sessao-id').value = sessao.id || '';
+        document.getElementById('sessao-titulo').value = sessao.titulo || '';
+        document.getElementById('sessao-data-sessao').value = sessao.data_sessao ? formatDateForInput(sessao.data_sessao) : '';
+        document.getElementById('sessao-duracao').value = sessao.duracao || '';
         document.getElementById('sessao-contrato-id').value = sessao.contrato_id || '';
-        document.getElementById('sessao-tipo-sessao-id').value = sessao.tipo_sessao_id || '';
-        document.getElementById('sessao-data-prevista').value = sessao.data_prevista || '';
-        document.getElementById('sessao-data-realizada').value = sessao.data_realizada || '';
-        document.getElementById('sessao-status').value = sessao.status || 'agendada';
+        document.getElementById('sessao-cliente-id').value = sessao.cliente_id || '';
+        document.getElementById('sessao-valor').value = sessao.valor || '';
+        document.getElementById('sessao-observacoes').value = sessao.observacoes || '';
     }
     
     document.getElementById('modal-sessao').style.display = 'flex';
@@ -402,23 +447,27 @@ function closeModalSessao() {
 
 async function salvarSessao() {
     const id = document.getElementById('sessao-id').value;
+    const titulo = document.getElementById('sessao-titulo').value;
+    const data_sessao = document.getElementById('sessao-data-sessao').value;
+    const duracao = document.getElementById('sessao-duracao').value;
     const contrato_id = document.getElementById('sessao-contrato-id').value;
-    const tipo_sessao_id = document.getElementById('sessao-tipo-sessao-id').value;
-    const data_prevista = document.getElementById('sessao-data-prevista').value;
-    const data_realizada = document.getElementById('sessao-data-realizada').value;
-    const status = document.getElementById('sessao-status').value;
+    const cliente_id = document.getElementById('sessao-cliente-id').value;
+    const valor = document.getElementById('sessao-valor').value;
+    const observacoes = document.getElementById('sessao-observacoes').value;
     
-    if (!contrato_id || !tipo_sessao_id || !data_prevista) {
-        alert('Por favor, preencha todos os campos obrigatórios');
+    if (!titulo || !data_sessao) {
+        alert('Por favor, preencha título e data da sessão');
         return;
     }
     
     const dados = {
-        contrato_id: parseInt(contrato_id),
-        tipo_sessao_id: parseInt(tipo_sessao_id),
-        data_prevista,
-        data_realizada: data_realizada || null,
-        status
+        titulo,
+        data_sessao,
+        duracao: duracao ? parseInt(duracao) : null,
+        contrato_id: contrato_id ? parseInt(contrato_id) : null,
+        cliente_id: cliente_id ? parseInt(cliente_id) : null,
+        valor: valor ? parseFloat(valor) : null,
+        observacoes: observacoes || null
     };
     
     try {
@@ -1870,21 +1919,22 @@ async function loadSessoes() {
         tbody.innerHTML = '';
         
         if (sessoes.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma sessão cadastrada</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Nenhuma sessão cadastrada</td></tr>';
             return;
         }
         
         sessoes.forEach(sessao => {
             const tr = document.createElement('tr');
-            const dataPrevista = sessao.data_prevista ? new Date(sessao.data_prevista).toLocaleString('pt-BR') : '-';
-            const dataRealizada = sessao.data_realizada ? new Date(sessao.data_realizada).toLocaleString('pt-BR') : '-';
+            const dataSessao = sessao.data_sessao ? new Date(sessao.data_sessao).toLocaleDateString('pt-BR') : '-';
+            const valor = sessao.valor ? parseFloat(sessao.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '-';
             
             tr.innerHTML = `
                 <td>${sessao.contrato_numero || '-'}</td>
-                <td>${sessao.tipo_sessao_nome || '-'}</td>
-                <td>${dataPrevista}</td>
-                <td>${dataRealizada}</td>
-                <td>${sessao.status}</td>
+                <td>${sessao.titulo || '-'}</td>
+                <td>${dataSessao}</td>
+                <td>${sessao.duracao ? sessao.duracao + ' min' : '-'}</td>
+                <td>${sessao.cliente_nome || '-'}</td>
+                <td>${valor}</td>
                 <td>
                     <button class="btn btn-warning btn-small" onclick='editarSessao(${JSON.stringify(sessao)})'>✏️</button>
                     <button class="btn btn-danger btn-small" onclick="excluirSessao(${sessao.id})">🗑️</button>
@@ -1894,7 +1944,7 @@ async function loadSessoes() {
         });
     } catch (error) {
         console.error('Erro ao carregar sessões:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erro ao carregar dados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Erro ao carregar dados</td></tr>';
     }
 }
 
