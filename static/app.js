@@ -296,8 +296,10 @@ function openModalContrato(contrato = null) {
     document.getElementById('contrato-id').value = '';
     document.getElementById('contrato-numero').value = '';
     document.getElementById('contrato-cliente-id').value = '';
+    document.getElementById('contrato-descricao').value = '';
     document.getElementById('contrato-valor-total').value = '';
-    document.getElementById('contrato-data-assinatura').value = '';
+    document.getElementById('contrato-data-inicio').value = '';
+    document.getElementById('contrato-data-fim').value = '';
     document.getElementById('contrato-status').value = 'ativo';
     document.getElementById('contrato-observacoes').value = '';
     
@@ -305,10 +307,34 @@ function openModalContrato(contrato = null) {
         document.getElementById('contrato-id').value = contrato.id || '';
         document.getElementById('contrato-numero').value = contrato.numero || '';
         document.getElementById('contrato-cliente-id').value = contrato.cliente_id || '';
-        document.getElementById('contrato-valor-total').value = contrato.valor_total || '';
-        document.getElementById('contrato-data-assinatura').value = contrato.data_assinatura || '';
+        document.getElementById('contrato-descricao').value = contrato.descricao || '';
+        document.getElementById('contrato-valor-total').value = contrato.valor || '';
+        document.getElementById('contrato-data-inicio').value = contrato.data_inicio || '';
+        document.getElementById('contrato-data-fim').value = contrato.data_fim || '';
         document.getElementById('contrato-status').value = contrato.status || 'ativo';
         document.getElementById('contrato-observacoes').value = contrato.observacoes || '';
+    } else {
+        // Gerar número automaticamente para novo contrato
+        fetch('/api/contratos/proximo-numero')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erro ao buscar número');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.numero) {
+                    document.getElementById('contrato-numero').value = data.numero;
+                } else {
+                    console.error('Número não retornado:', data);
+                    document.getElementById('contrato-numero').value = 'ERRO';
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao gerar número:', error);
+                document.getElementById('contrato-numero').value = 'ERRO';
+                alert('Erro ao gerar número do contrato. Por favor, recarregue a página.');
+            });
     }
     
     // Carregar clientes no select
@@ -339,21 +365,25 @@ async function salvarContrato() {
     const id = document.getElementById('contrato-id').value;
     const numero = document.getElementById('contrato-numero').value.trim();
     const cliente_id = document.getElementById('contrato-cliente-id').value;
-    const valor_total = parseFloat(document.getElementById('contrato-valor-total').value);
-    const data_assinatura = document.getElementById('contrato-data-assinatura').value;
+    const descricao = document.getElementById('contrato-descricao').value.trim();
+    const valor = parseFloat(document.getElementById('contrato-valor-total').value);
+    const data_inicio = document.getElementById('contrato-data-inicio').value;
+    const data_fim = document.getElementById('contrato-data-fim').value || null;
     const status = document.getElementById('contrato-status').value;
     const observacoes = document.getElementById('contrato-observacoes').value.trim();
     
-    if (!numero || !cliente_id || !valor_total || !data_assinatura) {
-        alert('Por favor, preencha todos os campos obrigatórios');
+    if (!numero || !descricao || !valor || !data_inicio) {
+        alert('Por favor, preencha todos os campos obrigatórios (*)');
         return;
     }
     
     const dados = {
         numero,
-        cliente_id: parseInt(cliente_id),
-        valor_total,
-        data_assinatura,
+        cliente_id: cliente_id ? parseInt(cliente_id) : null,
+        descricao,
+        valor,
+        data_inicio,
+        data_fim,
         status,
         observacoes
     };
@@ -437,6 +467,46 @@ async function openModalSessao(sessao = null) {
         document.getElementById('sessao-valor').value = sessao.valor || '';
         document.getElementById('sessao-observacoes').value = sessao.observacoes || '';
     }
+    
+    // Carregar contratos no select
+    fetch('/api/contratos')
+        .then(response => response.json())
+        .then(contratos => {
+            const select = document.getElementById('sessao-contrato-id');
+            select.innerHTML = '<option value="">Selecione o contrato</option>';
+            contratos.forEach(contrato => {
+                const option = document.createElement('option');
+                option.value = contrato.id;
+                option.textContent = `${contrato.numero} - ${contrato.descricao}`;
+                select.appendChild(option);
+            });
+            if (sessao && sessao.contrato_id) {
+                select.value = sessao.contrato_id;
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao carregar contratos:', error);
+        });
+    
+    // Carregar tipos de sessão no select
+    fetch('/api/tipos-sessao')
+        .then(response => response.json())
+        .then(tipos => {
+            const select = document.getElementById('sessao-tipo-sessao-id');
+            select.innerHTML = '<option value="">Selecione o tipo</option>';
+            tipos.forEach(tipo => {
+                const option = document.createElement('option');
+                option.value = tipo.id;
+                option.textContent = tipo.nome;
+                select.appendChild(option);
+            });
+            if (sessao && sessao.tipo_sessao_id) {
+                select.value = sessao.tipo_sessao_id;
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao carregar tipos de sessão:', error);
+        });
     
     document.getElementById('modal-sessao').style.display = 'flex';
 }
@@ -6211,128 +6281,7 @@ function exportarInadimplenciaExcel() {
 // ===== FUNÇÕES DO MENU OPERACIONAL - IMPLEMENTADAS =====
 
 // === CONTRATOS ===
-async function openModalContrato(contrato = null) {
-    console.log('Abrindo modal de contrato:', contrato);
-    const isEdit = contrato !== null;
-    const titulo = isEdit ? 'Editar Contrato' : 'Novo Contrato';
-    
-    // Carregar clientes para o select
-    let clientesOptions = '<option value="">Selecione um cliente</option>';
-    try {
-        const response = await fetch('/api/clientes');
-        const clientes = await response.json();
-        clientesOptions += clientes.map(c => 
-            `<option value="${c.id}" ${isEdit && contrato.cliente_id === c.id ? 'selected' : ''}>${c.nome}</option>`
-        ).join('');
-    } catch (error) {
-        console.error('Erro ao carregar clientes:', error);
-    }
-    
-    const modal = createModal(titulo, `
-        <form id="form-contrato" onsubmit="salvarContrato(event)">
-            <input type="hidden" id="contrato-id" value="${isEdit ? contrato.id : ''}">
-            
-            <div class="form-group">
-                <label>*Número do Contrato:</label>
-                <input type="text" id="contrato-numero" value="${isEdit ? contrato.numero : ''}" required>
-            </div>
-            
-            <div class="form-group">
-                <label>Cliente:</label>
-                <select id="contrato-cliente">${clientesOptions}</select>
-            </div>
-            
-            <div class="form-group">
-                <label>*Descrição:</label>
-                <textarea id="contrato-descricao" required rows="3">${isEdit ? contrato.descricao : ''}</textarea>
-            </div>
-            
-            <div class="form-group">
-                <label>*Valor:</label>
-                <input type="text" id="contrato-valor" inputmode="numeric" value="${isEdit ? formatarValorParaExibicao(contrato.valor) : ''}" required>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label>*Data Início:</label>
-                    <input type="date" id="contrato-data-inicio" value="${isEdit ? formatDateForInput(contrato.data_inicio) : ''}" required>
-                </div>
-                <div class="form-group">
-                    <label>Data Fim:</label>
-                    <input type="date" id="contrato-data-fim" value="${isEdit ? formatDateForInput(contrato.data_fim) : ''}">
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>Status:</label>
-                <select id="contrato-status">
-                    <option value="ativo" ${isEdit && contrato.status === 'ativo' ? 'selected' : ''}>Ativo</option>
-                    <option value="concluido" ${isEdit && contrato.status === 'concluido' ? 'selected' : ''}>Concluído</option>
-                    <option value="cancelado" ${isEdit && contrato.status === 'cancelado' ? 'selected' : ''}>Cancelado</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>Observações:</label>
-                <textarea id="contrato-observacoes" rows="2">${isEdit ? (contrato.observacoes || '') : ''}</textarea>
-            </div>
-            
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-                <button type="submit" class="btn btn-primary">Salvar</button>
-            </div>
-        </form>
-    `);
-    
-    setTimeout(() => {
-        const campoValor = document.getElementById('contrato-valor');
-        if (campoValor && typeof aplicarFormatacaoMoeda === 'function') {
-            aplicarFormatacaoMoeda(campoValor);
-        }
-    }, 100);
-}
-
-async function salvarContrato(event) {
-    event.preventDefault();
-    
-    const id = document.getElementById('contrato-id').value;
-    const isEdit = id !== '';
-    
-    const dados = {
-        numero: document.getElementById('contrato-numero').value.trim(),
-        cliente_id: document.getElementById('contrato-cliente').value || null,
-        descricao: document.getElementById('contrato-descricao').value.trim(),
-        valor: parseFloat(document.getElementById('contrato-valor').value.replace(/\./g, '').replace(',', '.')),
-        data_inicio: document.getElementById('contrato-data-inicio').value,
-        data_fim: document.getElementById('contrato-data-fim').value || null,
-        status: document.getElementById('contrato-status').value,
-        observacoes: document.getElementById('contrato-observacoes').value.trim()
-    };
-    
-    try {
-        const url = isEdit ? `/api/contratos/${id}` : '/api/contratos';
-        const method = isEdit ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method: method,
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(dados)
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            showToast(result.message, 'success');
-            closeModal();
-            loadContratos();
-        } else {
-            showToast(result.error || 'Erro ao salvar contrato', 'error');
-        }
-    } catch (error) {
-        console.error('Erro:', error);
-        showToast('Erro ao salvar contrato', 'error');
-    }
-}
+// Função openModalContrato e salvarContrato estão definidas na linha 286 (não duplicar aqui)
 
 async function deletarContrato(id) {
     if (!confirm('Deseja realmente excluir este contrato?')) return;
