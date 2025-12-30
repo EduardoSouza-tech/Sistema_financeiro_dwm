@@ -510,6 +510,14 @@ class DatabaseManager:
                 ) THEN
                     ALTER TABLE produtos ADD COLUMN descricao TEXT;
                 END IF;
+                
+                -- Adicionar unidade se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='produtos' AND column_name='unidade'
+                ) THEN
+                    ALTER TABLE produtos ADD COLUMN unidade VARCHAR(20) DEFAULT 'UN';
+                END IF;
             END $$;
         """)
         
@@ -561,6 +569,14 @@ class DatabaseManager:
         cursor.execute("""
             DO $$ 
             BEGIN
+                -- Adicionar conteudo se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='templates_equipe' AND column_name='conteudo'
+                ) THEN
+                    ALTER TABLE templates_equipe ADD COLUMN conteudo TEXT;
+                END IF;
+                
                 -- Adicionar descricao se não existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
