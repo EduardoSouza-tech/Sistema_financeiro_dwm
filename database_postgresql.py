@@ -534,6 +534,14 @@ class DatabaseManager:
                 ) THEN
                     ALTER TABLE produtos ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
                 END IF;
+                
+                -- Adicionar data_criacao se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='produtos' AND column_name='data_criacao'
+                ) THEN
+                    ALTER TABLE produtos ADD COLUMN data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+                END IF;
             END $$;
         """)
         
