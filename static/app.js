@@ -1,25 +1,27 @@
+// ============================================================================
+// SUPRESSÃO DE ERROS DE EXTENSÕES DO NAVEGADOR (DEVE SER A PRIMEIRA COISA)
+// ============================================================================
+window.addEventListener('error', function(e) {
+    if (e.message && (e.message.includes('message channel closed') || 
+                      e.message.includes('Extension context invalidated'))) {
+        e.preventDefault();
+        return true;
+    }
+}, true); // Capture phase
+
+window.addEventListener('unhandledrejection', function(e) {
+    if (e.reason && e.reason.message && 
+        (e.reason.message.includes('message channel closed') || 
+         e.reason.message.includes('Extension context invalidated'))) {
+        e.preventDefault();
+    }
+}, true); // Capture phase
+
+// ============================================================================
 // Sistema Financeiro - v20251223debug
 // Gerenciamento completo do sistema financeiro
 console.log('%c ✓ Sistema Financeiro - app.js v20251223debug carregado ', 'background: #4CAF50; color: white; font-size: 16px; font-weight: bold');
 console.log('%c 🔍 Iniciando carregamento de funções... ', 'background: #FF9800; color: white; font-weight: bold');
-
-// Suprimir erros de extensões do navegador
-window.addEventListener('error', function(e) {
-    if (e.message && e.message.includes('message channel closed')) {
-        console.log('⚠️ Erro de extensão suprimido:', e.message);
-        e.preventDefault();
-        return true;
-    }
-});
-
-// Suprimir erros de Promise de extensões
-window.addEventListener('unhandledrejection', function(e) {
-    if (e.reason && e.reason.message && e.reason.message.includes('message channel closed')) {
-        console.log('⚠️ Promise rejeitada por extensão suprimida:', e.reason.message);
-        e.preventDefault();
-        return true;
-    }
-});
 
 // Inicialização ao carregar a página
 document.addEventListener('DOMContentLoaded', function() {
