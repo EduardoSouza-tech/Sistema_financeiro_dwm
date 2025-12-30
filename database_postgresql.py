@@ -744,54 +744,25 @@ class DatabaseManager:
             END $$;
         """)
         
-        # Tabela de equipe de sessão
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS sessao_equipe (
-                id SERIAL PRIMARY KEY,
-                sessao_id INTEGER REFERENCES sessoes(id) ON DELETE CASCADE,
-                membro_nome VARCHAR(255) NOT NULL,
-                funcao VARCHAR(100),
-                observacoes TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        # Migração: Garantir que sessao_equipe tem membro_nome
+        # Migração: RECRIAR tabela sessao_equipe com estrutura limpa
         cursor.execute("""
             DO $$
             BEGIN
-                -- Verificar se a coluna 'membro' existe (nome antigo errado)
-                IF EXISTS (SELECT 1 FROM information_schema.columns 
-                          WHERE table_name='sessao_equipe' AND column_name='membro') THEN
-                    -- Renomear 'membro' para 'membro_nome'
-                    ALTER TABLE sessao_equipe RENAME COLUMN membro TO membro_nome;
-                END IF;
+                -- Dropar tabela se existir (CASCADE para remover FKs)
+                DROP TABLE IF EXISTS sessao_equipe CASCADE;
                 
-                -- Se membro_nome não existe, adicionar
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                              WHERE table_name='sessao_equipe' AND column_name='membro_nome') THEN
-                    ALTER TABLE sessao_equipe ADD COLUMN membro_nome VARCHAR(255);
-                END IF;
+                -- Recriar tabela com estrutura correta
+                CREATE TABLE sessao_equipe (
+                    id SERIAL PRIMARY KEY,
+                    sessao_id INTEGER NOT NULL REFERENCES sessoes(id) ON DELETE CASCADE,
+                    membro_nome VARCHAR(255) NOT NULL,
+                    funcao VARCHAR(100),
+                    observacoes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
                 
-                -- Tornar NOT NULL se necessário
-                ALTER TABLE sessao_equipe ALTER COLUMN membro_nome SET NOT NULL;
-            EXCEPTION WHEN OTHERS THEN
-                -- Se der erro (por exemplo, já existe NOT NULL), continuar
-                NULL;
-            END $$;
-        """)
-        
-        # Migração: Garantir que sessao_equipe tem observacoes
-        cursor.execute("""
-            DO $$
-            BEGIN
-                -- Se observacoes não existe, adicionar
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                              WHERE table_name='sessao_equipe' AND column_name='observacoes') THEN
-                    ALTER TABLE sessao_equipe ADD COLUMN observacoes TEXT;
-                END IF;
-            EXCEPTION WHEN OTHERS THEN
-                NULL;
+                -- Log de sucesso
+                RAISE NOTICE 'Tabela sessao_equipe recriada com estrutura correta';
             END $$;
         """)
         
