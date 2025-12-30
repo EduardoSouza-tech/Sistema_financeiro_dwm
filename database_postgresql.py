@@ -482,6 +482,14 @@ class DatabaseManager:
                 ) THEN
                     ALTER TABLE sessoes ADD COLUMN observacoes TEXT;
                 END IF;
+                
+                -- Alterar horario para aceitar NULL se existir
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='horario'
+                ) THEN
+                    ALTER TABLE sessoes ALTER COLUMN horario DROP NOT NULL;
+                END IF;
             END $$;
         """)
         
