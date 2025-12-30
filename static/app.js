@@ -243,7 +243,7 @@ function openModalTipoSessao(tipoSessao = null) {
     if (tipoSessao) {
         document.getElementById('tipo-sessao-id').value = tipoSessao.id || '';
         document.getElementById('tipo-sessao-nome').value = tipoSessao.nome || '';
-        document.getElementById('tipo-sessao-ativa').checked = tipoSessao.ativa !== false;
+        document.getElementById('tipo-sessao-ativa').checked = tipoSessao.ativo !== false;
     }
     
     document.getElementById('modal-tipo-sessao').style.display = 'flex';
@@ -256,14 +256,14 @@ function closeModalTipoSessao() {
 async function salvarTipoSessao() {
     const id = document.getElementById('tipo-sessao-id').value;
     const nome = document.getElementById('tipo-sessao-nome').value.trim();
-    const ativa = document.getElementById('tipo-sessao-ativa').checked;
+    const ativo = document.getElementById('tipo-sessao-ativa').checked;
     
     if (!nome) {
         alert('Por favor, preencha o nome do tipo de sessão');
         return;
     }
     
-    const dados = { nome, ativa };
+    const dados = { nome, ativo };
     
     try {
         const url = id ? `/api/tipos-sessao/${id}` : '/api/tipos-sessao';
@@ -1900,7 +1900,7 @@ async function loadTiposSessao() {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${tipo.nome}</td>
-                <td>${tipo.ativa ? '<span style="color: #27ae60;">✓ Ativa</span>' : '<span style="color: #e74c3c;">✗ Inativa</span>'}</td>
+                <td>${tipo.ativo ? '<span style="color: #27ae60;">✓ Ativo</span>' : '<span style="color: #e74c3c;">✗ Inativo</span>'}</td>
                 <td>
                     <button class="btn btn-warning btn-small" onclick='editarTipoSessao(${JSON.stringify(tipo)})'>✏️</button>
                     <button class="btn btn-danger btn-small" onclick="excluirTipoSessao(${tipo.id})">🗑️</button>
