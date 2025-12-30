@@ -1059,7 +1059,7 @@ async function salvarSessaoEquipe() {
     
     const dados = {
         sessao_id: parseInt(sessao_id),
-        membro,
+        membro_nome: membro,
         funcao,
         observacoes
     };
