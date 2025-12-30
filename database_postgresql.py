@@ -2477,19 +2477,45 @@ def listar_sessao_equipe(sessao_id: int = None) -> List[Dict]:
     
     if sessao_id:
         cursor.execute("""
-            SELECT se.*
+            SELECT se.*, 
+                   s.titulo as sessao_titulo,
+                   s.data_sessao,
+                   c.nome as cliente_nome
             FROM sessao_equipe se
+            LEFT JOIN sessoes s ON se.sessao_id = s.id
+            LEFT JOIN contratos ct ON s.contrato_id = ct.id
+            LEFT JOIN clientes c ON ct.cliente_id = c.id
             WHERE se.sessao_id = %s
             ORDER BY se.created_at
         """, (sessao_id,))
     else:
         cursor.execute("""
-            SELECT se.*
+            SELECT se.*, 
+                   s.titulo as sessao_titulo,
+                   s.data_sessao,
+                   c.nome as cliente_nome
             FROM sessao_equipe se
+            LEFT JOIN sessoes s ON se.sessao_id = s.id
+            LEFT JOIN contratos ct ON s.contrato_id = ct.id
+            LEFT JOIN clientes c ON ct.cliente_id = c.id
             ORDER BY se.created_at DESC
         """)
     
-    membros = [dict(row) for row in cursor.fetchall()]
+    membros = []
+    for row in cursor.fetchall():
+        membro = dict(row)
+        # Criar sessao_info formatada
+        if membro.get('sessao_titulo'):
+            info_parts = [membro['sessao_titulo']]
+            if membro.get('data_sessao'):
+                info_parts.append(str(membro['data_sessao']))
+            if membro.get('cliente_nome'):
+                info_parts.append(membro['cliente_nome'])
+            membro['sessao_info'] = ' - '.join(info_parts)
+        else:
+            membro['sessao_info'] = f"Sessão #{membro.get('sessao_id', '?')}"
+        membros.append(membro)
+    
     cursor.close()
     conn.close()
     return membros

@@ -2399,7 +2399,7 @@ async function loadSessaoEquipe() {
             
             tr.innerHTML = `
                 <td>${membro.sessao_info || '-'}</td>
-                <td>${membro.membro}</td>
+                <td>${membro.membro_nome || '-'}</td>
                 <td>${membro.funcao || '-'}</td>
                 <td>${membro.observacoes || '-'}</td>
                 <td>
