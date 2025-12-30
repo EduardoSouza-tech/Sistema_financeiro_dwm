@@ -2333,13 +2333,23 @@ def adicionar_comissao(dados: Dict) -> int:
     conn = db.get_connection()
     cursor = conn.cursor()
     
+    # Buscar cliente_id do contrato se não fornecido
+    cliente_id = dados.get('cliente_id')
+    contrato_id = dados.get('contrato_id')
+    
+    if not cliente_id and contrato_id:
+        cursor.execute("SELECT cliente_id FROM contratos WHERE id = %s", (contrato_id,))
+        result = cursor.fetchone()
+        if result:
+            cliente_id = result['cliente_id']
+    
     cursor.execute("""
         INSERT INTO comissoes (contrato_id, cliente_id, tipo, descricao, valor, percentual)
         VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING id
     """, (
-        dados.get('contrato_id'),
-        dados.get('cliente_id'),
+        contrato_id,
+        cliente_id,
         dados.get('tipo', 'percentual'),
         dados.get('descricao'),
         dados.get('valor', 0),
@@ -2380,6 +2390,16 @@ def atualizar_comissao(comissao_id: int, dados: Dict) -> bool:
     conn = db.get_connection()
     cursor = conn.cursor()
     
+    # Buscar cliente_id do contrato se não fornecido
+    cliente_id = dados.get('cliente_id')
+    contrato_id = dados.get('contrato_id')
+    
+    if not cliente_id and contrato_id:
+        cursor.execute("SELECT cliente_id FROM contratos WHERE id = %s", (contrato_id,))
+        result = cursor.fetchone()
+        if result:
+            cliente_id = result['cliente_id']
+    
     cursor.execute("""
         UPDATE comissoes
         SET contrato_id = %s, cliente_id = %s, tipo = %s, 
@@ -2387,8 +2407,8 @@ def atualizar_comissao(comissao_id: int, dados: Dict) -> bool:
             updated_at = CURRENT_TIMESTAMP
         WHERE id = %s
     """, (
-        dados.get('contrato_id'),
-        dados.get('cliente_id'),
+        contrato_id,
+        cliente_id,
         dados.get('tipo', 'percentual'),
         dados.get('descricao'),
         dados.get('valor', 0),

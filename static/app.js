@@ -927,22 +927,8 @@ async function salvarComissao() {
         return;
     }
     
-    // Buscar cliente_id do contrato selecionado
-    let cliente_id = null;
-    try {
-        const response = await fetch(`/api/contratos`);
-        const contratos = await response.json();
-        const contrato = contratos.find(c => c.id == contrato_id);
-        if (contrato) {
-            cliente_id = contrato.cliente_id;
-        }
-    } catch (error) {
-        console.error('Erro ao buscar cliente do contrato:', error);
-    }
-    
     const dados = {
         contrato_id: parseInt(contrato_id),
-        cliente_id: cliente_id,
         tipo,
         valor,
         percentual
