@@ -2227,10 +2227,33 @@ def comissao_detalhes(comissao_id):
             return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/api/sessao-equipe', methods=['GET', 'POST'])
+@app.route('/api/sessao-equipe', methods=['GET', 'POST', 'DELETE'])
 def sessao_equipe():
     """Gerenciar equipe de sessão"""
-    if request.method == 'GET':
+    if request.method == 'DELETE':
+        # Endpoint temporário para FORÇAR limpeza da tabela
+        import sys
+        print(f"[CLEANUP] INICIANDO LIMPEZA DA TABELA sessao_equipe", flush=True)
+        sys.stdout.flush()
+        try:
+            conn = database.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM sessao_equipe")
+            deleted = cursor.rowcount
+            print(f"[CLEANUP] Deletando {deleted} registros...", flush=True)
+            sys.stdout.flush()
+            conn.commit()
+            print(f"[CLEANUP] COMMIT executado!", flush=True)
+            sys.stdout.flush()
+            cursor.close()
+            conn.close()
+            print(f"[CLEANUP] Tabela limpa! {deleted} registros removidos", flush=True)
+            return jsonify({'success': True, 'deleted': deleted})
+        except Exception as e:
+            print(f"[CLEANUP ERROR] {e}", flush=True)
+            sys.stdout.flush()
+            return jsonify({'success': False, 'error': str(e)}), 500
+    elif request.method == 'GET':
         try:
             print(f"[BACKEND GET] Chamando listar_sessao_equipe()...")
             lista = database.listar_sessao_equipe()
