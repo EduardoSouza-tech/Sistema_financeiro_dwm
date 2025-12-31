@@ -2232,7 +2232,10 @@ def sessao_equipe():
     """Gerenciar equipe de sessão"""
     if request.method == 'GET':
         try:
+            print(f"[BACKEND GET] Chamando listar_sessao_equipe()...")
             lista = database.listar_sessao_equipe()
+            print(f"[BACKEND GET] Retornou {len(lista)} membros")
+            print(f"[BACKEND GET] Dados: {lista}")
             return jsonify(lista)
         except Exception as e:
             print(f"❌ [EQUIPE GET] Erro: {e}")
@@ -2245,6 +2248,12 @@ def sessao_equipe():
             print(f"🔍 [EQUIPE POST] Dados recebidos: {data}")
             se_id = database.adicionar_sessao_equipe(data)
             print(f"✅ [EQUIPE POST] Membro adicionado com ID: {se_id}")
+            
+            # VERIFICACAO IMEDIATA
+            print(f"[EQUIPE POST] Verificando se foi salvo...")
+            lista = database.listar_sessao_equipe()
+            print(f"[EQUIPE POST] Total na tabela agora: {len(lista)}")
+            
             return jsonify({'success': True, 'message': 'Membro adicionado com sucesso', 'id': se_id}), 201
         except Exception as e:
             print(f"❌ [EQUIPE POST] Erro: {e}")

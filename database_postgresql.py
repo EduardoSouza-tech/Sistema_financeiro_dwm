@@ -2453,6 +2453,8 @@ def adicionar_sessao_equipe(dados: Dict) -> int:
     conn = db.get_connection()
     cursor = conn.cursor()
     
+    print(f"[DB] Inserindo membro: {dados}")
+    
     cursor.execute("""
         INSERT INTO sessao_equipe (sessao_id, membro_nome, funcao, observacoes)
         VALUES (%s, %s, %s, %s)
@@ -2465,6 +2467,11 @@ def adicionar_sessao_equipe(dados: Dict) -> int:
     ))
     
     se_id = cursor.fetchone()['id']
+    print(f"[DB] Membro inserido com ID: {se_id}")
+    
+    conn.commit()  # COMMIT ESQUECIDO!
+    print(f"[DB] COMMIT executado")
+    
     cursor.close()
     conn.close()
     return se_id
@@ -2539,6 +2546,7 @@ def atualizar_sessao_equipe(membro_id: int, dados: Dict) -> bool:
     ))
     
     sucesso = cursor.rowcount > 0
+    conn.commit()  # COMMIT ESQUECIDO!
     cursor.close()
     conn.close()
     return sucesso
@@ -2552,6 +2560,7 @@ def deletar_sessao_equipe(membro_id: int) -> bool:
     cursor.execute("DELETE FROM sessao_equipe WHERE id = %s", (membro_id,))
     
     sucesso = cursor.rowcount > 0
+    conn.commit()  # COMMIT ESQUECIDO!
     cursor.close()
     conn.close()
     return sucesso
