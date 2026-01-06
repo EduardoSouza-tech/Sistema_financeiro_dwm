@@ -1909,6 +1909,7 @@ def adicionar_agenda(dados: Dict) -> int:
     ))
     
     agenda_id = cursor.fetchone()['id']
+    conn.commit()
     cursor.close()
     conn.close()
     return agenda_id
