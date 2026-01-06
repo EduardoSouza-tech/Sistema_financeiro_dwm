@@ -6648,65 +6648,149 @@ async function visualizarCalendario() {
         const response = await fetch('/api/agenda');
         const eventos = await response.json();
         
-        // Criar HTML do calendário
-        let eventosHTML = '';
-        if (eventos.length === 0) {
-            eventosHTML = '<p style="text-align: center; padding: 20px; color: #666;">Nenhum evento agendado</p>';
-        } else {
-            // Agrupar eventos por data
-            const eventosPorData = {};
-            eventos.forEach(evento => {
-                const data = evento.data_evento;
-                if (!eventosPorData[data]) {
-                    eventosPorData[data] = [];
-                }
-                eventosPorData[data].push(evento);
-            });
-            
-            // Criar HTML agrupado por data
-            Object.keys(eventosPorData).sort().reverse().forEach(data => {
-                const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
-                eventosHTML += `
-                    <div style="margin-bottom: 20px; border-left: 3px solid #3498db; padding-left: 15px;">
-                        <h3 style="color: #3498db; margin-bottom: 10px;">📅 ${dataFormatada}</h3>
-                `;
-                
-                eventosPorData[data].forEach(evento => {
-                    const horaInicio = evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : '';
-                    const horaFim = evento.hora_fim ? evento.hora_fim.substring(0, 5) : '';
-                    const statusColor = evento.status === 'confirmado' ? '#27ae60' : evento.status === 'pendente' ? '#f39c12' : '#95a5a6';
-                    
-                    eventosHTML += `
-                        <div style="background: #f8f9fa; padding: 12px; margin-bottom: 8px; border-radius: 5px; border-left: 3px solid ${statusColor};">
-                            <div style="display: flex; justify-content: space-between; align-items: start;">
-                                <div style="flex: 1;">
-                                    <strong style="font-size: 16px;">${evento.titulo}</strong>
-                                    <div style="color: #666; margin-top: 5px;">
-                                        🕒 ${horaInicio} ${horaFim ? '- ' + horaFim : ''}
-                                        ${evento.local ? ' | 📍 ' + evento.local : ''}
-                                    </div>
-                                    ${evento.observacoes ? '<div style="color: #888; font-size: 14px; margin-top: 5px;">💬 ' + evento.observacoes + '</div>' : ''}
-                                </div>
-                                <div style="text-align: right;">
-                                    <span style="background: ${statusColor}; color: white; padding: 4px 8px; border-radius: 3px; font-size: 12px;">
-                                        ${evento.status}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                eventosHTML += '</div>';
-            });
-        }
+        // Agrupar eventos por data
+        const eventosPorData = {};
+        eventos.forEach(evento => {
+            const data = evento.data_evento;
+            if (!eventosPorData[data]) {
+                eventosPorData[data] = [];
+            }
+            eventosPorData[data].push(evento);
+        });
+        
+        // Data atual para calendário inicial
+        const hoje = new Date();
+        let mesAtual = hoje.getMonth();
+        let anoAtual = hoje.getFullYear();
         
         // Criar modal com o calendário
         const modal = createModal('📅 Calendário de Eventos', `
-            <div style="max-height: 500px; overflow-y: auto;">
-                ${eventosHTML}
-            </div>
+            <div id="calendario-container"></div>
         `, 'Fechar');
+        
+        // Função para renderizar o calendário
+        function renderizarCalendario(mes, ano) {
+            const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                          'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            
+            // Primeiro dia do mês e total de dias
+            const primeiroDia = new Date(ano, mes, 1).getDay();
+            const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+            
+            let html = `
+                <div style="text-align: center; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <button onclick="navegarMes(-1)" style="background: #3498db; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">◀ Anterior</button>
+                    <h3 style="margin: 0; color: #2c3e50;">${meses[mes]} ${ano}</h3>
+                    <button onclick="navegarMes(1)" style="background: #3498db; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">Próximo ▶</button>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 10px;">
+            `;
+            
+            // Cabeçalho dos dias da semana
+            diasSemana.forEach(dia => {
+                html += `<div style="text-align: center; font-weight: bold; padding: 8px; background: #34495e; color: white; border-radius: 3px;">${dia}</div>`;
+            });
+            
+            // Células vazias antes do primeiro dia
+            for (let i = 0; i < primeiroDia; i++) {
+                html += `<div style="min-height: 80px; background: #ecf0f1; border-radius: 5px;"></div>`;
+            }
+            
+            // Dias do mês
+            for (let dia = 1; dia <= ultimoDia; dia++) {
+                const dataCompleta = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                const eventosNoDia = eventosPorData[dataCompleta] || [];
+                const temEventos = eventosNoDia.length > 0;
+                const ehHoje = dia === hoje.getDate() && mes === hoje.getMonth() && ano === hoje.getFullYear();
+                
+                let corFundo = '#fff';
+                let borda = '1px solid #ddd';
+                if (ehHoje) {
+                    corFundo = '#e3f2fd';
+                    borda = '2px solid #2196f3';
+                }
+                
+                html += `
+                    <div style="min-height: 80px; background: ${corFundo}; border: ${borda}; border-radius: 5px; padding: 5px; position: relative; cursor: ${temEventos ? 'pointer' : 'default'};"
+                         ${temEventos ? `onclick="mostrarEventosDia('${dataCompleta}')"` : ''}>
+                        <div style="font-weight: bold; color: #2c3e50; margin-bottom: 3px;">${dia}</div>
+                `;
+                
+                // Mostrar eventos do dia
+                if (temEventos) {
+                    eventosNoDia.slice(0, 2).forEach(evento => {
+                        const statusColor = evento.status === 'confirmado' ? '#27ae60' : evento.status === 'pendente' ? '#f39c12' : '#95a5a6';
+                        html += `
+                            <div style="background: ${statusColor}; color: white; font-size: 10px; padding: 2px 4px; margin-bottom: 2px; border-radius: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                ${evento.titulo}
+                            </div>
+                        `;
+                    });
+                    
+                    if (eventosNoDia.length > 2) {
+                        html += `<div style="font-size: 10px; color: #7f8c8d;">+${eventosNoDia.length - 2} mais</div>`;
+                    }
+                }
+                
+                html += `</div>`;
+            }
+            
+            html += `</div>`;
+            
+            document.getElementById('calendario-container').innerHTML = html;
+        }
+        
+        // Função para navegar entre meses
+        window.navegarMes = function(direcao) {
+            mesAtual += direcao;
+            if (mesAtual > 11) {
+                mesAtual = 0;
+                anoAtual++;
+            } else if (mesAtual < 0) {
+                mesAtual = 11;
+                anoAtual--;
+            }
+            renderizarCalendario(mesAtual, anoAtual);
+        };
+        
+        // Função para mostrar eventos do dia
+        window.mostrarEventosDia = function(data) {
+            const eventosNoDia = eventosPorData[data] || [];
+            const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
+            
+            let eventosHTML = `<h3 style="color: #3498db; margin-bottom: 15px;">📅 Eventos de ${dataFormatada}</h3>`;
+            
+            eventosNoDia.forEach(evento => {
+                const horaInicio = evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : '';
+                const horaFim = evento.hora_fim ? evento.hora_fim.substring(0, 5) : '';
+                const statusColor = evento.status === 'confirmado' ? '#27ae60' : evento.status === 'pendente' ? '#f39c12' : '#95a5a6';
+                
+                eventosHTML += `
+                    <div style="background: #f8f9fa; padding: 12px; margin-bottom: 10px; border-radius: 5px; border-left: 4px solid ${statusColor};">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <strong style="font-size: 16px;">${evento.titulo}</strong>
+                                <div style="color: #666; margin-top: 5px;">
+                                    🕒 ${horaInicio} ${horaFim ? '- ' + horaFim : ''}
+                                    ${evento.local ? ' | 📍 ' + evento.local : ''}
+                                </div>
+                                ${evento.observacoes ? '<div style="color: #888; font-size: 14px; margin-top: 5px;">💬 ' + evento.observacoes + '</div>' : ''}
+                            </div>
+                            <span style="background: ${statusColor}; color: white; padding: 4px 8px; border-radius: 3px; font-size: 12px;">
+                                ${evento.status}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            createModal('Eventos do Dia', eventosHTML, 'Fechar');
+        };
+        
+        // Renderizar calendário inicial
+        renderizarCalendario(mesAtual, anoAtual);
         
     } catch (error) {
         console.error('Erro ao carregar calendário:', error);
