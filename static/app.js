@@ -2489,8 +2489,8 @@ async function loadSessaoEquipe() {
                 <td>${membro.funcao || '-'}</td>
                 <td>${membro.observacoes || '-'}</td>
                 <td>
-                    <button class="btn btn-warning btn-small" onclick='editarSessaoEquipe(${JSON.stringify(membro)})'>Edit</button>
-                    <button class="btn btn-danger btn-small" onclick="excluirSessaoEquipe(${membro.id})">Del</button>
+                    <button class="btn btn-warning btn-small" onclick='editarSessaoEquipe(${JSON.stringify(membro)})'>✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="excluirSessaoEquipe(${membro.id})">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
