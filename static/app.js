@@ -6665,6 +6665,145 @@ async function visualizarCalendario() {
         
         // Criar modal com o calendário
         const modal = createModal('📅 Calendário de Eventos', `
+            <style>
+                .cal-header {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    margin-bottom: 20px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+                }
+                .cal-nav-btn {
+                    background: rgba(255, 255, 255, 0.2);
+                    border: 2px solid rgba(255, 255, 255, 0.3);
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: bold;
+                    transition: all 0.3s ease;
+                }
+                .cal-nav-btn:hover {
+                    background: rgba(255, 255, 255, 0.3);
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                }
+                .cal-title {
+                    font-size: 24px;
+                    font-weight: bold;
+                    letter-spacing: 1px;
+                }
+                .cal-grid {
+                    display: grid;
+                    grid-template-columns: repeat(7, 1fr);
+                    gap: 10px;
+                    background: #f8f9fa;
+                    padding: 15px;
+                    border-radius: 10px;
+                }
+                .cal-weekday {
+                    text-align: center;
+                    font-weight: bold;
+                    padding: 12px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    border-radius: 8px;
+                    font-size: 14px;
+                    letter-spacing: 0.5px;
+                }
+                .cal-day {
+                    min-height: 100px;
+                    background: white;
+                    border: 2px solid #e9ecef;
+                    border-radius: 8px;
+                    padding: 8px;
+                    position: relative;
+                    transition: all 0.3s ease;
+                }
+                .cal-day:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+                }
+                .cal-day-empty {
+                    background: #f8f9fa;
+                    border: 2px dashed #dee2e6;
+                }
+                .cal-day-today {
+                    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+                    border: 2px solid #2196f3;
+                    box-shadow: 0 0 20px rgba(33, 150, 243, 0.3);
+                }
+                .cal-day-number {
+                    font-weight: bold;
+                    font-size: 18px;
+                    color: #2c3e50;
+                    margin-bottom: 5px;
+                }
+                .cal-day-today .cal-day-number {
+                    color: #1976d2;
+                }
+                .cal-event {
+                    font-size: 11px;
+                    padding: 4px 6px;
+                    margin-bottom: 3px;
+                    border-radius: 4px;
+                    color: white;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                }
+                .cal-event:hover {
+                    transform: translateX(3px);
+                    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+                }
+                .cal-event-confirmado {
+                    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+                }
+                .cal-event-pendente {
+                    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+                }
+                .cal-event-cancelado {
+                    background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+                }
+                .cal-more {
+                    font-size: 10px;
+                    color: #7f8c8d;
+                    font-weight: bold;
+                    text-align: center;
+                    margin-top: 2px;
+                    background: #e9ecef;
+                    padding: 2px;
+                    border-radius: 3px;
+                }
+                .cal-legend {
+                    display: flex;
+                    justify-content: center;
+                    gap: 20px;
+                    margin-top: 15px;
+                    padding: 15px;
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                }
+                .cal-legend-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 13px;
+                }
+                .cal-legend-color {
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 4px;
+                }
+            </style>
             <div id="calendario-container"></div>
         `, 'Fechar');
         
@@ -6679,23 +6818,23 @@ async function visualizarCalendario() {
             const ultimoDia = new Date(ano, mes + 1, 0).getDate();
             
             let html = `
-                <div style="text-align: center; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                    <button onclick="navegarMes(-1)" style="background: #3498db; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">◀ Anterior</button>
-                    <h3 style="margin: 0; color: #2c3e50;">${meses[mes]} ${ano}</h3>
-                    <button onclick="navegarMes(1)" style="background: #3498db; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">Próximo ▶</button>
+                <div class="cal-header">
+                    <button onclick="navegarMes(-1)" class="cal-nav-btn">◀ Anterior</button>
+                    <div class="cal-title">${meses[mes]} ${ano}</div>
+                    <button onclick="navegarMes(1)" class="cal-nav-btn">Próximo ▶</button>
                 </div>
                 
-                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 10px;">
+                <div class="cal-grid">
             `;
             
             // Cabeçalho dos dias da semana
             diasSemana.forEach(dia => {
-                html += `<div style="text-align: center; font-weight: bold; padding: 8px; background: #34495e; color: white; border-radius: 3px;">${dia}</div>`;
+                html += `<div class="cal-weekday">${dia}</div>`;
             });
             
             // Células vazias antes do primeiro dia
             for (let i = 0; i < primeiroDia; i++) {
-                html += `<div style="min-height: 80px; background: #ecf0f1; border-radius: 5px;"></div>`;
+                html += `<div class="cal-day cal-day-empty"></div>`;
             }
             
             // Dias do mês
@@ -6705,39 +6844,47 @@ async function visualizarCalendario() {
                 const temEventos = eventosNoDia.length > 0;
                 const ehHoje = dia === hoje.getDate() && mes === hoje.getMonth() && ano === hoje.getFullYear();
                 
-                let corFundo = '#fff';
-                let borda = '1px solid #ddd';
-                if (ehHoje) {
-                    corFundo = '#e3f2fd';
-                    borda = '2px solid #2196f3';
-                }
+                let classes = 'cal-day';
+                if (ehHoje) classes += ' cal-day-today';
                 
                 html += `
-                    <div style="min-height: 80px; background: ${corFundo}; border: ${borda}; border-radius: 5px; padding: 5px; position: relative; cursor: ${temEventos ? 'pointer' : 'default'};"
-                         ${temEventos ? `onclick="mostrarEventosDia('${dataCompleta}')"` : ''}>
-                        <div style="font-weight: bold; color: #2c3e50; margin-bottom: 3px;">${dia}</div>
+                    <div class="${classes}" ${temEventos ? `onclick="mostrarEventosDia('${dataCompleta}')" style="cursor: pointer;"` : ''}>
+                        <div class="cal-day-number">${dia}</div>
                 `;
                 
                 // Mostrar eventos do dia
                 if (temEventos) {
-                    eventosNoDia.slice(0, 2).forEach(evento => {
-                        const statusColor = evento.status === 'confirmado' ? '#27ae60' : evento.status === 'pendente' ? '#f39c12' : '#95a5a6';
-                        html += `
-                            <div style="background: ${statusColor}; color: white; font-size: 10px; padding: 2px 4px; margin-bottom: 2px; border-radius: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                ${evento.titulo}
-                            </div>
-                        `;
+                    eventosNoDia.slice(0, 3).forEach(evento => {
+                        const statusClass = `cal-event-${evento.status}`;
+                        html += `<div class="cal-event ${statusClass}">${evento.titulo}</div>`;
                     });
                     
-                    if (eventosNoDia.length > 2) {
-                        html += `<div style="font-size: 10px; color: #7f8c8d;">+${eventosNoDia.length - 2} mais</div>`;
+                    if (eventosNoDia.length > 3) {
+                        html += `<div class="cal-more">+${eventosNoDia.length - 3} evento(s)</div>`;
                     }
                 }
                 
                 html += `</div>`;
             }
             
-            html += `</div>`;
+            html += `
+                </div>
+                
+                <div class="cal-legend">
+                    <div class="cal-legend-item">
+                        <div class="cal-legend-color" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%);"></div>
+                        <span>Confirmado</span>
+                    </div>
+                    <div class="cal-legend-item">
+                        <div class="cal-legend-color" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);"></div>
+                        <span>Pendente</span>
+                    </div>
+                    <div class="cal-legend-item">
+                        <div class="cal-legend-color" style="background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);"></div>
+                        <span>Cancelado</span>
+                    </div>
+                </div>
+            `;
             
             document.getElementById('calendario-container').innerHTML = html;
         }
@@ -6758,9 +6905,19 @@ async function visualizarCalendario() {
         // Função para mostrar eventos do dia
         window.mostrarEventosDia = function(data) {
             const eventosNoDia = eventosPorData[data] || [];
-            const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
+            const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
             
-            let eventosHTML = `<h3 style="color: #3498db; margin-bottom: 15px;">📅 Eventos de ${dataFormatada}</h3>`;
+            let eventosHTML = `
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="margin: 0; font-size: 20px; text-transform: capitalize;">📅 ${dataFormatada}</h3>
+                    <p style="margin: 5px 0 0 0; opacity: 0.9;">${eventosNoDia.length} evento(s) agendado(s)</p>
+                </div>
+            `;
             
             eventosNoDia.forEach(evento => {
                 const horaInicio = evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : '';
@@ -6768,19 +6925,36 @@ async function visualizarCalendario() {
                 const statusColor = evento.status === 'confirmado' ? '#27ae60' : evento.status === 'pendente' ? '#f39c12' : '#95a5a6';
                 
                 eventosHTML += `
-                    <div style="background: #f8f9fa; padding: 12px; margin-bottom: 10px; border-radius: 5px; border-left: 4px solid ${statusColor};">
-                        <div style="display: flex; justify-content: space-between; align-items: start;">
-                            <div style="flex: 1;">
-                                <strong style="font-size: 16px;">${evento.titulo}</strong>
-                                <div style="color: #666; margin-top: 5px;">
-                                    🕒 ${horaInicio} ${horaFim ? '- ' + horaFim : ''}
-                                    ${evento.local ? ' | 📍 ' + evento.local : ''}
-                                </div>
-                                ${evento.observacoes ? '<div style="color: #888; font-size: 14px; margin-top: 5px;">💬 ' + evento.observacoes + '</div>' : ''}
-                            </div>
-                            <span style="background: ${statusColor}; color: white; padding: 4px 8px; border-radius: 3px; font-size: 12px;">
+                    <div style="background: white; padding: 20px; margin-bottom: 15px; border-radius: 10px; border-left: 5px solid ${statusColor}; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                            <h4 style="margin: 0; color: #2c3e50; font-size: 18px;">${evento.titulo}</h4>
+                            <span style="background: ${statusColor}; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; text-transform: uppercase;">
                                 ${evento.status}
                             </span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px; color: #555;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 16px;">🕒</span>
+                                <strong>Horário:</strong> ${horaInicio} ${horaFim ? '- ' + horaFim : ''}
+                            </div>
+                            ${evento.local ? `
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 16px;">📍</span>
+                                    <strong>Local:</strong> ${evento.local}
+                                </div>
+                            ` : ''}
+                            ${evento.tipo ? `
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 16px;">🏷️</span>
+                                    <strong>Tipo:</strong> ${evento.tipo}
+                                </div>
+                            ` : ''}
+                            ${evento.observacoes ? `
+                                <div style="display: flex; align-items: start; gap: 8px; margin-top: 5px; padding-top: 10px; border-top: 1px solid #e9ecef;">
+                                    <span style="font-size: 16px;">💬</span>
+                                    <div><strong>Observações:</strong><br>${evento.observacoes}</div>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 `;
