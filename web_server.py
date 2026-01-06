@@ -2051,7 +2051,7 @@ def contratos():
     """Gerenciar contratos"""
     if request.method == 'GET':
         try:
-            contratos = database.listar_contratos()
+            contratos = db.listar_contratos()
             return jsonify(contratos)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -2062,9 +2062,9 @@ def contratos():
             
             # Gerar número automaticamente se não fornecido
             if not data.get('numero'):
-                data['numero'] = database.gerar_proximo_numero_contrato()
+                data['numero'] = db.gerar_proximo_numero_contrato()
             
-            contrato_id = database.adicionar_contrato(data)
+            contrato_id = db.adicionar_contrato(data)
             print(f"✅ Contrato criado com ID: {contrato_id}")
             return jsonify({
                 'success': True,
@@ -2083,7 +2083,7 @@ def proximo_numero_contrato():
     """Retorna o próximo número de contrato disponível"""
     try:
         print("🔍 Gerando próximo número de contrato...")
-        numero = database.gerar_proximo_numero_contrato()
+        numero = db.gerar_proximo_numero_contrato()
         print(f"✅ Número gerado: {numero}")
         return jsonify({'numero': numero})
     except Exception as e:
@@ -2100,7 +2100,7 @@ def contrato_detalhes(contrato_id):
         try:
             data = request.json
             print(f"🔍 Atualizando contrato {contrato_id} com dados: {data}")
-            success = database.atualizar_contrato(contrato_id, data)
+            success = db.atualizar_contrato(contrato_id, data)
             if success:
                 print(f"✅ Contrato {contrato_id} atualizado")
                 return jsonify({'success': True, 'message': 'Contrato atualizado com sucesso'})
@@ -2114,7 +2114,7 @@ def contrato_detalhes(contrato_id):
     else:  # DELETE
         try:
             print(f"🔍 Deletando contrato {contrato_id}")
-            success = database.deletar_contrato(contrato_id)
+            success = db.deletar_contrato(contrato_id)
             if success:
                 print(f"✅ Contrato {contrato_id} deletado")
                 return jsonify({'success': True, 'message': 'Contrato excluído com sucesso'})
@@ -2132,14 +2132,14 @@ def sessoes():
     """Gerenciar sessões"""
     if request.method == 'GET':
         try:
-            sessoes = database.listar_sessoes()
+            sessoes = db.listar_sessoes()
             return jsonify(sessoes)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # POST
         try:
             data = request.json
-            sessao_id = database.adicionar_sessao(data)
+            sessao_id = db.adicionar_sessao(data)
             return jsonify({'success': True, 'message': 'Sessão criada com sucesso', 'id': sessao_id}), 201
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
@@ -2151,7 +2151,7 @@ def sessao_detalhes(sessao_id):
     if request.method == 'PUT':
         try:
             data = request.json
-            success = database.atualizar_sessao(sessao_id, data)
+            success = db.atualizar_sessao(sessao_id, data)
             if success:
                 return jsonify({'success': True, 'message': 'Sessão atualizada com sucesso'})
             return jsonify({'success': False, 'error': 'Sessão não encontrada'}), 404
@@ -2159,7 +2159,7 @@ def sessao_detalhes(sessao_id):
             return jsonify({'success': False, 'error': str(e)}), 500
     else:  # DELETE
         try:
-            success = database.deletar_sessao(sessao_id)
+            success = db.deletar_sessao(sessao_id)
             if success:
                 return jsonify({'success': True, 'message': 'Sessão excluída com sucesso'})
             return jsonify({'success': False, 'error': 'Sessão não encontrada'}), 404
@@ -2172,7 +2172,7 @@ def comissoes():
     """Gerenciar comissões"""
     if request.method == 'GET':
         try:
-            comissoes = database.listar_comissoes()
+            comissoes = db.listar_comissoes()
             return jsonify(comissoes)
         except Exception as e:
             print(f"❌ [COMISSÃO GET] Erro: {e}")
@@ -2183,7 +2183,7 @@ def comissoes():
         try:
             data = request.json
             print(f"🔍 [COMISSÃO POST] Dados recebidos: {data}")
-            comissao_id = database.adicionar_comissao(data)
+            comissao_id = db.adicionar_comissao(data)
             print(f"✅ [COMISSÃO POST] Criada com ID: {comissao_id}")
             return jsonify({'success': True, 'message': 'Comissão criada com sucesso', 'id': comissao_id}), 201
         except Exception as e:
@@ -2200,7 +2200,7 @@ def comissao_detalhes(comissao_id):
         try:
             data = request.json
             print(f"🔍 [COMISSÃO PUT] ID: {comissao_id}, Dados: {data}")
-            success = database.atualizar_comissao(comissao_id, data)
+            success = db.atualizar_comissao(comissao_id, data)
             if success:
                 print(f"✅ [COMISSÃO PUT] Atualizada com sucesso")
                 return jsonify({'success': True, 'message': 'Comissão atualizada com sucesso'})
@@ -2214,7 +2214,7 @@ def comissao_detalhes(comissao_id):
     else:  # DELETE
         try:
             print(f"🔍 [COMISSÃO DELETE] ID: {comissao_id}")
-            success = database.deletar_comissao(comissao_id)
+            success = db.deletar_comissao(comissao_id)
             if success:
                 print(f"✅ [COMISSÃO DELETE] Excluída com sucesso")
                 return jsonify({'success': True, 'message': 'Comissão excluída com sucesso'})
@@ -2236,7 +2236,7 @@ def sessao_equipe():
         print(f"[CLEANUP] INICIANDO LIMPEZA DA TABELA sessao_equipe", flush=True)
         sys.stdout.flush()
         try:
-            conn = database.get_connection()
+            conn = db.get_connection()
             cursor = conn.cursor()
             cursor.execute("DELETE FROM sessao_equipe")
             deleted = cursor.rowcount
@@ -2256,7 +2256,7 @@ def sessao_equipe():
     elif request.method == 'GET':
         try:
             print(f"[BACKEND GET] Chamando listar_sessao_equipe()...")
-            lista = database.listar_sessao_equipe()
+            lista = db.listar_sessao_equipe()
             print(f"[BACKEND GET] Retornou {len(lista)} membros")
             print(f"[BACKEND GET] Dados: {lista}")
             return jsonify(lista)
@@ -2269,12 +2269,12 @@ def sessao_equipe():
         try:
             data = request.json
             print(f"🔍 [EQUIPE POST] Dados recebidos: {data}")
-            se_id = database.adicionar_sessao_equipe(data)
+            se_id = db.adicionar_sessao_equipe(data)
             print(f"✅ [EQUIPE POST] Membro adicionado com ID: {se_id}")
             
             # VERIFICACAO IMEDIATA
             print(f"[EQUIPE POST] Verificando se foi salvo...")
-            lista = database.listar_sessao_equipe()
+            lista = db.listar_sessao_equipe()
             print(f"[EQUIPE POST] Total na tabela agora: {len(lista)}")
             
             return jsonify({'success': True, 'message': 'Membro adicionado com sucesso', 'id': se_id}), 201
@@ -2292,7 +2292,7 @@ def sessao_equipe_detalhes(membro_id):
         try:
             data = request.json
             print(f"🔍 [EQUIPE PUT] ID: {membro_id}, Dados: {data}")
-            success = database.atualizar_sessao_equipe(membro_id, data)
+            success = db.atualizar_sessao_equipe(membro_id, data)
             if success:
                 print(f"✅ [EQUIPE PUT] Membro atualizado com sucesso")
                 return jsonify({'success': True, 'message': 'Membro atualizado com sucesso'})
@@ -2306,7 +2306,7 @@ def sessao_equipe_detalhes(membro_id):
     else:  # DELETE
         try:
             print(f"🔍 [EQUIPE DELETE] ID: {membro_id}")
-            success = database.deletar_sessao_equipe(membro_id)
+            success = db.deletar_sessao_equipe(membro_id)
             if success:
                 print(f"✅ [EQUIPE DELETE] Membro removido com sucesso")
                 return jsonify({'success': True, 'message': 'Membro removido com sucesso'})
@@ -2324,14 +2324,14 @@ def tipos_sessao():
     """Listar ou criar tipos de sessão"""
     if request.method == 'GET':
         try:
-            tipos = database.listar_tipos_sessao()
+            tipos = db.listar_tipos_sessao()
             return jsonify(tipos)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # POST
         try:
             data = request.json
-            tipo_id = database.adicionar_tipo_sessao(data)
+            tipo_id = db.adicionar_tipo_sessao(data)
             return jsonify({'success': True, 'id': tipo_id}), 201
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -2343,7 +2343,7 @@ def tipos_sessao_detalhes(tipo_id):
     if request.method == 'PUT':
         try:
             data = request.json
-            success = database.atualizar_tipo_sessao(tipo_id, data)
+            success = db.atualizar_tipo_sessao(tipo_id, data)
             if success:
                 return jsonify({'success': True, 'message': 'Tipo atualizado com sucesso'})
             return jsonify({'error': 'Tipo não encontrado'}), 404
@@ -2351,7 +2351,7 @@ def tipos_sessao_detalhes(tipo_id):
             return jsonify({'error': str(e)}), 500
     else:  # DELETE
         try:
-            success = database.deletar_tipo_sessao(tipo_id)
+            success = db.deletar_tipo_sessao(tipo_id)
             if success:
                 return jsonify({'success': True, 'message': 'Tipo removido com sucesso'})
             return jsonify({'error': 'Tipo não encontrado'}), 404
@@ -2404,14 +2404,14 @@ def produtos():
     """Gerenciar produtos do estoque"""
     if request.method == 'GET':
         try:
-            produtos = database.listar_produtos()
+            produtos = db.listar_produtos()
             return jsonify(produtos)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # POST
         try:
             data = request.json
-            produto_id = database.adicionar_produto(data)
+            produto_id = db.adicionar_produto(data)
             return jsonify({'message': 'Produto criado com sucesso', 'id': produto_id}), 201
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -2423,7 +2423,7 @@ def produto_detalhes(produto_id):
     if request.method == 'PUT':
         try:
             data = request.json
-            success = database.atualizar_produto(produto_id, data)
+            success = db.atualizar_produto(produto_id, data)
             if success:
                 return jsonify({'message': 'Produto atualizado com sucesso'})
             return jsonify({'error': 'Produto não encontrado'}), 404
@@ -2431,7 +2431,7 @@ def produto_detalhes(produto_id):
             return jsonify({'error': str(e)}), 500
     else:  # DELETE
         try:
-            success = database.deletar_produto(produto_id)
+            success = db.deletar_produto(produto_id)
             if success:
                 return jsonify({'message': 'Produto excluído com sucesso'})
             return jsonify({'error': 'Produto não encontrado'}), 404
@@ -2444,14 +2444,14 @@ def kits():
     """Gerenciar kits"""
     if request.method == 'GET':
         try:
-            kits = database.listar_kits()
+            kits = db.listar_kits()
             return jsonify(kits)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # POST
         try:
             data = request.json
-            kit_id = database.adicionar_kit(data)
+            kit_id = db.adicionar_kit(data)
             return jsonify({'message': 'Kit criado com sucesso', 'id': kit_id}), 201
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -2463,7 +2463,7 @@ def kit_detalhes(kit_id):
     if request.method == 'PUT':
         try:
             data = request.json
-            success = database.atualizar_kit(kit_id, data)
+            success = db.atualizar_kit(kit_id, data)
             if success:
                 return jsonify({'message': 'Kit atualizado com sucesso'})
             return jsonify({'error': 'Kit não encontrado'}), 404
@@ -2471,7 +2471,7 @@ def kit_detalhes(kit_id):
             return jsonify({'error': str(e)}), 500
     else:  # DELETE
         try:
-            success = database.deletar_kit(kit_id)
+            success = db.deletar_kit(kit_id)
             if success:
                 return jsonify({'message': 'Kit excluído com sucesso'})
             return jsonify({'error': 'Kit não encontrado'}), 404
@@ -2484,14 +2484,14 @@ def tags():
     """Gerenciar tags"""
     if request.method == 'GET':
         try:
-            tags = database.listar_tags()
+            tags = db.listar_tags()
             return jsonify(tags)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # POST
         try:
             data = request.json
-            tag_id = database.adicionar_tag(data)
+            tag_id = db.adicionar_tag(data)
             return jsonify({'message': 'Tag criada com sucesso', 'id': tag_id}), 201
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -2503,7 +2503,7 @@ def tag_detalhes(tag_id):
     if request.method == 'PUT':
         try:
             data = request.json
-            success = database.atualizar_tag(tag_id, data)
+            success = db.atualizar_tag(tag_id, data)
             if success:
                 return jsonify({'message': 'Tag atualizada com sucesso'})
             return jsonify({'error': 'Tag não encontrada'}), 404
@@ -2511,7 +2511,7 @@ def tag_detalhes(tag_id):
             return jsonify({'error': str(e)}), 500
     else:  # DELETE
         try:
-            success = database.deletar_tag(tag_id)
+            success = db.deletar_tag(tag_id)
             if success:
                 return jsonify({'message': 'Tag excluída com sucesso'})
             return jsonify({'error': 'Tag não encontrada'}), 404
@@ -2524,14 +2524,14 @@ def templates_equipe():
     """Gerenciar templates de equipe"""
     if request.method == 'GET':
         try:
-            templates = database.listar_templates_equipe()
+            templates = db.listar_templates_equipe()
             return jsonify(templates)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # POST
         try:
             data = request.json
-            template_id = database.adicionar_template_equipe(data)
+            template_id = db.adicionar_template_equipe(data)
             return jsonify({'message': 'Template criado com sucesso', 'id': template_id}), 201
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -2543,7 +2543,7 @@ def template_equipe_detalhes(template_id):
     if request.method == 'PUT':
         try:
             data = request.json
-            success = database.atualizar_template_equipe(template_id, data)
+            success = db.atualizar_template_equipe(template_id, data)
             if success:
                 return jsonify({'message': 'Template atualizado com sucesso'})
             return jsonify({'error': 'Template não encontrado'}), 404
@@ -2551,7 +2551,7 @@ def template_equipe_detalhes(template_id):
             return jsonify({'error': str(e)}), 500
     else:  # DELETE
         try:
-            success = database.deletar_template_equipe(template_id)
+            success = db.deletar_template_equipe(template_id)
             if success:
                 return jsonify({'message': 'Template excluído com sucesso'})
             return jsonify({'error': 'Template não encontrado'}), 404
