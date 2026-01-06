@@ -2364,14 +2364,14 @@ def agenda():
     """Gerenciar agenda"""
     if request.method == 'GET':
         try:
-            eventos = database.listar_agenda()
+            eventos = db.listar_agenda()
             return jsonify(eventos)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # POST
         try:
             data = request.json
-            agenda_id = database.adicionar_agenda(data)
+            agenda_id = db.adicionar_agenda(data)
             return jsonify({'message': 'Agendamento criado com sucesso', 'id': agenda_id}), 201
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -2383,7 +2383,7 @@ def agenda_detalhes(agendamento_id):
     if request.method == 'PUT':
         try:
             data = request.json
-            success = database.atualizar_agenda(agendamento_id, data)
+            success = db.atualizar_agenda(agendamento_id, data)
             if success:
                 return jsonify({'message': 'Agendamento atualizado com sucesso'})
             return jsonify({'error': 'Agendamento não encontrado'}), 404
@@ -2391,7 +2391,7 @@ def agenda_detalhes(agendamento_id):
             return jsonify({'error': str(e)}), 500
     else:  # DELETE
         try:
-            success = database.deletar_agenda(agendamento_id)
+            success = db.deletar_agenda(agendamento_id)
             if success:
                 return jsonify({'message': 'Agendamento excluído com sucesso'})
             return jsonify({'error': 'Agendamento não encontrado'}), 404
