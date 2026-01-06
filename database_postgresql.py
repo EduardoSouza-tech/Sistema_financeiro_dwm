@@ -1922,7 +1922,19 @@ def listar_agenda() -> List[Dict]:
     
     cursor.execute("SELECT * FROM agenda ORDER BY data_evento DESC, hora_inicio DESC")
     
-    eventos = [dict(row) for row in cursor.fetchall()]
+    eventos = []
+    for row in cursor.fetchall():
+        evento = dict(row)
+        # Converter objetos time para string (JSON serializable)
+        if evento.get('hora_inicio'):
+            evento['hora_inicio'] = str(evento['hora_inicio'])
+        if evento.get('hora_fim'):
+            evento['hora_fim'] = str(evento['hora_fim'])
+        # Converter data para string
+        if evento.get('data_evento'):
+            evento['data_evento'] = str(evento['data_evento'])
+        eventos.append(evento)
+    
     cursor.close()
     conn.close()
     return eventos
