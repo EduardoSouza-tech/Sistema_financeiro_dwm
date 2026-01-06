@@ -744,26 +744,16 @@ class DatabaseManager:
             END $$;
         """)
         
-        # Migração: RECRIAR tabela sessao_equipe com estrutura limpa
+        # Tabela de equipe de sessão
         cursor.execute("""
-            DO $$
-            BEGIN
-                -- Dropar tabela se existir (CASCADE para remover FKs)
-                DROP TABLE IF EXISTS sessao_equipe CASCADE;
-                
-                -- Recriar tabela com estrutura correta
-                CREATE TABLE sessao_equipe (
-                    id SERIAL PRIMARY KEY,
-                    sessao_id INTEGER NOT NULL REFERENCES sessoes(id) ON DELETE CASCADE,
-                    membro_nome VARCHAR(255) NOT NULL,
-                    funcao VARCHAR(100),
-                    observacoes TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-                
-                -- Log de sucesso
-                RAISE NOTICE 'Tabela sessao_equipe recriada com estrutura correta';
-            END $$;
+            CREATE TABLE IF NOT EXISTS sessao_equipe (
+                id SERIAL PRIMARY KEY,
+                sessao_id INTEGER NOT NULL REFERENCES sessoes(id) ON DELETE CASCADE,
+                membro_nome VARCHAR(255) NOT NULL,
+                funcao VARCHAR(100),
+                observacoes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
         """)
         
         cursor.close()
