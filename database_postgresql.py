@@ -1540,6 +1540,108 @@ class DatabaseManager:
                 print(f"Erro ao migrar lançamento: {e}")
         
         print("Migração concluída!")
+    
+    # === MÉTODOS DO MENU OPERACIONAL ===
+    
+    def gerar_proximo_numero_contrato(self) -> str:
+        """Gera o próximo número de contrato"""
+        return gerar_proximo_numero_contrato()
+    
+    def adicionar_contrato(self, dados: Dict) -> int:
+        """Adiciona um novo contrato"""
+        return adicionar_contrato(dados)
+    
+    def listar_contratos(self) -> List[Dict]:
+        """Lista todos os contratos"""
+        return listar_contratos()
+    
+    def atualizar_contrato(self, contrato_id: int, dados: Dict) -> bool:
+        """Atualiza um contrato"""
+        return atualizar_contrato(contrato_id, dados)
+    
+    def deletar_contrato(self, contrato_id: int) -> bool:
+        """Deleta um contrato"""
+        return deletar_contrato(contrato_id)
+    
+    def adicionar_sessao(self, dados: Dict) -> int:
+        """Adiciona uma nova sessão"""
+        return adicionar_sessao(dados)
+    
+    def listar_sessoes(self) -> List[Dict]:
+        """Lista todas as sessões"""
+        return listar_sessoes()
+    
+    def atualizar_sessao(self, sessao_id: int, dados: Dict) -> bool:
+        """Atualiza uma sessão"""
+        return atualizar_sessao(sessao_id, dados)
+    
+    def deletar_sessao(self, sessao_id: int) -> bool:
+        """Deleta uma sessão"""
+        return deletar_sessao(sessao_id)
+    
+    def adicionar_comissao(self, dados: Dict) -> int:
+        """Adiciona uma nova comissão"""
+        return adicionar_comissao(dados)
+    
+    def listar_comissoes(self) -> List[Dict]:
+        """Lista todas as comissões"""
+        return listar_comissoes()
+    
+    def atualizar_comissao(self, comissao_id: int, dados: Dict) -> bool:
+        """Atualiza uma comissão"""
+        return atualizar_comissao(comissao_id, dados)
+    
+    def deletar_comissao(self, comissao_id: int) -> bool:
+        """Deleta uma comissão"""
+        return deletar_comissao(comissao_id)
+    
+    def adicionar_sessao_equipe(self, dados: Dict) -> int:
+        """Adiciona um membro à equipe de sessão"""
+        return adicionar_sessao_equipe(dados)
+    
+    def listar_sessao_equipe(self, sessao_id: int = None) -> List[Dict]:
+        """Lista membros da equipe de sessão"""
+        return listar_sessao_equipe(sessao_id)
+    
+    def atualizar_sessao_equipe(self, membro_id: int, dados: Dict) -> bool:
+        """Atualiza um membro da equipe"""
+        return atualizar_sessao_equipe(membro_id, dados)
+    
+    def deletar_sessao_equipe(self, membro_id: int) -> bool:
+        """Deleta um membro da equipe"""
+        return deletar_sessao_equipe(membro_id)
+    
+    def adicionar_tipo_sessao(self, dados: Dict) -> int:
+        """Adiciona um novo tipo de sessão"""
+        return adicionar_tipo_sessao(dados)
+    
+    def listar_tipos_sessao(self) -> List[Dict]:
+        """Lista todos os tipos de sessão"""
+        return listar_tipos_sessao()
+    
+    def atualizar_tipo_sessao(self, tipo_id: int, dados: Dict) -> bool:
+        """Atualiza um tipo de sessão"""
+        return atualizar_tipo_sessao(tipo_id, dados)
+    
+    def deletar_tipo_sessao(self, tipo_id: int) -> bool:
+        """Deleta um tipo de sessão"""
+        return deletar_tipo_sessao(tipo_id)
+    
+    def adicionar_agenda(self, dados: Dict) -> int:
+        """Adiciona um novo agendamento"""
+        return adicionar_agenda(dados)
+    
+    def listar_agenda(self) -> List[Dict]:
+        """Lista todos os agendamentos"""
+        return listar_agenda()
+    
+    def atualizar_agenda(self, agenda_id: int, dados: Dict) -> bool:
+        """Atualiza um agendamento"""
+        return atualizar_agenda(agenda_id, dados)
+    
+    def deletar_agenda(self, agenda_id: int) -> bool:
+        """Deleta um agendamento"""
+        return deletar_agenda(agenda_id)
 
 
 # Funções standalone para compatibilidade
