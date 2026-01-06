@@ -6641,10 +6641,77 @@ async function deletarAgenda(id) {
     }
 }
 
-function visualizarCalendario() {
+async function visualizarCalendario() {
     console.log('Visualizando calendário...');
-    showToast('Visualização de calendário em desenvolvimento', 'info');
-    // TODO: Implementar visualização de calendário
+    
+    try {
+        const response = await fetch('/api/agenda');
+        const eventos = await response.json();
+        
+        // Criar HTML do calendário
+        let eventosHTML = '';
+        if (eventos.length === 0) {
+            eventosHTML = '<p style="text-align: center; padding: 20px; color: #666;">Nenhum evento agendado</p>';
+        } else {
+            // Agrupar eventos por data
+            const eventosPorData = {};
+            eventos.forEach(evento => {
+                const data = evento.data_evento;
+                if (!eventosPorData[data]) {
+                    eventosPorData[data] = [];
+                }
+                eventosPorData[data].push(evento);
+            });
+            
+            // Criar HTML agrupado por data
+            Object.keys(eventosPorData).sort().reverse().forEach(data => {
+                const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
+                eventosHTML += `
+                    <div style="margin-bottom: 20px; border-left: 3px solid #3498db; padding-left: 15px;">
+                        <h3 style="color: #3498db; margin-bottom: 10px;">📅 ${dataFormatada}</h3>
+                `;
+                
+                eventosPorData[data].forEach(evento => {
+                    const horaInicio = evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : '';
+                    const horaFim = evento.hora_fim ? evento.hora_fim.substring(0, 5) : '';
+                    const statusColor = evento.status === 'confirmado' ? '#27ae60' : evento.status === 'pendente' ? '#f39c12' : '#95a5a6';
+                    
+                    eventosHTML += `
+                        <div style="background: #f8f9fa; padding: 12px; margin-bottom: 8px; border-radius: 5px; border-left: 3px solid ${statusColor};">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div style="flex: 1;">
+                                    <strong style="font-size: 16px;">${evento.titulo}</strong>
+                                    <div style="color: #666; margin-top: 5px;">
+                                        🕒 ${horaInicio} ${horaFim ? '- ' + horaFim : ''}
+                                        ${evento.local ? ' | 📍 ' + evento.local : ''}
+                                    </div>
+                                    ${evento.observacoes ? '<div style="color: #888; font-size: 14px; margin-top: 5px;">💬 ' + evento.observacoes + '</div>' : ''}
+                                </div>
+                                <div style="text-align: right;">
+                                    <span style="background: ${statusColor}; color: white; padding: 4px 8px; border-radius: 3px; font-size: 12px;">
+                                        ${evento.status}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                eventosHTML += '</div>';
+            });
+        }
+        
+        // Criar modal com o calendário
+        const modal = createModal('📅 Calendário de Eventos', `
+            <div style="max-height: 500px; overflow-y: auto;">
+                ${eventosHTML}
+            </div>
+        `, 'Fechar');
+        
+    } catch (error) {
+        console.error('Erro ao carregar calendário:', error);
+        showToast('Erro ao carregar calendário', 'error');
+    }
 }
 
 // === ESTOQUE DE PRODUTOS ===
