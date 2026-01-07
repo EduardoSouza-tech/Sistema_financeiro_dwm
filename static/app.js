@@ -6663,8 +6663,371 @@ async function visualizarCalendario() {
         let mesAtual = hoje.getMonth();
         let anoAtual = hoje.getFullYear();
         
-        // Criar modal com o calendário
-        const modal = createModal('📅 Calendário de Eventos', `
+        // Criar modal customizado para calendário com largura maior
+        const existingModal = document.getElementById('dynamic-modal');
+        if (existingModal) existingModal.remove();
+        
+        const modal = document.createElement('div');
+        modal.id = 'dynamic-modal';
+        modal.className = 'modal';
+        modal.style.display = 'block';
+        
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 95%; width: 1400px; max-height: 95vh; overflow-y: auto;">
+                <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    📅 Calendário de Eventos
+                    <span class="close" onclick="closeModal()" style="color: white;">&times;</span>
+                </div>
+                <div style="padding: 25px;">
+                    <style>
+                        .cal-container {
+                            width: 100%;
+                            max-width: 100%;
+                        }
+                        .cal-header {
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            padding: 1.5rem;
+                            border-radius: 12px;
+                            margin-bottom: 1.5rem;
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+                        }
+                        .cal-nav-btn {
+                            background: rgba(255, 255, 255, 0.25);
+                            border: 2px solid rgba(255, 255, 255, 0.4);
+                            color: white;
+                            padding: 0.8rem 1.5rem;
+                            border-radius: 10px;
+                            cursor: pointer;
+                            font-weight: 600;
+                            font-size: 1rem;
+                            transition: all 0.3s ease;
+                            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                        }
+                        .cal-nav-btn:hover {
+                            background: rgba(255, 255, 255, 0.35);
+                            transform: translateY(-2px) scale(1.05);
+                            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                        }
+                        .cal-title {
+                            font-size: clamp(1.5rem, 3vw, 2rem);
+                            font-weight: 700;
+                            letter-spacing: 1.5px;
+                            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                        }
+                        .cal-grid {
+                            display: grid;
+                            grid-template-columns: repeat(7, 1fr);
+                            gap: clamp(8px, 1vw, 15px);
+                            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                            padding: clamp(15px, 2vw, 25px);
+                            border-radius: 15px;
+                            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+                        }
+                        .cal-weekday {
+                            text-align: center;
+                            font-weight: 700;
+                            padding: clamp(10px, 1.5vw, 18px);
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            border-radius: 10px;
+                            font-size: clamp(0.85rem, 1.2vw, 1.1rem);
+                            letter-spacing: 0.8px;
+                            box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+                        }
+                        .cal-day {
+                            min-height: clamp(100px, 12vw, 160px);
+                            background: white;
+                            border: 2px solid #e9ecef;
+                            border-radius: 12px;
+                            padding: clamp(8px, 1vw, 14px);
+                            position: relative;
+                            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+                        }
+                        .cal-day:hover {
+                            transform: translateY(-3px);
+                            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+                            border-color: #667eea;
+                        }
+                        .cal-day-empty {
+                            background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+                            border: 2px dashed #ced4da;
+                        }
+                        .cal-day-today {
+                            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+                            border: 3px solid #2196f3;
+                            box-shadow: 0 0 30px rgba(33, 150, 243, 0.4), 0 5px 15px rgba(0, 0, 0, 0.1);
+                            animation: pulse 2s ease-in-out infinite;
+                        }
+                        @keyframes pulse {
+                            0%, 100% { box-shadow: 0 0 30px rgba(33, 150, 243, 0.4), 0 5px 15px rgba(0, 0, 0, 0.1); }
+                            50% { box-shadow: 0 0 40px rgba(33, 150, 243, 0.6), 0 8px 20px rgba(0, 0, 0, 0.15); }
+                        }
+                        .cal-day-number {
+                            font-weight: 700;
+                            font-size: clamp(1.1rem, 1.8vw, 1.6rem);
+                            color: #2c3e50;
+                            margin-bottom: clamp(4px, 0.8vw, 10px);
+                            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+                        }
+                        .cal-day-today .cal-day-number {
+                            color: #1976d2;
+                            font-size: clamp(1.2rem, 2vw, 1.8rem);
+                        }
+                        .cal-event {
+                            font-size: clamp(0.7rem, 1vw, 0.9rem);
+                            padding: clamp(4px, 0.6vw, 8px) clamp(6px, 0.8vw, 10px);
+                            margin-bottom: clamp(3px, 0.5vw, 5px);
+                            border-radius: 6px;
+                            color: white;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            cursor: pointer;
+                            transition: all 0.25s ease;
+                            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+                            font-weight: 500;
+                        }
+                        .cal-event:hover {
+                            transform: translateX(5px) scale(1.02);
+                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                        }
+                        .cal-event-confirmado {
+                            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+                        }
+                        .cal-event-pendente {
+                            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+                        }
+                        .cal-event-cancelado {
+                            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+                        }
+                        .cal-more {
+                            font-size: clamp(0.65rem, 0.9vw, 0.8rem);
+                            color: #495057;
+                            font-weight: 600;
+                            text-align: center;
+                            margin-top: clamp(3px, 0.5vw, 6px);
+                            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+                            padding: clamp(3px, 0.5vw, 5px);
+                            border-radius: 5px;
+                        }
+                        .cal-legend {
+                            display: flex;
+                            justify-content: center;
+                            flex-wrap: wrap;
+                            gap: clamp(15px, 2vw, 35px);
+                            margin-top: 1.5rem;
+                            padding: clamp(15px, 2vw, 25px);
+                            background: white;
+                            border-radius: 12px;
+                            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+                        }
+                        .cal-legend-item {
+                            display: flex;
+                            align-items: center;
+                            gap: clamp(8px, 1vw, 12px);
+                            font-size: clamp(0.85rem, 1.1vw, 1rem);
+                            font-weight: 500;
+                            color: #495057;
+                        }
+                        .cal-legend-color {
+                            width: clamp(20px, 2vw, 28px);
+                            height: clamp(20px, 2vw, 28px);
+                            border-radius: 6px;
+                            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+                        }
+                        @media (max-width: 768px) {
+                            .cal-grid {
+                                gap: 5px;
+                                padding: 10px;
+                            }
+                            .cal-day {
+                                min-height: 80px;
+                                padding: 5px;
+                            }
+                        }
+                    </style>
+                    <div id="calendario-container" class="cal-container"></div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        modal.onclick = function(event) {
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+        
+        // Função para renderizar o calendário
+        function renderizarCalendario(mes, ano) {
+            const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                          'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            
+            // Primeiro dia do mês e total de dias
+            const primeiroDia = new Date(ano, mes, 1).getDay();
+            const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+            
+            let html = `
+                <div class="cal-header">
+                    <button onclick="navegarMes(-1)" class="cal-nav-btn">◀ Anterior</button>
+                    <div class="cal-title">${meses[mes]} ${ano}</div>
+                    <button onclick="navegarMes(1)" class="cal-nav-btn">Próximo ▶</button>
+                </div>
+                
+                <div class="cal-grid">
+            `;
+            
+            // Cabeçalho dos dias da semana
+            diasSemana.forEach(dia => {
+                html += `<div class="cal-weekday">${dia}</div>`;
+            });
+            
+            // Células vazias antes do primeiro dia
+            for (let i = 0; i < primeiroDia; i++) {
+                html += `<div class="cal-day cal-day-empty"></div>`;
+            }
+            
+            // Dias do mês
+            for (let dia = 1; dia <= ultimoDia; dia++) {
+                const dataCompleta = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                const eventosNoDia = eventosPorData[dataCompleta] || [];
+                const temEventos = eventosNoDia.length > 0;
+                const ehHoje = dia === hoje.getDate() && mes === hoje.getMonth() && ano === hoje.getFullYear();
+                
+                let classes = 'cal-day';
+                if (ehHoje) classes += ' cal-day-today';
+                
+                html += `
+                    <div class="${classes}" ${temEventos ? `onclick="mostrarEventosDia('${dataCompleta}')" style="cursor: pointer;"` : ''}>
+                        <div class="cal-day-number">${dia}</div>
+                `;
+                
+                // Mostrar eventos do dia
+                if (temEventos) {
+                    eventosNoDia.slice(0, 4).forEach(evento => {
+                        const statusClass = `cal-event-${evento.status}`;
+                        html += `<div class="cal-event ${statusClass}">${evento.titulo}</div>`;
+                    });
+                    
+                    if (eventosNoDia.length > 4) {
+                        html += `<div class="cal-more">+${eventosNoDia.length - 4} evento(s)</div>`;
+                    }
+                }
+                
+                html += `</div>`;
+            }
+            
+            html += `
+                </div>
+                
+                <div class="cal-legend">
+                    <div class="cal-legend-item">
+                        <div class="cal-legend-color" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%);"></div>
+                        <span>✓ Confirmado</span>
+                    </div>
+                    <div class="cal-legend-item">
+                        <div class="cal-legend-color" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);"></div>
+                        <span>⏳ Pendente</span>
+                    </div>
+                    <div class="cal-legend-item">
+                        <div class="cal-legend-color" style="background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);"></div>
+                        <span>✕ Cancelado</span>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('calendario-container').innerHTML = html;
+        }
+        
+        // Função para navegar entre meses
+        window.navegarMes = function(direcao) {
+            mesAtual += direcao;
+            if (mesAtual > 11) {
+                mesAtual = 0;
+                anoAtual++;
+            } else if (mesAtual < 0) {
+                mesAtual = 11;
+                anoAtual--;
+            }
+            renderizarCalendario(mesAtual, anoAtual);
+        };
+        
+        // Função para mostrar eventos do dia
+        window.mostrarEventosDia = function(data) {
+            const eventosNoDia = eventosPorData[data] || [];
+            const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            
+            let eventosHTML = `
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);">
+                    <h3 style="margin: 0; font-size: 1.5rem; text-transform: capitalize;">📅 ${dataFormatada}</h3>
+                    <p style="margin: 8px 0 0 0; opacity: 0.95; font-size: 1.1rem;">${eventosNoDia.length} evento(s) agendado(s)</p>
+                </div>
+            `;
+            
+            eventosNoDia.forEach(evento => {
+                const horaInicio = evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : '';
+                const horaFim = evento.hora_fim ? evento.hora_fim.substring(0, 5) : '';
+                const statusColor = evento.status === 'confirmado' ? '#27ae60' : evento.status === 'pendente' ? '#f39c12' : '#95a5a6';
+                
+                eventosHTML += `
+                    <div style="background: white; padding: 25px; margin-bottom: 18px; border-radius: 12px; border-left: 6px solid ${statusColor}; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                            <h4 style="margin: 0; color: #2c3e50; font-size: 1.3rem;">${evento.titulo}</h4>
+                            <span style="background: ${statusColor}; color: white; padding: 8px 16px; border-radius: 25px; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);">
+                                ${evento.status}
+                            </span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 12px; color: #555; font-size: 1rem;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.2rem;">🕒</span>
+                                <strong>Horário:</strong> ${horaInicio} ${horaFim ? '- ' + horaFim : ''}
+                            </div>
+                            ${evento.local ? `
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="font-size: 1.2rem;">📍</span>
+                                    <strong>Local:</strong> ${evento.local}
+                                </div>
+                            ` : ''}
+                            ${evento.tipo ? `
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="font-size: 1.2rem;">🏷️</span>
+                                    <strong>Tipo:</strong> ${evento.tipo}
+                                </div>
+                            ` : ''}
+                            ${evento.observacoes ? `
+                                <div style="display: flex; align-items: start; gap: 10px; margin-top: 8px; padding-top: 15px; border-top: 2px solid #e9ecef;">
+                                    <span style="font-size: 1.2rem;">💬</span>
+                                    <div><strong>Observações:</strong><br><span style="color: #666;">${evento.observacoes}</span></div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            createModal('Eventos do Dia', eventosHTML, 'Fechar');
+        };
+        
+        // Renderizar calendário inicial
+        renderizarCalendario(mesAtual, anoAtual);
+        
+    } catch (error) {
+        console.error('Erro ao carregar calendário:', error);
+        showToast('Erro ao carregar calendário', 'error');
+    }
+}
             <style>
                 .cal-header {
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
