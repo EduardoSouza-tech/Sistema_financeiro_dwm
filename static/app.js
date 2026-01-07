@@ -6669,9 +6669,9 @@ async function visualizarCalendario() {
                 .cal-header {
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     color: white;
-                    padding: 20px;
-                    border-radius: 10px;
-                    margin-bottom: 20px;
+                    padding: 30px;
+                    border-radius: 12px;
+                    margin-bottom: 25px;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
@@ -6681,10 +6681,11 @@ async function visualizarCalendario() {
                     background: rgba(255, 255, 255, 0.2);
                     border: 2px solid rgba(255, 255, 255, 0.3);
                     color: white;
-                    padding: 10px 20px;
+                    padding: 14px 28px;
                     border-radius: 8px;
                     cursor: pointer;
                     font-weight: bold;
+                    font-size: 16px;
                     transition: all 0.3s ease;
                 }
                 .cal-nav-btn:hover {
@@ -6693,34 +6694,34 @@ async function visualizarCalendario() {
                     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
                 }
                 .cal-title {
-                    font-size: 24px;
+                    font-size: 32px;
                     font-weight: bold;
                     letter-spacing: 1px;
                 }
                 .cal-grid {
                     display: grid;
                     grid-template-columns: repeat(7, 1fr);
-                    gap: 10px;
+                    gap: 12px;
                     background: #f8f9fa;
-                    padding: 15px;
-                    border-radius: 10px;
+                    padding: 20px;
+                    border-radius: 12px;
                 }
                 .cal-weekday {
                     text-align: center;
                     font-weight: bold;
-                    padding: 12px;
+                    padding: 16px;
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     color: white;
                     border-radius: 8px;
-                    font-size: 14px;
+                    font-size: 16px;
                     letter-spacing: 0.5px;
                 }
                 .cal-day {
-                    min-height: 100px;
+                    min-height: 140px;
                     background: white;
                     border: 2px solid #e9ecef;
-                    border-radius: 8px;
-                    padding: 8px;
+                    border-radius: 10px;
+                    padding: 12px;
                     position: relative;
                     transition: all 0.3s ease;
                 }
@@ -6739,18 +6740,18 @@ async function visualizarCalendario() {
                 }
                 .cal-day-number {
                     font-weight: bold;
-                    font-size: 18px;
+                    font-size: 24px;
                     color: #2c3e50;
-                    margin-bottom: 5px;
+                    margin-bottom: 8px;
                 }
                 .cal-day-today .cal-day-number {
                     color: #1976d2;
                 }
                 .cal-event {
-                    font-size: 11px;
-                    padding: 4px 6px;
-                    margin-bottom: 3px;
-                    border-radius: 4px;
+                    font-size: 13px;
+                    padding: 6px 8px;
+                    margin-bottom: 4px;
+                    border-radius: 5px;
                     color: white;
                     white-space: nowrap;
                     overflow: hidden;
@@ -6773,35 +6774,35 @@ async function visualizarCalendario() {
                     background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
                 }
                 .cal-more {
-                    font-size: 10px;
+                    font-size: 11px;
                     color: #7f8c8d;
                     font-weight: bold;
                     text-align: center;
-                    margin-top: 2px;
+                    margin-top: 4px;
                     background: #e9ecef;
-                    padding: 2px;
-                    border-radius: 3px;
+                    padding: 4px;
+                    border-radius: 4px;
                 }
                 .cal-legend {
                     display: flex;
                     justify-content: center;
-                    gap: 20px;
-                    margin-top: 15px;
-                    padding: 15px;
+                    gap: 30px;
+                    margin-top: 20px;
+                    padding: 20px;
                     background: white;
-                    border-radius: 8px;
+                    border-radius: 10px;
                     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
                 }
                 .cal-legend-item {
                     display: flex;
                     align-items: center;
-                    gap: 8px;
-                    font-size: 13px;
+                    gap: 10px;
+                    font-size: 15px;
                 }
                 .cal-legend-color {
-                    width: 20px;
-                    height: 20px;
-                    border-radius: 4px;
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 5px;
                 }
             </style>
             <div id="calendario-container"></div>
