@@ -6641,10 +6641,125 @@ async function deletarAgenda(id) {
     }
 }
 
-function visualizarCalendario() {
+async function visualizarCalendario() {
     console.log('Visualizando calendário...');
-    showToast('Visualização de calendário em desenvolvimento', 'info');
-    // TODO: Implementar visualização de calendário
+    
+    try {
+        const response = await fetch('/api/agenda');
+        const eventos = await response.json();
+        
+        const eventosPorData = {};
+        eventos.forEach(evento => {
+            const data = evento.data_evento;
+            if (!eventosPorData[data]) eventosPorData[data] = [];
+            eventosPorData[data].push(evento);
+        });
+        
+        const hoje = new Date();
+        let mesAtual = hoje.getMonth();
+        let anoAtual = hoje.getFullYear();
+        
+        const modalHTML = `
+            <div id="calendario-nav" style="text-align: center; margin-bottom: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; color: white;">
+                <button onclick="navegarCalendario(-1)" style="background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">◀ Anterior</button>
+                <span id="mes-ano-titulo" style="font-size: 24px; font-weight: bold; margin: 0 30px;"></span>
+                <button onclick="navegarCalendario(1)" style="background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">Próximo ▶</button>
+            </div>
+            <div id="calendario-grid"></div>
+            <div style="display: flex; justify-content: center; gap: 20px; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 20px; height: 20px; background: #27ae60; border-radius: 4px;"></div><span>Confirmado</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 20px; height: 20px; background: #f39c12; border-radius: 4px;"></div><span>Pendente</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 20px; height: 20px; background: #95a5a6; border-radius: 4px;"></div><span>Cancelado</span></div>
+            </div>
+        `;
+        
+        const modal = createModal('📅 Calendário de Eventos', modalHTML);
+        
+        function renderizarCalendario(mes, ano) {
+            const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            const primeiroDia = new Date(ano, mes, 1).getDay();
+            const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+            
+            document.getElementById('mes-ano-titulo').textContent = `${meses[mes]} ${ano}`;
+            
+            let html = '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; background: #f8f9fa; padding: 15px; border-radius: 10px;">';
+            diasSemana.forEach(dia => {
+                html += `<div style="text-align: center; font-weight: bold; padding: 10px; background: #34495e; color: white; border-radius: 5px;">${dia}</div>`;
+            });
+            
+            for (let i = 0; i < primeiroDia; i++) {
+                html += '<div style="min-height: 100px; background: #ecf0f1; border-radius: 5px;"></div>';
+            }
+            
+            for (let dia = 1; dia <= ultimoDia; dia++) {
+                const dataCompleta = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                const eventosNoDia = eventosPorData[dataCompleta] || [];
+                const ehHoje = dia === hoje.getDate() && mes === hoje.getMonth() && ano === hoje.getFullYear();
+                
+                const bgColor = ehHoje ? '#e3f2fd' : '#fff';
+                const border = ehHoje ? '2px solid #2196f3' : '1px solid #ddd';
+                
+                html += `<div style="min-height: 100px; background: ${bgColor}; border: ${border}; border-radius: 5px; padding: 5px; cursor: ${eventosNoDia.length > 0 ? 'pointer' : 'default'};" ${eventosNoDia.length > 0 ? `onclick="mostrarEventosDia('${dataCompleta}')"` : ''}>`;
+                html += `<div style="font-weight: bold; color: ${ehHoje ? '#2196f3' : '#2c3e50'}; margin-bottom: 3px;">${dia}</div>`;
+                
+                eventosNoDia.slice(0, 2).forEach(evento => {
+                    const cor = evento.status === 'confirmado' ? '#27ae60' : evento.status === 'pendente' ? '#f39c12' : '#95a5a6';
+                    html += `<div style="background: ${cor}; color: white; font-size: 10px; padding: 2px 4px; margin-bottom: 2px; border-radius: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${evento.titulo}</div>`;
+                });
+                
+                if (eventosNoDia.length > 2) {
+                    html += `<div style="font-size: 10px; color: #7f8c8d;">+${eventosNoDia.length - 2} mais</div>`;
+                }
+                
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            document.getElementById('calendario-grid').innerHTML = html;
+        }
+        
+        window.navegarCalendario = function(direcao) {
+            mesAtual += direcao;
+            if (mesAtual > 11) { mesAtual = 0; anoAtual++; }
+            else if (mesAtual < 0) { mesAtual = 11; anoAtual--; }
+            renderizarCalendario(mesAtual, anoAtual);
+        };
+        
+        window.mostrarEventosDia = function(data) {
+            const eventosNoDia = eventosPorData[data] || [];
+            const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            
+            let html = `<h3 style="color: #3498db; margin-bottom: 15px; text-transform: capitalize;">📅 ${dataFormatada}</h3>`;
+            
+            eventosNoDia.forEach(evento => {
+                const horaInicio = evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : '';
+                const horaFim = evento.hora_fim ? evento.hora_fim.substring(0, 5) : '';
+                const cor = evento.status === 'confirmado' ? '#27ae60' : evento.status === 'pendente' ? '#f39c12' : '#95a5a6';
+                
+                html += `
+                    <div style="background: #f8f9fa; padding: 15px; margin-bottom: 10px; border-radius: 5px; border-left: 4px solid ${cor};">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <strong style="font-size: 16px;">${evento.titulo}</strong>
+                                <div style="color: #666; margin-top: 5px;">🕒 ${horaInicio} ${horaFim ? '- ' + horaFim : ''} ${evento.local ? ' | 📍 ' + evento.local : ''}</div>
+                                ${evento.observacoes ? '<div style="color: #888; font-size: 14px; margin-top: 5px;">💬 ' + evento.observacoes + '</div>' : ''}
+                            </div>
+                            <span style="background: ${cor}; color: white; padding: 4px 8px; border-radius: 3px; font-size: 12px;">${evento.status}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            createModal('Eventos do Dia', html);
+        };
+        
+        renderizarCalendario(mesAtual, anoAtual);
+        
+    } catch (error) {
+        console.error('Erro ao carregar calendário:', error);
+        showToast('Erro ao carregar calendário', 'error');
+    }
 }
 
 // === ESTOQUE DE PRODUTOS ===
