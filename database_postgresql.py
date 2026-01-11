@@ -114,6 +114,7 @@ POSTGRESQL_CONFIG = _get_postgresql_config()
 
 # Pool de conexões global para reutilização eficiente
 _connection_pool = None
+_database_initialized = False  # Flag para controlar inicialização única
 
 def _get_connection_pool():
     """Obtém ou cria o pool de conexões"""
@@ -231,10 +232,18 @@ class DatabaseManager:
     """Gerenciador otimizado do banco de dados PostgreSQL com pool de conexões"""
     
     def __init__(self, config: Dict = None):
+        global _database_initialized
+        
         self.config = config or POSTGRESQL_CONFIG
         # Inicializar pool
         _get_connection_pool()
-        self.criar_tabelas()
+        
+        # Criar tabelas e executar migrações APENAS UMA VEZ
+        if not _database_initialized:
+            print("🔄 Inicializando banco de dados (primeira vez)...")
+            self.criar_tabelas()
+            _database_initialized = True
+            print("✅ Banco de dados inicializado!")
     
     def get_connection(self):
         """Obtém uma conexão do pool (use get_db_connection() quando possível)"""
