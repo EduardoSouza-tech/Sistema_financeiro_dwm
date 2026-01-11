@@ -872,8 +872,8 @@ class DatabaseManager:
             """, (codigo, nome, descricao, categoria))
         
         # Criar usuário admin padrão se não existir
-        cursor.execute("SELECT COUNT(*) FROM usuarios WHERE tipo = 'admin'")
-        admin_count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) as count FROM usuarios WHERE tipo = 'admin'")
+        admin_count = cursor.fetchone()['count']
         
         if admin_count == 0:
             import hashlib
@@ -887,7 +887,7 @@ class DatabaseManager:
                 RETURNING id
             """, (password_hash,))
             
-            admin_id = cursor.fetchone()[0]
+            admin_id = cursor.fetchone()['id']
             
             # Conceder todas as permissões ao admin
             cursor.execute("""
@@ -962,9 +962,9 @@ class DatabaseManager:
         
         # Se o nome mudou, verificar se o novo nome já existe
         if nome_antigo != conta.nome:
-            cursor.execute("SELECT COUNT(*) FROM contas_bancarias WHERE nome = %s AND nome != %s", 
+            cursor.execute("SELECT COUNT(*) as count FROM contas_bancarias WHERE nome = %s AND nome != %s", 
                          (conta.nome, nome_antigo))
-            if cursor.fetchone()[0] > 0:
+            if cursor.fetchone()['count'] > 0:
                 cursor.close()
                 conn.close()
                 raise ValueError("Já existe uma conta com este nome")

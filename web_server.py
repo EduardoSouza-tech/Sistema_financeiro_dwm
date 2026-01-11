@@ -10,7 +10,23 @@ from database import cancelar_lancamento as db_cancelar_lancamento
 from database import obter_lancamento as db_obter_lancamento
 from database import atualizar_cliente, atualizar_fornecedor
 import database  # Importar módulo database para acessar funções CRUD
-import database_postgresql  # Para funções de autenticação específicas
+import os
+
+# Determinar qual módulo de autenticação usar baseado na variável de ambiente
+USE_POSTGRESQL = os.getenv('DATABASE_TYPE', 'sqlite').lower() == 'postgresql' or os.getenv('DATABASE_URL')
+
+if USE_POSTGRESQL:
+    try:
+        import database_postgresql as auth_db
+        print("✅ Usando PostgreSQL para autenticação")
+    except Exception as e:
+        print(f"⚠️ Erro ao importar PostgreSQL, usando SQLite: {e}")
+        import auth_functions as auth_db
+        USE_POSTGRESQL = False
+else:
+    import auth_functions as auth_db
+    print("✅ Usando SQLite para autenticação")
+
 from auth_middleware import require_auth, require_admin, require_permission, get_usuario_logado, filtrar_por_cliente
 from models import ContaBancaria, Lancamento, Categoria, TipoLancamento, StatusLancamento
 from decimal import Decimal
@@ -91,11 +107,11 @@ def login():
             }), 400
         
         # Autenticar usuário
-        usuario = database_postgresql.autenticar_usuario(username, password)
+        usuario = auth_db.autenticar_usuario(username, password)
         
         if not usuario:
             # Registrar tentativa falha
-            database_postgresql.registrar_log_acesso(
+            auth_db.registrar_log_acesso(
                 usuario_id=None,
                 acao='login_failed',
                 descricao=f'Tentativa de login falhou para username: {username}',
@@ -108,7 +124,7 @@ def login():
             }), 401
         
         # Criar sessão
-        token = database_postgresql.criar_sessao(
+        token = auth_db.criar_sessao(
             usuario['id'],
             request.remote_addr,
             request.headers.get('User-Agent', '')
@@ -119,7 +135,7 @@ def login():
         session.permanent = True
         
         # Registrar login bem-sucedido
-        database_postgresql.registrar_log_acesso(
+        auth_db.registrar_log_acesso(
             usuario_id=usuario['id'],
             acao='login',
             descricao='Login realizado com sucesso',
@@ -128,7 +144,7 @@ def login():
         )
         
         # Obter permissões do usuário
-        permissoes = database_postgresql.obter_permissoes_usuario(usuario['id'])
+        permissoes = auth_db.obter_permissoes_usuario(usuario['id'])
         
         return jsonify({
             'success': True,
@@ -162,11 +178,11 @@ def logout():
         token = session.get('session_token')
         
         if token:
-            database_postgresql.invalidar_sessao(token)
+            auth_db.invalidar_sessao(token)
             
             # Registrar logout
             usuario = request.usuario
-            database_postgresql.registrar_log_acesso(
+            auth_db.registrar_log_acesso(
                 usuario_id=usuario['id'],
                 acao='logout',
                 descricao='Logout realizado',
@@ -202,7 +218,7 @@ def verify_session():
             })
         
         # Obter permissões
-        permissoes = database_postgresql.obter_permissoes_usuario(usuario['id'])
+        permissoes = auth_db.obter_permissoes_usuario(usuario['id'])
         
         return jsonify({
             'success': True,
@@ -244,7 +260,7 @@ def change_password():
         usuario = request.usuario
         
         # Verificar senha atual
-        usuario_verificado = database_postgresql.autenticar_usuario(
+        usuario_verificado = auth_db.autenticar_usuario(
             usuario['username'],
             senha_atual
         )
@@ -256,13 +272,13 @@ def change_password():
             }), 401
         
         # Atualizar senha
-        database_postgresql.atualizar_usuario(
+        auth_db.atualizar_usuario(
             usuario['id'],
             {'password': senha_nova}
         )
         
         # Registrar alteração
-        database_postgresql.registrar_log_acesso(
+        auth_db.registrar_log_acesso(
             usuario_id=usuario['id'],
             acao='change_password',
             descricao='Senha alterada com sucesso',
@@ -291,7 +307,7 @@ def gerenciar_usuarios():
     """Listar ou criar usuários"""
     if request.method == 'GET':
         try:
-            usuarios = database_postgresql.listar_usuarios()
+            usuarios = auth_db.listar_usuarios()
             return jsonify(usuarios)
         except Exception as e:
             print(f"❌ Erro ao listar usuários: {e}")
@@ -303,18 +319,18 @@ def gerenciar_usuarios():
             admin = request.usuario
             data['created_by'] = admin['id']
             
-            usuario_id = database_postgresql.criar_usuario(data)
+            usuario_id = auth_db.criar_usuario(data)
             
             # Conceder permissões se fornecidas
             if 'permissoes' in data:
-                database_postgresql.sincronizar_permissoes_usuario(
+                auth_db.sincronizar_permissoes_usuario(
                     usuario_id,
                     data['permissoes'],
                     admin['id']
                 )
             
             # Registrar criação
-            database_postgresql.registrar_log_acesso(
+            auth_db.registrar_log_acesso(
                 usuario_id=admin['id'],
                 acao='create_user',
                 descricao=f'Usuário criado: {data["username"]}',
@@ -343,12 +359,12 @@ def gerenciar_usuario_especifico(usuario_id):
     """Obter, atualizar ou deletar usuário específico"""
     if request.method == 'GET':
         try:
-            usuario = database_postgresql.obter_usuario(usuario_id)
+            usuario = auth_db.obter_usuario(usuario_id)
             if not usuario:
                 return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
             
             # Incluir permissões
-            permissoes = database_postgresql.obter_permissoes_usuario(usuario_id)
+            permissoes = auth_db.obter_permissoes_usuario(usuario_id)
             usuario['permissoes'] = permissoes
             
             return jsonify(usuario)
@@ -362,21 +378,21 @@ def gerenciar_usuario_especifico(usuario_id):
             admin = request.usuario
             
             # Atualizar dados do usuário
-            success = database_postgresql.atualizar_usuario(usuario_id, data)
+            success = auth_db.atualizar_usuario(usuario_id, data)
             
             if not success:
                 return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
             
             # Atualizar permissões se fornecidas
             if 'permissoes' in data:
-                database_postgresql.sincronizar_permissoes_usuario(
+                auth_db.sincronizar_permissoes_usuario(
                     usuario_id,
                     data['permissoes'],
                     admin['id']
                 )
             
             # Registrar atualização
-            database_postgresql.registrar_log_acesso(
+            auth_db.registrar_log_acesso(
                 usuario_id=admin['id'],
                 acao='update_user',
                 descricao=f'Usuário atualizado: ID {usuario_id}',
@@ -396,13 +412,13 @@ def gerenciar_usuario_especifico(usuario_id):
     else:  # DELETE
         try:
             admin = request.usuario
-            success = database_postgresql.deletar_usuario(usuario_id)
+            success = auth_db.deletar_usuario(usuario_id)
             
             if not success:
                 return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
             
             # Registrar exclusão
-            database_postgresql.registrar_log_acesso(
+            auth_db.registrar_log_acesso(
                 usuario_id=admin['id'],
                 acao='delete_user',
                 descricao=f'Usuário deletado: ID {usuario_id}',
@@ -426,7 +442,7 @@ def listar_permissoes():
     """Listar todas as permissões disponíveis"""
     try:
         categoria = request.args.get('categoria')
-        permissoes = database_postgresql.listar_permissoes(categoria)
+        permissoes = auth_db.listar_permissoes(categoria)
         return jsonify(permissoes)
     except Exception as e:
         print(f"❌ Erro ao listar permissões: {e}")
