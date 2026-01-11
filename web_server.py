@@ -1,24 +1,35 @@
 """
 Servidor Web para o Sistema Financeiro
 """
-from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session
 from flask_cors import CORS
+from functools import wraps
 from database import DatabaseManager
 from database import pagar_lancamento as db_pagar_lancamento
 from database import cancelar_lancamento as db_cancelar_lancamento
 from database import obter_lancamento as db_obter_lancamento
 from database import atualizar_cliente, atualizar_fornecedor
 import database  # Importar módulo database para acessar funções CRUD
+import database_postgresql  # Para funções de autenticação específicas
+from auth_middleware import require_auth, require_admin, require_permission, get_usuario_logado, filtrar_por_cliente
 from models import ContaBancaria, Lancamento, Categoria, TipoLancamento, StatusLancamento
 from decimal import Decimal
 from datetime import datetime, date, timedelta
 import json
 import os
 import sqlite3
+import secrets
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
-CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]}})
 
+# Configurar secret key para sessões
+app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = False  # True em produção com HTTPS
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+
+CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]}}, supports_credentials=True)
 # Log de configuração
 print("=" * 60)
 print("CONFIGURAÇÃO DO SISTEMA")
@@ -61,6 +72,365 @@ try:
     print("🧪 Auto-teste agendado para execução em 3 segundos...")
 except Exception as e:
     print(f"⚠️ Não foi possível executar auto-teste: {e}")
+
+
+# ===== ROTAS DE AUTENTICAÇÃO =====
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    """Endpoint de login"""
+    try:
+        data = request.json
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not username or not password:
+            return jsonify({
+                'success': False,
+                'error': 'Username e senha são obrigatórios'
+            }), 400
+        
+        # Autenticar usuário
+        usuario = database_postgresql.autenticar_usuario(username, password)
+        
+        if not usuario:
+            # Registrar tentativa falha
+            database_postgresql.registrar_log_acesso(
+                usuario_id=None,
+                acao='login_failed',
+                descricao=f'Tentativa de login falhou para username: {username}',
+                ip_address=request.remote_addr,
+                sucesso=False
+            )
+            return jsonify({
+                'success': False,
+                'error': 'Usuário ou senha inválidos'
+            }), 401
+        
+        # Criar sessão
+        token = database_postgresql.criar_sessao(
+            usuario['id'],
+            request.remote_addr,
+            request.headers.get('User-Agent', '')
+        )
+        
+        # Guardar token na sessão do Flask
+        session['session_token'] = token
+        session.permanent = True
+        
+        # Registrar login bem-sucedido
+        database_postgresql.registrar_log_acesso(
+            usuario_id=usuario['id'],
+            acao='login',
+            descricao='Login realizado com sucesso',
+            ip_address=request.remote_addr,
+            sucesso=True
+        )
+        
+        # Obter permissões do usuário
+        permissoes = database_postgresql.obter_permissoes_usuario(usuario['id'])
+        
+        return jsonify({
+            'success': True,
+            'message': 'Login realizado com sucesso',
+            'usuario': {
+                'id': usuario['id'],
+                'username': usuario['username'],
+                'nome_completo': usuario['nome_completo'],
+                'tipo': usuario['tipo'],
+                'email': usuario['email'],
+                'cliente_id': usuario.get('cliente_id')
+            },
+            'permissoes': permissoes
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro no login: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': 'Erro ao processar login'
+        }), 500
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+@require_auth
+def logout():
+    """Endpoint de logout"""
+    try:
+        token = session.get('session_token')
+        
+        if token:
+            database_postgresql.invalidar_sessao(token)
+            
+            # Registrar logout
+            usuario = request.usuario
+            database_postgresql.registrar_log_acesso(
+                usuario_id=usuario['id'],
+                acao='logout',
+                descricao='Logout realizado',
+                ip_address=request.remote_addr,
+                sucesso=True
+            )
+        
+        session.clear()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Logout realizado com sucesso'
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro no logout: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erro ao processar logout'
+        }), 500
+
+
+@app.route('/api/auth/verify', methods=['GET'])
+def verify_session():
+    """Verifica se a sessão está válida"""
+    try:
+        usuario = get_usuario_logado()
+        
+        if not usuario:
+            return jsonify({
+                'success': False,
+                'authenticated': False
+            })
+        
+        # Obter permissões
+        permissoes = database_postgresql.obter_permissoes_usuario(usuario['id'])
+        
+        return jsonify({
+            'success': True,
+            'authenticated': True,
+            'usuario': {
+                'id': usuario['id'],
+                'username': usuario['username'],
+                'nome_completo': usuario['nome_completo'],
+                'tipo': usuario['tipo'],
+                'email': usuario['email'],
+                'cliente_id': usuario.get('cliente_id')
+            },
+            'permissoes': permissoes
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao verificar sessão: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erro ao verificar sessão'
+        }), 500
+
+
+@app.route('/api/auth/change-password', methods=['POST'])
+@require_auth
+def change_password():
+    """Alterar senha do usuário logado"""
+    try:
+        data = request.json
+        senha_atual = data.get('senha_atual')
+        senha_nova = data.get('senha_nova')
+        
+        if not senha_atual or not senha_nova:
+            return jsonify({
+                'success': False,
+                'error': 'Senha atual e nova senha são obrigatórias'
+            }), 400
+        
+        usuario = request.usuario
+        
+        # Verificar senha atual
+        usuario_verificado = database_postgresql.autenticar_usuario(
+            usuario['username'],
+            senha_atual
+        )
+        
+        if not usuario_verificado:
+            return jsonify({
+                'success': False,
+                'error': 'Senha atual incorreta'
+            }), 401
+        
+        # Atualizar senha
+        database_postgresql.atualizar_usuario(
+            usuario['id'],
+            {'password': senha_nova}
+        )
+        
+        # Registrar alteração
+        database_postgresql.registrar_log_acesso(
+            usuario_id=usuario['id'],
+            acao='change_password',
+            descricao='Senha alterada com sucesso',
+            ip_address=request.remote_addr,
+            sucesso=True
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Senha alterada com sucesso'
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao alterar senha: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erro ao alterar senha'
+        }), 500
+
+
+# ===== ROTAS DE GERENCIAMENTO DE USUÁRIOS (APENAS ADMIN) =====
+
+@app.route('/api/usuarios', methods=['GET', 'POST'])
+@require_admin
+def gerenciar_usuarios():
+    """Listar ou criar usuários"""
+    if request.method == 'GET':
+        try:
+            usuarios = database_postgresql.listar_usuarios()
+            return jsonify(usuarios)
+        except Exception as e:
+            print(f"❌ Erro ao listar usuários: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    else:  # POST
+        try:
+            data = request.json
+            admin = request.usuario
+            data['created_by'] = admin['id']
+            
+            usuario_id = database_postgresql.criar_usuario(data)
+            
+            # Conceder permissões se fornecidas
+            if 'permissoes' in data:
+                database_postgresql.sincronizar_permissoes_usuario(
+                    usuario_id,
+                    data['permissoes'],
+                    admin['id']
+                )
+            
+            # Registrar criação
+            database_postgresql.registrar_log_acesso(
+                usuario_id=admin['id'],
+                acao='create_user',
+                descricao=f'Usuário criado: {data["username"]}',
+                ip_address=request.remote_addr,
+                sucesso=True
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': 'Usuário criado com sucesso',
+                'id': usuario_id
+            }), 201
+            
+        except ValueError as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
+        except Exception as e:
+            print(f"❌ Erro ao criar usuário: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/usuarios/<int:usuario_id>', methods=['GET', 'PUT', 'DELETE'])
+@require_admin
+def gerenciar_usuario_especifico(usuario_id):
+    """Obter, atualizar ou deletar usuário específico"""
+    if request.method == 'GET':
+        try:
+            usuario = database_postgresql.obter_usuario(usuario_id)
+            if not usuario:
+                return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
+            
+            # Incluir permissões
+            permissoes = database_postgresql.obter_permissoes_usuario(usuario_id)
+            usuario['permissoes'] = permissoes
+            
+            return jsonify(usuario)
+        except Exception as e:
+            print(f"❌ Erro ao obter usuário: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    elif request.method == 'PUT':
+        try:
+            data = request.json
+            admin = request.usuario
+            
+            # Atualizar dados do usuário
+            success = database_postgresql.atualizar_usuario(usuario_id, data)
+            
+            if not success:
+                return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
+            
+            # Atualizar permissões se fornecidas
+            if 'permissoes' in data:
+                database_postgresql.sincronizar_permissoes_usuario(
+                    usuario_id,
+                    data['permissoes'],
+                    admin['id']
+                )
+            
+            # Registrar atualização
+            database_postgresql.registrar_log_acesso(
+                usuario_id=admin['id'],
+                acao='update_user',
+                descricao=f'Usuário atualizado: ID {usuario_id}',
+                ip_address=request.remote_addr,
+                sucesso=True
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': 'Usuário atualizado com sucesso'
+            })
+            
+        except Exception as e:
+            print(f"❌ Erro ao atualizar usuário: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    else:  # DELETE
+        try:
+            admin = request.usuario
+            success = database_postgresql.deletar_usuario(usuario_id)
+            
+            if not success:
+                return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
+            
+            # Registrar exclusão
+            database_postgresql.registrar_log_acesso(
+                usuario_id=admin['id'],
+                acao='delete_user',
+                descricao=f'Usuário deletado: ID {usuario_id}',
+                ip_address=request.remote_addr,
+                sucesso=True
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': 'Usuário deletado com sucesso'
+            })
+            
+        except Exception as e:
+            print(f"❌ Erro ao deletar usuário: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/permissoes', methods=['GET'])
+@require_admin
+def listar_permissoes():
+    """Listar todas as permissões disponíveis"""
+    try:
+        categoria = request.args.get('categoria')
+        permissoes = database_postgresql.listar_permissoes(categoria)
+        return jsonify(permissoes)
+    except Exception as e:
+        print(f"❌ Erro ao listar permissões: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # === ROTAS DE CONTAS BANCÁRIAS ===
