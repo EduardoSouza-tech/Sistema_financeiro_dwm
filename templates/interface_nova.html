@@ -1276,6 +1276,26 @@
                 <button class="submenu-button" onclick="showSection('tipos-sessao')">📸 Tipos de Sessão</button>
             </div>
             
+            <!-- Menu de Administração (apenas para Admin) -->
+            <button class="nav-button" id="btn-admin-menu" onclick="toggleSubmenu('admin')" style="display: none; background: linear-gradient(135deg, #e74c3c, #c0392b);">
+                ⚙️ Administração ▼
+            </button>
+            <div class="submenu" id="submenu-admin" style="display: none;">
+                <button class="submenu-button" onclick="showSection('usuarios')">👥 Gerenciar Usuários</button>
+                <button class="submenu-button" onclick="showSection('permissoes')">🔐 Permissões</button>
+                <button class="submenu-button" onclick="showSection('logs')">📋 Logs de Acesso</button>
+            </div>
+            
+            <!-- Menu de Administração (apenas para Admin) -->
+            <button class="nav-button" id="btn-admin-menu" onclick="toggleSubmenu('admin')" style="display: none; background: linear-gradient(135deg, #e74c3c, #c0392b);">
+                ⚙️ Administração ▼
+            </button>
+            <div class="submenu" id="submenu-admin" style="display: none;">
+                <button class="submenu-button" onclick="showSection('usuarios')">👥 Gerenciar Usuários</button>
+                <button class="submenu-button" onclick="showSection('permissoes')">🔐 Permissões</button>
+                <button class="submenu-button" onclick="showSection('logs')">📋 Logs de Acesso</button>
+            </div>
+            
             <!-- Menu Operacional com Submenu -->
             <button class="nav-button" onclick="toggleSubmenu('operacional')" id="btn-operacional">
                 ⚙️ Operacional ▼
@@ -2092,6 +2112,111 @@
                         </thead>
                         <tbody id="tbody-tipos-sessao">
                             <tr><td colspan="3" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Gerenciamento de Usuários (Admin) -->
+            <div id="usuarios-section" class="content-card hidden">
+                <h2>🔐 Gerenciamento de Usuários</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn btn-primary" onclick="openModalUsuario()">➕ Novo Usuário</button>
+                    <button class="btn" onclick="refreshUsuarios()" style="background: #3498db; color: white;">🔄 Atualizar</button>
+                </div>
+                
+                <!-- Tabs -->
+                <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd;">
+                    <button class="tab-button active" onclick="showUsuariosTab('ativos')" id="tab-usuarios-ativos" style="padding: 10px 20px; border: none; background: #27ae60; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;">
+                        ✅ Ativos
+                    </button>
+                    <button class="tab-button" onclick="showUsuariosTab('inativos')" id="tab-usuarios-inativos" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
+                        ❌ Inativos
+                    </button>
+                    <button class="tab-button" onclick="showUsuariosTab('todos')" id="tab-usuarios-todos" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
+                        📋 Todos
+                    </button>
+                </div>
+                
+                <div class="table-scroll-container">
+                    <table id="table-usuarios">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Nome Completo</th>
+                                <th>E-mail</th>
+                                <th>Tipo</th>
+                                <th>Cliente Associado</th>
+                                <th>Status</th>
+                                <th>Última Sessão</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-usuarios">
+                            <tr><td colspan="9" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Permissões (Admin) -->
+            <div id="permissoes-section" class="content-card hidden">
+                <h2>🔐 Gerenciamento de Permissões</h2>
+                <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #3498db; border-radius: 5px;">
+                    <p style="margin: 0; color: #555;">
+                        <strong>ℹ️ Informação:</strong> Selecione um usuário para visualizar e editar suas permissões.
+                    </p>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label for="select-usuario-permissao" style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                        Selecionar Usuário:
+                    </label>
+                    <select id="select-usuario-permissao" onchange="loadUsuarioPermissoes()" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px;">
+                        <option value="">-- Selecione um usuário --</option>
+                    </select>
+                </div>
+                
+                <div id="permissoes-usuario-container" style="display: none;">
+                    <h3 style="margin-bottom: 15px; color: #2c3e50;">Permissões do Usuário</h3>
+                    <div id="permissoes-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
+                        <!-- Permissões serão carregadas via JavaScript -->
+                    </div>
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn btn-primary" onclick="salvarPermissoes()">💾 Salvar Alterações</button>
+                        <button class="btn" onclick="cancelarEdicaoPermissoes()" style="background: #95a5a6; color: white;">❌ Cancelar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs de Acesso (Admin) -->
+            <div id="logs-section" class="content-card hidden">
+                <h2>📋 Logs de Acesso</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn" onclick="refreshLogs()" style="background: #3498db; color: white;">🔄 Atualizar</button>
+                    <input type="date" id="filter-log-data-inicio" onchange="filterLogs()" style="padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    <input type="date" id="filter-log-data-fim" onchange="filterLogs()" style="padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    <select id="filter-log-usuario" onchange="filterLogs()" style="padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <option value="">Todos os usuários</option>
+                    </select>
+                </div>
+                
+                <div class="table-scroll-container">
+                    <table id="table-logs">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Usuário</th>
+                                <th>Tipo</th>
+                                <th>Ação</th>
+                                <th>IP</th>
+                                <th>Navegador</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-logs">
+                            <tr><td colspan="7" class="loading">Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -2956,6 +3081,291 @@
     
     <script>
         // ====================================
+        // GERENCIAMENTO DE USUÁRIOS (ADMIN)
+        // ====================================
+        
+        let currentUsuarioFilter = 'ativos';
+        
+        // Carregar usuários
+        async function loadUsuarios() {
+            try {
+                const response = await fetch('/api/usuarios');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderUsuarios(data.usuarios);
+                } else {
+                    showToast('Erro ao carregar usuários: ' + data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar usuários:', error);
+                showToast('Erro ao carregar usuários', 'error');
+            }
+        }
+        
+        // Renderizar tabela de usuários
+        function renderUsuarios(usuarios) {
+            const tbody = document.getElementById('tbody-usuarios');
+            
+            // Filtrar usuários baseado na tab ativa
+            let usuariosFiltrados = usuarios;
+            if (currentUsuarioFilter === 'ativos') {
+                usuariosFiltrados = usuarios.filter(u => u.ativo);
+            } else if (currentUsuarioFilter === 'inativos') {
+                usuariosFiltrados = usuarios.filter(u => !u.ativo);
+            }
+            
+            if (usuariosFiltrados.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="loading">Nenhum usuário encontrado</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = usuariosFiltrados.map(usuario => `
+                <tr>
+                    <td>${usuario.id}</td>
+                    <td>${usuario.username}</td>
+                    <td>${usuario.nome_completo || '-'}</td>
+                    <td>${usuario.email || '-'}</td>
+                    <td><span style="padding: 4px 8px; border-radius: 4px; font-weight: bold; ${usuario.tipo === 'admin' ? 'background: #e74c3c; color: white;' : 'background: #3498db; color: white;'}">${usuario.tipo === 'admin' ? '⚙️ Admin' : '👤 Cliente'}</span></td>
+                    <td>${usuario.cliente_nome || '-'}</td>
+                    <td><span style="padding: 4px 8px; border-radius: 4px; font-weight: bold; ${usuario.ativo ? 'background: #27ae60; color: white;' : 'background: #e74c3c; color: white;'}">${usuario.ativo ? '✅ Ativo' : '❌ Inativo'}</span></td>
+                    <td>${usuario.ultima_sessao ? new Date(usuario.ultima_sessao).toLocaleString('pt-BR') : 'Nunca'}</td>
+                    <td>
+                        <button class="btn-action" onclick="editUsuario(${usuario.id})" title="Editar">✏️</button>
+                        <button class="btn-action" onclick="toggleUsuarioStatus(${usuario.id}, ${!usuario.ativo})" title="${usuario.ativo ? 'Inativar' : 'Ativar'}">${usuario.ativo ? '❌' : '✅'}</button>
+                        ${usuario.tipo !== 'admin' ? `<button class="btn-action" onclick="deleteUsuario(${usuario.id})" title="Excluir">🗑️</button>` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // Mudar tab de usuários
+        function showUsuariosTab(tipo) {
+            currentUsuarioFilter = tipo;
+            
+            // Atualizar botões
+            ['ativos', 'inativos', 'todos'].forEach(t => {
+                const btn = document.getElementById(`tab-usuarios-${t}`);
+                if (t === tipo) {
+                    btn.style.background = t === 'ativos' ? '#27ae60' : (t === 'inativos' ? '#e74c3c' : '#3498db');
+                    btn.style.color = 'white';
+                } else {
+                    btn.style.background = '#bdc3c7';
+                    btn.style.color = '#555';
+                }
+            });
+            
+            loadUsuarios();
+        }
+        
+        // Abrir modal de usuário
+        function openModalUsuario(usuarioId = null) {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000;';
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
+                    <h2 style="margin: 0 0 20px 0;">${usuarioId ? 'Editar Usuário' : '➕ Novo Usuário'}</h2>
+                    <form id="form-usuario">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Username:</label>
+                            <input type="text" id="usuario-username" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nome Completo:</label>
+                            <input type="text" id="usuario-nome-completo" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">E-mail:</label>
+                            <input type="email" id="usuario-email" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Senha:${usuarioId ? ' (deixe em branco para manter)' : ''}</label>
+                            <input type="password" id="usuario-senha" ${!usuarioId ? 'required' : ''} style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Tipo:</label>
+                            <select id="usuario-tipo" onchange="toggleClienteSelect()" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                <option value="cliente">Cliente</option>
+                                <option value="admin">Administrador</option>
+                            </select>
+                        </div>
+                        <div id="cliente-select-container" style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Cliente Associado:</label>
+                            <select id="usuario-cliente-id" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                <option value="">-- Selecione um cliente --</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="submit" class="btn btn-primary" style="flex: 1;">💾 Salvar</button>
+                            <button type="button" class="btn" onclick="this.closest('div[style*=\\'position: fixed\\']').remove()" style="flex: 1; background: #95a5a6; color: white;">❌ Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Carregar clientes para o select
+            loadClientesSelect();
+            
+            // Se for edição, carregar dados do usuário
+            if (usuarioId) {
+                loadUsuarioData(usuarioId);
+            }
+            
+            // Submit do formulário
+            document.getElementById('form-usuario').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await saveUsuario(usuarioId, modal);
+            });
+        }
+        
+        // Carregar clientes para o select
+        async function loadClientesSelect() {
+            try {
+                const response = await fetch('/api/clientes');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const select = document.getElementById('usuario-cliente-id');
+                    select.innerHTML = '<option value="">-- Selecione um cliente --</option>' +
+                        data.clientes.filter(c => c.ativo).map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar clientes:', error);
+            }
+        }
+        
+        // Toggle visibilidade do select de cliente
+        function toggleClienteSelect() {
+            const tipo = document.getElementById('usuario-tipo').value;
+            const container = document.getElementById('cliente-select-container');
+            container.style.display = tipo === 'cliente' ? 'block' : 'none';
+        }
+        
+        // Carregar dados do usuário para edição
+        async function loadUsuarioData(usuarioId) {
+            try {
+                const response = await fetch(`/api/usuarios/${usuarioId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const usuario = data.usuario;
+                    document.getElementById('usuario-username').value = usuario.username;
+                    document.getElementById('usuario-nome-completo').value = usuario.nome_completo || '';
+                    document.getElementById('usuario-email').value = usuario.email || '';
+                    document.getElementById('usuario-tipo').value = usuario.tipo;
+                    if (usuario.cliente_id) {
+                        document.getElementById('usuario-cliente-id').value = usuario.cliente_id;
+                    }
+                    toggleClienteSelect();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar usuário:', error);
+            }
+        }
+        
+        // Salvar usuário
+        async function saveUsuario(usuarioId, modal) {
+            const dados = {
+                username: document.getElementById('usuario-username').value,
+                nome_completo: document.getElementById('usuario-nome-completo').value,
+                email: document.getElementById('usuario-email').value,
+                tipo: document.getElementById('usuario-tipo').value,
+                cliente_id: document.getElementById('usuario-cliente-id').value || null
+            };
+            
+            const senha = document.getElementById('usuario-senha').value;
+            if (senha) {
+                dados.password = senha;
+            }
+            
+            try {
+                const url = usuarioId ? `/api/usuarios/${usuarioId}` : '/api/usuarios';
+                const method = usuarioId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dados)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(usuarioId ? 'Usuário atualizado com sucesso!' : 'Usuário criado com sucesso!', 'success');
+                    modal.remove();
+                    loadUsuarios();
+                } else {
+                    showToast('Erro: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar usuário:', error);
+                showToast('Erro ao salvar usuário', 'error');
+            }
+        }
+        
+        // Editar usuário
+        function editUsuario(usuarioId) {
+            openModalUsuario(usuarioId);
+        }
+        
+        // Alternar status do usuário
+        async function toggleUsuarioStatus(usuarioId, ativar) {
+            if (!confirm(`Deseja realmente ${ativar ? 'ativar' : 'inativar'} este usuário?`)) return;
+            
+            try {
+                const response = await fetch(`/api/usuarios/${usuarioId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ativo: ativar })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(`Usuário ${ativar ? 'ativado' : 'inativado'} com sucesso!`, 'success');
+                    loadUsuarios();
+                } else {
+                    showToast('Erro: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao alterar status:', error);
+                showToast('Erro ao alterar status do usuário', 'error');
+            }
+        }
+        
+        // Excluir usuário
+        async function deleteUsuario(usuarioId) {
+            if (!confirm('Deseja realmente EXCLUIR este usuário? Esta ação não pode ser desfeita!')) return;
+            
+            try {
+                const response = await fetch(`/api/usuarios/${usuarioId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Usuário excluído com sucesso!', 'success');
+                    loadUsuarios();
+                } else {
+                    showToast('Erro: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao excluir usuário:', error);
+                showToast('Erro ao excluir usuário', 'error');
+            }
+        }
+        
+        // Atualizar lista de usuários
+        function refreshUsuarios() {
+            loadUsuarios();
+            showToast('Lista de usuários atualizada!', 'success');
+        }
+        
+        // ====================================
         // AUTENTICAÇÃO E USUÁRIO
         // ====================================
         
@@ -2974,15 +3384,18 @@
                 const user = await response.json();
                 
                 // Atualizar informações do usuário no sidebar
-                document.getElementById('userNameSidebar').textContent = '👤 ' + user.nome;
-                document.getElementById('userTypeSidebar').textContent = user.tipo === 'admin' ? 'Administrador' : 'Cliente';
+                const userData = user.usuario || user;
+                document.getElementById('userNameSidebar').textContent = '👤 ' + (userData.nome_completo || userData.nome || 'Usuário');
+                document.getElementById('userTypeSidebar').textContent = userData.tipo === 'admin' ? 'Administrador' : 'Cliente';
                 
-                // Mostrar botão admin se for administrador
-                if (user.tipo === 'admin') {
+                // Mostrar botão admin e menu admin se for administrador
+                if (userData.tipo === 'admin') {
                     document.getElementById('adminBtn').style.display = 'block';
+                    const adminMenu = document.getElementById('btn-admin-menu');
+                    if (adminMenu) adminMenu.style.display = 'block';
                 }
                 
-                console.log('✅ Usuário autenticado:', user.nome);
+                console.log('✅ Usuário autenticado:', userData.nome_completo || userData.nome);
             } catch (error) {
                 console.error('Erro ao verificar autenticação:', error);
                 window.location.href = '/login';
@@ -3150,6 +3563,15 @@
             } else if (sectionId === 'templates-equipe') {
                 console.log('  ➡️ loadTemplates:', typeof loadTemplates);
                 if (typeof loadTemplates === 'function') loadTemplates();
+            } else if (sectionId === 'usuarios') {
+                console.log('  ➡️ loadUsuarios:', typeof loadUsuarios);
+                if (typeof loadUsuarios === 'function') loadUsuarios();
+            } else if (sectionId === 'permissoes') {
+                console.log('  ➡️ loadPermissoes:', typeof loadPermissoes);
+                // Não carrega automaticamente, apenas quando selecionar usuário
+            } else if (sectionId === 'logs') {
+                console.log('  ➡️ loadLogs:', typeof loadLogs);
+                // if (typeof loadLogs === 'function') loadLogs();
             } else {
                 console.log('  ⚠️ Nenhuma função de carregamento definida para:', sectionId);
             }
