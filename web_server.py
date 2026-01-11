@@ -1732,17 +1732,29 @@ def cancelar_lancamento_route(lancamento_id):
 
 # === ROTA PRINCIPAL ===
 
+@app.route('/login')
+def login_page():
+    """Página de login"""
+    return render_template('login.html')
+
 @app.route('/')
 def index():
     """Página principal - Nova interface moderna"""
+    # Verificar se está autenticado
+    usuario = get_usuario_logado()
+    if not usuario:
+        return render_template('login.html')
+    
     return render_template('interface_nova.html')
 
 @app.route('/old')
+@require_auth
 def old_index():
     """Página antiga (backup)"""
     return render_template('interface.html')
 
 @app.route('/legacy')
+@require_auth
 def legacy_index():
     """Página legado"""
     return render_template('index.html')

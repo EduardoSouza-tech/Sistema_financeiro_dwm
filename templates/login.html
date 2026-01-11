@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema Financeiro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            width: 100%;
+            max-width: 450px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .login-header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .login-header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .login-body {
+            padding: 40px 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group input:disabled {
+            background: #f0f0f0;
+            cursor: not-allowed;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-login:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-login:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 14px 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-error {
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+        }
+
+        .alert-success {
+            background: #efe;
+            color: #3c3;
+            border: 1px solid #cfc;
+        }
+
+        .alert-info {
+            background: #eef;
+            color: #33c;
+            border: 1px solid #ccf;
+        }
+
+        .login-footer {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .password-toggle {
+            position: relative;
+        }
+
+        .password-toggle button {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            font-size: 18px;
+            padding: 5px;
+            transition: color 0.3s;
+        }
+
+        .password-toggle button:hover {
+            color: #667eea;
+        }
+
+        .version-info {
+            margin-top: 10px;
+            font-size: 11px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>💼 Sistema Financeiro</h1>
+            <p>Faça login para continuar</p>
+        </div>
+
+        <div class="login-body">
+            <div id="alert" class="alert"></div>
+
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="username">Usuário</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        placeholder="Digite seu usuário"
+                        required
+                        autocomplete="username"
+                        autofocus
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Senha</label>
+                    <div class="password-toggle">
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            placeholder="Digite sua senha"
+                            required
+                            autocomplete="current-password"
+                        >
+                        <button type="button" onclick="togglePassword()" title="Mostrar/Ocultar senha">
+                            👁️
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login" id="btnLogin">
+                    Entrar
+                </button>
+            </form>
+        </div>
+
+        <div class="login-footer">
+            <p><strong>Credenciais padrão:</strong></p>
+            <p>Usuário: <code>admin</code> | Senha: <code>admin123</code></p>
+            <p class="version-info">⚠️ Altere a senha no primeiro login</p>
+        </div>
+    </div>
+
+    <script>
+        function showAlert(message, type = 'error') {
+            const alert = document.getElementById('alert');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alert.style.display = 'block';
+
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const button = event.target;
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                button.textContent = '🙈';
+            } else {
+                passwordInput.type = 'password';
+                button.textContent = '👁️';
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+
+            const btnLogin = document.getElementById('btnLogin');
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                showAlert('Por favor, preencha todos os campos', 'error');
+                return;
+            }
+
+            // Desabilitar form
+            btnLogin.disabled = true;
+            btnLogin.innerHTML = '<span class="loading"></span> Entrando...';
+            document.getElementById('username').disabled = true;
+            document.getElementById('password').disabled = true;
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password }),
+                    credentials: 'include'  // Importante para cookies
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('Login realizado com sucesso! Redirecionando...', 'success');
+                    
+                    // Guardar dados no localStorage
+                    localStorage.setItem('usuario', JSON.stringify(result.usuario));
+                    localStorage.setItem('permissoes', JSON.stringify(result.permissoes));
+
+                    // Redirecionar após 1 segundo
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                } else {
+                    showAlert(result.error || 'Erro ao fazer login', 'error');
+                    
+                    // Reabilitar form
+                    btnLogin.disabled = false;
+                    btnLogin.textContent = 'Entrar';
+                    document.getElementById('username').disabled = false;
+                    document.getElementById('password').disabled = false;
+                    document.getElementById('password').value = '';
+                    document.getElementById('password').focus();
+                }
+            } catch (error) {
+                console.error('Erro ao fazer login:', error);
+                showAlert('Erro de conexão com o servidor', 'error');
+                
+                // Reabilitar form
+                btnLogin.disabled = false;
+                btnLogin.textContent = 'Entrar';
+                document.getElementById('username').disabled = false;
+                document.getElementById('password').disabled = false;
+            }
+        }
+
+        // Verificar se já está logado
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('/api/auth/verify', {
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.authenticated) {
+                    showAlert('Você já está logado! Redirecionando...', 'info');
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1500);
+                }
+            } catch (error) {
+                console.log('Não autenticado');
+            }
+        });
+    </script>
+</body>
+</html>
