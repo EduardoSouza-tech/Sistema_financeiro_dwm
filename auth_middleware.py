@@ -108,11 +108,23 @@ def require_admin(f):
         tipo_usuario = usuario.get('tipo')
         print(f"\n🎯 VERIFICAÇÃO CRÍTICA DE ADMIN:")
         print(f"   tipo_usuario = {repr(tipo_usuario)}")
+        print(f"   tipo_usuario length = {len(tipo_usuario) if tipo_usuario else 0}")
+        print(f"   tipo_usuario bytes = {list(tipo_usuario.encode()) if tipo_usuario else []}")
+        print(f"   tipo_usuario.strip() = '{tipo_usuario.strip() if tipo_usuario else ''}'")
+        print(f"   tipo_usuario.lower() = '{tipo_usuario.lower() if tipo_usuario else ''}'")
         print(f"   tipo_usuario != 'admin' = {tipo_usuario != 'admin'}")
+        print(f"   tipo_usuario == 'admin' = {tipo_usuario == 'admin'}")
+        print(f"   tipo_usuario.strip().lower() == 'admin' = {tipo_usuario.strip().lower() == 'admin' if tipo_usuario else False}")
         
-        if tipo_usuario != 'admin':
+        # Normalizar tipo para comparação (remover espaços e converter para minúsculas)
+        tipo_normalizado = tipo_usuario.strip().lower() if tipo_usuario else ''
+        print(f"   🔧 tipo_normalizado = '{tipo_normalizado}'")
+        print(f"   🔧 tipo_normalizado == 'admin' = {tipo_normalizado == 'admin'}")
+        
+        if tipo_normalizado != 'admin':
             print(f"\n🚫 ACESSO NEGADO!")
-            print(f"   Tipo do usuário: '{tipo_usuario}' NÃO é 'admin'")
+            print(f"   Tipo do usuário (original): '{tipo_usuario}'")
+            print(f"   Tipo normalizado: '{tipo_normalizado}' NÃO é 'admin'")
             print(f"   Retornando erro 403")
             print(f"{'='*80}\n")
             # Se for uma requisição HTML, retornar erro HTML
