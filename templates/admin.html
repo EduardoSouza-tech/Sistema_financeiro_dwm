@@ -782,7 +782,7 @@
                 tr.innerHTML = `
                     <td>${user.id}</td>
                     <td><strong>${user.username}</strong></td>
-                    <td>${user.nome}</td>
+                    <td>${user.nome_completo || 'Não informado'}</td>
                     <td><span class="badge ${typeBadge}">${user.tipo === 'admin' ? 'Admin' : 'Cliente'}</span></td>
                     <td><span class="badge ${statusBadge}">${user.ativo ? 'Ativo' : 'Inativo'}</span></td>
                     <td>
