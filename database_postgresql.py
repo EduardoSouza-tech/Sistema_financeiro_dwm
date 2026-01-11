@@ -3706,111 +3706,128 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
         cliente_id: ID do cliente proprietário dos dados
         
     Returns:
-        dict: Dicionário com todos os dados do cliente em formato JSON
+        dict: Dicionário com todos os dados do cliente em formato texto
     """
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
     try:
-        export_data = {
-            'metadata': {
-                'cliente_id': cliente_id,
-                'data_exportacao': datetime.now().isoformat(),
-                'versao_sistema': '1.0'
-            },
-            'clientes': [],
-            'fornecedores': [],
-            'categorias': [],
-            'contas_bancarias': [],
-            'lancamentos': []
+        # Gerar relatório em texto
+        linhas = []
+        linhas.append("=" * 80)
+        linhas.append(f"EXPORTAÇÃO DE DADOS - CLIENTE ID: {cliente_id}")
+        linhas.append(f"Data: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+        linhas.append("=" * 80)
+        linhas.append("")
+        
+        # Contadores
+        stats = {
+            'clientes': 0,
+            'fornecedores': 0,
+            'categorias': 0,
+            'contas': 0,
+            'lancamentos': 0
         }
         
         # 1. Exportar Clientes
+        linhas.append("-" * 80)
+        linhas.append("CLIENTES CADASTRADOS")
+        linhas.append("-" * 80)
+        
         cursor.execute("""
-            SELECT id, nome, cpf_cnpj, tipo_pessoa, email, telefone, endereco, 
-                   cidade, estado, cep, observacoes, ativo, data_cadastro, 
-                   data_atualizacao, proprietario_id
+            SELECT id, nome, cpf_cnpj, email, telefone, endereco, ativo, 
+                   created_at, updated_at, proprietario_id
             FROM clientes 
             WHERE proprietario_id = %s
             ORDER BY nome
         """, (cliente_id,))
         
         clientes = cursor.fetchall()
-        for cliente in clientes:
-            export_data['clientes'].append({
-                'id': cliente['id'],
-                'nome': cliente['nome'],
-                'cpf_cnpj': cliente['cpf_cnpj'],
-                'tipo_pessoa': cliente['tipo_pessoa'],
-                'email': cliente['email'],
-                'telefone': cliente['telefone'],
-                'endereco': cliente['endereco'],
-                'cidade': cliente['cidade'],
-                'estado': cliente['estado'],
-                'cep': cliente['cep'],
-                'observacoes': cliente['observacoes'],
-                'ativo': cliente['ativo'],
-                'data_cadastro': cliente['data_cadastro'].isoformat() if cliente['data_cadastro'] else None,
-                'data_atualizacao': cliente['data_atualizacao'].isoformat() if cliente['data_atualizacao'] else None
-            })
+        stats['clientes'] = len(clientes)
         
-        print(f"✅ Exportados {len(clientes)} clientes")
+        if clientes:
+            for cliente in clientes:
+                linhas.append(f"\nID: {cliente['id']}")
+                linhas.append(f"Nome: {cliente['nome']}")
+                linhas.append(f"CPF/CNPJ: {cliente['cpf_cnpj'] or 'Não informado'}")
+                linhas.append(f"Email: {cliente['email'] or 'Não informado'}")
+                linhas.append(f"Telefone: {cliente['telefone'] or 'Não informado'}")
+                linhas.append(f"Endereço: {cliente['endereco'] or 'Não informado'}")
+                linhas.append(f"Ativo: {'Sim' if cliente['ativo'] else 'Não'}")
+                linhas.append(f"Cadastrado em: {cliente['created_at'].strftime('%d/%m/%Y') if cliente['created_at'] else 'N/A'}")
+                linhas.append("-" * 40)
+        else:
+            linhas.append("Nenhum cliente cadastrado.")
+        
+        linhas.append("")
         
         # 2. Exportar Fornecedores
+        linhas.append("-" * 80)
+        linhas.append("FORNECEDORES CADASTRADOS")
+        linhas.append("-" * 80)
+        
         cursor.execute("""
-            SELECT id, nome, cpf_cnpj, tipo_pessoa, email, telefone, endereco,
-                   cidade, estado, cep, observacoes, ativo, data_cadastro,
-                   data_atualizacao, proprietario_id
+            SELECT id, nome, cpf_cnpj, email, telefone, endereco, ativo,
+                   created_at, updated_at, proprietario_id
             FROM fornecedores
             WHERE proprietario_id = %s
             ORDER BY nome
         """, (cliente_id,))
         
         fornecedores = cursor.fetchall()
-        for fornecedor in fornecedores:
-            export_data['fornecedores'].append({
-                'id': fornecedor['id'],
-                'nome': fornecedor['nome'],
-                'cpf_cnpj': fornecedor['cpf_cnpj'],
-                'tipo_pessoa': fornecedor['tipo_pessoa'],
-                'email': fornecedor['email'],
-                'telefone': fornecedor['telefone'],
-                'endereco': fornecedor['endereco'],
-                'cidade': fornecedor['cidade'],
-                'estado': fornecedor['estado'],
-                'cep': fornecedor['cep'],
-                'observacoes': fornecedor['observacoes'],
-                'ativo': fornecedor['ativo'],
-                'data_cadastro': fornecedor['data_cadastro'].isoformat() if fornecedor['data_cadastro'] else None,
-                'data_atualizacao': fornecedor['data_atualizacao'].isoformat() if fornecedor['data_atualizacao'] else None
-            })
+        stats['fornecedores'] = len(fornecedores)
         
-        print(f"✅ Exportados {len(fornecedores)} fornecedores")
+        if fornecedores:
+            for fornecedor in fornecedores:
+                linhas.append(f"\nID: {fornecedor['id']}")
+                linhas.append(f"Nome: {fornecedor['nome']}")
+                linhas.append(f"CPF/CNPJ: {fornecedor['cpf_cnpj'] or 'Não informado'}")
+                linhas.append(f"Email: {fornecedor['email'] or 'Não informado'}")
+                linhas.append(f"Telefone: {fornecedor['telefone'] or 'Não informado'}")
+                linhas.append(f"Endereço: {fornecedor['endereco'] or 'Não informado'}")
+                linhas.append(f"Ativo: {'Sim' if fornecedor['ativo'] else 'Não'}")
+                linhas.append(f"Cadastrado em: {fornecedor['created_at'].strftime('%d/%m/%Y') if fornecedor['created_at'] else 'N/A'}")
+                linhas.append("-" * 40)
+        else:
+            linhas.append("Nenhum fornecedor cadastrado.")
+        
+        linhas.append("")
         
         # 3. Exportar Categorias
+        linhas.append("-" * 80)
+        linhas.append("CATEGORIAS")
+        linhas.append("-" * 80)
+        
         cursor.execute("""
             SELECT id, nome, tipo, descricao, cor, icone, subcategorias, proprietario_id
             FROM categorias
             WHERE proprietario_id = %s
-            ORDER BY nome
+            ORDER BY tipo, nome
         """, (cliente_id,))
         
         categorias = cursor.fetchall()
-        for categoria in categorias:
-            export_data['categorias'].append({
-                'id': categoria['id'],
-                'nome': categoria['nome'],
-                'tipo': categoria['tipo'],
-                'descricao': categoria['descricao'],
-                'cor': categoria['cor'],
-                'icone': categoria['icone'],
-                'subcategorias': categoria['subcategorias']
-            })
+        stats['categorias'] = len(categorias)
         
-        print(f"✅ Exportadas {len(categorias)} categorias")
+        if categorias:
+            for categoria in categorias:
+                linhas.append(f"\nID: {categoria['id']}")
+                linhas.append(f"Nome: {categoria['nome']}")
+                linhas.append(f"Tipo: {categoria['tipo'].upper()}")
+                linhas.append(f"Descrição: {categoria['descricao'] or 'Sem descrição'}")
+                if categoria['subcategorias']:
+                    linhas.append(f"Subcategorias: {', '.join(categoria['subcategorias'])}")
+                linhas.append("-" * 40)
+        else:
+            linhas.append("Nenhuma categoria cadastrada.")
+        
+        linhas.append("")
         
         # 4. Exportar Contas Bancárias
+        linhas.append("-" * 80)
+        linhas.append("CONTAS BANCÁRIAS")
+        linhas.append("-" * 80)
+        
         cursor.execute("""
             SELECT id, nome, banco, agencia, conta, saldo_inicial, tipo_conta,
                    moeda, ativa, data_criacao, proprietario_id
@@ -3820,83 +3837,95 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
         """, (cliente_id,))
         
         contas = cursor.fetchall()
-        for conta in contas:
-            export_data['contas_bancarias'].append({
-                'id': conta['id'],
-                'nome': conta['nome'],
-                'banco': conta['banco'],
-                'agencia': conta['agencia'],
-                'conta': conta['conta'],
-                'saldo_inicial': float(conta['saldo_inicial']) if conta['saldo_inicial'] else 0.0,
-                'tipo_conta': conta['tipo_conta'],
-                'moeda': conta['moeda'],
-                'ativa': conta['ativa'],
-                'data_criacao': conta['data_criacao'].isoformat() if conta['data_criacao'] else None
-            })
+        stats['contas'] = len(contas)
         
-        print(f"✅ Exportadas {len(contas)} contas bancárias")
+        if contas:
+            for conta in contas:
+                linhas.append(f"\nID: {conta['id']}")
+                linhas.append(f"Nome: {conta['nome']}")
+                linhas.append(f"Banco: {conta['banco']}")
+                linhas.append(f"Agência: {conta['agencia']}")
+                linhas.append(f"Conta: {conta['conta']}")
+                linhas.append(f"Saldo Inicial: R$ {float(conta['saldo_inicial']) if conta['saldo_inicial'] else 0:.2f}")
+                linhas.append(f"Tipo: {conta['tipo_conta']}")
+                linhas.append(f"Ativa: {'Sim' if conta['ativa'] else 'Não'}")
+                linhas.append("-" * 40)
+        else:
+            linhas.append("Nenhuma conta bancária cadastrada.")
+        
+        linhas.append("")
         
         # 5. Exportar Lançamentos
+        linhas.append("-" * 80)
+        linhas.append("LANÇAMENTOS FINANCEIROS")
+        linhas.append("-" * 80)
+        
         cursor.execute("""
             SELECT id, tipo, descricao, valor, data_lancamento, data_vencimento,
                    data_pagamento, status, categoria_id, subcategoria, conta_id,
                    cliente_id, fornecedor_id, forma_pagamento, parcela_numero,
-                   parcela_total, observacoes, anexos, tags, recorrente,
-                   recorrencia_tipo, recorrencia_fim, criado_em, atualizado_em,
-                   proprietario_id
+                   parcela_total, observacoes, recorrente, criado_em, proprietario_id
             FROM lancamentos
             WHERE proprietario_id = %s
             ORDER BY data_lancamento DESC
+            LIMIT 1000
         """, (cliente_id,))
         
         lancamentos = cursor.fetchall()
-        for lanc in lancamentos:
-            export_data['lancamentos'].append({
-                'id': lanc['id'],
-                'tipo': lanc['tipo'],
-                'descricao': lanc['descricao'],
-                'valor': float(lanc['valor']) if lanc['valor'] else 0.0,
-                'data_lancamento': lanc['data_lancamento'].isoformat() if lanc['data_lancamento'] else None,
-                'data_vencimento': lanc['data_vencimento'].isoformat() if lanc['data_vencimento'] else None,
-                'data_pagamento': lanc['data_pagamento'].isoformat() if lanc['data_pagamento'] else None,
-                'status': lanc['status'],
-                'categoria_id': lanc['categoria_id'],
-                'subcategoria': lanc['subcategoria'],
-                'conta_id': lanc['conta_id'],
-                'cliente_id': lanc['cliente_id'],
-                'fornecedor_id': lanc['fornecedor_id'],
-                'forma_pagamento': lanc['forma_pagamento'],
-                'parcela_numero': lanc['parcela_numero'],
-                'parcela_total': lanc['parcela_total'],
-                'observacoes': lanc['observacoes'],
-                'anexos': lanc['anexos'],
-                'tags': lanc['tags'],
-                'recorrente': lanc['recorrente'],
-                'recorrencia_tipo': lanc['recorrencia_tipo'],
-                'recorrencia_fim': lanc['recorrencia_fim'].isoformat() if lanc['recorrencia_fim'] else None,
-                'criado_em': lanc['criado_em'].isoformat() if lanc['criado_em'] else None,
-                'atualizado_em': lanc['atualizado_em'].isoformat() if lanc['atualizado_em'] else None
-            })
+        stats['lancamentos'] = len(lancamentos)
         
-        print(f"✅ Exportados {len(lancamentos)} lançamentos")
+        if lancamentos:
+            # Agrupar por tipo
+            receitas = [l for l in lancamentos if l['tipo'] == 'receita']
+            despesas = [l for l in lancamentos if l['tipo'] == 'despesa']
+            
+            linhas.append(f"\nTotal de lançamentos: {len(lancamentos)}")
+            linhas.append(f"  - Receitas: {len(receitas)}")
+            linhas.append(f"  - Despesas: {len(despesas)}")
+            linhas.append("")
+            
+            for lanc in lancamentos[:100]:  # Limitar a 100 para não ficar muito grande
+                linhas.append(f"\nID: {lanc['id']} | Tipo: {lanc['tipo'].upper()}")
+                linhas.append(f"Descrição: {lanc['descricao']}")
+                linhas.append(f"Valor: R$ {float(lanc['valor']) if lanc['valor'] else 0:.2f}")
+                linhas.append(f"Data Lançamento: {lanc['data_lancamento'].strftime('%d/%m/%Y') if lanc['data_lancamento'] else 'N/A'}")
+                linhas.append(f"Data Vencimento: {lanc['data_vencimento'].strftime('%d/%m/%Y') if lanc['data_vencimento'] else 'N/A'}")
+                linhas.append(f"Status: {lanc['status'].upper()}")
+                if lanc['data_pagamento']:
+                    linhas.append(f"Data Pagamento: {lanc['data_pagamento'].strftime('%d/%m/%Y')}")
+                if lanc['forma_pagamento']:
+                    linhas.append(f"Forma Pagamento: {lanc['forma_pagamento']}")
+                if lanc['observacoes']:
+                    linhas.append(f"Observações: {lanc['observacoes']}")
+                linhas.append("-" * 40)
+            
+            if len(lancamentos) > 100:
+                linhas.append(f"\n... e mais {len(lancamentos) - 100} lançamentos não exibidos ...")
+        else:
+            linhas.append("Nenhum lançamento cadastrado.")
         
-        # Adicionar estatísticas
-        export_data['metadata']['estatisticas'] = {
-            'total_clientes': len(clientes),
-            'total_fornecedores': len(fornecedores),
-            'total_categorias': len(categorias),
-            'total_contas': len(contas),
-            'total_lancamentos': len(lancamentos)
+        linhas.append("")
+        
+        # Resumo Final
+        linhas.append("=" * 80)
+        linhas.append("RESUMO DA EXPORTAÇÃO")
+        linhas.append("=" * 80)
+        linhas.append(f"Clientes: {stats['clientes']}")
+        linhas.append(f"Fornecedores: {stats['fornecedores']}")
+        linhas.append(f"Categorias: {stats['categorias']}")
+        linhas.append(f"Contas Bancárias: {stats['contas']}")
+        linhas.append(f"Lançamentos: {stats['lancamentos']}")
+        linhas.append("=" * 80)
+        
+        print(f"✅ Exportação concluída: {stats['clientes']} clientes, {stats['fornecedores']} fornecedores, {stats['categorias']} categorias, {stats['contas']} contas, {stats['lancamentos']} lançamentos")
+        
+        # Retornar dados estruturados
+        return {
+            'texto': '\n'.join(linhas),
+            'estatisticas': stats,
+            'cliente_id': cliente_id,
+            'data_exportacao': datetime.now().isoformat()
         }
-        
-        print(f"\n📦 Exportação concluída:")
-        print(f"   - {len(clientes)} clientes")
-        print(f"   - {len(fornecedores)} fornecedores")
-        print(f"   - {len(categorias)} categorias")
-        print(f"   - {len(contas)} contas bancárias")
-        print(f"   - {len(lancamentos)} lançamentos")
-        
-        return export_data
         
     except Exception as e:
         print(f"❌ Erro ao exportar dados do cliente {cliente_id}: {e}")

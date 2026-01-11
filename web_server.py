@@ -3275,11 +3275,11 @@ def exportar_dados_cliente_admin(cliente_id):
         
         print(f"✅ Exportação concluída para cliente {cliente_id}")
         
-        # Retornar como JSON com cabeçalhos para download
+        # Retornar como arquivo TXT para download
         from flask import make_response
-        response = make_response(jsonify(export_data))
-        response.headers['Content-Type'] = 'application/json'
-        response.headers['Content-Disposition'] = f'attachment; filename=export_cliente_{cliente_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+        response = make_response(export_data['texto'])
+        response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename=export_cliente_{cliente_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt'
         
         return response
         

@@ -1056,19 +1056,42 @@
                 });
                 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Erro ao exportar dados');
+                    const errorText = await response.text();
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        throw new Error(errorJson.error || 'Erro ao exportar dados');
+                    } catch {
+                        throw new Error('Erro ao exportar dados');
+                    }
                 }
                 
-                // Obter o JSON da resposta
-                const data = await response.json();
+                // Obter o texto da resposta
+                const texto = await response.text();
+                
+                // Contar estatísticas do texto
+                const linhas = texto.split('\n');
+                let stats = {
+                    clientes: 0,
+                    fornecedores: 0,
+                    categorias: 0,
+                    contas: 0,
+                    lancamentos: 0
+                };
+                
+                linhas.forEach(linha => {
+                    if (linha.startsWith('Clientes:')) stats.clientes = parseInt(linha.split(':')[1]) || 0;
+                    if (linha.startsWith('Fornecedores:')) stats.fornecedores = parseInt(linha.split(':')[1]) || 0;
+                    if (linha.startsWith('Categorias:')) stats.categorias = parseInt(linha.split(':')[1]) || 0;
+                    if (linha.startsWith('Contas Bancárias:')) stats.contas = parseInt(linha.split(':')[1]) || 0;
+                    if (linha.startsWith('Lançamentos:')) stats.lancamentos = parseInt(linha.split(':')[1]) || 0;
+                });
                 
                 // Criar blob e fazer download
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const blob = new Blob([texto], { type: 'text/plain; charset=utf-8' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `export_cliente_${clienteId}_${new Date().toISOString().slice(0,10)}.json`;
+                a.download = `export_cliente_${clienteId}_${new Date().toISOString().slice(0,10)}.txt`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -1080,11 +1103,13 @@
                 exportStatus.innerHTML = `
                     ✅ Exportação concluída com sucesso!<br>
                     <small style="margin-top: 10px; display: block;">
-                        • ${data.metadata.estatisticas.total_clientes} clientes<br>
-                        • ${data.metadata.estatisticas.total_fornecedores} fornecedores<br>
-                        • ${data.metadata.estatisticas.total_categorias} categorias<br>
-                        • ${data.metadata.estatisticas.total_contas} contas bancárias<br>
-                        • ${data.metadata.estatisticas.total_lancamentos} lançamentos
+                        • ${stats.clientes} clientes<br>
+                        • ${stats.fornecedores} fornecedores<br>
+                        • ${stats.categorias} categorias<br>
+                        • ${stats.contas} contas bancárias<br>
+                        • ${stats.lancamentos} lançamentos<br>
+                        <br>
+                        📄 Arquivo TXT baixado com sucesso!
                     </small>
                 `;
                 
