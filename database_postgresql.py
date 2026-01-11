@@ -1,4 +1,4 @@
-"""
+﻿"""
 Módulo de gerenciamento do banco de dados PostgreSQL
 Otimizado com pool de conexões para máxima performance
 """
@@ -155,6 +155,19 @@ def get_db_connection():
         pool_obj.putconn(conn)
 
 
+def return_to_pool(conn):
+    """Devolve uma conexão ao pool manualmente"""
+    if hasattr(conn, '_pool'):
+        conn._pool.putconn(conn)
+    else:
+        # Fallback: tentar pegar o pool global
+        try:
+            pool_obj = _get_connection_pool()
+            pool_obj.putconn(conn)
+        except:
+            pass
+
+
 # ============================================================================
 # FUNÇÕES AUXILIARES OTIMIZADAS
 # ============================================================================
@@ -246,11 +259,17 @@ class DatabaseManager:
             print("✅ Banco de dados inicializado!")
     
     def get_connection(self):
-        """Obtém uma conexão do pool (use get_db_connection() quando possível)"""
+        """
+        Obtém uma conexão do pool
+        IMPORTANTE: SEMPRE devolva ao pool com pool.putconn(conn) quando terminar!
+        Ou use o context manager get_db_connection() preferencialmente.
+        """
         try:
             pool_obj = _get_connection_pool()
             conn = pool_obj.getconn()
             conn.autocommit = True
+            # Adicionar referência ao pool para poder devolver depois
+            conn._pool = pool_obj
             return conn
         except Error as e:
             print(f"❌ Erro ao obter conexão do pool: {e}")
@@ -1105,7 +1124,7 @@ class DatabaseManager:
         
         conn.commit()
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
     
     def adicionar_conta(self, conta: ContaBancaria, proprietario_id: int = None) -> int:
         """Adiciona uma nova conta bancária"""
@@ -1130,7 +1149,7 @@ class DatabaseManager:
         
         conta_id = cursor.fetchone()['id']
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return conta_id
     
     def listar_contas(self, filtro_cliente_id: int = None) -> List[ContaBancaria]:
@@ -1162,7 +1181,7 @@ class DatabaseManager:
             contas.append(conta)
         
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return contas
     
     def atualizar_conta(self, nome_antigo: str, conta: ContaBancaria) -> bool:
@@ -1176,7 +1195,7 @@ class DatabaseManager:
                          (conta.nome, nome_antigo))
             if cursor.fetchone()['count'] > 0:
                 cursor.close()
-                conn.close()
+                return_to_pool(conn)  # Devolver ao pool
                 raise ValueError("Já existe uma conta com este nome")
         
         cursor.execute("""
@@ -1189,7 +1208,7 @@ class DatabaseManager:
         success = cursor.rowcount > 0
         conn.commit()
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return success
     
     def excluir_conta(self, nome: str) -> bool:
@@ -1202,7 +1221,7 @@ class DatabaseManager:
         
         conn.commit()
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
     def adicionar_categoria(self, categoria: Categoria) -> int:
@@ -1229,7 +1248,7 @@ class DatabaseManager:
         categoria_id = cursor.fetchone()['id']
         conn.commit()
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return categoria_id
     
     def listar_categorias(self, tipo: Optional[TipoLancamento] = None) -> List[Categoria]:
@@ -1263,7 +1282,7 @@ class DatabaseManager:
             categorias.append(categoria)
         
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return categorias
     
     def excluir_categoria(self, nome: str) -> bool:
@@ -1278,7 +1297,7 @@ class DatabaseManager:
         conn.commit()
         
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
     def atualizar_categoria(self, categoria: Categoria) -> bool:
@@ -1304,7 +1323,7 @@ class DatabaseManager:
         sucesso = cursor.rowcount > 0
         conn.commit()
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
     def atualizar_nome_categoria(self, nome_antigo: str, nome_novo: str) -> bool:
@@ -1326,12 +1345,12 @@ class DatabaseManager:
             )
             
             cursor.close()
-            conn.close()
+            return_to_pool(conn)  # Devolver ao pool
             return True
         except Exception as e:
             print(f"Erro ao atualizar categoria: {e}")
             cursor.close()
-            conn.close()
+            return_to_pool(conn)  # Devolver ao pool
             return False
     
     def adicionar_cliente(self, cliente_data, cpf_cnpj: str = None, 
@@ -1361,7 +1380,7 @@ class DatabaseManager:
         cliente_id = cursor.fetchone()['id']
         conn.commit()
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return cliente_id
     
     def listar_clientes(self, ativos: bool = True, filtro_cliente_id: int = None) -> List[Dict]:
@@ -1392,7 +1411,7 @@ class DatabaseManager:
         
         clientes = [dict(row) for row in rows]
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return clientes
     
     def atualizar_cliente(self, nome_antigo: str, dados: Dict) -> bool:
@@ -1418,7 +1437,7 @@ class DatabaseManager:
         sucesso = cursor.rowcount > 0
         conn.commit()
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
     def inativar_cliente(self, nome: str, motivo: str = "") -> tuple[bool, str]:
@@ -1436,7 +1455,7 @@ class DatabaseManager:
         sucesso = cursor.rowcount > 0
         conn.commit()
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return (sucesso, "Cliente inativado com sucesso" if sucesso else "Cliente não encontrado")
     
     def reativar_cliente(self, nome: str) -> bool:
@@ -1454,7 +1473,7 @@ class DatabaseManager:
         sucesso = cursor.rowcount > 0
         conn.commit()
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
     def adicionar_fornecedor(self, fornecedor_data, cpf_cnpj: str = None,
@@ -1484,7 +1503,7 @@ class DatabaseManager:
         fornecedor_id = cursor.fetchone()['id']
         conn.commit()
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return fornecedor_id
     
     def listar_fornecedores(self, ativos: bool = True, filtro_cliente_id: int = None) -> List[Dict]:
@@ -1515,7 +1534,7 @@ class DatabaseManager:
         
         fornecedores = [dict(row) for row in rows]
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return fornecedores
     
     def atualizar_fornecedor(self, nome_antigo: str, dados: Dict) -> bool:
@@ -1541,7 +1560,7 @@ class DatabaseManager:
         sucesso = cursor.rowcount > 0
         conn.commit()
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
     def inativar_fornecedor(self, nome: str, motivo: str = "") -> tuple[bool, str]:
@@ -1559,7 +1578,7 @@ class DatabaseManager:
         sucesso = cursor.rowcount > 0
         conn.commit()
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return (sucesso, "Fornecedor inativado com sucesso" if sucesso else "Fornecedor não encontrado")
     
     def reativar_fornecedor(self, nome: str) -> bool:
@@ -1577,7 +1596,7 @@ class DatabaseManager:
         sucesso = cursor.rowcount > 0
         conn.commit()
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
     def adicionar_lancamento(self, lancamento: Lancamento, proprietario_id: int = None) -> int:
@@ -1614,7 +1633,7 @@ class DatabaseManager:
         
         lancamento_id = cursor.fetchone()['id']
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return lancamento_id
     
     def listar_lancamentos(self, filtros: Dict[str, Any] = None, filtro_cliente_id: int = None) -> List[Lancamento]:
@@ -1687,7 +1706,7 @@ class DatabaseManager:
                 continue
         
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return lancamentos
     
     def obter_lancamento(self, lancamento_id: int) -> Optional[Lancamento]:
@@ -1707,12 +1726,12 @@ class DatabaseManager:
         except Exception as e:
             print(f"❌ ERRO ao executar query: {e}")
             cursor.close()
-            conn.close()
+            return_to_pool(conn)  # Devolver ao pool
             raise
         
         if not row:
             cursor.close()
-            conn.close()
+            return_to_pool(conn)  # Devolver ao pool
             return None
         
         # Tratar valores que podem ser None
@@ -1747,7 +1766,7 @@ class DatabaseManager:
         
         print(f"✅ Lancamento criado com sucesso\n")
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return lancamento
     
     def excluir_lancamento(self, lancamento_id: int) -> bool:
@@ -1759,7 +1778,7 @@ class DatabaseManager:
         sucesso = cursor.rowcount > 0
         
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
     def atualizar_lancamento(self, lancamento: Lancamento) -> bool:
@@ -1813,7 +1832,7 @@ class DatabaseManager:
         print(f"✅ Linhas afetadas: {cursor.rowcount}, Sucesso: {sucesso}\n")
         
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
     def pagar_lancamento(self, lancamento_id: int, conta: str = '', data_pagamento: date = None,
@@ -1869,7 +1888,7 @@ class DatabaseManager:
         sucesso = cursor.rowcount > 0
         print(f"✅ Linhas afetadas: {cursor.rowcount}, Sucesso: {sucesso}")
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
     def cancelar_lancamento(self, lancamento_id: int) -> bool:
@@ -1886,7 +1905,7 @@ class DatabaseManager:
         
         sucesso = cursor.rowcount > 0
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
     def migrar_dados_json(self, json_path: str):
@@ -2183,7 +2202,7 @@ def gerar_proximo_numero_contrato() -> str:
             proximo_numero = 1
         
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
         
         # Formatar: CONT-2025-0001
         return f'CONT-{ano_atual}-{proximo_numero:04d}'
@@ -2216,7 +2235,7 @@ def adicionar_contrato(dados: Dict) -> int:
     
     contrato_id = cursor.fetchone()['id']
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return contrato_id
 
 def listar_contratos() -> List[Dict]:
@@ -2234,7 +2253,7 @@ def listar_contratos() -> List[Dict]:
     
     contratos = [dict(row) for row in cursor.fetchall()]
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return contratos
 
 def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
@@ -2263,7 +2282,7 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 def deletar_contrato(contrato_id: int) -> bool:
@@ -2276,7 +2295,7 @@ def deletar_contrato(contrato_id: int) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 
@@ -2305,7 +2324,7 @@ def adicionar_agenda(dados: Dict) -> int:
     agenda_id = cursor.fetchone()['id']
     conn.commit()
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return agenda_id
 
 def listar_agenda() -> List[Dict]:
@@ -2330,7 +2349,7 @@ def listar_agenda() -> List[Dict]:
         eventos.append(evento)
     
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return eventos
 
 def atualizar_agenda(agenda_id: int, dados: Dict) -> bool:
@@ -2359,7 +2378,7 @@ def atualizar_agenda(agenda_id: int, dados: Dict) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 def deletar_agenda(agenda_id: int) -> bool:
@@ -2372,7 +2391,7 @@ def deletar_agenda(agenda_id: int) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 
@@ -2400,7 +2419,7 @@ def adicionar_produto(dados: Dict) -> int:
     
     produto_id = cursor.fetchone()['id']
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return produto_id
 
 def listar_produtos() -> List[Dict]:
@@ -2420,7 +2439,7 @@ def listar_produtos() -> List[Dict]:
     
     produtos = [dict(row) for row in cursor.fetchall()]
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return produtos
 
 def atualizar_produto(produto_id: int, dados: Dict) -> bool:
@@ -2449,7 +2468,7 @@ def atualizar_produto(produto_id: int, dados: Dict) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 def deletar_produto(produto_id: int) -> bool:
@@ -2462,7 +2481,7 @@ def deletar_produto(produto_id: int) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 
@@ -2495,7 +2514,7 @@ def adicionar_kit(dados: Dict) -> int:
             """, (kit_id, item['produto_id'], item['quantidade']))
     
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return kit_id
 
 def listar_kits() -> List[Dict]:
@@ -2518,7 +2537,7 @@ def listar_kits() -> List[Dict]:
         kit['itens'] = [dict(row) for row in cursor.fetchall()]
     
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return kits
 
 def atualizar_kit(kit_id: int, dados: Dict) -> bool:
@@ -2551,7 +2570,7 @@ def atualizar_kit(kit_id: int, dados: Dict) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 def deletar_kit(kit_id: int) -> bool:
@@ -2564,7 +2583,7 @@ def deletar_kit(kit_id: int) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 
@@ -2587,7 +2606,7 @@ def adicionar_tag(dados: Dict) -> int:
     
     tag_id = cursor.fetchone()['id']
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return tag_id
 
 def listar_tags() -> List[Dict]:
@@ -2600,7 +2619,7 @@ def listar_tags() -> List[Dict]:
     
     tags = [dict(row) for row in cursor.fetchall()]
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return tags
 
 def atualizar_tag(tag_id: int, dados: Dict) -> bool:
@@ -2623,7 +2642,7 @@ def atualizar_tag(tag_id: int, dados: Dict) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 def deletar_tag(tag_id: int) -> bool:
@@ -2636,7 +2655,7 @@ def deletar_tag(tag_id: int) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 
@@ -2659,7 +2678,7 @@ def adicionar_template(dados: Dict) -> int:
     
     template_id = cursor.fetchone()['id']
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return template_id
 
 def listar_templates_equipe() -> List[Dict]:
@@ -2672,7 +2691,7 @@ def listar_templates_equipe() -> List[Dict]:
     
     templates = [dict(row) for row in cursor.fetchall()]
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return templates
 
 def atualizar_template(template_id: int, dados: Dict) -> bool:
@@ -2695,7 +2714,7 @@ def atualizar_template(template_id: int, dados: Dict) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 def deletar_template(template_id: int) -> bool:
@@ -2708,7 +2727,7 @@ def deletar_template(template_id: int) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 
@@ -2744,7 +2763,7 @@ def adicionar_sessao(dados: Dict) -> int:
             """, (sessao_id, membro['nome'], membro.get('funcao')))
     
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sessao_id
 
 def listar_sessoes() -> List[Dict]:
@@ -2783,7 +2802,7 @@ def listar_sessoes() -> List[Dict]:
         sessao['equipe'] = [dict(row) for row in cursor.fetchall()]
     
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sessoes
 
 def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
@@ -2819,7 +2838,7 @@ def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 def deletar_sessao(sessao_id: int) -> bool:
@@ -2832,7 +2851,7 @@ def deletar_sessao(sessao_id: int) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 
@@ -2868,7 +2887,7 @@ def adicionar_comissao(dados: Dict) -> int:
     
     comissao_id = cursor.fetchone()['id']
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return comissao_id
 
 def listar_comissoes() -> List[Dict]:
@@ -2891,7 +2910,7 @@ def listar_comissoes() -> List[Dict]:
     
     comissoes = [dict(row) for row in cursor.fetchall()]
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return comissoes
 
 def atualizar_comissao(comissao_id: int, dados: Dict) -> bool:
@@ -2928,7 +2947,7 @@ def atualizar_comissao(comissao_id: int, dados: Dict) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 def deletar_comissao(comissao_id: int) -> bool:
@@ -2941,7 +2960,7 @@ def deletar_comissao(comissao_id: int) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 
@@ -2972,7 +2991,7 @@ def adicionar_sessao_equipe(dados: Dict) -> int:
     print(f"[DB] COMMIT executado")
     
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return se_id
 
 def listar_sessao_equipe(sessao_id: int = None) -> List[Dict]:
@@ -3023,7 +3042,7 @@ def listar_sessao_equipe(sessao_id: int = None) -> List[Dict]:
         membros.append(membro)
     
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return membros
 
 def atualizar_sessao_equipe(membro_id: int, dados: Dict) -> bool:
@@ -3047,7 +3066,7 @@ def atualizar_sessao_equipe(membro_id: int, dados: Dict) -> bool:
     sucesso = cursor.rowcount > 0
     conn.commit()  # COMMIT ESQUECIDO!
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 def deletar_sessao_equipe(membro_id: int) -> bool:
@@ -3061,7 +3080,7 @@ def deletar_sessao_equipe(membro_id: int) -> bool:
     sucesso = cursor.rowcount > 0
     conn.commit()  # COMMIT ESQUECIDO!
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 # ==================== TIPOS DE SESSÃO ====================
@@ -3086,7 +3105,7 @@ def adicionar_tipo_sessao(dados: Dict) -> int:
     
     tipo_id = cursor.fetchone()['id']
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return tipo_id
 
 def listar_tipos_sessao() -> List[Dict]:
@@ -3116,7 +3135,7 @@ def listar_tipos_sessao() -> List[Dict]:
         tipos.append(tipo)
     
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return tipos
 
 def atualizar_tipo_sessao(tipo_id: int, dados: Dict) -> bool:
@@ -3141,7 +3160,7 @@ def atualizar_tipo_sessao(tipo_id: int, dados: Dict) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 def deletar_tipo_sessao(tipo_id: int) -> bool:
@@ -3154,7 +3173,7 @@ def deletar_tipo_sessao(tipo_id: int) -> bool:
     
     sucesso = cursor.rowcount > 0
     cursor.close()
-    conn.close()
+    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 
@@ -3240,7 +3259,7 @@ def validar_sessao(token: str) -> Optional[Dict]:
         return usuario_retorno
     finally:
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
 
 def invalidar_sessao(token: str) -> bool:
     """Invalida uma sessão (logout)"""
@@ -3259,7 +3278,7 @@ def invalidar_sessao(token: str) -> bool:
         return False
     finally:
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
 
 def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
     """Lista todos os usuários do sistema"""
@@ -3293,7 +3312,7 @@ def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
         return []
     finally:
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
 
 def obter_usuario(usuario_id: int) -> Optional[Dict]:
     """Obtém dados de um usuário específico"""
@@ -3313,7 +3332,7 @@ def obter_usuario(usuario_id: int) -> Optional[Dict]:
         return cursor.fetchone()
     finally:
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
 
 def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
     """Atualiza dados de um usuário"""
@@ -3362,7 +3381,7 @@ def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
         return False
     finally:
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
 
 def deletar_usuario(usuario_id: int) -> bool:
     """Deleta um usuário (não permite deletar admin)"""
@@ -3385,7 +3404,7 @@ def deletar_usuario(usuario_id: int) -> bool:
         return False
     finally:
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
 
 def listar_permissoes(categoria: Optional[str] = None) -> List[Dict]:
     """Lista todas as permissões do sistema"""
@@ -3405,7 +3424,7 @@ def listar_permissoes(categoria: Optional[str] = None) -> List[Dict]:
         return cursor.fetchall()
     finally:
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
 
 def obter_permissoes_usuario(usuario_id: int) -> List[str]:
     """Obtém lista de códigos de permissão de um usuário"""
@@ -3423,7 +3442,7 @@ def obter_permissoes_usuario(usuario_id: int) -> List[str]:
         return [row['codigo'] for row in cursor.fetchall()]
     finally:
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
 
 def conceder_permissao(usuario_id: int, permissao_codigo: str, concedido_por: int) -> bool:
     """Concede uma permissão a um usuário"""
@@ -3449,7 +3468,7 @@ def conceder_permissao(usuario_id: int, permissao_codigo: str, concedido_por: in
         return False
     finally:
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
 
 def revogar_permissao(usuario_id: int, permissao_codigo: str) -> bool:
     """Revoga uma permissão de um usuário"""
@@ -3471,7 +3490,7 @@ def revogar_permissao(usuario_id: int, permissao_codigo: str) -> bool:
         return False
     finally:
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
 
 def sincronizar_permissoes_usuario(usuario_id: int, codigos_permissoes: List[str], concedido_por: int) -> bool:
     """Sincroniza as permissões de um usuário (remove antigas e adiciona novas)"""
@@ -3500,7 +3519,7 @@ def sincronizar_permissoes_usuario(usuario_id: int, codigos_permissoes: List[str
         return False
     finally:
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
 
 def registrar_log_acesso(usuario_id: int, acao: str, descricao: str, ip_address: str, sucesso: bool):
     """Registra um log de acesso"""
@@ -3518,4 +3537,6 @@ def registrar_log_acesso(usuario_id: int, acao: str, descricao: str, ip_address:
         print(f"Erro ao registrar log: {e}")
     finally:
         cursor.close()
-        conn.close()
+        return_to_pool(conn)  # Devolver ao pool
+
+
