@@ -1242,51 +1242,51 @@
                 </div>
             </div>
             
-            <button class="nav-button active" onclick="showSection('dashboard')">
+            <button class="nav-button active" onclick="showSection('dashboard')" data-permission="dashboard">
                 📊 Dashboard
             </button>
-            <button class="nav-button" onclick="showSection('contas-receber')">
+            <button class="nav-button" onclick="showSection('contas-receber')" data-permission="lancamentos_view">
                 💵 Contas a Receber
             </button>
-            <button class="nav-button" onclick="showSection('contas-pagar')">
+            <button class="nav-button" onclick="showSection('contas-pagar')" data-permission="lancamentos_view">
                 💳 Contas a Pagar
             </button>
             
             <!-- Menu de Relatórios com Submenu -->
-            <button class="nav-button" onclick="toggleSubmenu('relatorios')" id="btn-relatorios">
+            <button class="nav-button" onclick="toggleSubmenu('relatorios')" id="btn-relatorios" data-permission="relatorios_view">
                 📊 Relatórios ▼
             </button>
             <div class="submenu" id="submenu-relatorios" style="display: none;">
-                <button class="submenu-button" onclick="showSection('fluxo-caixa')">📈 Fluxo de Caixa</button>
-                <button class="submenu-button" onclick="showSection('analise-detalhada')">📊 Análise Detalhada</button>
-                <button class="submenu-button" onclick="showSection('comparativo-periodos')">📉 Comparativo de Períodos</button>
-                <button class="submenu-button" onclick="showSection('indicadores')">🎯 Indicadores Financeiros</button>
-                <button class="submenu-button" onclick="showSection('inadimplencia')">⚠️ Inadimplência <span id="badge-inadimplencia" class="badge-inadimplencia">0</span></button>
+                <button class="submenu-button" onclick="showSection('fluxo-caixa')" data-permission="relatorios_view">📈 Fluxo de Caixa</button>
+                <button class="submenu-button" onclick="showSection('analise-detalhada')" data-permission="relatorios_view">📊 Análise Detalhada</button>
+                <button class="submenu-button" onclick="showSection('comparativo-periodos')" data-permission="relatorios_view">📉 Comparativo de Períodos</button>
+                <button class="submenu-button" onclick="showSection('indicadores')" data-permission="relatorios_view">🎯 Indicadores Financeiros</button>
+                <button class="submenu-button" onclick="showSection('inadimplencia')" data-permission="relatorios_view">⚠️ Inadimplência <span id="badge-inadimplencia" class="badge-inadimplencia">0</span></button>
             </div>
             
             <!-- Menu de Cadastros com Submenu -->
-            <button class="nav-button" onclick="toggleSubmenu('cadastros')" id="btn-cadastros">
+            <button class="nav-button" onclick="toggleSubmenu('cadastros')" id="btn-cadastros" data-permission="cadastros_view">
                 📋 Cadastros ▼
             </button>
             <div class="submenu" id="submenu-cadastros" style="display: none;">
-                <button class="submenu-button" onclick="showSection('contas-bancarias')">🏦 Contas Bancárias</button>
-                <button class="submenu-button" onclick="showSection('categorias')">📁 Categorias</button>
-                <button class="submenu-button" onclick="showSection('clientes')">👤 Clientes</button>
-                <button class="submenu-button" onclick="showSection('fornecedores')">🏭 Fornecedores</button>
-                <button class="submenu-button" onclick="showSection('tipos-sessao')">📸 Tipos de Sessão</button>
+                <button class="submenu-button" onclick="showSection('contas-bancarias')" data-permission="contas_bancarias_view">🏦 Contas Bancárias</button>
+                <button class="submenu-button" onclick="showSection('categorias')" data-permission="categorias_view">📁 Categorias</button>
+                <button class="submenu-button" onclick="showSection('clientes')" data-permission="clientes_view">👤 Clientes</button>
+                <button class="submenu-button" onclick="showSection('fornecedores')" data-permission="fornecedores_view">🏭 Fornecedores</button>
+                <button class="submenu-button" onclick="showSection('tipos-sessao')" data-permission="tipos_sessao_view">📸 Tipos de Sessão</button>
             </div>
             
             <!-- Menu Operacional com Submenu -->
-            <button class="nav-button" onclick="toggleSubmenu('operacional')" id="btn-operacional">
+            <button class="nav-button" onclick="toggleSubmenu('operacional')" id="btn-operacional" data-permission="operacional_view">
                 ⚙️ Operacional ▼
             </button>
             <div class="submenu" id="submenu-operacional" style="display: none;">
-                <button class="submenu-button" onclick="showSection('contratos')">📋 Contratos e Sessões</button>
-                <button class="submenu-button" onclick="showSection('agenda-fotografia')">📷 Agenda de Fotografia</button>
-                <button class="submenu-button" onclick="showSection('gestao-estoque')">📦 Gestão de Estoque</button>
-                <button class="submenu-button" onclick="showSection('kits-equipamentos')">🎒 Kits de Equipamentos</button>
-                <button class="submenu-button" onclick="showSection('tags-trabalho')">🏷️ Tags de Trabalho</button>
-                <button class="submenu-button" onclick="showSection('templates-equipe')">👥 Templates de Equipe</button>
+                <button class="submenu-button" onclick="showSection('contratos')" data-permission="contratos_view">📋 Contratos e Sessões</button>
+                <button class="submenu-button" onclick="showSection('agenda-fotografia')" data-permission="agenda_view">📷 Agenda de Fotografia</button>
+                <button class="submenu-button" onclick="showSection('gestao-estoque')" data-permission="estoque_view">📦 Gestão de Estoque</button>
+                <button class="submenu-button" onclick="showSection('kits-equipamentos')" data-permission="estoque_view">🎒 Kits de Equipamentos</button>
+                <button class="submenu-button" onclick="showSection('tags-trabalho')" data-permission="contratos_view">🏷️ Tags de Trabalho</button>
+                <button class="submenu-button" onclick="showSection('templates-equipe')" data-permission="contratos_view">👥 Templates de Equipe</button>
             </div>
         </div>
 
@@ -3367,8 +3367,11 @@
         // AUTENTICAÇÃO E USUÁRIO
         // ====================================
         
-        // Verificar usuário logado
-        async function checkUserAuth() {
+        // Sistema de permissões do usuário
+        let userPermissions = [];
+        
+        // Carregar permissões do usuário
+        async function carregarPermissoesUsuario() {
             try {
                 const response = await fetch('/api/auth/verify', {
                     credentials: 'include'
@@ -3376,22 +3379,80 @@
                 
                 if (!response.ok) {
                     window.location.href = '/login';
-                    return;
+                    return null;
                 }
                 
-                const user = await response.json();
-                console.log('🔍 DEBUG - Resposta de /api/auth/verify:', user);
+                const data = await response.json();
+                const userData = data.usuario || data;
                 
-                // Atualizar informações do usuário no sidebar
-                const userData = user.usuario || user;
-                console.log('🔍 DEBUG - userData extraído:', userData);
+                // Salvar permissões do usuário
+                userPermissions = userData.permissoes || [];
+                console.log('🔐 Permissões do usuário carregadas:', userPermissions);
+                console.log('🔐 Total de permissões:', userPermissions.length);
+                
+                return userData;
+            } catch (error) {
+                console.error('Erro ao carregar permissões:', error);
+                window.location.href = '/login';
+                return null;
+            }
+        }
+        
+        // Verificar se o usuário tem uma permissão específica
+        function hasPermission(permission) {
+            // Admin tem todas as permissões
+            const isAdmin = document.getElementById('userTypeSidebar')?.textContent === 'Administrador';
+            if (isAdmin) {
+                console.log(`✅ Admin tem acesso a: ${permission}`);
+                return true;
+            }
+            
+            const temPermissao = userPermissions.includes(permission);
+            console.log(`🔐 Verificando permissão "${permission}": ${temPermissao ? '✅ TEM' : '❌ NÃO TEM'}`);
+            return temPermissao;
+        }
+        
+        // Aplicar permissões ao menu (ocultar itens sem permissão)
+        function aplicarPermissoesMenu() {
+            console.log('🔐 Aplicando permissões ao menu...');
+            
+            // Encontrar todos os botões com data-permission
+            const botoesComPermissao = document.querySelectorAll('[data-permission]');
+            console.log(`🔐 Total de botões com permissões: ${botoesComPermissao.length}`);
+            
+            botoesComPermissao.forEach(botao => {
+                const permissaoNecessaria = botao.getAttribute('data-permission');
+                
+                if (!hasPermission(permissaoNecessaria)) {
+                    // Ocultar botão se não tem permissão
+                    botao.style.display = 'none';
+                    console.log(`🔒 Botão OCULTO (sem permissão): ${permissaoNecessaria}`);
+                } else {
+                    // Garantir que botão está visível se tem permissão
+                    botao.style.display = '';
+                    console.log(`✅ Botão VISÍVEL (com permissão): ${permissaoNecessaria}`);
+                }
+            });
+            
+            console.log('✅ Permissões aplicadas ao menu');
+        }
+        
+        // Verificar usuário logado
+        async function checkUserAuth() {
+            try {
+                // Carregar permissões primeiro
+                const userData = await carregarPermissoesUsuario();
+                if (!userData) return;
+                
+                console.log('🔍 DEBUG - Resposta de /api/auth/verify:', userData);
                 console.log('🔍 DEBUG - userData.tipo:', userData.tipo);
                 console.log('🔍 DEBUG - userData.tipo === "admin":', userData.tipo === 'admin');
                 
+                // Atualizar informações do usuário no sidebar
                 document.getElementById('userNameSidebar').textContent = '👤 ' + (userData.nome_completo || userData.nome || 'Usuário');
                 document.getElementById('userTypeSidebar').textContent = userData.tipo === 'admin' ? 'Administrador' : 'Cliente';
                 
-                // Mostrar botão admin e menu admin se for administrador
+                // Mostrar botão admin se for administrador
                 if (userData.tipo === 'admin') {
                     console.log('✅ Usuário é ADMIN - mostrando botão Admin');
                     const adminBtn = document.getElementById('adminBtn');
@@ -3407,6 +3468,9 @@
                 } else {
                     console.log('❌ Usuário NÃO é admin - tipo:', userData.tipo);
                 }
+                
+                // Aplicar permissões ao menu
+                aplicarPermissoesMenu();
                 
                 console.log('✅ Usuário autenticado:', userData.nome_completo || userData.nome);
             } catch (error) {
@@ -3506,6 +3570,30 @@
             console.log('%c 🔍 DEBUG - showSection() chamada ', 'background: #FF6B6B; color: white; font-weight: bold; padding: 4px;');
             console.log('  📍 sectionId:', sectionId);
             console.log('  📍 event.target:', event?.target);
+            
+            // Mapear sectionId para permissão necessária
+            const permissionMap = {
+                'dashboard': 'dashboard',
+                'contas-receber': 'lancamentos_view',
+                'contas-pagar': 'lancamentos_view',
+                'clientes': 'clientes_view',
+                'fornecedores': 'fornecedores_view',
+                'categorias': 'categorias_view',
+                'contas-bancarias': 'contas_bancarias_view',
+                'fluxo-caixa': 'relatorios_view',
+                'contratos': 'contratos_view',
+                'sessoes': 'sessoes_view',
+                'agenda': 'agenda_view',
+                'estoque': 'estoque_view'
+            };
+            
+            // Verificar permissão antes de mostrar a seção
+            const permissaoNecessaria = permissionMap[sectionId];
+            if (permissaoNecessaria && !hasPermission(permissaoNecessaria)) {
+                console.log(`🔒 ACESSO NEGADO à seção "${sectionId}" - Permissão necessária: ${permissaoNecessaria}`);
+                showAlert('Você não tem permissão para acessar esta seção.', 'error');
+                return;
+            }
             
             // Ocultar todas as seções
             const sections = document.querySelectorAll('.content-card');
