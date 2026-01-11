@@ -3496,3 +3496,169 @@ if __name__ == '__main__':
     print("="*60)
     
     app.run(debug=False, host='0.0.0.0', port=port, use_reloader=False)
+
+# ==================== ROTAS DE PREFERÊNCIAS DO USUÁRIO ====================
+
+@app.route('/api/preferencias/menu-order', methods=['GET'])
+@require_auth
+def obter_ordem_menu():
+    """
+    Obtém a ordem personalizada do menu do usuário
+    
+    Returns:
+        JSON: {
+            'success': bool,
+            'menu_order': list  # Array com ordem dos IDs: ['dashboard', 'financeiro', ...]
+        }
+    """
+    try:
+        usuario = request.usuario
+        usuario_id = usuario['id']
+        
+        # Ordem padrão
+        ordem_padrao = '["dashboard","financeiro","relatorios","cadastros","operacional"]'
+        
+        # Obter preferência do banco
+        ordem = database.obter_preferencia_usuario(
+            usuario_id, 
+            'menu_order', 
+            ordem_padrao
+        )
+        
+        # Parsear JSON
+        import json
+        menu_order = json.loads(ordem)
+        
+        return jsonify({
+            'success': True,
+            'menu_order': menu_order
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao obter ordem do menu: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/preferencias/menu-order', methods=['POST'])
+@require_auth
+def salvar_ordem_menu():
+    """
+    Salva a ordem personalizada do menu do usuário
+    
+    Request Body:
+        {
+            'menu_order': ['dashboard', 'cadastros', 'financeiro', 'relatorios', 'operacional']
+        }
+    
+    Returns:
+        JSON: {'success': bool, 'message': str}
+    """
+    try:
+        usuario = request.usuario
+        usuario_id = usuario['id']
+        
+        data = request.json
+        menu_order = data.get('menu_order', [])
+        
+        # Validar formato
+        if not isinstance(menu_order, list):
+            return jsonify({
+                'success': False,
+                'error': 'menu_order deve ser uma lista'
+            }), 400
+        
+        # Validar itens permitidos
+        itens_validos = ['dashboard', 'financeiro', 'relatorios', 'cadastros', 'operacional']
+        for item in menu_order:
+            if item not in itens_validos:
+                return jsonify({
+                    'success': False,
+                    'error': f'Item inválido: {item}'
+                }), 400
+        
+        # Converter para JSON string
+        import json
+        menu_order_json = json.dumps(menu_order)
+        
+        # Salvar no banco
+        sucesso = database.salvar_preferencia_usuario(
+            usuario_id,
+            'menu_order',
+            menu_order_json
+        )
+        
+        if sucesso:
+            # Registrar log
+            auth_db.registrar_log_acesso(
+                usuario_id=usuario_id,
+                acao='update_menu_order',
+                descricao=f'Ordem do menu atualizada: {menu_order}',
+                ip_address=request.remote_addr,
+                sucesso=True
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': 'Ordem do menu salva com sucesso'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Erro ao salvar no banco de dados'
+            }), 500
+        
+    except Exception as e:
+        print(f"❌ Erro ao salvar ordem do menu: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/preferencias', methods=['GET'])
+@require_auth
+def listar_preferencias():
+    """
+    Lista todas as preferências do usuário logado
+    
+    Returns:
+        JSON: {
+            'success': bool,
+            'preferencias': dict  # {chave: valor}
+        }
+    """
+    try:
+        usuario = request.usuario
+        usuario_id = usuario['id']
+        
+        preferencias = database.listar_preferencias_usuario(usuario_id)
+        
+        # Parsear valores JSON
+        import json
+        preferencias_parsed = {}
+        for chave, valor in preferencias.items():
+            try:
+                preferencias_parsed[chave] = json.loads(valor)
+            except:
+                preferencias_parsed[chave] = valor
+        
+        return jsonify({
+            'success': True,
+            'preferencias': preferencias_parsed
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao listar preferências: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

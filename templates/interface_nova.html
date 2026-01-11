@@ -95,11 +95,12 @@
             color: white;
             text-align: left;
             font-size: 15px;
-            cursor: pointer;
+            cursor: move;
             transition: all 0.3s;
             display: flex;
             align-items: center;
             gap: 12px;
+            position: relative;
         }
 
         .nav-button:hover {
@@ -110,6 +111,33 @@
         .nav-button.active {
             background: #3498db;
             border-left: 4px solid #fff;
+        }
+
+        /* Drag and Drop styles */
+        .nav-button.dragging {
+            opacity: 0.5;
+            background: #3498db;
+            cursor: grabbing;
+        }
+
+        .nav-button.drag-over {
+            background: #27ae60;
+            border-top: 3px solid #fff;
+            transform: scale(1.05);
+        }
+
+        .nav-button::before {
+            content: '⋮⋮';
+            position: absolute;
+            left: 8px;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 16px;
+            line-height: 1;
+            letter-spacing: -2px;
+        }
+
+        .nav-button:hover::before {
+            color: rgba(255, 255, 255, 0.6);
         }
 
         /* Submenu styles */
@@ -1242,12 +1270,12 @@
                 </div>
             </div>
             
-            <button class="nav-button active" onclick="showSection('dashboard')" data-permission="dashboard">
+            <button class="nav-button active" onclick="showSection('dashboard')" data-permission="dashboard" draggable="true" data-menu-id="dashboard">
                 📊 Dashboard
             </button>
             
             <!-- Menu Financeiro com Submenu -->
-            <button class="nav-button" onclick="toggleSubmenu('financeiro')" id="btn-financeiro" data-permission="lancamentos_view">
+            <button class="nav-button" onclick="toggleSubmenu('financeiro')" id="btn-financeiro" data-permission="lancamentos_view" draggable="true" data-menu-id="financeiro">
                 💰 Financeiro ▼
             </button>
             <div class="submenu" id="submenu-financeiro" style="display: none;">
@@ -1256,7 +1284,7 @@
             </div>
             
             <!-- Menu de Relatórios com Submenu -->
-            <button class="nav-button" onclick="toggleSubmenu('relatorios')" id="btn-relatorios" data-permission="relatorios_view">
+            <button class="nav-button" onclick="toggleSubmenu('relatorios')" id="btn-relatorios" data-permission="relatorios_view" draggable="true" data-menu-id="relatorios">
                 📊 Relatórios ▼
             </button>
             <div class="submenu" id="submenu-relatorios" style="display: none;">
@@ -1268,7 +1296,7 @@
             </div>
             
             <!-- Menu de Cadastros com Submenu -->
-            <button class="nav-button" onclick="toggleSubmenu('cadastros')" id="btn-cadastros" data-permission="cadastros_view">
+            <button class="nav-button" onclick="toggleSubmenu('cadastros')" id="btn-cadastros" data-permission="cadastros_view" draggable="true" data-menu-id="cadastros">
                 📋 Cadastros ▼
             </button>
             <div class="submenu" id="submenu-cadastros" style="display: none;">
@@ -1280,7 +1308,7 @@
             </div>
             
             <!-- Menu Operacional com Submenu -->
-            <button class="nav-button" onclick="toggleSubmenu('operacional')" id="btn-operacional" data-permission="operacional_view">
+            <button class="nav-button" onclick="toggleSubmenu('operacional')" id="btn-operacional" data-permission="operacional_view" draggable="true" data-menu-id="operacional">
                 ⚙️ Operacional ▼
             </button>
             <div class="submenu" id="submenu-operacional" style="display: none;">
@@ -4196,7 +4224,245 @@
             document.querySelectorAll('input[type="text"], textarea').forEach(function(campo) {
                 aplicarMaiusculas(campo);
             });
+            
+            // Inicializar drag-and-drop do menu
+            initMenuDragAndDrop();
         });
+    </script>
+    
+    <!-- Sistema de Drag and Drop do Menu -->
+    <script>
+        // ====================================
+        // DRAG AND DROP - ORDENAÇÃO DO MENU
+        // ====================================
+        
+        let draggedElement = null;
+        let draggedMenuId = null;
+        
+        function initMenuDragAndDrop() {
+            console.log('🔧 Inicializando Drag and Drop do menu...');
+            
+            // Carregar ordem salva do menu
+            loadMenuOrder();
+            
+            // Adicionar event listeners aos botões do menu
+            const menuButtons = document.querySelectorAll('.nav-button[draggable="true"]');
+            
+            menuButtons.forEach(button => {
+                button.addEventListener('dragstart', handleDragStart);
+                button.addEventListener('dragend', handleDragEnd);
+                button.addEventListener('dragover', handleDragOver);
+                button.addEventListener('drop', handleDrop);
+                button.addEventListener('dragleave', handleDragLeave);
+            });
+            
+            console.log(`✅ Drag and Drop inicializado para ${menuButtons.length} itens de menu`);
+        }
+        
+        function handleDragStart(e) {
+            draggedElement = this;
+            draggedMenuId = this.getAttribute('data-menu-id');
+            
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+            
+            console.log('🎯 Drag iniciado:', draggedMenuId);
+        }
+        
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            
+            // Remover classe drag-over de todos os botões
+            document.querySelectorAll('.nav-button').forEach(btn => {
+                btn.classList.remove('drag-over');
+            });
+            
+            console.log('✅ Drag finalizado');
+        }
+        
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            
+            e.dataTransfer.dropEffect = 'move';
+            
+            // Adicionar classe visual
+            const targetMenuId = this.getAttribute('data-menu-id');
+            if (targetMenuId && targetMenuId !== draggedMenuId) {
+                this.classList.add('drag-over');
+            }
+            
+            return false;
+        }
+        
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            const targetElement = this;
+            const targetMenuId = this.getAttribute('data-menu-id');
+            
+            console.log('📦 Drop em:', targetMenuId);
+            
+            if (draggedElement !== targetElement && targetMenuId) {
+                // Reordenar os elementos no DOM
+                reorderMenuItems(draggedElement, targetElement);
+                
+                // Salvar nova ordem no servidor
+                saveMenuOrder();
+            }
+            
+            this.classList.remove('drag-over');
+            return false;
+        }
+        
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+        
+        function reorderMenuItems(draggedEl, targetEl) {
+            const sidebar = document.querySelector('.sidebar');
+            const allMenuItems = Array.from(sidebar.querySelectorAll('.nav-button, .submenu'));
+            
+            // Encontrar o índice do elemento arrastado e seus submenus
+            const draggedIndex = allMenuItems.indexOf(draggedEl);
+            const draggedSubmenu = draggedEl.nextElementSibling;
+            const draggedHasSubmenu = draggedSubmenu && draggedSubmenu.classList.contains('submenu');
+            
+            // Encontrar o índice do elemento alvo e seus submenus
+            const targetIndex = allMenuItems.indexOf(targetEl);
+            const targetSubmenu = targetEl.nextElementSibling;
+            const targetHasSubmenu = targetSubmenu && targetSubmenu.classList.contains('submenu');
+            
+            console.log('🔄 Reordenando:', draggedEl.getAttribute('data-menu-id'), '→', targetEl.getAttribute('data-menu-id'));
+            
+            // Remover elementos arrastados
+            draggedEl.remove();
+            if (draggedHasSubmenu) {
+                draggedSubmenu.remove();
+            }
+            
+            // Inserir antes ou depois dependendo da direção
+            if (draggedIndex < targetIndex) {
+                // Arrastar para baixo - inserir depois
+                if (targetHasSubmenu) {
+                    targetSubmenu.after(draggedEl);
+                } else {
+                    targetEl.after(draggedEl);
+                }
+                
+                if (draggedHasSubmenu) {
+                    draggedEl.after(draggedSubmenu);
+                }
+            } else {
+                // Arrastar para cima - inserir antes
+                targetEl.before(draggedEl);
+                
+                if (draggedHasSubmenu) {
+                    draggedEl.after(draggedSubmenu);
+                }
+            }
+            
+            showToast('Menu reordenado! ✨', 'success');
+        }
+        
+        async function saveMenuOrder() {
+            try {
+                // Coletar ordem atual dos itens
+                const menuButtons = document.querySelectorAll('.nav-button[data-menu-id]');
+                const menuOrder = Array.from(menuButtons).map(btn => btn.getAttribute('data-menu-id'));
+                
+                console.log('💾 Salvando ordem do menu:', menuOrder);
+                
+                const response = await fetch('/api/preferencias/menu-order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ menu_order: menuOrder })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('✅ Ordem do menu salva com sucesso');
+                } else {
+                    console.error('❌ Erro ao salvar ordem:', result.error);
+                    showToast('Erro ao salvar ordem do menu', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao salvar ordem do menu:', error);
+                showToast('Erro ao salvar ordem do menu', 'error');
+            }
+        }
+        
+        async function loadMenuOrder() {
+            try {
+                console.log('📥 Carregando ordem do menu...');
+                
+                const response = await fetch('/api/preferencias/menu-order', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.menu_order) {
+                    console.log('📋 Ordem carregada:', result.menu_order);
+                    applyMenuOrder(result.menu_order);
+                } else {
+                    console.log('ℹ️ Usando ordem padrão do menu');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar ordem do menu:', error);
+                console.log('ℹ️ Usando ordem padrão do menu');
+            }
+        }
+        
+        function applyMenuOrder(menuOrder) {
+            const sidebar = document.querySelector('.sidebar');
+            if (!sidebar) return;
+            
+            // Obter referência ao header da sidebar
+            const sidebarHeader = sidebar.querySelector('.sidebar-header');
+            const userInfo = sidebar.querySelector('.user-info');
+            
+            // Criar um fragmento para reordenar
+            const fragment = document.createDocumentFragment();
+            
+            // Adicionar itens na ordem especificada
+            menuOrder.forEach(menuId => {
+                const button = sidebar.querySelector(`[data-menu-id="${menuId}"]`);
+                if (button) {
+                    fragment.appendChild(button);
+                    
+                    // Se tiver submenu, adicionar também
+                    const submenu = document.getElementById(`submenu-${menuId}`);
+                    if (submenu) {
+                        fragment.appendChild(submenu);
+                    }
+                }
+            });
+            
+            // Limpar sidebar e reconstruir
+            sidebar.innerHTML = '';
+            
+            // Adicionar header e user info de volta
+            if (sidebarHeader) sidebar.appendChild(sidebarHeader.cloneNode(true));
+            if (userInfo) sidebar.appendChild(userInfo.cloneNode(true));
+            
+            // Adicionar itens reordenados
+            sidebar.appendChild(fragment);
+            
+            // Reinicializar event listeners
+            initMenuDragAndDrop();
+            
+            console.log('✅ Ordem do menu aplicada');
+        }
     </script>
     
     <!-- Modal de Subcategorias -->
