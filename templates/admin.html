@@ -753,10 +753,8 @@
                 document.getElementById('username').value = user.username;
                 document.getElementById('fullName').value = user.nome;
                 document.getElementById('userTypeSelect').value = user.tipo;
-                document.getElementById('clientId').value = user.cliente_id || '';
                 document.getElementById('password').value = '';
                 
-                toggleClientField();
                 renderModalPermissions(user.permissoes || []);
                 
                 document.getElementById('userModal').classList.add('active');
