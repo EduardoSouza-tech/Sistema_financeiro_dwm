@@ -17,26 +17,49 @@ def get_usuario_logado():
     """
     Retorna dados do usuário logado via session token
     """
-    print(f"\n🔍 DEBUG - get_usuario_logado() CHAMADA")
+    print(f"\n{'='*80}")
+    print(f"🔍 DEBUG - get_usuario_logado() CHAMADA")
+    print(f"{'='*80}")
+    print(f"📍 Request path: {request.path}")
+    print(f"📍 Request method: {request.method}")
+    
+    # Verificar session
+    print(f"\n🔑 Flask Session:")
+    print(f"   session.keys(): {list(session.keys())}")
+    print(f"   'session_token' in session: {'session_token' in session}")
+    
     token = session.get('session_token')
     print(f"   Token na sessão: {'✅ SIM' if token else '❌ NÃO'}")
     
+    if token:
+        print(f"   Token (primeiros 30 chars): {token[:30]}...")
+        print(f"   Token (últimos 10 chars): ...{token[-10:]}")
+    
+    # Verificar cookies
+    print(f"\n🍪 Cookies recebidos ({len(request.cookies)} total):")
+    for key, value in request.cookies.items():
+        value_preview = value[:50] if len(value) > 50 else value
+        print(f"   {key}: {value_preview}...")
+    
     if not token:
-        print(f"   ❌ Sem token na sessão, retornando None\n")
+        print(f"\n   ❌ Sem token na sessão, retornando None")
+        print(f"{'='*80}\n")
         return None
     
-    print(f"   Chamando auth_db.validar_sessao()...")
+    print(f"\n🔍 Chamando auth_db.validar_sessao()...")
     usuario = auth_db.validar_sessao(token)
     
     if usuario:
-        print(f"   ✅ Usuário retornado de auth_db.validar_sessao():")
-        print(f"      - ID: {usuario.get('id')}")
-        print(f"      - Username: {usuario.get('username')}")
-        print(f"      - 🎯 TIPO: '{usuario.get('tipo')}' (tipo: {type(usuario.get('tipo'))})")
+        print(f"\n✅ auth_db.validar_sessao() RETORNOU usuário:")
+        print(f"   ID: {usuario.get('id')}")
+        print(f"   Username: {usuario.get('username')}")
+        print(f"   🎯 TIPO: '{usuario.get('tipo')}' (Python type: {type(usuario.get('tipo'))})")
+        print(f"   Nome: {usuario.get('nome_completo')}")
+        print(f"   Email: {usuario.get('email')}")
     else:
-        print(f"   ❌ auth_db.validar_sessao() retornou None")
-    print(f"")
+        print(f"\n❌ auth_db.validar_sessao() retornou None (sessão inválida/expirada)")
     
+    print(f"{'='*80}\n")
     return usuario
 
 
@@ -75,7 +98,10 @@ def require_admin(f):
         print(f"{'='*80}")
         print(f"📍 Rota acessada: {request.path}")
         print(f"📍 Método: {request.method}")
+        print(f"📍 Remote addr: {request.remote_addr}")
+        print(f"📍 User agent: {request.user_agent}")
         
+        print(f"\n🔍 Chamando get_usuario_logado()...")
         usuario = get_usuario_logado()
         
         print(f"\n👤 Resultado de get_usuario_logado():")
@@ -83,13 +109,11 @@ def require_admin(f):
             print(f"   ✅ Usuário ENCONTRADO:")
             print(f"      - ID: {usuario.get('id')}")
             print(f"      - Username: {usuario.get('username')}")
-            print(f"      - 🎯 TIPO: '{usuario.get('tipo')}' (Python type: {type(usuario.get('tipo'))})")
+            print(f"      - 🎯 TIPO RAW: '{usuario.get('tipo')}'")
+            print(f"      - TIPO type(): {type(usuario.get('tipo'))}")
+            print(f"      - TIPO repr(): {repr(usuario.get('tipo'))}")
+            print(f"      - TIPO len(): {len(usuario.get('tipo', ''))}")
             print(f"      - Nome: {usuario.get('nome_completo')}")
-            print(f"\n🔍 Verificação de tipo:")
-            print(f"   usuario.get('tipo') = '{usuario.get('tipo')}'")
-            print(f"   usuario.get('tipo') != 'admin' = {usuario.get('tipo') != 'admin'}")
-            print(f"   usuario.get('tipo') == 'admin' = {usuario.get('tipo') == 'admin'}")
-            print(f"   Comparação bytes: {repr(usuario.get('tipo'))} vs {repr('admin')}")
         else:
             print(f"   ❌ Usuário NÃO ENCONTRADO (None)")
         
@@ -107,19 +131,25 @@ def require_admin(f):
         
         tipo_usuario = usuario.get('tipo')
         print(f"\n🎯 VERIFICAÇÃO CRÍTICA DE ADMIN:")
-        print(f"   tipo_usuario = {repr(tipo_usuario)}")
+        print(f"   tipo_usuario RAW = '{tipo_usuario}'")
+        print(f"   tipo_usuario type = {type(tipo_usuario)}")
+        print(f"   tipo_usuario repr = {repr(tipo_usuario)}")
         print(f"   tipo_usuario length = {len(tipo_usuario) if tipo_usuario else 0}")
         print(f"   tipo_usuario bytes = {list(tipo_usuario.encode()) if tipo_usuario else []}")
         print(f"   tipo_usuario.strip() = '{tipo_usuario.strip() if tipo_usuario else ''}'")
         print(f"   tipo_usuario.lower() = '{tipo_usuario.lower() if tipo_usuario else ''}'")
         print(f"   tipo_usuario != 'admin' = {tipo_usuario != 'admin'}")
         print(f"   tipo_usuario == 'admin' = {tipo_usuario == 'admin'}")
-        print(f"   tipo_usuario.strip().lower() == 'admin' = {tipo_usuario.strip().lower() == 'admin' if tipo_usuario else False}")
         
         # Normalizar tipo para comparação (remover espaços e converter para minúsculas)
         tipo_normalizado = tipo_usuario.strip().lower() if tipo_usuario else ''
-        print(f"   🔧 tipo_normalizado = '{tipo_normalizado}'")
-        print(f"   🔧 tipo_normalizado == 'admin' = {tipo_normalizado == 'admin'}")
+        print(f"\n   🔧 TIPO NORMALIZADO:")
+        print(f"      tipo_normalizado = '{tipo_normalizado}'")
+        print(f"      tipo_normalizado == 'admin' = {tipo_normalizado == 'admin'}")
+        print(f"      Comparação byte-a-byte:")
+        if tipo_normalizado:
+            for i, (char, byte) in enumerate(zip(tipo_normalizado, tipo_normalizado.encode())):
+                print(f"         [{i}] char='{char}' byte={byte}")
         
         if tipo_normalizado != 'admin':
             print(f"\n🚫 ACESSO NEGADO!")
