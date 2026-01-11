@@ -956,36 +956,42 @@ def reativar_fornecedor(nome):
 @aplicar_filtro_cliente
 def listar_lancamentos():
     """Lista todos os lançamentos com filtro de multi-tenancy"""
-    tipo_filtro = request.args.get('tipo')
-    filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
-    
-    lancamentos = db.listar_lancamentos(filtro_cliente_id=filtro_cliente_id)
-    
-    # Filtrar por tipo se especificado (case-insensitive)
-    if tipo_filtro:
-        lancamentos = [l for l in lancamentos if l.tipo.value.upper() == tipo_filtro.upper()]
-    
-    # Converter para lista de dicts e aplicar filtro por cliente
-    lancamentos_list = [{
-        'id': l.id if hasattr(l, 'id') else None,
-        'tipo': l.tipo.value,
-        'descricao': l.descricao,
-        'valor': float(l.valor),
-        'data_vencimento': l.data_vencimento.isoformat() if l.data_vencimento else None,
-        'data_pagamento': l.data_pagamento.isoformat() if l.data_pagamento else None,
-        'status': l.status.value,
-        'categoria': l.categoria,
-        'subcategoria': l.subcategoria,
-        'conta_bancaria': l.conta_bancaria,
-        'pessoa': l.pessoa,
-        'observacoes': l.observacoes,
-        'num_documento': getattr(l, 'num_documento', ''),
-        'recorrente': getattr(l, 'recorrente', False),
-        'frequencia_recorrencia': getattr(l, 'frequencia_recorrencia', ''),
-        'cliente_id': getattr(l, 'pessoa', None)  # Usar pessoa como referência ao cliente
-    } for l in lancamentos]
-    
-    return jsonify(lancamentos_list)
+    try:
+        tipo_filtro = request.args.get('tipo')
+        filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
+        
+        lancamentos = database.listar_lancamentos(filtro_cliente_id=filtro_cliente_id)
+        
+        # Filtrar por tipo se especificado (case-insensitive)
+        if tipo_filtro:
+            lancamentos = [l for l in lancamentos if l.tipo.value.upper() == tipo_filtro.upper()]
+        
+        # Converter para lista de dicts e aplicar filtro por cliente
+        lancamentos_list = [{
+            'id': l.id if hasattr(l, 'id') else None,
+            'tipo': l.tipo.value,
+            'descricao': l.descricao,
+            'valor': float(l.valor),
+            'data_vencimento': l.data_vencimento.isoformat() if l.data_vencimento else None,
+            'data_pagamento': l.data_pagamento.isoformat() if l.data_pagamento else None,
+            'status': l.status.value,
+            'categoria': l.categoria,
+            'subcategoria': l.subcategoria,
+            'conta_bancaria': l.conta_bancaria,
+            'pessoa': l.pessoa,
+            'observacoes': l.observacoes,
+            'num_documento': getattr(l, 'num_documento', ''),
+            'recorrente': getattr(l, 'recorrente', False),
+            'frequencia_recorrencia': getattr(l, 'frequencia_recorrencia', ''),
+            'cliente_id': getattr(l, 'pessoa', None)  # Usar pessoa como referência ao cliente
+        } for l in lancamentos]
+        
+        return jsonify(lancamentos_list)
+    except Exception as e:
+        print(f"❌ Erro ao listar lançamentos: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/lancamentos', methods=['POST'])
