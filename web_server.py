@@ -3316,7 +3316,8 @@ def listar_proprietarios_disponiveis():
     Para o admin selecionar qual cliente exportar
     """
     try:
-        conn = database.get_db_connection()
+        db = DatabaseManager()
+        conn = db.get_connection()
         cursor = conn.cursor()
         
         # Buscar todos os proprietario_id únicos de todas as tabelas
