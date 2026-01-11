@@ -3235,6 +3235,92 @@ def template_equipe_detalhes(template_id):
 # EXPORTAÇÃO DE DADOS POR CLIENTE (ADMIN)
 # ============================================================================
 
+@app.route('/api/admin/debug/schema', methods=['GET'])
+@require_admin
+def debug_database_schema():
+    """
+    Mostra todas as tabelas e colunas do banco de dados (DEBUG)
+    """
+    try:
+        db = DatabaseManager()
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        schema_info = {}
+        
+        # Buscar todas as tabelas
+        cursor.execute("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_type = 'BASE TABLE'
+            ORDER BY table_name
+        """)
+        
+        tabelas = cursor.fetchall()
+        
+        # Para cada tabela, buscar colunas
+        for tabela_row in tabelas:
+            tabela = tabela_row['table_name']
+            
+            cursor.execute("""
+                SELECT 
+                    column_name,
+                    data_type,
+                    is_nullable,
+                    column_default
+                FROM information_schema.columns
+                WHERE table_schema = 'public' 
+                AND table_name = %s
+                ORDER BY ordinal_position
+            """, (tabela,))
+            
+            colunas = cursor.fetchall()
+            
+            schema_info[tabela] = [
+                {
+                    'nome': col['column_name'],
+                    'tipo': col['data_type'],
+                    'nullable': col['is_nullable'] == 'YES',
+                    'default': col['column_default']
+                }
+                for col in colunas
+            ]
+        
+        cursor.close()
+        database.return_to_pool(conn)
+        
+        # Imprimir no console também
+        print("\n" + "=" * 80)
+        print("📊 SCHEMA DO BANCO DE DADOS - TODAS AS TABELAS E COLUNAS")
+        print("=" * 80)
+        
+        for tabela, colunas in sorted(schema_info.items()):
+            print(f"\n📋 Tabela: {tabela.upper()}")
+            print("-" * 80)
+            for col in colunas:
+                nullable = "NULL" if col['nullable'] else "NOT NULL"
+                print(f"  • {col['nome']:<30} {col['tipo']:<20} {nullable}")
+        
+        print("\n" + "=" * 80)
+        
+        return jsonify({
+            'success': True,
+            'schema': schema_info,
+            'total_tabelas': len(schema_info)
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao obter schema: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/admin/exportar-cliente/<int:cliente_id>', methods=['GET'])
 @require_admin
 def exportar_dados_cliente_admin(cliente_id):

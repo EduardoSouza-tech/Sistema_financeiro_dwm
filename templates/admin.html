@@ -427,6 +427,7 @@
                 <button class="tab" onclick="switchTab('permissions')">🔐 Permissões</button>
                 <button class="tab" onclick="switchTab('logs')">📋 Logs de Acesso</button>
                 <button class="tab" onclick="switchTab('export')">📦 Exportar Dados</button>
+                <button class="tab" onclick="switchTab('debug')">🔧 Debug DB</button>
             </div>
 
             <!-- Tab: Usuários -->
@@ -517,6 +518,30 @@
                     </button>
 
                     <div id="exportStatus" style="display: none; margin-top: 20px; padding: 15px; border-radius: 5px;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Debug DB -->
+            <div id="debugTab" class="tab-content">
+                <h2>🔧 Debug - Schema do Banco de Dados</h2>
+                <p style="color: #666; margin-bottom: 20px;">Visualize todas as tabelas e colunas do PostgreSQL</p>
+                
+                <button onclick="carregarSchema()" class="btn btn-primary" style="margin-bottom: 20px;">
+                    🔍 Carregar Schema Completo
+                </button>
+                
+                <div id="schemaLoading" style="display: none; text-align: center; padding: 40px;">
+                    <div class="spinner"></div>
+                    <p>Carregando schema do banco de dados...</p>
+                </div>
+                
+                <div id="schemaContent" style="display: none;">
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                        <strong>Total de Tabelas:</strong> <span id="totalTabelas">0</span>
+                    </div>
+                    
+                    <div id="schemaTabelas" style="max-height: 600px; overflow-y: auto;">
                     </div>
                 </div>
             </div>
@@ -951,6 +976,14 @@
             if (tabName === 'export') {
                 loadProprietarios();
             }
+            
+            // Se a aba de debug foi selecionada, carregar schema automaticamente
+            if (tabName === 'debug') {
+                const schemaContent = document.getElementById('schemaContent');
+                if (schemaContent.style.display === 'none') {
+                    carregarSchema();
+                }
+            }
         }
 
         // Carregar proprietários para exportação
@@ -1134,6 +1167,97 @@
                 // Habilitar botão novamente
                 exportBtn.disabled = false;
                 exportBtn.textContent = '📦 Exportar Dados do Cliente';
+            }
+        }
+
+        // Carregar schema do banco de dados
+        async function carregarSchema() {
+            const loading = document.getElementById('schemaLoading');
+            const content = document.getElementById('schemaContent');
+            const tabelasDiv = document.getElementById('schemaTabelas');
+            
+            loading.style.display = 'block';
+            content.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/admin/debug/schema', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar schema');
+                }
+                
+                const data = await response.json();
+                
+                document.getElementById('totalTabelas').textContent = data.total_tabelas;
+                
+                // Limpar conteúdo
+                tabelasDiv.innerHTML = '';
+                
+                // Criar cards para cada tabela
+                const tabelas = Object.keys(data.schema).sort();
+                
+                tabelas.forEach(tabela => {
+                    const colunas = data.schema[tabela];
+                    
+                    const card = document.createElement('div');
+                    card.style.cssText = 'background: white; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px;';
+                    
+                    const titulo = document.createElement('h3');
+                    titulo.textContent = `📋 ${tabela.toUpperCase()}`;
+                    titulo.style.cssText = 'color: #667eea; margin-bottom: 10px; font-size: 18px;';
+                    card.appendChild(titulo);
+                    
+                    const stats = document.createElement('p');
+                    stats.textContent = `${colunas.length} colunas`;
+                    stats.style.cssText = 'color: #666; margin-bottom: 10px; font-size: 14px;';
+                    card.appendChild(stats);
+                    
+                    const table = document.createElement('table');
+                    table.style.cssText = 'width: 100%; border-collapse: collapse; font-family: monospace; font-size: 13px;';
+                    
+                    const thead = document.createElement('thead');
+                    thead.innerHTML = `
+                        <tr style="background: #f8f9fa;">
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Coluna</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Tipo</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Nullable</th>
+                        </tr>
+                    `;
+                    table.appendChild(thead);
+                    
+                    const tbody = document.createElement('tbody');
+                    colunas.forEach((col, index) => {
+                        const tr = document.createElement('tr');
+                        tr.style.background = index % 2 === 0 ? 'white' : '#f8f9fa';
+                        tr.innerHTML = `
+                            <td style="padding: 6px; border-bottom: 1px solid #eee;"><strong>${col.nome}</strong></td>
+                            <td style="padding: 6px; border-bottom: 1px solid #eee; color: #666;">${col.tipo}</td>
+                            <td style="padding: 6px; border-bottom: 1px solid #eee;">
+                                <span style="color: ${col.nullable ? '#dc3545' : '#28a745'};">
+                                    ${col.nullable ? 'NULL' : 'NOT NULL'}
+                                </span>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    table.appendChild(tbody);
+                    
+                    card.appendChild(table);
+                    tabelasDiv.appendChild(card);
+                });
+                
+                loading.style.display = 'none';
+                content.style.display = 'block';
+                
+                console.log(`✅ Schema carregado: ${data.total_tabelas} tabelas`);
+                showAlert(`Schema carregado: ${data.total_tabelas} tabelas`, 'success');
+                
+            } catch (error) {
+                console.error('Erro ao carregar schema:', error);
+                loading.style.display = 'none';
+                showAlert('Erro ao carregar schema do banco de dados', 'error');
             }
         }
 
