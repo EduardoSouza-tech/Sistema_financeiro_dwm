@@ -3231,6 +3231,159 @@ def template_equipe_detalhes(template_id):
             return jsonify({'error': str(e)}), 500
 
 
+# ============================================================================
+# EXPORTAÇÃO DE DADOS POR CLIENTE (ADMIN)
+# ============================================================================
+
+@app.route('/api/admin/exportar-cliente/<int:cliente_id>', methods=['GET'])
+@require_admin
+def exportar_dados_cliente_admin(cliente_id):
+    """
+    Exporta todos os dados de um cliente específico (apenas admin)
+    
+    Retorna um arquivo JSON com todos os dados do cliente:
+    - Clientes
+    - Fornecedores
+    - Categorias
+    - Contas Bancárias
+    - Lançamentos
+    """
+    try:
+        # Verificar se o cliente existe
+        usuario = request.usuario
+        clientes_do_sistema = database.listar_clientes(ativos=None, filtro_cliente_id=None)
+        
+        # Verificar se existe algum registro com esse proprietario_id
+        registros_encontrados = [c for c in clientes_do_sistema if c.get('proprietario_id') == cliente_id]
+        
+        if not registros_encontrados:
+            return jsonify({
+                'success': False,
+                'error': f'Nenhum dado encontrado para o cliente_id {cliente_id}'
+            }), 404
+        
+        # Exportar dados
+        print(f"\n🔄 Iniciando exportação dos dados do cliente {cliente_id}")
+        export_data = database.exportar_dados_cliente(cliente_id)
+        
+        # Registrar log de auditoria
+        auth_db.registrar_log_acesso(
+            usuario_id=usuario['id'],
+            acao='exportar_dados_cliente',
+            descricao=f'Exportou dados do cliente_id {cliente_id}',
+            ip_address=request.remote_addr,
+            sucesso=True
+        )
+        
+        print(f"✅ Exportação concluída para cliente {cliente_id}")
+        
+        # Retornar como JSON com cabeçalhos para download
+        from flask import make_response
+        response = make_response(jsonify(export_data))
+        response.headers['Content-Type'] = 'application/json'
+        response.headers['Content-Disposition'] = f'attachment; filename=export_cliente_{cliente_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+        
+        return response
+        
+    except Exception as e:
+        print(f"❌ Erro ao exportar dados do cliente {cliente_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Registrar log de erro
+        try:
+            auth_db.registrar_log_acesso(
+                usuario_id=request.usuario['id'],
+                acao='exportar_dados_cliente',
+                descricao=f'ERRO ao exportar cliente_id {cliente_id}: {str(e)}',
+                ip_address=request.remote_addr,
+                sucesso=False
+            )
+        except:
+            pass
+        
+        return jsonify({
+            'success': False,
+            'error': f'Erro ao exportar dados: {str(e)}'
+        }), 500
+
+
+@app.route('/api/admin/listar-proprietarios', methods=['GET'])
+@require_admin
+def listar_proprietarios_disponiveis():
+    """
+    Lista todos os proprietario_id únicos no sistema
+    Para o admin selecionar qual cliente exportar
+    """
+    try:
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        
+        # Buscar todos os proprietario_id únicos de todas as tabelas
+        proprietarios = set()
+        
+        # Clientes
+        cursor.execute("SELECT DISTINCT proprietario_id FROM clientes WHERE proprietario_id IS NOT NULL")
+        proprietarios.update([row['proprietario_id'] for row in cursor.fetchall()])
+        
+        # Fornecedores
+        cursor.execute("SELECT DISTINCT proprietario_id FROM fornecedores WHERE proprietario_id IS NOT NULL")
+        proprietarios.update([row['proprietario_id'] for row in cursor.fetchall()])
+        
+        # Lançamentos
+        cursor.execute("SELECT DISTINCT proprietario_id FROM lancamentos WHERE proprietario_id IS NOT NULL")
+        proprietarios.update([row['proprietario_id'] for row in cursor.fetchall()])
+        
+        # Contas Bancárias
+        cursor.execute("SELECT DISTINCT proprietario_id FROM contas_bancarias WHERE proprietario_id IS NOT NULL")
+        proprietarios.update([row['proprietario_id'] for row in cursor.fetchall()])
+        
+        # Categorias
+        cursor.execute("SELECT DISTINCT proprietario_id FROM categorias WHERE proprietario_id IS NOT NULL")
+        proprietarios.update([row['proprietario_id'] for row in cursor.fetchall()])
+        
+        cursor.close()
+        database.return_to_pool(conn)
+        
+        # Buscar informações dos usuários correspondentes
+        proprietarios_info = []
+        for prop_id in sorted(proprietarios):
+            # Buscar usuário correspondente
+            usuario_info = auth_db.obter_usuario(prop_id)
+            if usuario_info:
+                proprietarios_info.append({
+                    'proprietario_id': prop_id,
+                    'nome': usuario_info.get('nome', 'Sem nome'),
+                    'email': usuario_info.get('email', 'Sem email'),
+                    'tipo': usuario_info.get('tipo', 'cliente')
+                })
+            else:
+                proprietarios_info.append({
+                    'proprietario_id': prop_id,
+                    'nome': f'Proprietário {prop_id}',
+                    'email': 'Sem email',
+                    'tipo': 'desconhecido'
+                })
+        
+        print(f"✅ Encontrados {len(proprietarios_info)} proprietários únicos")
+        
+        return jsonify({
+            'success': True,
+            'proprietarios': proprietarios_info,
+            'total': len(proprietarios_info)
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao listar proprietários: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': f'Erro ao listar proprietários: {str(e)}'
+        }), 500
+
+
 if __name__ == '__main__':
     # Porta configurável (Railway usa variável de ambiente PORT)
     port = int(os.getenv('PORT', 5000))

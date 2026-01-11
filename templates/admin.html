@@ -426,6 +426,7 @@
                 <button class="tab active" onclick="switchTab('users')">👥 Usuários</button>
                 <button class="tab" onclick="switchTab('permissions')">🔐 Permissões</button>
                 <button class="tab" onclick="switchTab('logs')">📋 Logs de Acesso</button>
+                <button class="tab" onclick="switchTab('export')">📦 Exportar Dados</button>
             </div>
 
             <!-- Tab: Usuários -->
@@ -475,6 +476,48 @@
                 <p style="color: #666; margin-bottom: 20px;">Histórico de logins e acessos ao sistema</p>
                 <div class="empty-state">
                     <p>Em desenvolvimento - Logs de acesso serão exibidos aqui</p>
+                </div>
+            </div>
+
+            <!-- Tab: Exportar Dados -->
+            <div id="exportTab" class="tab-content">
+                <h2>Exportar Dados de Cliente</h2>
+                <p style="color: #666; margin-bottom: 20px;">Selecione um cliente para exportar todos os seus dados em formato JSON</p>
+                
+                <div id="exportLoading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Carregando clientes...</p>
+                </div>
+
+                <div id="exportContent" style="display: none;">
+                    <div class="form-group">
+                        <label for="clientSelect">Selecione o Cliente:</label>
+                        <select id="clientSelect" class="form-control" style="width: 100%; padding: 10px; font-size: 14px;">
+                            <option value="">-- Selecione um cliente --</option>
+                        </select>
+                    </div>
+
+                    <div id="clienteInfo" style="display: none; background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                        <h4 style="margin-bottom: 10px;">Informações do Cliente:</h4>
+                        <p><strong>Nome:</strong> <span id="infoNome"></span></p>
+                        <p><strong>Email:</strong> <span id="infoEmail"></span></p>
+                        <p><strong>Tipo:</strong> <span id="infoTipo"></span></p>
+                        <p style="color: #666; margin-top: 10px; font-size: 13px;">
+                            ⚠️ A exportação incluirá TODOS os dados deste cliente:<br>
+                            • Clientes registrados<br>
+                            • Fornecedores<br>
+                            • Categorias<br>
+                            • Contas bancárias<br>
+                            • Lançamentos financeiros
+                        </p>
+                    </div>
+
+                    <button id="exportBtn" class="btn btn-primary" onclick="exportarDadosCliente()" style="width: 100%; padding: 12px;" disabled>
+                        📦 Exportar Dados do Cliente
+                    </button>
+
+                    <div id="exportStatus" style="display: none; margin-top: 20px; padding: 15px; border-radius: 5px;">
+                    </div>
                 </div>
             </div>
         </div>
@@ -903,6 +946,170 @@
             // Adicionar active na tab selecionada
             event.target.classList.add('active');
             document.getElementById(tabName + 'Tab').classList.add('active');
+            
+            // Se a aba de exportação foi selecionada, carregar os clientes
+            if (tabName === 'export') {
+                loadProprietarios();
+            }
+        }
+
+        // Carregar proprietários para exportação
+        async function loadProprietarios() {
+            const loading = document.getElementById('exportLoading');
+            const content = document.getElementById('exportContent');
+            const select = document.getElementById('clientSelect');
+            
+            loading.style.display = 'block';
+            content.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/admin/listar-proprietarios', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar proprietários');
+                }
+                
+                const data = await response.json();
+                
+                // Limpar select
+                select.innerHTML = '<option value="">-- Selecione um cliente --</option>';
+                
+                // Adicionar proprietários
+                data.proprietarios.forEach(prop => {
+                    const option = document.createElement('option');
+                    option.value = prop.proprietario_id;
+                    option.textContent = `${prop.nome} (ID: ${prop.proprietario_id}) - ${prop.email}`;
+                    option.dataset.nome = prop.nome;
+                    option.dataset.email = prop.email;
+                    option.dataset.tipo = prop.tipo;
+                    select.appendChild(option);
+                });
+                
+                loading.style.display = 'none';
+                content.style.display = 'block';
+                
+                console.log(`✅ Carregados ${data.proprietarios.length} proprietários`);
+            } catch (error) {
+                console.error('Erro ao carregar proprietários:', error);
+                loading.style.display = 'none';
+                showAlert('Erro ao carregar lista de clientes', 'error');
+            }
+        }
+
+        // Atualizar informações do cliente selecionado
+        document.addEventListener('DOMContentLoaded', () => {
+            const select = document.getElementById('clientSelect');
+            if (select) {
+                select.addEventListener('change', function() {
+                    const clienteInfo = document.getElementById('clienteInfo');
+                    const exportBtn = document.getElementById('exportBtn');
+                    
+                    if (this.value) {
+                        const selectedOption = this.options[this.selectedIndex];
+                        document.getElementById('infoNome').textContent = selectedOption.dataset.nome;
+                        document.getElementById('infoEmail').textContent = selectedOption.dataset.email;
+                        document.getElementById('infoTipo').textContent = selectedOption.dataset.tipo;
+                        
+                        clienteInfo.style.display = 'block';
+                        exportBtn.disabled = false;
+                    } else {
+                        clienteInfo.style.display = 'none';
+                        exportBtn.disabled = true;
+                    }
+                });
+            }
+        });
+
+        // Exportar dados do cliente
+        async function exportarDadosCliente() {
+            const select = document.getElementById('clientSelect');
+            const clienteId = select.value;
+            
+            if (!clienteId) {
+                showAlert('Selecione um cliente primeiro', 'error');
+                return;
+            }
+            
+            const exportBtn = document.getElementById('exportBtn');
+            const exportStatus = document.getElementById('exportStatus');
+            
+            // Desabilitar botão
+            exportBtn.disabled = true;
+            exportBtn.textContent = '⏳ Exportando...';
+            
+            // Mostrar status
+            exportStatus.style.display = 'block';
+            exportStatus.style.background = '#e3f2fd';
+            exportStatus.style.color = '#1976d2';
+            exportStatus.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="spinner" style="width: 20px; height: 20px;"></div>
+                    <span>Exportando dados do cliente ${clienteId}...</span>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(`/api/admin/exportar-cliente/${clienteId}`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Erro ao exportar dados');
+                }
+                
+                // Obter o JSON da resposta
+                const data = await response.json();
+                
+                // Criar blob e fazer download
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `export_cliente_${clienteId}_${new Date().toISOString().slice(0,10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                // Mostrar sucesso
+                exportStatus.style.background = '#d4edda';
+                exportStatus.style.color = '#155724';
+                exportStatus.innerHTML = `
+                    ✅ Exportação concluída com sucesso!<br>
+                    <small style="margin-top: 10px; display: block;">
+                        • ${data.metadata.estatisticas.total_clientes} clientes<br>
+                        • ${data.metadata.estatisticas.total_fornecedores} fornecedores<br>
+                        • ${data.metadata.estatisticas.total_categorias} categorias<br>
+                        • ${data.metadata.estatisticas.total_contas} contas bancárias<br>
+                        • ${data.metadata.estatisticas.total_lancamentos} lançamentos
+                    </small>
+                `;
+                
+                showAlert('Dados exportados com sucesso!', 'success');
+                
+                // Habilitar botão novamente após 3 segundos
+                setTimeout(() => {
+                    exportBtn.disabled = false;
+                    exportBtn.textContent = '📦 Exportar Dados do Cliente';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Erro ao exportar dados:', error);
+                
+                // Mostrar erro
+                exportStatus.style.background = '#f8d7da';
+                exportStatus.style.color = '#721c24';
+                exportStatus.innerHTML = `❌ Erro: ${error.message}`;
+                
+                showAlert('Erro ao exportar dados: ' + error.message, 'error');
+                
+                // Habilitar botão novamente
+                exportBtn.disabled = false;
+                exportBtn.textContent = '📦 Exportar Dados do Cliente';
+            }
         }
 
         // Mostrar alerta
