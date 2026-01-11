@@ -3480,6 +3480,9 @@ def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
         if 'nome_completo' in dados:
             campos.append("nome_completo = %s")
             valores.append(dados['nome_completo'])
+        if 'nome' in dados:  # Aceita também 'nome'
+            campos.append("nome_completo = %s")
+            valores.append(dados['nome'])
         if 'email' in dados:
             campos.append("email = %s")
             valores.append(dados['email'])
@@ -3492,7 +3495,7 @@ def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
         if 'ativo' in dados:
             campos.append("ativo = %s")
             valores.append(dados['ativo'])
-        if 'password' in dados:
+        if 'password' in dados and dados['password']:  # Só atualiza se senha não vazia
             import hashlib
             password_hash = hashlib.sha256(dados['password'].encode()).hexdigest()
             campos.append("password_hash = %s")
@@ -3504,33 +3507,42 @@ def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
         valores.append(usuario_id)
         query = f"UPDATE usuarios SET {', '.join(campos)} WHERE id = %s"
         cursor.execute(query, valores)
-        conn.commit()
-        return True
+        affected = cursor.rowcount
+        return affected > 0
     except Exception as e:
-        print(f"Erro ao atualizar usuário: {e}")
+        print(f"❌ Erro ao atualizar usuário: {e}")
+        import traceback
+        traceback.print_exc()
         return False
     finally:
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
 
 def deletar_usuario(usuario_id: int) -> bool:
-    """Deleta um usuário (não permite deletar admin)"""
+    """Deleta um usuário (não permite deletar admin principal ID=1)"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
     try:
-        # Verificar se não é admin
-        cursor.execute("SELECT tipo FROM usuarios WHERE id = %s", (usuario_id,))
-        usuario = cursor.fetchone()
-        if usuario and usuario['tipo'] == 'admin':
+        # Verificar se não é o admin principal (ID = 1)
+        if usuario_id == 1:
+            print("❌ Não é possível deletar o administrador principal (ID=1)")
             return False
         
         cursor.execute("DELETE FROM usuarios WHERE id = %s", (usuario_id,))
-        conn.commit()
-        return True
+        affected = cursor.rowcount
+        
+        if affected > 0:
+            print(f"✅ Usuário {usuario_id} deletado com sucesso")
+        else:
+            print(f"⚠️ Usuário {usuario_id} não encontrado")
+        
+        return affected > 0
     except Exception as e:
-        print(f"Erro ao deletar usuário: {e}")
+        print(f"❌ Erro ao deletar usuário: {e}")
+        import traceback
+        traceback.print_exc()
         return False
     finally:
         cursor.close()
