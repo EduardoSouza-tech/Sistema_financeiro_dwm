@@ -4,6 +4,8 @@ Otimizado para PostgreSQL com pool de conexões
 """
 from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from functools import wraps
 import os
 
@@ -35,14 +37,40 @@ import secrets
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
+# Detectar ambiente de produção
+IS_PRODUCTION = bool(os.getenv('RAILWAY_ENVIRONMENT'))
+
 # Configurar secret key para sessões
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SECURE'] = False  # True em produção com HTTPS
+app.config['SESSION_COOKIE_SECURE'] = IS_PRODUCTION  # True em produção com HTTPS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
-CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]}}, supports_credentials=True)
+# Configurar CORS com domínios específicos
+ALLOWED_ORIGINS = [
+    'https://sistema-financeiro-dwm-production.up.railway.app',
+    'http://localhost:5000',
+    'http://127.0.0.1:5000'
+]
+
+if not IS_PRODUCTION:
+    ALLOWED_ORIGINS.append('*')  # Permitir tudo apenas em desenvolvimento
+
+CORS(app, 
+     resources={r"/api/*": {
+         "origins": ALLOWED_ORIGINS,
+         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+     }}, 
+     supports_credentials=True)
+
+# Configurar Rate Limiting
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
 
 # ============================================================================
 # CONFIGURAÇÃO E INICIALIZAÇÃO DO SISTEMA
@@ -72,8 +100,9 @@ except Exception as e:
 # ============================================================================
 
 @app.route('/api/auth/login', methods=['POST'])
+@limiter.limit("5 per minute")  # Máximo 5 tentativas por minuto
 def login():
-    """Endpoint de login"""
+    """Endpoint de login com proteção contra brute force"""
     try:
         data = request.json
         username = data.get('username')
@@ -84,6 +113,14 @@ def login():
                 'success': False,
                 'error': 'Username e senha são obrigatórios'
             }), 400
+        
+        # Verificar se conta está bloqueada
+        from auth_functions import verificar_conta_bloqueada
+        if verificar_conta_bloqueada(username, db):
+            return jsonify({
+                'success': False,
+                'error': 'Conta temporariamente bloqueada por excesso de tentativas. Tente novamente em 15 minutos.'
+            }), 429
         
         # Autenticar usuário
         usuario = auth_db.autenticar_usuario(username, password)
@@ -237,6 +274,15 @@ def change_password():
                 'error': 'Senha atual e nova senha são obrigatórias'
             }), 400
         
+        # Validar força da nova senha
+        from auth_functions import validar_senha_forte
+        valida, mensagem = validar_senha_forte(senha_nova)
+        if not valida:
+            return jsonify({
+                'success': False,
+                'error': f'Nova senha fraca: {mensagem}'
+            }), 400
+        
         usuario = request.usuario
         
         # Verificar senha atual
@@ -342,6 +388,16 @@ def gerenciar_usuarios():
             admin = request.usuario
             data['created_by'] = admin['id']
             
+            # Validar força da senha
+            from auth_functions import validar_senha_forte
+            if 'password' in data:
+                valida, mensagem = validar_senha_forte(data['password'])
+                if not valida:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Senha fraca: {mensagem}'
+                    }), 400
+            
             usuario_id = auth_db.criar_usuario(data)
             
             # Conceder permissões se fornecidas
@@ -399,6 +455,16 @@ def gerenciar_usuario_especifico(usuario_id):
         try:
             data = request.json
             admin = request.usuario
+            
+            # Validar força da senha se estiver sendo alterada
+            if 'password' in data and data['password']:
+                from auth_functions import validar_senha_forte
+                valida, mensagem = validar_senha_forte(data['password'])
+                if not valida:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Senha fraca: {mensagem}'
+                    }), 400
             
             # Atualizar dados do usuário
             success = auth_db.atualizar_usuario(usuario_id, data)

@@ -2,19 +2,60 @@
 Funções de Autenticação e Autorização
 """
 import hashlib
+import bcrypt
 import secrets
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 
 def hash_password(password: str) -> str:
-    """Gera hash SHA-256 da senha"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """
+    Gera hash bcrypt da senha
+    bcrypt é mais seguro que SHA-256 pois:
+    - Usa salt automático (proteção contra rainbow tables)
+    - É computacionalmente caro (proteção contra brute force)
+    - Especificamente projetado para senhas
+    """
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def verificar_senha(password: str, password_hash: str) -> bool:
-    """Verifica se a senha corresponde ao hash"""
-    return hash_password(password) == password_hash
+    """Verifica se a senha corresponde ao hash bcrypt"""
+    try:
+        return bcrypt.checkpw(password.encode(), password_hash.encode())
+    except Exception:
+        # Fallback para SHA-256 (para migração de senhas antigas)
+        sha256_hash = hashlib.sha256(password.encode()).hexdigest()
+        if sha256_hash == password_hash:
+            # Senha antiga com SHA-256 - ainda válida mas deve ser atualizada
+            return True
+        return False
+
+
+def validar_senha_forte(senha: str) -> tuple[bool, str]:
+    """
+    Valida se a senha atende aos requisitos de segurança
+    
+    Returns:
+        (bool, str): (válida?, mensagem de erro)
+    """
+    if len(senha) < 8:
+        return False, "Senha deve ter no mínimo 8 caracteres"
+    
+    if not re.search(r'[A-Z]', senha):
+        return False, "Senha deve conter pelo menos uma letra maiúscula"
+    
+    if not re.search(r'[a-z]', senha):
+        return False, "Senha deve conter pelo menos uma letra minúscula"
+    
+    if not re.search(r'[0-9]', senha):
+        return False, "Senha deve conter pelo menos um número"
+    
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', senha):
+        return False, "Senha deve conter pelo menos um caractere especial"
+    
+    return True, "OK"
 
 
 def gerar_token_sessao() -> str:
@@ -98,6 +139,11 @@ def autenticar_usuario(username: str, password: str, db) -> Optional[Dict]:
     conn = db.get_connection()
     cursor = conn.cursor()
     
+    # Verificar se conta está bloqueada por tentativas
+    if verificar_conta_bloqueada(username, db):
+        conn.close()
+        return None
+    
     cursor.execute("""
         SELECT id, username, password_hash, tipo, nome_completo, email, telefone, 
                ativo, cliente_id
@@ -106,15 +152,35 @@ def autenticar_usuario(username: str, password: str, db) -> Optional[Dict]:
     """, (username,))
     
     usuario = cursor.fetchone()
-    cursor.close()
-    conn.close()
     
     if not usuario:
+        cursor.close()
+        conn.close()
         return None
     
     # Verificar senha
-    if not verificar_senha(password, usuario['password_hash']):
+    senha_correta = verificar_senha(password, usuario['password_hash'])
+    
+    if not senha_correta:
+        # Registrar tentativa falha
+        registrar_tentativa_login(username, False, db)
+        cursor.close()
+        conn.close()
         return None
+    
+    # Senha correta - limpar tentativas falhas
+    limpar_tentativas_login(username, db)
+    
+    # Verificar se é hash antigo (SHA-256) e atualizar para bcrypt
+    if len(usuario['password_hash']) == 64:  # SHA-256 tem 64 caracteres
+        novo_hash = hash_password(password)
+        cursor.execute("""
+            UPDATE usuarios SET password_hash = %s WHERE id = %s
+        """, (novo_hash, usuario['id']))
+        conn.commit()
+    
+    cursor.close()
+    conn.close()
     
     # Retornar dados do usuário (sem o hash da senha)
     return {
@@ -470,6 +536,76 @@ def registrar_log_acesso(usuario_id: int, acao: str, descricao: str, ip_address:
         INSERT INTO log_acessos (usuario_id, acao, descricao, ip_address, sucesso)
         VALUES (%s, %s, %s, %s, %s)
     """, (usuario_id, acao, descricao, ip_address, sucesso))
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+# ==================== CONTROLE DE TENTATIVAS DE LOGIN ====================
+
+def registrar_tentativa_login(username: str, sucesso: bool, db):
+    """Registra uma tentativa de login"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    # Criar tabela se não existir
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS login_attempts (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(100) NOT NULL,
+            sucesso BOOLEAN NOT NULL,
+            tentativa_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ip_address VARCHAR(50)
+        )
+    """)
+    
+    cursor.execute("""
+        INSERT INTO login_attempts (username, sucesso)
+        VALUES (%s, %s)
+    """, (username, sucesso))
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+def verificar_conta_bloqueada(username: str, db) -> bool:
+    """
+    Verifica se a conta está bloqueada por excesso de tentativas
+    Bloqueia após 5 tentativas falhadas em 15 minutos
+    """
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    # Verificar tentativas nos últimos 15 minutos
+    cursor.execute("""
+        SELECT COUNT(*) as count
+        FROM login_attempts
+        WHERE username = %s 
+        AND sucesso = FALSE
+        AND tentativa_em > NOW() - INTERVAL '15 minutes'
+    """, (username,))
+    
+    result = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    if result and result['count'] >= 5:
+        return True
+    
+    return False
+
+
+def limpar_tentativas_login(username: str, db):
+    """Limpa as tentativas de login após sucesso"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        DELETE FROM login_attempts
+        WHERE username = %s
+    """, (username,))
     
     conn.commit()
     cursor.close()
