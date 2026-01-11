@@ -112,14 +112,14 @@ function showPage(pageName) {
     console.log('🔍 [DEBUG] ========================================');
     console.log(`🔍 [DEBUG] Página solicitada: ${pageName}`);
     
-    // Mapeamento de páginas para permissões
+    // Mapeamento de páginas para CÓDIGOS de permissões (não nomes)
     const pagePermissions = {
-        'dashboard': 'Dashboard',
-        'contas-receber': 'Ver Lancamentos',
-        'contas-pagar': 'Ver Lancamentos',
-        'lancamentos': 'Ver Lancamentos',
-        'clientes': 'Ver Clientes',
-        'fornecedores': 'Ver Fornecedores'
+        'dashboard': 'dashboard',
+        'contas-receber': 'lancamentos_view',
+        'contas-pagar': 'lancamentos_view',
+        'lancamentos': 'lancamentos_view',
+        'clientes': 'clientes_view',
+        'fornecedores': 'fornecedores_view'
     };
     
     const requiredPermission = pagePermissions[pageName];
@@ -249,13 +249,14 @@ function carregarPaginaInicial() {
     console.log('🎯 [DEBUG] userPermissions:', userPermissions);
     
     // Ordem de prioridade das páginas (mesma ordem do menu)
+    // USAR CÓDIGOS DAS PERMISSÕES, NÃO NOMES!
     const paginasOrdenadas = [
-        { nome: 'dashboard', permissao: 'Dashboard' },
-        { nome: 'contas-receber', permissao: 'Ver Lancamentos' },
-        { nome: 'contas-pagar', permissao: 'Ver Lancamentos' },
-        { nome: 'lancamentos', permissao: 'Ver Lancamentos' },
-        { nome: 'clientes', permissao: 'Ver Clientes' },
-        { nome: 'fornecedores', permissao: 'Ver Fornecedores' },
+        { nome: 'dashboard', permissao: 'dashboard' },
+        { nome: 'contas-receber', permissao: 'lancamentos_view' },
+        { nome: 'contas-pagar', permissao: 'lancamentos_view' },
+        { nome: 'lancamentos', permissao: 'lancamentos_view' },
+        { nome: 'clientes', permissao: 'clientes_view' },
+        { nome: 'fornecedores', permissao: 'fornecedores_view' },
         { nome: 'categorias', permissao: null }, // Sem permissão específica
         { nome: 'contas', permissao: null } // Sem permissão específica
     ];
