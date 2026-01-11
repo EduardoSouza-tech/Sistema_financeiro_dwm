@@ -63,7 +63,8 @@ class ContaBancaria:
     def __init__(self, nome: str, banco: str, agencia: str, conta: str, 
                  saldo_inicial: float = 0.0, id: Optional[int] = None, 
                  tipo_conta: str = "corrente", moeda: str = "BRL",
-                 ativa: bool = True, proprietario_id: Optional[int] = None):
+                 ativa: bool = True, proprietario_id: Optional[int] = None,
+                 data_criacao: Optional[datetime] = None):
         self.id = id
         self.nome = nome
         self.banco = banco
@@ -74,6 +75,7 @@ class ContaBancaria:
         self.moeda = moeda
         self.ativa = ativa
         self.proprietario_id = proprietario_id
+        self.data_criacao = data_criacao
     
     def to_dict(self) -> dict:
         return {
@@ -90,7 +92,7 @@ class ContaBancaria:
 
 class Lancamento:
     """Lancamento financeiro"""
-    def __init__(self, tipo: TipoLancamento, valor: float, data_lancamento: datetime,
+    def __init__(self, tipo: TipoLancamento, valor: float = 0.0, data_lancamento: Optional[datetime] = None,
                  categoria: str = "", subcategoria: str = "", conta_bancaria: str = "",
                  cliente_fornecedor: str = "", pessoa: str = "", descricao: str = "",
                  status: StatusLancamento = StatusLancamento.PENDENTE,
@@ -3420,7 +3422,7 @@ def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
             SELECT u.id, u.username, u.tipo, u.nome_completo, u.email, 
                    u.cliente_id, u.ativo, u.created_at,
                    c.nome as cliente_nome,
-                   (SELECT MAX(sl.created_at) FROM sessoes_login sl WHERE sl.usuario_id = u.id) as ultima_sessao
+                   (SELECT MAX(sl.criado_em) FROM sessoes_login sl WHERE sl.usuario_id = u.id) as ultima_sessao
             FROM usuarios u
             LEFT JOIN clientes c ON u.cliente_id = c.id
             {filtro}
