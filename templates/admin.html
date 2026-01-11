@@ -643,7 +643,21 @@
                     credentials: 'include'
                 });
                 
-                allUsers = await response.json();
+                const data = await response.json();
+                console.log('🔍 DEBUG - Resposta de /api/usuarios:', data);
+                
+                // Verificar se veio no formato {success: true, usuarios: [...]}
+                if (data.success && Array.isArray(data.usuarios)) {
+                    allUsers = data.usuarios;
+                } else if (Array.isArray(data)) {
+                    // Formato antigo (array direto)
+                    allUsers = data;
+                } else {
+                    console.error('❌ Formato de resposta inválido:', data);
+                    allUsers = [];
+                }
+                
+                console.log('✅ Usuários carregados:', allUsers.length);
                 renderUsersTable();
                 updateStats();
             } catch (error) {

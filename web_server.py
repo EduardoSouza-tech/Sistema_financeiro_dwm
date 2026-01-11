@@ -307,10 +307,25 @@ def gerenciar_usuarios():
     """Listar ou criar usuários"""
     if request.method == 'GET':
         try:
+            print(f"\n🔍 GET /api/usuarios - Listando usuários...")
             usuarios = auth_db.listar_usuarios()
-            return jsonify(usuarios)
+            print(f"   Tipo retornado: {type(usuarios)}")
+            print(f"   Valor: {usuarios}")
+            
+            # Garantir que retorne uma lista
+            if not isinstance(usuarios, list):
+                print(f"   ⚠️ Não é lista! Convertendo...")
+                if usuarios is None:
+                    usuarios = []
+                else:
+                    usuarios = [usuarios] if isinstance(usuarios, dict) else []
+            
+            print(f"   ✅ Retornando {len(usuarios)} usuários\n")
+            return jsonify({'success': True, 'usuarios': usuarios})
         except Exception as e:
             print(f"❌ Erro ao listar usuários: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
     
     else:  # POST
