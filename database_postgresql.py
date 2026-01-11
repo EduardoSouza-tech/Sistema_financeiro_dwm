@@ -1111,11 +1111,19 @@ class DatabaseManager:
         
         # Inserir permissões padrão
         permissoes_padrao = [
-            ('dashboard', 'Dashboard', 'Visualizar dashboard principal', 'geral'),
+            # Navegação
+            ('dashboard', 'Dashboard', 'Visualizar dashboard principal', 'navegacao'),
+            ('relatorios_view', 'Relatórios', 'Acessar menu de relatórios', 'navegacao'),
+            ('cadastros_view', 'Cadastros', 'Acessar menu de cadastros', 'navegacao'),
+            ('operacional_view', 'Operacional', 'Acessar menu operacional', 'navegacao'),
+            
+            # Financeiro
             ('lancamentos_view', 'Ver Lançamentos', 'Visualizar lançamentos financeiros', 'financeiro'),
             ('lancamentos_create', 'Criar Lançamentos', 'Criar novos lançamentos', 'financeiro'),
             ('lancamentos_edit', 'Editar Lançamentos', 'Editar lançamentos existentes', 'financeiro'),
             ('lancamentos_delete', 'Excluir Lançamentos', 'Excluir lançamentos', 'financeiro'),
+            
+            # Cadastros
             ('clientes_view', 'Ver Clientes', 'Visualizar clientes', 'cadastros'),
             ('clientes_create', 'Criar Clientes', 'Criar novos clientes', 'cadastros'),
             ('clientes_edit', 'Editar Clientes', 'Editar clientes existentes', 'cadastros'),
@@ -1124,6 +1132,8 @@ class DatabaseManager:
             ('fornecedores_create', 'Criar Fornecedores', 'Criar novos fornecedores', 'cadastros'),
             ('fornecedores_edit', 'Editar Fornecedores', 'Editar fornecedores existentes', 'cadastros'),
             ('fornecedores_delete', 'Excluir Fornecedores', 'Excluir fornecedores', 'cadastros'),
+            
+            # Operacional
             ('contratos_view', 'Ver Contratos', 'Visualizar contratos', 'operacional'),
             ('contratos_create', 'Criar Contratos', 'Criar novos contratos', 'operacional'),
             ('contratos_edit', 'Editar Contratos', 'Editar contratos existentes', 'operacional'),
@@ -1136,9 +1146,12 @@ class DatabaseManager:
             ('agenda_create', 'Criar Eventos', 'Criar eventos na agenda', 'operacional'),
             ('agenda_edit', 'Editar Eventos', 'Editar eventos da agenda', 'operacional'),
             ('agenda_delete', 'Excluir Eventos', 'Excluir eventos da agenda', 'operacional'),
-            ('relatorios', 'Relatórios', 'Visualizar relatórios', 'relatorios'),
+            
+            # Relatórios
             ('exportar_pdf', 'Exportar PDF', 'Exportar dados em PDF', 'relatorios'),
             ('exportar_excel', 'Exportar Excel', 'Exportar dados em Excel', 'relatorios'),
+            
+            # Sistema
             ('configuracoes', 'Configurações', 'Acessar configurações', 'sistema'),
             ('usuarios_admin', 'Gerenciar Usuários', 'Gerenciar usuários e permissões (apenas admin)', 'sistema')
         ]

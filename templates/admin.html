@@ -775,10 +775,13 @@
                 
                 const user = await response.json();
                 
+                console.log('🔍 DEBUG - Usuário carregado:', user);
+                console.log('🔍 DEBUG - Nome completo:', user.nome_completo);
+                
                 document.getElementById('modalTitle').textContent = 'Editar Usuário';
                 document.getElementById('userId').value = user.id;
                 document.getElementById('username').value = user.username;
-                document.getElementById('fullName').value = user.nome;
+                document.getElementById('fullName').value = user.nome_completo || user.nome || '';
                 document.getElementById('userTypeSelect').value = user.tipo;
                 document.getElementById('password').value = '';
                 
