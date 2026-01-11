@@ -263,3 +263,46 @@ def filtrar_por_cliente(query_result, usuario):
         item for item in query_result 
         if item.get('cliente_id') == usuario['cliente_id']
     ]
+
+
+def aplicar_filtro_cliente(f):
+    """
+    Decorador que adiciona filtro automático de cliente ao request
+    
+    - Admin: Sem filtros (vê tudo)
+    - Cliente: Filtro automático por cliente_id
+    
+    Uso:
+        @app.route('/api/recurso')
+        @require_auth
+        @aplicar_filtro_cliente
+        def listar_recurso():
+            # request.filtro_cliente_id estará disponível
+            # None para admin, ID do cliente para clientes
+            pass
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        usuario = get_usuario_logado()
+        
+        if not usuario:
+            return jsonify({
+                'success': False,
+                'error': 'Não autenticado',
+                'redirect': '/login'
+            }), 401
+        
+        # Definir filtro de cliente
+        if usuario['tipo'] == 'admin':
+            request.filtro_cliente_id = None  # Admin vê tudo
+            print(f"   🔓 Admin: SEM filtros (acesso total)")
+        else:
+            request.filtro_cliente_id = usuario.get('cliente_id')
+            print(f"   🔒 Cliente ID {request.filtro_cliente_id}: Apenas dados próprios")
+        
+        # Adicionar usuário ao request
+        request.usuario = usuario
+        
+        return f(*args, **kwargs)
+    
+    return decorated_function
