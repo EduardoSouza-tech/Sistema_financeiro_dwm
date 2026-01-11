@@ -3249,21 +3249,19 @@ def exportar_dados_cliente_admin(cliente_id):
     - Lançamentos
     """
     try:
-        # Verificar se o cliente existe
+        # Verificar se o usuário/cliente existe
         usuario = request.usuario
-        clientes_do_sistema = database.listar_clientes(ativos=None, filtro_cliente_id=None)
+        usuario_cliente = auth_db.obter_usuario(cliente_id)
         
-        # Verificar se existe algum registro com esse proprietario_id
-        registros_encontrados = [c for c in clientes_do_sistema if c.get('proprietario_id') == cliente_id]
-        
-        if not registros_encontrados:
+        if not usuario_cliente:
             return jsonify({
                 'success': False,
-                'error': f'Nenhum dado encontrado para o cliente_id {cliente_id}'
+                'error': f'Usuário com ID {cliente_id} não encontrado'
             }), 404
         
         # Exportar dados
         print(f"\n🔄 Iniciando exportação dos dados do cliente {cliente_id}")
+        print(f"   📋 Usuário: {usuario_cliente.get('nome_completo', 'N/A')} ({usuario_cliente.get('email', 'N/A')})")
         export_data = database.exportar_dados_cliente(cliente_id)
         
         # Registrar log de auditoria
