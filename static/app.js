@@ -69,6 +69,86 @@ function aplicarPermissoesMenu() {
             element.style.display = '';
         }
     });
+    
+    // Verificar se página atual está acessível
+    const paginaAtual = document.querySelector('.page.active')?.id;
+    if (paginaAtual === 'page-dashboard' && !hasPermission('Dashboard')) {
+        console.warn('⚠️ Usuário sem permissão para Dashboard, redirecionando...');
+        // Encontrar primeira página com permissão
+        const primeiraPaginaPermitida = document.querySelector('[data-permission]:not([style*="display: none"])');
+        if (primeiraPaginaPermitida) {
+            primeiraPaginaPermitida.click();
+        }
+    }
+}
+
+// Navegação com verificação de permissões
+function showPage(pageName) {
+    // Mapeamento de páginas para permissões
+    const pagePermissions = {
+        'dashboard': 'Dashboard',
+        'contas-receber': 'Ver Lancamentos',
+        'contas-pagar': 'Ver Lancamentos',
+        'lancamentos': 'Ver Lancamentos',
+        'clientes': 'Ver Clientes',
+        'fornecedores': 'Ver Fornecedores'
+    };
+    
+    const requiredPermission = pagePermissions[pageName];
+    
+    // Se a página requer permissão e o usuário não tem, bloquear
+    if (requiredPermission && !hasPermission(requiredPermission)) {
+        console.error(`🚫 ACESSO NEGADO: Você não tem permissão para acessar ${pageName} (necessário: ${requiredPermission})`);
+        alert('Você não tem permissão para acessar esta página.');
+        return;
+    }
+    
+    // Ocultar todas as páginas
+    document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
+    });
+    
+    // Mostrar página selecionada
+    const targetPage = document.getElementById(`page-${pageName}`);
+    if (targetPage) {
+        targetPage.classList.add('active');
+    } else {
+        console.error(`Página não encontrada: page-${pageName}`);
+        return;
+    }
+    
+    // Atualizar botões da sidebar
+    document.querySelectorAll('.nav-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Carregar dados da página
+    switch(pageName) {
+        case 'dashboard':
+            loadDashboard();
+            break;
+        case 'contas-receber':
+            loadContasReceber();
+            break;
+        case 'contas-pagar':
+            loadContasPagar();
+            break;
+        case 'lancamentos':
+            loadLancamentos();
+            break;
+        case 'contas':
+            loadContas();
+            break;
+        case 'clientes':
+            loadClientes();
+            break;
+        case 'fornecedores':
+            loadFornecedores();
+            break;
+        case 'categorias':
+            loadCategorias();
+            break;
+    }
 }
 
 // Inicialização ao carregar a página
