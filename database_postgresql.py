@@ -192,6 +192,78 @@ class DatabaseManager:
             )
         """)
         
+        # ===== TABELAS DE AUTENTICAÇÃO E AUTORIZAÇÃO =====
+        
+        # Tabela de usuários
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(100) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('admin', 'cliente')),
+                nome_completo VARCHAR(255) NOT NULL,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                telefone VARCHAR(20),
+                ativo BOOLEAN DEFAULT TRUE,
+                cliente_id INTEGER REFERENCES clientes(id),
+                ultimo_acesso TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_by INTEGER REFERENCES usuarios(id)
+            )
+        """)
+        
+        # Tabela de permissões (funcionalidades do sistema)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS permissoes (
+                id SERIAL PRIMARY KEY,
+                codigo VARCHAR(50) UNIQUE NOT NULL,
+                nome VARCHAR(100) NOT NULL,
+                descricao TEXT,
+                categoria VARCHAR(50),
+                ativo BOOLEAN DEFAULT TRUE
+            )
+        """)
+        
+        # Tabela de relação usuário-permissões
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS usuario_permissoes (
+                id SERIAL PRIMARY KEY,
+                usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+                permissao_id INTEGER REFERENCES permissoes(id) ON DELETE CASCADE,
+                concedido_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                concedido_por INTEGER REFERENCES usuarios(id),
+                UNIQUE(usuario_id, permissao_id)
+            )
+        """)
+        
+        # Tabela de sessões de login (para controle de autenticação)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sessoes_login (
+                id SERIAL PRIMARY KEY,
+                usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+                session_token VARCHAR(255) UNIQUE NOT NULL,
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expira_em TIMESTAMP NOT NULL,
+                ativo BOOLEAN DEFAULT TRUE
+            )
+        """)
+        
+        # Tabela de log de acessos
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS log_acessos (
+                id SERIAL PRIMARY KEY,
+                usuario_id INTEGER REFERENCES usuarios(id),
+                acao VARCHAR(100) NOT NULL,
+                descricao TEXT,
+                ip_address VARCHAR(45),
+                sucesso BOOLEAN DEFAULT TRUE,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
         # Tabela de lançamentos
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS lancamentos (
@@ -756,6 +828,79 @@ class DatabaseManager:
             )
         """)
         
+        # ===== INICIALIZAÇÃO DE DADOS PADRÃO =====
+        
+        # Inserir permissões padrão
+        permissoes_padrao = [
+            ('dashboard', 'Dashboard', 'Visualizar dashboard principal', 'geral'),
+            ('lancamentos_view', 'Ver Lançamentos', 'Visualizar lançamentos financeiros', 'financeiro'),
+            ('lancamentos_create', 'Criar Lançamentos', 'Criar novos lançamentos', 'financeiro'),
+            ('lancamentos_edit', 'Editar Lançamentos', 'Editar lançamentos existentes', 'financeiro'),
+            ('lancamentos_delete', 'Excluir Lançamentos', 'Excluir lançamentos', 'financeiro'),
+            ('clientes_view', 'Ver Clientes', 'Visualizar clientes', 'cadastros'),
+            ('clientes_create', 'Criar Clientes', 'Criar novos clientes', 'cadastros'),
+            ('clientes_edit', 'Editar Clientes', 'Editar clientes existentes', 'cadastros'),
+            ('clientes_delete', 'Excluir Clientes', 'Excluir clientes', 'cadastros'),
+            ('fornecedores_view', 'Ver Fornecedores', 'Visualizar fornecedores', 'cadastros'),
+            ('fornecedores_create', 'Criar Fornecedores', 'Criar novos fornecedores', 'cadastros'),
+            ('fornecedores_edit', 'Editar Fornecedores', 'Editar fornecedores existentes', 'cadastros'),
+            ('fornecedores_delete', 'Excluir Fornecedores', 'Excluir fornecedores', 'cadastros'),
+            ('contratos_view', 'Ver Contratos', 'Visualizar contratos', 'operacional'),
+            ('contratos_create', 'Criar Contratos', 'Criar novos contratos', 'operacional'),
+            ('contratos_edit', 'Editar Contratos', 'Editar contratos existentes', 'operacional'),
+            ('contratos_delete', 'Excluir Contratos', 'Excluir contratos', 'operacional'),
+            ('sessoes_view', 'Ver Sessões', 'Visualizar sessões', 'operacional'),
+            ('sessoes_create', 'Criar Sessões', 'Criar novas sessões', 'operacional'),
+            ('sessoes_edit', 'Editar Sessões', 'Editar sessões existentes', 'operacional'),
+            ('sessoes_delete', 'Excluir Sessões', 'Excluir sessões', 'operacional'),
+            ('agenda_view', 'Ver Agenda', 'Visualizar agenda', 'operacional'),
+            ('agenda_create', 'Criar Eventos', 'Criar eventos na agenda', 'operacional'),
+            ('agenda_edit', 'Editar Eventos', 'Editar eventos da agenda', 'operacional'),
+            ('agenda_delete', 'Excluir Eventos', 'Excluir eventos da agenda', 'operacional'),
+            ('relatorios', 'Relatórios', 'Visualizar relatórios', 'relatorios'),
+            ('exportar_pdf', 'Exportar PDF', 'Exportar dados em PDF', 'relatorios'),
+            ('exportar_excel', 'Exportar Excel', 'Exportar dados em Excel', 'relatorios'),
+            ('configuracoes', 'Configurações', 'Acessar configurações', 'sistema'),
+            ('usuarios_admin', 'Gerenciar Usuários', 'Gerenciar usuários e permissões (apenas admin)', 'sistema')
+        ]
+        
+        for codigo, nome, descricao, categoria in permissoes_padrao:
+            cursor.execute("""
+                INSERT INTO permissoes (codigo, nome, descricao, categoria, ativo)
+                VALUES (%s, %s, %s, %s, TRUE)
+                ON CONFLICT (codigo) DO NOTHING
+            """, (codigo, nome, descricao, categoria))
+        
+        # Criar usuário admin padrão se não existir
+        cursor.execute("SELECT COUNT(*) FROM usuarios WHERE tipo = 'admin'")
+        admin_count = cursor.fetchone()[0]
+        
+        if admin_count == 0:
+            import hashlib
+            # Senha padrão: "admin123" (deve ser alterada no primeiro login)
+            senha_padrao = "admin123"
+            password_hash = hashlib.sha256(senha_padrao.encode()).hexdigest()
+            
+            cursor.execute("""
+                INSERT INTO usuarios (username, password_hash, tipo, nome_completo, email, ativo)
+                VALUES ('admin', %s, 'admin', 'Administrador do Sistema', 'admin@sistema.com', TRUE)
+                RETURNING id
+            """, (password_hash,))
+            
+            admin_id = cursor.fetchone()[0]
+            
+            # Conceder todas as permissões ao admin
+            cursor.execute("""
+                INSERT INTO usuario_permissoes (usuario_id, permissao_id, concedido_por)
+                SELECT %s, id, %s FROM permissoes
+            """, (admin_id, admin_id))
+            
+            print("✅ Usuário admin criado com sucesso!")
+            print("   Username: admin")
+            print("   Senha: admin123")
+            print("   ⚠️  ALTERE A SENHA NO PRIMEIRO LOGIN!")
+        
+        conn.commit()
         cursor.close()
         conn.close()
     
@@ -2762,3 +2907,99 @@ def deletar_tipo_sessao(tipo_id: int) -> bool:
     cursor.close()
     conn.close()
     return sucesso
+
+
+# ==================== FUNÇÕES DE AUTENTICAÇÃO E USUÁRIOS ====================
+
+from auth_functions import (
+    criar_usuario as _criar_usuario,
+    autenticar_usuario as _autenticar_usuario,
+    criar_sessao as _criar_sessao,
+    validar_sessao as _validar_sessao,
+    invalidar_sessao as _invalidar_sessao,
+    listar_usuarios as _listar_usuarios,
+    obter_usuario as _obter_usuario,
+    atualizar_usuario as _atualizar_usuario,
+    deletar_usuario as _deletar_usuario,
+    listar_permissoes as _listar_permissoes,
+    obter_permissoes_usuario as _obter_permissoes_usuario,
+    conceder_permissao as _conceder_permissao,
+    revogar_permissao as _revogar_permissao,
+    sincronizar_permissoes_usuario as _sincronizar_permissoes_usuario,
+    registrar_log_acesso as _registrar_log_acesso
+)
+
+def criar_usuario(dados: Dict) -> int:
+    """Wrapper para criar_usuario"""
+    db = DatabaseManager()
+    return _criar_usuario(dados, db)
+
+def autenticar_usuario(username: str, password: str) -> Optional[Dict]:
+    """Wrapper para autenticar_usuario"""
+    db = DatabaseManager()
+    return _autenticar_usuario(username, password, db)
+
+def criar_sessao(usuario_id: int, ip_address: str, user_agent: str) -> str:
+    """Wrapper para criar_sessao"""
+    db = DatabaseManager()
+    return _criar_sessao(usuario_id, ip_address, user_agent, db)
+
+def validar_sessao(token: str) -> Optional[Dict]:
+    """Wrapper para validar_sessao"""
+    db = DatabaseManager()
+    return _validar_sessao(token, db)
+
+def invalidar_sessao(token: str) -> bool:
+    """Wrapper para invalidar_sessao"""
+    db = DatabaseManager()
+    return _invalidar_sessao(token, db)
+
+def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
+    """Wrapper para listar_usuarios"""
+    db = DatabaseManager()
+    return _listar_usuarios(db, apenas_ativos)
+
+def obter_usuario(usuario_id: int) -> Optional[Dict]:
+    """Wrapper para obter_usuario"""
+    db = DatabaseManager()
+    return _obter_usuario(usuario_id, db)
+
+def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
+    """Wrapper para atualizar_usuario"""
+    db = DatabaseManager()
+    return _atualizar_usuario(usuario_id, dados, db)
+
+def deletar_usuario(usuario_id: int) -> bool:
+    """Wrapper para deletar_usuario"""
+    db = DatabaseManager()
+    return _deletar_usuario(usuario_id, db)
+
+def listar_permissoes(categoria: Optional[str] = None) -> List[Dict]:
+    """Wrapper para listar_permissoes"""
+    db = DatabaseManager()
+    return _listar_permissoes(db, categoria)
+
+def obter_permissoes_usuario(usuario_id: int) -> List[str]:
+    """Wrapper para obter_permissoes_usuario"""
+    db = DatabaseManager()
+    return _obter_permissoes_usuario(usuario_id, db)
+
+def conceder_permissao(usuario_id: int, permissao_codigo: str, concedido_por: int) -> bool:
+    """Wrapper para conceder_permissao"""
+    db = DatabaseManager()
+    return _conceder_permissao(usuario_id, permissao_codigo, concedido_por, db)
+
+def revogar_permissao(usuario_id: int, permissao_codigo: str) -> bool:
+    """Wrapper para revogar_permissao"""
+    db = DatabaseManager()
+    return _revogar_permissao(usuario_id, permissao_codigo, db)
+
+def sincronizar_permissoes_usuario(usuario_id: int, codigos_permissoes: List[str], concedido_por: int) -> bool:
+    """Wrapper para sincronizar_permissoes_usuario"""
+    db = DatabaseManager()
+    return _sincronizar_permissoes_usuario(usuario_id, codigos_permissoes, concedido_por, db)
+
+def registrar_log_acesso(usuario_id: int, acao: str, descricao: str, ip_address: str, sucesso: bool):
+    """Wrapper para registrar_log_acesso"""
+    db = DatabaseManager()
+    return _registrar_log_acesso(usuario_id, acao, descricao, ip_address, sucesso, db)
