@@ -1361,9 +1361,9 @@ class DatabaseManager:
         else:
             # Admin: ver todos os fornecedores
             if ativos:
-            cursor.execute("SELECT * FROM fornecedores WHERE ativo = TRUE ORDER BY nome")
-        else:
-            cursor.execute("SELECT * FROM fornecedores ORDER BY nome")
+                cursor.execute("SELECT * FROM fornecedores WHERE ativo = TRUE ORDER BY nome")
+            else:
+                cursor.execute("SELECT * FROM fornecedores ORDER BY nome")
         rows = cursor.fetchall()
         
         fornecedores = [dict(row) for row in rows]
