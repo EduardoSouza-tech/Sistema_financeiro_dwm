@@ -98,6 +98,19 @@ print("\n" + "="*70)
 print("🚀 SISTEMA FINANCEIRO - INICIALIZAÇÃO")
 print("="*70)
 print(f"📊 Banco de Dados: PostgreSQL (Pool de Conexões)")
+
+# Executar migrations automaticamente
+def run_startup_migrations():
+    """Executa migrations necessárias no startup"""
+    try:
+        from run_migrations import run_all_migrations
+        run_all_migrations()
+    except Exception as e:
+        print(f"⚠️ Aviso: Não foi possível executar migrations: {e}")
+        print("   O sistema continuará, mas algumas funcionalidades podem não funcionar.")
+
+# Executar migrations
+run_startup_migrations()
 print(f"🔐 DATABASE_URL: {'✅ Configurado' if os.getenv('DATABASE_URL') else '❌ Não configurado'}")
 print(f"🌐 Ambiente: {'Produção (Railway)' if os.getenv('RAILWAY_ENVIRONMENT') else 'Desenvolvimento'}")
 print("="*70 + "\n")
