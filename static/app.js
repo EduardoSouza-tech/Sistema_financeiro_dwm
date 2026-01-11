@@ -69,17 +69,6 @@ function aplicarPermissoesMenu() {
             element.style.display = '';
         }
     });
-    
-    // Verificar se página atual está acessível
-    const paginaAtual = document.querySelector('.page.active')?.id;
-    if (paginaAtual === 'page-dashboard' && !hasPermission('Dashboard')) {
-        console.warn('⚠️ Usuário sem permissão para Dashboard, redirecionando...');
-        // Encontrar primeira página com permissão
-        const primeiraPaginaPermitida = document.querySelector('[data-permission]:not([style*="display: none"])');
-        if (primeiraPaginaPermitida) {
-            primeiraPaginaPermitida.click();
-        }
-    }
 }
 
 // Navegação com verificação de permissões
@@ -156,6 +145,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Carregar permissões ANTES de qualquer coisa
     await carregarPermissoesUsuario();
     
+    // Carregar primeira página com permissão disponível
+    carregarPaginaInicial();
+    
     // Preencher anos no Comparativo de Períodos
     const anoAtual = new Date().getFullYear();
     const anoAnterior = anoAtual - 1;
@@ -172,6 +164,34 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.log(`✓ Período 2 preenchido com ano ${anoAtual}`);
     }
 });
+
+// Função para carregar a primeira página com permissão disponível
+function carregarPaginaInicial() {
+    // Ordem de prioridade das páginas (mesma ordem do menu)
+    const paginasOrdenadas = [
+        { nome: 'dashboard', permissao: 'Dashboard' },
+        { nome: 'contas-receber', permissao: 'Ver Lancamentos' },
+        { nome: 'contas-pagar', permissao: 'Ver Lancamentos' },
+        { nome: 'lancamentos', permissao: 'Ver Lancamentos' },
+        { nome: 'clientes', permissao: 'Ver Clientes' },
+        { nome: 'fornecedores', permissao: 'Ver Fornecedores' },
+        { nome: 'categorias', permissao: null }, // Sem permissão específica
+        { nome: 'contas', permissao: null } // Sem permissão específica
+    ];
+    
+    // Encontrar primeira página com permissão
+    for (const pagina of paginasOrdenadas) {
+        if (!pagina.permissao || hasPermission(pagina.permissao)) {
+            console.log(`✅ Carregando página inicial: ${pagina.nome}`);
+            showPage(pagina.nome);
+            return;
+        }
+    }
+    
+    // Se nenhuma página tiver permissão, mostrar mensagem
+    console.error('⚠️ Usuário sem permissão para acessar nenhuma página');
+    alert('Você não tem permissão para acessar nenhuma página do sistema. Entre em contato com o administrador.');
+}
 
 // Função auxiliar para mostrar mensagens
 function showToast(message, type = 'info') {
