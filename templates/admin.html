@@ -509,16 +509,9 @@
 
                 <div class="form-group">
                     <label>Tipo de Usuário *</label>
-                    <select id="userTypeSelect" class="form-control" onchange="toggleClientField()">
+                    <select id="userTypeSelect" class="form-control">
                         <option value="admin">Administrador</option>
-                        <option value="client">Cliente</option>
-                    </select>
-                </div>
-
-                <div class="form-group" id="clientField" style="display: none;">
-                    <label>Cliente Associado</label>
-                    <select id="clientId" class="form-control">
-                        <option value="">Selecione um cliente...</option>
+                        <option value="cliente">Cliente</option>
                     </select>
                 </div>
 
@@ -571,7 +564,6 @@
                 // Carregar dados
                 await loadPermissions();
                 await loadUsers();
-                await loadClients();
             } catch (error) {
                 console.error('Erro ao verificar autenticação:', error);
                 window.location.href = '/login';
@@ -789,17 +781,7 @@
             document.getElementById('userModal').classList.remove('active');
         }
 
-        // Toggle campo de cliente
-        function toggleClientField() {
-            const tipo = document.getElementById('userTypeSelect').value;
-            const clientField = document.getElementById('clientField');
-            
-            if (tipo === 'client') {
-                clientField.style.display = 'block';
-            } else {
-                clientField.style.display = 'none';
-            }
-        }
+        // Campo de cliente removido - não é mais necessário
 
         // Submit form de usuário
         document.getElementById('userForm').addEventListener('submit', async (e) => {
@@ -810,7 +792,6 @@
             const nome = document.getElementById('fullName').value;
             const senha = document.getElementById('password').value;
             const tipo = document.getElementById('userTypeSelect').value;
-            const clienteId = document.getElementById('clientId').value;
             
             // Obter permissões selecionadas
             const permissionsCheckboxes = document.querySelectorAll('input[name="permissions"]:checked');
@@ -818,9 +799,9 @@
             
             const data = {
                 username,
-                nome,
+                nome_completo: nome,
+                email: document.getElementById('email').value || `${username}@sistema.com`,
                 tipo,
-                cliente_id: tipo === 'client' ? clienteId : null,
                 permissoes
             };
             
