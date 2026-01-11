@@ -554,15 +554,19 @@
 
                 const data = await response.json();
                 
-                // Verificar se é admin
-                if (data.tipo !== 'admin') {
+                console.log('🔍 DEBUG - Resposta de /api/auth/verify:', data);
+                console.log('🔍 DEBUG - data.usuario:', data.usuario);
+                console.log('🔍 DEBUG - data.usuario.tipo:', data.usuario?.tipo);
+                
+                // Verificar se é admin (corrigido: acessar data.usuario.tipo ao invés de data.tipo)
+                if (data.usuario?.tipo !== 'admin') {
                     alert('Acesso negado! Apenas administradores podem acessar esta página.');
                     window.location.href = '/';
                     return;
                 }
 
-                document.getElementById('userName').textContent = data.nome;
-                document.getElementById('userType').textContent = data.tipo === 'admin' ? 'Administrador' : 'Cliente';
+                document.getElementById('userName').textContent = data.usuario.nome_completo;
+                document.getElementById('userType').textContent = data.usuario.tipo === 'admin' ? 'Administrador' : 'Cliente';
                 
                 // Carregar dados
                 await loadPermissions();
