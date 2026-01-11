@@ -912,10 +912,23 @@ class DatabaseManager:
                 ('lancamentos', 'fk_lancamentos_proprietario', 'idx_lancamentos_proprietario'),
                 ('contas_bancarias', 'fk_contas_bancarias_proprietario', 'idx_contas_bancarias_proprietario'),
                 ('categorias', 'fk_categorias_proprietario', 'idx_categorias_proprietario'),
-                ('subcategorias', 'fk_subcategorias_proprietario', 'idx_subcategorias_proprietario'),
             ]
             
             for tabela, fk_name, idx_name in tabelas_multitenancy:
+                # Verificar se a tabela existe antes de tentar modificar
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.tables 
+                        WHERE table_name = %s
+                    )
+                """, (tabela,))
+                
+                table_exists = cursor.fetchone()[0]
+                
+                if not table_exists:
+                    print(f"   ⚠️  Tabela '{tabela}' não existe, pulando...")
+                    continue
+                
                 # Adicionar coluna se não existir
                 cursor.execute(f"""
                     DO $$ 
@@ -950,7 +963,7 @@ class DatabaseManager:
                 """)
             
             print("✅ Migração Multi-Tenancy: Colunas proprietario_id adicionadas/verificadas")
-            print("   - clientes, fornecedores, lancamentos, contas_bancarias, categorias, subcategorias")
+            print("   - Tabelas processadas: clientes, fornecedores, lancamentos, contas_bancarias, categorias")
             
         except Exception as e:
             print(f"⚠️  Aviso na migração Multi-Tenancy: {e}")
