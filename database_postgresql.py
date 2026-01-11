@@ -157,15 +157,11 @@ def get_db_connection():
 
 def return_to_pool(conn):
     """Devolve uma conexão ao pool manualmente"""
-    if hasattr(conn, '_pool'):
-        conn._pool.putconn(conn)
-    else:
-        # Fallback: tentar pegar o pool global
-        try:
-            pool_obj = _get_connection_pool()
-            pool_obj.putconn(conn)
-        except:
-            pass
+    try:
+        pool_obj = _get_connection_pool()
+        pool_obj.putconn(conn)
+    except Exception as e:
+        print(f"⚠️ Erro ao devolver conexão ao pool: {e}")
 
 
 # ============================================================================
@@ -261,15 +257,13 @@ class DatabaseManager:
     def get_connection(self):
         """
         Obtém uma conexão do pool
-        IMPORTANTE: SEMPRE devolva ao pool com pool.putconn(conn) quando terminar!
+        IMPORTANTE: SEMPRE devolva ao pool com return_to_pool(conn) quando terminar!
         Ou use o context manager get_db_connection() preferencialmente.
         """
         try:
             pool_obj = _get_connection_pool()
             conn = pool_obj.getconn()
             conn.autocommit = True
-            # Adicionar referência ao pool para poder devolver depois
-            conn._pool = pool_obj
             return conn
         except Error as e:
             print(f"❌ Erro ao obter conexão do pool: {e}")
