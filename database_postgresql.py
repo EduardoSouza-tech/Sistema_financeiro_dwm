@@ -2945,61 +2945,315 @@ def criar_sessao(usuario_id: int, ip_address: str, user_agent: str) -> str:
     return _criar_sessao(usuario_id, ip_address, user_agent, db)
 
 def validar_sessao(token: str) -> Optional[Dict]:
-    """Wrapper para validar_sessao"""
+    """
+    Valida uma sessão e retorna os dados do usuário
+    
+    Returns:
+        Dict com dados do usuário se sessão válida, None caso contrário
+    """
     db = DatabaseManager()
-    return _validar_sessao(token, db)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT s.usuario_id, s.expira_em, s.ativo,
+                   u.username, u.tipo, u.nome_completo, u.email, u.cliente_id
+            FROM sessoes_login s
+            JOIN usuarios u ON s.usuario_id = u.id
+            WHERE s.session_token = %s AND s.ativo = TRUE AND u.ativo = TRUE
+        """, (token,))
+        
+        sessao = cursor.fetchone()
+        
+        if not sessao:
+            return None
+        
+        # Verificar expiração
+        from datetime import datetime
+        if sessao['expira_em'] < datetime.now():
+            # Sessão expirada - desativar
+            cursor.execute("""
+                UPDATE sessoes_login SET ativo = FALSE WHERE session_token = %s
+            """, (token,))
+            conn.commit()
+            return None
+        
+        return {
+            'id': sessao['usuario_id'],
+            'username': sessao['username'],
+            'tipo': sessao['tipo'],
+            'nome_completo': sessao['nome_completo'],
+            'email': sessao['email'],
+            'cliente_id': sessao['cliente_id']
+        }
+    finally:
+        cursor.close()
+        conn.close()
 
 def invalidar_sessao(token: str) -> bool:
-    """Wrapper para invalidar_sessao"""
+    """Invalida uma sessão (logout)"""
     db = DatabaseManager()
-    return _invalidar_sessao(token, db)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            UPDATE sessoes_login SET ativo = FALSE WHERE session_token = %s
+        """, (token,))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Erro ao invalidar sessão: {e}")
+        return False
+    finally:
+        cursor.close()
+        conn.close()
 
 def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
-    """Wrapper para listar_usuarios"""
+    """Lista todos os usuários do sistema"""
     db = DatabaseManager()
-    return _listar_usuarios(db, apenas_ativos)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        filtro = "WHERE u.ativo = TRUE" if apenas_ativos else ""
+        cursor.execute(f"""
+            SELECT u.id, u.username, u.tipo, u.nome_completo, u.email, 
+                   u.cliente_id, u.ativo, u.created_at,
+                   c.nome as cliente_nome,
+                   (SELECT MAX(created_at) FROM sessoes_login WHERE usuario_id = u.id) as ultima_sessao
+            FROM usuarios u
+            LEFT JOIN clientes c ON u.cliente_id = c.id
+            {filtro}
+            ORDER BY u.created_at DESC
+        """)
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
 
 def obter_usuario(usuario_id: int) -> Optional[Dict]:
-    """Wrapper para obter_usuario"""
+    """Obtém dados de um usuário específico"""
     db = DatabaseManager()
-    return _obter_usuario(usuario_id, db)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT u.id, u.username, u.tipo, u.nome_completo, u.email, 
+                   u.cliente_id, u.ativo, u.created_at,
+                   c.nome as cliente_nome
+            FROM usuarios u
+            LEFT JOIN clientes c ON u.cliente_id = c.id
+            WHERE u.id = %s
+        """, (usuario_id,))
+        return cursor.fetchone()
+    finally:
+        cursor.close()
+        conn.close()
 
 def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
-    """Wrapper para atualizar_usuario"""
+    """Atualiza dados de um usuário"""
     db = DatabaseManager()
-    return _atualizar_usuario(usuario_id, dados, db)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        campos = []
+        valores = []
+        
+        if 'username' in dados:
+            campos.append("username = %s")
+            valores.append(dados['username'])
+        if 'nome_completo' in dados:
+            campos.append("nome_completo = %s")
+            valores.append(dados['nome_completo'])
+        if 'email' in dados:
+            campos.append("email = %s")
+            valores.append(dados['email'])
+        if 'tipo' in dados:
+            campos.append("tipo = %s")
+            valores.append(dados['tipo'])
+        if 'cliente_id' in dados:
+            campos.append("cliente_id = %s")
+            valores.append(dados['cliente_id'])
+        if 'ativo' in dados:
+            campos.append("ativo = %s")
+            valores.append(dados['ativo'])
+        if 'password' in dados:
+            import hashlib
+            password_hash = hashlib.sha256(dados['password'].encode()).hexdigest()
+            campos.append("password_hash = %s")
+            valores.append(password_hash)
+        
+        if not campos:
+            return False
+        
+        valores.append(usuario_id)
+        query = f"UPDATE usuarios SET {', '.join(campos)} WHERE id = %s"
+        cursor.execute(query, valores)
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Erro ao atualizar usuário: {e}")
+        return False
+    finally:
+        cursor.close()
+        conn.close()
 
 def deletar_usuario(usuario_id: int) -> bool:
-    """Wrapper para deletar_usuario"""
+    """Deleta um usuário (não permite deletar admin)"""
     db = DatabaseManager()
-    return _deletar_usuario(usuario_id, db)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Verificar se não é admin
+        cursor.execute("SELECT tipo FROM usuarios WHERE id = %s", (usuario_id,))
+        usuario = cursor.fetchone()
+        if usuario and usuario['tipo'] == 'admin':
+            return False
+        
+        cursor.execute("DELETE FROM usuarios WHERE id = %s", (usuario_id,))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Erro ao deletar usuário: {e}")
+        return False
+    finally:
+        cursor.close()
+        conn.close()
 
 def listar_permissoes(categoria: Optional[str] = None) -> List[Dict]:
-    """Wrapper para listar_permissoes"""
+    """Lista todas as permissões do sistema"""
     db = DatabaseManager()
-    return _listar_permissoes(db, categoria)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        filtro = "WHERE categoria = %s" if categoria else ""
+        params = (categoria,) if categoria else ()
+        cursor.execute(f"""
+            SELECT id, codigo, nome, descricao, categoria
+            FROM permissoes
+            {filtro}
+            ORDER BY categoria, nome
+        """, params)
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
 
 def obter_permissoes_usuario(usuario_id: int) -> List[str]:
-    """Wrapper para obter_permissoes_usuario"""
+    """Obtém lista de códigos de permissão de um usuário"""
     db = DatabaseManager()
-    return _obter_permissoes_usuario(usuario_id, db)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT p.codigo
+            FROM usuario_permissoes up
+            JOIN permissoes p ON up.permissao_id = p.id
+            WHERE up.usuario_id = %s
+        """, (usuario_id,))
+        return [row['codigo'] for row in cursor.fetchall()]
+    finally:
+        cursor.close()
+        conn.close()
 
 def conceder_permissao(usuario_id: int, permissao_codigo: str, concedido_por: int) -> bool:
-    """Wrapper para conceder_permissao"""
+    """Concede uma permissão a um usuário"""
     db = DatabaseManager()
-    return _conceder_permissao(usuario_id, permissao_codigo, concedido_por, db)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("SELECT id FROM permissoes WHERE codigo = %s", (permissao_codigo,))
+        permissao = cursor.fetchone()
+        if not permissao:
+            return False
+        
+        cursor.execute("""
+            INSERT INTO usuario_permissoes (usuario_id, permissao_id, concedido_por)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (usuario_id, permissao_id) DO NOTHING
+        """, (usuario_id, permissao['id'], concedido_por))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Erro ao conceder permissão: {e}")
+        return False
+    finally:
+        cursor.close()
+        conn.close()
 
 def revogar_permissao(usuario_id: int, permissao_codigo: str) -> bool:
-    """Wrapper para revogar_permissao"""
+    """Revoga uma permissão de um usuário"""
     db = DatabaseManager()
-    return _revogar_permissao(usuario_id, permissao_codigo, db)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            DELETE FROM usuario_permissoes
+            WHERE usuario_id = %s AND permissao_id = (
+                SELECT id FROM permissoes WHERE codigo = %s
+            )
+        """, (usuario_id, permissao_codigo))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Erro ao revogar permissão: {e}")
+        return False
+    finally:
+        cursor.close()
+        conn.close()
 
 def sincronizar_permissoes_usuario(usuario_id: int, codigos_permissoes: List[str], concedido_por: int) -> bool:
-    """Wrapper para sincronizar_permissoes_usuario"""
+    """Sincroniza as permissões de um usuário (remove antigas e adiciona novas)"""
     db = DatabaseManager()
-    return _sincronizar_permissoes_usuario(usuario_id, codigos_permissoes, concedido_por, db)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Remover todas as permissões atuais
+        cursor.execute("DELETE FROM usuario_permissoes WHERE usuario_id = %s", (usuario_id,))
+        
+        # Adicionar novas permissões
+        for codigo in codigos_permissoes:
+            cursor.execute("SELECT id FROM permissoes WHERE codigo = %s", (codigo,))
+            permissao = cursor.fetchone()
+            if permissao:
+                cursor.execute("""
+                    INSERT INTO usuario_permissoes (usuario_id, permissao_id, concedido_por)
+                    VALUES (%s, %s, %s)
+                """, (usuario_id, permissao['id'], concedido_por))
+        
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Erro ao sincronizar permissões: {e}")
+        return False
+    finally:
+        cursor.close()
+        conn.close()
 
 def registrar_log_acesso(usuario_id: int, acao: str, descricao: str, ip_address: str, sucesso: bool):
-    """Wrapper para registrar_log_acesso"""
+    """Registra um log de acesso"""
     db = DatabaseManager()
-    return _registrar_log_acesso(usuario_id, acao, descricao, ip_address, sucesso, db)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            INSERT INTO log_acessos (usuario_id, acao, descricao, ip_address, sucesso)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (usuario_id, acao, descricao, ip_address, sucesso))
+        conn.commit()
+    except Exception as e:
+        print(f"Erro ao registrar log: {e}")
+    finally:
+        cursor.close()
+        conn.close()
