@@ -4,10 +4,18 @@ Otimizado para PostgreSQL com pool de conexões
 """
 from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session
 from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from functools import wraps
 import os
+
+# Importação opcional do flask-limiter (para compatibilidade durante deploy)
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    LIMITER_AVAILABLE = True
+    print("✅ Flask-Limiter carregado")
+except ImportError:
+    LIMITER_AVAILABLE = False
+    print("⚠️ Flask-Limiter não disponível - Rate limiting desabilitado")
 
 # ============================================================================
 # IMPORTAÇÕES DO BANCO DE DADOS - APENAS POSTGRESQL
@@ -64,13 +72,24 @@ CORS(app,
      }}, 
      supports_credentials=True)
 
-# Configurar Rate Limiting
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://"
-)
+# Configurar Rate Limiting (apenas se disponível)
+if LIMITER_AVAILABLE:
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://"
+    )
+    print("✅ Rate Limiting ativado")
+else:
+    # Criar um decorador dummy se limiter não estiver disponível
+    class DummyLimiter:
+        def limit(self, *args, **kwargs):
+            def decorator(f):
+                return f
+            return decorator
+    limiter = DummyLimiter()
+    print("⚠️ Rate Limiting desabilitado (flask-limiter não instalado)")
 
 # ============================================================================
 # CONFIGURAÇÃO E INICIALIZAÇÃO DO SISTEMA
