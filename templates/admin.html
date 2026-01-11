@@ -612,15 +612,42 @@
             const grid = document.getElementById('modalPermissionsGrid');
             grid.innerHTML = '';
 
+            // Agrupar permissões por categoria
+            const grouped = {};
             allPermissions.forEach(perm => {
-                const item = document.createElement('div');
-                item.className = 'permission-item';
-                const checked = selectedPermissions.includes(perm.codigo) ? 'checked' : '';
-                item.innerHTML = `
-                    <input type="checkbox" name="permissions" value="${perm.codigo}" ${checked} id="perm_${perm.codigo}">
-                    <label for="perm_${perm.codigo}">${perm.nome}</label>
-                `;
-                grid.appendChild(item);
+                const categoria = perm.categoria || 'Outras';
+                if (!grouped[categoria]) {
+                    grouped[categoria] = [];
+                }
+                grouped[categoria].push(perm);
+            });
+
+            // Renderizar por categoria
+            Object.keys(grouped).sort().forEach(categoria => {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.style.marginBottom = '20px';
+                
+                const categoryTitle = document.createElement('h4');
+                categoryTitle.textContent = categoria.charAt(0).toUpperCase() + categoria.slice(1);
+                categoryTitle.style.cssText = 'color: #667eea; margin-bottom: 10px; font-size: 14px; font-weight: 600; border-bottom: 2px solid #667eea; padding-bottom: 5px;';
+                categoryDiv.appendChild(categoryTitle);
+                
+                const categoryGrid = document.createElement('div');
+                categoryGrid.style.cssText = 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;';
+                
+                grouped[categoria].forEach(perm => {
+                    const item = document.createElement('div');
+                    item.className = 'permission-item';
+                    const checked = selectedPermissions.includes(perm.codigo) ? 'checked' : '';
+                    item.innerHTML = `
+                        <input type="checkbox" name="permissions" value="${perm.codigo}" ${checked} id="perm_${perm.codigo}">
+                        <label for="perm_${perm.codigo}">${perm.nome}</label>
+                    `;
+                    categoryGrid.appendChild(item);
+                });
+                
+                categoryDiv.appendChild(categoryGrid);
+                grid.appendChild(categoryDiv);
             });
         }
 

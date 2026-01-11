@@ -3603,7 +3603,6 @@ def conceder_permissao(usuario_id: int, permissao_codigo: str, concedido_por: in
             VALUES (%s, %s, %s)
             ON CONFLICT (usuario_id, permissao_id) DO NOTHING
         """, (usuario_id, permissao['id'], concedido_por))
-        conn.commit()
         return True
     except Exception as e:
         print(f"Erro ao conceder permissão: {e}")
@@ -3625,7 +3624,6 @@ def revogar_permissao(usuario_id: int, permissao_codigo: str) -> bool:
                 SELECT id FROM permissoes WHERE codigo = %s
             )
         """, (usuario_id, permissao_codigo))
-        conn.commit()
         return True
     except Exception as e:
         print(f"Erro ao revogar permissão: {e}")
@@ -3643,8 +3641,10 @@ def sincronizar_permissoes_usuario(usuario_id: int, codigos_permissoes: List[str
     try:
         # Remover todas as permissões atuais
         cursor.execute("DELETE FROM usuario_permissoes WHERE usuario_id = %s", (usuario_id,))
+        print(f"🔄 Removidas permissões antigas do usuário {usuario_id}")
         
         # Adicionar novas permissões
+        permissoes_adicionadas = 0
         for codigo in codigos_permissoes:
             cursor.execute("SELECT id FROM permissoes WHERE codigo = %s", (codigo,))
             permissao = cursor.fetchone()
@@ -3653,11 +3653,14 @@ def sincronizar_permissoes_usuario(usuario_id: int, codigos_permissoes: List[str
                     INSERT INTO usuario_permissoes (usuario_id, permissao_id, concedido_por)
                     VALUES (%s, %s, %s)
                 """, (usuario_id, permissao['id'], concedido_por))
+                permissoes_adicionadas += 1
         
-        conn.commit()
+        print(f"✅ {permissoes_adicionadas} permissões sincronizadas para usuário {usuario_id}")
         return True
     except Exception as e:
-        print(f"Erro ao sincronizar permissões: {e}")
+        print(f"❌ Erro ao sincronizar permissões: {e}")
+        import traceback
+        traceback.print_exc()
         return False
     finally:
         cursor.close()
