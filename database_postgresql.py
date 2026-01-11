@@ -62,7 +62,8 @@ class ContaBancaria:
     """Conta bancaria"""
     def __init__(self, nome: str, banco: str, agencia: str, conta: str, 
                  saldo_inicial: float = 0.0, id: Optional[int] = None, 
-                 tipo_conta: str = "corrente", moeda: str = "BRL"):
+                 tipo_conta: str = "corrente", moeda: str = "BRL",
+                 ativa: bool = True, proprietario_id: Optional[int] = None):
         self.id = id
         self.nome = nome
         self.banco = banco
@@ -71,6 +72,8 @@ class ContaBancaria:
         self.saldo_inicial = saldo_inicial
         self.tipo_conta = tipo_conta
         self.moeda = moeda
+        self.ativa = ativa
+        self.proprietario_id = proprietario_id
     
     def to_dict(self) -> dict:
         return {
@@ -95,6 +98,8 @@ class Lancamento:
                  data_pagamento: Optional[datetime] = None,
                  observacoes: str = "", anexo: str = "",
                  recorrente: bool = False, frequencia_recorrencia: str = "",
+                 dia_vencimento: Optional[int] = None,
+                 juros: float = 0.0, desconto: float = 0.0,
                  id: Optional[int] = None, proprietario_id: Optional[int] = None):
         self.id = id
         self.tipo = tipo
@@ -113,6 +118,9 @@ class Lancamento:
         self.anexo = anexo
         self.recorrente = recorrente
         self.frequencia_recorrencia = frequencia_recorrencia
+        self.dia_vencimento = dia_vencimento
+        self.juros = juros
+        self.desconto = desconto
         self.proprietario_id = proprietario_id
     
     def to_dict(self) -> dict:
@@ -3412,7 +3420,7 @@ def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
             SELECT u.id, u.username, u.tipo, u.nome_completo, u.email, 
                    u.cliente_id, u.ativo, u.created_at,
                    c.nome as cliente_nome,
-                   (SELECT MAX(created_at) FROM sessoes_login WHERE usuario_id = u.id) as ultima_sessao
+                   (SELECT MAX(sl.created_at) FROM sessoes_login sl WHERE sl.usuario_id = u.id) as ultima_sessao
             FROM usuarios u
             LEFT JOIN clientes c ON u.cliente_id = c.id
             {filtro}
