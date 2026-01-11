@@ -47,8 +47,8 @@ def criar_usuario(dados: Dict, db) -> int:
     if dados['tipo'] not in ['admin', 'cliente']:
         raise ValueError("Tipo de usuário inválido. Use 'admin' ou 'cliente'")
     
-    if dados['tipo'] == 'cliente' and not dados.get('cliente_id'):
-        raise ValueError("cliente_id é obrigatório para usuários do tipo 'cliente'")
+    # Nota: cliente_id pode ser NULL inicialmente para usuários tipo 'cliente'
+    # Será vinculado automaticamente quando o primeiro cliente for criado por este usuário
     
     # Verificar se username ou email já existem
     cursor.execute("SELECT COUNT(*) as count FROM usuarios WHERE username = %s OR email = %s",
