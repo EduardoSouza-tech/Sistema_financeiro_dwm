@@ -3829,8 +3829,8 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
         linhas.append("-" * 80)
         
         cursor.execute("""
-            SELECT id, nome, banco, agencia, conta, saldo_inicial, tipo_conta,
-                   moeda, ativa, data_criacao, proprietario_id
+            SELECT id, nome, banco, agencia, conta, saldo_inicial, 
+                   ativa, data_criacao, proprietario_id
             FROM contas_bancarias
             WHERE proprietario_id = %s
             ORDER BY nome
@@ -3847,7 +3847,6 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
                 linhas.append(f"Agência: {conta['agencia']}")
                 linhas.append(f"Conta: {conta['conta']}")
                 linhas.append(f"Saldo Inicial: R$ {float(conta['saldo_inicial']) if conta['saldo_inicial'] else 0:.2f}")
-                linhas.append(f"Tipo: {conta['tipo_conta']}")
                 linhas.append(f"Ativa: {'Sim' if conta['ativa'] else 'Não'}")
                 linhas.append("-" * 40)
         else:
