@@ -149,11 +149,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Carregar permissões ANTES de qualquer coisa
     await carregarPermissoesUsuario();
     
-    // Aguardar um pouco para garantir que DOM está pronto
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Carregar primeira página com permissão disponível
-    carregarPaginaInicial();
+    // Aguardar próximo frame para garantir DOM renderizado
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            console.log('🎯 DOM totalmente carregado, iniciando navegação...');
+            carregarPaginaInicial();
+        });
+    });
     
     // Preencher anos no Comparativo de Períodos
     const anoAtual = new Date().getFullYear();
