@@ -436,6 +436,7 @@ def listar_permissoes():
 # === ROTAS DE CONTAS BANCÁRIAS ===
 
 @app.route('/api/contas', methods=['GET'])
+@require_permission('contas_view')
 def listar_contas():
     """Lista todas as contas bancárias com saldo real"""
     try:
@@ -485,6 +486,7 @@ def listar_contas():
 
 
 @app.route('/api/contas', methods=['POST'])
+@require_permission('contas_create')
 def adicionar_conta():
     """Adiciona uma nova conta bancária"""
     try:
@@ -519,6 +521,7 @@ def adicionar_conta():
 
 
 @app.route('/api/contas/<path:nome>', methods=['GET', 'PUT', 'DELETE', 'OPTIONS'])  # type: ignore
+@require_permission('contas_view')
 def modificar_conta(nome):
     """Busca, atualiza ou remove uma conta bancária"""
     
@@ -572,6 +575,7 @@ def modificar_conta(nome):
 
 
 @app.route('/api/transferencias', methods=['POST'])
+@require_permission('lancamentos_create')
 def criar_transferencia():
     """Cria uma transferência entre contas bancárias"""
     try:
@@ -629,6 +633,7 @@ def criar_transferencia():
 # === ROTAS DE CATEGORIAS ===
 
 @app.route('/api/categorias', methods=['GET'])
+@require_permission('categorias_view')
 def listar_categorias():
     """Lista todas as categorias"""
     categorias = db.listar_categorias()
@@ -640,6 +645,7 @@ def listar_categorias():
 
 
 @app.route('/api/categorias', methods=['POST'])
+@require_permission('categorias_create')
 def adicionar_categoria():
     """Adiciona uma nova categoria"""
     try:
@@ -668,6 +674,7 @@ def adicionar_categoria():
 
 
 @app.route('/api/categorias/<path:nome>', methods=['PUT', 'DELETE'])  # type: ignore
+@require_permission('categorias_edit')
 def modificar_categoria(nome):
     """Atualiza ou remove uma categoria"""
     if request.method == 'PUT':
@@ -713,14 +720,24 @@ def modificar_categoria(nome):
 # === ROTAS DE CLIENTES ===
 
 @app.route('/api/clientes', methods=['GET'])
+@require_permission('clientes_view')
 def listar_clientes():
     """Lista clientes ativos ou inativos"""
     ativos = request.args.get('ativos', 'true').lower() == 'true'
     clientes = db.listar_clientes(ativos=ativos)
-    return jsonify(clientes)
+    
+    # Adicionar cliente_id para cada cliente (usando nome como identificador)
+    for cliente in clientes:
+        cliente['cliente_id'] = cliente.get('nome')
+    
+    # Aplicar filtro por cliente
+    clientes_filtrados = filtrar_por_cliente(clientes, request.usuario)
+    
+    return jsonify(clientes_filtrados)
 
 
 @app.route('/api/clientes', methods=['POST'])
+@require_permission('clientes_create')
 def adicionar_cliente():
     """Adiciona um novo cliente"""
     try:
@@ -733,6 +750,7 @@ def adicionar_cliente():
 
 
 @app.route('/api/clientes/<path:nome>', methods=['PUT', 'DELETE'])  # type: ignore
+@require_permission('clientes_edit')
 def modificar_cliente(nome):
     """Atualiza ou remove um cliente"""
     if request.method == 'PUT':
@@ -773,14 +791,24 @@ def modificar_cliente(nome):
 # === ROTAS DE FORNECEDORES ===
 
 @app.route('/api/fornecedores', methods=['GET'])
+@require_permission('fornecedores_view')
 def listar_fornecedores():
     """Lista fornecedores ativos ou inativos"""
     ativos = request.args.get('ativos', 'true').lower() == 'true'
     fornecedores = db.listar_fornecedores(ativos=ativos)
-    return jsonify(fornecedores)
+    
+    # Adicionar cliente_id para cada fornecedor
+    for fornecedor in fornecedores:
+        fornecedor['cliente_id'] = fornecedor.get('cliente_associado')  # Assumindo que existe campo cliente_associado
+    
+    # Aplicar filtro por cliente
+    fornecedores_filtrados = filtrar_por_cliente(fornecedores, request.usuario)
+    
+    return jsonify(fornecedores_filtrados)
 
 
 @app.route('/api/fornecedores', methods=['POST'])
+@require_permission('fornecedores_create')
 def adicionar_fornecedor():
     """Adiciona um novo fornecedor"""
     try:
@@ -793,6 +821,7 @@ def adicionar_fornecedor():
 
 
 @app.route('/api/fornecedores/<path:nome>', methods=['PUT', 'DELETE'])  # type: ignore
+@require_permission('fornecedores_edit')
 def modificar_fornecedor(nome):
     """Atualiza ou remove um fornecedor"""
     if request.method == 'PUT':
@@ -821,6 +850,7 @@ def modificar_fornecedor(nome):
 
 
 @app.route('/api/clientes/<path:nome>/inativar', methods=['POST'])
+@require_permission('clientes_edit')
 def inativar_cliente(nome):
     """Inativa um cliente com motivo"""
     try:
@@ -837,6 +867,7 @@ def inativar_cliente(nome):
 
 
 @app.route('/api/clientes/<path:nome>/reativar', methods=['POST'])
+@require_permission('clientes_edit')
 def reativar_cliente(nome):
     """Reativa um cliente"""
     try:
@@ -847,6 +878,7 @@ def reativar_cliente(nome):
 
 
 @app.route('/api/fornecedores/<path:nome>/inativar', methods=['POST'])
+@require_permission('fornecedores_edit')
 def inativar_fornecedor(nome):
     """Inativa um fornecedor com motivo"""
     try:
@@ -863,6 +895,7 @@ def inativar_fornecedor(nome):
 
 
 @app.route('/api/fornecedores/<path:nome>/reativar', methods=['POST'])
+@require_permission('fornecedores_edit')
 def reativar_fornecedor(nome):
     """Reativa um fornecedor"""
     try:
@@ -875,6 +908,7 @@ def reativar_fornecedor(nome):
 # === ROTAS DE LANÇAMENTOS ===
 
 @app.route('/api/lancamentos', methods=['GET'])
+@require_permission('lancamentos_view')
 def listar_lancamentos():
     """Lista todos os lançamentos"""
     tipo_filtro = request.args.get('tipo')
@@ -884,7 +918,8 @@ def listar_lancamentos():
     if tipo_filtro:
         lancamentos = [l for l in lancamentos if l.tipo.value.upper() == tipo_filtro.upper()]
     
-    return jsonify([{
+    # Converter para lista de dicts e aplicar filtro por cliente
+    lancamentos_list = [{
         'id': l.id if hasattr(l, 'id') else None,
         'tipo': l.tipo.value,
         'descricao': l.descricao,
@@ -899,11 +934,18 @@ def listar_lancamentos():
         'observacoes': l.observacoes,
         'num_documento': getattr(l, 'num_documento', ''),
         'recorrente': getattr(l, 'recorrente', False),
-        'frequencia_recorrencia': getattr(l, 'frequencia_recorrencia', '')
-    } for l in lancamentos])
+        'frequencia_recorrencia': getattr(l, 'frequencia_recorrencia', ''),
+        'cliente_id': getattr(l, 'pessoa', None)  # Usar pessoa como referência ao cliente
+    } for l in lancamentos]
+    
+    # Aplicar filtro por cliente
+    lancamentos_filtrados = filtrar_por_cliente(lancamentos_list, request.usuario)
+    
+    return jsonify(lancamentos_filtrados)
 
 
 @app.route('/api/lancamentos', methods=['POST'])
+@require_permission('lancamentos_create')
 def adicionar_lancamento():
     """Adiciona um novo lançamento (com suporte a parcelamento)"""
     try:
@@ -977,6 +1019,7 @@ def adicionar_lancamento():
 
 
 @app.route('/api/lancamentos/<int:lancamento_id>', methods=['GET'])
+@require_permission('lancamentos_view')
 def obter_lancamento_route(lancamento_id):
     """Retorna os dados de um lançamento específico"""
     try:
@@ -1029,6 +1072,7 @@ def obter_lancamento_route(lancamento_id):
 
 
 @app.route('/api/lancamentos/<int:lancamento_id>', methods=['PUT', 'DELETE', 'OPTIONS'])
+@require_permission('lancamentos_edit')
 def gerenciar_lancamento(lancamento_id):
     """Atualiza ou remove um lançamento"""
     if request.method == 'OPTIONS':
@@ -1133,6 +1177,7 @@ def gerenciar_lancamento(lancamento_id):
 # === ROTAS DE RELATÓRIOS ===
 
 @app.route('/api/relatorios/fluxo-caixa', methods=['GET'])
+@require_permission('relatorios_view')
 def relatorio_fluxo_caixa():
     """Relatório de fluxo de caixa"""
     data_inicio_str = request.args.get('data_inicio', (date.today() - timedelta(days=30)).isoformat())
@@ -1150,6 +1195,12 @@ def relatorio_fluxo_caixa():
         data_fim = data_fim_str
     
     lancamentos = db.listar_lancamentos()
+    
+    # Filtrar lançamentos por cliente se necessário
+    usuario = request.usuario
+    if usuario['tipo'] != 'admin' and usuario.get('cliente_id'):
+        lancamentos = [l for l in lancamentos if getattr(l, 'pessoa', None) == usuario['cliente_id']]
+    
     lancamentos_periodo = []
     for l in lancamentos:
         if l.status == StatusLancamento.PAGO and l.data_pagamento:
@@ -1214,11 +1265,17 @@ def relatorio_fluxo_caixa():
 
 
 @app.route('/api/relatorios/dashboard', methods=['GET'])
+@require_permission('relatorios_view')
 def dashboard():
     """Dados para o dashboard"""
     try:
         lancamentos = db.listar_lancamentos()
         contas = db.listar_contas()
+        
+        # Filtrar lançamentos por cliente se necessário
+        usuario = request.usuario
+        if usuario['tipo'] != 'admin' and usuario.get('cliente_id'):
+            lancamentos = [l for l in lancamentos if getattr(l, 'pessoa', None) == usuario['cliente_id']]
         
         # Calcular saldos
         saldo_total = Decimal('0')
@@ -1267,6 +1324,7 @@ def dashboard():
 
 
 @app.route('/api/relatorios/dashboard-completo', methods=['GET'])
+@require_permission('relatorios_view')
 def dashboard_completo():
     """Dashboard completo com análises detalhadas - apenas lançamentos liquidados"""
     try:
@@ -1280,6 +1338,11 @@ def dashboard_completo():
         data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
         
         lancamentos = db.listar_lancamentos()
+        
+        # Filtrar lançamentos por cliente se necessário
+        usuario = request.usuario
+        if usuario['tipo'] != 'admin' and usuario.get('cliente_id'):
+            lancamentos = [l for l in lancamentos if getattr(l, 'pessoa', None) == usuario['cliente_id']]
         
         # Filtrar apenas lançamentos PAGOS/LIQUIDADOS no período (baseado na data de pagamento)
         # Excluir transferências dos relatórios
@@ -1444,6 +1507,7 @@ def dashboard_completo():
 
 
 @app.route('/api/relatorios/fluxo-projetado', methods=['GET'])
+@require_permission('relatorios_view')
 def relatorio_fluxo_projetado():
     """Relatório de fluxo de caixa PROJETADO (incluindo lançamentos pendentes futuros)"""
     try:
@@ -1458,6 +1522,11 @@ def relatorio_fluxo_projetado():
         
         lancamentos = db.listar_lancamentos()
         contas = db.listar_contas()
+        
+        # Filtrar lançamentos por cliente se necessário
+        usuario = request.usuario
+        if usuario['tipo'] != 'admin' and usuario.get('cliente_id'):
+            lancamentos = [l for l in lancamentos if getattr(l, 'pessoa', None) == usuario['cliente_id']]
         
         # Saldo atual (saldo inicial + todos os lançamentos pagos até hoje)
         saldo_atual = Decimal('0')
@@ -1597,10 +1666,16 @@ def relatorio_fluxo_projetado():
 
 
 @app.route('/api/relatorios/analise-contas', methods=['GET'])
+@require_permission('relatorios_view')
 def relatorio_analise_contas():
     """Relatório de análise de contas a pagar e receber"""
     lancamentos = db.listar_lancamentos()
     hoje = date.today()
+    
+    # Filtrar lançamentos por cliente se necessário
+    usuario = request.usuario
+    if usuario['tipo'] != 'admin' and usuario.get('cliente_id'):
+        lancamentos = [l for l in lancamentos if getattr(l, 'pessoa', None) == usuario['cliente_id']]
     
     # Função auxiliar para converter datetime para date
     def get_date(data):
@@ -1650,6 +1725,7 @@ def relatorio_analise_contas():
 
 
 @app.route('/api/lancamentos/<int:lancamento_id>/pagar', methods=['PUT'])
+@require_permission('lancamentos_edit')
 def pagar_lancamento(lancamento_id):
     """Marca um lançamento como pago"""
     try:
@@ -1667,6 +1743,7 @@ def pagar_lancamento(lancamento_id):
 
 
 @app.route('/api/lancamentos/<int:lancamento_id>/liquidar', methods=['POST'])
+@require_permission('lancamentos_edit')
 def liquidar_lancamento(lancamento_id):
     """Liquida um lançamento (marca como pago com dados completos)"""
     try:
@@ -1721,6 +1798,7 @@ def liquidar_lancamento(lancamento_id):
 
 
 @app.route('/api/lancamentos/<int:lancamento_id>/cancelar', methods=['PUT'])
+@require_permission('lancamentos_edit')
 def cancelar_lancamento_route(lancamento_id):
     """Cancela um lançamento"""
     try:
@@ -1736,6 +1814,12 @@ def cancelar_lancamento_route(lancamento_id):
 def login_page():
     """Página de login"""
     return render_template('login.html')
+
+@app.route('/admin')
+@require_admin
+def admin_page():
+    """Painel administrativo - apenas para admins"""
+    return render_template('admin.html')
 
 @app.route('/')
 def index():
@@ -1772,6 +1856,7 @@ def teste_api():
 # === ENDPOINTS DE RELATÓRIOS ===
 
 @app.route('/api/relatorios/resumo-parceiros', methods=['GET'])
+@require_permission('relatorios_view')
 def relatorio_resumo_parceiros():
     """Relatório de resumo por cliente/fornecedor"""
     try:
@@ -1840,6 +1925,7 @@ def relatorio_resumo_parceiros():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/relatorios/analise-categorias', methods=['GET'])
+@require_permission('relatorios_view')
 def relatorio_analise_categorias():
     """Relatório de análise por categorias"""
     try:
@@ -1890,6 +1976,7 @@ def relatorio_analise_categorias():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/relatorios/comparativo-periodos', methods=['GET'])
+@require_permission('relatorios_view')
 def relatorio_comparativo_periodos():
     """Relatório comparativo entre períodos"""
     try:
@@ -1990,6 +2077,7 @@ def relatorio_comparativo_periodos():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/relatorios/indicadores', methods=['GET'])
+@require_permission('relatorios_view')
 def relatorio_indicadores():
     """Relatório de indicadores financeiros"""
     try:
@@ -2078,6 +2166,7 @@ def relatorio_indicadores():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/relatorios/inadimplencia', methods=['GET'])
+@require_permission('relatorios_view')
 def relatorio_inadimplencia():
     """Relatório de inadimplência"""
     try:
@@ -2135,6 +2224,7 @@ def favicon():
 # === EXPORTAÇÃO DE CLIENTES E FORNECEDORES ===
 
 @app.route('/api/clientes/exportar/pdf', methods=['GET'])
+@require_permission('clientes_view')
 def exportar_clientes_pdf():
     """Exporta clientes para PDF"""
     try:
@@ -2228,6 +2318,7 @@ def exportar_clientes_pdf():
 
 
 @app.route('/api/clientes/exportar/excel', methods=['GET'])
+@require_permission('clientes_view')
 def exportar_clientes_excel():
     """Exporta clientes para Excel"""
     try:
@@ -2284,6 +2375,7 @@ def exportar_clientes_excel():
 
 
 @app.route('/api/fornecedores/exportar/pdf', methods=['GET'])
+@require_permission('fornecedores_view')
 def exportar_fornecedores_pdf():
     """Exporta fornecedores para PDF"""
     try:
@@ -2371,6 +2463,7 @@ def exportar_fornecedores_pdf():
 
 
 @app.route('/api/fornecedores/exportar/excel', methods=['GET'])
+@require_permission('fornecedores_view')
 def exportar_fornecedores_excel():
     """Exporta fornecedores para Excel"""
     try:
@@ -2429,12 +2522,21 @@ def exportar_fornecedores_excel():
 # === ROTAS DO MENU OPERACIONAL ===
 
 @app.route('/api/contratos', methods=['GET', 'POST'])
+@require_permission('contratos_view')
 def contratos():
     """Gerenciar contratos"""
     if request.method == 'GET':
         try:
             contratos = db.listar_contratos()
-            return jsonify(contratos)
+            
+            # Adicionar cliente_id para cada contrato
+            for contrato in contratos:
+                contrato['cliente_id'] = contrato.get('cliente')
+            
+            # Aplicar filtro por cliente
+            contratos_filtrados = filtrar_por_cliente(contratos, request.usuario)
+            
+            return jsonify(contratos_filtrados)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # POST
@@ -2461,6 +2563,7 @@ def contratos():
 
 
 @app.route('/api/contratos/proximo-numero', methods=['GET'])
+@require_permission('contratos_view')
 def proximo_numero_contrato():
     """Retorna o próximo número de contrato disponível"""
     try:
@@ -2476,6 +2579,7 @@ def proximo_numero_contrato():
 
 
 @app.route('/api/contratos/<int:contrato_id>', methods=['PUT', 'DELETE'])
+@require_permission('contratos_edit')
 def contrato_detalhes(contrato_id):
     """Atualizar ou excluir contrato"""
     if request.method == 'PUT':
@@ -2510,12 +2614,21 @@ def contrato_detalhes(contrato_id):
 
 
 @app.route('/api/sessoes', methods=['GET', 'POST'])
+@require_permission('sessoes_view')
 def sessoes():
     """Gerenciar sessões"""
     if request.method == 'GET':
         try:
             sessoes = db.listar_sessoes()
-            return jsonify(sessoes)
+            
+            # Adicionar cliente_id para cada sessão
+            for sessao in sessoes:
+                sessao['cliente_id'] = sessao.get('cliente')
+            
+            # Aplicar filtro por cliente
+            sessoes_filtradas = filtrar_por_cliente(sessoes, request.usuario)
+            
+            return jsonify(sessoes_filtradas)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # POST
@@ -2528,6 +2641,7 @@ def sessoes():
 
 
 @app.route('/api/sessoes/<int:sessao_id>', methods=['PUT', 'DELETE'])
+@require_permission('sessoes_edit')
 def sessao_detalhes(sessao_id):
     """Atualizar ou excluir sessão"""
     if request.method == 'PUT':
@@ -2550,6 +2664,7 @@ def sessao_detalhes(sessao_id):
 
 
 @app.route('/api/comissoes', methods=['GET', 'POST'])
+@require_permission('operacional_view')
 def comissoes():
     """Gerenciar comissões"""
     if request.method == 'GET':
@@ -2576,6 +2691,7 @@ def comissoes():
 
 
 @app.route('/api/comissoes/<int:comissao_id>', methods=['PUT', 'DELETE'])
+@require_permission('operacional_edit')
 def comissao_detalhes(comissao_id):
     """Atualizar ou excluir comissão"""
     if request.method == 'PUT':
@@ -2610,6 +2726,7 @@ def comissao_detalhes(comissao_id):
 
 
 @app.route('/api/sessao-equipe', methods=['GET', 'POST', 'DELETE'])
+@require_permission('operacional_view')
 def sessao_equipe():
     """Gerenciar equipe de sessão"""
     if request.method == 'DELETE':
@@ -2668,6 +2785,7 @@ def sessao_equipe():
 
 
 @app.route('/api/sessao-equipe/<int:membro_id>', methods=['PUT', 'DELETE'])
+@require_permission('operacional_edit')
 def sessao_equipe_detalhes(membro_id):
     """Atualizar ou excluir membro da equipe"""
     if request.method == 'PUT':
@@ -2702,6 +2820,7 @@ def sessao_equipe_detalhes(membro_id):
 
 
 @app.route('/api/tipos-sessao', methods=['GET', 'POST'])
+@require_permission('operacional_view')
 def tipos_sessao():
     """Listar ou criar tipos de sessão"""
     if request.method == 'GET':
@@ -2720,6 +2839,7 @@ def tipos_sessao():
 
 
 @app.route('/api/tipos-sessao/<int:tipo_id>', methods=['PUT', 'DELETE'])
+@require_permission('operacional_edit')
 def tipos_sessao_detalhes(tipo_id):
     """Atualizar ou excluir tipo de sessão"""
     if request.method == 'PUT':
@@ -2742,6 +2862,7 @@ def tipos_sessao_detalhes(tipo_id):
 
 
 @app.route('/api/agenda', methods=['GET', 'POST'])
+@require_permission('agenda_view')
 def agenda():
     """Gerenciar agenda"""
     if request.method == 'GET':
@@ -2760,6 +2881,7 @@ def agenda():
 
 
 @app.route('/api/agenda/<int:agendamento_id>', methods=['PUT', 'DELETE'])
+@require_permission('agenda_edit')
 def agenda_detalhes(agendamento_id):
     """Atualizar ou excluir agendamento"""
     if request.method == 'PUT':
@@ -2782,6 +2904,7 @@ def agenda_detalhes(agendamento_id):
 
 
 @app.route('/api/estoque/produtos', methods=['GET', 'POST'])
+@require_permission('estoque_view')
 def produtos():
     """Gerenciar produtos do estoque"""
     if request.method == 'GET':
@@ -2800,6 +2923,7 @@ def produtos():
 
 
 @app.route('/api/estoque/produtos/<int:produto_id>', methods=['PUT', 'DELETE'])
+@require_permission('estoque_edit')
 def produto_detalhes(produto_id):
     """Atualizar ou excluir produto"""
     if request.method == 'PUT':
@@ -2822,6 +2946,7 @@ def produto_detalhes(produto_id):
 
 
 @app.route('/api/kits', methods=['GET', 'POST'])
+@require_permission('estoque_view')
 def kits():
     """Gerenciar kits"""
     if request.method == 'GET':
@@ -2840,6 +2965,7 @@ def kits():
 
 
 @app.route('/api/kits/<int:kit_id>', methods=['PUT', 'DELETE'])
+@require_permission('estoque_edit')
 def kit_detalhes(kit_id):
     """Atualizar ou excluir kit"""
     if request.method == 'PUT':
@@ -2862,6 +2988,7 @@ def kit_detalhes(kit_id):
 
 
 @app.route('/api/tags', methods=['GET', 'POST'])
+@require_permission('operacional_view')
 def tags():
     """Gerenciar tags"""
     if request.method == 'GET':
@@ -2880,6 +3007,7 @@ def tags():
 
 
 @app.route('/api/tags/<int:tag_id>', methods=['PUT', 'DELETE'])
+@require_permission('operacional_edit')
 def tag_detalhes(tag_id):
     """Atualizar ou excluir tag"""
     if request.method == 'PUT':
@@ -2902,6 +3030,7 @@ def tag_detalhes(tag_id):
 
 
 @app.route('/api/templates-equipe', methods=['GET', 'POST'])
+@require_permission('operacional_view')
 def templates_equipe():
     """Gerenciar templates de equipe"""
     if request.method == 'GET':
@@ -2920,6 +3049,7 @@ def templates_equipe():
 
 
 @app.route('/api/templates-equipe/<int:template_id>', methods=['PUT', 'DELETE'])
+@require_permission('operacional_edit')
 def template_equipe_detalhes(template_id):
     """Atualizar ou excluir template"""
     if request.method == 'PUT':

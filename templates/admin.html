@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo - Sistema Financeiro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 28px;
+        }
+
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-info strong {
+            color: #333;
+            display: block;
+        }
+
+        .user-info span {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-size: 16px;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .table th {
+            background: #f8f9fa;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-admin {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .badge-client {
+            background: #4ecdc4;
+            color: white;
+        }
+
+        .badge-active {
+            background: #51cf66;
+            color: white;
+        }
+
+        .badge-inactive {
+            background: #adb5bd;
+            color: white;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #333;
+            font-size: 24px;
+        }
+
+        .modal-footer {
+            margin-top: 25px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .permissions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .permission-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .permission-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        .permission-item label {
+            font-size: 14px;
+            color: #555;
+            cursor: pointer;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.active {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 32px;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚙️ Painel Administrativo</h1>
+            <div class="header-info">
+                <div class="user-info">
+                    <strong id="userName">Carregando...</strong>
+                    <span id="userType">Admin</span>
+                </div>
+                <a href="/" class="btn btn-primary">📊 Dashboard</a>
+                <button onclick="logout()" class="btn btn-danger">🚪 Sair</button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat-card">
+                <h3 id="totalUsers">0</h3>
+                <p>Total de Usuários</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="activeUsers">0</h3>
+                <p>Usuários Ativos</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="totalPermissions">30</h3>
+                <p>Permissões Disponíveis</p>
+            </div>
+        </div>
+
+        <!-- Alert -->
+        <div id="alert" class="alert"></div>
+
+        <!-- Main Card -->
+        <div class="card">
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('users')">👥 Usuários</button>
+                <button class="tab" onclick="switchTab('permissions')">🔐 Permissões</button>
+                <button class="tab" onclick="switchTab('logs')">📋 Logs de Acesso</button>
+            </div>
+
+            <!-- Tab: Usuários -->
+            <div id="usersTab" class="tab-content active">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>Gerenciar Usuários</h2>
+                    <button onclick="openNewUserModal()" class="btn btn-success">➕ Novo Usuário</button>
+                </div>
+
+                <div id="usersLoading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Carregando usuários...</p>
+                </div>
+
+                <table class="table" id="usersTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Usuário</th>
+                            <th>Nome</th>
+                            <th>Tipo</th>
+                            <th>Cliente Associado</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Tab: Permissões -->
+            <div id="permissionsTab" class="tab-content">
+                <h2>Permissões do Sistema</h2>
+                <p style="color: #666; margin-bottom: 20px;">Lista de todas as permissões disponíveis no sistema (30 permissões)</p>
+                
+                <div id="permissionsLoading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Carregando permissões...</p>
+                </div>
+
+                <div id="permissionsGrid" class="permissions-grid"></div>
+            </div>
+
+            <!-- Tab: Logs -->
+            <div id="logsTab" class="tab-content">
+                <h2>Logs de Acesso</h2>
+                <p style="color: #666; margin-bottom: 20px;">Histórico de logins e acessos ao sistema</p>
+                <div class="empty-state">
+                    <p>Em desenvolvimento - Logs de acesso serão exibidos aqui</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Novo/Editar Usuário -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Novo Usuário</h3>
+            </div>
+
+            <form id="userForm">
+                <input type="hidden" id="userId">
+                
+                <div class="form-group">
+                    <label>Nome de Usuário *</label>
+                    <input type="text" id="username" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Nome Completo *</label>
+                    <input type="text" id="fullName" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Senha *</label>
+                    <input type="password" id="password" class="form-control">
+                    <small style="color: #666;">Deixe em branco para manter a senha atual (ao editar)</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Tipo de Usuário *</label>
+                    <select id="userTypeSelect" class="form-control" onchange="toggleClientField()">
+                        <option value="admin">Administrador</option>
+                        <option value="client">Cliente</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="clientField" style="display: none;">
+                    <label>Cliente Associado</label>
+                    <select id="clientId" class="form-control">
+                        <option value="">Selecione um cliente...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Permissões</label>
+                    <div id="modalPermissionsGrid" class="permissions-grid"></div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" onclick="closeUserModal()" class="btn btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let allPermissions = [];
+        let allUsers = [];
+        let allClients = [];
+
+        // Verificar autenticação
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/verify', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const data = await response.json();
+                
+                // Verificar se é admin
+                if (data.tipo !== 'admin') {
+                    alert('Acesso negado! Apenas administradores podem acessar esta página.');
+                    window.location.href = '/';
+                    return;
+                }
+
+                document.getElementById('userName').textContent = data.nome;
+                document.getElementById('userType').textContent = data.tipo === 'admin' ? 'Administrador' : 'Cliente';
+                
+                // Carregar dados
+                await loadPermissions();
+                await loadUsers();
+                await loadClients();
+            } catch (error) {
+                console.error('Erro ao verificar autenticação:', error);
+                window.location.href = '/login';
+            }
+        }
+
+        // Carregar permissões
+        async function loadPermissions() {
+            document.getElementById('permissionsLoading').classList.add('active');
+            
+            try {
+                const response = await fetch('/api/permissoes', {
+                    credentials: 'include'
+                });
+                
+                allPermissions = await response.json();
+                renderPermissionsGrid();
+                renderModalPermissions();
+                
+                document.getElementById('totalPermissions').textContent = allPermissions.length;
+            } catch (error) {
+                console.error('Erro ao carregar permissões:', error);
+                showAlert('Erro ao carregar permissões', 'error');
+            } finally {
+                document.getElementById('permissionsLoading').classList.remove('active');
+            }
+        }
+
+        // Renderizar grid de permissões (tab)
+        function renderPermissionsGrid() {
+            const grid = document.getElementById('permissionsGrid');
+            grid.innerHTML = '';
+
+            allPermissions.forEach(perm => {
+                const item = document.createElement('div');
+                item.className = 'permission-item';
+                item.innerHTML = `
+                    <input type="checkbox" disabled checked>
+                    <label>${perm.nome}</label>
+                `;
+                grid.appendChild(item);
+            });
+        }
+
+        // Renderizar permissões no modal
+        function renderModalPermissions(selectedPermissions = []) {
+            const grid = document.getElementById('modalPermissionsGrid');
+            grid.innerHTML = '';
+
+            allPermissions.forEach(perm => {
+                const item = document.createElement('div');
+                item.className = 'permission-item';
+                const checked = selectedPermissions.includes(perm.codigo) ? 'checked' : '';
+                item.innerHTML = `
+                    <input type="checkbox" name="permissions" value="${perm.codigo}" ${checked} id="perm_${perm.codigo}">
+                    <label for="perm_${perm.codigo}">${perm.nome}</label>
+                `;
+                grid.appendChild(item);
+            });
+        }
+
+        // Carregar usuários
+        async function loadUsers() {
+            document.getElementById('usersLoading').classList.add('active');
+            document.getElementById('usersTable').style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/usuarios', {
+                    credentials: 'include'
+                });
+                
+                allUsers = await response.json();
+                renderUsersTable();
+                updateStats();
+            } catch (error) {
+                console.error('Erro ao carregar usuários:', error);
+                showAlert('Erro ao carregar usuários', 'error');
+            } finally {
+                document.getElementById('usersLoading').classList.remove('active');
+            }
+        }
+
+        // Renderizar tabela de usuários
+        function renderUsersTable() {
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = '';
+
+            allUsers.forEach(user => {
+                const tr = document.createElement('tr');
+                const typeBadge = user.tipo === 'admin' ? 'badge-admin' : 'badge-client';
+                const statusBadge = user.ativo ? 'badge-active' : 'badge-inactive';
+                
+                tr.innerHTML = `
+                    <td>${user.id}</td>
+                    <td><strong>${user.username}</strong></td>
+                    <td>${user.nome}</td>
+                    <td><span class="badge ${typeBadge}">${user.tipo === 'admin' ? 'Admin' : 'Cliente'}</span></td>
+                    <td>${user.cliente_nome || '-'}</td>
+                    <td><span class="badge ${statusBadge}">${user.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                    <td>
+                        <button onclick="editUser(${user.id})" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;">✏️ Editar</button>
+                        <button onclick="deleteUser(${user.id})" class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;">🗑️ Excluir</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('usersTable').style.display = 'table';
+        }
+
+        // Atualizar estatísticas
+        function updateStats() {
+            document.getElementById('totalUsers').textContent = allUsers.length;
+            document.getElementById('activeUsers').textContent = allUsers.filter(u => u.ativo).length;
+        }
+
+        // Carregar clientes
+        async function loadClients() {
+            try {
+                const response = await fetch('/api/clientes', {
+                    credentials: 'include'
+                });
+                
+                allClients = await response.json();
+                
+                const select = document.getElementById('clientId');
+                select.innerHTML = '<option value="">Selecione um cliente...</option>';
+                
+                allClients.forEach(client => {
+                    const option = document.createElement('option');
+                    option.value = client.nome;
+                    option.textContent = client.razao_social || client.nome_fantasia || client.nome;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar clientes:', error);
+            }
+        }
+
+        // Abrir modal de novo usuário
+        function openNewUserModal() {
+            document.getElementById('modalTitle').textContent = 'Novo Usuário';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            renderModalPermissions();
+            document.getElementById('userModal').classList.add('active');
+        }
+
+        // Editar usuário
+        async function editUser(userId) {
+            try {
+                const response = await fetch(`/api/usuarios/${userId}`, {
+                    credentials: 'include'
+                });
+                
+                const user = await response.json();
+                
+                document.getElementById('modalTitle').textContent = 'Editar Usuário';
+                document.getElementById('userId').value = user.id;
+                document.getElementById('username').value = user.username;
+                document.getElementById('fullName').value = user.nome;
+                document.getElementById('userTypeSelect').value = user.tipo;
+                document.getElementById('clientId').value = user.cliente_id || '';
+                document.getElementById('password').value = '';
+                
+                toggleClientField();
+                renderModalPermissions(user.permissoes || []);
+                
+                document.getElementById('userModal').classList.add('active');
+            } catch (error) {
+                console.error('Erro ao carregar usuário:', error);
+                showAlert('Erro ao carregar dados do usuário', 'error');
+            }
+        }
+
+        // Deletar usuário
+        async function deleteUser(userId) {
+            if (!confirm('Tem certeza que deseja excluir este usuário?')) return;
+            
+            try {
+                const response = await fetch(`/api/usuarios/${userId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    showAlert('Usuário excluído com sucesso!', 'success');
+                    await loadUsers();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Erro ao excluir usuário', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao excluir usuário:', error);
+                showAlert('Erro ao excluir usuário', 'error');
+            }
+        }
+
+        // Fechar modal
+        function closeUserModal() {
+            document.getElementById('userModal').classList.remove('active');
+        }
+
+        // Toggle campo de cliente
+        function toggleClientField() {
+            const tipo = document.getElementById('userTypeSelect').value;
+            const clientField = document.getElementById('clientField');
+            
+            if (tipo === 'client') {
+                clientField.style.display = 'block';
+            } else {
+                clientField.style.display = 'none';
+            }
+        }
+
+        // Submit form de usuário
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const userId = document.getElementById('userId').value;
+            const username = document.getElementById('username').value;
+            const nome = document.getElementById('fullName').value;
+            const senha = document.getElementById('password').value;
+            const tipo = document.getElementById('userTypeSelect').value;
+            const clienteId = document.getElementById('clientId').value;
+            
+            // Obter permissões selecionadas
+            const permissionsCheckboxes = document.querySelectorAll('input[name="permissions"]:checked');
+            const permissoes = Array.from(permissionsCheckboxes).map(cb => cb.value);
+            
+            const data = {
+                username,
+                nome,
+                tipo,
+                cliente_id: tipo === 'client' ? clienteId : null,
+                permissoes
+            };
+            
+            if (senha) {
+                data.senha = senha;
+            }
+            
+            try {
+                let response;
+                
+                if (userId) {
+                    // Atualizar usuário existente
+                    response = await fetch(`/api/usuarios/${userId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify(data)
+                    });
+                } else {
+                    // Criar novo usuário
+                    if (!senha) {
+                        showAlert('Senha é obrigatória para novo usuário', 'error');
+                        return;
+                    }
+                    
+                    response = await fetch('/api/usuarios', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify(data)
+                    });
+                }
+                
+                if (response.ok) {
+                    showAlert('Usuário salvo com sucesso!', 'success');
+                    closeUserModal();
+                    await loadUsers();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Erro ao salvar usuário', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar usuário:', error);
+                showAlert('Erro ao salvar usuário', 'error');
+            }
+        });
+
+        // Switch tab
+        function switchTab(tabName) {
+            // Remover active de todas as tabs
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Adicionar active na tab selecionada
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+        }
+
+        // Mostrar alerta
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type} active`;
+            
+            setTimeout(() => {
+                alert.classList.remove('active');
+            }, 5000);
+        }
+
+        // Logout
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                window.location.href = '/login';
+            } catch (error) {
+                console.error('Erro ao fazer logout:', error);
+                window.location.href = '/login';
+            }
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+        });
+    </script>
+</body>
+</html>

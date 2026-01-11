@@ -1227,6 +1227,21 @@
         <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">💰 Sistema Financeiro</div>
+            
+            <!-- User Info Header -->
+            <div style="padding: 15px 20px; border-bottom: 1px solid #34495e; margin-bottom: 15px;">
+                <div style="color: #fff; font-size: 14px; margin-bottom: 8px;">
+                    <strong id="userNameSidebar">👤 Carregando...</strong>
+                </div>
+                <div style="color: #95a5a6; font-size: 12px; margin-bottom: 10px;">
+                    <span id="userTypeSidebar">-</span>
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    <button id="adminBtn" onclick="window.location.href='/admin'" style="display: none; flex: 1; padding: 6px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">⚙️ Admin</button>
+                    <button onclick="logoutUser()" style="flex: 1; padding: 6px; background: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🚪 Sair</button>
+                </div>
+            </div>
+            
             <button class="nav-button active" onclick="showSection('dashboard')">
                 📊 Dashboard
             </button>
@@ -2940,8 +2955,65 @@
     </div>
     
     <script>
+        // ====================================
+        // AUTENTICAÇÃO E USUÁRIO
+        // ====================================
+        
+        // Verificar usuário logado
+        async function checkUserAuth() {
+            try {
+                const response = await fetch('/api/auth/verify', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                const user = await response.json();
+                
+                // Atualizar informações do usuário no sidebar
+                document.getElementById('userNameSidebar').textContent = '👤 ' + user.nome;
+                document.getElementById('userTypeSidebar').textContent = user.tipo === 'admin' ? 'Administrador' : 'Cliente';
+                
+                // Mostrar botão admin se for administrador
+                if (user.tipo === 'admin') {
+                    document.getElementById('adminBtn').style.display = 'block';
+                }
+                
+                console.log('✅ Usuário autenticado:', user.nome);
+            } catch (error) {
+                console.error('Erro ao verificar autenticação:', error);
+                window.location.href = '/login';
+            }
+        }
+        
+        // Fazer logout
+        async function logoutUser() {
+            if (!confirm('Deseja realmente sair do sistema?')) return;
+            
+            try {
+                await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                window.location.href = '/login';
+            } catch (error) {
+                console.error('Erro ao fazer logout:', error);
+                window.location.href = '/login';
+            }
+        }
+        
+        // ====================================
+        // INICIALIZAÇÃO
+        // ====================================
+        
         // Inicializar dados ao carregar a página
         document.addEventListener('DOMContentLoaded', function() {
+            // Verificar autenticação primeiro
+            checkUserAuth();
+            
             // Definir ano e mês atuais nos filtros do dashboard
             const hoje = new Date();
             const anoAtual = hoje.getFullYear();
