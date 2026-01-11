@@ -8,13 +8,139 @@ from psycopg2.extras import RealDictCursor  # type: ignore
 from datetime import datetime, date
 from typing import List, Optional, Dict, Any
 from decimal import Decimal
+from enum import Enum
 import json
 import os
 from contextlib import contextmanager
-from models import (
-    ContaBancaria, Lancamento, Categoria,
-    TipoLancamento, StatusLancamento
-)
+
+
+# ============================================================================
+# MODELOS DE DADOS
+# ============================================================================
+
+class TipoLancamento(Enum):
+    """Tipos de lancamento financeiro"""
+    RECEITA = "receita"
+    DESPESA = "despesa"
+    TRANSFERENCIA = "transferencia"
+
+
+class StatusLancamento(Enum):
+    """Status do lancamento"""
+    PENDENTE = "pendente"
+    PAGO = "pago"
+    CANCELADO = "cancelado"
+    VENCIDO = "vencido"
+
+
+class Categoria:
+    """Categoria de lancamento financeiro"""
+    def __init__(self, nome: str, tipo: TipoLancamento, descricao: str = "", 
+                 subcategorias: Optional[List[str]] = None, id: Optional[int] = None, 
+                 cor: str = "#000000", icone: str = "folder"):
+        self.id = id
+        self.nome = nome
+        self.tipo = tipo
+        self.descricao = descricao
+        self.subcategorias = subcategorias if subcategorias is not None else []
+        self.cor = cor
+        self.icone = icone
+    
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'tipo': self.tipo.value if isinstance(self.tipo, TipoLancamento) else self.tipo,
+            'descricao': self.descricao,
+            'subcategorias': self.subcategorias,
+            'cor': self.cor,
+            'icone': self.icone
+        }
+
+
+class ContaBancaria:
+    """Conta bancaria"""
+    def __init__(self, nome: str, banco: str, agencia: str, conta: str, 
+                 saldo_inicial: float = 0.0, id: Optional[int] = None, 
+                 tipo_conta: str = "corrente", moeda: str = "BRL"):
+        self.id = id
+        self.nome = nome
+        self.banco = banco
+        self.agencia = agencia
+        self.conta = conta
+        self.saldo_inicial = saldo_inicial
+        self.tipo_conta = tipo_conta
+        self.moeda = moeda
+    
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'banco': self.banco,
+            'agencia': self.agencia,
+            'conta': self.conta,
+            'saldo_inicial': float(self.saldo_inicial),
+            'tipo_conta': self.tipo_conta,
+            'moeda': self.moeda
+        }
+
+
+class Lancamento:
+    """Lancamento financeiro"""
+    def __init__(self, tipo: TipoLancamento, valor: float, data_lancamento: datetime,
+                 categoria: str = "", subcategoria: str = "", conta_bancaria: str = "",
+                 cliente_fornecedor: str = "", pessoa: str = "", descricao: str = "",
+                 status: StatusLancamento = StatusLancamento.PENDENTE,
+                 data_vencimento: Optional[datetime] = None,
+                 data_pagamento: Optional[datetime] = None,
+                 observacoes: str = "", anexo: str = "",
+                 recorrente: bool = False, frequencia_recorrencia: str = "",
+                 id: Optional[int] = None, proprietario_id: Optional[int] = None):
+        self.id = id
+        self.tipo = tipo
+        self.valor = valor
+        self.data_lancamento = data_lancamento
+        self.data_vencimento = data_vencimento
+        self.data_pagamento = data_pagamento
+        self.categoria = categoria
+        self.subcategoria = subcategoria
+        self.conta_bancaria = conta_bancaria
+        self.cliente_fornecedor = cliente_fornecedor
+        self.pessoa = pessoa
+        self.descricao = descricao
+        self.status = status
+        self.observacoes = observacoes
+        self.anexo = anexo
+        self.recorrente = recorrente
+        self.frequencia_recorrencia = frequencia_recorrencia
+        self.proprietario_id = proprietario_id
+    
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'tipo': self.tipo.value if isinstance(self.tipo, TipoLancamento) else self.tipo,
+            'valor': float(self.valor),
+            'data_lancamento': self.data_lancamento.isoformat() if isinstance(self.data_lancamento, datetime) else self.data_lancamento,
+            'data_vencimento': self.data_vencimento.isoformat() if isinstance(self.data_vencimento, datetime) else self.data_vencimento,
+            'data_pagamento': self.data_pagamento.isoformat() if isinstance(self.data_pagamento, datetime) else self.data_pagamento,
+            'categoria': self.categoria,
+            'subcategoria': self.subcategoria,
+            'conta_bancaria': self.conta_bancaria,
+            'cliente_fornecedor': self.cliente_fornecedor,
+            'pessoa': self.pessoa,
+            'descricao': self.descricao,
+            'status': self.status.value if isinstance(self.status, StatusLancamento) else self.status,
+            'observacoes': self.observacoes,
+            'anexo': self.anexo,
+            'recorrente': self.recorrente,
+            'frequencia_recorrencia': self.frequencia_recorrencia,
+            'proprietario_id': self.proprietario_id
+        }
+
+
+# ============================================================================
+# CONFIGURAÇÃO E POOL DE CONEXÕES
+# ============================================================================
 
 __all__ = [
     'criar_tabelas',
