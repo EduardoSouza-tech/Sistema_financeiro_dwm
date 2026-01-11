@@ -3372,17 +3372,41 @@
                 }
                 
                 const user = await response.json();
+                console.log('🔍 DEBUG - Resposta de /api/auth/verify:', user);
                 
                 // Atualizar informações do usuário no sidebar
                 const userData = user.usuario || user;
+                console.log('🔍 DEBUG - userData extraído:', userData);
+                console.log('🔍 DEBUG - userData.tipo:', userData.tipo);
+                console.log('🔍 DEBUG - userData.tipo === "admin":', userData.tipo === 'admin');
+                
                 document.getElementById('userNameSidebar').textContent = '👤 ' + (userData.nome_completo || userData.nome || 'Usuário');
                 document.getElementById('userTypeSidebar').textContent = userData.tipo === 'admin' ? 'Administrador' : 'Cliente';
                 
                 // Mostrar botão admin e menu admin se for administrador
                 if (userData.tipo === 'admin') {
-                    document.getElementById('adminBtn').style.display = 'block';
+                    console.log('✅ Usuário é ADMIN - mostrando botões');
+                    const adminBtn = document.getElementById('adminBtn');
                     const adminMenu = document.getElementById('btn-admin-menu');
-                    if (adminMenu) adminMenu.style.display = 'block';
+                    
+                    console.log('🔍 adminBtn element:', adminBtn);
+                    console.log('🔍 btn-admin-menu element:', adminMenu);
+                    
+                    if (adminBtn) {
+                        adminBtn.style.display = 'block';
+                        console.log('✅ adminBtn.style.display = block');
+                    } else {
+                        console.error('❌ adminBtn NÃO ENCONTRADO!');
+                    }
+                    
+                    if (adminMenu) {
+                        adminMenu.style.display = 'block';
+                        console.log('✅ btn-admin-menu.style.display = block');
+                    } else {
+                        console.error('❌ btn-admin-menu NÃO ENCONTRADO!');
+                    }
+                } else {
+                    console.log('❌ Usuário NÃO é admin - tipo:', userData.tipo);
                 }
                 
                 console.log('✅ Usuário autenticado:', userData.nome_completo || userData.nome);
