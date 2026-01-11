@@ -1245,12 +1245,15 @@
             <button class="nav-button active" onclick="showSection('dashboard')" data-permission="dashboard">
                 📊 Dashboard
             </button>
-            <button class="nav-button" onclick="showSection('contas-receber')" data-permission="lancamentos_view">
-                💵 Contas a Receber
+            
+            <!-- Menu Financeiro com Submenu -->
+            <button class="nav-button" onclick="toggleSubmenu('financeiro')" id="btn-financeiro" data-permission="lancamentos_view">
+                💰 Financeiro ▼
             </button>
-            <button class="nav-button" onclick="showSection('contas-pagar')" data-permission="lancamentos_view">
-                💳 Contas a Pagar
-            </button>
+            <div class="submenu" id="submenu-financeiro" style="display: none;">
+                <button class="submenu-button" onclick="showSection('contas-receber')" data-permission="lancamentos_view">💵 Contas a Receber</button>
+                <button class="submenu-button" onclick="showSection('contas-pagar')" data-permission="lancamentos_view">💳 Contas a Pagar</button>
+            </div>
             
             <!-- Menu de Relatórios com Submenu -->
             <button class="nav-button" onclick="toggleSubmenu('relatorios')" id="btn-relatorios" data-permission="relatorios_view">
