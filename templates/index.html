@@ -14,7 +14,7 @@
         </div>
         
         <nav class="sidebar-nav">
-            <button class="nav-button active" onclick="showPage('dashboard')">
+            <button class="nav-button active" onclick="showPage('dashboard')" data-permission="Dashboard">
                 📊 Dashboard
             </button>
             
@@ -22,9 +22,9 @@
                 💵 Lançamentos ▼
             </button>
             <div class="submenu" id="submenu-lancamentos">
-                <button class="submenu-button" onclick="showPage('contas-receber')">💰 Contas a Receber</button>
-                <button class="submenu-button" onclick="showPage('contas-pagar')">💳 Contas a Pagar</button>
-                <button class="submenu-button" onclick="showPage('lancamentos')">📋 Todos Lançamentos</button>
+                <button class="submenu-button" onclick="showPage('contas-receber')" data-permission="Ver Lancamentos">💰 Contas a Receber</button>
+                <button class="submenu-button" onclick="showPage('contas-pagar')" data-permission="Ver Lancamentos">💳 Contas a Pagar</button>
+                <button class="submenu-button" onclick="showPage('lancamentos')" data-permission="Ver Lancamentos">📋 Todos Lançamentos</button>
             </div>
             
             <button class="nav-button" onclick="toggleSubmenu('cadastros')">
@@ -33,8 +33,8 @@
             <div class="submenu" id="submenu-cadastros">
                 <button class="submenu-button" onclick="showPage('contas')">Contas Bancárias</button>
                 <button class="submenu-button" onclick="showPage('categorias')">Categorias</button>
-                <button class="submenu-button" onclick="showPage('clientes')">Clientes</button>
-                <button class="submenu-button" onclick="showPage('fornecedores')">Fornecedores</button>
+                <button class="submenu-button" onclick="showPage('clientes')" data-permission="Ver Clientes">Clientes</button>
+                <button class="submenu-button" onclick="showPage('fornecedores')" data-permission="Ver Fornecedores">Fornecedores</button>
             </div>
             
             <button class="nav-button" onclick="toggleSubmenu('relatorios')">

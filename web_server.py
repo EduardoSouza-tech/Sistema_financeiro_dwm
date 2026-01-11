@@ -208,7 +208,8 @@ def verify_session():
                 'nome_completo': usuario['nome_completo'],
                 'tipo': usuario['tipo'],
                 'email': usuario['email'],
-                'cliente_id': usuario.get('cliente_id')
+                'cliente_id': usuario.get('cliente_id'),
+                'permissoes': permissoes  # Incluir permissões no objeto usuario
             },
             'permissoes': permissoes
         })

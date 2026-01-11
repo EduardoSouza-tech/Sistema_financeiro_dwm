@@ -23,8 +23,59 @@ window.addEventListener('unhandledrejection', function(e) {
 console.log('%c ✓ Sistema Financeiro - app.js v20251223debug carregado ', 'background: #4CAF50; color: white; font-size: 16px; font-weight: bold');
 console.log('%c 🔍 Iniciando carregamento de funções... ', 'background: #FF9800; color: white; font-weight: bold');
 
+// ============================================================================
+// SISTEMA DE PERMISSÕES
+// ============================================================================
+let userPermissions = [];
+let isAdmin = false;
+
+async function carregarPermissoesUsuario() {
+    try {
+        const response = await fetch('/api/auth/verify', {
+            credentials: 'include'
+        });
+        
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        isAdmin = data.usuario?.tipo === 'admin';
+        userPermissions = data.usuario?.permissoes || [];
+        
+        console.log('✅ Permissões carregadas:', userPermissions);
+        console.log('👤 Admin:', isAdmin);
+        
+        // Aplicar permissões ao menu
+        aplicarPermissoesMenu();
+    } catch (error) {
+        console.error('❌ Erro ao carregar permissões:', error);
+    }
+}
+
+function hasPermission(permissionCode) {
+    // Admin tem todas as permissões
+    if (isAdmin) return true;
+    // Verificar se usuário tem a permissão específica
+    return userPermissions.includes(permissionCode);
+}
+
+function aplicarPermissoesMenu() {
+    // Ocultar elementos sem permissão
+    document.querySelectorAll('[data-permission]').forEach(element => {
+        const permission = element.getAttribute('data-permission');
+        if (!hasPermission(permission)) {
+            element.style.display = 'none';
+            console.log(`🔒 Ocultando: ${element.textContent.trim()} (sem permissão: ${permission})`);
+        } else {
+            element.style.display = '';
+        }
+    });
+}
+
 // Inicialização ao carregar a página
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // Carregar permissões ANTES de qualquer coisa
+    await carregarPermissoesUsuario();
+    
     // Preencher anos no Comparativo de Períodos
     const anoAtual = new Date().getFullYear();
     const anoAnterior = anoAtual - 1;
