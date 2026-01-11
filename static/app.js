@@ -63,9 +63,17 @@ async function carregarPermissoesUsuario() {
 
 function hasPermission(permissionCode) {
     // Admin tem todas as permissões
-    if (isAdmin) return true;
+    if (isAdmin) {
+        console.log(`✅ [DEBUG hasPermission] Admin = true, concedendo "${permissionCode}"`);
+        return true;
+    }
+    
     // Verificar se usuário tem a permissão específica
-    return userPermissions.includes(permissionCode);
+    const temPermissao = userPermissions.includes(permissionCode);
+    console.log(`🔍 [DEBUG hasPermission] Verificando "${permissionCode}": ${temPermissao ? '✅ TEM' : '❌ NÃO TEM'}`);
+    console.log(`🔍 [DEBUG hasPermission] Permissões disponíveis:`, userPermissions.slice(0, 5), '...');
+    
+    return temPermissao;
 }
 
 function aplicarPermissoesMenu() {
@@ -193,16 +201,10 @@ function showPage(pageName) {
 
 // Inicialização ao carregar a página
 document.addEventListener('DOMContentLoaded', async function() {
+    console.log('📄 [DEBUG] DOMContentLoaded disparado');
+    
     // Carregar permissões ANTES de qualquer coisa
     await carregarPermissoesUsuario();
-    
-    // Aguardar próximo frame para garantir DOM renderizado
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            console.log('🎯 DOM totalmente carregado, iniciando navegação...');
-            carregarPaginaInicial();
-        });
-    });
     
     // Preencher anos no Comparativo de Períodos
     const anoAtual = new Date().getFullYear();
@@ -219,6 +221,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         filterAno2.value = anoAtual;
         console.log(`✓ Período 2 preenchido com ano ${anoAtual}`);
     }
+});
+
+// Garantir que TUDO está carregado (imagens, CSS, scripts)
+window.addEventListener('load', function() {
+    console.log('🎯 [DEBUG] Window.load disparado - DOM 100% carregado');
+    console.log('🎯 [DEBUG] Total de .page encontrados:', document.querySelectorAll('.page').length);
+    
+    // Aguardar um pouco mais por segurança
+    setTimeout(() => {
+        console.log('🎯 [DEBUG] Iniciando carregamento de página inicial após timeout');
+        carregarPaginaInicial();
+    }, 500);
 });
 
 // Função para carregar a primeira página com permissão disponível
