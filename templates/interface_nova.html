@@ -3437,6 +3437,41 @@
             console.log('✅ Permissões aplicadas ao menu');
         }
         
+        // Carregar primeira página permitida
+        function carregarPaginaInicial() {
+            console.log('🏠 Carregando página inicial baseada em permissões...');
+            
+            // Ocultar todas as seções primeiro
+            const sections = document.querySelectorAll('.content-card');
+            sections.forEach(section => section.classList.add('hidden'));
+            
+            // Ordem de prioridade das páginas
+            const paginasPrioridade = [
+                { section: 'contas-receber', permission: 'lancamentos_view' },
+                { section: 'contas-pagar', permission: 'lancamentos_view' },
+                { section: 'clientes', permission: 'clientes_view' },
+                { section: 'fornecedores', permission: 'fornecedores_view' },
+                { section: 'fluxo-caixa', permission: 'relatorios_view' },
+                { section: 'contratos', permission: 'contratos_view' },
+                { section: 'agenda-fotografia', permission: 'agenda_view' },
+                { section: 'dashboard', permission: 'dashboard' }
+            ];
+            
+            // Encontrar primeira página com permissão
+            for (const pagina of paginasPrioridade) {
+                if (hasPermission(pagina.permission)) {
+                    const section = document.getElementById(pagina.section + '-section');
+                    if (section) {
+                        section.classList.remove('hidden');
+                        console.log(`✅ Página inicial carregada: ${pagina.section}`);
+                        return;
+                    }
+                }
+            }
+            
+            console.log('⚠️ Nenhuma página permitida encontrada');
+        }
+        
         // Verificar usuário logado
         async function checkUserAuth() {
             try {
@@ -3471,6 +3506,9 @@
                 
                 // Aplicar permissões ao menu
                 aplicarPermissoesMenu();
+                
+                // Carregar página inicial baseada em permissões
+                carregarPaginaInicial();
                 
                 console.log('✅ Usuário autenticado:', userData.nome_completo || userData.nome);
             } catch (error) {
