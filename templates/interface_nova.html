@@ -1276,16 +1276,6 @@
                 <button class="submenu-button" onclick="showSection('tipos-sessao')">📸 Tipos de Sessão</button>
             </div>
             
-            <!-- Menu de Administração (apenas para Admin) -->
-            <button class="nav-button" id="btn-admin" onclick="toggleSubmenu('admin')" style="display: none; background: linear-gradient(135deg, #e74c3c, #c0392b);">
-                ⚙️ Administração ▼
-            </button>
-            <div class="submenu" id="submenu-admin" style="display: none;">
-                <button class="submenu-button" onclick="showSection('usuarios')">👥 Gerenciar Usuários</button>
-                <button class="submenu-button" onclick="showSection('permissoes')">🔐 Permissões</button>
-                <button class="submenu-button" onclick="showSection('logs')">📋 Logs de Acesso</button>
-            </div>
-            
             <!-- Menu Operacional com Submenu -->
             <button class="nav-button" onclick="toggleSubmenu('operacional')" id="btn-operacional">
                 ⚙️ Operacional ▼
@@ -3403,25 +3393,16 @@
                 
                 // Mostrar botão admin e menu admin se for administrador
                 if (userData.tipo === 'admin') {
-                    console.log('✅ Usuário é ADMIN - mostrando botões');
+                    console.log('✅ Usuário é ADMIN - mostrando botão Admin');
                     const adminBtn = document.getElementById('adminBtn');
-                    const adminMenu = document.getElementById('btn-admin');
                     
                     console.log('🔍 adminBtn element:', adminBtn);
-                    console.log('🔍 btn-admin element:', adminMenu);
                     
                     if (adminBtn) {
                         adminBtn.style.display = 'block';
                         console.log('✅ adminBtn.style.display = block');
                     } else {
                         console.error('❌ adminBtn NÃO ENCONTRADO!');
-                    }
-                    
-                    if (adminMenu) {
-                        adminMenu.style.display = 'block';
-                        console.log('✅ btn-admin.style.display = block');
-                    } else {
-                        console.error('❌ btn-admin NÃO ENCONTRADO!');
                     }
                 } else {
                     console.log('❌ Usuário NÃO é admin - tipo:', userData.tipo);
