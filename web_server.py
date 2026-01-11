@@ -27,7 +27,7 @@ else:
     import auth_functions as auth_db
     print("✅ Usando SQLite para autenticação")
 
-from auth_middleware import require_auth, require_admin, require_permission, get_usuario_logado, filtrar_por_cliente
+from auth_middleware import require_auth, require_admin, require_permission, get_usuario_logado, filtrar_por_cliente, aplicar_filtro_cliente
 from models import ContaBancaria, Lancamento, Categoria, TipoLancamento, StatusLancamento
 from decimal import Decimal
 from datetime import datetime, date, timedelta
@@ -468,11 +468,14 @@ def listar_permissoes():
 
 @app.route('/api/contas', methods=['GET'])
 @require_permission('contas_view')
+@aplicar_filtro_cliente
 def listar_contas():
-    """Lista todas as contas bancárias com saldo real"""
+    """Lista todas as contas bancárias com saldo real e filtro de multi-tenancy"""
     try:
-        contas = db.listar_contas()
-        lancamentos = db.listar_lancamentos()
+        filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
+        
+        contas = db.listar_contas(filtro_cliente_id=filtro_cliente_id)
+        lancamentos = db.listar_lancamentos(filtro_cliente_id=filtro_cliente_id)
         
         # Calcular saldo real de cada conta
         contas_com_saldo = []
@@ -518,13 +521,15 @@ def listar_contas():
 
 @app.route('/api/contas', methods=['POST'])
 @require_permission('contas_create')
+@aplicar_filtro_cliente
 def adicionar_conta():
     """Adiciona uma nova conta bancária"""
     try:
         data = request.json
+        proprietario_id = getattr(request, 'filtro_cliente_id', None)
         
         # Verificar contas existentes antes de adicionar
-        contas_existentes = db.listar_contas()
+        contas_existentes = db.listar_contas(filtro_cliente_id=proprietario_id)
         
         # Verificar se já existe
         for c in contas_existentes:
@@ -540,7 +545,7 @@ def adicionar_conta():
             saldo_inicial=float(data.get('saldo_inicial', 0) if data else 0)  # type: ignore
         )
         
-        conta_id = db.adicionar_conta(conta)
+        conta_id = db.adicionar_conta(conta, proprietario_id=proprietario_id)
         return jsonify({'success': True, 'id': conta_id})
     except Exception as e:
         import traceback
@@ -752,29 +757,31 @@ def modificar_categoria(nome):
 
 @app.route('/api/clientes', methods=['GET'])
 @require_permission('clientes_view')
+@aplicar_filtro_cliente
 def listar_clientes():
-    """Lista clientes ativos ou inativos"""
+    """Lista clientes ativos ou inativos com filtro de multi-tenancy"""
     ativos = request.args.get('ativos', 'true').lower() == 'true'
-    clientes = db.listar_clientes(ativos=ativos)
+    filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
+    
+    clientes = db.listar_clientes(ativos=ativos, filtro_cliente_id=filtro_cliente_id)
     
     # Adicionar cliente_id para cada cliente (usando nome como identificador)
     for cliente in clientes:
         cliente['cliente_id'] = cliente.get('nome')
     
-    # Aplicar filtro por cliente
-    clientes_filtrados = filtrar_por_cliente(clientes, request.usuario)
-    
-    return jsonify(clientes_filtrados)
+    return jsonify(clientes)
 
 
 @app.route('/api/clientes', methods=['POST'])
 @require_permission('clientes_create')
+@aplicar_filtro_cliente
 def adicionar_cliente():
     """Adiciona um novo cliente"""
     try:
         data = request.json
+        proprietario_id = getattr(request, 'filtro_cliente_id', None)
         
-        cliente_id = db.adicionar_cliente(data)  # type: ignore
+        cliente_id = db.adicionar_cliente(data, proprietario_id=proprietario_id)  # type: ignore
         return jsonify({'success': True, 'id': cliente_id})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -823,29 +830,27 @@ def modificar_cliente(nome):
 
 @app.route('/api/fornecedores', methods=['GET'])
 @require_permission('fornecedores_view')
+@aplicar_filtro_cliente
 def listar_fornecedores():
-    """Lista fornecedores ativos ou inativos"""
+    """Lista fornecedores ativos ou inativos com filtro de multi-tenancy"""
     ativos = request.args.get('ativos', 'true').lower() == 'true'
-    fornecedores = db.listar_fornecedores(ativos=ativos)
+    filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
     
-    # Adicionar cliente_id para cada fornecedor
-    for fornecedor in fornecedores:
-        fornecedor['cliente_id'] = fornecedor.get('cliente_associado')  # Assumindo que existe campo cliente_associado
+    fornecedores = db.listar_fornecedores(ativos=ativos, filtro_cliente_id=filtro_cliente_id)
     
-    # Aplicar filtro por cliente
-    fornecedores_filtrados = filtrar_por_cliente(fornecedores, request.usuario)
-    
-    return jsonify(fornecedores_filtrados)
+    return jsonify(fornecedores)
 
 
 @app.route('/api/fornecedores', methods=['POST'])
 @require_permission('fornecedores_create')
+@aplicar_filtro_cliente
 def adicionar_fornecedor():
     """Adiciona um novo fornecedor"""
     try:
         data = request.json
+        proprietario_id = getattr(request, 'filtro_cliente_id', None)
         
-        fornecedor_id = db.adicionar_fornecedor(data)  # type: ignore
+        fornecedor_id = db.adicionar_fornecedor(data, proprietario_id=proprietario_id)  # type: ignore
         return jsonify({'success': True, 'id': fornecedor_id})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -940,10 +945,13 @@ def reativar_fornecedor(nome):
 
 @app.route('/api/lancamentos', methods=['GET'])
 @require_permission('lancamentos_view')
+@aplicar_filtro_cliente
 def listar_lancamentos():
-    """Lista todos os lançamentos"""
+    """Lista todos os lançamentos com filtro de multi-tenancy"""
     tipo_filtro = request.args.get('tipo')
-    lancamentos = db.listar_lancamentos()
+    filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
+    
+    lancamentos = db.listar_lancamentos(filtro_cliente_id=filtro_cliente_id)
     
     # Filtrar por tipo se especificado (case-insensitive)
     if tipo_filtro:
@@ -969,18 +977,17 @@ def listar_lancamentos():
         'cliente_id': getattr(l, 'pessoa', None)  # Usar pessoa como referência ao cliente
     } for l in lancamentos]
     
-    # Aplicar filtro por cliente
-    lancamentos_filtrados = filtrar_por_cliente(lancamentos_list, request.usuario)
-    
-    return jsonify(lancamentos_filtrados)
+    return jsonify(lancamentos_list)
 
 
 @app.route('/api/lancamentos', methods=['POST'])
 @require_permission('lancamentos_create')
+@aplicar_filtro_cliente
 def adicionar_lancamento():
     """Adiciona um novo lançamento (com suporte a parcelamento)"""
     try:
         data = request.json
+        proprietario_id = getattr(request, 'filtro_cliente_id', None)
         
         parcelas = int(data.get('parcelas', 1)) if data else 1
         
@@ -1013,7 +1020,7 @@ def adicionar_lancamento():
                 if data and data.get('status'):
                     lancamento.status = StatusLancamento(data['status'])
                 
-                lancamento_id = db.adicionar_lancamento(lancamento)
+                lancamento_id = db.adicionar_lancamento(lancamento, proprietario_id=proprietario_id)
                 lancamentos_ids.append(lancamento_id)
             
             print(f"Lançamentos parcelados adicionados! IDs: {lancamentos_ids}")
@@ -1041,7 +1048,7 @@ def adicionar_lancamento():
             if data and data.get('status'):
                 lancamento.status = StatusLancamento(data['status'])
             
-            lancamento_id = db.adicionar_lancamento(lancamento)
+            lancamento_id = db.adicionar_lancamento(lancamento, proprietario_id=proprietario_id)
             return jsonify({'success': True, 'id': lancamento_id})
     except Exception as e:
         import traceback

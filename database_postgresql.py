@@ -898,21 +898,77 @@ class DatabaseManager:
             print("✅ Usuário admin criado com sucesso!")
             print("   Username: admin")
             print("   Senha: admin123")
+        
+        # ================================================================
+        # MIGRAÇÃO: Multi-Tenancy - Adicionar proprietario_id
+        # ================================================================
+        try:
+            print("🔄 Verificando migração Multi-Tenancy...")
+            
+            # Lista de tabelas que precisam da coluna proprietario_id
+            tabelas_multitenancy = [
+                ('clientes', 'fk_clientes_proprietario', 'idx_clientes_proprietario'),
+                ('fornecedores', 'fk_fornecedores_proprietario', 'idx_fornecedores_proprietario'),
+                ('lancamentos', 'fk_lancamentos_proprietario', 'idx_lancamentos_proprietario'),
+                ('contas_bancarias', 'fk_contas_bancarias_proprietario', 'idx_contas_bancarias_proprietario'),
+                ('categorias', 'fk_categorias_proprietario', 'idx_categorias_proprietario'),
+                ('subcategorias', 'fk_subcategorias_proprietario', 'idx_subcategorias_proprietario'),
+            ]
+            
+            for tabela, fk_name, idx_name in tabelas_multitenancy:
+                # Adicionar coluna se não existir
+                cursor.execute(f"""
+                    DO $$ 
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_name='{tabela}' AND column_name='proprietario_id'
+                        ) THEN
+                            ALTER TABLE {tabela} ADD COLUMN proprietario_id INTEGER;
+                        END IF;
+                    END $$;
+                """)
+                
+                # Remover constraint antiga se existir (para recriar)
+                cursor.execute(f"""
+                    ALTER TABLE {tabela} DROP CONSTRAINT IF EXISTS {fk_name};
+                """)
+                
+                # Adicionar foreign key
+                cursor.execute(f"""
+                    ALTER TABLE {tabela} 
+                    ADD CONSTRAINT {fk_name} 
+                    FOREIGN KEY (proprietario_id) 
+                    REFERENCES usuarios(id) 
+                    ON DELETE CASCADE;
+                """)
+                
+                # Criar índice
+                cursor.execute(f"""
+                    CREATE INDEX IF NOT EXISTS {idx_name} 
+                    ON {tabela}(proprietario_id);
+                """)
+            
+            print("✅ Migração Multi-Tenancy: Colunas proprietario_id adicionadas/verificadas")
+            print("   - clientes, fornecedores, lancamentos, contas_bancarias, categorias, subcategorias")
+            
+        except Exception as e:
+            print(f"⚠️  Aviso na migração Multi-Tenancy: {e}")
             print("   ⚠️  ALTERE A SENHA NO PRIMEIRO LOGIN!")
         
         conn.commit()
         cursor.close()
         conn.close()
     
-    def adicionar_conta(self, conta: ContaBancaria) -> int:
+    def adicionar_conta(self, conta: ContaBancaria, proprietario_id: int = None) -> int:
         """Adiciona uma nova conta bancária"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
         cursor.execute("""
             INSERT INTO contas_bancarias 
-            (nome, banco, agencia, conta, saldo_inicial, ativa, data_criacao)
-            VALUES (%s, %s, %s, %s, %s, %s, COALESCE(%s, CURRENT_TIMESTAMP))
+            (nome, banco, agencia, conta, saldo_inicial, ativa, data_criacao, proprietario_id)
+            VALUES (%s, %s, %s, %s, %s, %s, COALESCE(%s, CURRENT_TIMESTAMP), %s)
             RETURNING id
         """, (
             conta.nome,
@@ -921,7 +977,8 @@ class DatabaseManager:
             conta.conta,
             float(conta.saldo_inicial),
             conta.ativa,
-            conta.data_criacao
+            conta.data_criacao,
+            proprietario_id
         ))
         
         conta_id = cursor.fetchone()['id']
@@ -929,12 +986,18 @@ class DatabaseManager:
         conn.close()
         return conta_id
     
-    def listar_contas(self) -> List[ContaBancaria]:
-        """Lista todas as contas bancárias"""
+    def listar_contas(self, filtro_cliente_id: int = None) -> List[ContaBancaria]:
+        """Lista todas as contas bancárias com suporte a multi-tenancy"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT * FROM contas_bancarias ORDER BY nome")
+        if filtro_cliente_id is not None:
+            cursor.execute(
+                "SELECT * FROM contas_bancarias WHERE proprietario_id = %s ORDER BY nome",
+                (filtro_cliente_id,)
+            )
+        else:
+            cursor.execute("SELECT * FROM contas_bancarias ORDER BY nome")
         rows = cursor.fetchall()
         
         contas = []
@@ -1126,7 +1189,7 @@ class DatabaseManager:
     
     def adicionar_cliente(self, cliente_data, cpf_cnpj: str = None, 
                          email: str = None, telefone: str = None,
-                         endereco: str = None) -> int:
+                         endereco: str = None, proprietario_id: int = None) -> int:
         """Adiciona um novo cliente (aceita dict ou parâmetros individuais)"""
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -1138,14 +1201,15 @@ class DatabaseManager:
             email = cliente_data.get('email')
             telefone = cliente_data.get('telefone')
             endereco = cliente_data.get('endereco')
+            proprietario_id = cliente_data.get('proprietario_id', proprietario_id)
         else:
             nome = cliente_data
         
         cursor.execute("""
-            INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco, proprietario_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (nome, cpf_cnpj, email, telefone, endereco))
+        """, (nome, cpf_cnpj, email, telefone, endereco, proprietario_id))
         
         cliente_id = cursor.fetchone()['id']
         conn.commit()
@@ -1153,15 +1217,30 @@ class DatabaseManager:
         conn.close()
         return cliente_id
     
-    def listar_clientes(self, ativos: bool = True) -> List[Dict]:
-        """Lista todos os clientes"""
+    def listar_clientes(self, ativos: bool = True, filtro_cliente_id: int = None) -> List[Dict]:
+        """Lista todos os clientes com suporte a multi-tenancy"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        if ativos:
-            cursor.execute("SELECT * FROM clientes WHERE ativo = TRUE ORDER BY nome")
+        # Construir query com filtro de multi-tenancy
+        if filtro_cliente_id is not None:
+            # Cliente específico: ver apenas seus próprios clientes
+            if ativos:
+                cursor.execute(
+                    "SELECT * FROM clientes WHERE ativo = TRUE AND proprietario_id = %s ORDER BY nome",
+                    (filtro_cliente_id,)
+                )
+            else:
+                cursor.execute(
+                    "SELECT * FROM clientes WHERE proprietario_id = %s ORDER BY nome",
+                    (filtro_cliente_id,)
+                )
         else:
-            cursor.execute("SELECT * FROM clientes ORDER BY nome")
+            # Admin: ver todos os clientes
+            if ativos:
+                cursor.execute("SELECT * FROM clientes WHERE ativo = TRUE ORDER BY nome")
+            else:
+                cursor.execute("SELECT * FROM clientes ORDER BY nome")
         rows = cursor.fetchall()
         
         clientes = [dict(row) for row in rows]
@@ -1233,7 +1312,7 @@ class DatabaseManager:
     
     def adicionar_fornecedor(self, fornecedor_data, cpf_cnpj: str = None,
                            email: str = None, telefone: str = None,
-                           endereco: str = None) -> int:
+                           endereco: str = None, proprietario_id: int = None) -> int:
         """Adiciona um novo fornecedor (aceita dict ou parâmetros individuais)"""
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -1245,14 +1324,15 @@ class DatabaseManager:
             email = fornecedor_data.get('email')
             telefone = fornecedor_data.get('telefone')
             endereco = fornecedor_data.get('endereco')
+            proprietario_id = fornecedor_data.get('proprietario_id', proprietario_id)
         else:
             nome = fornecedor_data
         
         cursor.execute("""
-            INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco, proprietario_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (nome, cpf_cnpj, email, telefone, endereco))
+        """, (nome, cpf_cnpj, email, telefone, endereco, proprietario_id))
         
         fornecedor_id = cursor.fetchone()['id']
         conn.commit()
@@ -1260,12 +1340,27 @@ class DatabaseManager:
         conn.close()
         return fornecedor_id
     
-    def listar_fornecedores(self, ativos: bool = True) -> List[Dict]:
-        """Lista todos os fornecedores"""
+    def listar_fornecedores(self, ativos: bool = True, filtro_cliente_id: int = None) -> List[Dict]:
+        """Lista todos os fornecedores com suporte a multi-tenancy"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        if ativos:
+        # Construir query com filtro de multi-tenancy
+        if filtro_cliente_id is not None:
+            # Cliente específico: ver apenas seus próprios fornecedores
+            if ativos:
+                cursor.execute(
+                    "SELECT * FROM fornecedores WHERE ativo = TRUE AND proprietario_id = %s ORDER BY nome",
+                    (filtro_cliente_id,)
+                )
+            else:
+                cursor.execute(
+                    "SELECT * FROM fornecedores WHERE proprietario_id = %s ORDER BY nome",
+                    (filtro_cliente_id,)
+                )
+        else:
+            # Admin: ver todos os fornecedores
+            if ativos:
             cursor.execute("SELECT * FROM fornecedores WHERE ativo = TRUE ORDER BY nome")
         else:
             cursor.execute("SELECT * FROM fornecedores ORDER BY nome")
@@ -1338,7 +1433,7 @@ class DatabaseManager:
         conn.close()
         return sucesso
     
-    def adicionar_lancamento(self, lancamento: Lancamento) -> int:
+    def adicionar_lancamento(self, lancamento: Lancamento, proprietario_id: int = None) -> int:
         """Adiciona um novo lançamento"""
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -1347,8 +1442,8 @@ class DatabaseManager:
             INSERT INTO lancamentos 
             (tipo, descricao, valor, data_vencimento, data_pagamento,
              categoria, subcategoria, conta_bancaria, cliente_fornecedor, pessoa,
-             status, observacoes, anexo, recorrente, frequencia_recorrencia, dia_vencimento)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             status, observacoes, anexo, recorrente, frequencia_recorrencia, dia_vencimento, proprietario_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             lancamento.tipo.value,
@@ -1366,7 +1461,8 @@ class DatabaseManager:
             lancamento.anexo,
             lancamento.recorrente,
             lancamento.frequencia_recorrencia,
-            lancamento.dia_vencimento
+            lancamento.dia_vencimento,
+            proprietario_id
         ))
         
         lancamento_id = cursor.fetchone()['id']
@@ -1374,13 +1470,18 @@ class DatabaseManager:
         conn.close()
         return lancamento_id
     
-    def listar_lancamentos(self, filtros: Dict[str, Any] = None) -> List[Lancamento]:
-        """Lista lançamentos com filtros opcionais"""
+    def listar_lancamentos(self, filtros: Dict[str, Any] = None, filtro_cliente_id: int = None) -> List[Lancamento]:
+        """Lista lançamentos com filtros opcionais e suporte a multi-tenancy"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
         query = "SELECT * FROM lancamentos WHERE 1=1"
         params = []
+        
+        # Filtro de multi-tenancy
+        if filtro_cliente_id is not None:
+            query += " AND proprietario_id = %s"
+            params.append(filtro_cliente_id)
         
         if filtros:
             if 'tipo' in filtros:
