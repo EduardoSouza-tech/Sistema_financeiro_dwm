@@ -3860,13 +3860,13 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
         linhas.append("-" * 80)
         
         cursor.execute("""
-            SELECT id, tipo, descricao, valor, data_lancamento, data_vencimento,
-                   data_pagamento, status, categoria_id, subcategoria, conta_id,
-                   cliente_id, fornecedor_id, forma_pagamento, parcela_numero,
-                   parcela_total, observacoes, recorrente, criado_em, proprietario_id
+            SELECT id, tipo, descricao, valor, data_vencimento,
+                   data_pagamento, status, categoria, subcategoria, conta_bancaria,
+                   cliente_fornecedor, observacoes, recorrente, 
+                   created_at, proprietario_id, juros, desconto
             FROM lancamentos
             WHERE proprietario_id = %s
-            ORDER BY data_lancamento DESC
+            ORDER BY data_vencimento DESC
             LIMIT 1000
         """, (cliente_id,))
         
@@ -3887,13 +3887,22 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
                 linhas.append(f"\nID: {lanc['id']} | Tipo: {lanc['tipo'].upper()}")
                 linhas.append(f"Descrição: {lanc['descricao']}")
                 linhas.append(f"Valor: R$ {float(lanc['valor']) if lanc['valor'] else 0:.2f}")
-                linhas.append(f"Data Lançamento: {lanc['data_lancamento'].strftime('%d/%m/%Y') if lanc['data_lancamento'] else 'N/A'}")
+                if lanc['juros'] and float(lanc['juros']) > 0:
+                    linhas.append(f"Juros: R$ {float(lanc['juros']):.2f}")
+                if lanc['desconto'] and float(lanc['desconto']) > 0:
+                    linhas.append(f"Desconto: R$ {float(lanc['desconto']):.2f}")
                 linhas.append(f"Data Vencimento: {lanc['data_vencimento'].strftime('%d/%m/%Y') if lanc['data_vencimento'] else 'N/A'}")
                 linhas.append(f"Status: {lanc['status'].upper()}")
                 if lanc['data_pagamento']:
                     linhas.append(f"Data Pagamento: {lanc['data_pagamento'].strftime('%d/%m/%Y')}")
-                if lanc['forma_pagamento']:
-                    linhas.append(f"Forma Pagamento: {lanc['forma_pagamento']}")
+                if lanc['categoria']:
+                    linhas.append(f"Categoria: {lanc['categoria']}")
+                if lanc['subcategoria']:
+                    linhas.append(f"Subcategoria: {lanc['subcategoria']}")
+                if lanc['conta_bancaria']:
+                    linhas.append(f"Conta: {lanc['conta_bancaria']}")
+                if lanc['cliente_fornecedor']:
+                    linhas.append(f"Cliente/Fornecedor: {lanc['cliente_fornecedor']}")
                 if lanc['observacoes']:
                     linhas.append(f"Observações: {lanc['observacoes']}")
                 linhas.append("-" * 40)
