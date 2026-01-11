@@ -70,8 +70,13 @@ function hasPermission(permissionCode) {
     
     // Verificar se usuário tem a permissão específica
     const temPermissao = userPermissions.includes(permissionCode);
-    console.log(`🔍 [DEBUG hasPermission] Verificando "${permissionCode}": ${temPermissao ? '✅ TEM' : '❌ NÃO TEM'}`);
-    console.log(`🔍 [DEBUG hasPermission] Permissões disponíveis:`, userPermissions.slice(0, 5), '...');
+    
+    if (!temPermissao) {
+        console.log(`🔍 [DEBUG hasPermission] Verificando "${permissionCode}": ❌ NÃO TEM`);
+        console.log(`🔍 [DEBUG hasPermission] TODAS as permissões do usuário:`, userPermissions);
+    } else {
+        console.log(`🔍 [DEBUG hasPermission] Verificando "${permissionCode}": ✅ TEM`);
+    }
     
     return temPermissao;
 }
