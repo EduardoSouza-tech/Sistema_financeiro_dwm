@@ -1,9 +1,16 @@
 """
 Middlewares de Autenticação e Autorização
 """
-from flask import session, request, jsonify
+from flask import session, request, jsonify, redirect, url_for
 from functools import wraps
-import database_postgresql
+import os
+
+# Importar módulo de autenticação dinamicamente baseado no DATABASE_TYPE
+USE_POSTGRESQL = os.getenv('DATABASE_TYPE', 'sqlite').lower() == 'postgresql'
+if USE_POSTGRESQL:
+    import database_postgresql as auth_db
+else:
+    import auth_functions as auth_db
 
 
 def get_usuario_logado():
@@ -14,7 +21,7 @@ def get_usuario_logado():
     if not token:
         return None
     
-    usuario = database_postgresql.validar_sessao(token)
+    usuario = auth_db.validar_sessao(token)
     return usuario
 
 
@@ -44,19 +51,47 @@ def require_auth(f):
 def require_admin(f):
     """
     Decorador que requer permissões de administrador
+    Para rotas HTML, redireciona. Para API, retorna JSON.
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
         usuario = get_usuario_logado()
         
         if not usuario:
+            # Se for uma requisição HTML, redirecionar para login
+            if request.path.startswith('/admin') or not request.path.startswith('/api/'):
+                return redirect('/login')
             return jsonify({
                 'success': False,
                 'error': 'Não autenticado',
                 'redirect': '/login'
             }), 401
         
-        if usuario['tipo'] != 'admin':
+        if usuario.get('tipo') != 'admin':
+            # Se for uma requisição HTML, retornar erro HTML
+            if request.path.startswith('/admin') or not request.path.startswith('/api/'):
+                return '''
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Acesso Negado</title>
+                    <style>
+                        body { font-family: Arial; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f5; }
+                        .container { text-align: center; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                        h1 { color: #e74c3c; }
+                        button { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 20px; }
+                        button:hover { background: #2980b9; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>🚫 Acesso Negado</h1>
+                        <p>Apenas administradores podem acessar esta página.</p>
+                        <button onclick="window.location.href='/'">Voltar ao Dashboard</button>
+                    </div>
+                </body>
+                </html>
+                ''', 403
             return jsonify({
                 'success': False,
                 'error': 'Acesso negado - Apenas administradores'
@@ -91,12 +126,12 @@ def require_permission(permission_code: str):
                 }), 401
             
             # Admin tem todas as permissões
-            if usuario['tipo'] == 'admin':
+            if usuario.get('tipo') == 'admin':
                 request.usuario = usuario
                 return f(*args, **kwargs)
             
             # Verificar se o usuário tem a permissão
-            permissoes = database_postgresql.obter_permissoes_usuario(usuario['id'])
+            permissoes = auth_db.obter_permissoes_usuario(usuario['id'])
             
             if permission_code not in permissoes:
                 return jsonify({
@@ -123,7 +158,7 @@ def filtrar_por_cliente(query_result, usuario):
     Returns:
         Lista filtrada
     """
-    if usuario['tipo'] == 'admin':
+    if usuario.get('tipo') == 'admin':
         return query_result
     
     if not usuario.get('cliente_id'):
