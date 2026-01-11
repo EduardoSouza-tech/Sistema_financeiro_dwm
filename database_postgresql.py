@@ -3235,7 +3235,8 @@ def validar_sessao(token: str) -> Optional[Dict]:
             'email': sessao['email'],
             'cliente_id': sessao['cliente_id']
         }
-return usuario_retorno
+        
+        return usuario_retorno
     finally:
         cursor.close()
         conn.close()
