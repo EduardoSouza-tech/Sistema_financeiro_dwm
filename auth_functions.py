@@ -2,35 +2,51 @@
 Funções de Autenticação e Autorização
 """
 import hashlib
-import bcrypt
 import secrets
 import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
+# Importação opcional do bcrypt (para compatibilidade durante deploy)
+try:
+    import bcrypt
+    BCRYPT_AVAILABLE = True
+    print("✅ bcrypt disponível - usando hash seguro")
+except ImportError:
+    BCRYPT_AVAILABLE = False
+    print("⚠️ bcrypt não disponível - usando SHA-256 (menos seguro)")
+
 
 def hash_password(password: str) -> str:
     """
-    Gera hash bcrypt da senha
-    bcrypt é mais seguro que SHA-256 pois:
-    - Usa salt automático (proteção contra rainbow tables)
-    - É computacionalmente caro (proteção contra brute force)
-    - Especificamente projetado para senhas
+    Gera hash da senha
+    Usa bcrypt se disponível, senão SHA-256
     """
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    if BCRYPT_AVAILABLE:
+        # bcrypt é mais seguro que SHA-256 pois:
+        # - Usa salt automático (proteção contra rainbow tables)
+        # - É computacionalmente caro (proteção contra brute force)
+        # - Especificamente projetado para senhas
+        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    else:
+        # Fallback para SHA-256
+        return hashlib.sha256(password.encode()).hexdigest()
 
 
 def verificar_senha(password: str, password_hash: str) -> bool:
-    """Verifica se a senha corresponde ao hash bcrypt"""
+    """Verifica se a senha corresponde ao hash"""
     try:
-        return bcrypt.checkpw(password.encode(), password_hash.encode())
+        if BCRYPT_AVAILABLE and len(password_hash) > 64:
+            # Hash bcrypt (maior que 64 caracteres)
+            return bcrypt.checkpw(password.encode(), password_hash.encode())
+        else:
+            # Hash SHA-256 (64 caracteres)
+            sha256_hash = hashlib.sha256(password.encode()).hexdigest()
+            return sha256_hash == password_hash
     except Exception:
-        # Fallback para SHA-256 (para migração de senhas antigas)
+        # Fallback para SHA-256
         sha256_hash = hashlib.sha256(password.encode()).hexdigest()
-        if sha256_hash == password_hash:
-            # Senha antiga com SHA-256 - ainda válida mas deve ser atualizada
-            return True
-        return False
+        return sha256_hash == password_hash
 
 
 def validar_senha_forte(senha: str) -> tuple[bool, str]:
@@ -171,8 +187,8 @@ def autenticar_usuario(username: str, password: str, db) -> Optional[Dict]:
     # Senha correta - limpar tentativas falhas
     limpar_tentativas_login(username, db)
     
-    # Verificar se é hash antigo (SHA-256) e atualizar para bcrypt
-    if len(usuario['password_hash']) == 64:  # SHA-256 tem 64 caracteres
+    # Verificar se é hash antigo (SHA-256) e atualizar para bcrypt (apenas se bcrypt disponível)
+    if BCRYPT_AVAILABLE and len(usuario['password_hash']) == 64:  # SHA-256 tem 64 caracteres
         novo_hash = hash_password(password)
         cursor.execute("""
             UPDATE usuarios SET password_hash = %s WHERE id = %s
