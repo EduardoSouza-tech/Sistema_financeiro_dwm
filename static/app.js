@@ -45,11 +45,14 @@ async function carregarPermissoesUsuario() {
         isAdmin = data.usuario?.tipo === 'admin';
         userPermissions = data.usuario?.permissoes || [];
         
+        const nomeUsuario = data.usuario?.nome_completo || data.usuario?.username || 'Usuário';
+        
         console.log('✅ [DEBUG] Permissões carregadas:', userPermissions);
         console.log('👤 [DEBUG] Admin:', isAdmin);
         console.log('📊 [DEBUG] Total de permissões:', userPermissions.length);
         console.log('🔑 [DEBUG] Tipo de usuário:', data.usuario?.tipo);
-        console.log('👤 [DEBUG] Nome do usuário:', data.usuario?.nome || data.usuario?.username);
+        console.log('👤 [DEBUG] Nome do usuário:', nomeUsuario);
+        console.log('👤 [DEBUG] Username:', data.usuario?.username);
         
         // Aplicar permissões ao menu
         aplicarPermissoesMenu();
