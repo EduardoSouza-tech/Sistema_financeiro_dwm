@@ -3316,55 +3316,70 @@ def listar_proprietarios_disponiveis():
     Para o admin selecionar qual cliente exportar
     """
     try:
+        # Buscar todos os usuários do tipo 'cliente'
+        usuarios = auth_db.listar_usuarios()
+        
+        proprietarios_info = []
+        proprietarios_ids = set()
+        
+        for usuario in usuarios:
+            # Adicionar todos os usuários com tipo 'cliente' ou que tenham cliente_id
+            if usuario.get('tipo') == 'cliente' or usuario.get('cliente_id'):
+                proprietario_id = usuario.get('cliente_id') or usuario.get('id')
+                
+                # Evitar duplicatas
+                if proprietario_id in proprietarios_ids:
+                    continue
+                proprietarios_ids.add(proprietario_id)
+                
+                proprietarios_info.append({
+                    'proprietario_id': proprietario_id,
+                    'nome': usuario.get('nome_completo') or usuario.get('nome') or f'Usuário {proprietario_id}',
+                    'email': usuario.get('email') or 'Sem email',
+                    'tipo': usuario.get('tipo', 'cliente'),
+                    'usuario_id': usuario.get('id')
+                })
+        
+        # Também buscar proprietario_id únicos das tabelas (para dados órfãos)
         db = DatabaseManager()
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Buscar todos os proprietario_id únicos de todas as tabelas
-        proprietarios = set()
+        # Buscar proprietario_id que não correspondem a usuários
+        cursor.execute("""
+            SELECT DISTINCT proprietario_id 
+            FROM (
+                SELECT proprietario_id FROM clientes WHERE proprietario_id IS NOT NULL
+                UNION
+                SELECT proprietario_id FROM fornecedores WHERE proprietario_id IS NOT NULL
+                UNION
+                SELECT proprietario_id FROM lancamentos WHERE proprietario_id IS NOT NULL
+                UNION
+                SELECT proprietario_id FROM contas_bancarias WHERE proprietario_id IS NOT NULL
+                UNION
+                SELECT proprietario_id FROM categorias WHERE proprietario_id IS NOT NULL
+            ) AS todos_proprietarios
+            ORDER BY proprietario_id
+        """)
         
-        # Clientes
-        cursor.execute("SELECT DISTINCT proprietario_id FROM clientes WHERE proprietario_id IS NOT NULL")
-        proprietarios.update([row['proprietario_id'] for row in cursor.fetchall()])
-        
-        # Fornecedores
-        cursor.execute("SELECT DISTINCT proprietario_id FROM fornecedores WHERE proprietario_id IS NOT NULL")
-        proprietarios.update([row['proprietario_id'] for row in cursor.fetchall()])
-        
-        # Lançamentos
-        cursor.execute("SELECT DISTINCT proprietario_id FROM lancamentos WHERE proprietario_id IS NOT NULL")
-        proprietarios.update([row['proprietario_id'] for row in cursor.fetchall()])
-        
-        # Contas Bancárias
-        cursor.execute("SELECT DISTINCT proprietario_id FROM contas_bancarias WHERE proprietario_id IS NOT NULL")
-        proprietarios.update([row['proprietario_id'] for row in cursor.fetchall()])
-        
-        # Categorias
-        cursor.execute("SELECT DISTINCT proprietario_id FROM categorias WHERE proprietario_id IS NOT NULL")
-        proprietarios.update([row['proprietario_id'] for row in cursor.fetchall()])
-        
+        proprietarios_db = cursor.fetchall()
         cursor.close()
         database.return_to_pool(conn)
         
-        # Buscar informações dos usuários correspondentes
-        proprietarios_info = []
-        for prop_id in sorted(proprietarios):
-            # Buscar usuário correspondente
-            usuario_info = auth_db.obter_usuario(prop_id)
-            if usuario_info:
+        # Adicionar proprietários órfãos (que existem nas tabelas mas não têm usuário)
+        for row in proprietarios_db:
+            prop_id = row['proprietario_id']
+            if prop_id not in proprietarios_ids:
+                proprietarios_ids.add(prop_id)
                 proprietarios_info.append({
                     'proprietario_id': prop_id,
-                    'nome': usuario_info.get('nome', 'Sem nome'),
-                    'email': usuario_info.get('email', 'Sem email'),
-                    'tipo': usuario_info.get('tipo', 'cliente')
+                    'nome': f'Cliente ID {prop_id} (sem usuário)',
+                    'email': 'Não disponível',
+                    'tipo': 'orfao'
                 })
-            else:
-                proprietarios_info.append({
-                    'proprietario_id': prop_id,
-                    'nome': f'Proprietário {prop_id}',
-                    'email': 'Sem email',
-                    'tipo': 'desconhecido'
-                })
+        
+        # Ordenar por nome
+        proprietarios_info.sort(key=lambda x: x['nome'])
         
         print(f"✅ Encontrados {len(proprietarios_info)} proprietários únicos")
         
