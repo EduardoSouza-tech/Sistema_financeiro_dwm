@@ -73,6 +73,8 @@ function aplicarPermissoesMenu() {
 
 // Navegação com verificação de permissões
 function showPage(pageName) {
+    console.log(`🔍 showPage() chamada para: ${pageName}`);
+    
     // Mapeamento de páginas para permissões
     const pagePermissions = {
         'dashboard': 'Dashboard',
@@ -101,8 +103,10 @@ function showPage(pageName) {
     const targetPage = document.getElementById(`page-${pageName}`);
     if (targetPage) {
         targetPage.classList.add('active');
+        console.log(`✅ Página ${pageName} ativada com sucesso`);
     } else {
-        console.error(`Página não encontrada: page-${pageName}`);
+        console.error(`❌ Página não encontrada: page-${pageName}`);
+        console.log(`📋 Páginas disponíveis:`, Array.from(document.querySelectorAll('.page')).map(p => p.id));
         return;
     }
     
@@ -144,6 +148,9 @@ function showPage(pageName) {
 document.addEventListener('DOMContentLoaded', async function() {
     // Carregar permissões ANTES de qualquer coisa
     await carregarPermissoesUsuario();
+    
+    // Aguardar um pouco para garantir que DOM está pronto
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     // Carregar primeira página com permissão disponível
     carregarPaginaInicial();
