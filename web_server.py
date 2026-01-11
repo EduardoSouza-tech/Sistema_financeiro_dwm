@@ -1835,6 +1835,7 @@ def login_page():
 @require_admin
 def admin_page():
     """Painel administrativo - apenas para admins"""
+    print(f"\n🎯🎯🎯 ROTA /admin ALCANÇADA - Decorador passou! 🎯🎯🎯\n")
     return render_template('admin.html')
 
 @app.route('/')
