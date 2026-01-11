@@ -2118,9 +2118,10 @@ def adicionar_lancamento(lancamento: Lancamento) -> int:
     db = DatabaseManager()
     return db.adicionar_lancamento(lancamento)
 
-def listar_lancamentos(filtros: Dict[str, Any] = None) -> List[Lancamento]:
+def listar_lancamentos(filtros: Dict[str, Any] = None, filtro_cliente_id: int = None) -> List[Lancamento]:
+    """Lista lançamentos com suporte a filtros e multi-tenancy"""
     db = DatabaseManager()
-    return db.listar_lancamentos(filtros)
+    return db.listar_lancamentos(filtros, filtro_cliente_id)
 
 def obter_lancamento(lancamento_id: int) -> Optional[Lancamento]:
     db = DatabaseManager()
