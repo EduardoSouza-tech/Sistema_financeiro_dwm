@@ -17,11 +17,26 @@ def get_usuario_logado():
     """
     Retorna dados do usuário logado via session token
     """
+    print(f"\n🔍 DEBUG - get_usuario_logado() CHAMADA")
     token = session.get('session_token')
+    print(f"   Token na sessão: {'✅ SIM' if token else '❌ NÃO'}")
+    
     if not token:
+        print(f"   ❌ Sem token na sessão, retornando None\n")
         return None
     
+    print(f"   Chamando auth_db.validar_sessao()...")
     usuario = auth_db.validar_sessao(token)
+    
+    if usuario:
+        print(f"   ✅ Usuário retornado de auth_db.validar_sessao():")
+        print(f"      - ID: {usuario.get('id')}")
+        print(f"      - Username: {usuario.get('username')}")
+        print(f"      - 🎯 TIPO: '{usuario.get('tipo')}' (tipo: {type(usuario.get('tipo'))})")
+    else:
+        print(f"   ❌ auth_db.validar_sessao() retornou None")
+    print(f"")
+    
     return usuario
 
 
@@ -55,9 +70,32 @@ def require_admin(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        print(f"\n{'='*80}")
+        print(f"🚨 DEBUG - @require_admin DECORADOR ATIVADO")
+        print(f"{'='*80}")
+        print(f"📍 Rota acessada: {request.path}")
+        print(f"📍 Método: {request.method}")
+        
         usuario = get_usuario_logado()
         
+        print(f"\n👤 Resultado de get_usuario_logado():")
+        if usuario:
+            print(f"   ✅ Usuário ENCONTRADO:")
+            print(f"      - ID: {usuario.get('id')}")
+            print(f"      - Username: {usuario.get('username')}")
+            print(f"      - 🎯 TIPO: '{usuario.get('tipo')}' (Python type: {type(usuario.get('tipo'))})")
+            print(f"      - Nome: {usuario.get('nome_completo')}")
+            print(f"\n🔍 Verificação de tipo:")
+            print(f"   usuario.get('tipo') = '{usuario.get('tipo')}'")
+            print(f"   usuario.get('tipo') != 'admin' = {usuario.get('tipo') != 'admin'}")
+            print(f"   usuario.get('tipo') == 'admin' = {usuario.get('tipo') == 'admin'}")
+            print(f"   Comparação bytes: {repr(usuario.get('tipo'))} vs {repr('admin')}")
+        else:
+            print(f"   ❌ Usuário NÃO ENCONTRADO (None)")
+        
         if not usuario:
+            print(f"\n❌ SEM USUÁRIO - Redirecionando/Retornando erro")
+            print(f"{'='*80}\n")
             # Se for uma requisição HTML, redirecionar para login
             if request.path.startswith('/admin') or not request.path.startswith('/api/'):
                 return redirect('/login')
@@ -67,7 +105,16 @@ def require_admin(f):
                 'redirect': '/login'
             }), 401
         
-        if usuario.get('tipo') != 'admin':
+        tipo_usuario = usuario.get('tipo')
+        print(f"\n🎯 VERIFICAÇÃO CRÍTICA DE ADMIN:")
+        print(f"   tipo_usuario = {repr(tipo_usuario)}")
+        print(f"   tipo_usuario != 'admin' = {tipo_usuario != 'admin'}")
+        
+        if tipo_usuario != 'admin':
+            print(f"\n🚫 ACESSO NEGADO!")
+            print(f"   Tipo do usuário: '{tipo_usuario}' NÃO é 'admin'")
+            print(f"   Retornando erro 403")
+            print(f"{'='*80}\n")
             # Se for uma requisição HTML, retornar erro HTML
             if request.path.startswith('/admin') or not request.path.startswith('/api/'):
                 return '''
@@ -96,6 +143,11 @@ def require_admin(f):
                 'success': False,
                 'error': 'Acesso negado - Apenas administradores'
             }), 403
+        
+        print(f"\n✅ ACESSO PERMITIDO!")
+        print(f"   Usuário '{usuario.get('username')}' é ADMIN")
+        print(f"   Prosseguindo para a função...")
+        print(f"{'='*80}\n")
         
         # Adicionar dados do usuário ao request
         request.usuario = usuario

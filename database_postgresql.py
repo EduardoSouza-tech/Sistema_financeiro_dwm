@@ -2951,6 +2951,11 @@ def validar_sessao(token: str) -> Optional[Dict]:
     Returns:
         Dict com dados do usuário se sessão válida, None caso contrário
     """
+    print(f"\n{'='*80}")
+    print(f"🔍 DEBUG - validar_sessao() CHAMADA")
+    print(f"{'='*80}")
+    print(f"📝 Token recebido: {token[:20]}... (truncado)" if token else "⚠️ Token VAZIO/NONE")
+    
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -2965,21 +2970,36 @@ def validar_sessao(token: str) -> Optional[Dict]:
         """, (token,))
         
         sessao = cursor.fetchone()
+        print(f"\n📊 Resultado da query:")
+        print(f"   Sessão encontrada: {'✅ SIM' if sessao else '❌ NÃO'}")
+        
+        if sessao:
+            print(f"   - Usuario ID: {sessao.get('usuario_id')}")
+            print(f"   - Username: {sessao.get('username')}")
+            print(f"   - TIPO: {sessao.get('tipo')} ⚠️ CAMPO CRÍTICO")
+            print(f"   - Nome: {sessao.get('nome_completo')}")
+            print(f"   - Email: {sessao.get('email')}")
+            print(f"   - Cliente ID: {sessao.get('cliente_id')}")
+            print(f"   - Expira em: {sessao.get('expira_em')}")
         
         if not sessao:
+            print(f"❌ Sessão NÃO ENCONTRADA no banco")
+            print(f"{'='*80}\n")
             return None
         
         # Verificar expiração
         from datetime import datetime
         if sessao['expira_em'] < datetime.now():
+            print(f"⏰ Sessão EXPIRADA (expira_em < now)")
             # Sessão expirada - desativar
             cursor.execute("""
                 UPDATE sessoes_login SET ativo = FALSE WHERE session_token = %s
             """, (token,))
             conn.commit()
+            print(f"{'='*80}\n")
             return None
         
-        return {
+        usuario_retorno = {
             'id': sessao['usuario_id'],
             'username': sessao['username'],
             'tipo': sessao['tipo'],
@@ -2987,6 +3007,15 @@ def validar_sessao(token: str) -> Optional[Dict]:
             'email': sessao['email'],
             'cliente_id': sessao['cliente_id']
         }
+        
+        print(f"\n✅ RETORNANDO USUÁRIO:")
+        print(f"   ID: {usuario_retorno['id']}")
+        print(f"   Username: {usuario_retorno['username']}")
+        print(f"   🎯 TIPO: '{usuario_retorno['tipo']}' (tipo: {type(usuario_retorno['tipo'])})")
+        print(f"   Nome: {usuario_retorno['nome_completo']}")
+        print(f"{'='*80}\n")
+        
+        return usuario_retorno
     finally:
         cursor.close()
         conn.close()
