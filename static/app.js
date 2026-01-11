@@ -31,23 +31,30 @@ let isAdmin = false;
 
 async function carregarPermissoesUsuario() {
     try {
+        console.log('🔍 [DEBUG] Iniciando carregamento de permissões...');
         const response = await fetch('/api/auth/verify', {
             credentials: 'include'
         });
         
-        if (!response.ok) return;
+        if (!response.ok) {
+            console.error('❌ [DEBUG] Resposta não OK:', response.status);
+            return;
+        }
         
         const data = await response.json();
         isAdmin = data.usuario?.tipo === 'admin';
         userPermissions = data.usuario?.permissoes || [];
         
-        console.log('✅ Permissões carregadas:', userPermissions);
-        console.log('👤 Admin:', isAdmin);
+        console.log('✅ [DEBUG] Permissões carregadas:', userPermissions);
+        console.log('👤 [DEBUG] Admin:', isAdmin);
+        console.log('📊 [DEBUG] Total de permissões:', userPermissions.length);
+        console.log('🔑 [DEBUG] Tipo de usuário:', data.usuario?.tipo);
+        console.log('👤 [DEBUG] Nome do usuário:', data.usuario?.nome || data.usuario?.username);
         
         // Aplicar permissões ao menu
         aplicarPermissoesMenu();
     } catch (error) {
-        console.error('❌ Erro ao carregar permissões:', error);
+        console.error('❌ [DEBUG] Erro ao carregar permissões:', error);
     }
 }
 
@@ -59,21 +66,35 @@ function hasPermission(permissionCode) {
 }
 
 function aplicarPermissoesMenu() {
+    console.log('🔍 [DEBUG] Aplicando permissões ao menu...');
+    console.log('🔍 [DEBUG] isAdmin:', isAdmin, 'userPermissions:', userPermissions);
+    
+    let ocultados = 0;
+    let visiveis = 0;
+    
     // Ocultar elementos sem permissão
     document.querySelectorAll('[data-permission]').forEach(element => {
         const permission = element.getAttribute('data-permission');
         if (!hasPermission(permission)) {
             element.style.display = 'none';
-            console.log(`🔒 Ocultando: ${element.textContent.trim()} (sem permissão: ${permission})`);
+            ocultados++;
+            console.log(`🔒 [DEBUG] Ocultando: ${element.textContent.trim()} (sem permissão: ${permission})`);
         } else {
             element.style.display = '';
+            visiveis++;
+            console.log(`✅ [DEBUG] Visível: ${element.textContent.trim()} (tem permissão: ${permission})`);
         }
     });
+    
+    console.log(`📊 [DEBUG] Resumo do menu: ${visiveis} visíveis, ${ocultados} ocultados`);
 }
 
 // Navegação com verificação de permissões
 function showPage(pageName) {
-    console.log(`🔍 showPage() chamada para: ${pageName}`);
+    console.log('🔍 [DEBUG] ========================================');
+    console.log('🔍 [DEBUG] SHOWPAGE() CHAMADA');
+    console.log('🔍 [DEBUG] ========================================');
+    console.log(`🔍 [DEBUG] Página solicitada: ${pageName}`);
     
     // Mapeamento de páginas para permissões
     const pagePermissions = {
@@ -86,27 +107,36 @@ function showPage(pageName) {
     };
     
     const requiredPermission = pagePermissions[pageName];
+    console.log(`🔍 [DEBUG] Permissão necessária: ${requiredPermission || 'NENHUMA'}`);
     
     // Se a página requer permissão e o usuário não tem, bloquear
     if (requiredPermission && !hasPermission(requiredPermission)) {
-        console.error(`🚫 ACESSO NEGADO: Você não tem permissão para acessar ${pageName} (necessário: ${requiredPermission})`);
+        console.error(`🚫 [DEBUG] ACESSO NEGADO: Você não tem permissão para acessar ${pageName} (necessário: ${requiredPermission})`);
+        console.log('🔍 [DEBUG] ========================================');
         alert('Você não tem permissão para acessar esta página.');
         return;
     }
     
+    console.log(`✅ [DEBUG] Permissão OK para: ${pageName}`);
+    
     // Ocultar todas as páginas
-    document.querySelectorAll('.page').forEach(page => {
+    const todasPaginas = document.querySelectorAll('.page');
+    console.log(`🔍 [DEBUG] Total de páginas encontradas: ${todasPaginas.length}`);
+    todasPaginas.forEach(page => {
         page.classList.remove('active');
+        console.log(`🔍 [DEBUG] Removendo active de: ${page.id}`);
     });
     
     // Mostrar página selecionada
     const targetPage = document.getElementById(`page-${pageName}`);
     if (targetPage) {
         targetPage.classList.add('active');
-        console.log(`✅ Página ${pageName} ativada com sucesso`);
+        console.log(`✅ [DEBUG] Página ${pageName} ativada com sucesso`);
+        console.log(`✅ [DEBUG] Elemento page-${pageName} agora tem classe 'active'`);
     } else {
-        console.error(`❌ Página não encontrada: page-${pageName}`);
-        console.log(`📋 Páginas disponíveis:`, Array.from(document.querySelectorAll('.page')).map(p => p.id));
+        console.error(`❌ [DEBUG] Página não encontrada: page-${pageName}`);
+        console.log(`📋 [DEBUG] Páginas disponíveis:`, Array.from(document.querySelectorAll('.page')).map(p => p.id));
+        console.log('🔍 [DEBUG] ========================================');
         return;
     }
     
@@ -115,33 +145,47 @@ function showPage(pageName) {
         btn.classList.remove('active');
     });
     
+    console.log(`🔍 [DEBUG] Carregando dados da página: ${pageName}`);
+    
     // Carregar dados da página
     switch(pageName) {
         case 'dashboard':
+            console.log('📊 [DEBUG] Chamando loadDashboard()');
             loadDashboard();
             break;
         case 'contas-receber':
+            console.log('💰 [DEBUG] Chamando loadContasReceber()');
             loadContasReceber();
             break;
         case 'contas-pagar':
+            console.log('💳 [DEBUG] Chamando loadContasPagar()');
             loadContasPagar();
             break;
         case 'lancamentos':
+            console.log('📋 [DEBUG] Chamando loadLancamentos()');
             loadLancamentos();
             break;
         case 'contas':
+            console.log('🏦 [DEBUG] Chamando loadContas()');
             loadContas();
             break;
         case 'clientes':
+            console.log('👥 [DEBUG] Chamando loadClientes()');
             loadClientes();
             break;
         case 'fornecedores':
+            console.log('🏢 [DEBUG] Chamando loadFornecedores()');
             loadFornecedores();
             break;
         case 'categorias':
+            console.log('📁 [DEBUG] Chamando loadCategorias()');
             loadCategorias();
             break;
+        default:
+            console.warn(`⚠️ [DEBUG] Nenhuma função de carregamento para: ${pageName}`);
     }
+    
+    console.log('🔍 [DEBUG] ========================================');
 }
 
 // Inicialização ao carregar a página
@@ -176,6 +220,12 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 // Função para carregar a primeira página com permissão disponível
 function carregarPaginaInicial() {
+    console.log('🎯 [DEBUG] ========================================');
+    console.log('🎯 [DEBUG] CARREGANDO PÁGINA INICIAL');
+    console.log('🎯 [DEBUG] ========================================');
+    console.log('🎯 [DEBUG] isAdmin:', isAdmin);
+    console.log('🎯 [DEBUG] userPermissions:', userPermissions);
+    
     // Ordem de prioridade das páginas (mesma ordem do menu)
     const paginasOrdenadas = [
         { nome: 'dashboard', permissao: 'Dashboard' },
@@ -188,17 +238,24 @@ function carregarPaginaInicial() {
         { nome: 'contas', permissao: null } // Sem permissão específica
     ];
     
+    console.log('🎯 [DEBUG] Verificando páginas na ordem...');
+    
     // Encontrar primeira página com permissão
     for (const pagina of paginasOrdenadas) {
-        if (!pagina.permissao || hasPermission(pagina.permissao)) {
-            console.log(`✅ Carregando página inicial: ${pagina.nome}`);
+        const temPermissao = !pagina.permissao || hasPermission(pagina.permissao);
+        console.log(`🎯 [DEBUG] ${pagina.nome}: permissao="${pagina.permissao}" → ${temPermissao ? '✅ TEM' : '❌ NÃO TEM'}`);
+        
+        if (temPermissao) {
+            console.log(`✅ [DEBUG] Carregando página inicial: ${pagina.nome}`);
+            console.log('🎯 [DEBUG] ========================================');
             showPage(pagina.nome);
             return;
         }
     }
     
     // Se nenhuma página tiver permissão, mostrar mensagem
-    console.error('⚠️ Usuário sem permissão para acessar nenhuma página');
+    console.error('⚠️ [DEBUG] Usuário sem permissão para acessar nenhuma página');
+    console.log('🎯 [DEBUG] ========================================');
     alert('Você não tem permissão para acessar nenhuma página do sistema. Entre em contato com o administrador.');
 }
 
