@@ -594,21 +594,41 @@ def verificar_conta_bloqueada(username: str, db) -> bool:
     conn = db.get_connection()
     cursor = conn.cursor()
     
+    # Criar tabela se não existir
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS login_attempts (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(100) NOT NULL,
+                sucesso BOOLEAN NOT NULL,
+                tentativa_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                ip_address VARCHAR(50)
+            )
+        """)
+        conn.commit()
+    except Exception:
+        pass  # Tabela já existe
+    
     # Verificar tentativas nos últimos 15 minutos
-    cursor.execute("""
-        SELECT COUNT(*) as count
-        FROM login_attempts
-        WHERE username = %s 
-        AND sucesso = FALSE
-        AND tentativa_em > NOW() - INTERVAL '15 minutes'
-    """, (username,))
-    
-    result = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    
-    if result and result['count'] >= 5:
-        return True
+    try:
+        cursor.execute("""
+            SELECT COUNT(*) as count
+            FROM login_attempts
+            WHERE username = %s 
+            AND sucesso = FALSE
+            AND tentativa_em > NOW() - INTERVAL '15 minutes'
+        """, (username,))
+        
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if result and result['count'] >= 5:
+            return True
+    except Exception as e:
+        print(f"⚠️ Erro ao verificar bloqueio: {e}")
+        cursor.close()
+        conn.close()
     
     return False
 
@@ -618,11 +638,30 @@ def limpar_tentativas_login(username: str, db):
     conn = db.get_connection()
     cursor = conn.cursor()
     
-    cursor.execute("""
-        DELETE FROM login_attempts
-        WHERE username = %s
-    """, (username,))
+    # Criar tabela se não existir
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS login_attempts (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(100) NOT NULL,
+                sucesso BOOLEAN NOT NULL,
+                tentativa_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                ip_address VARCHAR(50)
+            )
+        """)
+        conn.commit()
+    except Exception:
+        pass
     
-    conn.commit()
-    cursor.close()
-    conn.close()
+    try:
+        cursor.execute("""
+            DELETE FROM login_attempts
+            WHERE username = %s
+        """, (username,))
+        
+        conn.commit()
+    except Exception as e:
+        print(f"⚠️ Erro ao limpar tentativas: {e}")
+    finally:
+        cursor.close()
+        conn.close()
