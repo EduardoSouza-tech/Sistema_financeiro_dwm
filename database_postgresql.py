@@ -967,7 +967,10 @@ class DatabaseManager:
             
         except Exception as e:
             print(f"⚠️  Aviso na migração Multi-Tenancy: {e}")
-            print("   ⚠️  ALTERE A SENHA NO PRIMEIRO LOGIN!")
+            import traceback
+            traceback.print_exc()
+        
+        print("   ⚠️  ALTERE A SENHA DO ADMIN NO PRIMEIRO LOGIN!")
         
         conn.commit()
         cursor.close()
@@ -3171,7 +3174,18 @@ def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
             {filtro}
             ORDER BY u.created_at DESC
         """)
-        return cursor.fetchall()
+        rows = cursor.fetchall()
+        
+        # Converter RealDictRow para dict padrão
+        usuarios = [dict(row) for row in rows]
+        
+        print(f"   📊 listar_usuarios() retornando {len(usuarios)} usuários")
+        return usuarios
+    except Exception as e:
+        print(f"   ❌ Erro em listar_usuarios(): {e}")
+        import traceback
+        traceback.print_exc()
+        return []
     finally:
         cursor.close()
         conn.close()

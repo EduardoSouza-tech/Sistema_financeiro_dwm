@@ -635,8 +635,21 @@
                     credentials: 'include'
                 });
                 
+                // Verificar se a resposta foi bem-sucedida
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`❌ Erro HTTP ${response.status}:`, errorText);
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
                 console.log('🔍 DEBUG - Resposta de /api/usuarios:', data);
+                
+                // Verificar se houve erro na resposta
+                if (data.success === false) {
+                    console.error('❌ Erro no servidor:', data.error);
+                    throw new Error(data.error || 'Erro desconhecido no servidor');
+                }
                 
                 // Verificar se veio no formato {success: true, usuarios: [...]}
                 if (data.success && Array.isArray(data.usuarios)) {
@@ -653,8 +666,10 @@
                 renderUsersTable();
                 updateStats();
             } catch (error) {
-                console.error('Erro ao carregar usuários:', error);
-                showAlert('Erro ao carregar usuários', 'error');
+                console.error('❌ Erro ao carregar usuários:', error);
+                showAlert(`Erro ao carregar usuários: ${error.message}`, 'error');
+                allUsers = [];
+                renderUsersTable();
             } finally {
                 document.getElementById('usersLoading').classList.remove('active');
             }

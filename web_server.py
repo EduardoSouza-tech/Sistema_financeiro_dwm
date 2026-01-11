@@ -307,12 +307,23 @@ def gerenciar_usuarios():
     """Listar ou criar usuários"""
     if request.method == 'GET':
         try:
-            print(f"\n🔍 GET /api/usuarios - Listando usuários...")
-            usuarios = auth_db.listar_usuarios()
-            print(f"   Tipo retornado: {type(usuarios)}")
-            print(f"   Valor: {usuarios}")
+            print(f"\n{'='*80}")
+            print(f"🔍 GET /api/usuarios - Listando usuários...")
+            print(f"{'='*80}")
             
-            # Garantir que retorne uma lista
+            # Verificar se usuário está autenticado
+            usuario = getattr(request, 'usuario', None)
+            if not usuario:
+                print(f"   ❌ Usuário não autenticado")
+                return jsonify({'success': False, 'error': 'Não autenticado'}), 401
+            
+            print(f"   ✅ Usuário autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
+            
+            # Listar usuários
+            usuarios = auth_db.listar_usuarios()
+            print(f"   📊 Tipo retornado: {type(usuarios)}")
+            
+            # Garantir que é uma lista
             if not isinstance(usuarios, list):
                 print(f"   ⚠️ Não é lista! Convertendo...")
                 if usuarios is None:
@@ -320,12 +331,29 @@ def gerenciar_usuarios():
                 else:
                     usuarios = [usuarios] if isinstance(usuarios, dict) else []
             
-            print(f"   ✅ Retornando {len(usuarios)} usuários\n")
-            return jsonify({'success': True, 'usuarios': usuarios})
+            # Converter datas para string (JSON serializable)
+            usuarios_serializaveis = []
+            for user in usuarios:
+                user_dict = dict(user) if not isinstance(user, dict) else user
+                
+                # Converter datetime para string
+                if 'created_at' in user_dict and user_dict['created_at']:
+                    user_dict['created_at'] = str(user_dict['created_at'])
+                if 'ultima_sessao' in user_dict and user_dict['ultima_sessao']:
+                    user_dict['ultima_sessao'] = str(user_dict['ultima_sessao'])
+                
+                usuarios_serializaveis.append(user_dict)
+            
+            print(f"   ✅ Retornando {len(usuarios_serializaveis)} usuários")
+            print(f"{'='*80}\n")
+            
+            return jsonify({'success': True, 'usuarios': usuarios_serializaveis})
+            
         except Exception as e:
             print(f"❌ Erro ao listar usuários: {e}")
             import traceback
             traceback.print_exc()
+            print(f"{'='*80}\n")
             return jsonify({'success': False, 'error': str(e)}), 500
     
     else:  # POST
