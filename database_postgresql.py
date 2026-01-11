@@ -920,10 +920,11 @@ class DatabaseManager:
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.tables 
                         WHERE table_name = %s
-                    )
+                    ) as table_exists
                 """, (tabela,))
                 
-                table_exists = cursor.fetchone()[0]
+                result = cursor.fetchone()
+                table_exists = result['table_exists'] if result else False
                 
                 if not table_exists:
                     print(f"   ⚠️  Tabela '{tabela}' não existe, pulando...")

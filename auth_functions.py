@@ -51,9 +51,10 @@ def criar_usuario(dados: Dict, db) -> int:
         raise ValueError("cliente_id é obrigatório para usuários do tipo 'cliente'")
     
     # Verificar se username ou email já existem
-    cursor.execute("SELECT COUNT(*) FROM usuarios WHERE username = %s OR email = %s",
+    cursor.execute("SELECT COUNT(*) as count FROM usuarios WHERE username = %s OR email = %s",
                   (dados['username'], dados['email']))
-    if cursor.fetchone()[0] > 0:
+    result = cursor.fetchone()
+    if result and result['count'] > 0:
         raise ValueError("Username ou email já cadastrado")
     
     # Hash da senha
@@ -76,7 +77,10 @@ def criar_usuario(dados: Dict, db) -> int:
         dados.get('created_by')
     ))
     
-    usuario_id = cursor.fetchone()[0]
+    result = cursor.fetchone()
+    usuario_id = result['id'] if result else None
+    if not usuario_id:
+        raise ValueError("Erro ao criar usuário")
     conn.commit()
     cursor.close()
     conn.close()
