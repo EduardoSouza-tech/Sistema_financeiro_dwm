@@ -1904,12 +1904,18 @@ def debug_usuario():
 
 @app.route('/')
 def index():
-    """Página principal - Nova interface moderna"""
+    """Página principal - Interface com sistema de permissões"""
     # Verificar se está autenticado
     usuario = get_usuario_logado()
     if not usuario:
         return render_template('login.html')
     
+    return render_template('index.html')
+
+@app.route('/nova')
+@require_auth
+def nova_interface():
+    """Nova interface (backup)"""
     return render_template('interface_nova.html')
 
 @app.route('/old')
@@ -1922,7 +1928,7 @@ def old_index():
 @require_auth
 def legacy_index():
     """Página legado"""
-    return render_template('index.html')
+    return render_template('interface_nova.html')
 
 @app.route('/teste')
 def teste():
