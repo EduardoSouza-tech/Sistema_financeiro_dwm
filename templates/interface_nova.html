@@ -3303,7 +3303,16 @@
         
         // Alternar status do usuário
         async function toggleUsuarioStatus(usuarioId, ativar) {
-            if (!confirm(`Deseja realmente ${ativar ? 'ativar' : 'inativar'} este usuário?`)) return;
+            const confirmado = await showConfirm(
+                `Deseja realmente ${ativar ? 'ativar' : 'inativar'} este usuário?`,
+                {
+                    title: `${ativar ? '✅' : '⏸️'} ${ativar ? 'Ativar' : 'Inativar'} Usuário`,
+                    confirmText: ativar ? 'Ativar' : 'Inativar',
+                    cancelText: 'Cancelar',
+                    type: ativar ? 'success' : 'warning'
+                }
+            );
+            if (!confirmado) return;
             
             try {
                 const response = await fetch(`/api/usuarios/${usuarioId}`, {
@@ -3328,7 +3337,16 @@
         
         // Excluir usuário
         async function deleteUsuario(usuarioId) {
-            if (!confirm('Deseja realmente EXCLUIR este usuário? Esta ação não pode ser desfeita!')) return;
+            const confirmado = await showConfirm(
+                'Esta ação não pode ser desfeita! Todos os dados associados a este usuário serão permanentemente removidos.',
+                {
+                    title: '🗑️ Excluir Usuário',
+                    confirmText: 'Excluir Permanentemente',
+                    cancelText: 'Cancelar',
+                    type: 'error'
+                }
+            );
+            if (!confirmado) return;
             
             try {
                 const response = await fetch(`/api/usuarios/${usuarioId}`, {
@@ -3418,7 +3436,16 @@
         
         // Fazer logout
         async function logoutUser() {
-            if (!confirm('Deseja realmente sair do sistema?')) return;
+            const confirmado = await showConfirm(
+                'Você será desconectado e redirecionado para a tela de login.',
+                {
+                    title: '🚪 Sair do Sistema',
+                    confirmText: 'Sair',
+                    cancelText: 'Continuar Conectado',
+                    type: 'info'
+                }
+            );
+            if (!confirmado) return;
             
             try {
                 await fetch('/api/auth/logout', {
@@ -3729,6 +3756,153 @@
                     }
                 }, 300);
             }, 3000);
+        }
+
+        // ====================================
+        // SISTEMA DE CONFIRMAÇÃO INTELIGENTE
+        // ====================================
+        
+        function showConfirm(message, options = {}) {
+            return new Promise((resolve) => {
+                const {
+                    title = '⚠️ Confirmação',
+                    confirmText = 'Confirmar',
+                    cancelText = 'Cancelar',
+                    type = 'warning' // success, error, warning, info
+                } = options;
+                
+                // Criar overlay
+                const overlay = document.createElement('div');
+                overlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 10000;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                `;
+                
+                // Definir cores baseado no tipo
+                let colors = {
+                    success: '#27ae60',
+                    error: '#e74c3c',
+                    warning: '#f39c12',
+                    info: '#3498db'
+                };
+                const color = colors[type] || colors.warning;
+                
+                // Criar modal de confirmação
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    background: white;
+                    padding: 30px;
+                    border-radius: 15px;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                    max-width: 450px;
+                    width: 90%;
+                    transform: scale(0.7);
+                    transition: transform 0.3s ease;
+                `;
+                
+                modal.innerHTML = `
+                    <div style="text-align: center;">
+                        <div style="font-size: 50px; margin-bottom: 20px;">${title.split(' ')[0]}</div>
+                        <h2 style="margin: 0 0 10px 0; color: #2c3e50;">${title.replace(/^[^\s]+\s/, '')}</h2>
+                        <p style="color: #7f8c8d; font-size: 16px; margin-bottom: 30px;">${message}</p>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button id="confirm-cancel" style="
+                                flex: 1;
+                                padding: 12px 24px;
+                                border: 2px solid #bdc3c7;
+                                background: white;
+                                color: #7f8c8d;
+                                border-radius: 8px;
+                                cursor: pointer;
+                                font-size: 15px;
+                                font-weight: 600;
+                                transition: all 0.3s ease;
+                            ">${cancelText}</button>
+                            <button id="confirm-ok" style="
+                                flex: 1;
+                                padding: 12px 24px;
+                                border: none;
+                                background: ${color};
+                                color: white;
+                                border-radius: 8px;
+                                cursor: pointer;
+                                font-size: 15px;
+                                font-weight: 600;
+                                transition: all 0.3s ease;
+                            ">${confirmText}</button>
+                        </div>
+                    </div>
+                `;
+                
+                overlay.appendChild(modal);
+                document.body.appendChild(overlay);
+                
+                // Animar entrada
+                setTimeout(() => {
+                    overlay.style.opacity = '1';
+                    modal.style.transform = 'scale(1)';
+                }, 10);
+                
+                // Adicionar hover nos botões
+                const cancelBtn = modal.querySelector('#confirm-cancel');
+                const okBtn = modal.querySelector('#confirm-ok');
+                
+                cancelBtn.addEventListener('mouseenter', () => {
+                    cancelBtn.style.background = '#ecf0f1';
+                    cancelBtn.style.transform = 'translateY(-2px)';
+                });
+                cancelBtn.addEventListener('mouseleave', () => {
+                    cancelBtn.style.background = 'white';
+                    cancelBtn.style.transform = 'translateY(0)';
+                });
+                
+                okBtn.addEventListener('mouseenter', () => {
+                    okBtn.style.transform = 'translateY(-2px)';
+                    okBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                });
+                okBtn.addEventListener('mouseleave', () => {
+                    okBtn.style.transform = 'translateY(0)';
+                    okBtn.style.boxShadow = 'none';
+                });
+                
+                // Função para fechar o modal
+                const closeModal = (result) => {
+                    overlay.style.opacity = '0';
+                    modal.style.transform = 'scale(0.7)';
+                    setTimeout(() => {
+                        if (overlay.parentNode) {
+                            document.body.removeChild(overlay);
+                        }
+                        resolve(result);
+                    }, 300);
+                };
+                
+                // Event listeners
+                cancelBtn.addEventListener('click', () => closeModal(false));
+                okBtn.addEventListener('click', () => closeModal(true));
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) closeModal(false);
+                });
+                
+                // ESC para cancelar
+                const escHandler = (e) => {
+                    if (e.key === 'Escape') {
+                        closeModal(false);
+                        document.removeEventListener('keydown', escHandler);
+                    }
+                };
+                document.addEventListener('keydown', escHandler);
+            });
         }
 
         // ====================================

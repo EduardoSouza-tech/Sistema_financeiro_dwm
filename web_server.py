@@ -1838,6 +1838,34 @@ def admin_page():
     print(f"\n🎯🎯🎯 ROTA /admin ALCANÇADA - Decorador passou! 🎯🎯🎯\n")
     return render_template('admin.html')
 
+@app.route('/debug-usuario')
+def debug_usuario():
+    """Rota de debug para verificar dados do usuário atual"""
+    usuario = get_usuario_logado()
+    
+    debug_info = {
+        'encontrado': usuario is not None,
+        'dados': {}
+    }
+    
+    if usuario:
+        debug_info['dados'] = {
+            'id': usuario.get('id'),
+            'username': usuario.get('username'),
+            'tipo': usuario.get('tipo'),
+            'tipo_python_type': str(type(usuario.get('tipo'))),
+            'tipo_repr': repr(usuario.get('tipo')),
+            'tipo_len': len(usuario.get('tipo', '')),
+            'tipo_bytes': list(usuario.get('tipo', '').encode()) if usuario.get('tipo') else [],
+            'tipo_comparacao_admin': usuario.get('tipo') == 'admin',
+            'tipo_comparacao_cliente': usuario.get('tipo') == 'cliente',
+            'nome_completo': usuario.get('nome_completo'),
+            'email': usuario.get('email'),
+            'cliente_id': usuario.get('cliente_id')
+        }
+    
+    return jsonify(debug_info)
+
 @app.route('/')
 def index():
     """Página principal - Nova interface moderna"""
