@@ -26,12 +26,11 @@ except Exception as e:
     raise
 
 from auth_middleware import require_auth, require_admin, require_permission, get_usuario_logado, filtrar_por_cliente, aplicar_filtro_cliente
-from models import ContaBancaria, Lancamento, Categoria, TipoLancamento, StatusLancamento
+from database_postgresql import ContaBancaria, Lancamento, Categoria, TipoLancamento, StatusLancamento
 from decimal import Decimal
 from datetime import datetime, date, timedelta
 import json
 import os
-import sqlite3
 import secrets
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
@@ -1158,7 +1157,7 @@ def gerenciar_lancamento(lancamento_id):
             print(f"   - Conta: {conta_bancaria_atual}")
             
             # Criar objeto Lancamento atualizado
-            from models import TipoLancamento, StatusLancamento
+            from database_postgresql import TipoLancamento, StatusLancamento
             from decimal import Decimal
             
             tipo_enum = TipoLancamento(data['tipo'].lower())
