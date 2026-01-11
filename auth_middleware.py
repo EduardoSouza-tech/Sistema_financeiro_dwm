@@ -1,16 +1,20 @@
 """
 Middlewares de Autenticação e Autorização
+Otimizado para PostgreSQL
 """
 from flask import session, request, jsonify, redirect, url_for
 from functools import wraps
 import os
 
-# Importar módulo de autenticação dinamicamente baseado no DATABASE_TYPE
-USE_POSTGRESQL = os.getenv('DATABASE_TYPE', 'sqlite').lower() == 'postgresql'
-if USE_POSTGRESQL:
+# ============================================================================
+# IMPORTAÇÃO DO MÓDULO DE AUTENTICAÇÃO - APENAS POSTGRESQL
+# ============================================================================
+try:
     import database_postgresql as auth_db
-else:
-    import auth_functions as auth_db
+    print("✅ auth_middleware: Usando PostgreSQL")
+except Exception as e:
+    print(f"❌ Erro ao importar database_postgresql em auth_middleware: {e}")
+    raise
 
 
 def get_usuario_logado():

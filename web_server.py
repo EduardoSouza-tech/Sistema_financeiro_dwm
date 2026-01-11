@@ -1,31 +1,29 @@
 """
 Servidor Web para o Sistema Financeiro
+Otimizado para PostgreSQL com pool de conexões
 """
 from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session
 from flask_cors import CORS
 from functools import wraps
-from database import DatabaseManager
-from database import pagar_lancamento as db_pagar_lancamento
-from database import cancelar_lancamento as db_cancelar_lancamento
-from database import obter_lancamento as db_obter_lancamento
-from database import atualizar_cliente, atualizar_fornecedor
-import database  # Importar módulo database para acessar funções CRUD
 import os
 
-# Determinar qual módulo de autenticação usar baseado na variável de ambiente
-USE_POSTGRESQL = os.getenv('DATABASE_TYPE', 'sqlite').lower() == 'postgresql' or os.getenv('DATABASE_URL')
-
-if USE_POSTGRESQL:
-    try:
-        import database_postgresql as auth_db
-        print("✅ Usando PostgreSQL para autenticação")
-    except Exception as e:
-        print(f"⚠️ Erro ao importar PostgreSQL, usando SQLite: {e}")
-        import auth_functions as auth_db
-        USE_POSTGRESQL = False
-else:
-    import auth_functions as auth_db
-    print("✅ Usando SQLite para autenticação")
+# ============================================================================
+# IMPORTAÇÕES DO BANCO DE DADOS - APENAS POSTGRESQL
+# ============================================================================
+try:
+    import database_postgresql as database
+    import database_postgresql as auth_db
+    from database_postgresql import DatabaseManager, get_db_connection
+    from database_postgresql import pagar_lancamento as db_pagar_lancamento
+    from database_postgresql import cancelar_lancamento as db_cancelar_lancamento
+    from database_postgresql import obter_lancamento as db_obter_lancamento
+    from database_postgresql import atualizar_cliente, atualizar_fornecedor
+    print("✅ Módulo PostgreSQL carregado com sucesso")
+except Exception as e:
+    print(f"❌ ERRO CRÍTICO: Não foi possível carregar o módulo PostgreSQL")
+    print(f"   Erro: {e}")
+    print(f"   Certifique-se de que DATABASE_URL está configurado")
+    raise
 
 from auth_middleware import require_auth, require_admin, require_permission, get_usuario_logado, filtrar_por_cliente, aplicar_filtro_cliente
 from models import ContaBancaria, Lancamento, Categoria, TipoLancamento, StatusLancamento
@@ -46,51 +44,33 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]}}, supports_credentials=True)
-# Log de configuração
-print("=" * 60)
-print("CONFIGURAÇÃO DO SISTEMA")
-print("=" * 60)
-print(f"DATABASE_TYPE: {os.getenv('DATABASE_TYPE', 'sqlite')}")
-print(f"DATABASE_URL exists: {bool(os.getenv('DATABASE_URL'))}")
-print(f"PGHOST: {os.getenv('PGHOST', 'not set')}")
-print(f"PGDATABASE: {os.getenv('PGDATABASE', 'not set')}")
-print("=" * 60)
 
-# Inicializar banco de dados
+# ============================================================================
+# CONFIGURAÇÃO E INICIALIZAÇÃO DO SISTEMA
+# ============================================================================
+print("\n" + "="*70)
+print("🚀 SISTEMA FINANCEIRO - INICIALIZAÇÃO")
+print("="*70)
+print(f"📊 Banco de Dados: PostgreSQL (Pool de Conexões)")
+print(f"🔐 DATABASE_URL: {'✅ Configurado' if os.getenv('DATABASE_URL') else '❌ Não configurado'}")
+print(f"🌐 Ambiente: {'Produção (Railway)' if os.getenv('RAILWAY_ENVIRONMENT') else 'Desenvolvimento'}")
+print("="*70 + "\n")
+
+# Inicializar banco de dados com pool de conexões
 try:
-    print("Inicializando DatabaseManager...")
+    print("🔄 Inicializando DatabaseManager com pool de conexões...")
     db = DatabaseManager()
     print("✅ DatabaseManager inicializado com sucesso!")
+    print(f"   └─ Pool de conexões: 2-20 conexões simultâneas")
 except Exception as e:
-    print(f"❌ ERRO ao inicializar DatabaseManager: {e}")
+    print(f"❌ ERRO CRÍTICO ao inicializar DatabaseManager: {e}")
+    import traceback
+    traceback.print_exc()
     raise
 
-# Migrar dados JSON se existir
-if os.path.exists('dados_financeiros.json'):
-    print("Migrando dados do JSON...")
-    db.migrar_dados_json('dados_financeiros.json')
-    print("✅ Migração concluída!")
-
-# Auto-teste do sistema - EXECUTA SEMPRE
-try:
-    from auto_test import executar_testes
-    import threading
-    
-    def executar_testes_async():
-        """Executa testes em thread separada para não bloquear a inicialização"""
-        import time
-        time.sleep(3)  # Aguarda 3 segundos para garantir que o servidor iniciou
-        executar_testes(db)
-    
-    # Executar testes em background
-    thread_teste = threading.Thread(target=executar_testes_async, daemon=True)
-    thread_teste.start()
-    print("🧪 Auto-teste agendado para execução em 3 segundos...")
-except Exception as e:
-    print(f"⚠️ Não foi possível executar auto-teste: {e}")
-
-
-# ===== ROTAS DE AUTENTICAÇÃO =====
+# ============================================================================
+# ROTAS DE AUTENTICAÇÃO
+# ============================================================================
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():

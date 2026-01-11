@@ -1,14 +1,16 @@
 """
 Módulo de gerenciamento do banco de dados PostgreSQL
+Otimizado com pool de conexões para máxima performance
 """
 import psycopg2  # type: ignore
-from psycopg2 import Error, sql  # type: ignore
+from psycopg2 import Error, sql, pool  # type: ignore
 from psycopg2.extras import RealDictCursor  # type: ignore
 from datetime import datetime, date
 from typing import List, Optional, Dict, Any
 from decimal import Decimal
 import json
 import os
+from contextlib import contextmanager
 from models import (
     ContaBancaria, Lancamento, Categoria,
     TipoLancamento, StatusLancamento
@@ -81,49 +83,168 @@ __all__ = [
     'deletar_tipo_sessao'
 ]
 
-# Configurações do PostgreSQL (Railway fornece via variáveis de ambiente)
-# Suporta DATABASE_URL ou variáveis individuais
+# ============================================================================
+# CONFIGURAÇÃO OTIMIZADA DO POSTGRESQL COM POOL DE CONEXÕES
+# ============================================================================
+
 def _get_postgresql_config():
+    """Configuração do PostgreSQL com prioridade para DATABASE_URL"""
     database_url = os.getenv('DATABASE_URL')
     
     if database_url:
-        # Usar DATABASE_URL se disponível (Railway fornece automaticamente)
         return {'dsn': database_url}
-    else:
-        # Fallback para variáveis individuais
-        return {
-            'host': os.getenv('PGHOST', 'localhost'),
-            'port': int(os.getenv('PGPORT', '5432')),
-            'user': os.getenv('PGUSER', 'postgres'),
-            'password': os.getenv('PGPASSWORD', ''),
-            'database': os.getenv('PGDATABASE', 'sistema_financeiro')
-        }
+    
+    # Fallback para variáveis individuais (desenvolvimento local)
+    host = os.getenv('PGHOST', 'localhost')
+    if not host or host == 'localhost':
+        raise ValueError(
+            "❌ ERRO: DATABASE_URL não configurado. "
+            "Configure a variável de ambiente DATABASE_URL para conectar ao PostgreSQL."
+        )
+    
+    return {
+        'host': host,
+        'port': int(os.getenv('PGPORT', '5432')),
+        'user': os.getenv('PGUSER', 'postgres'),
+        'password': os.getenv('PGPASSWORD', ''),
+        'database': os.getenv('PGDATABASE', 'sistema_financeiro')
+    }
 
 POSTGRESQL_CONFIG = _get_postgresql_config()
 
+# Pool de conexões global para reutilização eficiente
+_connection_pool = None
+
+def _get_connection_pool():
+    """Obtém ou cria o pool de conexões"""
+    global _connection_pool
+    
+    if _connection_pool is None:
+        try:
+            if 'dsn' in POSTGRESQL_CONFIG:
+                _connection_pool = pool.ThreadedConnectionPool(
+                    minconn=2,
+                    maxconn=20,
+                    dsn=POSTGRESQL_CONFIG['dsn'],
+                    cursor_factory=RealDictCursor
+                )
+            else:
+                _connection_pool = pool.ThreadedConnectionPool(
+                    minconn=2,
+                    maxconn=20,
+                    cursor_factory=RealDictCursor,
+                    **POSTGRESQL_CONFIG
+                )
+            print("✅ Pool de conexões PostgreSQL criado (2-20 conexões)")
+        except Exception as e:
+            print(f"❌ Erro ao criar pool de conexões: {e}")
+            raise
+    
+    return _connection_pool
+
+@contextmanager
+def get_db_connection():
+    """Context manager para obter conexão do pool"""
+    pool_obj = _get_connection_pool()
+    conn = pool_obj.getconn()
+    try:
+        conn.autocommit = True
+        yield conn
+    finally:
+        pool_obj.putconn(conn)
+
+
+# ============================================================================
+# FUNÇÕES AUXILIARES OTIMIZADAS
+# ============================================================================
+
+def execute_query(query: str, params: tuple = None, fetch_one: bool = False, fetch_all: bool = True):
+    """
+    Executa query otimizada usando pool de conexões
+    
+    Args:
+        query: Query SQL
+        params: Parâmetros da query
+        fetch_one: Retornar apenas um resultado
+        fetch_all: Retornar todos os resultados
+    
+    Returns:
+        Resultado da query ou None
+    """
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query, params or ())
+            
+            if fetch_one:
+                return cursor.fetchone()
+            elif fetch_all:
+                return cursor.fetchall()
+            else:
+                return cursor.rowcount
+
+
+def execute_many(query: str, params_list: list):
+    """Executa múltiplas queries em batch para performance"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.executemany(query, params_list)
+            return cursor.rowcount
+
+
+# Cache simples para permissões (evita consultas repetidas)
+_permissions_cache = {}
+_cache_timeout = 300  # 5 minutos
+
+def get_cached_permissions(usuario_id: int):
+    """Obtém permissões do usuário com cache"""
+    import time
+    current_time = time.time()
+    
+    if usuario_id in _permissions_cache:
+        cached_data, timestamp = _permissions_cache[usuario_id]
+        if current_time - timestamp < _cache_timeout:
+            return cached_data
+    
+    # Cache miss ou expirado - buscar do banco
+    query = """
+        SELECT p.codigo 
+        FROM permissoes p
+        JOIN usuario_permissoes up ON up.permissao_id = p.id
+        WHERE up.usuario_id = %s AND p.ativo = TRUE
+    """
+    permissions = execute_query(query, (usuario_id,), fetch_all=True)
+    result = [p['codigo'] for p in permissions] if permissions else []
+    
+    _permissions_cache[usuario_id] = (result, current_time)
+    return result
+
+
+def clear_permissions_cache(usuario_id: int = None):
+    """Limpa cache de permissões"""
+    if usuario_id:
+        _permissions_cache.pop(usuario_id, None)
+    else:
+        _permissions_cache.clear()
+
 
 class DatabaseManager:
-    """Gerenciador do banco de dados PostgreSQL"""
+    """Gerenciador otimizado do banco de dados PostgreSQL com pool de conexões"""
     
     def __init__(self, config: Dict = None):
         self.config = config or POSTGRESQL_CONFIG
+        # Inicializar pool
+        _get_connection_pool()
         self.criar_tabelas()
     
     def get_connection(self):
-        """Cria uma conexão com o banco de dados"""
+        """Obtém uma conexão do pool (use get_db_connection() quando possível)"""
         try:
-            if 'dsn' in self.config:
-                # Conectar usando DATABASE_URL
-                conn = psycopg2.connect(self.config['dsn'], cursor_factory=RealDictCursor)
-            else:
-                # Conectar usando variáveis individuais
-                conn = psycopg2.connect(**self.config, cursor_factory=RealDictCursor)
-            
+            pool_obj = _get_connection_pool()
+            conn = pool_obj.getconn()
             conn.autocommit = True
             return conn
         except Error as e:
-            print(f"Erro ao conectar ao PostgreSQL: {e}")
-            print(f"Config: {self.config if 'dsn' not in self.config else 'usando DATABASE_URL'}")
+            print(f"❌ Erro ao obter conexão do pool: {e}")
             raise
     
     def criar_tabelas(self):
