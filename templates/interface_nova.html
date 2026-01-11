@@ -1277,7 +1277,7 @@
             </div>
             
             <!-- Menu de Administração (apenas para Admin) -->
-            <button class="nav-button" id="btn-admin-menu" onclick="toggleSubmenu('admin')" style="display: none; background: linear-gradient(135deg, #e74c3c, #c0392b);">
+            <button class="nav-button" id="btn-admin" onclick="toggleSubmenu('admin')" style="display: none; background: linear-gradient(135deg, #e74c3c, #c0392b);">
                 ⚙️ Administração ▼
             </button>
             <div class="submenu" id="submenu-admin" style="display: none;">
@@ -3387,10 +3387,10 @@
                 if (userData.tipo === 'admin') {
                     console.log('✅ Usuário é ADMIN - mostrando botões');
                     const adminBtn = document.getElementById('adminBtn');
-                    const adminMenu = document.getElementById('btn-admin-menu');
+                    const adminMenu = document.getElementById('btn-admin');
                     
                     console.log('🔍 adminBtn element:', adminBtn);
-                    console.log('🔍 btn-admin-menu element:', adminMenu);
+                    console.log('🔍 btn-admin element:', adminMenu);
                     
                     if (adminBtn) {
                         adminBtn.style.display = 'block';
@@ -3401,9 +3401,9 @@
                     
                     if (adminMenu) {
                         adminMenu.style.display = 'block';
-                        console.log('✅ btn-admin-menu.style.display = block');
+                        console.log('✅ btn-admin.style.display = block');
                     } else {
-                        console.error('❌ btn-admin-menu NÃO ENCONTRADO!');
+                        console.error('❌ btn-admin NÃO ENCONTRADO!');
                     }
                 } else {
                     console.log('❌ Usuário NÃO é admin - tipo:', userData.tipo);
