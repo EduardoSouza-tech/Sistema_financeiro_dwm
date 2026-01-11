@@ -3484,19 +3484,6 @@ def listar_proprietarios_disponiveis():
         }), 500
 
 
-if __name__ == '__main__':
-    # Porta configurável (Railway usa variável de ambiente PORT)
-    port = int(os.getenv('PORT', 5000))
-    
-    print("="*60)
-    print("Sistema Financeiro - Versão Web")
-    print("="*60)
-    print(f"Servidor iniciado em: http://0.0.0.0:{port}")
-    print(f"Banco de dados: {os.getenv('DATABASE_TYPE', 'sqlite')}")
-    print("="*60)
-    
-    app.run(debug=False, host='0.0.0.0', port=port, use_reloader=False)
-
 # ==================== ROTAS DE PREFERÊNCIAS DO USUÁRIO ====================
 
 @app.route('/api/preferencias/menu-order', methods=['GET'])
@@ -3662,3 +3649,16 @@ def listar_preferencias():
             'success': False,
             'error': str(e)
         }), 500
+
+if __name__ == '__main__':
+    # Porta configurÃvel (Railway usa variÃvel de ambiente PORT)
+    port = int(os.getenv('PORT', 5000))
+    
+    print("="*60)
+    print("Sistema Financeiro - VersÃ£o Web")
+    print("="*60)
+    print(f"Servidor iniciado em: http://0.0.0.0:{port}")
+    print(f"Banco de dados: {os.getenv('DATABASE_TYPE', 'sqlite')}")
+    print("="*60)
+    
+    app.run(debug=False, host='0.0.0.0', port=port, use_reloader=False)
