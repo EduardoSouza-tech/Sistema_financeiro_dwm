@@ -129,27 +129,7 @@
             border-left: 4px solid #fff;
         }
 
-        /* Estados de Drag and Drop */
-        .nav-button.dragging {
-            opacity: 0.4;
-            background: #3498db;
-            cursor: grabbing;
-            transform: scale(0.95);
-        }
-
-        .nav-button.drag-over {
-            background: #27ae60;
-            border-top: 3px solid #fff;
-            transform: scale(1.02);
-        }
-
-        .nav-button[draggable="true"] {
-            cursor: grab;
-        }
-
-        .nav-button[draggable="true"]:active {
-            cursor: grabbing;
-        }
+        .nav-button:hover {
             background: #3498db;
             border-left: 4px solid #fff;
         }
@@ -1284,12 +1264,12 @@
                 </div>
             </div>
             
-            <button class="nav-button active" onclick="showSection('dashboard')" data-permission="dashboard" draggable="true" data-menu-id="dashboard">
+            <button class="nav-button active" onclick="showSection('dashboard')" data-permission="dashboard">
                 📊 Dashboard
             </button>
             
             <!-- Menu Financeiro com Submenu -->
-            <button class="nav-button" onclick="toggleSubmenu('financeiro')" id="btn-financeiro" data-permission="lancamentos_view" draggable="true" data-menu-id="financeiro">
+            <button class="nav-button" onclick="toggleSubmenu('financeiro')" id="btn-financeiro" data-permission="lancamentos_view">
                 💰 Financeiro ▼
             </button>
             <div class="submenu" id="submenu-financeiro" style="display: none;">
@@ -1298,7 +1278,7 @@
             </div>
             
             <!-- Menu de Relatórios com Submenu -->
-            <button class="nav-button" onclick="toggleSubmenu('relatorios')" id="btn-relatorios" data-permission="relatorios_view" draggable="true" data-menu-id="relatorios">
+            <button class="nav-button" onclick="toggleSubmenu('relatorios')" id="btn-relatorios" data-permission="relatorios_view">
                 📊 Relatórios ▼
             </button>
             <div class="submenu" id="submenu-relatorios" style="display: none;">
@@ -1310,7 +1290,7 @@
             </div>
             
             <!-- Menu de Cadastros com Submenu -->
-            <button class="nav-button" onclick="toggleSubmenu('cadastros')" id="btn-cadastros" data-permission="cadastros_view" draggable="true" data-menu-id="cadastros">
+            <button class="nav-button" onclick="toggleSubmenu('cadastros')" id="btn-cadastros" data-permission="cadastros_view">
                 📋 Cadastros ▼
             </button>
             <div class="submenu" id="submenu-cadastros" style="display: none;">
@@ -1322,7 +1302,7 @@
             </div>
             
             <!-- Menu Operacional com Submenu -->
-            <button class="nav-button" onclick="toggleSubmenu('operacional')" id="btn-operacional" data-permission="operacional_view" draggable="true" data-menu-id="operacional">
+            <button class="nav-button" onclick="toggleSubmenu('operacional')" id="btn-operacional" data-permission="operacional_view">
                 ⚙️ Operacional ▼
             </button>
             <div class="submenu" id="submenu-operacional" style="display: none;">
@@ -3412,153 +3392,28 @@
         // AUTENTICAÇÃO E USUÁRIO
         // ====================================
         
-        // Sistema de permissões do usuário
-        let userPermissions = [];
-        
-        // Carregar permissões do usuário
-        async function carregarPermissoesUsuario() {
-            try {
-                const response = await fetch('/api/auth/verify', {
-                    credentials: 'include'
-                });
-                
-                if (!response.ok) {
-                    window.location.href = '/login';
-                    return null;
-                }
-                
-                const data = await response.json();
-                const userData = data.usuario || data;
-                
-                // Salvar permissões do usuário
-                userPermissions = userData.permissoes || [];
-                console.log('🔐 Permissões do usuário carregadas:', userPermissions);
-                console.log('🔐 Total de permissões:', userPermissions.length);
-                
-                return userData;
-            } catch (error) {
-                console.error('Erro ao carregar permissões:', error);
-                window.location.href = '/login';
-                return null;
+        // Verificar usuário logado
+        async function checkUserAuth() {
+            // As funções de permissão estão no app.js
+            // Chamamos apenas a função de lá
+            if (typeof carregarPermissoesUsuario === 'function') {
+                await carregarPermissoesUsuario();
             }
         }
         
-        // Verificar se o usuário tem uma permissão específica
-        function hasPermission(permission) {
-            // Admin tem todas as permissões
-            const isAdmin = document.getElementById('userTypeSidebar')?.textContent === 'Administrador';
-            if (isAdmin) {
-                console.log(`✅ Admin tem acesso a: ${permission}`);
-                return true;
-            }
-            
-            const temPermissao = userPermissions.includes(permission);
-            console.log(`🔐 Verificando permissão "${permission}": ${temPermissao ? '✅ TEM' : '❌ NÃO TEM'}`);
-            return temPermissao;
-        }
-        
-        // Aplicar permissões ao menu (ocultar itens sem permissão)
-        function aplicarPermissoesMenu() {
-            console.log('🔐 Aplicando permissões ao menu...');
-            
-            // Encontrar todos os botões com data-permission
-            const botoesComPermissao = document.querySelectorAll('[data-permission]');
-            console.log(`🔐 Total de botões com permissões: ${botoesComPermissao.length}`);
-            
-            botoesComPermissao.forEach(botao => {
-                const permissaoNecessaria = botao.getAttribute('data-permission');
-                
-                if (!hasPermission(permissaoNecessaria)) {
-                    // Ocultar botão se não tem permissão
-                    botao.style.display = 'none';
-                    console.log(`🔒 Botão OCULTO (sem permissão): ${permissaoNecessaria}`);
-                } else {
-                    // Garantir que botão está visível se tem permissão
-                    botao.style.display = '';
-                    console.log(`✅ Botão VISÍVEL (com permissão): ${permissaoNecessaria}`);
-                }
-            });
-            
-            console.log('✅ Permissões aplicadas ao menu');
-        }
-        
-        // Carregar primeira página permitida
+        // Carregar primeira página permitida  
         function carregarPaginaInicial() {
-            console.log('🏠 Carregando página inicial baseada em permissões...');
+            console.log('🏠 Carregando página inicial...');
             
             // Ocultar todas as seções primeiro
             const sections = document.querySelectorAll('.content-card');
             sections.forEach(section => section.classList.add('hidden'));
             
-            // Ordem de prioridade das páginas
-            const paginasPrioridade = [
-                { section: 'contas-receber', permission: 'lancamentos_view' },
-                { section: 'contas-pagar', permission: 'lancamentos_view' },
-                { section: 'clientes', permission: 'clientes_view' },
-                { section: 'fornecedores', permission: 'fornecedores_view' },
-                { section: 'fluxo-caixa', permission: 'relatorios_view' },
-                { section: 'contratos', permission: 'contratos_view' },
-                { section: 'agenda-fotografia', permission: 'agenda_view' },
-                { section: 'dashboard', permission: 'dashboard' }
-            ];
-            
-            // Encontrar primeira página com permissão
-            for (const pagina of paginasPrioridade) {
-                if (hasPermission(pagina.permission)) {
-                    const section = document.getElementById(pagina.section + '-section');
-                    if (section) {
-                        section.classList.remove('hidden');
-                        console.log(`✅ Página inicial carregada: ${pagina.section}`);
-                        return;
-                    }
-                }
-            }
-            
-            console.log('⚠️ Nenhuma página permitida encontrada');
-        }
-        
-        // Verificar usuário logado
-        async function checkUserAuth() {
-            try {
-                // Carregar permissões primeiro
-                const userData = await carregarPermissoesUsuario();
-                if (!userData) return;
-                
-                console.log('🔍 DEBUG - Resposta de /api/auth/verify:', userData);
-                console.log('🔍 DEBUG - userData.tipo:', userData.tipo);
-                console.log('🔍 DEBUG - userData.tipo === "admin":', userData.tipo === 'admin');
-                
-                // Atualizar informações do usuário no sidebar
-                document.getElementById('userNameSidebar').textContent = '👤 ' + (userData.nome_completo || userData.nome || 'Usuário');
-                document.getElementById('userTypeSidebar').textContent = userData.tipo === 'admin' ? 'Administrador' : 'Cliente';
-                
-                // Mostrar botão admin se for administrador
-                if (userData.tipo === 'admin') {
-                    console.log('✅ Usuário é ADMIN - mostrando botão Admin');
-                    const adminBtn = document.getElementById('adminBtn');
-                    
-                    console.log('🔍 adminBtn element:', adminBtn);
-                    
-                    if (adminBtn) {
-                        adminBtn.style.display = 'block';
-                        console.log('✅ adminBtn.style.display = block');
-                    } else {
-                        console.error('❌ adminBtn NÃO ENCONTRADO!');
-                    }
-                } else {
-                    console.log('❌ Usuário NÃO é admin - tipo:', userData.tipo);
-                }
-                
-                // Aplicar permissões ao menu
-                aplicarPermissoesMenu();
-                
-                // Carregar página inicial baseada em permissões
-                carregarPaginaInicial();
-                
-                console.log('✅ Usuário autenticado:', userData.nome_completo || userData.nome);
-            } catch (error) {
-                console.error('Erro ao verificar autenticação:', error);
-                window.location.href = '/login';
+            // Mostrar dashboard como padrão
+            const dashboardSection = document.getElementById('dashboard-section');
+            if (dashboardSection) {
+                dashboardSection.classList.remove('hidden');
+                console.log('✅ Dashboard carregado');
             }
         }
         
@@ -3588,385 +3443,6 @@
         }
         
         // ====================================
-        // DRAG AND DROP - MENU CUSTOMIZÁVEL
-        // ====================================
-        
-        let draggedElement = null;
-        let draggedMenuId = null;
-        let dragTimeout = null;
-        
-        /**
-         * Inicializa o sistema de Drag and Drop do menu
-         * Com tratamento robusto de erros e fallbacks
-         */
-        function initMenuDragAndDrop() {
-            try {
-                console.log('🔧 Inicializando Drag and Drop do menu...');
-                
-                // Carregar ordem salva do menu
-                loadMenuOrder();
-                
-                // Obter todos os botões com draggable
-                const menuButtons = document.querySelectorAll('.nav-button[draggable="true"]');
-                
-                if (!menuButtons || menuButtons.length === 0) {
-                    console.warn('⚠️ Nenhum botão draggable encontrado');
-                    return;
-                }
-                
-                // Adicionar event listeners
-                menuButtons.forEach(button => {
-                    if (!button) return;
-                    
-                    button.addEventListener('dragstart', handleDragStart);
-                    button.addEventListener('dragend', handleDragEnd);
-                    button.addEventListener('dragover', handleDragOver);
-                    button.addEventListener('drop', handleDrop);
-                    button.addEventListener('dragleave', handleDragLeave);
-                    button.addEventListener('dragenter', handleDragEnter);
-                });
-                
-                console.log(`✅ Drag and Drop inicializado para ${menuButtons.length} itens`);
-                
-            } catch (error) {
-                console.error('❌ Erro ao inicializar Drag and Drop:', error);
-            }
-        }
-        
-        /**
-         * Handler: Início do drag
-         */
-        function handleDragStart(e) {
-            try {
-                draggedElement = this;
-                draggedMenuId = this.getAttribute('data-menu-id');
-                
-                if (!draggedMenuId) {
-                    console.error('❌ Botão sem data-menu-id');
-                    e.preventDefault();
-                    return;
-                }
-                
-                this.classList.add('dragging');
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/html', draggedMenuId);
-                
-                console.log('🎯 Drag iniciado:', draggedMenuId);
-                
-            } catch (error) {
-                console.error('❌ Erro no dragstart:', error);
-                e.preventDefault();
-            }
-        }
-        
-        /**
-         * Handler: Fim do drag
-         */
-        function handleDragEnd(e) {
-            try {
-                this.classList.remove('dragging');
-                
-                // Limpar todas as classes drag-over
-                document.querySelectorAll('.nav-button').forEach(btn => {
-                    if (btn) btn.classList.remove('drag-over');
-                });
-                
-                console.log('✅ Drag finalizado');
-                
-            } catch (error) {
-                console.error('❌ Erro no dragend:', error);
-            }
-        }
-        
-        /**
-         * Handler: Elemento sobre área de drop
-         */
-        function handleDragOver(e) {
-            if (e.preventDefault) e.preventDefault();
-            
-            e.dataTransfer.dropEffect = 'move';
-            return false;
-        }
-        
-        /**
-         * Handler: Entra na área de drop
-         */
-        function handleDragEnter(e) {
-            try {
-                const targetMenuId = this.getAttribute('data-menu-id');
-                
-                if (targetMenuId && targetMenuId !== draggedMenuId) {
-                    this.classList.add('drag-over');
-                }
-                
-            } catch (error) {
-                console.error('❌ Erro no dragenter:', error);
-            }
-        }
-        
-        /**
-         * Handler: Sai da área de drop
-         */
-        function handleDragLeave(e) {
-            try {
-                this.classList.remove('drag-over');
-            } catch (error) {
-                console.error('❌ Erro no dragleave:', error);
-            }
-        }
-        
-        /**
-         * Handler: Soltar elemento
-         */
-        function handleDrop(e) {
-            try {
-                if (e.stopPropagation) e.stopPropagation();
-                if (e.preventDefault) e.preventDefault();
-                
-                const targetElement = this;
-                const targetMenuId = this.getAttribute('data-menu-id');
-                
-                this.classList.remove('drag-over');
-                
-                if (!draggedElement || !targetElement) {
-                    console.error('❌ Elementos inválidos no drop');
-                    return false;
-                }
-                
-                if (!targetMenuId || targetMenuId === draggedMenuId) {
-                    return false;
-                }
-                
-                console.log('📦 Drop:', draggedMenuId, '→', targetMenuId);
-                
-                // Reordenar elementos
-                if (reorderMenuItems(draggedElement, targetElement)) {
-                    // Salvar ordem (com debounce)
-                    clearTimeout(dragTimeout);
-                    dragTimeout = setTimeout(() => {
-                        saveMenuOrder();
-                    }, 500);
-                    
-                    showToast('Menu reordenado! ✨', 'success');
-                }
-                
-                return false;
-                
-            } catch (error) {
-                console.error('❌ Erro no drop:', error);
-                showToast('Erro ao reordenar menu', 'error');
-                return false;
-            }
-        }
-        
-        /**
-         * Reordena os itens do menu no DOM
-         * @returns {boolean} Sucesso da operação
-         */
-        function reorderMenuItems(draggedEl, targetEl) {
-            try {
-                if (!draggedEl || !targetEl) return false;
-                
-                const sidebar = document.querySelector('.sidebar');
-                if (!sidebar) {
-                    console.error('❌ Sidebar não encontrada');
-                    return false;
-                }
-                
-                // Pegar submenu do elemento arrastado (se existir)
-                const draggedSubmenu = draggedEl.nextElementSibling;
-                const draggedHasSubmenu = draggedSubmenu && draggedSubmenu.classList.contains('submenu');
-                
-                // Pegar submenu do elemento alvo (se existir)
-                const targetSubmenu = targetEl.nextElementSibling;
-                const targetHasSubmenu = targetSubmenu && targetSubmenu.classList.contains('submenu');
-                
-                console.log('🔄 Reordenando:', draggedEl.getAttribute('data-menu-id'), '→', targetEl.getAttribute('data-menu-id'));
-                
-                // Remover elementos do DOM temporariamente
-                const draggedParent = draggedEl.parentNode;
-                draggedEl.remove();
-                if (draggedHasSubmenu && draggedSubmenu) {
-                    draggedSubmenu.remove();
-                }
-                
-                // Determinar posição de inserção
-                const draggedIndex = Array.from(draggedParent.children).indexOf(targetEl);
-                const targetIndex = Array.from(sidebar.querySelectorAll('.nav-button')).indexOf(targetEl);
-                
-                // Inserir na nova posição
-                if (targetHasSubmenu && targetSubmenu) {
-                    targetSubmenu.after(draggedEl);
-                } else {
-                    targetEl.after(draggedEl);
-                }
-                
-                // Reinserir submenu logo após
-                if (draggedHasSubmenu && draggedSubmenu) {
-                    draggedEl.after(draggedSubmenu);
-                }
-                
-                // Reinicializar event listeners
-                initMenuDragAndDrop();
-                
-                return true;
-                
-            } catch (error) {
-                console.error('❌ Erro ao reordenar itens:', error);
-                return false;
-            }
-        }
-        
-        /**
-         * Salva a ordem atual do menu no servidor
-         */
-        async function saveMenuOrder() {
-            try {
-                // Coletar ordem atual
-                const menuButtons = document.querySelectorAll('.nav-button[data-menu-id]');
-                if (!menuButtons || menuButtons.length === 0) {
-                    console.warn('⚠️ Nenhum botão para salvar');
-                    return;
-                }
-                
-                const menuOrder = Array.from(menuButtons)
-                    .map(btn => btn.getAttribute('data-menu-id'))
-                    .filter(id => id); // Remover nulls
-                
-                if (menuOrder.length === 0) {
-                    console.warn('⚠️ Ordem vazia');
-                    return;
-                }
-                
-                console.log('💾 Salvando ordem do menu:', menuOrder);
-                
-                const response = await fetch('/api/preferencias/menu-order', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ menu_order: menuOrder })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    console.log('✅ Ordem salva com sucesso');
-                } else {
-                    throw new Error(result.error || 'Erro desconhecido');
-                }
-                
-            } catch (error) {
-                console.error('❌ Erro ao salvar ordem:', error);
-                showToast('Erro ao salvar ordem do menu', 'error');
-            }
-        }
-        
-        /**
-         * Carrega a ordem salva do menu do servidor
-         */
-        async function loadMenuOrder() {
-            try {
-                console.log('📥 Carregando ordem do menu...');
-                
-                const response = await fetch('/api/preferencias/menu-order', {
-                    method: 'GET',
-                    credentials: 'include'
-                });
-                
-                if (!response.ok) {
-                    console.warn('⚠️ Erro ao carregar ordem:', response.status);
-                    return;
-                }
-                
-                const result = await response.json();
-                
-                if (result.success && result.menu_order && Array.isArray(result.menu_order)) {
-                    console.log('📋 Ordem carregada:', result.menu_order);
-                    applyMenuOrder(result.menu_order);
-                } else {
-                    console.log('ℹ️ Usando ordem padrão do menu');
-                }
-                
-            } catch (error) {
-                console.error('❌ Erro ao carregar ordem:', error);
-                console.log('ℹ️ Usando ordem padrão do menu');
-            }
-        }
-        
-        /**
-         * Aplica a ordem do menu ao DOM
-         */
-        function applyMenuOrder(menuOrder) {
-            try {
-                if (!menuOrder || !Array.isArray(menuOrder) || menuOrder.length === 0) {
-                    return;
-                }
-                
-                const sidebar = document.querySelector('.sidebar');
-                if (!sidebar) {
-                    console.error('❌ Sidebar não encontrada');
-                    return;
-                }
-                
-                // Guardar referências importantes ANTES de modificar o DOM
-                const sidebarHeader = sidebar.querySelector('.sidebar-header');
-                const userInfo = sidebar.querySelector('.user-info');
-                
-                // Clonar elementos importantes para preservá-los
-                const headerClone = sidebarHeader ? sidebarHeader.cloneNode(true) : null;
-                const userInfoClone = userInfo ? userInfo.cloneNode(true) : null;
-                
-                // Coletar todos os botões e submenus
-                const items = new Map();
-                sidebar.querySelectorAll('.nav-button[data-menu-id]').forEach(button => {
-                    const menuId = button.getAttribute('data-menu-id');
-                    const submenu = button.nextElementSibling;
-                    const hasSubmenu = submenu && submenu.classList.contains('submenu');
-                    
-                    items.set(menuId, {
-                        button: button,
-                        submenu: hasSubmenu ? submenu : null
-                    });
-                });
-                
-                // Criar fragment para reordenar
-                const fragment = document.createDocumentFragment();
-                
-                // Adicionar itens na ordem especificada
-                menuOrder.forEach(menuId => {
-                    const item = items.get(menuId);
-                    if (item && item.button) {
-                        fragment.appendChild(item.button);
-                        if (item.submenu) {
-                            fragment.appendChild(item.submenu);
-                        }
-                    }
-                });
-                
-                // Limpar sidebar e reconstruir
-                sidebar.innerHTML = '';
-                
-                // Adicionar header e user info (clones)
-                if (headerClone) sidebar.appendChild(headerClone);
-                if (userInfoClone) sidebar.appendChild(userInfoClone);
-                
-                // Adicionar itens reordenados
-                sidebar.appendChild(fragment);
-                
-                console.log('✅ Ordem do menu aplicada');
-                
-            } catch (error) {
-                console.error('❌ Erro ao aplicar ordem:', error);
-            }
-        }
-        
-        // ====================================
         // INICIALIZAÇÃO
         // ====================================
         
@@ -3974,9 +3450,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Verificar autenticação primeiro
             checkUserAuth();
-            
-            // Inicializar Drag and Drop do menu
-            initMenuDragAndDrop();
             
             // Definir ano e mês atuais nos filtros do dashboard
             const hoje = new Date();
@@ -4638,11 +4111,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <script src="/static/app.js?v=20251207completo"></script>
-    <script src="/static/pdf_functions.js?v=20251206"></script>
-    <script src="/static/excel_functions.js?v=20251206"></script>
-    <script src="/static/analise_functions.js?v=20251206mini"></script>
-    <script src="/static/modals.js?v=20251204subcat1"></script>
+    <script src="/static/app.js?v=20250113nodrags"></script>
+    <script src="/static/pdf_functions.js?v=20250113"></script>
+    <script src="/static/excel_functions.js?v=20250113"></script>
+    <script src="/static/analise_functions.js?v=20250113"></script>
+    <script src="/static/modals.js?v=20250113"></script>
     <script>
         // Garantir que contas sejam carregadas ao abrir a seção
         setTimeout(() => {
