@@ -109,12 +109,18 @@ try:
     print("✅ DatabaseManager inicializado com sucesso!")
     print(f"   └─ Pool de conexões: 2-20 conexões simultâneas")
     
-    # Executar migração de preferências do usuário
+    # Executar migrações
     try:
-        from migration_user_preferences import executar_migracao
-        executar_migracao()
+        from migration_user_preferences import executar_migracao as migrar_user_preferences
+        migrar_user_preferences()
     except Exception as e:
         print(f"⚠️ Aviso: Não foi possível executar migração user_preferences: {e}")
+    
+    try:
+        from migration_add_proprietario_id import executar_migracao as migrar_proprietario_id
+        migrar_proprietario_id()
+    except Exception as e:
+        print(f"⚠️ Aviso: Não foi possível executar migração proprietario_id: {e}")
         
 except Exception as e:
     print(f"❌ ERRO CRÍTICO ao inicializar DatabaseManager: {e}")
