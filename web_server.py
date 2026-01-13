@@ -3733,22 +3733,13 @@ def listar_empresas_api():
     log("[listar_empresas_api] FUNCAO INICIADA")
     log(f"   Path: {request.path}")
     log(f"   Metodo: {request.method}")
-    log(f"   Session: {dict(session)}")
     log("="*80)
     
     try:
         log("GET /api/empresas - Iniciando processamento...")
         
-        usuario_id = session.get('usuario_id')
-        log(f"   usuario_id da sessao: {usuario_id}")
-        
-        usuario = auth_db.obter_usuario(usuario_id)
-        log(f"   Usuario retornado: {usuario}")
-        
-        if not usuario:
-            log("   Erro: usuario nao encontrado")
-            return jsonify({'error': 'Usuario nao encontrado'}), 404
-        
+        # Usa get_usuario_logado() para pegar usuario do token
+        usuario = get_usuario_logado()
         log(f"   Usuario autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
         # Apenas admin do sistema pode listar todas empresas
@@ -3792,7 +3783,7 @@ def obter_empresa_api(empresa_id):
     """Obtém dados de uma empresa específica"""
     print(f"\n🏬 [obter_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
     try:
-        usuario = auth_db.obter_usuario(session.get('usuario_id'))
+        usuario = get_usuario_logado()
         
         # Admin pode ver qualquer empresa, usuário comum só a própria
         if usuario['tipo'] != 'admin':
@@ -3826,7 +3817,7 @@ def criar_empresa_api():
     """Cria uma nova empresa (apenas super admin)"""
     print(f"\n➕ [criar_empresa_api] FUNÇÃO CHAMADA")
     try:
-        usuario = auth_db.obter_usuario(session.get('usuario_id'))
+        usuario = get_usuario_logado()
         
         if usuario['tipo'] != 'admin':
             return jsonify({'error': 'Acesso negado'}), 403
@@ -3867,7 +3858,7 @@ def atualizar_empresa_api(empresa_id):
     """Atualiza dados de uma empresa"""
     print(f"\n✏️ [atualizar_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
     try:
-        usuario = auth_db.obter_usuario(session.get('usuario_id'))
+        usuario = get_usuario_logado()
         
         # Admin pode editar qualquer empresa
         # Usuário comum não pode editar
@@ -3910,7 +3901,7 @@ def suspender_empresa_api(empresa_id):
     """Suspende uma empresa"""
     print(f"\n⏸️ [suspender_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
     try:
-        usuario = auth_db.obter_usuario(session.get('usuario_id'))
+        usuario = get_usuario_logado()
         
         if usuario['tipo'] != 'admin':
             return jsonify({'error': 'Acesso negado'}), 403
@@ -3949,7 +3940,7 @@ def reativar_empresa_api(empresa_id):
     """Reativa uma empresa suspensa"""
     print(f"\n▶️ [reativar_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
     try:
-        usuario = auth_db.obter_usuario(session.get('usuario_id'))
+        usuario = get_usuario_logado()
         
         if usuario['tipo'] != 'admin':
             return jsonify({'error': 'Acesso negado'}), 403
@@ -3985,7 +3976,7 @@ def deletar_empresa_api(empresa_id):
     """Deleta uma empresa (apenas admin e se não tiver usuários vinculados)"""
     print(f"\n❌ [deletar_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
     try:
-        usuario = auth_db.obter_usuario(session.get('usuario_id'))
+        usuario = get_usuario_logado()
         
         if usuario['tipo'] != 'admin':
             return jsonify({'error': 'Acesso negado'}), 403
