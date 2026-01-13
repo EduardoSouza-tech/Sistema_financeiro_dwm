@@ -1271,7 +1271,7 @@
             <div class="sidebar-header">💰 Sistema Financeiro</div>
             
             <!-- User Info Header -->
-            <div style="padding: 15px 20px; border-bottom: 1px solid #34495e; margin-bottom: 15px;">
+            <div class="user-info" style="padding: 15px 20px; border-bottom: 1px solid #34495e; margin-bottom: 15px;">
                 <div style="color: #fff; font-size: 14px; margin-bottom: 8px;">
                     <strong id="userNameSidebar">👤 Carregando...</strong>
                 </div>
@@ -3914,9 +3914,13 @@
                     return;
                 }
                 
-                // Guardar referências importantes
+                // Guardar referências importantes ANTES de modificar o DOM
                 const sidebarHeader = sidebar.querySelector('.sidebar-header');
                 const userInfo = sidebar.querySelector('.user-info');
+                
+                // Clonar elementos importantes para preservá-los
+                const headerClone = sidebarHeader ? sidebarHeader.cloneNode(true) : null;
+                const userInfoClone = userInfo ? userInfo.cloneNode(true) : null;
                 
                 // Coletar todos os botões e submenus
                 const items = new Map();
@@ -3948,9 +3952,9 @@
                 // Limpar sidebar e reconstruir
                 sidebar.innerHTML = '';
                 
-                // Adicionar header e user info
-                if (sidebarHeader) sidebar.appendChild(sidebarHeader);
-                if (userInfo) sidebar.appendChild(userInfo);
+                // Adicionar header e user info (clones)
+                if (headerClone) sidebar.appendChild(headerClone);
+                if (userInfoClone) sidebar.appendChild(userInfoClone);
                 
                 // Adicionar itens reordenados
                 sidebar.appendChild(fragment);
