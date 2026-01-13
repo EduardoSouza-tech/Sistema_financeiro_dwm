@@ -108,6 +108,14 @@ try:
     db = DatabaseManager()
     print("✅ DatabaseManager inicializado com sucesso!")
     print(f"   └─ Pool de conexões: 2-20 conexões simultâneas")
+    
+    # Executar migração de preferências do usuário
+    try:
+        from migration_user_preferences import executar_migracao
+        executar_migracao()
+    except Exception as e:
+        print(f"⚠️ Aviso: Não foi possível executar migração user_preferences: {e}")
+        
 except Exception as e:
     print(f"❌ ERRO CRÍTICO ao inicializar DatabaseManager: {e}")
     import traceback

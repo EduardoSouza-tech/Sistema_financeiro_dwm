@@ -3945,3 +3945,188 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
         return_to_pool(conn)
 
 
+# ========================================
+# FUNÇÕES DE PREFERÊNCIAS DO USUÁRIO
+# ========================================
+
+def salvar_preferencia_usuario(usuario_id, chave, valor):
+    """
+    Salva ou atualiza uma preferência do usuário.
+    
+    Args:
+        usuario_id: ID do usuário
+        chave: Chave da preferência (ex: 'menu_order')
+        valor: Valor da preferência (será convertido para JSON se não for string)
+    
+    Returns:
+        bool: True se salvo com sucesso, False caso contrário
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Converter valor para JSON se não for string
+        if not isinstance(valor, str):
+            import json
+            valor = json.dumps(valor)
+        
+        # INSERT ... ON CONFLICT UPDATE (upsert)
+        cursor.execute("""
+            INSERT INTO user_preferences (usuario_id, preferencia_chave, preferencia_valor, updated_at)
+            VALUES (%s, %s, %s, NOW())
+            ON CONFLICT (usuario_id, preferencia_chave)
+            DO UPDATE SET
+                preferencia_valor = EXCLUDED.preferencia_valor,
+                updated_at = NOW()
+        """, (usuario_id, chave, valor))
+        
+        conn.commit()
+        print(f"✅ Preferência salva: usuario={usuario_id}, chave={chave}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Erro ao salvar preferência: {e}")
+        if conn:
+            conn.rollback()
+        import traceback
+        traceback.print_exc()
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+
+def obter_preferencia_usuario(usuario_id, chave, padrao=None):
+    """
+    Obtém uma preferência do usuário.
+    
+    Args:
+        usuario_id: ID do usuário
+        chave: Chave da preferência
+        padrao: Valor padrão se não encontrado
+    
+    Returns:
+        str|None: Valor da preferência ou valor padrão
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT preferencia_valor
+            FROM user_preferences
+            WHERE usuario_id = %s AND preferencia_chave = %s
+        """, (usuario_id, chave))
+        
+        resultado = cursor.fetchone()
+        
+        if resultado:
+            return resultado[0]
+        return padrao
+        
+    except Exception as e:
+        print(f"❌ Erro ao obter preferência: {e}")
+        import traceback
+        traceback.print_exc()
+        return padrao
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+
+def listar_preferencias_usuario(usuario_id):
+    """
+    Lista todas as preferências de um usuário.
+    
+    Args:
+        usuario_id: ID do usuário
+    
+    Returns:
+        dict: Dicionário com chave -> valor
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT preferencia_chave, preferencia_valor
+            FROM user_preferences
+            WHERE usuario_id = %s
+        """, (usuario_id,))
+        
+        resultados = cursor.fetchall()
+        
+        # Converter para dicionário
+        preferencias = {}
+        for chave, valor in resultados:
+            preferencias[chave] = valor
+        
+        return preferencias
+        
+    except Exception as e:
+        print(f"❌ Erro ao listar preferências: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+
+def deletar_preferencia_usuario(usuario_id, chave):
+    """
+    Deleta uma preferência do usuário.
+    
+    Args:
+        usuario_id: ID do usuário
+        chave: Chave da preferência a deletar
+    
+    Returns:
+        bool: True se deletado com sucesso, False caso contrário
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            DELETE FROM user_preferences
+            WHERE usuario_id = %s AND preferencia_chave = %s
+        """, (usuario_id, chave))
+        
+        conn.commit()
+        
+        if cursor.rowcount > 0:
+            print(f"✅ Preferência deletada: usuario={usuario_id}, chave={chave}")
+            return True
+        else:
+            print(f"⚠️ Preferência não encontrada: usuario={usuario_id}, chave={chave}")
+            return False
+        
+    except Exception as e:
+        print(f"❌ Erro ao deletar preferência: {e}")
+        if conn:
+            conn.rollback()
+        import traceback
+        traceback.print_exc()
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+
