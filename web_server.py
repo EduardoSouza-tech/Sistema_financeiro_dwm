@@ -8,10 +8,15 @@ from functools import wraps
 import os
 import sys
 
-# Forçar saída imediata de logs (importante para Railway/gunicorn)
+# Forcar saida imediata de logs (importante para Railway/gunicorn)
 def log(msg):
-    """Print que força flush imediato"""
+    """Print que forca flush imediato"""
     print(msg, file=sys.stderr, flush=True)
+
+# Teste imediato da funcao log
+log("="*80)
+log("TESTE: Funcao log() carregada e funcionando!")
+log("="*80)
 
 # Importação opcional do flask-limiter (para compatibilidade durante deploy)
 try:
@@ -163,20 +168,10 @@ print("="*70 + "\n")
 try:
     print("🔄 Inicializando DatabaseManager com pool de conexões...")
     db = DatabaseManager()
-    print("✅ DatabaseManager inicializado com sucesso!")
-    print(f"   └─ Pool de conexões: 2-20 conexões simultâneas")
+    print("DatabaseManager inicializado com sucesso!")
+    print(f"   Pool de conexoes: 2-20 conexoes simultaneas")
     
-    # LISTAR ROTAS REGISTRADAS (NÍVEL DE MÓDULO - SEMPRE EXECUTA)
-    print("\n" + "="*80)
-    print("🔍 ROTAS REGISTRADAS NO FLASK (NÍVEL DE MÓDULO):")
-    print("="*80)
-    for rule in app.url_map.iter_rules():
-        if 'api' in rule.rule:
-            methods = ', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))
-            print(f"   • {rule.rule:<50} [{methods}]")
-    print("="*80 + "\n")
-    
-    # Executar migrações
+    # Executar migracoes
     try:
         from migration_user_preferences import executar_migracao as migrar_user_preferences
         migrar_user_preferences()
@@ -4054,6 +4049,19 @@ def estatisticas_empresa_api(empresa_id):
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# LISTAR ROTAS (NIVEL DE MODULO - EXECUTA SEMPRE)
+# ============================================================================
+log("="*80)
+log("ROTAS REGISTRADAS:")
+log("="*80)
+for rule in app.url_map.iter_rules():
+    if 'api' in rule.rule and 'static' not in rule.rule:
+        methods = ', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))
+        log(f"  {rule.rule:<45} [{methods}]")
+log("="*80)
 
 
 if __name__ == '__main__':
