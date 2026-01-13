@@ -46,6 +46,7 @@ async function carregarPermissoesUsuario() {
         userPermissions = data.usuario?.permissoes || [];
         
         const nomeUsuario = data.usuario?.nome_completo || data.usuario?.username || 'Usuário';
+        const tipoUsuario = data.usuario?.tipo === 'admin' ? 'Administrador' : 'Cliente';
         
         console.log('✅ [DEBUG] Permissões carregadas:', userPermissions);
         console.log('👤 [DEBUG] Admin:', isAdmin);
@@ -53,6 +54,27 @@ async function carregarPermissoesUsuario() {
         console.log('🔑 [DEBUG] Tipo de usuário:', data.usuario?.tipo);
         console.log('👤 [DEBUG] Nome do usuário:', nomeUsuario);
         console.log('👤 [DEBUG] Username:', data.usuario?.username);
+        
+        // Atualizar informações do usuário no sidebar
+        const userNameEl = document.getElementById('userNameSidebar');
+        const userTypeEl = document.getElementById('userTypeSidebar');
+        const adminBtn = document.getElementById('adminBtn');
+        
+        if (userNameEl) {
+            userNameEl.textContent = '👤 ' + nomeUsuario;
+            console.log('✅ [DEBUG] Nome do usuário atualizado no sidebar');
+        }
+        
+        if (userTypeEl) {
+            userTypeEl.textContent = tipoUsuario;
+            console.log('✅ [DEBUG] Tipo do usuário atualizado no sidebar');
+        }
+        
+        // Mostrar botão admin se for administrador
+        if (isAdmin && adminBtn) {
+            adminBtn.style.display = 'block';
+            console.log('✅ [DEBUG] Botão Admin visível');
+        }
         
         // Aplicar permissões ao menu
         aplicarPermissoesMenu();
