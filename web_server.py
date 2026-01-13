@@ -92,6 +92,46 @@ else:
     print("⚠️ Rate Limiting desabilitado (flask-limiter não instalado)")
 
 # ============================================================================
+# MANIPULADORES DE ERRO GLOBAIS
+# ============================================================================
+
+@app.before_request
+def log_request():
+    """Log de todas as requisições HTTP"""
+    print(f"\n🌐 [{request.method}] {request.path}")
+    if request.args:
+        print(f"   Query params: {dict(request.args)}")
+
+@app.errorhandler(500)
+def handle_500_error(e):
+    """Captura erros 500 e loga detalhes"""
+    print("\n" + "="*80)
+    print("❌ ERRO 500 CAPTURADO")
+    print("="*80)
+    print(f"Rota: {request.path}")
+    print(f"Método: {request.method}")
+    print(f"Erro: {str(e)}")
+    import traceback
+    traceback.print_exc()
+    print("="*80 + "\n")
+    return jsonify({'error': 'Erro interno do servidor', 'details': str(e)}), 500
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Captura TODAS as exceções não tratadas"""
+    print("\n" + "="*80)
+    print("💥 EXCEÇÃO NÃO TRATADA")
+    print("="*80)
+    print(f"Rota: {request.path}")
+    print(f"Método: {request.method}")
+    print(f"Tipo: {type(e).__name__}")
+    print(f"Mensagem: {str(e)}")
+    import traceback
+    traceback.print_exc()
+    print("="*80 + "\n")
+    return jsonify({'error': 'Erro interno', 'type': type(e).__name__, 'message': str(e)}), 500
+
+# ============================================================================
 # CONFIGURAÇÃO E INICIALIZAÇÃO DO SISTEMA
 # ============================================================================
 print("\n" + "="*70)
@@ -3660,13 +3700,17 @@ def salvar_ordem_menu():
 @require_auth
 def listar_empresas_api():
     """Lista todas as empresas (apenas super admin)"""
-    print(f"🚀 [listar_empresas_api] FUNÇÃO CHAMADA - request.path: {request.path}")
+    print("\n" + "="*80)
+    print("🚀 [listar_empresas_api] FUNÇÃO INICIADA")
+    print(f"   Path: {request.path}")
+    print(f"   Método: {request.method}")
+    print(f"   Session: {dict(session)}")
+    print("="*80)
+    
     try:
-        print("\n" + "="*80)
-        print("🔍 GET /api/empresas - Listando empresas...")
-        print("="*80)
+        print("🔍 GET /api/empresas - Iniciando processamento...")
         
-        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        usuario = auth_db.obter_usuario(session.get('usuario_id'))
         print(f"   ✅ Usuário autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
         # Apenas admin do sistema pode listar todas empresas
@@ -3710,7 +3754,7 @@ def listar_empresas_api():
 def obter_empresa_api(empresa_id):
     """Obtém dados de uma empresa específica"""
     try:
-        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
         # Admin pode ver qualquer empresa, usuário comum só a própria
         if usuario['tipo'] != 'admin':
@@ -3743,7 +3787,7 @@ def obter_empresa_api(empresa_id):
 def criar_empresa_api():
     """Cria uma nova empresa (apenas super admin)"""
     try:
-        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
         if usuario['tipo'] != 'admin':
             return jsonify({'error': 'Acesso negado'}), 403
@@ -3783,7 +3827,7 @@ def criar_empresa_api():
 def atualizar_empresa_api(empresa_id):
     """Atualiza dados de uma empresa"""
     try:
-        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
         # Admin pode editar qualquer empresa
         # Usuário comum não pode editar
@@ -3825,7 +3869,7 @@ def atualizar_empresa_api(empresa_id):
 def suspender_empresa_api(empresa_id):
     """Suspende uma empresa"""
     try:
-        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
         if usuario['tipo'] != 'admin':
             return jsonify({'error': 'Acesso negado'}), 403
@@ -3863,7 +3907,7 @@ def suspender_empresa_api(empresa_id):
 def reativar_empresa_api(empresa_id):
     """Reativa uma empresa suspensa"""
     try:
-        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
         if usuario['tipo'] != 'admin':
             return jsonify({'error': 'Acesso negado'}), 403
@@ -3898,7 +3942,7 @@ def reativar_empresa_api(empresa_id):
 def deletar_empresa_api(empresa_id):
     """Deleta uma empresa (apenas admin e se não tiver usuários vinculados)"""
     try:
-        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
         if usuario['tipo'] != 'admin':
             return jsonify({'error': 'Acesso negado'}), 403
@@ -3950,7 +3994,7 @@ def deletar_empresa_api(empresa_id):
 def estatisticas_empresa_api(empresa_id):
     """Obtém estatísticas de uma empresa"""
     try:
-        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
         # Verificar acesso
         if usuario['tipo'] != 'admin':

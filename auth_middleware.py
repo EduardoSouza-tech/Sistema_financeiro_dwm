@@ -21,13 +21,22 @@ def get_usuario_logado():
     """
     Retorna dados do usuário logado via session token
     """
-    token = session.get('session_token')
-    
-    if not token:
+    try:
+        token = session.get('session_token')
+        
+        if not token:
+            print("⚠️ [get_usuario_logado] Sem token na sessão")
+            return None
+        
+        print(f"🔍 [get_usuario_logado] Validando token: {token[:20]}...")
+        usuario = auth_db.validar_sessao(token)
+        print(f"✅ [get_usuario_logado] Usuário validado: {usuario.get('username') if usuario else 'None'}")
+        return usuario
+    except Exception as e:
+        print(f"❌ [get_usuario_logado] Erro: {e}")
+        import traceback
+        traceback.print_exc()
         return None
-    
-    usuario = auth_db.validar_sessao(token)
-    return usuario
 
 
 def require_auth(f):
@@ -37,20 +46,28 @@ def require_auth(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        print(f"🔐 [require_auth] Verificando autenticação para: {request.path}")
-        usuario = get_usuario_logado()
-        print(f"🔐 [require_auth] Usuário obtido: {usuario.get('username') if usuario else 'None'}")
-        
-        if not usuario:
-            return jsonify({
-                'success': False,
-                'error': 'Não autenticado',
-                'redirect': '/login'
-            }), 401
-        
-        # Adicionar dados do usuário ao request
-        request.usuario = usuario
-        return f(*args, **kwargs)
+        try:
+            print(f"🔐 [require_auth] Verificando autenticação para: {request.path}")
+            usuario = get_usuario_logado()
+            print(f"🔐 [require_auth] Usuário obtido: {usuario.get('username') if usuario else 'None'}")
+            
+            if not usuario:
+                print("⚠️ [require_auth] Acesso negado - sem usuário")
+                return jsonify({
+                    'success': False,
+                    'error': 'Não autenticado',
+                    'redirect': '/login'
+                }), 401
+            
+            # Adicionar dados do usuário ao request
+            request.usuario = usuario
+            print(f"✅ [require_auth] Autenticação OK - Chamando {f.__name__}")
+            return f(*args, **kwargs)
+        except Exception as e:
+            print(f"❌ [require_auth] EXCEÇÃO: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': 'Erro de autenticação', 'details': str(e)}), 500
     
     return decorated_function
 
