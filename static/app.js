@@ -28,6 +28,7 @@ console.log('%c 🔍 Iniciando carregamento de funções... ', 'background: #FF9
 // ============================================================================
 let userPermissions = [];
 let isAdmin = false;
+window.currentEmpresaId = null; // Tornar global para acesso de modals.js
 
 async function carregarPermissoesUsuario() {
     try {
@@ -44,6 +45,9 @@ async function carregarPermissoesUsuario() {
         const data = await response.json();
         isAdmin = data.usuario?.tipo === 'admin';
         userPermissions = data.usuario?.permissoes || [];
+        window.currentEmpresaId = data.usuario?.empresa_id || null;
+        
+        console.log('🏢 [DEBUG] Empresa ID:', window.currentEmpresaId);
         
         const nomeUsuario = data.usuario?.nome_completo || data.usuario?.username || 'Usuário';
         const tipoUsuario = data.usuario?.tipo === 'admin' ? 'Administrador' : 'Cliente';

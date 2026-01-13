@@ -186,7 +186,8 @@ async function salvarReceita(event) {
         observacoes: document.getElementById('receita-observacoes').value,
         conta_bancaria: '',
         status: 'pendente',
-        parcelas: isEdicao ? 1 : parcelas  // Não parcelar em edição
+        parcelas: isEdicao ? 1 : parcelas,  // Não parcelar em edição
+        empresa_id: window.currentEmpresaId
     };
     
     console.log(isEdicao ? '=== Atualizando Receita ===' : '=== Criando Nova Receita ===');
@@ -409,7 +410,8 @@ async function salvarDespesa(event) {
         observacoes: document.getElementById('despesa-observacoes').value,
         conta_bancaria: '',
         status: 'pendente',
-        parcelas: isEdicao ? 1 : parcelas  // Não parcelar em edição
+        parcelas: isEdicao ? 1 : parcelas,  // Não parcelar em edição
+        empresa_id: window.currentEmpresaId
     };
     
     console.log(isEdicao ? '=== Atualizando Despesa ===' : '=== Criando Nova Despesa ===');
@@ -564,7 +566,8 @@ async function salvarConta(event) {
         banco: banco,
         agencia: agencia,
         conta: conta,
-        saldo_inicial: saldoInicial
+        saldo_inicial: saldoInicial,
+        empresa_id: window.currentEmpresaId
     };
     
     console.log('=== Salvando Conta ===');
@@ -657,7 +660,8 @@ async function salvarCategoria(event) {
     const data = {
         nome: nomeInput,
         tipo: document.getElementById('categoria-tipo').value,
-        subcategorias: subcategorias
+        subcategorias: subcategorias,
+        empresa_id: window.currentEmpresaId
     };
     
     console.log('=== Salvando Categoria ===');
@@ -902,7 +906,8 @@ async function salvarCliente(event) {
         contato: document.getElementById('cliente-telefone').value,
         email: document.getElementById('cliente-email').value.toLowerCase(),
         endereco: `${document.getElementById('cliente-rua').value}, ${document.getElementById('cliente-numero').value}`,
-        documento: document.getElementById('cliente-cnpj').value
+        documento: document.getElementById('cliente-cnpj').value,
+        empresa_id: window.currentEmpresaId
     };
     
     console.log('=== Salvando Cliente ===');
@@ -1138,7 +1143,8 @@ async function salvarFornecedor(event) {
         contato: document.getElementById('fornecedor-telefone').value,
         email: document.getElementById('fornecedor-email').value.toLowerCase(),
         endereco: `${document.getElementById('fornecedor-rua').value}, ${document.getElementById('fornecedor-numero').value}`,
-        documento: document.getElementById('fornecedor-cnpj').value
+        documento: document.getElementById('fornecedor-cnpj').value,
+        empresa_id: window.currentEmpresaId
     };
     
     console.log('=== Salvando Fornecedor ===');
@@ -1332,7 +1338,8 @@ async function salvarTransferencia() {
         conta_destino: destino,
         valor: valor,
         data: data,
-        descricao: observacoes || `Transferência de ${origem} para ${destino}`
+        descricao: observacoes || `Transferência de ${origem} para ${destino}`,
+        empresa_id: window.currentEmpresaId
     };
     
     console.log('Dados da transferência:', dados);
@@ -1640,3 +1647,4 @@ window.buscarDadosCNPJ = buscarDadosCNPJ;
 window.buscarDadosCNPJFornecedor = buscarDadosCNPJFornecedor;
 
 console.log('✓ Modals.js v20251204lancamentos5 carregado com sucesso');
+
