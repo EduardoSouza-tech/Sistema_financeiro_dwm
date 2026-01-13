@@ -92,13 +92,13 @@
 
         .nav-button {
             width: 100%;
-            padding: 15px 25px 15px 35px;
+            padding: 15px 25px;
             background: transparent;
             border: none;
             color: white;
             text-align: left;
             font-size: 15px;
-            cursor: move;
+            cursor: pointer;
             transition: all 0.2s ease;
             display: flex;
             align-items: center;
@@ -107,24 +107,8 @@
             user-select: none;
         }
 
-        .nav-button::before {
-            content: '⋮⋮';
-            position: absolute;
-            left: 10px;
-            color: rgba(255, 255, 255, 0.3);
-            font-size: 14px;
-            line-height: 1;
-            letter-spacing: -1px;
-            transition: color 0.2s;
-        }
-
         .nav-button:hover {
             background: #34495e;
-            padding-left: 40px;
-        }
-
-        .nav-button:hover::before {
-            color: rgba(255, 255, 255, 0.6);
         }
 
         .nav-button.active {
