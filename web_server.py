@@ -102,6 +102,17 @@ def log_request():
     if request.args:
         print(f"   Query params: {dict(request.args)}")
 
+@app.errorhandler(404)
+def handle_404_error(e):
+    """Captura erros 404 e loga detalhes"""
+    print("\n" + "="*80)
+    print("⚠️ ERRO 404 - ROTA NÃO ENCONTRADA")
+    print("="*80)
+    print(f"Rota solicitada: {request.path}")
+    print(f"Método: {request.method}")
+    print("="*80 + "\n")
+    return jsonify({'error': 'Rota não encontrada', 'path': request.path}), 404
+
 @app.errorhandler(500)
 def handle_500_error(e):
     """Captura erros 500 e loga detalhes"""
@@ -148,6 +159,16 @@ try:
     db = DatabaseManager()
     print("✅ DatabaseManager inicializado com sucesso!")
     print(f"   └─ Pool de conexões: 2-20 conexões simultâneas")
+    
+    # LISTAR ROTAS REGISTRADAS (NÍVEL DE MÓDULO - SEMPRE EXECUTA)
+    print("\n" + "="*80)
+    print("🔍 ROTAS REGISTRADAS NO FLASK (NÍVEL DE MÓDULO):")
+    print("="*80)
+    for rule in app.url_map.iter_rules():
+        if 'api' in rule.rule:
+            methods = ', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))
+            print(f"   • {rule.rule:<50} [{methods}]")
+    print("="*80 + "\n")
     
     # Executar migrações
     try:
@@ -520,10 +541,14 @@ def gerenciar_usuarios():
 @require_admin
 def gerenciar_usuario_especifico(usuario_id):
     """Obter, atualizar ou deletar usuário específico"""
+    print(f"\n👤 [gerenciar_usuario_especifico] FUNÇÃO CHAMADA - ID: {usuario_id}, Método: {request.method}")
     if request.method == 'GET':
         try:
+            print(f"   🔍 Buscando usuário ID {usuario_id}...")
             usuario = auth_db.obter_usuario(usuario_id)
+            print(f"   📊 Resultado: {usuario if usuario else 'NÃO ENCONTRADO'}")
             if not usuario:
+                print(f"   ❌ Usuário {usuario_id} não encontrado")
                 return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
             
             # Incluir permissões

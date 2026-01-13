@@ -3459,20 +3459,31 @@ def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
 
 def obter_usuario(usuario_id: int) -> Optional[Dict]:
     """Obtém dados de um usuário específico"""
+    print(f"\n🔍 [obter_usuario] Buscando usuário ID: {usuario_id}")
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
     try:
-        cursor.execute("""
+        query = """
             SELECT u.id, u.username, u.tipo, u.nome_completo, u.email, 
-                   u.cliente_id, u.ativo, u.created_at,
+                   u.cliente_id, u.ativo, u.created_at, u.empresa_id,
                    c.nome as cliente_nome
             FROM usuarios u
             LEFT JOIN clientes c ON u.cliente_id = c.id
             WHERE u.id = %s
-        """, (usuario_id,))
-        return cursor.fetchone()
+        """
+        print(f"   📝 Query: {query}")
+        print(f"   🔢 Parâmetro: usuario_id={usuario_id}")
+        cursor.execute(query, (usuario_id,))
+        resultado = cursor.fetchone()
+        print(f"   ✅ Resultado: {resultado if resultado else '❌ NENHUM REGISTRO ENCONTRADO'}")
+        return resultado
+    except Exception as e:
+        print(f"   ❌ Erro ao buscar usuário: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
     finally:
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
