@@ -4179,79 +4179,71 @@ def criar_empresa(dados):
     Returns:
         dict: {'success': True, 'empresa_id': id} ou {'success': False, 'error': msg}
     """
-    conn = None
-    cursor = None
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Validar campos obrigati?rios
-        if not dados.get('razao_social'):
-            return {'success': False, 'error': 'Razi?o social i? obrigati?ria'}
-        
-        if not dados.get('email'):
-            return {'success': False, 'error': 'Email i? obrigati?rio'}
-        
-        # Verificar se email ji? existe
-        cursor.execute("SELECT id FROM empresas WHERE email = %s", (dados['email'],))
-        if cursor.fetchone():
-            return {'success': False, 'error': 'Email ji? cadastrado'}
-        
-        # Verificar se CNPJ ji? existe (se fornecido)
-        if dados.get('cnpj'):
-            cursor.execute("SELECT id FROM empresas WHERE cnpj = %s", (dados['cnpj'],))
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Validar campos obrigati?rios
+            if not dados.get('razao_social'):
+                return {'success': False, 'error': 'Razi?o social i? obrigati?ria'}
+            
+            if not dados.get('email'):
+                return {'success': False, 'error': 'Email i? obrigati?rio'}
+            
+            # Verificar se email ji? existe
+            cursor.execute("SELECT id FROM empresas WHERE email = %s", (dados['email'],))
             if cursor.fetchone():
-                return {'success': False, 'error': 'CNPJ ji? cadastrado'}
-        
-        # Inserir empresa
-        cursor.execute("""
-            INSERT INTO empresas (
-                razao_social, nome_fantasia, cnpj, email, telefone, whatsapp,
-                endereco, cidade, estado, cep, plano, 
-                max_usuarios, max_clientes, max_lancamentos_mes, espaco_storage_mb,
-                observacoes, ativo
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-            )
-            RETURNING id
-        """, (
-            dados['razao_social'],
-            dados.get('nome_fantasia'),
-            dados.get('cnpj'),
-            dados['email'],
-            dados.get('telefone'),
-            dados.get('whatsapp'),
-            dados.get('endereco'),
-            dados.get('cidade'),
-            dados.get('estado'),
-            dados.get('cep'),
-            dados.get('plano', 'basico'),
-            dados.get('max_usuarios', 5),
-            dados.get('max_clientes', 100),
-            dados.get('max_lancamentos_mes', 500),
-            dados.get('espaco_storage_mb', 1024),
-            dados.get('observacoes'),
-            dados.get('ativo', True)
-        ))
-        
-        empresa_id = cursor.fetchone()[0]
-        conn.commit()
-        
-        print(f"? Empresa criada: ID={empresa_id}, Razi?o Social={dados['razao_social']}")
-        return {'success': True, 'empresa_id': empresa_id}
+                return {'success': False, 'error': 'Email ji? cadastrado'}
+            
+            # Verificar se CNPJ ji? existe (se fornecido)
+            if dados.get('cnpj'):
+                cursor.execute("SELECT id FROM empresas WHERE cnpj = %s", (dados['cnpj'],))
+                if cursor.fetchone():
+                    return {'success': False, 'error': 'CNPJ ji? cadastrado'}
+            
+            # Inserir empresa
+            cursor.execute("""
+                INSERT INTO empresas (
+                    razao_social, nome_fantasia, cnpj, email, telefone, whatsapp,
+                    endereco, cidade, estado, cep, plano, 
+                    max_usuarios, max_clientes, max_lancamentos_mes, espaco_storage_mb,
+                    observacoes, ativo
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
+                RETURNING id
+            """, (
+                dados['razao_social'],
+                dados.get('nome_fantasia'),
+                dados.get('cnpj'),
+                dados['email'],
+                dados.get('telefone'),
+                dados.get('whatsapp'),
+                dados.get('endereco'),
+                dados.get('cidade'),
+                dados.get('estado'),
+                dados.get('cep'),
+                dados.get('plano', 'basico'),
+                dados.get('max_usuarios', 5),
+                dados.get('max_clientes', 100),
+                dados.get('max_lancamentos_mes', 500),
+                dados.get('espaco_storage_mb', 1024),
+                dados.get('observacoes'),
+                dados.get('ativo', True)
+            ))
+            
+            empresa_id = cursor.fetchone()[0]
+            conn.commit()
+            cursor.close()
+            
+            log(f"Empresa criada: ID={empresa_id}, Razao Social={dados['razao_social']}")
+            return {'success': True, 'empresa_id': empresa_id}
         
     except Exception as e:
-        print(f"? Erro ao criar empresa: {e}")
-        if conn:
-            conn.rollback()
+        log(f"Erro ao criar empresa: {e}")
         import traceback
-        traceback.print_exc()
+        traceback.print_exc(file=sys.stderr)
         return {'success': False, 'error': str(e)}
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            return_to_pool(conn)
 
 
 def atualizar_empresa(empresa_id, dados):
@@ -4265,60 +4257,52 @@ def atualizar_empresa(empresa_id, dados):
     Returns:
         dict: {'success': True/False, 'error': msg}
     """
-    conn = None
-    cursor = None
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Verificar se empresa existe
-        cursor.execute("SELECT id FROM empresas WHERE id = %s", (empresa_id,))
-        if not cursor.fetchone():
-            return {'success': False, 'error': 'Empresa ni?o encontrada'}
-        
-        # Construir query de update dinamicamente
-        campos_atualizacao = []
-        valores = []
-        
-        campos_permitidos = [
-            'razao_social', 'nome_fantasia', 'cnpj', 'email', 'telefone', 'whatsapp',
-            'endereco', 'cidade', 'estado', 'cep', 'plano',
-            'max_usuarios', 'max_clientes', 'max_lancamentos_mes', 'espaco_storage_mb',
-            'observacoes', 'ativo'
-        ]
-        
-        for campo in campos_permitidos:
-            if campo in dados:
-                campos_atualizacao.append(f"{campo} = %s")
-                valores.append(dados[campo])
-        
-        if not campos_atualizacao:
-            return {'success': False, 'error': 'Nenhum campo para atualizar'}
-        
-        # Adicionar updated_at
-        campos_atualizacao.append("updated_at = NOW()")
-        valores.append(empresa_id)
-        
-        query = f"UPDATE empresas SET {', '.join(campos_atualizacao)} WHERE id = %s"
-        cursor.execute(query, valores)
-        
-        conn.commit()
-        
-        print(f"? Empresa {empresa_id} atualizada")
-        return {'success': True}
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Verificar se empresa existe
+            cursor.execute("SELECT id FROM empresas WHERE id = %s", (empresa_id,))
+            if not cursor.fetchone():
+                return {'success': False, 'error': 'Empresa ni?o encontrada'}
+            
+            # Construir query de update dinamicamente
+            campos_atualizacao = []
+            valores = []
+            
+            campos_permitidos = [
+                'razao_social', 'nome_fantasia', 'cnpj', 'email', 'telefone', 'whatsapp',
+                'endereco', 'cidade', 'estado', 'cep', 'plano',
+                'max_usuarios', 'max_clientes', 'max_lancamentos_mes', 'espaco_storage_mb',
+                'observacoes', 'ativo'
+            ]
+            
+            for campo in campos_permitidos:
+                if campo in dados:
+                    campos_atualizacao.append(f"{campo} = %s")
+                    valores.append(dados[campo])
+            
+            if not campos_atualizacao:
+                return {'success': False, 'error': 'Nenhum campo para atualizar'}
+            
+            # Adicionar updated_at
+            campos_atualizacao.append("updated_at = NOW()")
+            valores.append(empresa_id)
+            
+            query = f"UPDATE empresas SET {', '.join(campos_atualizacao)} WHERE id = %s"
+            cursor.execute(query, valores)
+            
+            conn.commit()
+            cursor.close()
+            
+            log(f"Empresa {empresa_id} atualizada")
+            return {'success': True}
         
     except Exception as e:
-        print(f"? Erro ao atualizar empresa: {e}")
-        if conn:
-            conn.rollback()
+        log(f"Erro ao atualizar empresa: {e}")
         import traceback
-        traceback.print_exc()
+        traceback.print_exc(file=sys.stderr)
         return {'success': False, 'error': str(e)}
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            return_to_pool(conn)
 
 
 def obter_empresa(empresa_id):
@@ -4331,30 +4315,24 @@ def obter_empresa(empresa_id):
     Returns:
         dict: Dados da empresa ou None
     """
-    conn = None
-    cursor = None
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        cursor.execute("""
-            SELECT * FROM empresas WHERE id = %s
-        """, (empresa_id,))
-        
-        empresa = cursor.fetchone()
-        
-        if empresa:
-            return dict(empresa)
-        return None
+        with get_db_connection() as conn:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("""
+                SELECT * FROM empresas WHERE id = %s
+            """, (empresa_id,))
+            
+            empresa = cursor.fetchone()
+            cursor.close()
+            
+            if empresa:
+                return dict(empresa)
+            return None
         
     except Exception as e:
-        print(f"? Erro ao obter empresa: {e}")
+        log(f"Erro ao obter empresa: {e}")
         return None
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            return_to_pool(conn)
 
 
 def listar_empresas(filtros=None):
@@ -4367,60 +4345,54 @@ def listar_empresas(filtros=None):
     Returns:
         list: Lista de empresas
     """
-    conn = None
-    cursor = None
     try:
-        print(f"   ?? [listar_empresas] Iniciando...")
-        print(f"   ?? [listar_empresas] Filtros: {filtros}")
+        log(f"   [listar_empresas] Iniciando...")
+        log(f"   [listar_empresas] Filtros: {filtros}")
         
-        conn = get_db_connection()
-        print(f"   ? [listar_empresas] Conexi?o obtida")
-        
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        print(f"   ? [listar_empresas] Cursor criado")
-        
-        query = "SELECT * FROM empresas"
-        valores = []
-        
-        if filtros:
-            condicoes = []
-            if 'ativo' in filtros:
-                condicoes.append("ativo = %s")
-                valores.append(filtros['ativo'])
+        with get_db_connection() as conn:
+            log(f"   [listar_empresas] Conexao obtida")
             
-            if 'plano' in filtros:
-                condicoes.append("plano = %s")
-                valores.append(filtros['plano'])
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            log(f"   [listar_empresas] Cursor criado")
             
-            if condicoes:
-                query += " WHERE " + " AND ".join(condicoes)
-        
-        query += " ORDER BY razao_social"
-        
-        print(f"   ?? [listar_empresas] Query: {query}")
-        print(f"   ?? [listar_empresas] Valores: {valores}")
-        
-        cursor.execute(query, valores)
-        print(f"   ? [listar_empresas] Query executada")
-        
-        empresas = cursor.fetchall()
-        print(f"   ? [listar_empresas] Fetchall conclui?do: {len(empresas) if empresas else 0} empresas")
-        
-        resultado = [dict(e) for e in empresas]
-        print(f"   ? [listar_empresas] Conversi?o para dict conclui?da")
-        
-        return resultado
+            query = "SELECT * FROM empresas"
+            valores = []
+            
+            if filtros:
+                condicoes = []
+                if 'ativo' in filtros:
+                    condicoes.append("ativo = %s")
+                    valores.append(filtros['ativo'])
+                
+                if 'plano' in filtros:
+                    condicoes.append("plano = %s")
+                    valores.append(filtros['plano'])
+                
+                if condicoes:
+                    query += " WHERE " + " AND ".join(condicoes)
+            
+            query += " ORDER BY razao_social"
+            
+            log(f"   [listar_empresas] Query: {query}")
+            log(f"   [listar_empresas] Valores: {valores}")
+            
+            cursor.execute(query, valores)
+            log(f"   [listar_empresas] Query executada")
+            
+            empresas = cursor.fetchall()
+            log(f"   [listar_empresas] Fetchall concluido: {len(empresas) if empresas else 0} empresas")
+            
+            cursor.close()
+            resultado = [dict(e) for e in empresas]
+            log(f"   [listar_empresas] Conversao para dict concluida")
+            
+            return resultado
         
     except Exception as e:
-        print(f"? [listar_empresas] Erro: {e}")
+        log(f"[listar_empresas] Erro: {e}")
         import traceback
-        traceback.print_exc()
+        traceback.print_exc(file=sys.stderr)
         return []
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            return_to_pool(conn)
 
 
 def suspender_empresa(empresa_id, motivo):
