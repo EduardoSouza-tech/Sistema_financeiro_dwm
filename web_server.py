@@ -3518,15 +3518,21 @@ def obter_ordem_menu():
         usuario = request.usuario
         usuario_id = usuario['id']
         
+        print(f"📥 Obtendo ordem do menu para usuario_id={usuario_id}")
+        
         # Ordem padrão
         ordem_padrao = '["dashboard","financeiro","relatorios","cadastros","operacional"]'
         
         # Obter preferência do banco
-        ordem = database.obter_preferencia_usuario(
-            usuario_id, 
-            'menu_order', 
-            ordem_padrao
-        )
+        try:
+            ordem = database.obter_preferencia_usuario(
+                usuario_id, 
+                'menu_order', 
+                ordem_padrao
+            )
+        except Exception as db_error:
+            print(f"⚠️ Erro ao buscar preferência, usando padrão: {db_error}")
+            ordem = ordem_padrao
         
         # Parsear JSON
         import json
@@ -3556,17 +3562,22 @@ def salvar_ordem_menu():
         usuario = request.usuario
         usuario_id = usuario['id']
         
+        print(f"💾 Salvando ordem do menu para usuario_id={usuario_id}")
+        
         data = request.json
         if not data:
+            print("❌ Dados não fornecidos")
             return jsonify({
                 'success': False,
                 'error': 'Dados não fornecidos'
             }), 400
         
         menu_order = data.get('menu_order', [])
+        print(f"📋 Ordem recebida: {menu_order}")
         
         # Validar formato
         if not isinstance(menu_order, list):
+            print("❌ menu_order não é lista")
             return jsonify({
                 'success': False,
                 'error': 'menu_order deve ser uma lista'
@@ -3576,6 +3587,7 @@ def salvar_ordem_menu():
         itens_validos = ['dashboard', 'financeiro', 'relatorios', 'cadastros', 'operacional']
         for item in menu_order:
             if item not in itens_validos:
+                print(f"❌ Item inválido: {item}")
                 return jsonify({
                     'success': False,
                     'error': f'Item inválido: {item}'
@@ -3586,11 +3598,14 @@ def salvar_ordem_menu():
         menu_order_json = json.dumps(menu_order)
         
         # Salvar no banco
+        print(f"💾 Chamando salvar_preferencia_usuario...")
         sucesso = database.salvar_preferencia_usuario(
             usuario_id,
             'menu_order',
             menu_order_json
         )
+        
+        print(f"{'✅' if sucesso else '❌'} Resultado do save: {sucesso}")
         
         if sucesso:
             # Registrar log
