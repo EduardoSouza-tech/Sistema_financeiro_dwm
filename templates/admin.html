@@ -722,7 +722,7 @@
                 
                 // Carregar dados
                 await loadPermissions();
-                await loadCompanies();  // Carregar empresas primeiro
+                // NÃO carregar empresas aqui - será carregado ao clicar na aba
                 await loadUsers();
             } catch (error) {
                 console.error('Erro ao verificar autenticação:', error);
