@@ -98,19 +98,6 @@ print("\n" + "="*70)
 print("🚀 SISTEMA FINANCEIRO - INICIALIZAÇÃO")
 print("="*70)
 print(f"📊 Banco de Dados: PostgreSQL (Pool de Conexões)")
-
-# Executar migrations automaticamente
-def run_startup_migrations():
-    """Executa migrations necessárias no startup"""
-    try:
-        from run_migrations import run_all_migrations
-        run_all_migrations()
-    except Exception as e:
-        print(f"⚠️ Aviso: Não foi possível executar migrations: {e}")
-        print("   O sistema continuará, mas algumas funcionalidades podem não funcionar.")
-
-# Executar migrations
-run_startup_migrations()
 print(f"🔐 DATABASE_URL: {'✅ Configurado' if os.getenv('DATABASE_URL') else '❌ Não configurado'}")
 print(f"🌐 Ambiente: {'Produção (Railway)' if os.getenv('RAILWAY_ENVIRONMENT') else 'Desenvolvimento'}")
 print("="*70 + "\n")
@@ -3502,15 +3489,7 @@ def listar_proprietarios_disponiveis():
 @app.route('/api/preferencias/menu-order', methods=['GET'])
 @require_auth
 def obter_ordem_menu():
-    """
-    Obtém a ordem personalizada do menu do usuário
-    
-    Returns:
-        JSON: {
-            'success': bool,
-            'menu_order': list  # Array com ordem dos IDs: ['dashboard', 'financeiro', ...]
-        }
-    """
+    """Obtém a ordem personalizada do menu do usuário"""
     try:
         usuario = request.usuario
         usuario_id = usuario['id']
@@ -3527,7 +3506,7 @@ def obter_ordem_menu():
         
         # Parsear JSON
         import json
-        menu_order = json.loads(ordem)
+        menu_order = json.loads(ordem) if ordem else json.loads(ordem_padrao)
         
         return jsonify({
             'success': True,
@@ -3538,31 +3517,28 @@ def obter_ordem_menu():
         print(f"❌ Erro ao obter ordem do menu: {e}")
         import traceback
         traceback.print_exc()
+        # Retornar ordem padrão em caso de erro
         return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            'success': True,
+            'menu_order': ["dashboard","financeiro","relatorios","cadastros","operacional"]
+        })
 
 
 @app.route('/api/preferencias/menu-order', methods=['POST'])
 @require_auth
 def salvar_ordem_menu():
-    """
-    Salva a ordem personalizada do menu do usuário
-    
-    Request Body:
-        {
-            'menu_order': ['dashboard', 'cadastros', 'financeiro', 'relatorios', 'operacional']
-        }
-    
-    Returns:
-        JSON: {'success': bool, 'message': str}
-    """
+    """Salva a ordem personalizada do menu do usuário"""
     try:
         usuario = request.usuario
         usuario_id = usuario['id']
         
         data = request.json
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'Dados não fornecidos'
+            }), 400
+        
         menu_order = data.get('menu_order', [])
         
         # Validar formato
@@ -3594,13 +3570,16 @@ def salvar_ordem_menu():
         
         if sucesso:
             # Registrar log
-            auth_db.registrar_log_acesso(
-                usuario_id=usuario_id,
-                acao='update_menu_order',
-                descricao=f'Ordem do menu atualizada: {menu_order}',
-                ip_address=request.remote_addr,
-                sucesso=True
-            )
+            try:
+                auth_db.registrar_log_acesso(
+                    usuario_id=usuario_id,
+                    acao='update_menu_order',
+                    descricao=f'Ordem do menu atualizada: {menu_order}',
+                    ip_address=request.remote_addr,
+                    sucesso=True
+                )
+            except Exception as log_error:
+                print(f"⚠️ Erro ao registrar log (não crítico): {log_error}")
             
             return jsonify({
                 'success': True,
@@ -3622,53 +3601,12 @@ def salvar_ordem_menu():
         }), 500
 
 
-@app.route('/api/preferencias', methods=['GET'])
-@require_auth
-def listar_preferencias():
-    """
-    Lista todas as preferências do usuário logado
-    
-    Returns:
-        JSON: {
-            'success': bool,
-            'preferencias': dict  # {chave: valor}
-        }
-    """
-    try:
-        usuario = request.usuario
-        usuario_id = usuario['id']
-        
-        preferencias = database.listar_preferencias_usuario(usuario_id)
-        
-        # Parsear valores JSON
-        import json
-        preferencias_parsed = {}
-        for chave, valor in preferencias.items():
-            try:
-                preferencias_parsed[chave] = json.loads(valor)
-            except:
-                preferencias_parsed[chave] = valor
-        
-        return jsonify({
-            'success': True,
-            'preferencias': preferencias_parsed
-        })
-        
-    except Exception as e:
-        print(f"❌ Erro ao listar preferências: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
 if __name__ == '__main__':
-    # Porta configurÃvel (Railway usa variÃvel de ambiente PORT)
+    # Porta configurável (Railway usa variável de ambiente PORT)
     port = int(os.getenv('PORT', 5000))
     
     print("="*60)
-    print("Sistema Financeiro - VersÃ£o Web")
+    print("Sistema Financeiro - Versão Web")
     print("="*60)
     print(f"Servidor iniciado em: http://0.0.0.0:{port}")
     print(f"Banco de dados: {os.getenv('DATABASE_TYPE', 'sqlite')}")

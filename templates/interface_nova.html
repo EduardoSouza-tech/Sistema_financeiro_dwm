@@ -4052,7 +4052,7 @@
             const permissaoNecessaria = permissionMap[sectionId];
             if (permissaoNecessaria && !hasPermission(permissaoNecessaria)) {
                 console.log(`🔒 ACESSO NEGADO à seção "${sectionId}" - Permissão necessária: ${permissaoNecessaria}`);
-                showAlert('Você não tem permissão para acessar esta seção.', 'error');
+                showToast('Você não tem permissão para acessar esta seção.', 'error');
                 return;
             }
             
