@@ -424,6 +424,7 @@
             <!-- Tabs -->
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('users')">👥 Usuários</button>
+                <button class="tab" onclick="switchTab('companies')">🏢 Empresas</button>
                 <button class="tab" onclick="switchTab('permissions')">🔐 Permissões</button>
                 <button class="tab" onclick="switchTab('logs')">📋 Logs de Acesso</button>
                 <button class="tab" onclick="switchTab('export')">📦 Exportar Dados</button>
@@ -448,12 +449,43 @@
                             <th>ID</th>
                             <th>Usuário</th>
                             <th>Nome</th>
+                            <th>Empresa</th>
                             <th>Tipo</th>
                             <th>Status</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody id="usersTableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Tab: Empresas -->
+            <div id="companiesTab" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>Gerenciar Empresas</h2>
+                    <button onclick="openNewCompanyModal()" class="btn btn-success">➕ Nova Empresa</button>
+                </div>
+
+                <div id="companiesLoading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Carregando empresas...</p>
+                </div>
+
+                <table class="table" id="companiesTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Razão Social</th>
+                            <th>CNPJ</th>
+                            <th>Email</th>
+                            <th>Plano</th>
+                            <th>Usuários</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="companiesTableBody">
                     </tbody>
                 </table>
             </div>
@@ -569,6 +601,13 @@
                 </div>
 
                 <div class="form-group">
+                    <label>Empresa *</label>
+                    <select id="empresaSelect" class="form-control" required>
+                        <option value="">Carregando empresas...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
                     <label>Senha *</label>
                     <input type="password" id="password" class="form-control">
                     <small style="color: #666;">Deixe em branco para manter a senha atual (ao editar)</small>
@@ -595,10 +634,63 @@
         </div>
     </div>
 
+    <!-- Modal: Nova/Editar Empresa -->
+    <div id="companyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="companyModalTitle">Nova Empresa</h3>
+            </div>
+
+            <form id="companyForm">
+                <input type="hidden" id="companyId">
+                
+                <div class="form-group">
+                    <label>Razão Social *</label>
+                    <input type="text" id="razaoSocial" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Nome Fantasia</label>
+                    <input type="text" id="nomeFantasia" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label>CNPJ</label>
+                    <input type="text" id="cnpj" class="form-control" maxlength="18">
+                </div>
+
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" id="emailEmpresa" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Telefone</label>
+                    <input type="text" id="telefoneEmpresa" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label>Plano</label>
+                    <select id="plano" class="form-control">
+                        <option value="basico">Básico</option>
+                        <option value="profissional">Profissional</option>
+                        <option value="empresarial">Empresarial</option>
+                    </select>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" onclick="closeCompanyModal()" class="btn btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         let allPermissions = [];
         let allUsers = [];
         let allClients = [];
+        let allCompanies = [];
 
         // Verificar autenticação
         async function checkAuth() {
@@ -630,6 +722,7 @@
                 
                 // Carregar dados
                 await loadPermissions();
+                await loadCompanies();  // Carregar empresas primeiro
                 await loadUsers();
             } catch (error) {
                 console.error('Erro ao verificar autenticação:', error);
@@ -830,10 +923,15 @@
                 const typeBadge = user.tipo === 'admin' ? 'badge-admin' : 'badge-client';
                 const statusBadge = user.ativo ? 'badge-active' : 'badge-inactive';
                 
+                // Encontrar nome da empresa
+                const empresa = allCompanies.find(c => c.id === user.empresa_id);
+                const empresaNome = empresa ? empresa.razao_social : 'Não atribuída';
+                
                 tr.innerHTML = `
                     <td>${user.id}</td>
                     <td><strong>${user.username}</strong></td>
                     <td>${user.nome_completo || 'Não informado'}</td>
+                    <td>${empresaNome}</td>
                     <td><span class="badge ${typeBadge}">${user.tipo === 'admin' ? 'Admin' : 'Cliente'}</span></td>
                     <td><span class="badge ${statusBadge}">${user.ativo ? 'Ativo' : 'Inativo'}</span></td>
                     <td>
@@ -852,6 +950,201 @@
             document.getElementById('totalUsers').textContent = allUsers.length;
             document.getElementById('activeUsers').textContent = allUsers.filter(u => u.ativo).length;
         }
+
+        // === FUNÇÕES DE EMPRESAS ===
+        
+        // Carregar empresas
+        async function loadCompanies() {
+            document.getElementById('companiesLoading').classList.add('active');
+            document.getElementById('companiesTable').style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/empresas', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}`);
+                }
+                
+                const data = await response.json();
+                allCompanies = Array.isArray(data) ? data : (data.empresas || []);
+                
+                renderCompaniesTable();
+                populateEmpresaSelect();
+            } catch (error) {
+                console.error('❌ Erro ao carregar empresas:', error);
+                showAlert(`Erro ao carregar empresas: ${error.message}`, 'error');
+                allCompanies = [];
+            } finally {
+                document.getElementById('companiesLoading').classList.remove('active');
+            }
+        }
+
+        // Renderizar tabela de empresas
+        function renderCompaniesTable() {
+            const tbody = document.getElementById('companiesTableBody');
+            tbody.innerHTML = '';
+
+            allCompanies.forEach(company => {
+                const tr = document.createElement('tr');
+                const statusBadge = company.ativo ? 'badge-active' : 'badge-inactive';
+                
+                // Contar usuários desta empresa
+                const userCount = allUsers.filter(u => u.empresa_id === company.id).length;
+                
+                tr.innerHTML = `
+                    <td>${company.id}</td>
+                    <td><strong>${company.razao_social}</strong></td>
+                    <td>${company.cnpj || '-'}</td>
+                    <td>${company.email}</td>
+                    <td>${company.plano || 'básico'}</td>
+                    <td>${userCount}</td>
+                    <td><span class="badge ${statusBadge}">${company.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                    <td>
+                        <button onclick="editCompany(${company.id})" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;">✏️ Editar</button>
+                        <button onclick="deleteCompany(${company.id})" class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;">🗑️ Excluir</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('companiesTable').style.display = 'table';
+        }
+
+        // Popula o select de empresas no formulário de usuário
+        function populateEmpresaSelect() {
+            const select = document.getElementById('empresaSelect');
+            select.innerHTML = '<option value="">Selecione uma empresa...</option>';
+            
+            allCompanies.filter(c => c.ativo).forEach(company => {
+                const option = document.createElement('option');
+                option.value = company.id;
+                option.textContent = company.razao_social;
+                select.appendChild(option);
+            });
+        }
+
+        // Abrir modal de nova empresa
+        function openNewCompanyModal() {
+            document.getElementById('companyModalTitle').textContent = 'Nova Empresa';
+            document.getElementById('companyForm').reset();
+            document.getElementById('companyId').value = '';
+            document.getElementById('companyModal').classList.add('active');
+        }
+
+        // Editar empresa
+        async function editCompany(companyId) {
+            try {
+                const response = await fetch(`/api/empresas/${companyId}`, {
+                    credentials: 'include'
+                });
+                
+                const company = await response.json();
+                
+                document.getElementById('companyModalTitle').textContent = 'Editar Empresa';
+                document.getElementById('companyId').value = company.id;
+                document.getElementById('razaoSocial').value = company.razao_social;
+                document.getElementById('nomeFantasia').value = company.nome_fantasia || '';
+                document.getElementById('cnpj').value = company.cnpj || '';
+                document.getElementById('emailEmpresa').value = company.email;
+                document.getElementById('telefoneEmpresa').value = company.telefone || '';
+                document.getElementById('plano').value = company.plano || 'basico';
+                
+                document.getElementById('companyModal').classList.add('active');
+            } catch (error) {
+                console.error('Erro ao carregar empresa:', error);
+                showAlert('Erro ao carregar dados da empresa', 'error');
+            }
+        }
+
+        // Excluir empresa
+        async function deleteCompany(companyId) {
+            // Verificar se tem usuários vinculados
+            const userCount = allUsers.filter(u => u.empresa_id === companyId).length;
+            
+            if (userCount > 0) {
+                showAlert(`❌ Não é possível excluir! Esta empresa possui ${userCount} usuário(s) vinculado(s).`, 'error');
+                return;
+            }
+            
+            if (!confirm('Tem certeza que deseja excluir esta empresa?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/empresas/${companyId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    showAlert('Empresa excluída com sucesso!', 'success');
+                    await loadCompanies();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Erro ao excluir empresa', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao excluir empresa:', error);
+                showAlert('Erro ao excluir empresa', 'error');
+            }
+        }
+
+        // Fechar modal de empresa
+        function closeCompanyModal() {
+            document.getElementById('companyModal').classList.remove('active');
+        }
+
+        // Submit form de empresa
+        document.getElementById('companyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const companyId = document.getElementById('companyId').value;
+            const data = {
+                razao_social: document.getElementById('razaoSocial').value,
+                nome_fantasia: document.getElementById('nomeFantasia').value,
+                cnpj: document.getElementById('cnpj').value,
+                email: document.getElementById('emailEmpresa').value,
+                telefone: document.getElementById('telefoneEmpresa').value,
+                plano: document.getElementById('plano').value
+            };
+            
+            try {
+                let response;
+                
+                if (companyId) {
+                    response = await fetch(`/api/empresas/${companyId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(data)
+                    });
+                } else {
+                    response = await fetch('/api/empresas', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(data)
+                    });
+                }
+                
+                if (response.ok) {
+                    showAlert('Empresa salva com sucesso!', 'success');
+                    closeCompanyModal();
+                    await loadCompanies();
+                    await loadUsers(); // Recarregar usuários para atualizar relações
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Erro ao salvar empresa', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar empresa:', error);
+                showAlert('Erro ao salvar empresa', 'error');
+            }
+        });
+
+        // === FIM FUNÇÕES DE EMPRESAS ===
 
         // Carregar clientes
         async function loadClients() {
@@ -896,11 +1189,13 @@
                 
                 console.log('🔍 DEBUG - Usuário carregado:', user);
                 console.log('🔍 DEBUG - Nome completo:', user.nome_completo);
+                console.log('🔍 DEBUG - Empresa ID:', user.empresa_id);
                 
                 document.getElementById('modalTitle').textContent = 'Editar Usuário';
                 document.getElementById('userId').value = user.id;
                 document.getElementById('username').value = user.username;
                 document.getElementById('fullName').value = user.nome_completo || user.nome || '';
+                document.getElementById('empresaSelect').value = user.empresa_id || '';
                 document.getElementById('userTypeSelect').value = user.tipo;
                 document.getElementById('password').value = '';
                 
@@ -952,6 +1247,13 @@
             const nome = document.getElementById('fullName').value;
             const senha = document.getElementById('password').value;
             const tipo = document.getElementById('userTypeSelect').value;
+            const empresaId = document.getElementById('empresaSelect').value;
+            
+            // Validar empresa
+            if (!empresaId) {
+                showAlert('Selecione uma empresa', 'error');
+                return;
+            }
             
             // Obter permissões selecionadas
             const permissionsCheckboxes = document.querySelectorAll('input[name="permissions"]:checked');
@@ -962,6 +1264,7 @@
                 nome_completo: nome,
                 email: `${username}@sistema.com`,  // Email gerado automaticamente
                 tipo,
+                empresa_id: parseInt(empresaId),
                 permissoes
             };
             
@@ -1022,6 +1325,13 @@
             // Adicionar active na tab selecionada
             event.target.classList.add('active');
             document.getElementById(tabName + 'Tab').classList.add('active');
+            
+            // Carregar dados específicos da tab
+            if (tabName === 'companies') {
+                if (allCompanies.length === 0) {
+                    loadCompanies();
+                }
+            }
             
             // Se a aba de exportação foi selecionada, carregar os clientes
             if (tabName === 'export') {

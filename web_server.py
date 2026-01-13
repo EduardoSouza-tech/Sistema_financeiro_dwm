@@ -3880,6 +3880,58 @@ def reativar_empresa_api(empresa_id):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/empresas/<int:empresa_id>', methods=['DELETE'])
+@require_auth
+def deletar_empresa_api(empresa_id):
+    """Deleta uma empresa (apenas admin e se não tiver usuários vinculados)"""
+    try:
+        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        
+        if usuario['tipo'] != 'admin':
+            return jsonify({'error': 'Acesso negado'}), 403
+        
+        # Verificar se tem usuários vinculados
+        conn = database.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as count FROM usuarios WHERE empresa_id = %s", (empresa_id,))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if result and result['count'] > 0:
+            return jsonify({
+                'success': False,
+                'error': f'Não é possível excluir. Existem {result["count"]} usuário(s) vinculado(s) a esta empresa.'
+            }), 400
+        
+        # Excluir empresa
+        conn = database.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM empresas WHERE id = %s", (empresa_id,))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        # Registrar log
+        try:
+            auth_db.registrar_log_acesso(
+                usuario_id=usuario['id'],
+                acao='deletar_empresa',
+                descricao=f"Empresa {empresa_id} deletada",
+                sucesso=True
+            )
+        except:
+            pass
+        
+        return jsonify({'success': True, 'message': 'Empresa deletada com sucesso'})
+        
+    except Exception as e:
+        print(f"❌ Erro ao deletar empresa: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/empresas/<int:empresa_id>/stats', methods=['GET'])
 @require_auth
 def estatisticas_empresa_api(empresa_id):
