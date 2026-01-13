@@ -1,72 +1,78 @@
 """
-Middlewares de Autenticação e Autorização
+Middlewares de Autenticacao e Autorizacao
 Otimizado para PostgreSQL
 """
 from flask import session, request, jsonify, redirect, url_for
 from functools import wraps
 import os
+import sys
+
+# Forcar saida imediata de logs
+def log(msg):
+    """Print que forca flush imediato"""
+    print(msg, file=sys.stderr, flush=True)
 
 # ============================================================================
-# IMPORTAÇÃO DO MÓDULO DE AUTENTICAÇÃO - APENAS POSTGRESQL
+# IMPORTACAO DO MODULO DE AUTENTICACAO - APENAS POSTGRESQL
 # ============================================================================
 try:
     import database_postgresql as auth_db
-    print("✅ auth_middleware: Usando PostgreSQL")
+    log("auth_middleware: Usando PostgreSQL")
 except Exception as e:
-    print(f"❌ Erro ao importar database_postgresql em auth_middleware: {e}")
+    log(f"Erro ao importar database_postgresql em auth_middleware: {e}")
     raise
 
 
 def get_usuario_logado():
     """
-    Retorna dados do usuário logado via session token
+    Retorna dados do usuario logado via session token
     """
     try:
         token = session.get('session_token')
         
         if not token:
-            print("⚠️ [get_usuario_logado] Sem token na sessão")
+            log("[get_usuario_logado] Sem token na sessao")
             return None
         
-        print(f"🔍 [get_usuario_logado] Validando token: {token[:20]}...")
+        log(f"[get_usuario_logado] Validando token: {token[:20]}...")
         usuario = auth_db.validar_sessao(token)
-        print(f"✅ [get_usuario_logado] Usuário validado: {usuario.get('username') if usuario else 'None'}")
+        log(f"[get_usuario_logado] Usuario validado: {usuario.get('username') if usuario else 'None'}")
         return usuario
     except Exception as e:
-        print(f"❌ [get_usuario_logado] Erro: {e}")
+        log(f"[get_usuario_logado] Erro: {e}")
         import traceback
-        traceback.print_exc()
+        traceback.print_exc(file=sys.stderr)
         return None
 
 
 def require_auth(f):
     """
-    Decorador que requer autenticação
-    Redireciona para login se não autenticado
+    Decorador que requer autenticacao
+    Redireciona para login se nao autenticado
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
-            print(f"🔐 [require_auth] Verificando autenticação para: {request.path}")
+            log(f"[require_auth] Verificando autenticacao para: {request.path}")
             usuario = get_usuario_logado()
-            print(f"🔐 [require_auth] Usuário obtido: {usuario.get('username') if usuario else 'None'}")
+            log(f"[require_auth] Usuario obtido: {usuario.get('username') if usuario else 'None'}")
             
             if not usuario:
-                print("⚠️ [require_auth] Acesso negado - sem usuário")
+                log("[require_auth] Acesso negado - sem usuario")
                 return jsonify({
                     'success': False,
-                    'error': 'Não autenticado',
+                    'error': 'Nao autenticado',
                     'redirect': '/login'
                 }), 401
             
-            # Adicionar dados do usuário ao request
+            # Adicionar dados do usuario ao request
             request.usuario = usuario
-            print(f"✅ [require_auth] Autenticação OK - Chamando {f.__name__}")
+            log(f"[require_auth] Autenticacao OK - Chamando {f.__name__}")
             return f(*args, **kwargs)
         except Exception as e:
-            print(f"❌ [require_auth] EXCEÇÃO: {e}")
+            log(f"[require_auth] EXCECAO: {e}")
             import traceback
-            traceback.print_exc()
+            traceback.print_exc(file=sys.stderr)
             return jsonify({'error': 'Erro de autenticação', 'details': str(e)}), 500
     
     return decorated_function
