@@ -3463,11 +3463,11 @@ def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
         return_to_pool(conn)  # Devolver ao pool
 
 def obter_usuario(usuario_id: int) -> Optional[Dict]:
-    """Obti?m dados de um usui?rio especi?fico"""
-    log(f"\n?? [obter_usuario] Buscando usui?rio ID: {usuario_id}")
+    """Obtem dados de um usuario especifico"""
+    log(f"\n[obter_usuario] Buscando usuario ID: {usuario_id}")
     db = DatabaseManager()
     conn = db.get_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     
     try:
         query = """
@@ -3478,14 +3478,14 @@ def obter_usuario(usuario_id: int) -> Optional[Dict]:
             LEFT JOIN clientes c ON u.cliente_id = c.id
             WHERE u.id = %s
         """
-        log(f"   ?? Query: {query.strip()}")
-        log(f"   ?? Pari?metro: usuario_id={usuario_id}")
+        log(f"   Query: {query.strip()}")
+        log(f"   Parametro: usuario_id={usuario_id}")
         cursor.execute(query, (usuario_id,))
         resultado = cursor.fetchone()
-        log(f"   ? Resultado: {resultado if resultado else '? NENHUM REGISTRO ENCONTRADO'}")
-        return resultado
+        log(f"   Resultado: {dict(resultado) if resultado else 'NENHUM REGISTRO ENCONTRADO'}")
+        return dict(resultado) if resultado else None
     except Exception as e:
-        log(f"   ? Erro ao buscar usui?rio: {e}")
+        log(f"   Erro ao buscar usuario: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return None
