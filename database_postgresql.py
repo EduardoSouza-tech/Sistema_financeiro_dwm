@@ -3553,24 +3553,44 @@ def deletar_usuario(usuario_id: int) -> bool:
     cursor = conn.cursor()
     
     try:
-        # Verificar se ni?o i? o admin principal (ID = 1)
+        # Verificar se nao e o admin principal (ID = 1)
         if usuario_id == 1:
-            print("? Ni?o i? possi?vel deletar o administrador principal (ID=1)")
+            log("Nao e possivel deletar o administrador principal (ID=1)")
             return False
         
+        # Deletar registros relacionados ANTES de deletar o usuario (foreign keys)
+        log(f"Deletando registros relacionados do usuario {usuario_id}...")
+        
+        # 1. Deletar log_acessos
+        cursor.execute("DELETE FROM log_acessos WHERE usuario_id = %s", (usuario_id,))
+        log(f"  - log_acessos: {cursor.rowcount} registros deletados")
+        
+        # 2. Deletar sessoes_login
+        cursor.execute("DELETE FROM sessoes_login WHERE usuario_id = %s", (usuario_id,))
+        log(f"  - sessoes_login: {cursor.rowcount} registros deletados")
+        
+        # 3. Deletar usuario_permissoes
+        cursor.execute("DELETE FROM usuario_permissoes WHERE usuario_id = %s", (usuario_id,))
+        log(f"  - usuario_permissoes: {cursor.rowcount} registros deletados")
+        
+        # 4. Deletar login_attempts (se houver)
+        cursor.execute("DELETE FROM login_attempts WHERE username = (SELECT username FROM usuarios WHERE id = %s)", (usuario_id,))
+        log(f"  - login_attempts: {cursor.rowcount} registros deletados")
+        
+        # Agora deletar o usuario
         cursor.execute("DELETE FROM usuarios WHERE id = %s", (usuario_id,))
         affected = cursor.rowcount
         
         if affected > 0:
-            print(f"? Usui?rio {usuario_id} deletado com sucesso")
+            log(f"Usuario {usuario_id} deletado com sucesso")
         else:
-            print(f"?? Usui?rio {usuario_id} ni?o encontrado")
+            log(f"Usuario {usuario_id} nao encontrado")
         
         return affected > 0
     except Exception as e:
-        print(f"? Erro ao deletar usui?rio: {e}")
+        log(f"Erro ao deletar usuario: {e}")
         import traceback
-        traceback.print_exc()
+        traceback.print_exc(file=sys.stderr)
         return False
     finally:
         cursor.close()
