@@ -4335,8 +4335,14 @@ def listar_empresas(filtros=None):
     conn = None
     cursor = None
     try:
+        print(f"   🔍 [listar_empresas] Iniciando...")
+        print(f"   🔍 [listar_empresas] Filtros: {filtros}")
+        
         conn = get_db_connection()
+        print(f"   ✅ [listar_empresas] Conexão obtida")
+        
         cursor = conn.cursor(cursor_factory=RealDictCursor)
+        print(f"   ✅ [listar_empresas] Cursor criado")
         
         query = "SELECT * FROM empresas"
         valores = []
@@ -4356,13 +4362,24 @@ def listar_empresas(filtros=None):
         
         query += " ORDER BY razao_social"
         
-        cursor.execute(query, valores)
-        empresas = cursor.fetchall()
+        print(f"   🔍 [listar_empresas] Query: {query}")
+        print(f"   🔍 [listar_empresas] Valores: {valores}")
         
-        return [dict(e) for e in empresas]
+        cursor.execute(query, valores)
+        print(f"   ✅ [listar_empresas] Query executada")
+        
+        empresas = cursor.fetchall()
+        print(f"   ✅ [listar_empresas] Fetchall concluído: {len(empresas) if empresas else 0} empresas")
+        
+        resultado = [dict(e) for e in empresas]
+        print(f"   ✅ [listar_empresas] Conversão para dict concluída")
+        
+        return resultado
         
     except Exception as e:
-        print(f"❌ Erro ao listar empresas: {e}")
+        print(f"❌ [listar_empresas] Erro: {e}")
+        import traceback
+        traceback.print_exc()
         return []
     finally:
         if cursor:

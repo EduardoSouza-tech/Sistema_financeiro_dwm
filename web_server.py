@@ -3684,6 +3684,10 @@ def listar_empresas_api():
         empresas = database.listar_empresas(filtros)
         print(f"   ✅ Empresas carregadas: {len(empresas) if empresas else 0}")
         
+        # Garantir que empresas não seja None
+        if empresas is None:
+            empresas = []
+        
         # Retornar apenas dados básicos (sem estatísticas para evitar sobrecarga)
         # As estatísticas podem ser buscadas individualmente se necessário
         
@@ -3693,6 +3697,11 @@ def listar_empresas_api():
         return jsonify(empresas)
         
     except Exception as e:
+        print(f"❌ Erro ao listar empresas: {e}")
+        import traceback
+        traceback.print_exc()
+        print("="*80 + "\n")
+        return jsonify({'error': str(e)}), 500
         print(f"❌ Erro ao listar empresas: {e}")
         import traceback
         traceback.print_exc()
