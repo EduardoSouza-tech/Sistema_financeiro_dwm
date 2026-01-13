@@ -3515,8 +3515,14 @@ def listar_proprietarios_disponiveis():
 def obter_ordem_menu():
     """Obtém a ordem personalizada do menu do usuário"""
     try:
-        usuario = request.usuario
-        usuario_id = usuario['id']
+        # Usar session ao invés de request.usuario
+        usuario_id = session.get('usuario_id')
+        
+        if not usuario_id:
+            return jsonify({
+                'success': False,
+                'error': 'Usuário não autenticado'
+            }), 401
         
         print(f"📥 Obtendo ordem do menu para usuario_id={usuario_id}")
         
@@ -3559,8 +3565,14 @@ def obter_ordem_menu():
 def salvar_ordem_menu():
     """Salva a ordem personalizada do menu do usuário"""
     try:
-        usuario = request.usuario
-        usuario_id = usuario['id']
+        # Usar session ao invés de request.usuario
+        usuario_id = session.get('usuario_id')
+        
+        if not usuario_id:
+            return jsonify({
+                'success': False,
+                'error': 'Usuário não autenticado'
+            }), 401
         
         print(f"💾 Salvando ordem do menu para usuario_id={usuario_id}")
         
