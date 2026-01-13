@@ -3982,12 +3982,11 @@ def deletar_empresa_api(empresa_id):
             return jsonify({'error': 'Acesso negado'}), 403
         
         # Verificar se tem usuários vinculados
-        conn = database.get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) as count FROM usuarios WHERE empresa_id = %s", (empresa_id,))
-        result = cursor.fetchone()
-        cursor.close()
-        conn.close()
+        with database.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) as count FROM usuarios WHERE empresa_id = %s", (empresa_id,))
+            result = cursor.fetchone()
+            cursor.close()
         
         if result and result['count'] > 0:
             return jsonify({
@@ -3996,12 +3995,11 @@ def deletar_empresa_api(empresa_id):
             }), 400
         
         # Excluir empresa
-        conn = database.get_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM empresas WHERE id = %s", (empresa_id,))
-        conn.commit()
-        cursor.close()
-        conn.close()
+        with database.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM empresas WHERE id = %s", (empresa_id,))
+            conn.commit()
+            cursor.close()
         
         # Registrar log
         try:
