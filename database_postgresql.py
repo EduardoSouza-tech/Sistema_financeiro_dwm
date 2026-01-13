@@ -4130,3 +4130,334 @@ def deletar_preferencia_usuario(usuario_id, chave):
             return_to_pool(conn)
 
 
+# ========================================
+# FUNÇÕES DE GESTÃO DE EMPRESAS (TENANTS)
+# ========================================
+
+def criar_empresa(dados):
+    """
+    Cria uma nova empresa (tenant) no sistema
+    
+    Args:
+        dados: dict com razao_social, cnpj, email, etc.
+    
+    Returns:
+        dict: {'success': True, 'empresa_id': id} ou {'success': False, 'error': msg}
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Validar campos obrigatórios
+        if not dados.get('razao_social'):
+            return {'success': False, 'error': 'Razão social é obrigatória'}
+        
+        if not dados.get('email'):
+            return {'success': False, 'error': 'Email é obrigatório'}
+        
+        # Verificar se email já existe
+        cursor.execute("SELECT id FROM empresas WHERE email = %s", (dados['email'],))
+        if cursor.fetchone():
+            return {'success': False, 'error': 'Email já cadastrado'}
+        
+        # Verificar se CNPJ já existe (se fornecido)
+        if dados.get('cnpj'):
+            cursor.execute("SELECT id FROM empresas WHERE cnpj = %s", (dados['cnpj'],))
+            if cursor.fetchone():
+                return {'success': False, 'error': 'CNPJ já cadastrado'}
+        
+        # Inserir empresa
+        cursor.execute("""
+            INSERT INTO empresas (
+                razao_social, nome_fantasia, cnpj, email, telefone, whatsapp,
+                endereco, cidade, estado, cep, plano, 
+                max_usuarios, max_clientes, max_lancamentos_mes, espaco_storage_mb,
+                observacoes, ativo
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            )
+            RETURNING id
+        """, (
+            dados['razao_social'],
+            dados.get('nome_fantasia'),
+            dados.get('cnpj'),
+            dados['email'],
+            dados.get('telefone'),
+            dados.get('whatsapp'),
+            dados.get('endereco'),
+            dados.get('cidade'),
+            dados.get('estado'),
+            dados.get('cep'),
+            dados.get('plano', 'basico'),
+            dados.get('max_usuarios', 5),
+            dados.get('max_clientes', 100),
+            dados.get('max_lancamentos_mes', 500),
+            dados.get('espaco_storage_mb', 1024),
+            dados.get('observacoes'),
+            dados.get('ativo', True)
+        ))
+        
+        empresa_id = cursor.fetchone()[0]
+        conn.commit()
+        
+        print(f"✅ Empresa criada: ID={empresa_id}, Razão Social={dados['razao_social']}")
+        return {'success': True, 'empresa_id': empresa_id}
+        
+    except Exception as e:
+        print(f"❌ Erro ao criar empresa: {e}")
+        if conn:
+            conn.rollback()
+        import traceback
+        traceback.print_exc()
+        return {'success': False, 'error': str(e)}
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+
+def atualizar_empresa(empresa_id, dados):
+    """
+    Atualiza dados de uma empresa
+    
+    Args:
+        empresa_id: ID da empresa
+        dados: dict com campos a atualizar
+    
+    Returns:
+        dict: {'success': True/False, 'error': msg}
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se empresa existe
+        cursor.execute("SELECT id FROM empresas WHERE id = %s", (empresa_id,))
+        if not cursor.fetchone():
+            return {'success': False, 'error': 'Empresa não encontrada'}
+        
+        # Construir query de update dinamicamente
+        campos_atualizacao = []
+        valores = []
+        
+        campos_permitidos = [
+            'razao_social', 'nome_fantasia', 'cnpj', 'email', 'telefone', 'whatsapp',
+            'endereco', 'cidade', 'estado', 'cep', 'plano',
+            'max_usuarios', 'max_clientes', 'max_lancamentos_mes', 'espaco_storage_mb',
+            'observacoes', 'ativo'
+        ]
+        
+        for campo in campos_permitidos:
+            if campo in dados:
+                campos_atualizacao.append(f"{campo} = %s")
+                valores.append(dados[campo])
+        
+        if not campos_atualizacao:
+            return {'success': False, 'error': 'Nenhum campo para atualizar'}
+        
+        # Adicionar updated_at
+        campos_atualizacao.append("updated_at = NOW()")
+        valores.append(empresa_id)
+        
+        query = f"UPDATE empresas SET {', '.join(campos_atualizacao)} WHERE id = %s"
+        cursor.execute(query, valores)
+        
+        conn.commit()
+        
+        print(f"✅ Empresa {empresa_id} atualizada")
+        return {'success': True}
+        
+    except Exception as e:
+        print(f"❌ Erro ao atualizar empresa: {e}")
+        if conn:
+            conn.rollback()
+        import traceback
+        traceback.print_exc()
+        return {'success': False, 'error': str(e)}
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+
+def obter_empresa(empresa_id):
+    """
+    Obtém dados de uma empresa
+    
+    Args:
+        empresa_id: ID da empresa
+    
+    Returns:
+        dict: Dados da empresa ou None
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT * FROM empresas WHERE id = %s
+        """, (empresa_id,))
+        
+        empresa = cursor.fetchone()
+        
+        if empresa:
+            return dict(empresa)
+        return None
+        
+    except Exception as e:
+        print(f"❌ Erro ao obter empresa: {e}")
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+
+def listar_empresas(filtros=None):
+    """
+    Lista todas as empresas com filtros opcionais
+    
+    Args:
+        filtros: dict opcional {'ativo': True, 'plano': 'basico', etc}
+    
+    Returns:
+        list: Lista de empresas
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        query = "SELECT * FROM empresas"
+        valores = []
+        
+        if filtros:
+            condicoes = []
+            if 'ativo' in filtros:
+                condicoes.append("ativo = %s")
+                valores.append(filtros['ativo'])
+            
+            if 'plano' in filtros:
+                condicoes.append("plano = %s")
+                valores.append(filtros['plano'])
+            
+            if condicoes:
+                query += " WHERE " + " AND ".join(condicoes)
+        
+        query += " ORDER BY razao_social"
+        
+        cursor.execute(query, valores)
+        empresas = cursor.fetchall()
+        
+        return [dict(e) for e in empresas]
+        
+    except Exception as e:
+        print(f"❌ Erro ao listar empresas: {e}")
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+
+def suspender_empresa(empresa_id, motivo):
+    """
+    Suspende uma empresa (desativa)
+    
+    Args:
+        empresa_id: ID da empresa
+        motivo: Motivo da suspensão
+    
+    Returns:
+        dict: {'success': True/False, 'error': msg}
+    """
+    return atualizar_empresa(empresa_id, {
+        'ativo': False,
+        'data_suspensao': datetime.now(),
+        'motivo_suspensao': motivo
+    })
+
+
+def reativar_empresa(empresa_id):
+    """
+    Reativa uma empresa suspensa
+    
+    Args:
+        empresa_id: ID da empresa
+    
+    Returns:
+        dict: {'success': True/False, 'error': msg}
+    """
+    return atualizar_empresa(empresa_id, {
+        'ativo': True,
+        'data_suspensao': None,
+        'motivo_suspensao': None
+    })
+
+
+def obter_estatisticas_empresa(empresa_id):
+    """
+    Obtém estatísticas de uso de uma empresa
+    
+    Args:
+        empresa_id: ID da empresa
+    
+    Returns:
+        dict: Estatísticas de uso
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        stats = {}
+        
+        # Usuários
+        cursor.execute("SELECT COUNT(*) FROM usuarios WHERE empresa_id = %s", (empresa_id,))
+        stats['total_usuarios'] = cursor.fetchone()[0]
+        
+        # Clientes
+        cursor.execute("SELECT COUNT(*) FROM clientes WHERE empresa_id = %s", (empresa_id,))
+        stats['total_clientes'] = cursor.fetchone()[0]
+        
+        # Fornecedores
+        cursor.execute("SELECT COUNT(*) FROM fornecedores WHERE empresa_id = %s", (empresa_id,))
+        stats['total_fornecedores'] = cursor.fetchone()[0]
+        
+        # Lançamentos
+        cursor.execute("SELECT COUNT(*) FROM lancamentos WHERE empresa_id = %s", (empresa_id,))
+        stats['total_lancamentos'] = cursor.fetchone()[0]
+        
+        # Lançamentos no mês atual
+        cursor.execute("""
+            SELECT COUNT(*) FROM lancamentos 
+            WHERE empresa_id = %s 
+            AND EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE)
+            AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+        """, (empresa_id,))
+        stats['lancamentos_mes_atual'] = cursor.fetchone()[0]
+        
+        return stats
+        
+    except Exception as e:
+        print(f"❌ Erro ao obter estatísticas: {e}")
+        return {}
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+

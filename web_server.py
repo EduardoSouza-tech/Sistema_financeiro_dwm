@@ -121,6 +121,16 @@ try:
         migrar_proprietario_id()
     except Exception as e:
         print(f"⚠️ Aviso: Não foi possível executar migração proprietario_id: {e}")
+    
+    try:
+        print("\n🏢 Executando migração Multi-Tenant SaaS...")
+        from migration_multi_tenant_saas import executar_migracao_completa
+        if executar_migracao_completa():
+            print("✅ Sistema Multi-Tenant configurado com sucesso!\n")
+        else:
+            print("⚠️ Migração Multi-Tenant falhou (pode já estar aplicada)\n")
+    except Exception as e:
+        print(f"⚠️ Aviso: Não foi possível executar migração multi-tenant: {e}\n")
         
 except Exception as e:
     print(f"❌ ERRO CRÍTICO ao inicializar DatabaseManager: {e}")
@@ -3613,6 +3623,261 @@ def salvar_ordem_menu():
             'success': False,
             'error': str(e)
         }), 500
+
+
+# ============================================================================
+# ROTAS DE GESTÃO DE EMPRESAS (MULTI-TENANT)
+# ============================================================================
+
+@app.route('/api/empresas', methods=['GET'])
+@require_auth
+def listar_empresas_api():
+    """Lista todas as empresas (apenas super admin)"""
+    try:
+        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        
+        # Apenas admin do sistema pode listar todas empresas
+        if usuario['tipo'] != 'admin':
+            return jsonify({'error': 'Acesso negado'}), 403
+        
+        filtros = {}
+        if request.args.get('ativo'):
+            filtros['ativo'] = request.args.get('ativo') == 'true'
+        
+        if request.args.get('plano'):
+            filtros['plano'] = request.args.get('plano')
+        
+        empresas = database.listar_empresas(filtros)
+        
+        # Adicionar estatísticas para cada empresa
+        for empresa in empresas:
+            empresa['stats'] = database.obter_estatisticas_empresa(empresa['id'])
+        
+        return jsonify({
+            'success': True,
+            'empresas': empresas
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao listar empresas: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/empresas/<int:empresa_id>', methods=['GET'])
+@require_auth
+def obter_empresa_api(empresa_id):
+    """Obtém dados de uma empresa específica"""
+    try:
+        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        
+        # Admin pode ver qualquer empresa, usuário comum só a própria
+        if usuario['tipo'] != 'admin':
+            usuario_completo = database.obter_usuario_por_id(usuario['id'])
+            if usuario_completo.get('empresa_id') != empresa_id:
+                return jsonify({'error': 'Acesso negado'}), 403
+        
+        empresa = database.obter_empresa(empresa_id)
+        
+        if not empresa:
+            return jsonify({'error': 'Empresa não encontrada'}), 404
+        
+        # Adicionar estatísticas
+        empresa['stats'] = database.obter_estatisticas_empresa(empresa_id)
+        
+        return jsonify({
+            'success': True,
+            'empresa': empresa
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao obter empresa: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/empresas', methods=['POST'])
+@require_auth
+def criar_empresa_api():
+    """Cria uma nova empresa (apenas super admin)"""
+    try:
+        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        
+        if usuario['tipo'] != 'admin':
+            return jsonify({'error': 'Acesso negado'}), 403
+        
+        dados = request.json
+        
+        if not dados:
+            return jsonify({'error': 'Dados não fornecidos'}), 400
+        
+        resultado = database.criar_empresa(dados)
+        
+        if resultado['success']:
+            # Registrar log
+            try:
+                auth_db.registrar_log_acesso(
+                    usuario_id=usuario['id'],
+                    acao='criar_empresa',
+                    descricao=f"Empresa criada: {dados.get('razao_social')}",
+                    sucesso=True
+                )
+            except:
+                pass
+            
+            return jsonify(resultado), 201
+        else:
+            return jsonify(resultado), 400
+        
+    except Exception as e:
+        print(f"❌ Erro ao criar empresa: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/empresas/<int:empresa_id>', methods=['PUT'])
+@require_auth
+def atualizar_empresa_api(empresa_id):
+    """Atualiza dados de uma empresa"""
+    try:
+        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        
+        # Admin pode editar qualquer empresa
+        # Usuário comum não pode editar
+        if usuario['tipo'] != 'admin':
+            return jsonify({'error': 'Acesso negado'}), 403
+        
+        dados = request.json
+        
+        if not dados:
+            return jsonify({'error': 'Dados não fornecidos'}), 400
+        
+        resultado = database.atualizar_empresa(empresa_id, dados)
+        
+        if resultado['success']:
+            # Registrar log
+            try:
+                auth_db.registrar_log_acesso(
+                    usuario_id=usuario['id'],
+                    acao='atualizar_empresa',
+                    descricao=f"Empresa {empresa_id} atualizada",
+                    sucesso=True
+                )
+            except:
+                pass
+            
+            return jsonify(resultado)
+        else:
+            return jsonify(resultado), 400
+        
+    except Exception as e:
+        print(f"❌ Erro ao atualizar empresa: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/empresas/<int:empresa_id>/suspender', methods=['POST'])
+@require_auth
+def suspender_empresa_api(empresa_id):
+    """Suspende uma empresa"""
+    try:
+        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        
+        if usuario['tipo'] != 'admin':
+            return jsonify({'error': 'Acesso negado'}), 403
+        
+        dados = request.json
+        motivo = dados.get('motivo', 'Não especificado')
+        
+        resultado = database.suspender_empresa(empresa_id, motivo)
+        
+        if resultado['success']:
+            # Registrar log
+            try:
+                auth_db.registrar_log_acesso(
+                    usuario_id=usuario['id'],
+                    acao='suspender_empresa',
+                    descricao=f"Empresa {empresa_id} suspensa: {motivo}",
+                    sucesso=True
+                )
+            except:
+                pass
+            
+            return jsonify(resultado)
+        else:
+            return jsonify(resultado), 400
+        
+    except Exception as e:
+        print(f"❌ Erro ao suspender empresa: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/empresas/<int:empresa_id>/reativar', methods=['POST'])
+@require_auth
+def reativar_empresa_api(empresa_id):
+    """Reativa uma empresa suspensa"""
+    try:
+        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        
+        if usuario['tipo'] != 'admin':
+            return jsonify({'error': 'Acesso negado'}), 403
+        
+        resultado = database.reativar_empresa(empresa_id)
+        
+        if resultado['success']:
+            # Registrar log
+            try:
+                auth_db.registrar_log_acesso(
+                    usuario_id=usuario['id'],
+                    acao='reativar_empresa',
+                    descricao=f"Empresa {empresa_id} reativada",
+                    sucesso=True
+                )
+            except:
+                pass
+            
+            return jsonify(resultado)
+        else:
+            return jsonify(resultado), 400
+        
+    except Exception as e:
+        print(f"❌ Erro ao reativar empresa: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/empresas/<int:empresa_id>/stats', methods=['GET'])
+@require_auth
+def estatisticas_empresa_api(empresa_id):
+    """Obtém estatísticas de uma empresa"""
+    try:
+        usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        
+        # Verificar acesso
+        if usuario['tipo'] != 'admin':
+            usuario_completo = database.obter_usuario_por_id(usuario['id'])
+            if usuario_completo.get('empresa_id') != empresa_id:
+                return jsonify({'error': 'Acesso negado'}), 403
+        
+        stats = database.obter_estatisticas_empresa(empresa_id)
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao obter estatísticas: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
