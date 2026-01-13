@@ -695,24 +695,75 @@
                 const categoryDiv = document.createElement('div');
                 categoryDiv.style.marginBottom = '20px';
                 
+                const categoryHeader = document.createElement('div');
+                categoryHeader.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid #667eea; padding-bottom: 5px;';
+                
                 const categoryTitle = document.createElement('h4');
                 categoryTitle.textContent = categoria.charAt(0).toUpperCase() + categoria.slice(1);
-                categoryTitle.style.cssText = 'color: #667eea; margin-bottom: 10px; font-size: 14px; font-weight: 600; border-bottom: 2px solid #667eea; padding-bottom: 5px;';
-                categoryDiv.appendChild(categoryTitle);
+                categoryTitle.style.cssText = 'color: #667eea; margin: 0; font-size: 14px; font-weight: 600;';
+                
+                const selectAllContainer = document.createElement('div');
+                selectAllContainer.style.cssText = 'display: flex; align-items: center; gap: 5px;';
+                
+                const selectAllCheckbox = document.createElement('input');
+                selectAllCheckbox.type = 'checkbox';
+                selectAllCheckbox.id = `selectAll_${categoria}`;
+                selectAllCheckbox.style.cssText = 'cursor: pointer; width: 16px; height: 16px;';
+                
+                const selectAllLabel = document.createElement('label');
+                selectAllLabel.htmlFor = `selectAll_${categoria}`;
+                selectAllLabel.textContent = 'Selecionar Todos';
+                selectAllLabel.style.cssText = 'color: #667eea; font-size: 12px; font-weight: 500; cursor: pointer; user-select: none;';
+                
+                selectAllContainer.appendChild(selectAllCheckbox);
+                selectAllContainer.appendChild(selectAllLabel);
+                
+                categoryHeader.appendChild(categoryTitle);
+                categoryHeader.appendChild(selectAllContainer);
+                categoryDiv.appendChild(categoryHeader);
                 
                 const categoryGrid = document.createElement('div');
                 categoryGrid.style.cssText = 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;';
+                categoryGrid.className = `category-permissions category-${categoria}`;
                 
                 grouped[categoria].forEach(perm => {
                     const item = document.createElement('div');
                     item.className = 'permission-item';
                     const checked = selectedPermissions.includes(perm.codigo) ? 'checked' : '';
                     item.innerHTML = `
-                        <input type="checkbox" name="permissions" value="${perm.codigo}" ${checked} id="perm_${perm.codigo}">
+                        <input type="checkbox" name="permissions" value="${perm.codigo}" ${checked} id="perm_${perm.codigo}" class="perm-checkbox">
                         <label for="perm_${perm.codigo}">${perm.nome}</label>
                     `;
                     categoryGrid.appendChild(item);
                 });
+                
+                // Event listener para "Selecionar Todos"
+                selectAllCheckbox.addEventListener('change', function() {
+                    const checkboxes = categoryGrid.querySelectorAll('.perm-checkbox');
+                    checkboxes.forEach(cb => {
+                        cb.checked = this.checked;
+                    });
+                });
+                
+                // Event listener para atualizar o estado do "Selecionar Todos"
+                categoryGrid.addEventListener('change', function(e) {
+                    if (e.target.classList.contains('perm-checkbox')) {
+                        const checkboxes = categoryGrid.querySelectorAll('.perm-checkbox');
+                        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                        const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+                        selectAllCheckbox.checked = allChecked;
+                        selectAllCheckbox.indeterminate = someChecked && !allChecked;
+                    }
+                });
+                
+                // Verificar estado inicial do "Selecionar Todos"
+                setTimeout(() => {
+                    const checkboxes = categoryGrid.querySelectorAll('.perm-checkbox');
+                    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                    const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+                    selectAllCheckbox.checked = allChecked;
+                    selectAllCheckbox.indeterminate = someChecked && !allChecked;
+                }, 0);
                 
                 categoryDiv.appendChild(categoryGrid);
                 grid.appendChild(categoryDiv);
