@@ -135,23 +135,23 @@ function showPage(pageName) {
     
     console.log(`✅ [DEBUG] Permissão OK para: ${pageName}`);
     
-    // Ocultar todas as páginas
-    const todasPaginas = document.querySelectorAll('.page');
+    // Ocultar todas as páginas (usando .content-card ao invés de .page)
+    const todasPaginas = document.querySelectorAll('.content-card');
     console.log(`🔍 [DEBUG] Total de páginas encontradas: ${todasPaginas.length}`);
     todasPaginas.forEach(page => {
-        page.classList.remove('active');
-        console.log(`🔍 [DEBUG] Removendo active de: ${page.id}`);
+        page.classList.add('hidden');
+        console.log(`🔍 [DEBUG] Ocultando: ${page.id}`);
     });
     
-    // Mostrar página selecionada
-    const targetPage = document.getElementById(`page-${pageName}`);
+    // Mostrar página selecionada (usando padrão ${pageName}-section)
+    const targetPage = document.getElementById(`${pageName}-section`);
     if (targetPage) {
-        targetPage.classList.add('active');
+        targetPage.classList.remove('hidden');
         console.log(`✅ [DEBUG] Página ${pageName} ativada com sucesso`);
-        console.log(`✅ [DEBUG] Elemento page-${pageName} agora tem classe 'active'`);
+        console.log(`✅ [DEBUG] Elemento ${pageName}-section agora está visível`);
     } else {
-        console.error(`❌ [DEBUG] Página não encontrada: page-${pageName}`);
-        console.log(`📋 [DEBUG] Páginas disponíveis:`, Array.from(document.querySelectorAll('.page')).map(p => p.id));
+        console.error(`❌ [DEBUG] Página não encontrada: ${pageName}-section`);
+        console.log(`📋 [DEBUG] Páginas disponíveis:`, Array.from(document.querySelectorAll('.content-card')).map(p => p.id));
         console.log('🔍 [DEBUG] ========================================');
         return;
     }
