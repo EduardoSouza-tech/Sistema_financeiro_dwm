@@ -1,6 +1,6 @@
 """
-Módulo de gerenciamento do banco de dados PostgreSQL
-Otimizado com pool de conexões para máxima performance
+Modulo de gerenciamento do banco de dados PostgreSQL
+Otimizado com pool de conexoes para maxima performance
 """
 import psycopg2  # type: ignore
 from psycopg2 import Error, sql, pool  # type: ignore
@@ -14,9 +14,9 @@ import os
 import sys
 from contextlib import contextmanager
 
-# Forçar saída imediata de logs (importante para Railway/gunicorn)
+# Forcar saida imediata de logs (importante para Railway/gunicorn)
 def log(msg):
-    """Print que força flush imediato"""
+    """Print que forca flush imediato"""
     print(msg, file=sys.stderr, flush=True)
 
 
@@ -154,7 +154,7 @@ class Lancamento:
 
 
 # ============================================================================
-# CONFIGURAÇÃO E POOL DE CONEXÕES
+# CONFIGURAï¿½ï¿½O E POOL DE CONEXï¿½ES
 # ============================================================================
 
 __all__ = [
@@ -181,7 +181,7 @@ __all__ = [
     'obter_lancamento',
     'atualizar_cliente',
     'atualizar_fornecedor',
-    # Novas funções do menu Operacional
+    # Novas funï¿½ï¿½es do menu Operacional
     'adicionar_contrato',
     'listar_contratos',
     'atualizar_contrato',
@@ -225,22 +225,22 @@ __all__ = [
 ]
 
 # ============================================================================
-# CONFIGURAÇÃO OTIMIZADA DO POSTGRESQL COM POOL DE CONEXÕES
+# CONFIGURAï¿½ï¿½O OTIMIZADA DO POSTGRESQL COM POOL DE CONEXï¿½ES
 # ============================================================================
 
 def _get_postgresql_config():
-    """Configuração do PostgreSQL com prioridade para DATABASE_URL"""
+    """Configuraï¿½ï¿½o do PostgreSQL com prioridade para DATABASE_URL"""
     database_url = os.getenv('DATABASE_URL')
     
     if database_url:
         return {'dsn': database_url}
     
-    # Fallback para variáveis individuais (desenvolvimento local)
+    # Fallback para variï¿½veis individuais (desenvolvimento local)
     host = os.getenv('PGHOST', 'localhost')
     if not host or host == 'localhost':
         raise ValueError(
-            "? ERRO: DATABASE_URL não configurado. "
-            "Configure a variável de ambiente DATABASE_URL para conectar ao PostgreSQL."
+            "? ERRO: DATABASE_URL nï¿½o configurado. "
+            "Configure a variï¿½vel de ambiente DATABASE_URL para conectar ao PostgreSQL."
         )
     
     return {
@@ -253,12 +253,12 @@ def _get_postgresql_config():
 
 POSTGRESQL_CONFIG = _get_postgresql_config()
 
-# Pool de conexões global para reutilização eficiente
+# Pool de conexï¿½es global para reutilizaï¿½ï¿½o eficiente
 _connection_pool = None
-_database_initialized = False  # Flag para controlar inicialização única
+_database_initialized = False  # Flag para controlar inicializaï¿½ï¿½o ï¿½nica
 
 def _get_connection_pool():
-    """Obtém ou cria o pool de conexões"""
+    """Obtï¿½m ou cria o pool de conexï¿½es"""
     global _connection_pool
     
     if _connection_pool is None:
@@ -277,16 +277,16 @@ def _get_connection_pool():
                     cursor_factory=RealDictCursor,
                     **POSTGRESQL_CONFIG
                 )
-            print("? Pool de conexões PostgreSQL criado (2-20 conexões)")
+            print("? Pool de conexï¿½es PostgreSQL criado (2-20 conexï¿½es)")
         except Exception as e:
-            print(f"? Erro ao criar pool de conexões: {e}")
+            print(f"? Erro ao criar pool de conexï¿½es: {e}")
             raise
     
     return _connection_pool
 
 @contextmanager
 def get_db_connection():
-    """Context manager para obter conexão do pool"""
+    """Context manager para obter conexï¿½o do pool"""
     pool_obj = _get_connection_pool()
     conn = pool_obj.getconn()
     try:
@@ -297,25 +297,25 @@ def get_db_connection():
 
 
 def return_to_pool(conn):
-    """Devolve uma conexão ao pool manualmente"""
+    """Devolve uma conexï¿½o ao pool manualmente"""
     try:
         pool_obj = _get_connection_pool()
         pool_obj.putconn(conn)
     except Exception as e:
-        print(f"?? Erro ao devolver conexão ao pool: {e}")
+        print(f"?? Erro ao devolver conexï¿½o ao pool: {e}")
 
 
 # ============================================================================
-# FUNÇÕES AUXILIARES OTIMIZADAS
+# FUNï¿½ï¿½ES AUXILIARES OTIMIZADAS
 # ============================================================================
 
 def execute_query(query: str, params: tuple = None, fetch_one: bool = False, fetch_all: bool = True):
     """
-    Executa query otimizada usando pool de conexões
+    Executa query otimizada usando pool de conexï¿½es
     
     Args:
         query: Query SQL
-        params: Parâmetros da query
+        params: Parï¿½metros da query
         fetch_one: Retornar apenas um resultado
         fetch_all: Retornar todos os resultados
     
@@ -335,19 +335,19 @@ def execute_query(query: str, params: tuple = None, fetch_one: bool = False, fet
 
 
 def execute_many(query: str, params_list: list):
-    """Executa múltiplas queries em batch para performance"""
+    """Executa mï¿½ltiplas queries em batch para performance"""
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
             cursor.executemany(query, params_list)
             return cursor.rowcount
 
 
-# Cache simples para permissões (evita consultas repetidas)
+# Cache simples para permissï¿½es (evita consultas repetidas)
 _permissions_cache = {}
 _cache_timeout = 300  # 5 minutos
 
 def get_cached_permissions(usuario_id: int):
-    """Obtém permissões do usuário com cache"""
+    """Obtï¿½m permissï¿½es do usuï¿½rio com cache"""
     import time
     current_time = time.time()
     
@@ -371,7 +371,7 @@ def get_cached_permissions(usuario_id: int):
 
 
 def clear_permissions_cache(usuario_id: int = None):
-    """Limpa cache de permissões"""
+    """Limpa cache de permissï¿½es"""
     if usuario_id:
         _permissions_cache.pop(usuario_id, None)
     else:
@@ -379,7 +379,7 @@ def clear_permissions_cache(usuario_id: int = None):
 
 
 class DatabaseManager:
-    """Gerenciador otimizado do banco de dados PostgreSQL com pool de conexões"""
+    """Gerenciador otimizado do banco de dados PostgreSQL com pool de conexï¿½es"""
     
     def __init__(self, config: Dict = None):
         global _database_initialized
@@ -388,7 +388,7 @@ class DatabaseManager:
         # Inicializar pool
         _get_connection_pool()
         
-        # Criar tabelas e executar migrações APENAS UMA VEZ
+        # Criar tabelas e executar migraï¿½ï¿½es APENAS UMA VEZ
         if not _database_initialized:
             print("?? Inicializando banco de dados (primeira vez)...")
             self.criar_tabelas()
@@ -397,7 +397,7 @@ class DatabaseManager:
     
     def get_connection(self):
         """
-        Obtém uma conexão do pool
+        Obtï¿½m uma conexï¿½o do pool
         IMPORTANTE: SEMPRE devolva ao pool com return_to_pool(conn) quando terminar!
         Ou use o context manager get_db_connection() preferencialmente.
         """
@@ -407,7 +407,7 @@ class DatabaseManager:
             conn.autocommit = True
             return conn
         except Error as e:
-            print(f"? Erro ao obter conexão do pool: {e}")
+            print(f"? Erro ao obter conexï¿½o do pool: {e}")
             raise
     
     def criar_tabelas(self):
@@ -415,7 +415,7 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Tabela de contas bancárias
+        # Tabela de contas bancï¿½rias
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS contas_bancarias (
                 id SERIAL PRIMARY KEY,
@@ -476,9 +476,9 @@ class DatabaseManager:
             )
         """)
         
-        # ===== TABELAS DE AUTENTICAÇÃO E AUTORIZAÇÃO =====
+        # ===== TABELAS DE AUTENTICAï¿½ï¿½O E AUTORIZAï¿½ï¿½O =====
         
-        # Tabela de usuários
+        # Tabela de usuï¿½rios
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id SERIAL PRIMARY KEY,
@@ -497,7 +497,7 @@ class DatabaseManager:
             )
         """)
         
-        # Tabela de permissões (funcionalidades do sistema)
+        # Tabela de permissï¿½es (funcionalidades do sistema)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS permissoes (
                 id SERIAL PRIMARY KEY,
@@ -509,7 +509,7 @@ class DatabaseManager:
             )
         """)
         
-        # Tabela de relação usuário-permissões
+        # Tabela de relaï¿½ï¿½o usuï¿½rio-permissï¿½es
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS usuario_permissoes (
                 id SERIAL PRIMARY KEY,
@@ -521,7 +521,7 @@ class DatabaseManager:
             )
         """)
         
-        # Tabela de sessões de login (para controle de autenticação)
+        # Tabela de sessï¿½es de login (para controle de autenticaï¿½ï¿½o)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS sessoes_login (
                 id SERIAL PRIMARY KEY,
@@ -548,7 +548,7 @@ class DatabaseManager:
             )
         """)
         
-        # Tabela de lançamentos
+        # Tabela de lanï¿½amentos
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS lancamentos (
                 id SERIAL PRIMARY KEY,
@@ -575,7 +575,7 @@ class DatabaseManager:
             )
         """)
         
-        # Adicionar colunas juros e desconto se não existirem (migration)
+        # Adicionar colunas juros e desconto se nï¿½o existirem (migration)
         try:
             cursor.execute("""
                 DO $$ 
@@ -595,54 +595,54 @@ class DatabaseManager:
                     END IF;
                 END $$;
             """)
-            print("? Migração: Colunas juros e desconto adicionadas/verificadas")
+            print("? Migraï¿½ï¿½o: Colunas juros e desconto adicionadas/verificadas")
         except Exception as e:
-            print(f"??  Aviso na migração de colunas: {e}")
+            print(f"??  Aviso na migraï¿½ï¿½o de colunas: {e}")
         
-        # Sincronizar sequências de auto-incremento com valores máximos atuais
+        # Sincronizar sequï¿½ncias de auto-incremento com valores mï¿½ximos atuais
         try:
             cursor.execute("""
                 DO $$ 
                 DECLARE
                     max_id INTEGER;
                 BEGIN
-                    -- Sincronizar sequência de categorias
+                    -- Sincronizar sequï¿½ncia de categorias
                     SELECT COALESCE(MAX(id), 0) INTO max_id FROM categorias;
                     IF max_id > 0 THEN
                         EXECUTE 'SELECT setval(''categorias_id_seq'', ' || max_id || ')';
                     END IF;
                     
-                    -- Sincronizar sequência de contas_bancarias
+                    -- Sincronizar sequï¿½ncia de contas_bancarias
                     SELECT COALESCE(MAX(id), 0) INTO max_id FROM contas_bancarias;
                     IF max_id > 0 THEN
                         EXECUTE 'SELECT setval(''contas_bancarias_id_seq'', ' || max_id || ')';
                     END IF;
                     
-                    -- Sincronizar sequência de clientes
+                    -- Sincronizar sequï¿½ncia de clientes
                     SELECT COALESCE(MAX(id), 0) INTO max_id FROM clientes;
                     IF max_id > 0 THEN
                         EXECUTE 'SELECT setval(''clientes_id_seq'', ' || max_id || ')';
                     END IF;
                     
-                    -- Sincronizar sequência de fornecedores
+                    -- Sincronizar sequï¿½ncia de fornecedores
                     SELECT COALESCE(MAX(id), 0) INTO max_id FROM fornecedores;
                     IF max_id > 0 THEN
                         EXECUTE 'SELECT setval(''fornecedores_id_seq'', ' || max_id || ')';
                     END IF;
                     
-                    -- Sincronizar sequência de lancamentos
+                    -- Sincronizar sequï¿½ncia de lancamentos
                     SELECT COALESCE(MAX(id), 0) INTO max_id FROM lancamentos;
                     IF max_id > 0 THEN
                         EXECUTE 'SELECT setval(''lancamentos_id_seq'', ' || max_id || ')';
                     END IF;
                 END $$;
             """)
-            print("? Migração: Sequências de ID sincronizadas com sucesso")
+            print("? Migraï¿½ï¿½o: Sequï¿½ncias de ID sincronizadas com sucesso")
         except Exception as e:
-            print(f"??  Aviso na sincronização de sequências: {e}")
+            print(f"??  Aviso na sincronizaï¿½ï¿½o de sequï¿½ncias: {e}")
         
         # Tabela de contratos
-        # Primeiro, dropar tabela antiga se existir com estrutura incompatível
+        # Primeiro, dropar tabela antiga se existir com estrutura incompatï¿½vel
         try:
             cursor.execute("""
                 DO $$ 
@@ -758,7 +758,7 @@ class DatabaseManager:
             )
         """)
         
-        # Tabela de sessões
+        # Tabela de sessï¿½es
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS sessoes (
                 id SERIAL PRIMARY KEY,
@@ -774,7 +774,7 @@ class DatabaseManager:
             )
         """)
         
-        # Adicionar coluna contrato_id se não existir
+        # Adicionar coluna contrato_id se nï¿½o existir
         cursor.execute("""
             DO $$ 
             BEGIN
@@ -787,19 +787,19 @@ class DatabaseManager:
             END $$;
         """)
         
-        # Migração: Adicionar colunas que podem faltar em sessoes
+        # Migraï¿½ï¿½o: Adicionar colunas que podem faltar em sessoes
         cursor.execute("""
             DO $$ 
             BEGIN
-                -- Adicionar titulo se não existir
+                -- Adicionar titulo se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='sessoes' AND column_name='titulo'
                 ) THEN
-                    ALTER TABLE sessoes ADD COLUMN titulo VARCHAR(255) NOT NULL DEFAULT 'Sessão';
+                    ALTER TABLE sessoes ADD COLUMN titulo VARCHAR(255) NOT NULL DEFAULT 'Sessï¿½o';
                 END IF;
                 
-                -- Adicionar data_sessao se não existir
+                -- Adicionar data_sessao se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='sessoes' AND column_name='data_sessao'
@@ -807,7 +807,7 @@ class DatabaseManager:
                     ALTER TABLE sessoes ADD COLUMN data_sessao DATE NOT NULL DEFAULT CURRENT_DATE;
                 END IF;
                 
-                -- Adicionar duracao se não existir
+                -- Adicionar duracao se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='sessoes' AND column_name='duracao'
@@ -815,7 +815,7 @@ class DatabaseManager:
                     ALTER TABLE sessoes ADD COLUMN duracao INTEGER;
                 END IF;
                 
-                -- Adicionar cliente_id se não existir
+                -- Adicionar cliente_id se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='sessoes' AND column_name='cliente_id'
@@ -823,7 +823,7 @@ class DatabaseManager:
                     ALTER TABLE sessoes ADD COLUMN cliente_id INTEGER REFERENCES clientes(id);
                 END IF;
                 
-                -- Adicionar valor se não existir
+                -- Adicionar valor se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='sessoes' AND column_name='valor'
@@ -831,7 +831,7 @@ class DatabaseManager:
                     ALTER TABLE sessoes ADD COLUMN valor DECIMAL(15,2);
                 END IF;
                 
-                -- Adicionar observacoes se não existir
+                -- Adicionar observacoes se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='sessoes' AND column_name='observacoes'
@@ -849,7 +849,7 @@ class DatabaseManager:
             END $$;
         """)
         
-        # Tabela de tipos de sessão
+        # Tabela de tipos de sessï¿½o
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS tipos_sessao (
                 id SERIAL PRIMARY KEY,
@@ -863,11 +863,11 @@ class DatabaseManager:
             )
         """)
         
-        # Migração: Adicionar colunas que podem faltar em tipos_sessao
+        # Migraï¿½ï¿½o: Adicionar colunas que podem faltar em tipos_sessao
         cursor.execute("""
             DO $$ 
             BEGIN
-                -- Adicionar descricao se não existir
+                -- Adicionar descricao se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='tipos_sessao' AND column_name='descricao'
@@ -875,7 +875,7 @@ class DatabaseManager:
                     ALTER TABLE tipos_sessao ADD COLUMN descricao TEXT;
                 END IF;
                 
-                -- Adicionar duracao_padrao se não existir
+                -- Adicionar duracao_padrao se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='tipos_sessao' AND column_name='duracao_padrao'
@@ -883,7 +883,7 @@ class DatabaseManager:
                     ALTER TABLE tipos_sessao ADD COLUMN duracao_padrao INTEGER;
                 END IF;
                 
-                -- Adicionar valor_padrao se não existir
+                -- Adicionar valor_padrao se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='tipos_sessao' AND column_name='valor_padrao'
@@ -891,7 +891,7 @@ class DatabaseManager:
                     ALTER TABLE tipos_sessao ADD COLUMN valor_padrao DECIMAL(15,2);
                 END IF;
                 
-                -- Adicionar ativo se não existir
+                -- Adicionar ativo se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='tipos_sessao' AND column_name='ativo'
@@ -899,7 +899,7 @@ class DatabaseManager:
                     ALTER TABLE tipos_sessao ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
                 END IF;
                 
-                -- Adicionar created_at se não existir
+                -- Adicionar created_at se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='tipos_sessao' AND column_name='created_at'
@@ -907,7 +907,7 @@ class DatabaseManager:
                     ALTER TABLE tipos_sessao ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
                 END IF;
                 
-                -- Adicionar updated_at se não existir
+                -- Adicionar updated_at se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='tipos_sessao' AND column_name='updated_at'
@@ -917,11 +917,11 @@ class DatabaseManager:
             END $$;
         """)
         
-        # Migração: Adicionar colunas que podem faltar em produtos
+        # Migraï¿½ï¿½o: Adicionar colunas que podem faltar em produtos
         cursor.execute("""
             DO $$ 
             BEGIN
-                -- Adicionar descricao se não existir
+                -- Adicionar descricao se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='produtos' AND column_name='descricao'
@@ -929,7 +929,7 @@ class DatabaseManager:
                     ALTER TABLE produtos ADD COLUMN descricao TEXT;
                 END IF;
                 
-                -- Adicionar unidade se não existir
+                -- Adicionar unidade se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='produtos' AND column_name='unidade'
@@ -937,7 +937,7 @@ class DatabaseManager:
                     ALTER TABLE produtos ADD COLUMN unidade VARCHAR(20) DEFAULT 'UN';
                 END IF;
                 
-                -- Adicionar quantidade_minima se não existir
+                -- Adicionar quantidade_minima se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='produtos' AND column_name='quantidade_minima'
@@ -945,7 +945,7 @@ class DatabaseManager:
                     ALTER TABLE produtos ADD COLUMN quantidade_minima DECIMAL(15,3) DEFAULT 0;
                 END IF;
                 
-                -- Adicionar ativo se não existir
+                -- Adicionar ativo se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='produtos' AND column_name='ativo'
@@ -953,7 +953,7 @@ class DatabaseManager:
                     ALTER TABLE produtos ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
                 END IF;
                 
-                -- Adicionar data_criacao se não existir
+                -- Adicionar data_criacao se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='produtos' AND column_name='data_criacao'
@@ -963,11 +963,11 @@ class DatabaseManager:
             END $$;
         """)
         
-        # Migração: Adicionar colunas que podem faltar em kits
+        # Migraï¿½ï¿½o: Adicionar colunas que podem faltar em kits
         cursor.execute("""
             DO $$ 
             BEGIN
-                -- Adicionar descricao se não existir
+                -- Adicionar descricao se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='kits' AND column_name='descricao'
@@ -975,7 +975,7 @@ class DatabaseManager:
                     ALTER TABLE kits ADD COLUMN descricao TEXT;
                 END IF;
                 
-                -- Adicionar ativo se não existir
+                -- Adicionar ativo se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='kits' AND column_name='ativo'
@@ -983,7 +983,7 @@ class DatabaseManager:
                     ALTER TABLE kits ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
                 END IF;
                 
-                -- Adicionar data_criacao se não existir
+                -- Adicionar data_criacao se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='kits' AND column_name='data_criacao'
@@ -993,11 +993,11 @@ class DatabaseManager:
             END $$;
         """)
         
-        # Migração: Adicionar colunas que podem faltar em tags
+        # Migraï¿½ï¿½o: Adicionar colunas que podem faltar em tags
         cursor.execute("""
             DO $$ 
             BEGIN
-                -- Adicionar data_criacao se não existir  
+                -- Adicionar data_criacao se nï¿½o existir  
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='tags' AND column_name='data_criacao'
@@ -1007,11 +1007,11 @@ class DatabaseManager:
             END $$;
         """)
         
-        # Migração: Adicionar colunas que podem faltar em templates_equipe
+        # Migraï¿½ï¿½o: Adicionar colunas que podem faltar em templates_equipe
         cursor.execute("""
             DO $$ 
             BEGIN
-                -- Adicionar conteudo se não existir
+                -- Adicionar conteudo se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='templates_equipe' AND column_name='conteudo'
@@ -1019,7 +1019,7 @@ class DatabaseManager:
                     ALTER TABLE templates_equipe ADD COLUMN conteudo TEXT;
                 END IF;
                 
-                -- Adicionar tipo se não existir
+                -- Adicionar tipo se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='templates_equipe' AND column_name='tipo'
@@ -1027,7 +1027,7 @@ class DatabaseManager:
                     ALTER TABLE templates_equipe ADD COLUMN tipo VARCHAR(50);
                 END IF;
                 
-                -- Adicionar descricao se não existir
+                -- Adicionar descricao se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='templates_equipe' AND column_name='descricao'
@@ -1035,7 +1035,7 @@ class DatabaseManager:
                     ALTER TABLE templates_equipe ADD COLUMN descricao TEXT;
                 END IF;
                 
-                -- Adicionar ativo se não existir
+                -- Adicionar ativo se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='templates_equipe' AND column_name='ativo'
@@ -1043,7 +1043,7 @@ class DatabaseManager:
                     ALTER TABLE templates_equipe ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
                 END IF;
                 
-                -- Adicionar data_criacao se não existir
+                -- Adicionar data_criacao se nï¿½o existir
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name='templates_equipe' AND column_name='data_criacao'
@@ -1053,7 +1053,7 @@ class DatabaseManager:
             END $$;
         """)
         
-        # Tabela de comissões
+        # Tabela de comissï¿½es
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS comissoes (
                 id SERIAL PRIMARY KEY,
@@ -1068,7 +1068,7 @@ class DatabaseManager:
             )
         """)
         
-        # Migração: adicionar campos faltantes em comissoes
+        # Migraï¿½ï¿½o: adicionar campos faltantes em comissoes
         cursor.execute("""
             DO $$
             BEGIN
@@ -1089,7 +1089,7 @@ class DatabaseManager:
             END $$;
         """)
         
-        # Migração: tornar campos nullable em comissoes
+        # Migraï¿½ï¿½o: tornar campos nullable em comissoes
         cursor.execute("""
             DO $$
             BEGIN
@@ -1100,7 +1100,7 @@ class DatabaseManager:
             END $$;
         """)
         
-        # Tabela de equipe de sessão
+        # Tabela de equipe de sessï¿½o
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS sessao_equipe (
                 id SERIAL PRIMARY KEY,
@@ -1112,21 +1112,21 @@ class DatabaseManager:
             )
         """)
         
-        # ===== INICIALIZAÇÃO DE DADOS PADRÃO =====
+        # ===== INICIALIZAï¿½ï¿½O DE DADOS PADRï¿½O =====
         
-        # Inserir permissões padrão
+        # Inserir permissï¿½es padrï¿½o
         permissoes_padrao = [
-            # Navegação
+            # Navegaï¿½ï¿½o
             ('dashboard', 'Dashboard', 'Visualizar dashboard principal', 'navegacao'),
-            ('relatorios_view', 'Relatórios', 'Acessar menu de relatórios', 'navegacao'),
+            ('relatorios_view', 'Relatï¿½rios', 'Acessar menu de relatï¿½rios', 'navegacao'),
             ('cadastros_view', 'Cadastros', 'Acessar menu de cadastros', 'navegacao'),
             ('operacional_view', 'Operacional', 'Acessar menu operacional', 'navegacao'),
             
             # Financeiro
-            ('lancamentos_view', 'Ver Lançamentos', 'Visualizar lançamentos financeiros', 'financeiro'),
-            ('lancamentos_create', 'Criar Lançamentos', 'Criar novos lançamentos', 'financeiro'),
-            ('lancamentos_edit', 'Editar Lançamentos', 'Editar lançamentos existentes', 'financeiro'),
-            ('lancamentos_delete', 'Excluir Lançamentos', 'Excluir lançamentos', 'financeiro'),
+            ('lancamentos_view', 'Ver Lanï¿½amentos', 'Visualizar lanï¿½amentos financeiros', 'financeiro'),
+            ('lancamentos_create', 'Criar Lanï¿½amentos', 'Criar novos lanï¿½amentos', 'financeiro'),
+            ('lancamentos_edit', 'Editar Lanï¿½amentos', 'Editar lanï¿½amentos existentes', 'financeiro'),
+            ('lancamentos_delete', 'Excluir Lanï¿½amentos', 'Excluir lanï¿½amentos', 'financeiro'),
             
             # Cadastros
             ('clientes_view', 'Ver Clientes', 'Visualizar clientes', 'cadastros'),
@@ -1143,22 +1143,22 @@ class DatabaseManager:
             ('contratos_create', 'Criar Contratos', 'Criar novos contratos', 'operacional'),
             ('contratos_edit', 'Editar Contratos', 'Editar contratos existentes', 'operacional'),
             ('contratos_delete', 'Excluir Contratos', 'Excluir contratos', 'operacional'),
-            ('sessoes_view', 'Ver Sessões', 'Visualizar sessões', 'operacional'),
-            ('sessoes_create', 'Criar Sessões', 'Criar novas sessões', 'operacional'),
-            ('sessoes_edit', 'Editar Sessões', 'Editar sessões existentes', 'operacional'),
-            ('sessoes_delete', 'Excluir Sessões', 'Excluir sessões', 'operacional'),
+            ('sessoes_view', 'Ver Sessï¿½es', 'Visualizar sessï¿½es', 'operacional'),
+            ('sessoes_create', 'Criar Sessï¿½es', 'Criar novas sessï¿½es', 'operacional'),
+            ('sessoes_edit', 'Editar Sessï¿½es', 'Editar sessï¿½es existentes', 'operacional'),
+            ('sessoes_delete', 'Excluir Sessï¿½es', 'Excluir sessï¿½es', 'operacional'),
             ('agenda_view', 'Ver Agenda', 'Visualizar agenda', 'operacional'),
             ('agenda_create', 'Criar Eventos', 'Criar eventos na agenda', 'operacional'),
             ('agenda_edit', 'Editar Eventos', 'Editar eventos da agenda', 'operacional'),
             ('agenda_delete', 'Excluir Eventos', 'Excluir eventos da agenda', 'operacional'),
             
-            # Relatórios
+            # Relatï¿½rios
             ('exportar_pdf', 'Exportar PDF', 'Exportar dados em PDF', 'relatorios'),
             ('exportar_excel', 'Exportar Excel', 'Exportar dados em Excel', 'relatorios'),
             
             # Sistema
-            ('configuracoes', 'Configurações', 'Acessar configurações', 'sistema'),
-            ('usuarios_admin', 'Gerenciar Usuários', 'Gerenciar usuários e permissões (apenas admin)', 'sistema')
+            ('configuracoes', 'Configuraï¿½ï¿½es', 'Acessar configuraï¿½ï¿½es', 'sistema'),
+            ('usuarios_admin', 'Gerenciar Usuï¿½rios', 'Gerenciar usuï¿½rios e permissï¿½es (apenas admin)', 'sistema')
         ]
         
         for codigo, nome, descricao, categoria in permissoes_padrao:
@@ -1168,13 +1168,13 @@ class DatabaseManager:
                 ON CONFLICT (codigo) DO NOTHING
             """, (codigo, nome, descricao, categoria))
         
-        # Criar usuário admin padrão se não existir
+        # Criar usuï¿½rio admin padrï¿½o se nï¿½o existir
         cursor.execute("SELECT COUNT(*) as count FROM usuarios WHERE tipo = 'admin'")
         admin_count = cursor.fetchone()['count']
         
         if admin_count == 0:
             import hashlib
-            # Senha padrão: "admin123" (deve ser alterada no primeiro login)
+            # Senha padrï¿½o: "admin123" (deve ser alterada no primeiro login)
             senha_padrao = "admin123"
             password_hash = hashlib.sha256(senha_padrao.encode()).hexdigest()
             
@@ -1186,21 +1186,21 @@ class DatabaseManager:
             
             admin_id = cursor.fetchone()['id']
             
-            # Conceder todas as permissões ao admin
+            # Conceder todas as permissï¿½es ao admin
             cursor.execute("""
                 INSERT INTO usuario_permissoes (usuario_id, permissao_id, concedido_por)
                 SELECT %s, id, %s FROM permissoes
             """, (admin_id, admin_id))
             
-            print("? Usuário admin criado com sucesso!")
+            print("? Usuï¿½rio admin criado com sucesso!")
             print("   Username: admin")
             print("   Senha: admin123")
         
         # ================================================================
-        # MIGRAÇÃO: Multi-Tenancy - Adicionar proprietario_id
+        # MIGRAï¿½ï¿½O: Multi-Tenancy - Adicionar proprietario_id
         # ================================================================
         try:
-            print("?? Verificando migração Multi-Tenancy...")
+            print("?? Verificando migraï¿½ï¿½o Multi-Tenancy...")
             
             # Lista de tabelas que precisam da coluna proprietario_id
             tabelas_multitenancy = [
@@ -1224,10 +1224,10 @@ class DatabaseManager:
                 table_exists = result['table_exists'] if result else False
                 
                 if not table_exists:
-                    print(f"   ??  Tabela '{tabela}' não existe, pulando...")
+                    print(f"   ??  Tabela '{tabela}' nï¿½o existe, pulando...")
                     continue
                 
-                # Adicionar coluna se não existir
+                # Adicionar coluna se nï¿½o existir
                 cursor.execute(f"""
                     DO $$ 
                     BEGIN
@@ -1254,17 +1254,17 @@ class DatabaseManager:
                     ON DELETE CASCADE;
                 """)
                 
-                # Criar índice
+                # Criar ï¿½ndice
                 cursor.execute(f"""
                     CREATE INDEX IF NOT EXISTS {idx_name} 
                     ON {tabela}(proprietario_id);
                 """)
             
-            print("? Migração Multi-Tenancy: Colunas proprietario_id adicionadas/verificadas")
+            print("? Migraï¿½ï¿½o Multi-Tenancy: Colunas proprietario_id adicionadas/verificadas")
             print("   - Tabelas processadas: clientes, fornecedores, lancamentos, contas_bancarias, categorias")
             
         except Exception as e:
-            print(f"??  Aviso na migração Multi-Tenancy: {e}")
+            print(f"??  Aviso na migraï¿½ï¿½o Multi-Tenancy: {e}")
             import traceback
             traceback.print_exc()
         
@@ -1275,7 +1275,7 @@ class DatabaseManager:
         return_to_pool(conn)  # Devolver ao pool
     
     def adicionar_conta(self, conta: ContaBancaria, proprietario_id: int = None) -> int:
-        """Adiciona uma nova conta bancária"""
+        """Adiciona uma nova conta bancï¿½ria"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -1301,7 +1301,7 @@ class DatabaseManager:
         return conta_id
     
     def listar_contas(self, filtro_cliente_id: int = None) -> List[ContaBancaria]:
-        """Lista todas as contas bancárias com suporte a multi-tenancy"""
+        """Lista todas as contas bancï¿½rias com suporte a multi-tenancy"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -1333,18 +1333,18 @@ class DatabaseManager:
         return contas
     
     def atualizar_conta(self, nome_antigo: str, conta: ContaBancaria) -> bool:
-        """Atualiza uma conta bancária"""
+        """Atualiza uma conta bancï¿½ria"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Se o nome mudou, verificar se o novo nome já existe
+        # Se o nome mudou, verificar se o novo nome jï¿½ existe
         if nome_antigo != conta.nome:
             cursor.execute("SELECT COUNT(*) as count FROM contas_bancarias WHERE nome = %s AND nome != %s", 
                          (conta.nome, nome_antigo))
             if cursor.fetchone()['count'] > 0:
                 cursor.close()
                 return_to_pool(conn)  # Devolver ao pool
-                raise ValueError("Já existe uma conta com este nome")
+                raise ValueError("Jï¿½ existe uma conta com este nome")
         
         cursor.execute("""
             UPDATE contas_bancarias
@@ -1360,7 +1360,7 @@ class DatabaseManager:
         return success
     
     def excluir_conta(self, nome: str) -> bool:
-        """Exclui uma conta bancária pelo nome"""
+        """Exclui uma conta bancï¿½ria pelo nome"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -1475,7 +1475,7 @@ class DatabaseManager:
         return sucesso
     
     def atualizar_nome_categoria(self, nome_antigo: str, nome_novo: str) -> bool:
-        """Atualiza o nome de uma categoria e suas referências"""
+        """Atualiza o nome de uma categoria e suas referï¿½ncias"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -1486,7 +1486,7 @@ class DatabaseManager:
                 (nome_novo, nome_antigo)
             )
             
-            # Atualizar referências nos lançamentos
+            # Atualizar referï¿½ncias nos lanï¿½amentos
             cursor.execute(
                 "UPDATE lancamentos SET categoria = %s WHERE categoria = %s",
                 (nome_novo, nome_antigo)
@@ -1504,11 +1504,11 @@ class DatabaseManager:
     def adicionar_cliente(self, cliente_data, cpf_cnpj: str = None, 
                          email: str = None, telefone: str = None,
                          endereco: str = None, proprietario_id: int = None) -> int:
-        """Adiciona um novo cliente (aceita dict ou parâmetros individuais)"""
+        """Adiciona um novo cliente (aceita dict ou parï¿½metros individuais)"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Aceitar dict ou parâmetros individuais
+        # Aceitar dict ou parï¿½metros individuais
         if isinstance(cliente_data, dict):
             nome = cliente_data.get('nome')
             cpf_cnpj = cliente_data.get('cpf', cliente_data.get('cpf_cnpj'))
@@ -1538,7 +1538,7 @@ class DatabaseManager:
         
         # Construir query com filtro de multi-tenancy
         if filtro_cliente_id is not None:
-            # Cliente específico: ver apenas seus próprios clientes
+            # Cliente especï¿½fico: ver apenas seus prï¿½prios clientes
             if ativos:
                 cursor.execute(
                     "SELECT * FROM clientes WHERE ativo = TRUE AND proprietario_id = %s ORDER BY nome",
@@ -1604,7 +1604,7 @@ class DatabaseManager:
         conn.commit()
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
-        return (sucesso, "Cliente inativado com sucesso" if sucesso else "Cliente não encontrado")
+        return (sucesso, "Cliente inativado com sucesso" if sucesso else "Cliente nï¿½o encontrado")
     
     def reativar_cliente(self, nome: str) -> bool:
         """Reativa um cliente pelo nome"""
@@ -1627,11 +1627,11 @@ class DatabaseManager:
     def adicionar_fornecedor(self, fornecedor_data, cpf_cnpj: str = None,
                            email: str = None, telefone: str = None,
                            endereco: str = None, proprietario_id: int = None) -> int:
-        """Adiciona um novo fornecedor (aceita dict ou parâmetros individuais)"""
+        """Adiciona um novo fornecedor (aceita dict ou parï¿½metros individuais)"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Aceitar dict ou parâmetros individuais
+        # Aceitar dict ou parï¿½metros individuais
         if isinstance(fornecedor_data, dict):
             nome = fornecedor_data.get('nome')
             cpf_cnpj = fornecedor_data.get('cnpj', fornecedor_data.get('cpf_cnpj'))
@@ -1661,7 +1661,7 @@ class DatabaseManager:
         
         # Construir query com filtro de multi-tenancy
         if filtro_cliente_id is not None:
-            # Cliente específico: ver apenas seus próprios fornecedores
+            # Cliente especï¿½fico: ver apenas seus prï¿½prios fornecedores
             if ativos:
                 cursor.execute(
                     "SELECT * FROM fornecedores WHERE ativo = TRUE AND proprietario_id = %s ORDER BY nome",
@@ -1727,7 +1727,7 @@ class DatabaseManager:
         conn.commit()
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
-        return (sucesso, "Fornecedor inativado com sucesso" if sucesso else "Fornecedor não encontrado")
+        return (sucesso, "Fornecedor inativado com sucesso" if sucesso else "Fornecedor nï¿½o encontrado")
     
     def reativar_fornecedor(self, nome: str) -> bool:
         """Reativa um fornecedor pelo nome"""
@@ -1748,7 +1748,7 @@ class DatabaseManager:
         return sucesso
     
     def adicionar_lancamento(self, lancamento: Lancamento, proprietario_id: int = None) -> int:
-        """Adiciona um novo lançamento"""
+        """Adiciona um novo lanï¿½amento"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -1785,7 +1785,7 @@ class DatabaseManager:
         return lancamento_id
     
     def listar_lancamentos(self, filtros: Dict[str, Any] = None, filtro_cliente_id: int = None) -> List[Lancamento]:
-        """Lista lançamentos com filtros opcionais e suporte a multi-tenancy"""
+        """Lista lanï¿½amentos com filtros opcionais e suporte a multi-tenancy"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -1850,7 +1850,7 @@ class DatabaseManager:
                 )
                 lancamentos.append(lancamento)
             except Exception as e:
-                print(f"? Erro ao processar lançamento ID {row.get('id', 'unknown')}: {e}")
+                print(f"? Erro ao processar lanï¿½amento ID {row.get('id', 'unknown')}: {e}")
                 continue
         
         cursor.close()
@@ -1858,7 +1858,7 @@ class DatabaseManager:
         return lancamentos
     
     def obter_lancamento(self, lancamento_id: int) -> Optional[Lancamento]:
-        """Obtém um lançamento específico por ID"""
+        """Obtï¿½m um lanï¿½amento especï¿½fico por ID"""
         print(f"\n?? obter_lancamento() chamado com ID: {lancamento_id}")
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -1918,7 +1918,7 @@ class DatabaseManager:
         return lancamento
     
     def excluir_lancamento(self, lancamento_id: int) -> bool:
-        """Exclui um lançamento"""
+        """Exclui um lanï¿½amento"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -1930,7 +1930,7 @@ class DatabaseManager:
         return sucesso
     
     def atualizar_lancamento(self, lancamento: Lancamento) -> bool:
-        """Atualiza um lançamento existente"""
+        """Atualiza um lanï¿½amento existente"""
         print(f"\n?? DatabaseManager.atualizar_lancamento() chamada:")
         print(f"   ID: {lancamento.id}")
         
@@ -1986,7 +1986,7 @@ class DatabaseManager:
     def pagar_lancamento(self, lancamento_id: int, conta: str = '', data_pagamento: date = None,
                         juros: float = 0, desconto: float = 0, observacoes: str = '',
                         valor_pago: Optional[Decimal] = None) -> bool:
-        """Marca um lançamento como pago"""
+        """Marca um lanï¿½amento como pago"""
         print(f"\n?? DatabaseManager.pagar_lancamento() chamada:")
         print(f"   - lancamento_id: {lancamento_id} (tipo: {type(lancamento_id)})")
         print(f"   - conta: {conta} (tipo: {type(conta)})")
@@ -1999,10 +1999,10 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Se não passar data_pagamento, usar a data atual
+        # Se nï¿½o passar data_pagamento, usar a data atual
         if not data_pagamento:
             data_pagamento = date.today()
-            print(f"??  Data não fornecida, usando hoje: {data_pagamento}")
+            print(f"??  Data nï¿½o fornecida, usando hoje: {data_pagamento}")
         
         if valor_pago:
             query = """
@@ -2040,7 +2040,7 @@ class DatabaseManager:
         return sucesso
     
     def cancelar_lancamento(self, lancamento_id: int) -> bool:
-        """Cancela um lançamento"""
+        """Cancela um lanï¿½amento"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -2059,7 +2059,7 @@ class DatabaseManager:
     def migrar_dados_json(self, json_path: str):
         """Migra dados de um arquivo JSON para o banco"""
         if not os.path.exists(json_path):
-            print(f"Arquivo {json_path} não encontrado")
+            print(f"Arquivo {json_path} nï¿½o encontrado")
             return
         
         with open(json_path, 'r', encoding='utf-8') as f:
@@ -2081,20 +2081,20 @@ class DatabaseManager:
             except Exception as e:
                 print(f"Erro ao migrar categoria {categoria.nome}: {e}")
         
-        # Migrar lançamentos
+        # Migrar lanï¿½amentos
         for lanc_data in dados.get('lancamentos', []):
             lancamento = Lancamento(**lanc_data)
             try:
                 self.adicionar_lancamento(lancamento)
             except Exception as e:
-                print(f"Erro ao migrar lançamento: {e}")
+                print(f"Erro ao migrar lanï¿½amento: {e}")
         
-        print("Migração concluída!")
+        print("Migraï¿½ï¿½o concluï¿½da!")
     
-    # === MÉTODOS DO MENU OPERACIONAL ===
+    # === Mï¿½TODOS DO MENU OPERACIONAL ===
     
     def gerar_proximo_numero_contrato(self) -> str:
-        """Gera o próximo número de contrato"""
+        """Gera o prï¿½ximo nï¿½mero de contrato"""
         return gerar_proximo_numero_contrato()
     
     def adicionar_contrato(self, dados: Dict) -> int:
@@ -2114,43 +2114,43 @@ class DatabaseManager:
         return deletar_contrato(contrato_id)
     
     def adicionar_sessao(self, dados: Dict) -> int:
-        """Adiciona uma nova sessão"""
+        """Adiciona uma nova sessï¿½o"""
         return adicionar_sessao(dados)
     
     def listar_sessoes(self) -> List[Dict]:
-        """Lista todas as sessões"""
+        """Lista todas as sessï¿½es"""
         return listar_sessoes()
     
     def atualizar_sessao(self, sessao_id: int, dados: Dict) -> bool:
-        """Atualiza uma sessão"""
+        """Atualiza uma sessï¿½o"""
         return atualizar_sessao(sessao_id, dados)
     
     def deletar_sessao(self, sessao_id: int) -> bool:
-        """Deleta uma sessão"""
+        """Deleta uma sessï¿½o"""
         return deletar_sessao(sessao_id)
     
     def adicionar_comissao(self, dados: Dict) -> int:
-        """Adiciona uma nova comissão"""
+        """Adiciona uma nova comissï¿½o"""
         return adicionar_comissao(dados)
     
     def listar_comissoes(self) -> List[Dict]:
-        """Lista todas as comissões"""
+        """Lista todas as comissï¿½es"""
         return listar_comissoes()
     
     def atualizar_comissao(self, comissao_id: int, dados: Dict) -> bool:
-        """Atualiza uma comissão"""
+        """Atualiza uma comissï¿½o"""
         return atualizar_comissao(comissao_id, dados)
     
     def deletar_comissao(self, comissao_id: int) -> bool:
-        """Deleta uma comissão"""
+        """Deleta uma comissï¿½o"""
         return deletar_comissao(comissao_id)
     
     def adicionar_sessao_equipe(self, dados: Dict) -> int:
-        """Adiciona um membro à equipe de sessão"""
+        """Adiciona um membro ï¿½ equipe de sessï¿½o"""
         return adicionar_sessao_equipe(dados)
     
     def listar_sessao_equipe(self, sessao_id: int = None) -> List[Dict]:
-        """Lista membros da equipe de sessão"""
+        """Lista membros da equipe de sessï¿½o"""
         return listar_sessao_equipe(sessao_id)
     
     def atualizar_sessao_equipe(self, membro_id: int, dados: Dict) -> bool:
@@ -2162,19 +2162,19 @@ class DatabaseManager:
         return deletar_sessao_equipe(membro_id)
     
     def adicionar_tipo_sessao(self, dados: Dict) -> int:
-        """Adiciona um novo tipo de sessão"""
+        """Adiciona um novo tipo de sessï¿½o"""
         return adicionar_tipo_sessao(dados)
     
     def listar_tipos_sessao(self) -> List[Dict]:
-        """Lista todos os tipos de sessão"""
+        """Lista todos os tipos de sessï¿½o"""
         return listar_tipos_sessao()
     
     def atualizar_tipo_sessao(self, tipo_id: int, dados: Dict) -> bool:
-        """Atualiza um tipo de sessão"""
+        """Atualiza um tipo de sessï¿½o"""
         return atualizar_tipo_sessao(tipo_id, dados)
     
     def deletar_tipo_sessao(self, tipo_id: int) -> bool:
-        """Deleta um tipo de sessão"""
+        """Deleta um tipo de sessï¿½o"""
         return deletar_tipo_sessao(tipo_id)
     
     def adicionar_agenda(self, dados: Dict) -> int:
@@ -2194,7 +2194,7 @@ class DatabaseManager:
         return deletar_agenda(agenda_id)
 
 
-# Funções standalone para compatibilidade
+# Funï¿½ï¿½es standalone para compatibilidade
 def criar_tabelas():
     db = DatabaseManager()
     db.criar_tabelas()
@@ -2286,7 +2286,7 @@ def adicionar_lancamento(lancamento: Lancamento) -> int:
     return db.adicionar_lancamento(lancamento)
 
 def listar_lancamentos(filtros: Dict[str, Any] = None, filtro_cliente_id: int = None) -> List[Lancamento]:
-    """Lista lançamentos com suporte a filtros e multi-tenancy"""
+    """Lista lanï¿½amentos com suporte a filtros e multi-tenancy"""
     db = DatabaseManager()
     return db.listar_lancamentos(filtros, filtro_cliente_id)
 
@@ -2318,9 +2318,9 @@ def migrar_dados_json(json_path: str):
     return db.migrar_dados_json(json_path)
 
 
-# ==================== FUNÇÕES CRUD - CONTRATOS ====================
+# ==================== FUNï¿½ï¿½ES CRUD - CONTRATOS ====================
 def gerar_proximo_numero_contrato() -> str:
-    """Gera o próximo número de contrato no formato CONT-YYYY-NNNN"""
+    """Gera o prï¿½ximo nï¿½mero de contrato no formato CONT-YYYY-NNNN"""
     try:
         db = DatabaseManager()
         conn = db.get_connection()
@@ -2328,7 +2328,7 @@ def gerar_proximo_numero_contrato() -> str:
         
         ano_atual = datetime.now().year
         
-        # Buscar o último número de contrato do ano atual
+        # Buscar o ï¿½ltimo nï¿½mero de contrato do ano atual
         cursor.execute("""
             SELECT numero FROM contratos 
             WHERE numero LIKE %s
@@ -2339,7 +2339,7 @@ def gerar_proximo_numero_contrato() -> str:
         resultado = cursor.fetchone()
         
         if resultado:
-            # Extrair o número sequencial do último contrato
+            # Extrair o nï¿½mero sequencial do ï¿½ltimo contrato
             ultimo_numero = resultado['numero']
             try:
                 sequencial = int(ultimo_numero.split('-')[-1])
@@ -2355,8 +2355,8 @@ def gerar_proximo_numero_contrato() -> str:
         # Formatar: CONT-2025-0001
         return f'CONT-{ano_atual}-{proximo_numero:04d}'
     except Exception as e:
-        print(f"? Erro ao gerar número do contrato: {e}")
-        # Em caso de erro, retornar um número padrão
+        print(f"? Erro ao gerar nï¿½mero do contrato: {e}")
+        # Em caso de erro, retornar um nï¿½mero padrï¿½o
         ano_atual = datetime.now().year
         return f'CONT-{ano_atual}-0001'
 
@@ -2447,7 +2447,7 @@ def deletar_contrato(contrato_id: int) -> bool:
     return sucesso
 
 
-# ==================== FUNÇÕES CRUD - AGENDA ====================
+# ==================== FUNï¿½ï¿½ES CRUD - AGENDA ====================
 def adicionar_agenda(dados: Dict) -> int:
     """Adiciona um novo evento na agenda"""
     db = DatabaseManager()
@@ -2543,7 +2543,7 @@ def deletar_agenda(agenda_id: int) -> bool:
     return sucesso
 
 
-# ==================== FUNÇÕES CRUD - PRODUTOS ====================
+# ==================== FUNï¿½ï¿½ES CRUD - PRODUTOS ====================
 def adicionar_produto(dados: Dict) -> int:
     """Adiciona um novo produto"""
     db = DatabaseManager()
@@ -2633,7 +2633,7 @@ def deletar_produto(produto_id: int) -> bool:
     return sucesso
 
 
-# ==================== FUNÇÕES CRUD - KITS ====================
+# ==================== FUNï¿½ï¿½ES CRUD - KITS ====================
 def adicionar_kit(dados: Dict) -> int:
     """Adiciona um novo kit"""
     db = DatabaseManager()
@@ -2735,7 +2735,7 @@ def deletar_kit(kit_id: int) -> bool:
     return sucesso
 
 
-# ==================== FUNÇÕES CRUD - TAGS ====================
+# ==================== FUNï¿½ï¿½ES CRUD - TAGS ====================
 def adicionar_tag(dados: Dict) -> int:
     """Adiciona uma nova tag"""
     db = DatabaseManager()
@@ -2807,7 +2807,7 @@ def deletar_tag(tag_id: int) -> bool:
     return sucesso
 
 
-# ==================== FUNÇÕES CRUD - TEMPLATES DE EQUIPE ====================
+# ==================== FUNï¿½ï¿½ES CRUD - TEMPLATES DE EQUIPE ====================
 def adicionar_template(dados: Dict) -> int:
     """Adiciona um novo template de equipe"""
     db = DatabaseManager()
@@ -2879,9 +2879,9 @@ def deletar_template(template_id: int) -> bool:
     return sucesso
 
 
-# ==================== FUNÇÕES CRUD - SESSÕES ====================
+# ==================== FUNï¿½ï¿½ES CRUD - SESSï¿½ES ====================
 def adicionar_sessao(dados: Dict) -> int:
-    """Adiciona uma nova sessão"""
+    """Adiciona uma nova sessï¿½o"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -2915,7 +2915,7 @@ def adicionar_sessao(dados: Dict) -> int:
     return sessao_id
 
 def listar_sessoes() -> List[Dict]:
-    """Lista todas as sessões"""
+    """Lista todas as sessï¿½es"""
     import datetime
     import decimal
     db = DatabaseManager()
@@ -2933,7 +2933,7 @@ def listar_sessoes() -> List[Dict]:
     for row in cursor.fetchall():
         sessao = {}
         for key, value in dict(row).items():
-            # Converter tipos não-serializáveis para JSON
+            # Converter tipos nï¿½o-serializï¿½veis para JSON
             if isinstance(value, (datetime.time, datetime.datetime, datetime.date)):
                 sessao[key] = value.isoformat()
             elif isinstance(value, decimal.Decimal):
@@ -2942,7 +2942,7 @@ def listar_sessoes() -> List[Dict]:
                 sessao[key] = value
         sessoes.append(sessao)
     
-    # Buscar equipe de cada sessão
+    # Buscar equipe de cada sessï¿½o
     for sessao in sessoes:
         cursor.execute("""
             SELECT * FROM sessao_equipe WHERE sessao_id = %s
@@ -2954,7 +2954,7 @@ def listar_sessoes() -> List[Dict]:
     return sessoes
 
 def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
-    """Atualiza uma sessão"""
+    """Atualiza uma sessï¿½o"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -2990,7 +2990,7 @@ def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
     return sucesso
 
 def deletar_sessao(sessao_id: int) -> bool:
-    """Deleta uma sessão"""
+    """Deleta uma sessï¿½o"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3003,14 +3003,14 @@ def deletar_sessao(sessao_id: int) -> bool:
     return sucesso
 
 
-# ==================== FUNÇÕES CRUD - COMISSÕES ====================
+# ==================== FUNï¿½ï¿½ES CRUD - COMISSï¿½ES ====================
 def adicionar_comissao(dados: Dict) -> int:
-    """Adiciona uma nova comissão"""
+    """Adiciona uma nova comissï¿½o"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
-    # Buscar cliente_id do contrato se não fornecido
+    # Buscar cliente_id do contrato se nï¿½o fornecido
     cliente_id = dados.get('cliente_id')
     contrato_id = dados.get('contrato_id')
     
@@ -3039,7 +3039,7 @@ def adicionar_comissao(dados: Dict) -> int:
     return comissao_id
 
 def listar_comissoes() -> List[Dict]:
-    """Lista todas as comissões com informações de contrato e cliente"""
+    """Lista todas as comissï¿½es com informaï¿½ï¿½es de contrato e cliente"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3062,12 +3062,12 @@ def listar_comissoes() -> List[Dict]:
     return comissoes
 
 def atualizar_comissao(comissao_id: int, dados: Dict) -> bool:
-    """Atualiza uma comissão"""
+    """Atualiza uma comissï¿½o"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
-    # Buscar cliente_id do contrato se não fornecido
+    # Buscar cliente_id do contrato se nï¿½o fornecido
     cliente_id = dados.get('cliente_id')
     contrato_id = dados.get('contrato_id')
     
@@ -3099,7 +3099,7 @@ def atualizar_comissao(comissao_id: int, dados: Dict) -> bool:
     return sucesso
 
 def deletar_comissao(comissao_id: int) -> bool:
-    """Deleta uma comissão"""
+    """Deleta uma comissï¿½o"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3112,9 +3112,9 @@ def deletar_comissao(comissao_id: int) -> bool:
     return sucesso
 
 
-# ==================== FUNÇÕES CRUD - SESSÃO EQUIPE ====================
+# ==================== FUNï¿½ï¿½ES CRUD - SESSï¿½O EQUIPE ====================
 def adicionar_sessao_equipe(dados: Dict) -> int:
-    """Adiciona um membro à equipe de uma sessão"""
+    """Adiciona um membro ï¿½ equipe de uma sessï¿½o"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3143,7 +3143,7 @@ def adicionar_sessao_equipe(dados: Dict) -> int:
     return se_id
 
 def listar_sessao_equipe(sessao_id: int = None) -> List[Dict]:
-    """Lista membros da equipe de sessão"""
+    """Lista membros da equipe de sessï¿½o"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3186,7 +3186,7 @@ def listar_sessao_equipe(sessao_id: int = None) -> List[Dict]:
                 info_parts.append(membro['cliente_nome'])
             membro['sessao_info'] = ' - '.join(info_parts)
         else:
-            membro['sessao_info'] = f"Sessão #{membro.get('sessao_id', '?')}"
+            membro['sessao_info'] = f"Sessï¿½o #{membro.get('sessao_id', '?')}"
         membros.append(membro)
     
     cursor.close()
@@ -3231,10 +3231,10 @@ def deletar_sessao_equipe(membro_id: int) -> bool:
     return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
-# ==================== TIPOS DE SESSÃO ====================
+# ==================== TIPOS DE SESSï¿½O ====================
 
 def adicionar_tipo_sessao(dados: Dict) -> int:
-    """Adiciona um novo tipo de sessão"""
+    """Adiciona um novo tipo de sessï¿½o"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3257,7 +3257,7 @@ def adicionar_tipo_sessao(dados: Dict) -> int:
     return tipo_id
 
 def listar_tipos_sessao() -> List[Dict]:
-    """Lista todos os tipos de sessão"""
+    """Lista todos os tipos de sessï¿½o"""
     import datetime
     import decimal
     db = DatabaseManager()
@@ -3287,7 +3287,7 @@ def listar_tipos_sessao() -> List[Dict]:
     return tipos
 
 def atualizar_tipo_sessao(tipo_id: int, dados: Dict) -> bool:
-    """Atualiza um tipo de sessão"""
+    """Atualiza um tipo de sessï¿½o"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3312,7 +3312,7 @@ def atualizar_tipo_sessao(tipo_id: int, dados: Dict) -> bool:
     return sucesso
 
 def deletar_tipo_sessao(tipo_id: int) -> bool:
-    """Deleta um tipo de sessão"""
+    """Deleta um tipo de sessï¿½o"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3325,7 +3325,7 @@ def deletar_tipo_sessao(tipo_id: int) -> bool:
     return sucesso
 
 
-# ==================== FUNÇÕES DE AUTENTICAÇÃO E USUÁRIOS ====================
+# ==================== FUNï¿½ï¿½ES DE AUTENTICAï¿½ï¿½O E USUï¿½RIOS ====================
 
 from auth_functions import (
     criar_usuario as _criar_usuario,
@@ -3362,10 +3362,10 @@ def criar_sessao(usuario_id: int, ip_address: str, user_agent: str) -> str:
 
 def validar_sessao(token: str) -> Optional[Dict]:
     """
-    Valida uma sessão e retorna os dados do usuário
+    Valida uma sessï¿½o e retorna os dados do usuï¿½rio
     
     Returns:
-        Dict com dados do usuário se sessão válida, None caso contrário
+        Dict com dados do usuï¿½rio se sessï¿½o vï¿½lida, None caso contrï¿½rio
     """
     db = DatabaseManager()
     conn = db.get_connection()
@@ -3385,10 +3385,10 @@ def validar_sessao(token: str) -> Optional[Dict]:
         if not sessao:
             return None
         
-        # Verificar expiração
+        # Verificar expiraï¿½ï¿½o
         from datetime import datetime
         if sessao['expira_em'] < datetime.now():
-            # Sessão expirada - desativar
+            # Sessï¿½o expirada - desativar
             cursor.execute("""
                 UPDATE sessoes_login SET ativo = FALSE WHERE session_token = %s
             """, (token,))
@@ -3410,7 +3410,7 @@ def validar_sessao(token: str) -> Optional[Dict]:
         return_to_pool(conn)  # Devolver ao pool
 
 def invalidar_sessao(token: str) -> bool:
-    """Invalida uma sessão (logout)"""
+    """Invalida uma sessï¿½o (logout)"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3422,14 +3422,14 @@ def invalidar_sessao(token: str) -> bool:
         conn.commit()
         return True
     except Exception as e:
-        print(f"Erro ao invalidar sessão: {e}")
+        print(f"Erro ao invalidar sessï¿½o: {e}")
         return False
     finally:
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
 
 def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
-    """Lista todos os usuários do sistema"""
+    """Lista todos os usuï¿½rios do sistema"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3448,10 +3448,10 @@ def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
         """)
         rows = cursor.fetchall()
         
-        # Converter RealDictRow para dict padrão
+        # Converter RealDictRow para dict padrï¿½o
         usuarios = [dict(row) for row in rows]
         
-        print(f"   ?? listar_usuarios() retornando {len(usuarios)} usuários")
+        print(f"   ?? listar_usuarios() retornando {len(usuarios)} usuï¿½rios")
         return usuarios
     except Exception as e:
         print(f"   ? Erro em listar_usuarios(): {e}")
@@ -3463,8 +3463,8 @@ def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
         return_to_pool(conn)  # Devolver ao pool
 
 def obter_usuario(usuario_id: int) -> Optional[Dict]:
-    """Obtém dados de um usuário específico"""
-    log(f"\n?? [obter_usuario] Buscando usuário ID: {usuario_id}")
+    """Obtï¿½m dados de um usuï¿½rio especï¿½fico"""
+    log(f"\n?? [obter_usuario] Buscando usuï¿½rio ID: {usuario_id}")
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3479,13 +3479,13 @@ def obter_usuario(usuario_id: int) -> Optional[Dict]:
             WHERE u.id = %s
         """
         log(f"   ?? Query: {query.strip()}")
-        log(f"   ?? Parâmetro: usuario_id={usuario_id}")
+        log(f"   ?? Parï¿½metro: usuario_id={usuario_id}")
         cursor.execute(query, (usuario_id,))
         resultado = cursor.fetchone()
         log(f"   ? Resultado: {resultado if resultado else '? NENHUM REGISTRO ENCONTRADO'}")
         return resultado
     except Exception as e:
-        log(f"   ? Erro ao buscar usuário: {e}")
+        log(f"   ? Erro ao buscar usuï¿½rio: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return None
@@ -3493,7 +3493,7 @@ def obter_usuario(usuario_id: int) -> Optional[Dict]:
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
 def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
-    """Atualiza dados de um usuário"""
+    """Atualiza dados de um usuï¿½rio"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3508,7 +3508,7 @@ def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
         if 'nome_completo' in dados:
             campos.append("nome_completo = %s")
             valores.append(dados['nome_completo'])
-        if 'nome' in dados:  # Aceita também 'nome'
+        if 'nome' in dados:  # Aceita tambï¿½m 'nome'
             campos.append("nome_completo = %s")
             valores.append(dados['nome'])
         if 'email' in dados:
@@ -3523,7 +3523,7 @@ def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
         if 'ativo' in dados:
             campos.append("ativo = %s")
             valores.append(dados['ativo'])
-        if 'password' in dados and dados['password']:  # Só atualiza se senha não vazia
+        if 'password' in dados and dados['password']:  # Sï¿½ atualiza se senha nï¿½o vazia
             import hashlib
             password_hash = hashlib.sha256(dados['password'].encode()).hexdigest()
             campos.append("password_hash = %s")
@@ -3538,7 +3538,7 @@ def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
         affected = cursor.rowcount
         return affected > 0
     except Exception as e:
-        print(f"? Erro ao atualizar usuário: {e}")
+        print(f"? Erro ao atualizar usuï¿½rio: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -3547,28 +3547,28 @@ def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
         return_to_pool(conn)  # Devolver ao pool
 
 def deletar_usuario(usuario_id: int) -> bool:
-    """Deleta um usuário (não permite deletar admin principal ID=1)"""
+    """Deleta um usuï¿½rio (nï¿½o permite deletar admin principal ID=1)"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
     try:
-        # Verificar se não é o admin principal (ID = 1)
+        # Verificar se nï¿½o ï¿½ o admin principal (ID = 1)
         if usuario_id == 1:
-            print("? Não é possível deletar o administrador principal (ID=1)")
+            print("? Nï¿½o ï¿½ possï¿½vel deletar o administrador principal (ID=1)")
             return False
         
         cursor.execute("DELETE FROM usuarios WHERE id = %s", (usuario_id,))
         affected = cursor.rowcount
         
         if affected > 0:
-            print(f"? Usuário {usuario_id} deletado com sucesso")
+            print(f"? Usuï¿½rio {usuario_id} deletado com sucesso")
         else:
-            print(f"?? Usuário {usuario_id} não encontrado")
+            print(f"?? Usuï¿½rio {usuario_id} nï¿½o encontrado")
         
         return affected > 0
     except Exception as e:
-        print(f"? Erro ao deletar usuário: {e}")
+        print(f"? Erro ao deletar usuï¿½rio: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -3577,7 +3577,7 @@ def deletar_usuario(usuario_id: int) -> bool:
         return_to_pool(conn)  # Devolver ao pool
 
 def listar_permissoes(categoria: Optional[str] = None) -> List[Dict]:
-    """Lista todas as permissões do sistema"""
+    """Lista todas as permissï¿½es do sistema"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3597,7 +3597,7 @@ def listar_permissoes(categoria: Optional[str] = None) -> List[Dict]:
         return_to_pool(conn)  # Devolver ao pool
 
 def obter_permissoes_usuario(usuario_id: int) -> List[str]:
-    """Obtém lista de códigos de permissão de um usuário"""
+    """Obtï¿½m lista de cï¿½digos de permissï¿½o de um usuï¿½rio"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3615,7 +3615,7 @@ def obter_permissoes_usuario(usuario_id: int) -> List[str]:
         return_to_pool(conn)  # Devolver ao pool
 
 def conceder_permissao(usuario_id: int, permissao_codigo: str, concedido_por: int) -> bool:
-    """Concede uma permissão a um usuário"""
+    """Concede uma permissï¿½o a um usuï¿½rio"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3633,14 +3633,14 @@ def conceder_permissao(usuario_id: int, permissao_codigo: str, concedido_por: in
         """, (usuario_id, permissao['id'], concedido_por))
         return True
     except Exception as e:
-        print(f"Erro ao conceder permissão: {e}")
+        print(f"Erro ao conceder permissï¿½o: {e}")
         return False
     finally:
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
 
 def revogar_permissao(usuario_id: int, permissao_codigo: str) -> bool:
-    """Revoga uma permissão de um usuário"""
+    """Revoga uma permissï¿½o de um usuï¿½rio"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3654,24 +3654,24 @@ def revogar_permissao(usuario_id: int, permissao_codigo: str) -> bool:
         """, (usuario_id, permissao_codigo))
         return True
     except Exception as e:
-        print(f"Erro ao revogar permissão: {e}")
+        print(f"Erro ao revogar permissï¿½o: {e}")
         return False
     finally:
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
 
 def sincronizar_permissoes_usuario(usuario_id: int, codigos_permissoes: List[str], concedido_por: int) -> bool:
-    """Sincroniza as permissões de um usuário (remove antigas e adiciona novas)"""
+    """Sincroniza as permissï¿½es de um usuï¿½rio (remove antigas e adiciona novas)"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
     try:
-        # Remover todas as permissões atuais
+        # Remover todas as permissï¿½es atuais
         cursor.execute("DELETE FROM usuario_permissoes WHERE usuario_id = %s", (usuario_id,))
-        print(f"?? Removidas permissões antigas do usuário {usuario_id}")
+        print(f"?? Removidas permissï¿½es antigas do usuï¿½rio {usuario_id}")
         
-        # Adicionar novas permissões
+        # Adicionar novas permissï¿½es
         permissoes_adicionadas = 0
         for codigo in codigos_permissoes:
             cursor.execute("SELECT id FROM permissoes WHERE codigo = %s", (codigo,))
@@ -3683,10 +3683,10 @@ def sincronizar_permissoes_usuario(usuario_id: int, codigos_permissoes: List[str
                 """, (usuario_id, permissao['id'], concedido_por))
                 permissoes_adicionadas += 1
         
-        print(f"? {permissoes_adicionadas} permissões sincronizadas para usuário {usuario_id}")
+        print(f"? {permissoes_adicionadas} permissï¿½es sincronizadas para usuï¿½rio {usuario_id}")
         return True
     except Exception as e:
-        print(f"? Erro ao sincronizar permissões: {e}")
+        print(f"? Erro ao sincronizar permissï¿½es: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -3715,23 +3715,23 @@ def registrar_log_acesso(usuario_id: int, acao: str, descricao: str, ip_address:
 
 def exportar_dados_cliente(cliente_id: int) -> dict:
     """
-    Exporta todos os dados de um cliente específico
+    Exporta todos os dados de um cliente especï¿½fico
     
     Args:
-        cliente_id: ID do cliente proprietário dos dados
+        cliente_id: ID do cliente proprietï¿½rio dos dados
         
     Returns:
-        dict: Dicionário com todos os dados do cliente em formato texto
+        dict: Dicionï¿½rio com todos os dados do cliente em formato texto
     """
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
     try:
-        # Gerar relatório em texto
+        # Gerar relatï¿½rio em texto
         linhas = []
         linhas.append("=" * 80)
-        linhas.append(f"EXPORTAÇÃO DE DADOS - CLIENTE ID: {cliente_id}")
+        linhas.append(f"EXPORTAï¿½ï¿½O DE DADOS - CLIENTE ID: {cliente_id}")
         linhas.append(f"Data: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
         linhas.append("=" * 80)
         linhas.append("")
@@ -3765,11 +3765,11 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
             for cliente in clientes:
                 linhas.append(f"\nID: {cliente['id']}")
                 linhas.append(f"Nome: {cliente['nome']}")
-                linhas.append(f"CPF/CNPJ: {cliente['cpf_cnpj'] or 'Não informado'}")
-                linhas.append(f"Email: {cliente['email'] or 'Não informado'}")
-                linhas.append(f"Telefone: {cliente['telefone'] or 'Não informado'}")
-                linhas.append(f"Endereço: {cliente['endereco'] or 'Não informado'}")
-                linhas.append(f"Ativo: {'Sim' if cliente['ativo'] else 'Não'}")
+                linhas.append(f"CPF/CNPJ: {cliente['cpf_cnpj'] or 'Nï¿½o informado'}")
+                linhas.append(f"Email: {cliente['email'] or 'Nï¿½o informado'}")
+                linhas.append(f"Telefone: {cliente['telefone'] or 'Nï¿½o informado'}")
+                linhas.append(f"Endereï¿½o: {cliente['endereco'] or 'Nï¿½o informado'}")
+                linhas.append(f"Ativo: {'Sim' if cliente['ativo'] else 'Nï¿½o'}")
                 linhas.append(f"Cadastrado em: {cliente['created_at'].strftime('%d/%m/%Y') if cliente['created_at'] else 'N/A'}")
                 linhas.append("-" * 40)
         else:
@@ -3797,11 +3797,11 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
             for fornecedor in fornecedores:
                 linhas.append(f"\nID: {fornecedor['id']}")
                 linhas.append(f"Nome: {fornecedor['nome']}")
-                linhas.append(f"CPF/CNPJ: {fornecedor['cpf_cnpj'] or 'Não informado'}")
-                linhas.append(f"Email: {fornecedor['email'] or 'Não informado'}")
-                linhas.append(f"Telefone: {fornecedor['telefone'] or 'Não informado'}")
-                linhas.append(f"Endereço: {fornecedor['endereco'] or 'Não informado'}")
-                linhas.append(f"Ativo: {'Sim' if fornecedor['ativo'] else 'Não'}")
+                linhas.append(f"CPF/CNPJ: {fornecedor['cpf_cnpj'] or 'Nï¿½o informado'}")
+                linhas.append(f"Email: {fornecedor['email'] or 'Nï¿½o informado'}")
+                linhas.append(f"Telefone: {fornecedor['telefone'] or 'Nï¿½o informado'}")
+                linhas.append(f"Endereï¿½o: {fornecedor['endereco'] or 'Nï¿½o informado'}")
+                linhas.append(f"Ativo: {'Sim' if fornecedor['ativo'] else 'Nï¿½o'}")
                 linhas.append(f"Cadastrado em: {fornecedor['created_at'].strftime('%d/%m/%Y') if fornecedor['created_at'] else 'N/A'}")
                 linhas.append("-" * 40)
         else:
@@ -3829,7 +3829,7 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
                 linhas.append(f"\nID: {categoria['id']}")
                 linhas.append(f"Nome: {categoria['nome']}")
                 linhas.append(f"Tipo: {categoria['tipo'].upper()}")
-                linhas.append(f"Descrição: {categoria['descricao'] or 'Sem descrição'}")
+                linhas.append(f"Descriï¿½ï¿½o: {categoria['descricao'] or 'Sem descriï¿½ï¿½o'}")
                 if categoria['subcategorias']:
                     linhas.append(f"Subcategorias: {', '.join(categoria['subcategorias'])}")
                 linhas.append("-" * 40)
@@ -3838,9 +3838,9 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
         
         linhas.append("")
         
-        # 4. Exportar Contas Bancárias
+        # 4. Exportar Contas Bancï¿½rias
         linhas.append("-" * 80)
-        linhas.append("CONTAS BANCÁRIAS")
+        linhas.append("CONTAS BANCï¿½RIAS")
         linhas.append("-" * 80)
         
         cursor.execute("""
@@ -3859,19 +3859,19 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
                 linhas.append(f"\nID: {conta['id']}")
                 linhas.append(f"Nome: {conta['nome']}")
                 linhas.append(f"Banco: {conta['banco']}")
-                linhas.append(f"Agência: {conta['agencia']}")
+                linhas.append(f"Agï¿½ncia: {conta['agencia']}")
                 linhas.append(f"Conta: {conta['conta']}")
                 linhas.append(f"Saldo Inicial: R$ {float(conta['saldo_inicial']) if conta['saldo_inicial'] else 0:.2f}")
-                linhas.append(f"Ativa: {'Sim' if conta['ativa'] else 'Não'}")
+                linhas.append(f"Ativa: {'Sim' if conta['ativa'] else 'Nï¿½o'}")
                 linhas.append("-" * 40)
         else:
-            linhas.append("Nenhuma conta bancária cadastrada.")
+            linhas.append("Nenhuma conta bancï¿½ria cadastrada.")
         
         linhas.append("")
         
-        # 5. Exportar Lançamentos
+        # 5. Exportar Lanï¿½amentos
         linhas.append("-" * 80)
-        linhas.append("LANÇAMENTOS FINANCEIROS")
+        linhas.append("LANï¿½AMENTOS FINANCEIROS")
         linhas.append("-" * 80)
         
         cursor.execute("""
@@ -3893,14 +3893,14 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
             receitas = [l for l in lancamentos if l['tipo'] == 'receita']
             despesas = [l for l in lancamentos if l['tipo'] == 'despesa']
             
-            linhas.append(f"\nTotal de lançamentos: {len(lancamentos)}")
+            linhas.append(f"\nTotal de lanï¿½amentos: {len(lancamentos)}")
             linhas.append(f"  - Receitas: {len(receitas)}")
             linhas.append(f"  - Despesas: {len(despesas)}")
             linhas.append("")
             
-            for lanc in lancamentos[:100]:  # Limitar a 100 para não ficar muito grande
+            for lanc in lancamentos[:100]:  # Limitar a 100 para nï¿½o ficar muito grande
                 linhas.append(f"\nID: {lanc['id']} | Tipo: {lanc['tipo'].upper()}")
-                linhas.append(f"Descrição: {lanc['descricao']}")
+                linhas.append(f"Descriï¿½ï¿½o: {lanc['descricao']}")
                 linhas.append(f"Valor: R$ {float(lanc['valor']) if lanc['valor'] else 0:.2f}")
                 if lanc['juros'] and float(lanc['juros']) > 0:
                     linhas.append(f"Juros: R$ {float(lanc['juros']):.2f}")
@@ -3919,28 +3919,28 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
                 if lanc['cliente_fornecedor']:
                     linhas.append(f"Cliente/Fornecedor: {lanc['cliente_fornecedor']}")
                 if lanc['observacoes']:
-                    linhas.append(f"Observações: {lanc['observacoes']}")
+                    linhas.append(f"Observaï¿½ï¿½es: {lanc['observacoes']}")
                 linhas.append("-" * 40)
             
             if len(lancamentos) > 100:
-                linhas.append(f"\n... e mais {len(lancamentos) - 100} lançamentos não exibidos ...")
+                linhas.append(f"\n... e mais {len(lancamentos) - 100} lanï¿½amentos nï¿½o exibidos ...")
         else:
-            linhas.append("Nenhum lançamento cadastrado.")
+            linhas.append("Nenhum lanï¿½amento cadastrado.")
         
         linhas.append("")
         
         # Resumo Final
         linhas.append("=" * 80)
-        linhas.append("RESUMO DA EXPORTAÇÃO")
+        linhas.append("RESUMO DA EXPORTAï¿½ï¿½O")
         linhas.append("=" * 80)
         linhas.append(f"Clientes: {stats['clientes']}")
         linhas.append(f"Fornecedores: {stats['fornecedores']}")
         linhas.append(f"Categorias: {stats['categorias']}")
-        linhas.append(f"Contas Bancárias: {stats['contas']}")
-        linhas.append(f"Lançamentos: {stats['lancamentos']}")
+        linhas.append(f"Contas Bancï¿½rias: {stats['contas']}")
+        linhas.append(f"Lanï¿½amentos: {stats['lancamentos']}")
         linhas.append("=" * 80)
         
-        print(f"? Exportação concluída: {stats['clientes']} clientes, {stats['fornecedores']} fornecedores, {stats['categorias']} categorias, {stats['contas']} contas, {stats['lancamentos']} lançamentos")
+        print(f"? Exportaï¿½ï¿½o concluï¿½da: {stats['clientes']} clientes, {stats['fornecedores']} fornecedores, {stats['categorias']} categorias, {stats['contas']} contas, {stats['lancamentos']} lanï¿½amentos")
         
         # Retornar dados estruturados
         return {
@@ -3961,20 +3961,20 @@ def exportar_dados_cliente(cliente_id: int) -> dict:
 
 
 # ========================================
-# FUNÇÕES DE PREFERÊNCIAS DO USUÁRIO
+# FUNï¿½ï¿½ES DE PREFERï¿½NCIAS DO USUï¿½RIO
 # ========================================
 
 def salvar_preferencia_usuario(usuario_id, chave, valor):
     """
-    Salva ou atualiza uma preferência do usuário.
+    Salva ou atualiza uma preferï¿½ncia do usuï¿½rio.
     
     Args:
-        usuario_id: ID do usuário
-        chave: Chave da preferência (ex: 'menu_order')
-        valor: Valor da preferência (será convertido para JSON se não for string)
+        usuario_id: ID do usuï¿½rio
+        chave: Chave da preferï¿½ncia (ex: 'menu_order')
+        valor: Valor da preferï¿½ncia (serï¿½ convertido para JSON se nï¿½o for string)
     
     Returns:
-        bool: True se salvo com sucesso, False caso contrário
+        bool: True se salvo com sucesso, False caso contrï¿½rio
     """
     conn = None
     cursor = None
@@ -3982,7 +3982,7 @@ def salvar_preferencia_usuario(usuario_id, chave, valor):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Converter valor para JSON se não for string
+        # Converter valor para JSON se nï¿½o for string
         if not isinstance(valor, str):
             import json
             valor = json.dumps(valor)
@@ -3998,11 +3998,11 @@ def salvar_preferencia_usuario(usuario_id, chave, valor):
         """, (usuario_id, chave, valor))
         
         conn.commit()
-        print(f"? Preferência salva: usuario={usuario_id}, chave={chave}")
+        print(f"? Preferï¿½ncia salva: usuario={usuario_id}, chave={chave}")
         return True
         
     except Exception as e:
-        print(f"? Erro ao salvar preferência: {e}")
+        print(f"? Erro ao salvar preferï¿½ncia: {e}")
         if conn:
             conn.rollback()
         import traceback
@@ -4017,15 +4017,15 @@ def salvar_preferencia_usuario(usuario_id, chave, valor):
 
 def obter_preferencia_usuario(usuario_id, chave, padrao=None):
     """
-    Obtém uma preferência do usuário.
+    Obtï¿½m uma preferï¿½ncia do usuï¿½rio.
     
     Args:
-        usuario_id: ID do usuário
-        chave: Chave da preferência
-        padrao: Valor padrão se não encontrado
+        usuario_id: ID do usuï¿½rio
+        chave: Chave da preferï¿½ncia
+        padrao: Valor padrï¿½o se nï¿½o encontrado
     
     Returns:
-        str|None: Valor da preferência ou valor padrão
+        str|None: Valor da preferï¿½ncia ou valor padrï¿½o
     """
     conn = None
     cursor = None
@@ -4046,7 +4046,7 @@ def obter_preferencia_usuario(usuario_id, chave, padrao=None):
         return padrao
         
     except Exception as e:
-        print(f"? Erro ao obter preferência: {e}")
+        print(f"? Erro ao obter preferï¿½ncia: {e}")
         import traceback
         traceback.print_exc()
         return padrao
@@ -4059,13 +4059,13 @@ def obter_preferencia_usuario(usuario_id, chave, padrao=None):
 
 def listar_preferencias_usuario(usuario_id):
     """
-    Lista todas as preferências de um usuário.
+    Lista todas as preferï¿½ncias de um usuï¿½rio.
     
     Args:
-        usuario_id: ID do usuário
+        usuario_id: ID do usuï¿½rio
     
     Returns:
-        dict: Dicionário com chave -> valor
+        dict: Dicionï¿½rio com chave -> valor
     """
     conn = None
     cursor = None
@@ -4081,7 +4081,7 @@ def listar_preferencias_usuario(usuario_id):
         
         resultados = cursor.fetchall()
         
-        # Converter para dicionário
+        # Converter para dicionï¿½rio
         preferencias = {}
         for chave, valor in resultados:
             preferencias[chave] = valor
@@ -4089,7 +4089,7 @@ def listar_preferencias_usuario(usuario_id):
         return preferencias
         
     except Exception as e:
-        print(f"? Erro ao listar preferências: {e}")
+        print(f"? Erro ao listar preferï¿½ncias: {e}")
         import traceback
         traceback.print_exc()
         return {}
@@ -4102,14 +4102,14 @@ def listar_preferencias_usuario(usuario_id):
 
 def deletar_preferencia_usuario(usuario_id, chave):
     """
-    Deleta uma preferência do usuário.
+    Deleta uma preferï¿½ncia do usuï¿½rio.
     
     Args:
-        usuario_id: ID do usuário
-        chave: Chave da preferência a deletar
+        usuario_id: ID do usuï¿½rio
+        chave: Chave da preferï¿½ncia a deletar
     
     Returns:
-        bool: True se deletado com sucesso, False caso contrário
+        bool: True se deletado com sucesso, False caso contrï¿½rio
     """
     conn = None
     cursor = None
@@ -4125,14 +4125,14 @@ def deletar_preferencia_usuario(usuario_id, chave):
         conn.commit()
         
         if cursor.rowcount > 0:
-            print(f"? Preferência deletada: usuario={usuario_id}, chave={chave}")
+            print(f"? Preferï¿½ncia deletada: usuario={usuario_id}, chave={chave}")
             return True
         else:
-            print(f"?? Preferência não encontrada: usuario={usuario_id}, chave={chave}")
+            print(f"?? Preferï¿½ncia nï¿½o encontrada: usuario={usuario_id}, chave={chave}")
             return False
         
     except Exception as e:
-        print(f"? Erro ao deletar preferência: {e}")
+        print(f"? Erro ao deletar preferï¿½ncia: {e}")
         if conn:
             conn.rollback()
         import traceback
@@ -4146,7 +4146,7 @@ def deletar_preferencia_usuario(usuario_id, chave):
 
 
 # ========================================
-# FUNÇÕES DE GESTÃO DE EMPRESAS (TENANTS)
+# FUNï¿½ï¿½ES DE GESTï¿½O DE EMPRESAS (TENANTS)
 # ========================================
 
 def criar_empresa(dados):
@@ -4165,23 +4165,23 @@ def criar_empresa(dados):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Validar campos obrigatórios
+        # Validar campos obrigatï¿½rios
         if not dados.get('razao_social'):
-            return {'success': False, 'error': 'Razão social é obrigatória'}
+            return {'success': False, 'error': 'Razï¿½o social ï¿½ obrigatï¿½ria'}
         
         if not dados.get('email'):
-            return {'success': False, 'error': 'Email é obrigatório'}
+            return {'success': False, 'error': 'Email ï¿½ obrigatï¿½rio'}
         
-        # Verificar se email já existe
+        # Verificar se email jï¿½ existe
         cursor.execute("SELECT id FROM empresas WHERE email = %s", (dados['email'],))
         if cursor.fetchone():
-            return {'success': False, 'error': 'Email já cadastrado'}
+            return {'success': False, 'error': 'Email jï¿½ cadastrado'}
         
-        # Verificar se CNPJ já existe (se fornecido)
+        # Verificar se CNPJ jï¿½ existe (se fornecido)
         if dados.get('cnpj'):
             cursor.execute("SELECT id FROM empresas WHERE cnpj = %s", (dados['cnpj'],))
             if cursor.fetchone():
-                return {'success': False, 'error': 'CNPJ já cadastrado'}
+                return {'success': False, 'error': 'CNPJ jï¿½ cadastrado'}
         
         # Inserir empresa
         cursor.execute("""
@@ -4217,7 +4217,7 @@ def criar_empresa(dados):
         empresa_id = cursor.fetchone()[0]
         conn.commit()
         
-        print(f"? Empresa criada: ID={empresa_id}, Razão Social={dados['razao_social']}")
+        print(f"? Empresa criada: ID={empresa_id}, Razï¿½o Social={dados['razao_social']}")
         return {'success': True, 'empresa_id': empresa_id}
         
     except Exception as e:
@@ -4254,7 +4254,7 @@ def atualizar_empresa(empresa_id, dados):
         # Verificar se empresa existe
         cursor.execute("SELECT id FROM empresas WHERE id = %s", (empresa_id,))
         if not cursor.fetchone():
-            return {'success': False, 'error': 'Empresa não encontrada'}
+            return {'success': False, 'error': 'Empresa nï¿½o encontrada'}
         
         # Construir query de update dinamicamente
         campos_atualizacao = []
@@ -4303,7 +4303,7 @@ def atualizar_empresa(empresa_id, dados):
 
 def obter_empresa(empresa_id):
     """
-    Obtém dados de uma empresa
+    Obtï¿½m dados de uma empresa
     
     Args:
         empresa_id: ID da empresa
@@ -4354,7 +4354,7 @@ def listar_empresas(filtros=None):
         print(f"   ?? [listar_empresas] Filtros: {filtros}")
         
         conn = get_db_connection()
-        print(f"   ? [listar_empresas] Conexão obtida")
+        print(f"   ? [listar_empresas] Conexï¿½o obtida")
         
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         print(f"   ? [listar_empresas] Cursor criado")
@@ -4384,10 +4384,10 @@ def listar_empresas(filtros=None):
         print(f"   ? [listar_empresas] Query executada")
         
         empresas = cursor.fetchall()
-        print(f"   ? [listar_empresas] Fetchall concluído: {len(empresas) if empresas else 0} empresas")
+        print(f"   ? [listar_empresas] Fetchall concluï¿½do: {len(empresas) if empresas else 0} empresas")
         
         resultado = [dict(e) for e in empresas]
-        print(f"   ? [listar_empresas] Conversão para dict concluída")
+        print(f"   ? [listar_empresas] Conversï¿½o para dict concluï¿½da")
         
         return resultado
         
@@ -4409,7 +4409,7 @@ def suspender_empresa(empresa_id, motivo):
     
     Args:
         empresa_id: ID da empresa
-        motivo: Motivo da suspensão
+        motivo: Motivo da suspensï¿½o
     
     Returns:
         dict: {'success': True/False, 'error': msg}
@@ -4440,13 +4440,13 @@ def reativar_empresa(empresa_id):
 
 def obter_estatisticas_empresa(empresa_id):
     """
-    Obtém estatísticas de uso de uma empresa
+    Obtï¿½m estatï¿½sticas de uso de uma empresa
     
     Args:
         empresa_id: ID da empresa
     
     Returns:
-        dict: Estatísticas de uso
+        dict: Estatï¿½sticas de uso
     """
     conn = None
     cursor = None
@@ -4456,7 +4456,7 @@ def obter_estatisticas_empresa(empresa_id):
         
         stats = {}
         
-        # Usuários
+        # Usuï¿½rios
         cursor.execute("SELECT COUNT(*) FROM usuarios WHERE empresa_id = %s", (empresa_id,))
         stats['total_usuarios'] = cursor.fetchone()[0]
         
@@ -4468,11 +4468,11 @@ def obter_estatisticas_empresa(empresa_id):
         cursor.execute("SELECT COUNT(*) FROM fornecedores WHERE empresa_id = %s", (empresa_id,))
         stats['total_fornecedores'] = cursor.fetchone()[0]
         
-        # Lançamentos
+        # Lanï¿½amentos
         cursor.execute("SELECT COUNT(*) FROM lancamentos WHERE empresa_id = %s", (empresa_id,))
         stats['total_lancamentos'] = cursor.fetchone()[0]
         
-        # Lançamentos no mês atual
+        # Lanï¿½amentos no mï¿½s atual
         cursor.execute("""
             SELECT COUNT(*) FROM lancamentos 
             WHERE empresa_id = %s 
@@ -4484,7 +4484,7 @@ def obter_estatisticas_empresa(empresa_id):
         return stats
         
     except Exception as e:
-        print(f"? Erro ao obter estatísticas: {e}")
+        print(f"? Erro ao obter estatï¿½sticas: {e}")
         return {}
     finally:
         if cursor:
@@ -4495,7 +4495,7 @@ def obter_estatisticas_empresa(empresa_id):
 
 def obter_empresa(empresa_id):
     """
-    Obtém dados de uma empresa específica
+    Obtï¿½m dados de uma empresa especï¿½fica
     
     Args:
         empresa_id: ID da empresa
