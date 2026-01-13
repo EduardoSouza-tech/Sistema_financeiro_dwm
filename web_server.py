@@ -414,6 +414,7 @@ def change_password():
 @require_admin
 def gerenciar_usuarios():
     """Listar ou criar usuários"""
+    print(f"\n👥 [gerenciar_usuarios] FUNÇÃO CHAMADA - Método: {request.method}")
     if request.method == 'GET':
         try:
             print(f"\n{'='*80}")
@@ -612,6 +613,7 @@ def gerenciar_usuario_especifico(usuario_id):
 @require_admin
 def listar_permissoes():
     """Listar todas as permissões disponíveis"""
+    print(f"\n🔒 [listar_permissoes] FUNÇÃO CHAMADA")
     try:
         categoria = request.args.get('categoria')
         permissoes = auth_db.listar_permissoes(categoria)
@@ -3695,6 +3697,7 @@ def salvar_ordem_menu():
 # ============================================================================
 # ROTAS DE GESTÃO DE EMPRESAS (MULTI-TENANT)
 # ============================================================================
+print("🔧 Registrando rotas de empresas...")
 
 @app.route('/api/empresas', methods=['GET'])
 @require_auth
@@ -3753,6 +3756,7 @@ def listar_empresas_api():
 @require_auth
 def obter_empresa_api(empresa_id):
     """Obtém dados de uma empresa específica"""
+    print(f"\n🏬 [obter_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
     try:
         usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
@@ -3786,6 +3790,7 @@ def obter_empresa_api(empresa_id):
 @require_auth
 def criar_empresa_api():
     """Cria uma nova empresa (apenas super admin)"""
+    print(f"\n➕ [criar_empresa_api] FUNÇÃO CHAMADA")
     try:
         usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
@@ -3826,6 +3831,7 @@ def criar_empresa_api():
 @require_auth
 def atualizar_empresa_api(empresa_id):
     """Atualiza dados de uma empresa"""
+    print(f"\n✏️ [atualizar_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
     try:
         usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
@@ -3868,6 +3874,7 @@ def atualizar_empresa_api(empresa_id):
 @require_auth
 def suspender_empresa_api(empresa_id):
     """Suspende uma empresa"""
+    print(f"\n⏸️ [suspender_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
     try:
         usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
@@ -3906,6 +3913,7 @@ def suspender_empresa_api(empresa_id):
 @require_auth
 def reativar_empresa_api(empresa_id):
     """Reativa uma empresa suspensa"""
+    print(f"\n▶️ [reativar_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
     try:
         usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
@@ -3941,6 +3949,7 @@ def reativar_empresa_api(empresa_id):
 @require_auth
 def deletar_empresa_api(empresa_id):
     """Deleta uma empresa (apenas admin e se não tiver usuários vinculados)"""
+    print(f"\n❌ [deletar_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
     try:
         usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
@@ -3993,6 +4002,7 @@ def deletar_empresa_api(empresa_id):
 @require_auth
 def estatisticas_empresa_api(empresa_id):
     """Obtém estatísticas de uma empresa"""
+    print(f"\n📊 [estatisticas_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
     try:
         usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
@@ -4017,6 +4027,11 @@ def estatisticas_empresa_api(empresa_id):
 
 
 if __name__ == '__main__':
+    # Ativar logging do Flask/Werkzeug
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    app.logger.setLevel(logging.DEBUG)
+    
     # Porta configurável (Railway usa variável de ambiente PORT)
     port = int(os.getenv('PORT', 5000))
     
@@ -4026,13 +4041,18 @@ if __name__ == '__main__':
     print(f"Servidor iniciado em: http://0.0.0.0:{port}")
     print(f"Banco de dados: {os.getenv('DATABASE_TYPE', 'sqlite')}")
     
-    # Listar rotas de empresas
-    print("\n🔍 Rotas de /api/empresas registradas:")
+    # Listar TODAS as rotas registradas
+    print("\n🔍 TODAS as rotas registradas:")
+    for rule in app.url_map.iter_rules():
+        print(f"   • {rule.rule} - Métodos: {', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))}")
+    
+    print("\n🔍 Rotas de /api/empresas especificamente:")
     for rule in app.url_map.iter_rules():
         if 'empresas' in rule.rule:
-            print(f"   • {rule.rule} - Métodos: {', '.join(rule.methods)}")
+            print(f"   ✅ {rule.rule} - Métodos: {', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))}")
     
     print("="*60)
     
-    app.run(debug=False, host='0.0.0.0', port=port, use_reloader=False)
+    # Habilitar debug do Flask
+    app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)
 
