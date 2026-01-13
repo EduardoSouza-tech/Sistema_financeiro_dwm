@@ -3815,19 +3815,26 @@ def obter_empresa_api(empresa_id):
 @require_auth
 def criar_empresa_api():
     """Cria uma nova empresa (apenas super admin)"""
-    print(f"\n➕ [criar_empresa_api] FUNÇÃO CHAMADA")
+    log("\n" + "="*80)
+    log("[criar_empresa_api] FUNCAO CHAMADA")
     try:
         usuario = get_usuario_logado()
+        log(f"   Usuario: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
         if usuario['tipo'] != 'admin':
+            log("   Acesso negado - usuario nao e admin")
             return jsonify({'error': 'Acesso negado'}), 403
         
         dados = request.json
+        log(f"   Dados recebidos: {dados}")
         
         if not dados:
+            log("   Erro: dados nao fornecidos")
             return jsonify({'error': 'Dados não fornecidos'}), 400
         
+        log("   Chamando database.criar_empresa()...")
         resultado = database.criar_empresa(dados)
+        log(f"   Resultado: {resultado}")
         
         if resultado['success']:
             # Registrar log
@@ -3841,14 +3848,19 @@ def criar_empresa_api():
             except:
                 pass
             
+            log("   Empresa criada com sucesso!")
+            log("="*80 + "\n")
             return jsonify(resultado), 201
         else:
+            log(f"   Erro: {resultado.get('error')}")
+            log("="*80 + "\n")
             return jsonify(resultado), 400
         
     except Exception as e:
-        print(f"❌ Erro ao criar empresa: {e}")
+        log(f"EXCECAO ao criar empresa: {e}")
         import traceback
-        traceback.print_exc()
+        traceback.print_exc(file=sys.stderr)
+        log("="*80 + "\n")
         return jsonify({'error': str(e)}), 500
 
 
