@@ -3661,10 +3661,16 @@ def salvar_ordem_menu():
 def listar_empresas_api():
     """Lista todas as empresas (apenas super admin)"""
     try:
+        print("\n" + "="*80)
+        print("🔍 GET /api/empresas - Listando empresas...")
+        print("="*80)
+        
         usuario = auth_db.obter_usuario_por_id(session.get('usuario_id'))
+        print(f"   ✅ Usuário autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
         # Apenas admin do sistema pode listar todas empresas
         if usuario['tipo'] != 'admin':
+            print(f"   ❌ Acesso negado - usuário não é admin")
             return jsonify({'error': 'Acesso negado'}), 403
         
         filtros = {}
@@ -3674,16 +3680,17 @@ def listar_empresas_api():
         if request.args.get('plano'):
             filtros['plano'] = request.args.get('plano')
         
+        print(f"   🔍 Chamando database.listar_empresas(filtros={filtros})...")
         empresas = database.listar_empresas(filtros)
+        print(f"   ✅ Empresas carregadas: {len(empresas) if empresas else 0}")
         
-        # Adicionar estatísticas para cada empresa
-        for empresa in empresas:
-            empresa['stats'] = database.obter_estatisticas_empresa(empresa['id'])
+        # Retornar apenas dados básicos (sem estatísticas para evitar sobrecarga)
+        # As estatísticas podem ser buscadas individualmente se necessário
         
-        return jsonify({
-            'success': True,
-            'empresas': empresas
-        })
+        print(f"   ✅ Retornando {len(empresas)} empresas")
+        print("="*80 + "\n")
+        
+        return jsonify(empresas)
         
     except Exception as e:
         print(f"❌ Erro ao listar empresas: {e}")
