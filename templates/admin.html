@@ -1040,7 +1040,12 @@
                     credentials: 'include'
                 });
                 
-                const company = await response.json();
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const company = data.empresa || data;  // Suportar ambos os formatos
                 
                 document.getElementById('companyModalTitle').textContent = 'Editar Empresa';
                 document.getElementById('companyId').value = company.id;

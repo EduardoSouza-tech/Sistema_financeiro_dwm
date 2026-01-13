@@ -4181,6 +4181,7 @@ def criar_empresa(dados):
     """
     try:
         with get_db_connection() as conn:
+            conn.autocommit = False  # Desligar autocommit para transacao
             cursor = conn.cursor()
             
             # Validar campos obrigati?rios
@@ -4235,6 +4236,7 @@ def criar_empresa(dados):
             empresa_id = cursor.fetchone()[0]
             conn.commit()
             cursor.close()
+            conn.autocommit = True  # Religar autocommit
             
             log(f"Empresa criada: ID={empresa_id}, Razao Social={dados['razao_social']}")
             return {'success': True, 'empresa_id': empresa_id}
@@ -4243,6 +4245,7 @@ def criar_empresa(dados):
         log(f"Erro ao criar empresa: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
+        return {'success': False, 'error': str(e)}
         return {'success': False, 'error': str(e)}
 
 
