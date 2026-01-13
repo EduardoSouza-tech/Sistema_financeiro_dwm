@@ -6,6 +6,12 @@ from flask import Flask, render_template, request, jsonify, send_file, send_from
 from flask_cors import CORS
 from functools import wraps
 import os
+import sys
+
+# Forçar saída imediata de logs (importante para Railway/gunicorn)
+def log(msg):
+    """Print que força flush imediato"""
+    print(msg, file=sys.stderr, flush=True)
 
 # Importação opcional do flask-limiter (para compatibilidade durante deploy)
 try:
@@ -3722,28 +3728,28 @@ def salvar_ordem_menu():
 # ============================================================================
 # ROTAS DE GESTÃO DE EMPRESAS (MULTI-TENANT)
 # ============================================================================
-print("🔧 Registrando rotas de empresas...")
+log("🔧 Registrando rotas de empresas...")
 
 @app.route('/api/empresas', methods=['GET'])
 @require_auth
 def listar_empresas_api():
     """Lista todas as empresas (apenas super admin)"""
-    print("\n" + "="*80)
-    print("🚀 [listar_empresas_api] FUNÇÃO INICIADA")
-    print(f"   Path: {request.path}")
-    print(f"   Método: {request.method}")
-    print(f"   Session: {dict(session)}")
-    print("="*80)
+    log("\n" + "="*80)
+    log("🚀 [listar_empresas_api] FUNÇÃO INICIADA")
+    log(f"   Path: {request.path}")
+    log(f"   Método: {request.method}")
+    log(f"   Session: {dict(session)}")
+    log("="*80)
     
     try:
-        print("🔍 GET /api/empresas - Iniciando processamento...")
+        log("🔍 GET /api/empresas - Iniciando processamento...")
         
         usuario = auth_db.obter_usuario(session.get('usuario_id'))
-        print(f"   ✅ Usuário autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
+        log(f"   ✅ Usuário autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
         # Apenas admin do sistema pode listar todas empresas
         if usuario['tipo'] != 'admin':
-            print(f"   ❌ Acesso negado - usuário não é admin")
+            log(f"   ❌ Acesso negado - usuário não é admin")
             return jsonify({'error': 'Acesso negado'}), 403
         
         filtros = {}
@@ -3753,9 +3759,9 @@ def listar_empresas_api():
         if request.args.get('plano'):
             filtros['plano'] = request.args.get('plano')
         
-        print(f"   🔍 Chamando database.listar_empresas(filtros={filtros})...")
+        log(f"   🔍 Chamando database.listar_empresas(filtros={filtros})...")
         empresas = database.listar_empresas(filtros)
-        print(f"   ✅ Empresas carregadas: {len(empresas) if empresas else 0}")
+        log(f"   ✅ Empresas carregadas: {len(empresas) if empresas else 0}")
         
         # Garantir que empresas não seja None
         if empresas is None:
@@ -3764,18 +3770,17 @@ def listar_empresas_api():
         # Retornar apenas dados básicos (sem estatísticas para evitar sobrecarga)
         # As estatísticas podem ser buscadas individualmente se necessário
         
-        print(f"   ✅ Retornando {len(empresas)} empresas")
-        print("="*80 + "\n")
+        log(f"   ✅ Retornando {len(empresas)} empresas")
+        log("="*80 + "\n")
         
         return jsonify(empresas)
         
     except Exception as e:
-        print(f"❌ Erro ao listar empresas: {e}")
+        log(f"❌ Erro ao listar empresas: {e}")
         import traceback
-        traceback.print_exc()
-        print("="*80 + "\n")
+        traceback.print_exc(file=sys.stderr)
+        log("="*80 + "\n")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/empresas/<int:empresa_id>', methods=['GET'])
 @require_auth
