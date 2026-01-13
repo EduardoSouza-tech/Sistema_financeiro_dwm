@@ -3730,21 +3730,30 @@ log("🔧 Registrando rotas de empresas...")
 def listar_empresas_api():
     """Lista todas as empresas (apenas super admin)"""
     log("\n" + "="*80)
-    log("🚀 [listar_empresas_api] FUNÇÃO INICIADA")
+    log("[listar_empresas_api] FUNCAO INICIADA")
     log(f"   Path: {request.path}")
-    log(f"   Método: {request.method}")
+    log(f"   Metodo: {request.method}")
     log(f"   Session: {dict(session)}")
     log("="*80)
     
     try:
-        log("🔍 GET /api/empresas - Iniciando processamento...")
+        log("GET /api/empresas - Iniciando processamento...")
         
-        usuario = auth_db.obter_usuario(session.get('usuario_id'))
-        log(f"   ✅ Usuário autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
+        usuario_id = session.get('usuario_id')
+        log(f"   usuario_id da sessao: {usuario_id}")
+        
+        usuario = auth_db.obter_usuario(usuario_id)
+        log(f"   Usuario retornado: {usuario}")
+        
+        if not usuario:
+            log("   Erro: usuario nao encontrado")
+            return jsonify({'error': 'Usuario nao encontrado'}), 404
+        
+        log(f"   Usuario autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
         # Apenas admin do sistema pode listar todas empresas
         if usuario['tipo'] != 'admin':
-            log(f"   ❌ Acesso negado - usuário não é admin")
+            log(f"   Acesso negado - usuario nao e admin")
             return jsonify({'error': 'Acesso negado'}), 403
         
         filtros = {}
