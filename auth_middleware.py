@@ -37,7 +37,9 @@ def require_auth(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        print(f"🔐 [require_auth] Verificando autenticação para: {request.path}")
         usuario = get_usuario_logado()
+        print(f"🔐 [require_auth] Usuário obtido: {usuario.get('username') if usuario else 'None'}")
         
         if not usuario:
             return jsonify({

@@ -3660,6 +3660,7 @@ def salvar_ordem_menu():
 @require_auth
 def listar_empresas_api():
     """Lista todas as empresas (apenas super admin)"""
+    print(f"🚀 [listar_empresas_api] FUNÇÃO CHAMADA - request.path: {request.path}")
     try:
         print("\n" + "="*80)
         print("🔍 GET /api/empresas - Listando empresas...")
@@ -3701,10 +3702,6 @@ def listar_empresas_api():
         import traceback
         traceback.print_exc()
         print("="*80 + "\n")
-        return jsonify({'error': str(e)}), 500
-        print(f"❌ Erro ao listar empresas: {e}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -3984,6 +3981,14 @@ if __name__ == '__main__':
     print("="*60)
     print(f"Servidor iniciado em: http://0.0.0.0:{port}")
     print(f"Banco de dados: {os.getenv('DATABASE_TYPE', 'sqlite')}")
+    
+    # Listar rotas de empresas
+    print("\n🔍 Rotas de /api/empresas registradas:")
+    for rule in app.url_map.iter_rules():
+        if 'empresas' in rule.rule:
+            print(f"   • {rule.rule} - Métodos: {', '.join(rule.methods)}")
+    
     print("="*60)
     
     app.run(debug=False, host='0.0.0.0', port=port, use_reloader=False)
+
