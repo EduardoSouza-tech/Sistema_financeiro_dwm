@@ -955,25 +955,56 @@
         
         // Carregar empresas
         async function loadCompanies() {
+            console.log('==========================================');
+            console.log('[loadCompanies] INICIO');
+            
             document.getElementById('companiesLoading').classList.add('active');
             document.getElementById('companiesTable').style.display = 'none';
             
             try {
+                console.log('[loadCompanies] Fazendo fetch para /api/empresas...');
                 const response = await fetch('/api/empresas', {
                     credentials: 'include'
                 });
                 
+                console.log('[loadCompanies] Response status:', response.status);
+                console.log('[loadCompanies] Response ok:', response.ok);
+                
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('[loadCompanies] Erro HTTP:', errorText);
                     throw new Error(`Erro ${response.status}`);
                 }
                 
+                console.log('[loadCompanies] Parseando JSON...');
                 const data = await response.json();
-                allCompanies = Array.isArray(data) ? data : (data.empresas || []);
+                console.log('[loadCompanies] Data recebido:', data);
+                console.log('[loadCompanies] Tipo de data:', typeof data);
+                console.log('[loadCompanies] Array.isArray(data):', Array.isArray(data));
                 
+                allCompanies = Array.isArray(data) ? data : (data.empresas || []);
+                console.log('[loadCompanies] allCompanies definido:', allCompanies);
+                console.log('[loadCompanies] Total empresas:', allCompanies.length);
+                
+                if (allCompanies.length > 0) {
+                    console.log('[loadCompanies] Primeira empresa:', allCompanies[0]);
+                }
+                
+                console.log('[loadCompanies] Chamando renderCompaniesTable...');
                 renderCompaniesTable();
+                
+                console.log('[loadCompanies] Chamando populateEmpresaSelect...');
                 populateEmpresaSelect();
+                
+                console.log('[loadCompanies] FIM - Sucesso');
+                console.log('==========================================');
             } catch (error) {
-                console.error('❌ Erro ao carregar empresas:', error);
+                console.error('==========================================');
+                console.error('[loadCompanies] ERRO CAPTURADO');
+                console.error('[loadCompanies] Error:', error);
+                console.error('[loadCompanies] Error message:', error.message);
+                console.error('[loadCompanies] Error stack:', error.stack);
+                console.error('==========================================');
                 showAlert(`Erro ao carregar empresas: ${error.message}`, 'error');
                 allCompanies = [];
             } finally {
@@ -983,10 +1014,17 @@
 
         // Renderizar tabela de empresas
         function renderCompaniesTable() {
+            console.log('[renderCompaniesTable] INICIO');
+            console.log('[renderCompaniesTable] allCompanies:', allCompanies);
+            console.log('[renderCompaniesTable] Total empresas:', allCompanies.length);
+            
             const tbody = document.getElementById('companiesTableBody');
             tbody.innerHTML = '';
 
-            allCompanies.forEach(company => {
+            allCompanies.forEach((company, index) => {
+                console.log(`[renderCompaniesTable] Empresa ${index}:`, company);
+                console.log(`[renderCompaniesTable] company.id:`, company.id, 'tipo:', typeof company.id);
+                
                 const tr = document.createElement('tr');
                 const statusBadge = company.ativo ? 'badge-active' : 'badge-inactive';
                 
@@ -1010,6 +1048,7 @@
             });
 
             document.getElementById('companiesTable').style.display = 'table';
+            console.log('[renderCompaniesTable] FIM');
         }
 
         // Popula o select de empresas no formulário de usuário
@@ -1035,18 +1074,42 @@
 
         // Editar empresa
         async function editCompany(companyId) {
+            console.log('==========================================');
+            console.log('[editCompany] INICIO');
+            console.log('[editCompany] companyId:', companyId);
+            console.log('[editCompany] tipo:', typeof companyId);
+            
             try {
-                const response = await fetch(`/api/empresas/${companyId}`, {
+                const url = `/api/empresas/${companyId}`;
+                console.log('[editCompany] URL:', url);
+                console.log('[editCompany] Fazendo fetch...');
+                
+                const response = await fetch(url, {
                     credentials: 'include'
                 });
                 
+                console.log('[editCompany] Response status:', response.status);
+                console.log('[editCompany] Response ok:', response.ok);
+                
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('[editCompany] Erro HTTP:', errorText);
                     throw new Error(`Erro ${response.status}`);
                 }
                 
+                console.log('[editCompany] Parseando JSON...');
                 const data = await response.json();
-                const company = data.empresa || data;  // Suportar ambos os formatos
+                console.log('[editCompany] Data recebido:', data);
                 
+                const company = data.empresa || data;
+                console.log('[editCompany] Company extraido:', company);
+                
+                if (!company || !company.id) {
+                    console.error('[editCompany] Company invalido:', company);
+                    throw new Error('Dados da empresa inválidos');
+                }
+                
+                console.log('[editCompany] Preenchendo formulario...');
                 document.getElementById('companyModalTitle').textContent = 'Editar Empresa';
                 document.getElementById('companyId').value = company.id;
                 document.getElementById('razaoSocial').value = company.razao_social;
@@ -1056,9 +1119,17 @@
                 document.getElementById('telefoneEmpresa').value = company.telefone || '';
                 document.getElementById('plano').value = company.plano || 'basico';
                 
+                console.log('[editCompany] Abrindo modal...');
                 document.getElementById('companyModal').classList.add('active');
+                console.log('[editCompany] FIM - Sucesso');
+                console.log('==========================================');
             } catch (error) {
-                console.error('Erro ao carregar empresa:', error);
+                console.error('==========================================');
+                console.error('[editCompany] ERRO CAPTURADO');
+                console.error('[editCompany] Error:', error);
+                console.error('[editCompany] Error message:', error.message);
+                console.error('[editCompany] Error stack:', error.stack);
+                console.error('==========================================');
                 showAlert('Erro ao carregar dados da empresa', 'error');
             }
         }
