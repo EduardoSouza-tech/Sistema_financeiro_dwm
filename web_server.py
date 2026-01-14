@@ -332,7 +332,7 @@ try:
                     id SERIAL PRIMARY KEY,
                     empresa_id INTEGER NOT NULL,
                     nome VARCHAR(255) NOT NULL,
-                    cpf VARCHAR(14) NOT NULL,
+                    cpf VARCHAR(11) NOT NULL,
                     endereco TEXT,
                     tipo_chave_pix VARCHAR(50) NOT NULL,
                     chave_pix VARCHAR(255),
@@ -349,6 +349,17 @@ try:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_empresa ON funcionarios(empresa_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_cpf ON funcionarios(cpf)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_ativo ON funcionarios(ativo)")
+            
+            # Migração: Alterar tipo da coluna CPF se necessário
+            try:
+                cursor.execute("""
+                    ALTER TABLE funcionarios 
+                    ALTER COLUMN cpf TYPE VARCHAR(11)
+                """)
+                print("✅ Coluna CPF migrada para VARCHAR(11)")
+            except Exception as e:
+                # Já está correto ou erro não crítico
+                pass
             
             # Tabela de Eventos
             cursor.execute("""
@@ -1923,43 +1934,52 @@ def criar_funcionario():
         # Limpar CPF (remover pontuação)
         cpf = dados['cpf'].replace('.', '').replace('-', '').replace('/', '')
         
-        conn = db.get_connection()
-        cursor = conn.cursor()
+        conn = None
+        cursor = None
         
-        # Verificar se CPF já existe
-        cursor.execute("SELECT id FROM funcionarios WHERE cpf = %s AND empresa_id = %s", (cpf, empresa_id))
-        if cursor.fetchone():
-            cursor.close()
-            return jsonify({'error': 'CPF já cadastrado'}), 400
-        
-        query = """
-            INSERT INTO funcionarios 
-            (empresa_id, nome, cpf, endereco, tipo_chave_pix, chave_pix, data_admissao, observacoes, ativo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """
-        
-        cursor.execute(query, (
-            empresa_id,
-            dados['nome'],
-            cpf,
-            dados.get('endereco'),
-            dados['tipo_chave_pix'],
-            dados.get('chave_pix'),
-            dados.get('data_admissao'),
-            dados.get('observacoes'),
-            dados.get('ativo', True)
-        ))
-        
-        funcionario_id = cursor.fetchone()[0]
-        conn.commit()
-        cursor.close()
-        
-        return jsonify({
-            'success': True,
-            'id': funcionario_id,
-            'message': 'Funcionário cadastrado com sucesso'
-        }), 201
+        try:
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            
+            # Verificar se CPF já existe
+            cursor.execute("SELECT id FROM funcionarios WHERE cpf = %s AND empresa_id = %s", (cpf, empresa_id))
+            if cursor.fetchone():
+                cursor.close()
+                return jsonify({'error': 'CPF já cadastrado'}), 400
+            
+            query = """
+                INSERT INTO funcionarios 
+                (empresa_id, nome, cpf, endereco, tipo_chave_pix, chave_pix, data_admissao, observacoes, ativo)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """
+            
+            cursor.execute(query, (
+                empresa_id,
+                dados['nome'],
+                cpf,
+                dados.get('endereco'),
+                dados['tipo_chave_pix'],
+                dados.get('chave_pix'),
+                dados.get('data_admissao') if dados.get('data_admissao') else None,
+                dados.get('observacoes'),
+                dados.get('ativo', True)
+            ))
+            
+            funcionario_id = cursor.fetchone()[0]
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'id': funcionario_id,
+                'message': 'Funcionário cadastrado com sucesso'
+            }), 201
+            
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
     
     except Exception as e:
         logger.error(f"Erro ao criar funcionário: {e}")
