@@ -4714,6 +4714,7 @@
                 
                 const response = await fetch(url, {
                     method: method,
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -4737,7 +4738,9 @@
 
         async function loadFuncionarios() {
             try {
-                const response = await fetch('/api/funcionarios');
+                const response = await fetch('/api/funcionarios', {
+                    credentials: 'include'
+                });
                 const result = await response.json();
 
                 const tbody = document.getElementById('tbody-funcionarios');
@@ -4777,6 +4780,7 @@
             try {
                 const response = await fetch(`/api/funcionarios/${id}`, {
                     method: 'PUT',
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -4867,6 +4871,7 @@
                 
                 const response = await fetch(url, {
                     method: method,
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -4899,7 +4904,9 @@
                 if (dataFim) params.append('data_fim', dataFim);
                 if (status) params.append('status', status);
 
-                const response = await fetch(`/api/eventos?${params.toString()}`);
+                const response = await fetch(`/api/eventos?${params.toString()}`, {
+                    credentials: 'include'
+                });
                 const result = await response.json();
 
                 const tbody = document.getElementById('tbody-eventos');
@@ -4946,7 +4953,8 @@
 
             try {
                 const response = await fetch(`/api/eventos/${id}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    credentials: 'include'
                 });
 
                 const result = await response.json();
