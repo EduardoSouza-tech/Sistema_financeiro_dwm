@@ -13,3 +13,6 @@ sentry-sdk==1.39.2
 
 # CSRF Protection
 flask-wtf==1.2.1
+
+# OFX Processing
+ofxparse==0.21

@@ -1714,7 +1714,7 @@
                             <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Arquivo OFX:</label>
                             <input type="file" id="arquivo-ofx" accept=".ofx" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" required>
                         </div>
-                        <button onclick="uploadExtratoOFX()" class="btn btn-primary" style="padding: 10px 30px; background: #3498db; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 14px;">
+                        <button onclick="uploadExtratoOFX(event)" class="btn btn-primary" style="padding: 10px 30px; background: #3498db; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 14px;">
                             ⬆️ Enviar Arquivo
                         </button>
                     </div>
@@ -4109,9 +4109,10 @@
         }
 
         // Upload de arquivo OFX
-        async function uploadExtratoOFX() {
+        async function uploadExtratoOFX(event) {
             const contaId = document.getElementById('conta-bancaria-extrato').value;
             const arquivoInput = document.getElementById('arquivo-ofx');
+            const uploadButton = document.querySelector('button[onclick="uploadExtratoOFX(event)"]') || event?.target;
             
             if (!contaId) {
                 alert('❌ Por favor, selecione uma conta bancária!');
@@ -4136,9 +4137,10 @@
             formData.append('conta_bancaria', contaId);
             
             try {
-                const button = event.target;
-                button.disabled = true;
-                button.textContent = '⏳ Processando...';
+                if (uploadButton) {
+                    uploadButton.disabled = true;
+                    uploadButton.textContent = '⏳ Processando...';
+                }
                 
                 const response = await fetch('/api/extratos/upload', {
                     method: 'POST',
@@ -4163,9 +4165,10 @@
                 console.error('Erro ao fazer upload:', error);
                 alert('❌ Erro ao enviar arquivo. Verifique sua conexão e tente novamente.');
             } finally {
-                const button = event.target;
-                button.disabled = false;
-                button.textContent = '⬆️ Enviar Arquivo';
+                if (uploadButton) {
+                    uploadButton.disabled = false;
+                    uploadButton.textContent = '⬆️ Enviar Arquivo';
+                }
             }
         }
 
