@@ -1,0 +1,117 @@
+name: CI - Testes e Lint
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sistema_financeiro_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install flake8 black
+    
+    - name: Lint with flake8
+      run: |
+        # Parar build se houver erros de sintaxe Python ou nomes indefinidos
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero trata todos os erros como warnings
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Check formatting with black
+      run: |
+        black --check --diff .
+      continue-on-error: true
+    
+    - name: Setup test database
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sistema_financeiro_test
+      run: |
+        python criar_tabelas_railway.py
+    
+    - name: Run tests with pytest
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sistema_financeiro_test
+        SECRET_KEY: test-secret-key-for-ci
+        LOG_LEVEL: DEBUG
+      run: |
+        pytest tests/ -v --cov=. --cov-report=xml --cov-report=html --cov-report=term
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+    
+    - name: Archive code coverage results
+      uses: actions/upload-artifact@v3
+      with:
+        name: code-coverage-report
+        path: htmlcov/
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit
+    
+    - name: Check dependencies with safety
+      run: |
+        safety check --json
+      continue-on-error: true
+    
+    - name: Security scan with bandit
+      run: |
+        bandit -r . -f json -o bandit-report.json
+      continue-on-error: true
+    
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-scan-report
+        path: bandit-report.json

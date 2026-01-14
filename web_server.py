@@ -1745,6 +1745,10 @@ def relatorio_fluxo_caixa():
 def dashboard():
     """Dados para o dashboard"""
     try:
+        # Pegar filtros opcionais
+        ano = request.args.get('ano', type=int)
+        mes = request.args.get('mes', type=int)
+        
         lancamentos = db.listar_lancamentos()
         contas = db.listar_contas()
         
@@ -1784,13 +1788,100 @@ def dashboard():
                 if l.status == StatusLancamento.PENDENTE and data_venc < hoje:
                     contas_vencidas += valor_decimal
         
+        # Dados para gráfico - últimos 12 meses ou filtrado por ano/mês
+        from calendar import monthrange
+        import locale
+        
+        # Tentar configurar locale para português
+        try:
+            locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
+        except:
+            try:
+                locale.setlocale(locale.LC_TIME, 'Portuguese_Brazil.1252')
+            except:
+                pass
+        
+        meses_labels = []
+        receitas_dados = []
+        despesas_dados = []
+        
+        if ano and mes:
+            # Apenas um mês específico
+            _, ultimo_dia = monthrange(ano, mes)
+            data_inicio = date(ano, mes, 1)
+            data_fim = date(ano, mes, ultimo_dia)
+            
+            lancamentos_periodo = [
+                l for l in lancamentos 
+                if l.status == StatusLancamento.PAGO and l.data_pagamento and l.tipo != TipoLancamento.TRANSFERENCIA
+                and data_inicio <= (l.data_pagamento.date() if hasattr(l.data_pagamento, 'date') else l.data_pagamento) <= data_fim
+            ]
+            
+            receitas_mes = sum(Decimal(str(l.valor)) for l in lancamentos_periodo if l.tipo == TipoLancamento.RECEITA)
+            despesas_mes = sum(Decimal(str(l.valor)) for l in lancamentos_periodo if l.tipo == TipoLancamento.DESPESA)
+            
+            meses_labels = [data_inicio.strftime('%b/%Y')]
+            receitas_dados = [float(receitas_mes)]
+            despesas_dados = [float(despesas_mes)]
+        
+        elif ano:
+            # Todos os meses do ano
+            for m in range(1, 13):
+                _, ultimo_dia = monthrange(ano, m)
+                data_inicio = date(ano, m, 1)
+                data_fim = date(ano, m, ultimo_dia)
+                
+                lancamentos_periodo = [
+                    l for l in lancamentos 
+                    if l.status == StatusLancamento.PAGO and l.data_pagamento and l.tipo != TipoLancamento.TRANSFERENCIA
+                    and data_inicio <= (l.data_pagamento.date() if hasattr(l.data_pagamento, 'date') else l.data_pagamento) <= data_fim
+                ]
+                
+                receitas_mes = sum(Decimal(str(l.valor)) for l in lancamentos_periodo if l.tipo == TipoLancamento.RECEITA)
+                despesas_mes = sum(Decimal(str(l.valor)) for l in lancamentos_periodo if l.tipo == TipoLancamento.DESPESA)
+                
+                meses_labels.append(data_inicio.strftime('%b/%Y'))
+                receitas_dados.append(float(receitas_mes))
+                despesas_dados.append(float(despesas_mes))
+        
+        else:
+            # Últimos 12 meses
+            data_ref = hoje
+            for i in range(11, -1, -1):
+                mes_ref = data_ref.month - i
+                ano_ref = data_ref.year
+                
+                while mes_ref <= 0:
+                    mes_ref += 12
+                    ano_ref -= 1
+                
+                _, ultimo_dia = monthrange(ano_ref, mes_ref)
+                data_inicio = date(ano_ref, mes_ref, 1)
+                data_fim = date(ano_ref, mes_ref, ultimo_dia)
+                
+                lancamentos_periodo = [
+                    l for l in lancamentos 
+                    if l.status == StatusLancamento.PAGO and l.data_pagamento and l.tipo != TipoLancamento.TRANSFERENCIA
+                    and data_inicio <= (l.data_pagamento.date() if hasattr(l.data_pagamento, 'date') else l.data_pagamento) <= data_fim
+                ]
+                
+                receitas_mes = sum(Decimal(str(l.valor)) for l in lancamentos_periodo if l.tipo == TipoLancamento.RECEITA)
+                despesas_mes = sum(Decimal(str(l.valor)) for l in lancamentos_periodo if l.tipo == TipoLancamento.DESPESA)
+                
+                meses_labels.append(data_inicio.strftime('%b/%Y'))
+                receitas_dados.append(float(receitas_mes))
+                despesas_dados.append(float(despesas_mes))
+        
         return jsonify({
             'saldo_total': float(saldo_total),
             'contas_receber': float(contas_receber),
             'contas_pagar': float(contas_pagar),
             'contas_vencidas': float(contas_vencidas),
             'total_contas': len(contas),
-            'total_lancamentos': len(lancamentos)
+            'total_lancamentos': len(lancamentos),
+            'meses': meses_labels,
+            'receitas': receitas_dados,
+            'despesas': despesas_dados
         })
     except Exception as e:
         print(f"Erro no dashboard: {str(e)}")

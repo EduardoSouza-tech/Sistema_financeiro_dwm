@@ -3782,6 +3782,136 @@
             }
         }
         
+        // ====================================
+        // FUNÇÃO CARREGAR DASHBOARD
+        // ====================================
+        async function carregarDashboard() {
+            try {
+                console.log('📊 Carregando Dashboard...');
+                
+                // Pegar filtros
+                const ano = document.getElementById('filter-ano-dashboard')?.value;
+                const mes = document.getElementById('filter-mes-dashboard')?.value;
+                
+                // Construir URL com parâmetros
+                let url = '/api/relatorios/dashboard';
+                const params = new URLSearchParams();
+                if (ano) params.append('ano', ano);
+                if (mes) params.append('mes', mes);
+                if (params.toString()) url += '?' + params.toString();
+                
+                // Fazer requisição
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Erro ao carregar dashboard');
+                
+                const data = await response.json();
+                
+                // Atualizar conteúdo de análises se existir
+                const analiseContent = document.getElementById('dashboard-analises-content');
+                if (analiseContent && data.analises) {
+                    analiseContent.innerHTML = data.analises;
+                }
+                
+                // Renderizar gráfico se houver dados
+                if (data.grafico_dados || data.meses) {
+                    renderizarGraficoDashboard(data);
+                }
+                
+                console.log('✅ Dashboard carregado com sucesso');
+            } catch (error) {
+                console.error('❌ Erro ao carregar dashboard:', error);
+                // Não mostrar mensagem de erro para não poluir a UI
+            }
+        }
+        
+        // Função para renderizar gráfico do dashboard
+        function renderizarGraficoDashboard(data) {
+            const canvas = document.getElementById('grafico-crescimento');
+            if (!canvas) {
+                console.warn('Canvas grafico-crescimento não encontrado');
+                return;
+            }
+            
+            // Destruir gráfico anterior se existir
+            if (window.dashboardChart) {
+                window.dashboardChart.destroy();
+            }
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Preparar dados (assumindo estrutura do backend)
+            const labels = data.meses || [];
+            const receitas = data.receitas || [];
+            const despesas = data.despesas || [];
+            
+            window.dashboardChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Receitas',
+                            data: receitas,
+                            borderColor: '#27ae60',
+                            backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Despesas',
+                            data: despesas,
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('pt-BR', {
+                                            style: 'currency',
+                                            currency: 'BRL'
+                                        }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return new Intl.NumberFormat('pt-BR', {
+                                        style: 'currency',
+                                        currency: 'BRL',
+                                        minimumFractionDigits: 0
+                                    }).format(value);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         function toggleSubmenu(submenuId) {
             console.log('%c 🔍 DEBUG - toggleSubmenu() chamada ', 'background: #9C27B0; color: white; font-weight: bold; padding: 4px;');
             console.log('  📍 submenuId:', submenuId);

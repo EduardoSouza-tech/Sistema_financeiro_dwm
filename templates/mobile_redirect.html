@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Versão Mobile Disponível</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        
+        .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        
+        .device-info {
+            background: #f5f7fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        
+        .device-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .device-info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .device-info-label {
+            color: #666;
+            font-weight: 600;
+        }
+        
+        .device-info-value {
+            color: #333;
+        }
+        
+        .btn-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 16px 32px;
+            border-radius: 12px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .btn-secondary:hover {
+            background: #f5f7fa;
+        }
+        
+        .info-text {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #999;
+        }
+        
+        .info-text a {
+            color: #667eea;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">📱</div>
+        <h1>Versão Mobile Disponível!</h1>
+        <p class="subtitle">
+            Detectamos que você está usando um dispositivo móvel. 
+            Baixe nosso app para uma experiência otimizada!
+        </p>
+        
+        <div class="device-info">
+            <div class="device-info-item">
+                <span class="device-info-label">Dispositivo:</span>
+                <span class="device-info-value">
+                    {% if device_info.is_mobile %}📱 Mobile{% else %}💻 Desktop{% endif %}
+                </span>
+            </div>
+            {% if device_info.platform %}
+            <div class="device-info-item">
+                <span class="device-info-label">Plataforma:</span>
+                <span class="device-info-value">
+                    {% if device_info.platform == 'ios' %}🍎 iOS
+                    {% elif device_info.platform == 'android' %}🤖 Android
+                    {% else %}{{ device_info.platform }}{% endif %}
+                </span>
+            </div>
+            {% endif %}
+            {% if device_info.os %}
+            <div class="device-info-item">
+                <span class="device-info-label">Sistema:</span>
+                <span class="device-info-value">{{ device_info.os }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="btn-container">
+            <!-- Link para download do app (personalizar conforme loja) -->
+            {% if device_info.platform == 'ios' %}
+            <a href="#" class="btn btn-primary" onclick="alert('Em breve na App Store!')">
+                🍎 Baixar na App Store
+            </a>
+            {% elif device_info.platform == 'android' %}
+            <a href="#" class="btn btn-primary" onclick="alert('Em breve no Google Play!')">
+                🤖 Baixar no Google Play
+            </a>
+            {% else %}
+            <button class="btn btn-primary" onclick="alert('App mobile em breve!')">
+                📱 Baixar App Mobile
+            </button>
+            {% endif %}
+            
+            <button class="btn btn-secondary" onclick="useWebVersion()">
+                🌐 Continuar na Versão Web
+            </button>
+        </div>
+        
+        <p class="info-text">
+            Você pode alterar sua preferência a qualquer momento nas 
+            <a href="javascript:void(0)" onclick="alert('Em breve: Configurações de dispositivo')">configurações</a>.
+        </p>
+    </div>
+    
+    <script>
+        function useWebVersion() {
+            // Salvar preferência do usuário por versão web
+            fetch('/api/device-preference', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    preference: 'web'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Recarregar página para usar versão web
+                    window.location.href = '/';
+                } else {
+                    alert('Erro ao salvar preferência: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                // Mesmo se falhar, redirecionar
+                window.location.href = '/';
+            });
+        }
+        
+        // Auto-esconder após 30 segundos e usar web
+        setTimeout(() => {
+            if (confirm('Continuar na versão web?')) {
+                useWebVersion();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
