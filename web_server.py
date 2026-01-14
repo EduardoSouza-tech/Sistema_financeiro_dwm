@@ -319,6 +319,66 @@ try:
             print("✅ Tabela transacoes_extrato verificada/criada com sucesso!\n")
     except Exception as e:
         print(f"⚠️ Aviso: Não foi possível criar tabela de extratos: {e}\n")
+    
+    # Criar tabelas de Funcionários e Eventos
+    try:
+        print("\n👥 Verificando tabelas de Folha de Pagamento e Eventos...")
+        with db.get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Tabela de Funcionários
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS funcionarios (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id INTEGER NOT NULL,
+                    nome VARCHAR(255) NOT NULL,
+                    cpf VARCHAR(14) NOT NULL,
+                    endereco TEXT,
+                    tipo_chave_pix VARCHAR(50) NOT NULL,
+                    chave_pix VARCHAR(255),
+                    ativo BOOLEAN DEFAULT TRUE,
+                    data_admissao DATE,
+                    data_demissao DATE,
+                    observacoes TEXT,
+                    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uk_cpf_empresa UNIQUE (cpf, empresa_id)
+                )
+            """)
+            
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_empresa ON funcionarios(empresa_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_cpf ON funcionarios(cpf)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_ativo ON funcionarios(ativo)")
+            
+            # Tabela de Eventos
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS eventos (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id INTEGER NOT NULL,
+                    nome_evento VARCHAR(255) NOT NULL,
+                    data_evento DATE NOT NULL,
+                    nf_associada VARCHAR(100),
+                    valor_liquido_nf DECIMAL(15, 2),
+                    custo_evento DECIMAL(15, 2),
+                    margem DECIMAL(15, 2),
+                    tipo_evento VARCHAR(100),
+                    status VARCHAR(50) DEFAULT 'PENDENTE',
+                    observacoes TEXT,
+                    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_eventos_empresa ON eventos(empresa_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_eventos_data ON eventos(data_evento)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_eventos_status ON eventos(status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_eventos_tipo ON eventos(tipo_evento)")
+            
+            conn.commit()
+            cursor.close()
+            print("✅ Tabelas funcionarios e eventos verificadas/criadas com sucesso!\n")
+    except Exception as e:
+        print(f"⚠️ Aviso: Não foi possível criar tabelas de folha/eventos: {e}\n")
         
 except Exception as e:
     print(f"❌ ERRO CRÍTICO ao inicializar DatabaseManager: {e}")
