@@ -53,11 +53,15 @@ from datetime import datetime, date, timedelta
 import json
 import os
 import secrets
+import time
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
 # Detectar ambiente de produção
 IS_PRODUCTION = bool(os.getenv('RAILWAY_ENVIRONMENT'))
+
+# Build timestamp para cache busting (atualizado a cada restart)
+BUILD_TIMESTAMP = str(int(time.time()))
 
 # Configurar secret key para sessões
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
@@ -101,6 +105,17 @@ else:
 # ============================================================================
 # MANIPULADORES DE ERRO GLOBAIS
 # ============================================================================
+
+@app.after_request
+def add_no_cache_headers(response):
+    """Força navegador a NUNCA cachear HTML, CSS e JS"""
+    # Para arquivos estáticos (JS, CSS), desabilita cache agressivamente
+    if request.path.startswith('/static/') or request.path.endswith(('.html', '.js', '.css')):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '-1'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 @app.before_request
 def log_request():
@@ -2244,7 +2259,8 @@ def index():
     if not usuario:
         return render_template('login.html')
     
-    return render_template('index.html')
+    # Passa o timestamp de build para o template
+    return render_template('index.html', build_timestamp=BUILD_TIMESTAMP)
 
 @app.route('/old')
 @require_auth

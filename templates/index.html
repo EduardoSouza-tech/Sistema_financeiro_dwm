@@ -13,11 +13,11 @@
     
     <title>Sistema Financeiro | Dashboard</title>
     
-    <!-- 🔥 BUILD: 2026-01-14 15:28 - REFACTOR MODULAR 🔥 -->
+    <!-- 🔥 BUILD: {{ build_timestamp }} - SEMPRE ATUALIZADO 🔥 -->
     
     <!-- Preload CSS crítico -->
     <link rel="preload" href="/static/style.css" as="style">
-    <link rel="stylesheet" href="/static/style.css?v=20260114_1528">
+    <link rel="stylesheet" href="/static/style.css?v={{ build_timestamp }}">
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>💰</text></svg>">
@@ -1054,16 +1054,59 @@
          ============================================================================ -->
     
     <!-- Core dependencies (ordem importa!) -->
-    <script src="/static/permissions.js?v=20260114_1528"></script>
-    <script src="/static/navigation.js?v=20260114_1528"></script>
-    <script src="/static/crud_functions.js?v=20260114_1528"></script>
-    <script src="/static/app.js?v=20260114_1528"></script>
+    <script src="/static/permissions.js?v={{ build_timestamp }}"></script>
+    <script src="/static/navigation.js?v={{ build_timestamp }}"></script>
+    <script src="/static/crud_functions.js?v={{ build_timestamp }}"></script>
+    <script src="/static/app.js?v={{ build_timestamp }}"></script>
     
     <!-- Feature modules (carregam em paralelo) -->
-    <script src="/static/pdf_functions.js?v=20260114_1528" defer></script>
-    <script src="/static/excel_functions.js?v=20260114_1528" defer></script>
-    <script src="/static/analise_functions.js?v=20260114_1528" defer></script>
-    <script src="/static/modals.js?v=20260114_1528" defer></script>
+    <script src="/static/pdf_functions.js?v={{ build_timestamp }}" defer></script>
+    <script src="/static/excel_functions.js?v={{ build_timestamp }}" defer></script>
+    <script src="/static/analise_functions.js?v={{ build_timestamp }}" defer></script>
+    <script src="/static/modals.js?v={{ build_timestamp }}" defer></script>
+    
+    <!-- Service Worker para gerenciamento de cache -->
+    <script>
+        // Registra Service Worker para controle de cache
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/static/service-worker.js?v={{ build_timestamp }}')
+                    .then(function(registration) {
+                        console.log('✅ Service Worker registrado:', registration.scope);
+                        
+                        // Se houver uma atualização, recarrega a página
+                        registration.addEventListener('updatefound', function() {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', function() {
+                                if (newWorker.state === 'activated') {
+                                    console.log('🔄 Nova versão disponível! Recarregando...');
+                                    window.location.reload(true);
+                                }
+                            });
+                        });
+                    })
+                    .catch(function(error) {
+                        console.warn('⚠️ Service Worker falhou:', error);
+                    });
+                
+                // Listener para mensagens do Service Worker
+                navigator.serviceWorker.addEventListener('message', function(event) {
+                    if (event.data && event.data.type === 'CACHE_CLEARED') {
+                        console.log('✅ ' + event.data.message);
+                    }
+                });
+            });
+            
+            // Força limpeza de cache a cada carregamento
+            window.addEventListener('load', function() {
+                if (navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'CLEAR_CACHE'
+                    });
+                }
+            });
+        }
+    </script>
     
     <!-- Analytics e monitoring (opcional) -->
     <!-- <script src="/static/analytics.js" defer></script> -->
