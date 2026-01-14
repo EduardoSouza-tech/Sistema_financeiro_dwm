@@ -45,7 +45,14 @@ const PermissionManager = {
                 'clientes_edit',
                 'fornecedores_view',
                 'fornecedores_edit',
-                'relatorios_view'
+                'relatorios_view',
+                'operacional_view',
+                'contratos_view',
+                'contratos_edit',
+                'agenda_view',
+                'agenda_edit',
+                'estoque_view',
+                'estoque_edit'
             ];
         } catch (error) {
             console.warn('Usando permissões padrão');
@@ -105,7 +112,13 @@ const PermissionManager = {
             'fluxo-caixa': 'relatorios_view',
             'fluxo-projetado': 'relatorios_view',
             'analise-contas': 'relatorios_view',
-            'extrato-bancario': 'lancamentos_view'
+            'extrato-bancario': 'lancamentos_view',
+            'contratos': 'contratos_view',
+            'agenda-fotografia': 'agenda_view',
+            'gestao-estoque': 'estoque_view',
+            'kits-equipamentos': 'estoque_view',
+            'tags-trabalho': 'contratos_view',
+            'templates-equipe': 'contratos_view'
         };
         
         const requiredPermission = pagePermissions[pageName];
