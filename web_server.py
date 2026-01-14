@@ -2,21 +2,45 @@
 Servidor Web para o Sistema Financeiro
 Otimizado para PostgreSQL com pool de conexões
 """
-from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
 from functools import wraps
 import os
 import sys
 
-# Forcar saida imediata de logs (importante para Railway/gunicorn)
-def log(msg):
-    """Print que forca flush imediato"""
-    print(msg, file=sys.stderr, flush=True)
+# ============================================================================
+# LOGGING E MONITORAMENTO
+# ============================================================================
+from logger_config import setup_logging, get_logger, log_request, log_error
+from sentry_config import init_sentry, set_user_context, clear_user_context, add_breadcrumb, capture_exception
 
-# Teste imediato da funcao log
-log("="*80)
-log("TESTE: Funcao log() carregada e funcionando!")
-log("="*80)
+# ============================================================================
+# CSRF PROTECTION
+# ============================================================================
+from csrf_config import init_csrf, csrf, inject_csrf_token, register_csrf_error_handlers
+
+# ============================================================================
+# MOBILE DETECTION
+# ============================================================================
+from mobile_config import is_mobile_device, get_device_info
+
+# Configurar logging estruturado
+logger = setup_logging(
+    app_name='sistema_financeiro',
+    log_level=os.getenv('LOG_LEVEL', 'INFO'),
+    enable_json=bool(os.getenv('RAILWAY_ENVIRONMENT'))  # JSON em produção
+)
+
+# Inicializar Sentry em produção
+SENTRY_ENABLED = init_sentry(
+    environment='production' if os.getenv('RAILWAY_ENVIRONMENT') else 'development',
+    traces_sample_rate=0.1  # 10% das transações
+)
+
+logger.info("="*80)
+logger.info("Sistema de logging e monitoramento inicializado")
+logger.info(f"Sentry: {'✅ Ativo' if SENTRY_ENABLED else '⚠️  Desabilitado'}")
+logger.info("="*80)
 
 # Importação opcional do flask-limiter (para compatibilidade durante deploy)
 try:
@@ -83,6 +107,19 @@ CORS(app,
      }}, 
      supports_credentials=True)
 
+# ============================================================================
+# INICIALIZAR CSRF PROTECTION
+# ============================================================================
+csrf_instance = init_csrf(app)
+register_csrf_error_handlers(app)
+
+# Injetar CSRF token em todos os templates
+@app.context_processor
+def inject_csrf():
+    return inject_csrf_token()
+
+logger.info("✅ CSRF Protection configurado")
+
 # Configurar Rate Limiting (apenas se disponível)
 if LIMITER_AVAILABLE:
     limiter = Limiter(
@@ -118,42 +155,88 @@ def add_no_cache_headers(response):
     return response
 
 @app.before_request
-def log_request():
-    """Log de todas as requisições HTTP"""
-    print(f"\n🌐 [{request.method}] {request.path}")
-    if request.args:
-        print(f"   Query params: {dict(request.args)}")
+def log_request_info():
+    """Log de todas as requisições HTTP para auditoria e detecção mobile"""
+    # Pular verificações para rotas de API mobile (já autenticadas via JWT)
+    if request.path.startswith('/api/mobile/'):
+        return None
+    
+    # Obter usuário se autenticado
+    user_id = session.get('usuario_id')
+    proprietario_id = session.get('proprietario_id')
+    
+    # Log estruturado
+    log_request(request, user_id=user_id, proprietario_id=proprietario_id)
+    
+    # Detectar dispositivo mobile e redirecionar se configurado
+    # (apenas para páginas HTML, não para API ou static)
+    if not request.path.startswith(('/api/', '/static/', '/login', '/logout')):
+        if should_use_mobile() and user_id:  # Só redirecionar se autenticado
+            # Criar página de redirecionamento para app mobile
+            device_info = get_device_info()
+            return render_template('mobile_redirect.html', device_info=device_info)
+    
+    # Breadcrumb para Sentry
+    if SENTRY_ENABLED:
+        add_breadcrumb(
+            f"{request.method} {request.path}",
+            category='http',
+            data={
+                'url': request.url,
+                'method': request.method,
+                'ip': request.remote_addr
+            }
+        )
 
 @app.errorhandler(404)
 def handle_404_error(e):
     """Captura erros 404 e loga detalhes"""
-    print("\n" + "="*80)
-    print("⚠️ ERRO 404 - ROTA NÃO ENCONTRADA")
-    print("="*80)
-    print(f"Rota solicitada: {request.path}")
-    print(f"Método: {request.method}")
-    print("="*80 + "\n")
+    logger.warning(
+        f"404 - Rota não encontrada: {request.method} {request.path}",
+        extra={'ip': request.remote_addr}
+    )
     return jsonify({'error': 'Rota não encontrada', 'path': request.path}), 404
 
 @app.errorhandler(500)
 def handle_500_error(e):
     """Captura erros 500 e loga detalhes"""
-    print("\n" + "="*80)
-    print("❌ ERRO 500 CAPTURADO")
-    print("="*80)
-    print(f"Rota: {request.path}")
-    print(f"Método: {request.method}")
-    print(f"Erro: {str(e)}")
-    import traceback
-    traceback.print_exc()
-    print("="*80 + "\n")
+    error_context = {
+        'path': request.path,
+        'method': request.method,
+        'ip': request.remote_addr,
+        'user_id': session.get('usuario_id')
+    }
+    
+    # Log local
+    logger.error(f"500 - Erro interno: {str(e)}", extra=error_context, exc_info=True)
+    
+    # Enviar para Sentry
+    if SENTRY_ENABLED:
+        capture_exception(e, context=error_context)
+    
     return jsonify({'error': 'Erro interno do servidor', 'details': str(e)}), 500
 
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Captura TODAS as exceções não tratadas"""
-    print("\n" + "="*80)
-    print("💥 EXCEÇÃO NÃO TRATADA")
+    error_context = {
+        'path': request.path,
+        'method': request.method,
+        'ip': request.remote_addr,
+        'user_id': session.get('usuario_id'),
+        'proprietario_id': session.get('proprietario_id')
+    }
+    
+    # Log local crítico
+    logger.critical(
+        f"Exceção não tratada: {type(e).__name__} - {str(e)}",
+        extra=error_context,
+        exc_info=True
+    )
+    
+    # Enviar para Sentry com alta prioridade
+    if SENTRY_ENABLED:
+        capture_exception(e, context=error_context, level='fatal')
     print("="*80)
     print(f"Rota: {request.path}")
     print(f"Método: {request.method}")
@@ -1480,7 +1563,7 @@ def upload_extrato_ofx():
             return jsonify(resultado), 400
         
     except Exception as e:
-        log(f"Erro ao processar OFX: {e}")
+        logger.info(f"Erro ao processar OFX: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1513,7 +1596,7 @@ def listar_extratos():
         return jsonify(transacoes), 200
         
     except Exception as e:
-        log(f"Erro ao listar extratos: {e}")
+        logger.info(f"Erro ao listar extratos: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -1534,7 +1617,7 @@ def conciliar_extrato(transacao_id):
         return jsonify(resultado), 200 if resultado['success'] else 400
         
     except Exception as e:
-        log(f"Erro ao conciliar: {e}")
+        logger.info(f"Erro ao conciliar: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1554,7 +1637,7 @@ def sugerir_conciliacoes_extrato(transacao_id):
         return jsonify(sugestoes), 200
         
     except Exception as e:
-        log(f"Erro ao sugerir conciliacoes: {e}")
+        logger.info(f"Erro ao sugerir conciliacoes: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -1571,7 +1654,7 @@ def deletar_importacao_extrato(importacao_id):
         return jsonify(resultado), 200 if resultado['success'] else 400
         
     except Exception as e:
-        log(f"Erro ao deletar importacao: {e}")
+        logger.info(f"Erro ao deletar importacao: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -2222,6 +2305,122 @@ def admin_page():
     """Painel administrativo - apenas para admins"""
     print(f"\n🎯🎯🎯 ROTA /admin ALCANÇADA - Decorador passou! 🎯🎯🎯\n")
     return render_template('admin.html')
+
+# ============================================================================
+# ROTAS DE ADMINISTRAÇÃO MOBILE
+# ============================================================================
+
+@app.route('/api/admin/mobile/config', methods=['GET'])
+@require_admin
+def admin_get_mobile_config():
+    """
+    Obtém informações básicas sobre mobile (apenas detecção de dispositivo)
+    
+    GET /api/admin/mobile/config
+    
+    Response: {
+        "success": true,
+        "device_info": {...}
+    }
+    """
+    try:
+        device_info = get_device_info()
+        
+        return jsonify({
+            'success': True,
+            'device_info': device_info,
+            'message': 'Sistema usa detecção básica de dispositivos mobile'
+        }), 200
+    except Exception as e:
+        logger.error(f"Erro ao obter info mobile: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/admin/mobile/config/<key>', methods=['PUT'])
+@require_admin
+def admin_update_mobile_config(key):
+    """
+    Atualiza uma configuração mobile (admin apenas)
+    
+    PUT /api/admin/mobile/config/mobile_enabled
+    Body: {
+        "value": "true",
+        "description": "Habilitar versão mobile"
+    }
+    
+    Response: {
+        "success": false,
+        "message": "Configurações mobile simplificadas - não há configurações para atualizar"
+    }
+    """
+    return jsonify({
+        'success': False,
+        'message': 'Sistema usa detecção básica de mobile - não há configurações dinâmicas',
+        'info': 'Mobile detection baseado em User-Agent apenas'
+    }), 400
+
+
+@app.route('/api/device-info', methods=['GET'])
+def get_device_info_route():
+    """
+    Retorna informações sobre o dispositivo atual
+    Útil para debug e UI
+    
+    GET /api/device-info
+    
+    Response: {
+        "is_mobile": true,
+        "is_mobile_app": false,
+        "platform": "android",
+        "os": "Android",
+        "user_agent": "..."
+    }
+    """
+    device_info = get_device_info()
+    return jsonify(device_info), 200
+
+
+@app.route('/api/device-preference', methods=['POST'])
+@require_auth
+def set_device_preference_route():
+    """
+    Define preferência de dispositivo do usuário
+    
+    POST /api/device-preference
+    Body: {
+        "preference": "web" | "mobile"
+    }
+    
+    Response: {
+        "success": true,
+        "preference": "web"
+    }
+    """
+    try:
+        data = request.get_json()
+        preference = data.get('preference', 'web')
+        
+        if preference not in ['web', 'mobile']:
+            return jsonify({
+                'success': False,
+                'error': 'Preferência inválida. Use "web" ou "mobile".'
+            }), 400
+        
+        from mobile_config import store_device_preference
+        store_device_preference(preference)
+        
+        return jsonify({
+            'success': True,
+            'preference': preference
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/debug-usuario')
 def debug_usuario():
@@ -3896,30 +4095,30 @@ def salvar_ordem_menu():
 # ============================================================================
 # ROTAS DE GESTÃO DE EMPRESAS (MULTI-TENANT)
 # ============================================================================
-log("="*80)
-log("INICIO DAS ROTAS DE EMPRESAS")
-log("="*80)
+logger.info("="*80)
+logger.info("INICIO DAS ROTAS DE EMPRESAS")
+logger.info("="*80)
 
 @app.route('/api/empresas', methods=['GET'])
 @require_auth
 def listar_empresas_api():
     """Lista todas as empresas (apenas super admin)"""
-    log("\n" + "="*80)
-    log("[listar_empresas_api] FUNCAO INICIADA")
-    log(f"   Path: {request.path}")
-    log(f"   Metodo: {request.method}")
-    log("="*80)
+    logger.info("\n" + "="*80)
+    logger.info("[listar_empresas_api] FUNCAO INICIADA")
+    logger.info(f"   Path: {request.path}")
+    logger.info(f"   Metodo: {request.method}")
+    logger.info("="*80)
     
     try:
-        log("GET /api/empresas - Iniciando processamento...")
+        logger.info("GET /api/empresas - Iniciando processamento...")
         
         # Usa get_usuario_logado() para pegar usuario do token
         usuario = get_usuario_logado()
-        log(f"   Usuario autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
+        logger.info(f"   Usuario autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
         # Apenas admin do sistema pode listar todas empresas
         if usuario['tipo'] != 'admin':
-            log(f"   Acesso negado - usuario nao e admin")
+            logger.info(f"   Acesso negado - usuario nao e admin")
             return jsonify({'error': 'Acesso negado'}), 403
         
         filtros = {}
@@ -3929,9 +4128,9 @@ def listar_empresas_api():
         if request.args.get('plano'):
             filtros['plano'] = request.args.get('plano')
         
-        log(f"   🔍 Chamando database.listar_empresas(filtros={filtros})...")
+        logger.info(f"   🔍 Chamando database.listar_empresas(filtros={filtros})...")
         empresas = database.listar_empresas(filtros)
-        log(f"   ✅ Empresas carregadas: {len(empresas) if empresas else 0}")
+        logger.info(f"   ✅ Empresas carregadas: {len(empresas) if empresas else 0}")
         
         # Garantir que empresas não seja None
         if empresas is None:
@@ -3940,69 +4139,69 @@ def listar_empresas_api():
         # Retornar apenas dados básicos (sem estatísticas para evitar sobrecarga)
         # As estatísticas podem ser buscadas individualmente se necessário
         
-        log(f"   ✅ Retornando {len(empresas)} empresas")
-        log("="*80 + "\n")
+        logger.info(f"   ✅ Retornando {len(empresas)} empresas")
+        logger.info("="*80 + "\n")
         
         return jsonify(empresas)
         
     except Exception as e:
-        log(f"❌ Erro ao listar empresas: {e}")
+        logger.info(f"❌ Erro ao listar empresas: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
-        log("="*80 + "\n")
+        logger.info("="*80 + "\n")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/empresas/<int:empresa_id>', methods=['GET'])
 @require_auth
 def obter_empresa_api(empresa_id):
     """Obtém dados de uma empresa específica"""
-    log("\n" + "="*80)
-    log(f"[obter_empresa_api] FUNCAO CHAMADA - ID: {empresa_id}")
+    logger.info("\n" + "="*80)
+    logger.info(f"[obter_empresa_api] FUNCAO CHAMADA - ID: {empresa_id}")
     try:
-        log(f"[obter_empresa_api] Obtendo usuario logado...")
+        logger.info(f"[obter_empresa_api] Obtendo usuario logado...")
         usuario = get_usuario_logado()
-        log(f"[obter_empresa_api] Usuario: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
+        logger.info(f"[obter_empresa_api] Usuario: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
         # Admin pode ver qualquer empresa, usuário comum só a própria
         if usuario['tipo'] != 'admin':
-            log(f"[obter_empresa_api] Usuario nao e admin - verificando empresa_id...")
+            logger.info(f"[obter_empresa_api] Usuario nao e admin - verificando empresa_id...")
             usuario_completo = database.obter_usuario_por_id(usuario['id'])
             if usuario_completo.get('empresa_id') != empresa_id:
-                log(f"[obter_empresa_api] Acesso negado - empresa diferente")
+                logger.info(f"[obter_empresa_api] Acesso negado - empresa diferente")
                 return jsonify({'error': 'Acesso negado'}), 403
         
-        log(f"[obter_empresa_api] Chamando database.obter_empresa({empresa_id})...")
+        logger.info(f"[obter_empresa_api] Chamando database.obter_empresa({empresa_id})...")
         empresa = database.obter_empresa(empresa_id)
-        log(f"[obter_empresa_api] Resultado: {empresa is not None}")
+        logger.info(f"[obter_empresa_api] Resultado: {empresa is not None}")
         
         if not empresa:
-            log(f"[obter_empresa_api] Empresa nao encontrada")
-            log("="*80 + "\n")
+            logger.info(f"[obter_empresa_api] Empresa nao encontrada")
+            logger.info("="*80 + "\n")
             return jsonify({'error': 'Empresa não encontrada'}), 404
         
-        log(f"[obter_empresa_api] Empresa encontrada: {empresa.get('razao_social')}")
-        log(f"[obter_empresa_api] Obtendo estatisticas...")
+        logger.info(f"[obter_empresa_api] Empresa encontrada: {empresa.get('razao_social')}")
+        logger.info(f"[obter_empresa_api] Obtendo estatisticas...")
         
         # Adicionar estatísticas
         try:
             empresa['stats'] = database.obter_estatisticas_empresa(empresa_id)
-            log(f"[obter_empresa_api] Estatisticas obtidas")
+            logger.info(f"[obter_empresa_api] Estatisticas obtidas")
         except Exception as e:
-            log(f"[obter_empresa_api] Erro ao obter stats: {e}")
+            logger.info(f"[obter_empresa_api] Erro ao obter stats: {e}")
             empresa['stats'] = {}
         
-        log(f"[obter_empresa_api] Retornando sucesso")
-        log("="*80 + "\n")
+        logger.info(f"[obter_empresa_api] Retornando sucesso")
+        logger.info("="*80 + "\n")
         return jsonify({
             'success': True,
             'empresa': empresa
         })
         
     except Exception as e:
-        log(f"[obter_empresa_api] EXCECAO: {e}")
+        logger.info(f"[obter_empresa_api] EXCECAO: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
-        log("="*80 + "\n")
+        logger.info("="*80 + "\n")
         return jsonify({'error': str(e)}), 500
 
 
@@ -4010,26 +4209,26 @@ def obter_empresa_api(empresa_id):
 @require_auth
 def criar_empresa_api():
     """Cria uma nova empresa (apenas super admin)"""
-    log("\n" + "="*80)
-    log("[criar_empresa_api] FUNCAO CHAMADA")
+    logger.info("\n" + "="*80)
+    logger.info("[criar_empresa_api] FUNCAO CHAMADA")
     try:
         usuario = get_usuario_logado()
-        log(f"   Usuario: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
+        logger.info(f"   Usuario: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
         if usuario['tipo'] != 'admin':
-            log("   Acesso negado - usuario nao e admin")
+            logger.info("   Acesso negado - usuario nao e admin")
             return jsonify({'error': 'Acesso negado'}), 403
         
         dados = request.json
-        log(f"   Dados recebidos: {dados}")
+        logger.info(f"   Dados recebidos: {dados}")
         
         if not dados:
-            log("   Erro: dados nao fornecidos")
+            logger.info("   Erro: dados nao fornecidos")
             return jsonify({'error': 'Dados não fornecidos'}), 400
         
-        log("   Chamando database.criar_empresa()...")
+        logger.info("   Chamando database.criar_empresa()...")
         resultado = database.criar_empresa(dados)
-        log(f"   Resultado: {resultado}")
+        logger.info(f"   Resultado: {resultado}")
         
         if resultado['success']:
             # Registrar log
@@ -4043,19 +4242,19 @@ def criar_empresa_api():
             except:
                 pass
             
-            log("   Empresa criada com sucesso!")
-            log("="*80 + "\n")
+            logger.info("   Empresa criada com sucesso!")
+            logger.info("="*80 + "\n")
             return jsonify(resultado), 201
         else:
-            log(f"   Erro: {resultado.get('error')}")
-            log("="*80 + "\n")
+            logger.info(f"   Erro: {resultado.get('error')}")
+            logger.info("="*80 + "\n")
             return jsonify(resultado), 400
         
     except Exception as e:
-        log(f"EXCECAO ao criar empresa: {e}")
+        logger.info(f"EXCECAO ao criar empresa: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
-        log("="*80 + "\n")
+        logger.info("="*80 + "\n")
         return jsonify({'error': str(e)}), 500
 
 
@@ -4259,14 +4458,14 @@ def estatisticas_empresa_api(empresa_id):
 # ============================================================================
 # LISTAR ROTAS (NIVEL DE MODULO - EXECUTA SEMPRE)
 # ============================================================================
-log("="*80)
-log("ROTAS REGISTRADAS:")
-log("="*80)
+logger.info("="*80)
+logger.info("ROTAS REGISTRADAS:")
+logger.info("="*80)
 for rule in app.url_map.iter_rules():
     if 'api' in rule.rule and 'static' not in rule.rule:
         methods = ', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))
-        log(f"  {rule.rule:<45} [{methods}]")
-log("="*80)
+        logger.info(f"  {rule.rule:<45} [{methods}]")
+logger.info("="*80)
 
 
 if __name__ == '__main__':
@@ -4306,10 +4505,11 @@ if __name__ == '__main__':
     
     print("="*60)
     
-    log("="*80)
-    log("FIM DO ARQUIVO WEB_SERVER.PY - TODAS AS ROTAS CARREGADAS")
-    log("="*80)
+    logger.info("="*80)
+    logger.info("FIM DO ARQUIVO WEB_SERVER.PY - TODAS AS ROTAS CARREGADAS")
+    logger.info("="*80)
     
     # Habilitar debug do Flask
     app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)
+
 
