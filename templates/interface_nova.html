@@ -3134,13 +3134,23 @@
                 if (method.toUpperCase() !== 'GET') {
                     const csrfToken = getCSRFToken();
                     
-                    options.headers = options.headers || {};
-                    if (!(options.headers instanceof Headers)) {
-                        options.headers = new Headers(options.headers);
+                    // Inicializar headers como objeto simples se não existir
+                    if (!options.headers) {
+                        options.headers = {};
                     }
                     
-                    if (!options.headers.has('X-CSRFToken') && csrfToken) {
-                        options.headers.set('X-CSRFToken', csrfToken);
+                    // Se for Headers object, converter para objeto simples
+                    if (options.headers instanceof Headers) {
+                        const headersObj = {};
+                        options.headers.forEach((value, key) => {
+                            headersObj[key] = value;
+                        });
+                        options.headers = headersObj;
+                    }
+                    
+                    // Adicionar CSRF token se não existir
+                    if (!options.headers['X-CSRFToken'] && csrfToken) {
+                        options.headers['X-CSRFToken'] = csrfToken;
                     }
                 }
                 
