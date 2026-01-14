@@ -1962,7 +1962,8 @@ def criar_funcionario():
             dados.get('ativo', True)
         ))
         
-        funcionario_id = cursor.fetchone()[0]
+        resultado = cursor.fetchone()
+        funcionario_id = resultado['id'] if isinstance(resultado, dict) else resultado[0]
         conn.commit()
         cursor.close()
         
@@ -2193,7 +2194,8 @@ def criar_evento():
             dados.get('observacoes')
         ))
         
-        evento_id = cursor.fetchone()[0]
+        resultado = cursor.fetchone()
+        evento_id = resultado['id'] if isinstance(resultado, dict) else resultado[0]
         conn.commit()
         cursor.close()
         
