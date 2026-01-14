@@ -1851,7 +1851,7 @@ def listar_funcionarios():
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         if not empresa_id:
             return jsonify({'error': 'Empresa não identificada'}), 400
         
@@ -1906,7 +1906,7 @@ def criar_funcionario():
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         if not empresa_id:
             return jsonify({'error': 'Empresa não identificada'}), 400
         
@@ -1977,7 +1977,7 @@ def atualizar_funcionario(funcionario_id):
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         if not empresa_id:
             return jsonify({'error': 'Empresa não identificada'}), 400
         
@@ -2071,7 +2071,7 @@ def listar_eventos():
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         if not empresa_id:
             return jsonify({'error': 'Empresa não identificada'}), 400
         
@@ -2146,7 +2146,7 @@ def criar_evento():
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         if not empresa_id:
             return jsonify({'error': 'Empresa não identificada'}), 400
         
@@ -2208,7 +2208,7 @@ def atualizar_evento(evento_id):
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         if not empresa_id:
             return jsonify({'error': 'Empresa não identificada'}), 400
         
@@ -2297,7 +2297,7 @@ def deletar_evento(evento_id):
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         if not empresa_id:
             return jsonify({'error': 'Empresa não identificada'}), 400
         
