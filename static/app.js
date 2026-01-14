@@ -1,131 +1,576 @@
-// API Base URL - Usa URL relativa para funcionar tanto local quanto em produção
-const API_URL = window.location.origin + '/api';
+/**
+ * ============================================================================
+ * SISTEMA FINANCEIRO - APLICAÇÃO PRINCIPAL
+ * ============================================================================
+ * Versão: 2.0.0
+ * Última atualização: 2026-01-14
+ * 
+ * Este arquivo contém toda a lógica de frontend do sistema financeiro.
+ * Estrutura modular com tratamento robusto de erros e validações completas.
+ * ============================================================================
+ */
 
-// Estado global
-let currentPage = 'dashboard';
-let contas = [];
-let categorias = [];
-let lancamentos = [];
+// ============================================================================
+// CONFIGURAÇÕES GLOBAIS
+// ============================================================================
 
-// Inicialização
-document.addEventListener('DOMContentLoaded', function() {
-    loadDashboard();
-    loadContas();
-    loadCategorias();
-    
-    // Definir datas padrão
-    const hoje = new Date().toISOString().split('T')[0];
-    const umMesAtras = new Date();
-    umMesAtras.setMonth(umMesAtras.getMonth() - 1);
-    const umMesAtrasStr = umMesAtras.toISOString().split('T')[0];
-    
-    const tresMesesFrente = new Date();
-    tresMesesFrente.setMonth(tresMesesFrente.getMonth() + 3);
-    const tresMesesFrenteStr = tresMesesFrente.toISOString().split('T')[0];
-    
-    // Definir datas padrão apenas se os elementos existirem
-    const fluxoDataInicio = document.getElementById('fluxo-data-inicio');
-    const fluxoDataFim = document.getElementById('fluxo-data-fim');
-    const analiseDataInicio = document.getElementById('analise-data-inicio');
-    const analiseDataFim = document.getElementById('analise-data-fim');
-    const projecaoDataFinal = document.getElementById('projecao-data-final');
-    
-    if (fluxoDataInicio) fluxoDataInicio.value = umMesAtrasStr;
-    if (fluxoDataFim) fluxoDataFim.value = hoje;
-    if (analiseDataInicio) analiseDataInicio.value = umMesAtrasStr;
-    if (analiseDataFim) analiseDataFim.value = hoje;
-    if (projecaoDataFinal) projecaoDataFinal.value = tresMesesFrenteStr;
-    
-    // Preencher anos no Comparativo de Períodos
-    const anoAtual = new Date().getFullYear();
-    const anoAnterior = anoAtual - 1;
-    
-    const filterAno1 = document.getElementById('filter-ano1');
-    const filterAno2 = document.getElementById('filter-ano2');
-    
-    if (filterAno1) filterAno1.value = anoAnterior;
-    if (filterAno2) filterAno2.value = anoAtual;
-});
+const CONFIG = {
+    API_URL: window.location.origin + '/api',
+    TIMEOUT: 30000, // 30 segundos
+    RETRY_ATTEMPTS: 3,
+    DEBOUNCE_DELAY: 300,
+    DATE_FORMAT: 'pt-BR',
+    CURRENCY_FORMAT: 'BRL'
+};
 
-// Navegação
-function showPage(pageName) {
-    // Ocultar todas as páginas
-    document.querySelectorAll('.page').forEach(page => {
-        page.classList.remove('active');
-    });
+// ============================================================================
+// ESTADO GLOBAL DA APLICAÇÃO
+// ============================================================================
+
+const AppState = {
+    currentPage: 'dashboard',
+    contas: [],
+    categorias: [],
+    lancamentos: [],
+    usuario: null,
+    isLoading: false,
+    errors: []
+};
+
+// ============================================================================
+// UTILITÁRIOS - TRATAMENTO DE ERROS
+// ============================================================================
+
+/**
+ * Logger centralizado para erros
+ * @param {string} context - Contexto onde ocorreu o erro
+ * @param {Error} error - Objeto de erro
+ * @param {Object} additionalData - Dados adicionais para debug
+ */
+function logError(context, error, additionalData = {}) {
+    const errorLog = {
+        timestamp: new Date().toISOString(),
+        context,
+        message: error.message,
+        stack: error.stack,
+        ...additionalData
+    };
     
-    // Mostrar página selecionada
-    document.getElementById(`page-${pageName}`).classList.add('active');
+    console.error(`[ERRO - ${context}]`, errorLog);
+    AppState.errors.push(errorLog);
     
-    // Atualizar botões da sidebar
-    document.querySelectorAll('.nav-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    currentPage = pageName;
-    
-    // Carregar dados da página
-    switch(pageName) {
-        case 'dashboard':
-            loadDashboard();
-            break;
-        case 'contas-receber':
-            loadContasReceber();
-            break;
-        case 'contas-pagar':
-            loadContasPagar();
-            break;
-        case 'contas-receber':
-            loadContasReceber();
-            break;
-        case 'contas-pagar':
-            loadContasPagar();
-            break;
-        case 'lancamentos':
-            loadLancamentos();
-            break;
-        case 'contas':
-            loadContas();
-            break;
-        case 'categorias':
-            loadCategorias();
-            break;
-        case 'clientes':
-            loadClientes();
-            break;
-        case 'fornecedores':
-            loadFornecedores();
-            break;
-        case 'fluxo-caixa':
-            loadFluxoCaixa();
-            break;
-        case 'fluxo-projetado':
-            loadFluxoProjetado();
-            break;
-        case 'analise-contas':
-            loadAnaliseContas();
-            break;
-        case 'extrato-bancario':
-            loadContasForExtrato();
-            loadExtratos();
-            break;
-        case 'analise-categorias':
-            loadAnaliseCategorias();
-            break;
-        case 'inadimplencia':
-            loadInadimplencia();
-            break;
+    // Em produção, aqui você enviaria para um serviço de monitoramento
+    // if (IS_PRODUCTION) sendToMonitoring(errorLog);
+}
+
+/**
+ * Exibe mensagem de erro ao usuário de forma amigável
+ * @param {string} message - Mensagem a ser exibida
+ * @param {string} type - Tipo: 'error', 'warning', 'info', 'success'
+ */
+function showNotification(message, type = 'info') {
+    try {
+        // Remove notificações antigas
+        const oldNotifications = document.querySelectorAll('.notification');
+        oldNotifications.forEach(n => n.remove());
+        
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <span class="notification-icon">${getNotificationIcon(type)}</span>
+            <span class="notification-message">${escapeHtml(message)}</span>
+            <button class="notification-close" onclick="this.parentElement.remove()">&times;</button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remover após 5 segundos
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.classList.add('notification-fade-out');
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 5000);
+    } catch (error) {
+        console.error('Erro ao exibir notificação:', error);
+        // Fallback para alert nativo
+        alert(message);
     }
 }
 
-function toggleSubmenu(submenuName) {
-    const submenu = document.getElementById(`submenu-${submenuName}`);
-    submenu.classList.toggle('open');
+/**
+ * Retorna ícone baseado no tipo de notificação
+ */
+function getNotificationIcon(type) {
+    const icons = {
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️',
+        success: '✅'
+    };
+    return icons[type] || icons.info;
 }
 
-// Modals
+/**
+ * Escapa HTML para prevenir XSS
+ * @param {string} text - Texto a ser escapado
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Valida se um valor não é null ou undefined
+ * @param {*} value - Valor a ser validado
+ */
+function isValidValue(value) {
+    return value !== null && value !== undefined;
+}
+
+/**
+ * Valida se uma string não está vazia
+ * @param {string} str - String a ser validada
+ */
+function isNonEmptyString(str) {
+    return typeof str === 'string' && str.trim().length > 0;
+}
+
+// ============================================================================
+// UTILITÁRIOS - REQUISIÇÕES HTTP
+// ============================================================================
+
+/**
+ * Wrapper para fetch com timeout, retry e tratamento de erros
+ * @param {string} url - URL da requisição
+ * @param {Object} options - Opções do fetch
+ */
+async function fetchWithTimeout(url, options = {}) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CONFIG.TIMEOUT);
+    
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        // Verifica se a resposta é OK (200-299)
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        clearTimeout(timeoutId);
+        
+        if (error.name === 'AbortError') {
+            throw new Error('Requisição excedeu o tempo limite. Verifique sua conexão.');
+        }
+        
+        throw error;
+    }
+}
+
+/**
+ * Requisição GET com tratamento de erros
+ * @param {string} endpoint - Endpoint da API
+ */
+async function apiGet(endpoint) {
+    try {
+        return await fetchWithTimeout(`${CONFIG.API_URL}${endpoint}`);
+    } catch (error) {
+        logError('apiGet', error, { endpoint });
+        throw error;
+    }
+}
+
+/**
+ * Requisição POST com tratamento de erros
+ * @param {string} endpoint - Endpoint da API
+ * @param {Object} data - Dados a serem enviados
+ */
+async function apiPost(endpoint, data) {
+    try {
+        return await fetchWithTimeout(`${CONFIG.API_URL}${endpoint}`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    } catch (error) {
+        logError('apiPost', error, { endpoint, data });
+        throw error;
+    }
+}
+
+/**
+ * Requisição DELETE com tratamento de erros
+ * @param {string} endpoint - Endpoint da API
+ */
+async function apiDelete(endpoint) {
+    try {
+        return await fetchWithTimeout(`${CONFIG.API_URL}${endpoint}`, {
+            method: 'DELETE'
+        });
+    } catch (error) {
+        logError('apiDelete', error, { endpoint });
+        throw error;
+    }
+}
+
+// ============================================================================
+// UTILITÁRIOS - FORMATAÇÃO
+// ============================================================================
+
+/**
+ * Formata valor monetário de forma segura
+ * @param {number} valor - Valor a ser formatado
+ */
+function formatarMoeda(valor) {
+    try {
+        if (!isValidValue(valor) || isNaN(valor)) {
+            return 'R$ 0,00';
+        }
+        
+        return new Intl.NumberFormat(CONFIG.DATE_FORMAT, {
+            style: 'currency',
+            currency: CONFIG.CURRENCY_FORMAT
+        }).format(Number(valor));
+    } catch (error) {
+        logError('formatarMoeda', error, { valor });
+        return 'R$ 0,00';
+    }
+}
+
+/**
+ * Formata data de forma segura
+ * @param {string} data - Data a ser formatada
+ */
+function formatarData(data) {
+    try {
+        if (!data) return '-';
+        
+        const date = new Date(data + 'T00:00:00');
+        
+        if (isNaN(date.getTime())) {
+            return '-';
+        }
+        
+        return date.toLocaleDateString(CONFIG.DATE_FORMAT);
+    } catch (error) {
+        logError('formatarData', error, { data });
+        return '-';
+    }
+}
+
+/**
+ * Valida e sanitiza valor numérico
+ * @param {*} value - Valor a ser validado
+ */
+function sanitizeNumericValue(value) {
+    const num = Number(value);
+    return isNaN(num) ? 0 : num;
+}
+
+// ============================================================================
+// UTILITÁRIOS - DOM
+// ============================================================================
+
+/**
+ * Obtém elemento do DOM de forma segura
+ * @param {string} id - ID do elemento
+ * @param {string} context - Contexto para log de erro
+ */
+function getElement(id, context = 'getElement') {
+    const element = document.getElementById(id);
+    
+    if (!element) {
+        console.warn(`[${context}] Elemento não encontrado: ${id}`);
+    }
+    
+    return element;
+}
+
+/**
+ * Define valor de elemento de forma segura
+ * @param {string} id - ID do elemento
+ * @param {*} value - Valor a ser definido
+ * @param {string} property - Propriedade a ser definida (textContent, innerHTML, value)
+ */
+function setElementValue(id, value, property = 'textContent') {
+    try {
+        const element = getElement(id);
+        if (element && isValidValue(value)) {
+            element[property] = value;
+            return true;
+        }
+        return false;
+    } catch (error) {
+        logError('setElementValue', error, { id, value, property });
+        return false;
+    }
+}
+
+/**
+ * Limpa conteúdo de elemento de forma segura
+ * @param {string} id - ID do elemento
+ */
+function clearElement(id) {
+    const element = getElement(id);
+    if (element) {
+        element.innerHTML = '';
+        return true;
+    }
+    return false;
+}
+
+// ============================================================================
+// INICIALIZAÇÃO DA APLICAÇÃO
+// ============================================================================
+
+/**
+ * Inicializa a aplicação quando o DOM estiver pronto
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        console.log('🚀 Inicializando Sistema Financeiro...');
+        
+        // Inicializa datas padrão
+        initializeDefaultDates();
+        
+        // Carrega dados iniciais
+        loadInitialData();
+        
+        // Configura listeners globais
+        setupGlobalListeners();
+        
+        console.log('✅ Sistema Financeiro iniciado com sucesso!');
+    } catch (error) {
+        logError('DOMContentLoaded', error);
+        showNotification('Erro ao inicializar o sistema. Por favor, recarregue a página.', 'error');
+    }
+});
+
+/**
+ * Inicializa datas padrão nos campos de filtro
+ */
+function initializeDefaultDates() {
+    try {
+        const hoje = new Date().toISOString().split('T')[0];
+        const umMesAtras = new Date();
+        umMesAtras.setMonth(umMesAtras.getMonth() - 1);
+        const umMesAtrasStr = umMesAtras.toISOString().split('T')[0];
+        
+        const tresMesesFrente = new Date();
+        tresMesesFrente.setMonth(tresMesesFrente.getMonth() + 3);
+        const tresMesesFrenteStr = tresMesesFrente.toISOString().split('T')[0];
+        
+        // Define datas em campos de filtro
+        setElementValue('fluxo-data-inicio', umMesAtrasStr, 'value');
+        setElementValue('fluxo-data-fim', hoje, 'value');
+        setElementValue('analise-data-inicio', umMesAtrasStr, 'value');
+        setElementValue('analise-data-fim', hoje, 'value');
+        setElementValue('projecao-data-final', tresMesesFrenteStr, 'value');
+        
+        // Preenche anos no comparativo de períodos
+        const anoAtual = new Date().getFullYear();
+        const anoAnterior = anoAtual - 1;
+        
+        setElementValue('filter-ano1', anoAnterior, 'value');
+        setElementValue('filter-ano2', anoAtual, 'value');
+    } catch (error) {
+        logError('initializeDefaultDates', error);
+    }
+}
+
+/**
+ * Carrega dados iniciais da aplicação
+ */
+async function loadInitialData() {
+    try {
+        AppState.isLoading = true;
+        
+        // Carrega dados em paralelo para melhor performance
+        await Promise.allSettled([
+            loadDashboard(),
+            loadContas(),
+            loadCategorias()
+        ]);
+        
+        AppState.isLoading = false;
+    } catch (error) {
+        AppState.isLoading = false;
+        logError('loadInitialData', error);
+        showNotification('Erro ao carregar dados iniciais', 'warning');
+    }
+}
+
+/**
+ * Configura listeners globais
+ */
+function setupGlobalListeners() {
+    try {
+        // Listener para tecla ESC fechar modais
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modals = document.querySelectorAll('.modal.active');
+                modals.forEach(modal => modal.classList.remove('active'));
+            }
+        });
+        
+        // Listener para cliques fora de modais fecharem
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal')) {
+                e.target.classList.remove('active');
+            }
+        });
+    } catch (error) {
+        logError('setupGlobalListeners', error);
+    }
+}
+
+// ============================================================================
+// NAVEGAÇÃO
+// ============================================================================
+/**
+ * Exibe uma página específica e carrega seus dados
+ * @param {string} pageName - Nome da página a ser exibida
+ */
+function showPage(pageName) {
+    try {
+        if (!isNonEmptyString(pageName)) {
+            throw new Error('Nome de página inválido');
+        }
+        
+        console.log(`📄 Navegando para página: ${pageName}`);
+        
+        // Ocultar todas as páginas
+        const pages = document.querySelectorAll('.page');
+        pages.forEach(page => page.classList.remove('active'));
+        
+        // Mostrar página selecionada
+        const targetPage = document.getElementById(`page-${pageName}`);
+        if (!targetPage) {
+            throw new Error(`Página não encontrada: ${pageName}`);
+        }
+        
+        targetPage.classList.add('active');
+        
+        // Atualizar estado de navegação
+        document.querySelectorAll('.nav-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        AppState.currentPage = pageName;
+        
+        // Carregar dados da página de forma assíncrona
+        loadPageData(pageName).catch(error => {
+            logError('loadPageData', error, { pageName });
+            showNotification(`Erro ao carregar dados da página ${pageName}`, 'error');
+        });
+        
+    } catch (error) {
+        logError('showPage', error, { pageName });
+        showNotification('Erro ao navegar entre páginas', 'error');
+    }
+}
+
+/**
+ * Carrega dados específicos de uma página
+ * @param {string} pageName - Nome da página
+ */
+async function loadPageData(pageName) {
+    const pageLoaders = {
+        'dashboard': loadDashboard,
+        'contas-receber': loadContasReceber,
+        'contas-pagar': loadContasPagar,
+        'lancamentos': loadLancamentos,
+        'contas': loadContas,
+        'categorias': loadCategorias,
+        'clientes': loadClientes,
+        'fornecedores': loadFornecedores,
+        'fluxo-caixa': loadFluxoCaixa,
+        'fluxo-projetado': loadFluxoProjetado,
+        'analise-contas': loadAnaliseContas,
+        'extrato-bancario': async () => {
+            await loadContasForExtrato();
+            await loadExtratos();
+        },
+        'analise-categorias': loadAnaliseCategorias,
+        'inadimplencia': loadInadimplencia
+    };
+    
+    const loader = pageLoaders[pageName];
+    if (loader && typeof loader === 'function') {
+        await loader();
+    }
+}
+
+/**
+ * Toggle submenu na sidebar
+ * @param {string} submenuName - Nome do submenu
+ */
+function toggleSubmenu(submenuName) {
+    try {
+        const submenu = getElement(`submenu-${submenuName}`, 'toggleSubmenu');
+        if (submenu) {
+            submenu.classList.toggle('open');
+        }
+    } catch (error) {
+        logError('toggleSubmenu', error, { submenuName });
+    }
+}
+
+// ============================================================================
+// MODAIS
+// ============================================================================
+
+/**
+ * Exibe um modal
+ * @param {string} modalId - ID do modal
+ */
 function showModal(modalId) {
-    document.getElementById(modalId).classList.add('active');
+    try {
+        const modal = getElement(modalId, 'showModal');
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden'; // Previne scroll do body
+        }
+    } catch (error) {
+        logError('showModal', error, { modalId });
+    }
+}
+
+/**
+ * Fecha um modal
+ * @param {string} modalId - ID do modal
+ */
+function closeModal(modalId) {
+    try {
+        const modal = getElement(modalId, 'closeModal');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = ''; // Restaura scroll
+        }
+    } catch (error) {
+        logError('closeModal', error, { modalId });
+    }
+}
+
+/**
+ * Abre um modal (alias para compatibilidade)
+ * @param {string} modalId - ID do modal
+ */
+function openModal(modalId) {
+    showModal(modalId);
 }
 
 function closeModal(modalId) {
@@ -149,35 +594,85 @@ function formatarData(data) {
 }
 
 // === DASHBOARD ===
+// ============================================================================
+// DASHBOARD
+// ============================================================================
+
+/**
+ * Carrega dados do dashboard com tratamento robusto de erros
+ */
 async function loadDashboard() {
+    const context = 'loadDashboard';
+    
     try {
-        const response = await fetch(`${API_URL}/relatorios/dashboard`);
-        const data = await response.json();
+        console.log('📊 Carregando dashboard...');
         
-        // Verificar se os elementos existem antes de atualizar
-        const saldoTotal = document.getElementById('saldo-total');
-        const contasReceber = document.getElementById('contas-receber');
-        const contasPagar = document.getElementById('contas-pagar');
-        const contasVencidas = document.getElementById('contas-vencidas');
-        const totalContas = document.getElementById('total-contas');
-        const totalLancamentos = document.getElementById('total-lancamentos');
+        // Faz requisição com timeout
+        const data = await apiGet('/relatorios/dashboard');
         
-        if (saldoTotal) saldoTotal.textContent = formatarMoeda(data.saldo_total);
-        if (contasReceber) contasReceber.textContent = formatarMoeda(data.contas_receber);
-        if (contasPagar) contasPagar.textContent = formatarMoeda(data.contas_pagar);
-        if (contasVencidas) contasVencidas.textContent = formatarMoeda(data.contas_vencidas);
-        if (totalContas) totalContas.textContent = data.total_contas;
-        if (totalLancamentos) totalLancamentos.textContent = data.total_lancamentos;
+        // Valida estrutura da resposta
+        if (!data || typeof data !== 'object') {
+            throw new Error('Resposta inválida do servidor');
+        }
+        
+        // Atualiza elementos com valores validados
+        const updates = {
+            'saldo-total': formatarMoeda(sanitizeNumericValue(data.saldo_total)),
+            'contas-receber': formatarMoeda(sanitizeNumericValue(data.contas_receber)),
+            'contas-pagar': formatarMoeda(sanitizeNumericValue(data.contas_pagar)),
+            'contas-vencidas': formatarMoeda(sanitizeNumericValue(data.contas_vencidas)),
+            'total-contas': sanitizeNumericValue(data.total_contas),
+            'total-lancamentos': sanitizeNumericValue(data.total_lancamentos)
+        };
+        
+        // Aplica atualizações de forma segura
+        Object.entries(updates).forEach(([id, value]) => {
+            setElementValue(id, value);
+        });
+        
+        console.log('✅ Dashboard carregado com sucesso');
+        
     } catch (error) {
-        console.error('Erro ao carregar dashboard:', error);
+        logError(context, error);
+        showNotification('Erro ao carregar dados do dashboard', 'error');
+        
+        // Define valores padrão em caso de erro
+        const defaultValues = {
+            'saldo-total': 'R$ 0,00',
+            'contas-receber': 'R$ 0,00',
+            'contas-pagar': 'R$ 0,00',
+            'contas-vencidas': 'R$ 0,00',
+            'total-contas': '0',
+            'total-lancamentos': '0'
+        };
+        
+        Object.entries(defaultValues).forEach(([id, value]) => {
+            setElementValue(id, value);
+        });
     }
 }
 
-// === CONTAS BANCÁRIAS ===
+// ============================================================================
+// CONTAS BANCÁRIAS
+// ============================================================================
+
+/**
+ * Carrega lista de contas bancárias com tratamento de erros
+ */
 async function loadContas() {
+    const context = 'loadContas';
+    
     try {
-        const response = await fetch(`${API_URL}/contas`);
-        contas = await response.json();
+        console.log('🏦 Carregando contas bancárias...');
+        
+        const data = await apiGet('/contas');
+        
+        // Valida se é um array
+        if (!Array.isArray(data)) {
+            throw new Error('Formato de resposta inválido');
+        }
+        
+        AppState.contas = data;
         
         const tbody = document.getElementById('tbody-contas');
         const selectConta = document.getElementById('select-conta');
