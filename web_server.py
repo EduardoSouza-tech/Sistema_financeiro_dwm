@@ -1934,52 +1934,43 @@ def criar_funcionario():
         # Limpar CPF (remover pontuação)
         cpf = dados['cpf'].replace('.', '').replace('-', '').replace('/', '')
         
-        conn = None
-        cursor = None
+        conn = db.get_connection()
+        cursor = conn.cursor()
         
-        try:
-            conn = db.get_connection()
-            cursor = conn.cursor()
-            
-            # Verificar se CPF já existe
-            cursor.execute("SELECT id FROM funcionarios WHERE cpf = %s AND empresa_id = %s", (cpf, empresa_id))
-            if cursor.fetchone():
-                cursor.close()
-                return jsonify({'error': 'CPF já cadastrado'}), 400
-            
-            query = """
-                INSERT INTO funcionarios 
-                (empresa_id, nome, cpf, endereco, tipo_chave_pix, chave_pix, data_admissao, observacoes, ativo)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """
-            
-            cursor.execute(query, (
-                empresa_id,
-                dados['nome'],
-                cpf,
-                dados.get('endereco'),
-                dados['tipo_chave_pix'],
-                dados.get('chave_pix'),
-                dados.get('data_admissao') if dados.get('data_admissao') else None,
-                dados.get('observacoes'),
-                dados.get('ativo', True)
-            ))
-            
-            funcionario_id = cursor.fetchone()[0]
-            conn.commit()
-            
-            return jsonify({
-                'success': True,
-                'id': funcionario_id,
-                'message': 'Funcionário cadastrado com sucesso'
-            }), 201
-            
-        finally:
-            if cursor:
-                cursor.close()
-            if conn:
-                conn.close()
+        # Verificar se CPF já existe
+        cursor.execute("SELECT id FROM funcionarios WHERE cpf = %s AND empresa_id = %s", (cpf, empresa_id))
+        if cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'CPF já cadastrado'}), 400
+        
+        query = """
+            INSERT INTO funcionarios 
+            (empresa_id, nome, cpf, endereco, tipo_chave_pix, chave_pix, data_admissao, observacoes, ativo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """
+        
+        cursor.execute(query, (
+            empresa_id,
+            dados['nome'],
+            cpf,
+            dados.get('endereco'),
+            dados['tipo_chave_pix'],
+            dados.get('chave_pix'),
+            dados.get('data_admissao') if dados.get('data_admissao') else None,
+            dados.get('observacoes'),
+            dados.get('ativo', True)
+        ))
+        
+        funcionario_id = cursor.fetchone()[0]
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'id': funcionario_id,
+            'message': 'Funcionário cadastrado com sucesso'
+        }), 201
     
     except Exception as e:
         logger.error(f"Erro ao criar funcionário: {e}")
