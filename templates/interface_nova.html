@@ -1325,6 +1325,34 @@
             <div id="dashboard-section" class="content-card">
                 <h2>📊 Dashboard Financeiro</h2>
                 
+                <!-- Cards de Resumo -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">
+                        <div style="color: rgba(255,255,255,0.8); font-size: 13px; margin-bottom: 8px;">SALDO TOTAL</div>
+                        <div id="saldo-total" style="color: white; font-size: 28px; font-weight: 700;">R$ 0,00</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #27ae60 0%, #219a52 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);">
+                        <div style="color: rgba(255,255,255,0.8); font-size: 13px; margin-bottom: 8px;">CONTAS A RECEBER</div>
+                        <div id="contas-receber" style="color: white; font-size: 28px; font-weight: 700;">R$ 0,00</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);">
+                        <div style="color: rgba(255,255,255,0.8); font-size: 13px; margin-bottom: 8px;">CONTAS A PAGAR</div>
+                        <div id="contas-pagar" style="color: white; font-size: 28px; font-weight: 700;">R$ 0,00</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #f39c12 0%, #d68910 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);">
+                        <div style="color: rgba(255,255,255,0.8); font-size: 13px; margin-bottom: 8px;">VENCIDAS</div>
+                        <div id="contas-vencidas" style="color: white; font-size: 28px; font-weight: 700;">R$ 0,00</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);">
+                        <div style="color: rgba(255,255,255,0.8); font-size: 13px; margin-bottom: 8px;">TOTAL CONTAS</div>
+                        <div id="total-contas" style="color: white; font-size: 28px; font-weight: 700;">0</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(155, 89, 182, 0.3);">
+                        <div style="color: rgba(255,255,255,0.8); font-size: 13px; margin-bottom: 8px;">LANÇAMENTOS</div>
+                        <div id="total-lancamentos" style="color: white; font-size: 28px; font-weight: 700;">0</div>
+                    </div>
+                </div>
+                
                 <!-- Filtros -->
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">
                     <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
