@@ -66,15 +66,11 @@ app.config['SESSION_COOKIE_SECURE'] = IS_PRODUCTION  # True em produção com HT
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
-# Configurar CORS com domínios específicos
-ALLOWED_ORIGINS = [
-    'https://sistema-financeiro-dwm-production.up.railway.app',
-    'http://localhost:5000',
-    'http://127.0.0.1:5000'
-]
-
-if not IS_PRODUCTION:
-    ALLOWED_ORIGINS.append('*')  # Permitir tudo apenas em desenvolvimento
+# Configurar CORS - Em produção usa a origem da requisição, em dev permite tudo
+if IS_PRODUCTION:
+    ALLOWED_ORIGINS = ['https://sistema-financeiro-dwm-production.up.railway.app']
+else:
+    ALLOWED_ORIGINS = ['*']  # Permitir tudo apenas em desenvolvimento local
 
 CORS(app, 
      resources={r"/api/*": {

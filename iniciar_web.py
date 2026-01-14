@@ -11,7 +11,9 @@ def abrir_navegador():
     """Abre o navegador após 2 segundos"""
     sleep(2)
     print("\n🌐 Abrindo navegador...")
-    webbrowser.open('http://localhost:5000')
+    # Detecta a porta do ambiente ou usa 5000 como padrão
+    port = os.getenv('PORT', '5000')
+    webbrowser.open(f'http://127.0.0.1:{port}')
 
 def iniciar_servidor():
     """Inicia o servidor Flask"""
@@ -19,8 +21,9 @@ def iniciar_servidor():
     print(" 🚀 SISTEMA FINANCEIRO - INTERFACE WEB")
     print("="*70)
     print()
+    port = os.getenv('PORT', '5000')
     print(" 📋 Instruções:")
-    print("    • O servidor será iniciado em: http://localhost:5000")
+    print(f"    • O servidor será iniciado na porta: {port}")
     print("    • O navegador abrirá automaticamente")
     print("    • Para parar o servidor: pressione Ctrl+C")
     print()
