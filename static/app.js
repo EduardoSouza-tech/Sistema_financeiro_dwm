@@ -37,6 +37,13 @@ const AppState = {
     errors: []
 };
 
+// Aliases para compatibilidade com código legado
+let contas = AppState.contas;
+let categorias = AppState.categorias;
+let lancamentos = AppState.lancamentos;
+let currentPage = AppState.currentPage;
+const API_URL = CONFIG.API_URL; // Alias para código legado
+
 // ============================================================================
 // UTILITÁRIOS - TRATAMENTO DE ERROS
 // ============================================================================
@@ -673,6 +680,7 @@ async function loadContas() {
         }
         
         AppState.contas = data;
+        contas = AppState.contas; // Sincroniza alias
         
         const tbody = document.getElementById('tbody-contas');
         const selectConta = document.getElementById('select-conta');
@@ -681,7 +689,7 @@ async function loadContas() {
         if (tbody) {
             tbody.innerHTML = '';
             
-            contas.forEach(conta => {
+            data.forEach(conta => {
                 // Tabela
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -702,15 +710,19 @@ async function loadContas() {
         if (selectConta) {
             selectConta.innerHTML = '<option value="">Selecione...</option>';
             
-            contas.forEach(conta => {
+            data.forEach(conta => {
                 const option = document.createElement('option');
                 option.value = conta.nome;
                 option.textContent = conta.nome;
                 selectConta.appendChild(option);
             });
         }
+        
+        console.log('✅ Contas carregadas com sucesso');
+        
     } catch (error) {
-        console.error('Erro ao carregar contas:', error);
+        logError(context, error);
+        showNotification('Erro ao carregar contas bancárias', 'error');
     }
 }
 
@@ -766,9 +778,19 @@ async function excluirConta(nome) {
 
 // === CATEGORIAS ===
 async function loadCategorias() {
+    const context = 'loadCategorias';
+    
     try {
-        const response = await fetch(`${API_URL}/categorias`);
-        categorias = await response.json();
+        console.log('📂 Carregando categorias...');
+        
+        const data = await apiGet('/categorias');
+        
+        if (!Array.isArray(data)) {
+            throw new Error('Formato de resposta inválido');
+        }
+        
+        AppState.categorias = data;
+        categorias = AppState.categorias; // Sincroniza alias
         
         const tbody = document.getElementById('tbody-categorias');
         const selectCategoria = document.getElementById('select-categoria');
@@ -777,15 +799,15 @@ async function loadCategorias() {
         if (tbody) {
             tbody.innerHTML = '';
             
-            categorias.forEach(cat => {
+            data.forEach(cat => {
                 // Tabela
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${cat.nome}</td>
-                    <td><span class="badge badge-${cat.tipo.toLowerCase()}">${cat.tipo}</span></td>
-                    <td>${cat.subcategorias.join(', ') || '-'}</td>
+                    <td>${escapeHtml(cat.nome)}</td>
+                    <td><span class="badge badge-${cat.tipo.toLowerCase()}">${escapeHtml(cat.tipo)}</span></td>
+                    <td>${cat.subcategorias ? cat.subcategorias.join(', ') : '-'}</td>
                     <td>
-                        <button class="btn btn-danger" onclick="excluirCategoria('${cat.nome}')">🗑️</button>
+                        <button class="btn btn-danger" onclick="excluirCategoria('${escapeHtml(cat.nome)}')">🗑️</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -796,11 +818,11 @@ async function loadCategorias() {
         if (selectCategoria) {
             selectCategoria.innerHTML = '<option value="">Selecione...</option>';
             
-            categorias.forEach(cat => {
+            data.forEach(cat => {
                 const option = document.createElement('option');
                 option.value = cat.nome;
                 option.textContent = cat.nome;
-                option.dataset.subcategorias = JSON.stringify(cat.subcategorias);
+                option.dataset.subcategorias = JSON.stringify(cat.subcategorias || []);
                 selectCategoria.appendChild(option);
             });
             
@@ -812,7 +834,7 @@ async function loadCategorias() {
                 selectSubcategoria.innerHTML = '<option value="">Selecione...</option>';
                 
                 const selectedOption = this.options[this.selectedIndex];
-                if (selectedOption.dataset.subcategorias) {
+                if (selectedOption && selectedOption.dataset.subcategorias) {
                     const subcats = JSON.parse(selectedOption.dataset.subcategorias);
                     subcats.forEach(sub => {
                         const option = document.createElement('option');
@@ -823,10 +845,12 @@ async function loadCategorias() {
                 }
             });
         }
+        
+        console.log('✅ Categorias carregadas com sucesso');
+        
     } catch (error) {
-        });
-    } catch (error) {
-        console.error('Erro ao carregar categorias:', error);
+        logError(context, error);
+        showNotification('Erro ao carregar categorias', 'error');
     }
 }
 
