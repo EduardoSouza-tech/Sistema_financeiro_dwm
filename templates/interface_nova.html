@@ -45,25 +45,41 @@
     
     <!-- Funções essenciais disponíveis imediatamente -->
     <script>
-        // Função para toggle de submenus
+        // Função para toggle de submenus - COM DEBUG
         function toggleSubmenu(submenuId) {
+            console.log('🔍 toggleSubmenu chamada com ID:', submenuId);
+            
             const submenu = document.getElementById('submenu-' + submenuId);
             const button = document.getElementById('btn-' + submenuId);
             
+            console.log('📍 Submenu element:', submenu);
+            console.log('📍 Button element:', button);
+            
             if (!submenu || !button) {
-                console.warn('Elementos não encontrados:', submenuId);
+                console.error('❌ Elementos não encontrados!');
+                console.error('   submenu ID procurado:', 'submenu-' + submenuId);
+                console.error('   button ID procurado:', 'btn-' + submenuId);
                 return;
             }
             
-            const isHidden = submenu.style.display === 'none' || submenu.style.display === '';
+            // Verificar estado atual
+            const currentDisplay = window.getComputedStyle(submenu).display;
+            const isHidden = currentDisplay === 'none';
+            
+            console.log('📊 Display atual:', currentDisplay);
+            console.log('📊 Está oculto?', isHidden);
             
             if (isHidden) {
+                console.log('➡️ Mostrando submenu...');
                 submenu.style.display = 'block';
                 button.classList.add('active');
             } else {
+                console.log('➡️ Ocultando submenu...');
                 submenu.style.display = 'none';
                 button.classList.remove('active');
             }
+            
+            console.log('✅ Toggle concluído. Novo display:', submenu.style.display);
         }
         
         // Função para mostrar seções
@@ -3513,31 +3529,47 @@
         
         // Verificar usuário logado
         async function checkUserAuth() {
+            console.log('🔐 checkUserAuth: Iniciando verificação de autenticação...');
             try {
                 // Verificar autenticação e carregar dados do usuário
                 const response = await fetch('/api/auth/verify');
+                console.log('📡 Response status:', response.status);
+                
                 const data = await response.json();
+                console.log('📦 Dados recebidos:', data);
                 
                 if (data.success && data.authenticated && data.usuario) {
+                    console.log('✅ Usuário autenticado:', data.usuario.username);
+                    
                     // Atualizar nome do usuário na sidebar
                     const userElement = document.getElementById('userNameSidebar');
+                    console.log('👤 Elemento userNameSidebar:', userElement);
+                    
                     if (userElement) {
                         const nome = data.usuario.nome_completo || data.usuario.username || 'Usuário';
                         userElement.textContent = `👤 ${nome}`;
+                        console.log('✅ Nome do usuário atualizado para:', nome);
+                    } else {
+                        console.error('❌ Elemento userNameSidebar não encontrado no DOM!');
                     }
                     
                     // Carregar permissões se necessário (app.js)
                     if (typeof carregarPermissoesUsuario === 'function') {
+                        console.log('📋 Carregando permissões...');
                         await carregarPermissoesUsuario();
+                    } else {
+                        console.warn('⚠️ Função carregarPermissoesUsuario não encontrada');
                     }
                 } else {
+                    console.error('❌ Usuário não autenticado');
                     // Não autenticado, redirecionar para login
                     window.location.href = '/login';
                 }
             } catch (error) {
-                console.error('Erro ao verificar autenticação:', error);
+                console.error('❌ Erro ao verificar autenticação:', error);
+                console.error('Stack trace:', error.stack);
                 // Em caso de erro, também redirecionar para login
-                window.location.href = '/login';
+                // window.location.href = '/login';
             }
         }
         
@@ -3587,7 +3619,13 @@
         
         // Inicializar dados ao carregar a página
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOMContentLoaded: Página carregada, iniciando sistema...');
+            
+            // Verificar se toggleSubmenu está disponível
+            console.log('🔍 Verificando função toggleSubmenu:', typeof toggleSubmenu);
+            
             // Verificar autenticação primeiro
+            console.log('🔐 Chamando checkUserAuth...');
             checkUserAuth();
             
             // Definir ano e mês atuais nos filtros do dashboard
