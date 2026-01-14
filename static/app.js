@@ -393,12 +393,15 @@ function initializeDefaultDates() {
         tresMesesFrente.setMonth(tresMesesFrente.getMonth() + 3);
         const tresMesesFrenteStr = tresMesesFrente.toISOString().split('T')[0];
         
-        // Define datas em campos de filtro
-        setElementValue('fluxo-data-inicio', umMesAtrasStr, 'value');
-        setElementValue('fluxo-data-fim', hoje, 'value');
-        setElementValue('analise-data-inicio', umMesAtrasStr, 'value');
-        setElementValue('analise-data-fim', hoje, 'value');
-        setElementValue('projecao-data-final', tresMesesFrenteStr, 'value');
+        // NOTA: IDs de datas alterados no HTML - filtros têm novos IDs agora
+        // Se necessário no futuro, ajustar para os novos IDs:
+        // - filter-data-inicial-fluxo / filter-data-final-fluxo (ao invés de fluxo-data-inicio/fim)
+        // - filter-data-inicial-analise / filter-data-final-analise (ao invés de analise-data-inicio/fim)
+        // setElementValue('fluxo-data-inicio', umMesAtrasStr, 'value');
+        // setElementValue('fluxo-data-fim', hoje, 'value');
+        // setElementValue('analise-data-inicio', umMesAtrasStr, 'value');
+        // setElementValue('analise-data-fim', hoje, 'value');
+        // setElementValue('projecao-data-final', tresMesesFrenteStr, 'value');
         
         // Preenche anos no comparativo de períodos
         const anoAtual = new Date().getFullYear();
@@ -770,20 +773,19 @@ async function loadDashboard() {
             throw new Error('Resposta inválida do servidor');
         }
         
-        // Atualiza elementos com valores validados
-        const updates = {
-            'saldo-total': formatarMoeda(sanitizeNumericValue(data.saldo_total)),
-            'contas-receber': formatarMoeda(sanitizeNumericValue(data.contas_receber)),
-            'contas-pagar': formatarMoeda(sanitizeNumericValue(data.contas_pagar)),
-            'contas-vencidas': formatarMoeda(sanitizeNumericValue(data.contas_vencidas)),
-            'total-contas': sanitizeNumericValue(data.total_contas),
-            'total-lancamentos': sanitizeNumericValue(data.total_lancamentos)
-        };
-        
-        // Aplica atualizações de forma segura
-        Object.entries(updates).forEach(([id, value]) => {
-            setElementValue(id, value);
-        });
+        // NOTA: Cards do dashboard foram removidos - apenas gráfico é exibido agora
+        // Se precisar atualizar elementos de resumo no futuro, descomentar:
+        // const updates = {
+        //     'saldo-total': formatarMoeda(sanitizeNumericValue(data.saldo_total)),
+        //     'contas-receber': formatarMoeda(sanitizeNumericValue(data.contas_receber)),
+        //     'contas-pagar': formatarMoeda(sanitizeNumericValue(data.contas_pagar)),
+        //     'contas-vencidas': formatarMoeda(sanitizeNumericValue(data.contas_vencidas)),
+        //     'total-contas': sanitizeNumericValue(data.total_contas),
+        //     'total-lancamentos': sanitizeNumericValue(data.total_lancamentos)
+        // };
+        // Object.entries(updates).forEach(([id, value]) => {
+        //     setElementValue(id, value);
+        // });
         
         console.log('✅ Dashboard carregado com sucesso');
         
@@ -791,19 +793,18 @@ async function loadDashboard() {
         logError(context, error);
         showNotification('Erro ao carregar dados do dashboard', 'error');
         
-        // Define valores padrão em caso de erro
-        const defaultValues = {
-            'saldo-total': 'R$ 0,00',
-            'contas-receber': 'R$ 0,00',
-            'contas-pagar': 'R$ 0,00',
-            'contas-vencidas': 'R$ 0,00',
-            'total-contas': '0',
-            'total-lancamentos': '0'
-        };
-        
-        Object.entries(defaultValues).forEach(([id, value]) => {
-            setElementValue(id, value);
-        });
+        // NOTA: Cards removidos - valores padrão não são mais necessários
+        // const defaultValues = {
+        //     'saldo-total': 'R$ 0,00',
+        //     'contas-receber': 'R$ 0,00',
+        //     'contas-pagar': 'R$ 0,00',
+        //     'contas-vencidas': 'R$ 0,00',
+        //     'total-contas': '0',
+        //     'total-lancamentos': '0'
+        // };
+        // Object.entries(defaultValues).forEach(([id, value]) => {
+        //     setElementValue(id, value);
+        // });
     }
 }
 
