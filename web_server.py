@@ -3723,7 +3723,9 @@ def salvar_ordem_menu():
 # ============================================================================
 # ROTAS DE GESTÃO DE EMPRESAS (MULTI-TENANT)
 # ============================================================================
-log("🔧 Registrando rotas de empresas...")
+log("="*80)
+log("INICIO DAS ROTAS DE EMPRESAS")
+log("="*80)
 
 @app.route('/api/empresas', methods=['GET'])
 @require_auth
@@ -4111,15 +4113,29 @@ if __name__ == '__main__':
     
     # Listar TODAS as rotas registradas
     print("\n🔍 TODAS as rotas registradas:")
+    total_rotas = 0
     for rule in app.url_map.iter_rules():
         print(f"   • {rule.rule} - Métodos: {', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))}")
+        total_rotas += 1
+    print(f"\n📊 Total de rotas: {total_rotas}")
     
     print("\n🔍 Rotas de /api/empresas especificamente:")
+    empresas_rotas = 0
     for rule in app.url_map.iter_rules():
         if 'empresas' in rule.rule:
             print(f"   ✅ {rule.rule} - Métodos: {', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))}")
+            empresas_rotas += 1
+    if empresas_rotas == 0:
+        print("   ❌ NENHUMA ROTA DE EMPRESAS ENCONTRADA!")
+        print("   ⚠️  Possível erro na definição das rotas de empresas")
+    else:
+        print(f"   ✅ {empresas_rotas} rotas de empresas encontradas")
     
     print("="*60)
+    
+    log("="*80)
+    log("FIM DO ARQUIVO WEB_SERVER.PY - TODAS AS ROTAS CARREGADAS")
+    log("="*80)
     
     # Habilitar debug do Flask
     app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)
