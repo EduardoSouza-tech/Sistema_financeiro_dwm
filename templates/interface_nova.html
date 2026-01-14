@@ -4235,7 +4235,8 @@
                     
                     // Tipo
                     const tdTipo = document.createElement('td');
-                    tdTipo.textContent = transacao.tipo === 'CREDITO' ? '📈 Crédito' : '📉 Débito';
+                    const tipoUpper = (transacao.tipo || '').toUpperCase();
+                    tdTipo.textContent = tipoUpper === 'CREDITO' ? '📈 Crédito' : '📉 Débito';
                     tdTipo.style.fontSize = '12px';
                     tr.appendChild(tdTipo);
                     
