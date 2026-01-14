@@ -4094,13 +4094,13 @@
                 
                 contas.forEach(conta => {
                     const optionUpload = document.createElement('option');
-                    optionUpload.value = conta.id;
-                    optionUpload.textContent = `${conta.nome_banco} - ${conta.tipo_conta}`;
+                    optionUpload.value = conta.nome;
+                    optionUpload.textContent = `${conta.banco} - ${conta.nome}`;
                     selectUpload.appendChild(optionUpload);
                     
                     const optionFiltro = document.createElement('option');
-                    optionFiltro.value = conta.id;
-                    optionFiltro.textContent = `${conta.nome_banco} - ${conta.tipo_conta}`;
+                    optionFiltro.value = conta.nome;
+                    optionFiltro.textContent = `${conta.banco} - ${conta.nome}`;
                     selectFiltro.appendChild(optionFiltro);
                 });
             } catch (error) {
