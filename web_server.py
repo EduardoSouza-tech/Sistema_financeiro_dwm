@@ -1565,13 +1565,30 @@ def upload_extrato_ofx():
         # Extrair transacoes
         transacoes = []
         for account in ofx.accounts:
-            for trans in account.statement.transactions:
+            # Obter saldo final e inicial
+            saldo_final = float(account.statement.balance) if hasattr(account.statement, 'balance') else None
+            
+            # Ordenar transações por data (mais antiga primeiro)
+            transactions_list = sorted(account.statement.transactions, key=lambda t: t.date)
+            
+            # Calcular saldo inicial subtraindo todas as transações do saldo final
+            if saldo_final is not None:
+                soma_transacoes = sum(float(t.amount) for t in transactions_list)
+                saldo_atual = saldo_final - soma_transacoes
+            else:
+                saldo_atual = 0
+            
+            # Processar cada transação e calcular saldo progressivo
+            for trans in transactions_list:
+                valor = float(trans.amount)
+                saldo_atual += valor  # Atualizar saldo progressivamente
+                
                 transacoes.append({
                     'data': trans.date.date() if hasattr(trans.date, 'date') else trans.date,
                     'descricao': trans.payee or trans.memo or 'Sem descricao',
-                    'valor': float(trans.amount),
-                    'tipo': 'credito' if trans.amount > 0 else 'debito',
-                    'saldo': float(account.statement.balance) if hasattr(account.statement, 'balance') else None,
+                    'valor': valor,
+                    'tipo': 'credito' if valor > 0 else 'debito',
+                    'saldo': saldo_atual,  # Saldo após esta transação
                     'fitid': trans.id,
                     'memo': trans.memo,
                     'checknum': trans.checknum if hasattr(trans, 'checknum') else None
