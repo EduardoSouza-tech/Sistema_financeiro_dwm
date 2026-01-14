@@ -1840,6 +1840,493 @@ def deletar_extrato_filtrado():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# === ROTAS DE FOLHA DE PAGAMENTO (FUNCIONÁRIOS) ===
+
+@app.route('/api/funcionarios', methods=['GET'])
+@require_permission('admin')
+def listar_funcionarios():
+    """Listar todos os funcionários da empresa"""
+    try:
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'error': 'Usuário não autenticado'}), 401
+        
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 400
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT id, empresa_id, nome, cpf, endereco, tipo_chave_pix, 
+                   chave_pix, ativo, data_admissao, observacoes,
+                   data_criacao, data_atualizacao
+            FROM funcionarios
+            WHERE empresa_id = %s
+            ORDER BY nome ASC
+        """
+        
+        cursor.execute(query, (empresa_id,))
+        rows = cursor.fetchall()
+        cursor.close()
+        
+        funcionarios = []
+        for row in rows:
+            funcionarios.append({
+                'id': row[0],
+                'empresa_id': row[1],
+                'nome': row[2],
+                'cpf': row[3],
+                'endereco': row[4],
+                'tipo_chave_pix': row[5],
+                'chave_pix': row[6],
+                'ativo': row[7],
+                'data_admissao': row[8].isoformat() if row[8] else None,
+                'observacoes': row[9],
+                'data_criacao': row[10].isoformat() if row[10] else None,
+                'data_atualizacao': row[11].isoformat() if row[11] else None
+            })
+        
+        return jsonify({'funcionarios': funcionarios}), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao listar funcionários: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/funcionarios', methods=['POST'])
+@require_permission('admin')
+def criar_funcionario():
+    """Criar novo funcionário"""
+    try:
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'error': 'Usuário não autenticado'}), 401
+        
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 400
+        
+        dados = request.get_json()
+        
+        # Validações obrigatórias
+        if not dados.get('nome'):
+            return jsonify({'error': 'Nome é obrigatório'}), 400
+        if not dados.get('cpf'):
+            return jsonify({'error': 'CPF é obrigatório'}), 400
+        if not dados.get('tipo_chave_pix'):
+            return jsonify({'error': 'Tipo de chave PIX é obrigatório'}), 400
+        
+        # Limpar CPF (remover pontuação)
+        cpf = dados['cpf'].replace('.', '').replace('-', '').replace('/', '')
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se CPF já existe
+        cursor.execute("SELECT id FROM funcionarios WHERE cpf = %s AND empresa_id = %s", (cpf, empresa_id))
+        if cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'CPF já cadastrado'}), 400
+        
+        query = """
+            INSERT INTO funcionarios 
+            (empresa_id, nome, cpf, endereco, tipo_chave_pix, chave_pix, data_admissao, observacoes, ativo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """
+        
+        cursor.execute(query, (
+            empresa_id,
+            dados['nome'],
+            cpf,
+            dados.get('endereco'),
+            dados['tipo_chave_pix'],
+            dados.get('chave_pix'),
+            dados.get('data_admissao'),
+            dados.get('observacoes'),
+            dados.get('ativo', True)
+        ))
+        
+        funcionario_id = cursor.fetchone()[0]
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'id': funcionario_id,
+            'message': 'Funcionário cadastrado com sucesso'
+        }), 201
+    
+    except Exception as e:
+        logger.error(f"Erro ao criar funcionário: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/funcionarios/<int:funcionario_id>', methods=['PUT'])
+@require_permission('admin')
+def atualizar_funcionario(funcionario_id):
+    """Atualizar funcionário existente"""
+    try:
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'error': 'Usuário não autenticado'}), 401
+        
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 400
+        
+        dados = request.get_json()
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se funcionário existe e pertence à empresa
+        cursor.execute("SELECT id FROM funcionarios WHERE id = %s AND empresa_id = %s", (funcionario_id, empresa_id))
+        if not cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'Funcionário não encontrado'}), 404
+        
+        # Construir query dinâmica baseada nos campos fornecidos
+        campos_update = []
+        valores = []
+        
+        if 'nome' in dados:
+            campos_update.append("nome = %s")
+            valores.append(dados['nome'])
+        
+        if 'cpf' in dados:
+            cpf = dados['cpf'].replace('.', '').replace('-', '').replace('/', '')
+            # Verificar se CPF já existe em outro funcionário
+            cursor.execute("SELECT id FROM funcionarios WHERE cpf = %s AND empresa_id = %s AND id != %s", 
+                         (cpf, empresa_id, funcionario_id))
+            if cursor.fetchone():
+                cursor.close()
+                return jsonify({'error': 'CPF já cadastrado para outro funcionário'}), 400
+            campos_update.append("cpf = %s")
+            valores.append(cpf)
+        
+        if 'endereco' in dados:
+            campos_update.append("endereco = %s")
+            valores.append(dados['endereco'])
+        
+        if 'tipo_chave_pix' in dados:
+            campos_update.append("tipo_chave_pix = %s")
+            valores.append(dados['tipo_chave_pix'])
+        
+        if 'chave_pix' in dados:
+            campos_update.append("chave_pix = %s")
+            valores.append(dados['chave_pix'])
+        
+        if 'data_admissao' in dados:
+            campos_update.append("data_admissao = %s")
+            valores.append(dados['data_admissao'])
+        
+        if 'observacoes' in dados:
+            campos_update.append("observacoes = %s")
+            valores.append(dados['observacoes'])
+        
+        if 'ativo' in dados:
+            campos_update.append("ativo = %s")
+            valores.append(dados['ativo'])
+        
+        if not campos_update:
+            cursor.close()
+            return jsonify({'error': 'Nenhum campo para atualizar'}), 400
+        
+        campos_update.append("data_atualizacao = CURRENT_TIMESTAMP")
+        valores.append(funcionario_id)
+        
+        query = f"UPDATE funcionarios SET {', '.join(campos_update)} WHERE id = %s"
+        cursor.execute(query, valores)
+        
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Funcionário atualizado com sucesso'
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao atualizar funcionário: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+# === ROTAS DE EVENTOS ===
+
+@app.route('/api/eventos', methods=['GET'])
+@require_permission('admin')
+def listar_eventos():
+    """Listar eventos com filtros opcionais"""
+    try:
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'error': 'Usuário não autenticado'}), 401
+        
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 400
+        
+        # Filtros opcionais
+        data_inicio = request.args.get('data_inicio')
+        data_fim = request.args.get('data_fim')
+        status = request.args.get('status')
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT id, empresa_id, nome_evento, data_evento, nf_associada,
+                   valor_liquido_nf, custo_evento, margem, tipo_evento, status,
+                   observacoes, data_criacao, data_atualizacao
+            FROM eventos
+            WHERE empresa_id = %s
+        """
+        params = [empresa_id]
+        
+        if data_inicio:
+            query += " AND data_evento >= %s"
+            params.append(data_inicio)
+        
+        if data_fim:
+            query += " AND data_evento <= %s"
+            params.append(data_fim)
+        
+        if status:
+            query += " AND status = %s"
+            params.append(status)
+        
+        query += " ORDER BY data_evento DESC"
+        
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        cursor.close()
+        
+        eventos = []
+        for row in rows:
+            eventos.append({
+                'id': row[0],
+                'empresa_id': row[1],
+                'nome_evento': row[2],
+                'data_evento': row[3].isoformat() if row[3] else None,
+                'nf_associada': row[4],
+                'valor_liquido_nf': float(row[5]) if row[5] else None,
+                'custo_evento': float(row[6]) if row[6] else None,
+                'margem': float(row[7]) if row[7] else None,
+                'tipo_evento': row[8],
+                'status': row[9],
+                'observacoes': row[10],
+                'data_criacao': row[11].isoformat() if row[11] else None,
+                'data_atualizacao': row[12].isoformat() if row[12] else None
+            })
+        
+        return jsonify({'eventos': eventos}), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao listar eventos: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/eventos', methods=['POST'])
+@require_permission('admin')
+def criar_evento():
+    """Criar novo evento"""
+    try:
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'error': 'Usuário não autenticado'}), 401
+        
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 400
+        
+        dados = request.get_json()
+        
+        # Validações obrigatórias
+        if not dados.get('nome_evento'):
+            return jsonify({'error': 'Nome do evento é obrigatório'}), 400
+        if not dados.get('data_evento'):
+            return jsonify({'error': 'Data do evento é obrigatória'}), 400
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            INSERT INTO eventos 
+            (empresa_id, nome_evento, data_evento, nf_associada, valor_liquido_nf,
+             custo_evento, margem, tipo_evento, status, observacoes)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """
+        
+        cursor.execute(query, (
+            empresa_id,
+            dados['nome_evento'],
+            dados['data_evento'],
+            dados.get('nf_associada'),
+            dados.get('valor_liquido_nf'),
+            dados.get('custo_evento'),
+            dados.get('margem'),
+            dados.get('tipo_evento'),
+            dados.get('status', 'PENDENTE'),
+            dados.get('observacoes')
+        ))
+        
+        evento_id = cursor.fetchone()[0]
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'id': evento_id,
+            'message': 'Evento cadastrado com sucesso'
+        }), 201
+    
+    except Exception as e:
+        logger.error(f"Erro ao criar evento: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/eventos/<int:evento_id>', methods=['PUT'])
+@require_permission('admin')
+def atualizar_evento(evento_id):
+    """Atualizar evento existente"""
+    try:
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'error': 'Usuário não autenticado'}), 401
+        
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 400
+        
+        dados = request.get_json()
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se evento existe e pertence à empresa
+        cursor.execute("SELECT id FROM eventos WHERE id = %s AND empresa_id = %s", (evento_id, empresa_id))
+        if not cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'Evento não encontrado'}), 404
+        
+        # Construir query dinâmica baseada nos campos fornecidos
+        campos_update = []
+        valores = []
+        
+        if 'nome_evento' in dados:
+            campos_update.append("nome_evento = %s")
+            valores.append(dados['nome_evento'])
+        
+        if 'data_evento' in dados:
+            campos_update.append("data_evento = %s")
+            valores.append(dados['data_evento'])
+        
+        if 'nf_associada' in dados:
+            campos_update.append("nf_associada = %s")
+            valores.append(dados['nf_associada'])
+        
+        if 'valor_liquido_nf' in dados:
+            campos_update.append("valor_liquido_nf = %s")
+            valores.append(dados['valor_liquido_nf'])
+        
+        if 'custo_evento' in dados:
+            campos_update.append("custo_evento = %s")
+            valores.append(dados['custo_evento'])
+        
+        if 'margem' in dados:
+            campos_update.append("margem = %s")
+            valores.append(dados['margem'])
+        
+        if 'tipo_evento' in dados:
+            campos_update.append("tipo_evento = %s")
+            valores.append(dados['tipo_evento'])
+        
+        if 'status' in dados:
+            campos_update.append("status = %s")
+            valores.append(dados['status'])
+        
+        if 'observacoes' in dados:
+            campos_update.append("observacoes = %s")
+            valores.append(dados['observacoes'])
+        
+        if not campos_update:
+            cursor.close()
+            return jsonify({'error': 'Nenhum campo para atualizar'}), 400
+        
+        campos_update.append("data_atualizacao = CURRENT_TIMESTAMP")
+        valores.append(evento_id)
+        
+        query = f"UPDATE eventos SET {', '.join(campos_update)} WHERE id = %s"
+        cursor.execute(query, valores)
+        
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Evento atualizado com sucesso'
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao atualizar evento: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/eventos/<int:evento_id>', methods=['DELETE'])
+@require_permission('admin')
+def deletar_evento(evento_id):
+    """Deletar evento"""
+    try:
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'error': 'Usuário não autenticado'}), 401
+        
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 400
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se evento existe e pertence à empresa
+        cursor.execute("SELECT id FROM eventos WHERE id = %s AND empresa_id = %s", (evento_id, empresa_id))
+        if not cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'Evento não encontrado'}), 404
+        
+        # Deletar evento
+        cursor.execute("DELETE FROM eventos WHERE id = %s", (evento_id,))
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Evento deletado com sucesso'
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao deletar evento: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
 # === ROTAS DE RELATÓRIOS ===
 
 @app.route('/api/relatorios/fluxo-caixa', methods=['GET'])

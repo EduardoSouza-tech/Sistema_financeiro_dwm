@@ -1303,6 +1303,61 @@
             padding: 4px 8px;
             font-size: 12px;
         }
+
+        /* Badges para status */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .badge-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .badge-warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .badge-info {
+            background: #3498db;
+            color: white;
+        }
+
+        /* Botões pequenos para ações */
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 2px;
+        }
+
+        .btn-sm:hover {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+
+        /* Modal específico */
+        .modal .form-group label span[style*="color: red"] {
+            font-weight: bold;
+        }
+
+        .modal .form-group small {
+            display: block;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -1779,6 +1834,228 @@
                             <tr><td colspan="8" class="loading">Carregando...</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Folha de Pagamento -->
+            <div id="folha-pagamento-section" class="content-card hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">👥 Folha de Pagamento - Funcionários</h2>
+                    <button onclick="abrirModalFuncionario()" class="btn btn-primary" style="padding: 10px 20px; background: #3498db;">
+                        ➕ Novo Funcionário
+                    </button>
+                </div>
+
+                <!-- Tabela de Funcionários -->
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 250px;">Nome</th>
+                                <th style="width: 130px;">CPF</th>
+                                <th style="width: 250px;">Endereço</th>
+                                <th style="width: 120px;">Tipo Chave PIX</th>
+                                <th style="width: 200px;">Chave PIX</th>
+                                <th style="width: 100px;">Status</th>
+                                <th style="width: 150px;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-funcionarios">
+                            <tr><td colspan="7" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal Funcionário -->
+            <div id="modal-funcionario" class="modal" style="display: none;">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h3 id="modal-funcionario-title">Novo Funcionário</h3>
+                        <span class="close" onclick="fecharModalFuncionario()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <form id="form-funcionario" onsubmit="salvarFuncionario(event); return false;">
+                            <input type="hidden" id="funcionario-id">
+                            
+                            <div class="form-group">
+                                <label for="funcionario-nome">Nome Completo: <span style="color: red;">*</span></label>
+                                <input type="text" id="funcionario-nome" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="funcionario-cpf">CPF: <span style="color: red;">*</span></label>
+                                <input type="text" id="funcionario-cpf" required maxlength="14" placeholder="000.000.000-00" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="funcionario-endereco">Endereço:</label>
+                                <textarea id="funcionario-endereco" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="funcionario-tipo-pix">Tipo de Chave PIX: <span style="color: red;">*</span></label>
+                                <select id="funcionario-tipo-pix" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">Selecione...</option>
+                                    <option value="CPF">CPF</option>
+                                    <option value="CNPJ">CNPJ</option>
+                                    <option value="EMAIL">E-mail</option>
+                                    <option value="TELEFONE">Telefone</option>
+                                    <option value="ALEATORIA">Chave Aleatória</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="funcionario-chave-pix">Chave PIX:</label>
+                                <input type="text" id="funcionario-chave-pix" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="funcionario-data-admissao">Data de Admissão:</label>
+                                <input type="date" id="funcionario-data-admissao" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="funcionario-observacoes">Observações:</label>
+                                <textarea id="funcionario-observacoes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                            </div>
+
+                            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                                <button type="submit" class="btn btn-primary" style="flex: 1; padding: 10px; background: #27ae60;">💾 Salvar</button>
+                                <button type="button" onclick="fecharModalFuncionario()" class="btn btn-secondary" style="flex: 1; padding: 10px; background: #95a5a6;">❌ Cancelar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Eventos -->
+            <div id="eventos-section" class="content-card hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">🎉 Eventos Operacionais</h2>
+                    <button onclick="abrirModalEvento()" class="btn btn-primary" style="padding: 10px 20px; background: #3498db;">
+                        ➕ Novo Evento
+                    </button>
+                </div>
+
+                <!-- Filtros -->
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 150px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Data Início:</label>
+                            <input type="date" id="filtro-data-inicio-evento" onchange="loadEventos()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="flex: 1; min-width: 150px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Data Fim:</label>
+                            <input type="date" id="filtro-data-fim-evento" onchange="loadEventos()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="flex: 1; min-width: 150px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Status:</label>
+                            <select id="filtro-status-evento" onchange="loadEventos()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">Todos</option>
+                                <option value="PENDENTE">Pendente</option>
+                                <option value="EM_ANDAMENTO">Em Andamento</option>
+                                <option value="CONCLUIDO">Concluído</option>
+                                <option value="CANCELADO">Cancelado</option>
+                            </select>
+                        </div>
+                        <button onclick="limparFiltrosEvento()" class="btn btn-secondary" style="padding: 8px 20px; background: #95a5a6;">
+                            🔄 Limpar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabela de Eventos -->
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 200px;">Nome Evento</th>
+                                <th style="width: 100px;">Data</th>
+                                <th style="width: 120px;">NF Associada</th>
+                                <th style="width: 130px;">Valor Líquido NF</th>
+                                <th style="width: 130px;">Custo do Evento</th>
+                                <th style="width: 120px;">Margem</th>
+                                <th style="width: 130px;">Tipo de Evento</th>
+                                <th style="width: 110px;">Status</th>
+                                <th style="width: 150px;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-eventos">
+                            <tr><td colspan="9" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal Evento -->
+            <div id="modal-evento" class="modal" style="display: none;">
+                <div class="modal-content" style="max-width: 700px;">
+                    <div class="modal-header">
+                        <h3 id="modal-evento-title">Novo Evento</h3>
+                        <span class="close" onclick="fecharModalEvento()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <form id="form-evento" onsubmit="salvarEvento(event); return false;">
+                            <input type="hidden" id="evento-id">
+                            
+                            <div class="form-group">
+                                <label for="evento-nome">Nome do Evento: <span style="color: red;">*</span></label>
+                                <input type="text" id="evento-nome" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="evento-data">Data do Evento: <span style="color: red;">*</span></label>
+                                <input type="date" id="evento-data" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="evento-nf">NF- Associada:</label>
+                                <input type="text" id="evento-nf" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="evento-valor-liquido">Valor Líquido NF:</label>
+                                <input type="number" id="evento-valor-liquido" step="0.01" onchange="calcularMargemEvento()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="evento-custo">Custo do Evento:</label>
+                                <input type="number" id="evento-custo" step="0.01" onchange="calcularMargemEvento()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="evento-margem">Margem:</label>
+                                <input type="number" id="evento-margem" step="0.01" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f5f5f5;">
+                                <small style="color: #666;">Calculado automaticamente: Valor Líquido - Custo</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="evento-tipo">Tipo de Evento:</label>
+                                <input type="text" id="evento-tipo" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="evento-status">Status:</label>
+                                <select id="evento-status" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="PENDENTE">Pendente</option>
+                                    <option value="EM_ANDAMENTO">Em Andamento</option>
+                                    <option value="CONCLUIDO">Concluído</option>
+                                    <option value="CANCELADO">Cancelado</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="evento-observacoes">Observações:</label>
+                                <textarea id="evento-observacoes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                            </div>
+
+                            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                                <button type="submit" class="btn btn-primary" style="flex: 1; padding: 10px; background: #27ae60;">💾 Salvar</button>
+                                <button type="button" onclick="fecharModalEvento()" class="btn btn-secondary" style="flex: 1; padding: 10px; background: #95a5a6;">❌ Cancelar</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
 
@@ -3864,6 +4141,12 @@
                 console.log('  ➡️ loadExtratoTransacoes:', typeof loadExtratoTransacoes);
                 if (typeof carregarContasBancariasExtrato === 'function') carregarContasBancariasExtrato();
                 if (typeof loadExtratoTransacoes === 'function') loadExtratoTransacoes();
+            } else if (sectionId === 'folha-pagamento') {
+                console.log('  ➡️ loadFuncionarios:', typeof loadFuncionarios);
+                if (typeof loadFuncionarios === 'function') loadFuncionarios();
+            } else if (sectionId === 'eventos') {
+                console.log('  ➡️ loadEventos:', typeof loadEventos);
+                if (typeof loadEventos === 'function') loadEventos();
             } else if (sectionId === 'fluxo-caixa') {
                 console.log('  ➡️ carregarBancosFluxo:', typeof carregarBancosFluxo);
                 console.log('  ➡️ carregarFluxoCaixa:', typeof carregarFluxoCaixa);
@@ -4361,6 +4644,341 @@
         // Conciliar transação (placeholder - pode ser expandido)
         async function conciliarTransacao(transacaoId) {
             alert('🔗 Funcionalidade de conciliação será implementada em breve!\n\nEsta transação será vinculada a um lançamento do sistema.');
+        }
+
+        // ====================================
+        // FOLHA DE PAGAMENTO - FUNCIONÁRIOS
+        // ====================================
+
+        // Máscara de CPF
+        document.addEventListener('DOMContentLoaded', function() {
+            const cpfInput = document.getElementById('funcionario-cpf');
+            if (cpfInput) {
+                cpfInput.addEventListener('input', function(e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length <= 11) {
+                        value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                        value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                        value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                        e.target.value = value;
+                    }
+                });
+            }
+        });
+
+        function abrirModalFuncionario(funcionario = null) {
+            const modal = document.getElementById('modal-funcionario');
+            const title = document.getElementById('modal-funcionario-title');
+            
+            if (funcionario) {
+                title.textContent = 'Editar Funcionário';
+                document.getElementById('funcionario-id').value = funcionario.id;
+                document.getElementById('funcionario-nome').value = funcionario.nome;
+                document.getElementById('funcionario-cpf').value = funcionario.cpf;
+                document.getElementById('funcionario-endereco').value = funcionario.endereco || '';
+                document.getElementById('funcionario-tipo-pix').value = funcionario.tipo_chave_pix;
+                document.getElementById('funcionario-chave-pix').value = funcionario.chave_pix || '';
+                document.getElementById('funcionario-data-admissao').value = funcionario.data_admissao || '';
+                document.getElementById('funcionario-observacoes').value = funcionario.observacoes || '';
+            } else {
+                title.textContent = 'Novo Funcionário';
+                document.getElementById('form-funcionario').reset();
+                document.getElementById('funcionario-id').value = '';
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function fecharModalFuncionario() {
+            document.getElementById('modal-funcionario').style.display = 'none';
+            document.getElementById('form-funcionario').reset();
+        }
+
+        async function salvarFuncionario(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById('funcionario-id').value;
+            const dados = {
+                nome: document.getElementById('funcionario-nome').value,
+                cpf: document.getElementById('funcionario-cpf').value.replace(/\D/g, ''),
+                endereco: document.getElementById('funcionario-endereco').value,
+                tipo_chave_pix: document.getElementById('funcionario-tipo-pix').value,
+                chave_pix: document.getElementById('funcionario-chave-pix').value,
+                data_admissao: document.getElementById('funcionario-data-admissao').value || null,
+                observacoes: document.getElementById('funcionario-observacoes').value
+            };
+
+            try {
+                const url = id ? `/api/funcionarios/${id}` : '/api/funcionarios';
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dados)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(`✅ Funcionário ${id ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
+                    fecharModalFuncionario();
+                    loadFuncionarios();
+                } else {
+                    showToast(`❌ Erro: ${result.error || 'Erro desconhecido'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar funcionário:', error);
+                showToast('❌ Erro ao salvar funcionário. Verifique sua conexão.', 'error');
+            }
+        }
+
+        async function loadFuncionarios() {
+            try {
+                const response = await fetch('/api/funcionarios');
+                const result = await response.json();
+
+                const tbody = document.getElementById('tbody-funcionarios');
+
+                if (result.funcionarios && result.funcionarios.length > 0) {
+                    tbody.innerHTML = result.funcionarios.map(func => `
+                        <tr>
+                            <td>${func.nome}</td>
+                            <td>${formatarCPF(func.cpf)}</td>
+                            <td>${func.endereco || '-'}</td>
+                            <td>${func.tipo_chave_pix}</td>
+                            <td>${func.chave_pix || '-'}</td>
+                            <td><span class="badge badge-${func.ativo ? 'success' : 'danger'}">${func.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                            <td>
+                                <button onclick='abrirModalFuncionario(${JSON.stringify(func)})' class="btn btn-sm btn-primary" title="Editar">✏️</button>
+                                <button onclick="toggleAtivoFuncionario(${func.id}, ${func.ativo})" class="btn btn-sm btn-${func.ativo ? 'warning' : 'success'}" title="${func.ativo ? 'Inativar' : 'Ativar'}">
+                                    ${func.ativo ? '🚫' : '✅'}
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário cadastrado</td></tr>';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar funcionários:', error);
+                document.getElementById('tbody-funcionarios').innerHTML = '<tr><td colspan="7" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>';
+            }
+        }
+
+        async function toggleAtivoFuncionario(id, ativoAtual) {
+            const acao = ativoAtual ? 'inativar' : 'ativar';
+            if (!confirm(`Deseja realmente ${acao} este funcionário?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/funcionarios/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ativo: !ativoAtual })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(`✅ Funcionário ${acao}do com sucesso!`, 'success');
+                    loadFuncionarios();
+                } else {
+                    showToast(`❌ Erro: ${result.error || 'Erro desconhecido'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar funcionário:', error);
+                showToast('❌ Erro ao atualizar funcionário.', 'error');
+            }
+        }
+
+        function formatarCPF(cpf) {
+            if (!cpf) return '-';
+            cpf = cpf.replace(/\D/g, '');
+            return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        }
+
+        // ====================================
+        // EVENTOS OPERACIONAIS
+        // ====================================
+
+        function abrirModalEvento(evento = null) {
+            const modal = document.getElementById('modal-evento');
+            const title = document.getElementById('modal-evento-title');
+            
+            if (evento) {
+                title.textContent = 'Editar Evento';
+                document.getElementById('evento-id').value = evento.id;
+                document.getElementById('evento-nome').value = evento.nome_evento;
+                document.getElementById('evento-data').value = evento.data_evento;
+                document.getElementById('evento-nf').value = evento.nf_associada || '';
+                document.getElementById('evento-valor-liquido').value = evento.valor_liquido_nf || '';
+                document.getElementById('evento-custo').value = evento.custo_evento || '';
+                document.getElementById('evento-margem').value = evento.margem || '';
+                document.getElementById('evento-tipo').value = evento.tipo_evento || '';
+                document.getElementById('evento-status').value = evento.status || 'PENDENTE';
+                document.getElementById('evento-observacoes').value = evento.observacoes || '';
+            } else {
+                title.textContent = 'Novo Evento';
+                document.getElementById('form-evento').reset();
+                document.getElementById('evento-id').value = '';
+                document.getElementById('evento-status').value = 'PENDENTE';
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function fecharModalEvento() {
+            document.getElementById('modal-evento').style.display = 'none';
+            document.getElementById('form-evento').reset();
+        }
+
+        function calcularMargemEvento() {
+            const valorLiquido = parseFloat(document.getElementById('evento-valor-liquido').value) || 0;
+            const custo = parseFloat(document.getElementById('evento-custo').value) || 0;
+            const margem = valorLiquido - custo;
+            document.getElementById('evento-margem').value = margem.toFixed(2);
+        }
+
+        async function salvarEvento(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById('evento-id').value;
+            const dados = {
+                nome_evento: document.getElementById('evento-nome').value,
+                data_evento: document.getElementById('evento-data').value,
+                nf_associada: document.getElementById('evento-nf').value || null,
+                valor_liquido_nf: parseFloat(document.getElementById('evento-valor-liquido').value) || null,
+                custo_evento: parseFloat(document.getElementById('evento-custo').value) || null,
+                margem: parseFloat(document.getElementById('evento-margem').value) || null,
+                tipo_evento: document.getElementById('evento-tipo').value || null,
+                status: document.getElementById('evento-status').value,
+                observacoes: document.getElementById('evento-observacoes').value || null
+            };
+
+            try {
+                const url = id ? `/api/eventos/${id}` : '/api/eventos';
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dados)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(`✅ Evento ${id ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
+                    fecharModalEvento();
+                    loadEventos();
+                } else {
+                    showToast(`❌ Erro: ${result.error || 'Erro desconhecido'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar evento:', error);
+                showToast('❌ Erro ao salvar evento. Verifique sua conexão.', 'error');
+            }
+        }
+
+        async function loadEventos() {
+            try {
+                const dataInicio = document.getElementById('filtro-data-inicio-evento').value;
+                const dataFim = document.getElementById('filtro-data-fim-evento').value;
+                const status = document.getElementById('filtro-status-evento').value;
+
+                const params = new URLSearchParams();
+                if (dataInicio) params.append('data_inicio', dataInicio);
+                if (dataFim) params.append('data_fim', dataFim);
+                if (status) params.append('status', status);
+
+                const response = await fetch(`/api/eventos?${params.toString()}`);
+                const result = await response.json();
+
+                const tbody = document.getElementById('tbody-eventos');
+
+                if (result.eventos && result.eventos.length > 0) {
+                    tbody.innerHTML = result.eventos.map(evt => {
+                        const statusBadge = {
+                            'PENDENTE': '<span class="badge badge-warning">Pendente</span>',
+                            'EM_ANDAMENTO': '<span class="badge badge-info">Em Andamento</span>',
+                            'CONCLUIDO': '<span class="badge badge-success">Concluído</span>',
+                            'CANCELADO': '<span class="badge badge-danger">Cancelado</span>'
+                        };
+                        
+                        return `
+                            <tr>
+                                <td>${evt.nome_evento}</td>
+                                <td>${formatarData(evt.data_evento)}</td>
+                                <td>${evt.nf_associada || '-'}</td>
+                                <td>${evt.valor_liquido_nf ? formatarMoeda(evt.valor_liquido_nf) : '-'}</td>
+                                <td>${evt.custo_evento ? formatarMoeda(evt.custo_evento) : '-'}</td>
+                                <td>${evt.margem ? formatarMoeda(evt.margem) : '-'}</td>
+                                <td>${evt.tipo_evento || '-'}</td>
+                                <td>${statusBadge[evt.status] || evt.status}</td>
+                                <td>
+                                    <button onclick='abrirModalEvento(${JSON.stringify(evt)})' class="btn btn-sm btn-primary" title="Editar">✏️</button>
+                                    <button onclick="deletarEvento(${evt.id})" class="btn btn-sm btn-danger" title="Deletar">🗑️</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 30px; color: #999;">Nenhum evento encontrado</td></tr>';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar eventos:', error);
+                document.getElementById('tbody-eventos').innerHTML = '<tr><td colspan="9" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>';
+            }
+        }
+
+        async function deletarEvento(id) {
+            if (!confirm('Deseja realmente deletar este evento?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/eventos/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast('✅ Evento deletado com sucesso!', 'success');
+                    loadEventos();
+                } else {
+                    showToast(`❌ Erro: ${result.error || 'Erro desconhecido'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao deletar evento:', error);
+                showToast('❌ Erro ao deletar evento.', 'error');
+            }
+        }
+
+        function limparFiltrosEvento() {
+            document.getElementById('filtro-data-inicio-evento').value = '';
+            document.getElementById('filtro-data-fim-evento').value = '';
+            document.getElementById('filtro-status-evento').value = '';
+            loadEventos();
+        }
+
+        function formatarData(data) {
+            if (!data) return '-';
+            const d = new Date(data + 'T00:00:00');
+            return d.toLocaleDateString('pt-BR');
+        }
+
+        function formatarMoeda(valor) {
+            if (!valor && valor !== 0) return '-';
+            return `R$ ${parseFloat(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
 
         // toggleSubmenu() já definida no HEAD - não redefinir aqui
