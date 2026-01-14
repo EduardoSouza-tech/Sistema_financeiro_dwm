@@ -4318,23 +4318,38 @@ def obter_empresa(empresa_id):
     Returns:
         dict: Dados da empresa ou None
     """
+    log(f"[obter_empresa] INICIO - empresa_id={empresa_id}")
     try:
+        log(f"[obter_empresa] Chamando get_db_connection()...")
         with get_db_connection() as conn:
+            log(f"[obter_empresa] Conexao obtida: {type(conn)}")
+            log(f"[obter_empresa] Criando cursor com RealDictCursor...")
             cursor = conn.cursor(cursor_factory=RealDictCursor)
+            log(f"[obter_empresa] Cursor criado: {type(cursor)}")
             
-            cursor.execute("""
-                SELECT * FROM empresas WHERE id = %s
-            """, (empresa_id,))
+            query = "SELECT * FROM empresas WHERE id = %s"
+            log(f"[obter_empresa] Executando query: {query} com id={empresa_id}")
+            cursor.execute(query, (empresa_id,))
+            log(f"[obter_empresa] Query executada")
             
             empresa = cursor.fetchone()
+            log(f"[obter_empresa] Fetchone concluido: {empresa is not None}")
             cursor.close()
+            log(f"[obter_empresa] Cursor fechado")
             
             if empresa:
-                return dict(empresa)
+                resultado = dict(empresa)
+                log(f"[obter_empresa] Retornando empresa: {resultado.get('razao_social')}")
+                return resultado
+            
+            log(f"[obter_empresa] Empresa nao encontrada")
             return None
         
     except Exception as e:
-        log(f"Erro ao obter empresa: {e}")
+        log(f"[obter_empresa] ERRO: {e}")
+        log(f"[obter_empresa] Tipo do erro: {type(e)}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
         return None
 
 

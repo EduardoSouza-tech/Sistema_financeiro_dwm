@@ -3781,33 +3781,53 @@ def listar_empresas_api():
 @require_auth
 def obter_empresa_api(empresa_id):
     """Obtém dados de uma empresa específica"""
-    print(f"\n🏬 [obter_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
+    log("\n" + "="*80)
+    log(f"[obter_empresa_api] FUNCAO CHAMADA - ID: {empresa_id}")
     try:
+        log(f"[obter_empresa_api] Obtendo usuario logado...")
         usuario = get_usuario_logado()
+        log(f"[obter_empresa_api] Usuario: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
         # Admin pode ver qualquer empresa, usuário comum só a própria
         if usuario['tipo'] != 'admin':
+            log(f"[obter_empresa_api] Usuario nao e admin - verificando empresa_id...")
             usuario_completo = database.obter_usuario_por_id(usuario['id'])
             if usuario_completo.get('empresa_id') != empresa_id:
+                log(f"[obter_empresa_api] Acesso negado - empresa diferente")
                 return jsonify({'error': 'Acesso negado'}), 403
         
+        log(f"[obter_empresa_api] Chamando database.obter_empresa({empresa_id})...")
         empresa = database.obter_empresa(empresa_id)
+        log(f"[obter_empresa_api] Resultado: {empresa is not None}")
         
         if not empresa:
+            log(f"[obter_empresa_api] Empresa nao encontrada")
+            log("="*80 + "\n")
             return jsonify({'error': 'Empresa não encontrada'}), 404
         
-        # Adicionar estatísticas
-        empresa['stats'] = database.obter_estatisticas_empresa(empresa_id)
+        log(f"[obter_empresa_api] Empresa encontrada: {empresa.get('razao_social')}")
+        log(f"[obter_empresa_api] Obtendo estatisticas...")
         
+        # Adicionar estatísticas
+        try:
+            empresa['stats'] = database.obter_estatisticas_empresa(empresa_id)
+            log(f"[obter_empresa_api] Estatisticas obtidas")
+        except Exception as e:
+            log(f"[obter_empresa_api] Erro ao obter stats: {e}")
+            empresa['stats'] = {}
+        
+        log(f"[obter_empresa_api] Retornando sucesso")
+        log("="*80 + "\n")
         return jsonify({
             'success': True,
             'empresa': empresa
         })
         
     except Exception as e:
-        print(f"❌ Erro ao obter empresa: {e}")
+        log(f"[obter_empresa_api] EXCECAO: {e}")
         import traceback
-        traceback.print_exc()
+        traceback.print_exc(file=sys.stderr)
+        log("="*80 + "\n")
         return jsonify({'error': str(e)}), 500
 
 
