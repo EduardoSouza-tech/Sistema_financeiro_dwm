@@ -1749,10 +1749,10 @@
                                 <option value="false">Não conciliados</option>
                             </select>
                         </div>
-                        <button onclick="limparFiltrosExtrato()" class="btn btn-secondary" style="padding: 8px 20px; background: #95a5a6; border: none; border-radius: 4px; color: white; cursor: pointer;">
+                        <button onclick="limparFiltrosExtratoOFX()" class="btn btn-secondary" style="padding: 8px 20px; background: #95a5a6; border: none; border-radius: 4px; color: white; cursor: pointer;">
                             🔄 Limpar
                         </button>
-                        <button onclick="deletarExtratoFiltrado()" class="btn btn-danger" style="padding: 8px 20px; background: #e74c3c; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold;">
+                        <button onclick="deletarExtratoFiltradoOFX()" class="btn btn-danger" style="padding: 8px 20px; background: #e74c3c; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold;">
                             🗑️ Deletar Extrato
                         </button>
                     </div>
@@ -4294,7 +4294,7 @@
         }
 
         // Limpar filtros
-        function limparFiltrosExtrato() {
+        function limparFiltrosExtratoOFX() {
             document.getElementById('filtro-conta-extrato').value = '';
             document.getElementById('filtro-data-inicio-extrato').value = '';
             document.getElementById('filtro-data-fim-extrato').value = '';
@@ -4303,7 +4303,7 @@
         }
 
         // Deletar extratos filtrados
-        async function deletarExtratoFiltrado() {
+        async function deletarExtratoFiltradoOFX() {
             const contaId = document.getElementById('filtro-conta-extrato').value;
             const dataInicio = document.getElementById('filtro-data-inicio-extrato').value;
             const dataFim = document.getElementById('filtro-data-fim-extrato').value;
@@ -4346,7 +4346,7 @@
                     alert(`✅ Extratos deletados com sucesso!\n\n📊 Total deletado: ${result.deletados || 0} transação(ões)`);
                     
                     // Limpar filtros e recarregar
-                    limparFiltrosExtrato();
+                    limparFiltrosExtratoOFX();
                 } else {
                     alert(`❌ Erro ao deletar extratos:\n${result.error || 'Erro desconhecido'}`);
                 }
