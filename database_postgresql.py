@@ -641,6 +641,46 @@ class DatabaseManager:
         except Exception as e:
             print(f"??  Aviso na sincronizai?i?o de sequi?ncias: {e}")
         
+        # Tabela de transacoes de extrato bancario (OFX)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS transacoes_extrato (
+                id SERIAL PRIMARY KEY,
+                empresa_id INTEGER NOT NULL,
+                conta_bancaria VARCHAR(255) NOT NULL,
+                data DATE NOT NULL,
+                descricao TEXT NOT NULL,
+                valor DECIMAL(15,2) NOT NULL,
+                tipo VARCHAR(10) NOT NULL,
+                saldo DECIMAL(15,2),
+                fitid VARCHAR(255),
+                memo TEXT,
+                checknum VARCHAR(50),
+                conciliado BOOLEAN DEFAULT FALSE,
+                lancamento_id INTEGER,
+                importacao_id VARCHAR(100),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (lancamento_id) REFERENCES lancamentos(id) ON DELETE SET NULL
+            )
+        """)
+        
+        # Indices para melhor performance
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_extrato_empresa_conta 
+            ON transacoes_extrato(empresa_id, conta_bancaria)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_extrato_data 
+            ON transacoes_extrato(data)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_extrato_conciliado 
+            ON transacoes_extrato(conciliado)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_extrato_fitid 
+            ON transacoes_extrato(fitid)
+        """)
+        
         # Tabela de contratos
         # Primeiro, dropar tabela antiga se existir com estrutura incompati?vel
         try:

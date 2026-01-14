@@ -1403,6 +1403,167 @@ def gerenciar_lancamento(lancamento_id):
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
+# ============================================================================
+# ROTAS DE EXTRATO BANCARIO (IMPORTACAO OFX)
+# ============================================================================
+
+import extrato_functions
+
+@app.route('/api/extratos/upload', methods=['POST'])
+@require_permission('lancamentos_edit')
+def upload_extrato_ofx():
+    """Upload e processamento de arquivo OFX"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'}), 400
+        
+        file = request.files['file']
+        conta_bancaria = request.form.get('conta_bancaria')
+        
+        if not conta_bancaria:
+            return jsonify({'success': False, 'error': 'Conta bancaria e obrigatoria'}), 400
+        
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'Nenhum arquivo selecionado'}), 400
+        
+        if not file.filename.lower().endswith('.ofx'):
+            return jsonify({'success': False, 'error': 'Apenas arquivos .ofx sao permitidos'}), 400
+        
+        # Parse OFX
+        try:
+            import ofxparse
+            ofx = ofxparse.OfxParser.parse(file)
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Erro ao processar OFX: {str(e)}'}), 400
+        
+        # Extrair transacoes
+        transacoes = []
+        for account in ofx.accounts:
+            for trans in account.statement.transactions:
+                transacoes.append({
+                    'data': trans.date.date() if hasattr(trans.date, 'date') else trans.date,
+                    'descricao': trans.payee or trans.memo or 'Sem descricao',
+                    'valor': float(trans.amount),
+                    'tipo': 'credito' if trans.amount > 0 else 'debito',
+                    'saldo': float(account.statement.balance) if hasattr(account.statement, 'balance') else None,
+                    'fitid': trans.id,
+                    'memo': trans.memo,
+                    'checknum': trans.checknum if hasattr(trans, 'checknum') else None
+                })
+        
+        if not transacoes:
+            return jsonify({'success': False, 'error': 'Nenhuma transacao encontrada no arquivo'}), 400
+        
+        # Salvar no banco
+        usuario = get_usuario_logado()
+        resultado = extrato_functions.salvar_transacoes_extrato(
+            database, 
+            usuario['empresa_id'], 
+            conta_bancaria, 
+            transacoes
+        )
+        
+        if resultado['success']:
+            return jsonify(resultado), 200
+        else:
+            return jsonify(resultado), 400
+        
+    except Exception as e:
+        log(f"Erro ao processar OFX: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/extratos', methods=['GET'])
+@require_permission('lancamentos_view')
+def listar_extratos():
+    """Lista transacoes do extrato com filtros"""
+    try:
+        usuario = get_usuario_logado()
+        
+        filtros = {
+            'conta_bancaria': request.args.get('conta'),
+            'data_inicio': request.args.get('data_inicio'),
+            'data_fim': request.args.get('data_fim'),
+            'conciliado': request.args.get('conciliado')
+        }
+        
+        # Converter conciliado para boolean
+        if filtros['conciliado'] is not None:
+            filtros['conciliado'] = filtros['conciliado'].lower() == 'true'
+        
+        transacoes = extrato_functions.listar_transacoes_extrato(
+            database,
+            usuario['empresa_id'],
+            filtros
+        )
+        
+        return jsonify(transacoes), 200
+        
+    except Exception as e:
+        log(f"Erro ao listar extratos: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/extratos/<int:transacao_id>/conciliar', methods=['POST'])
+@require_permission('lancamentos_edit')
+def conciliar_extrato(transacao_id):
+    """Concilia uma transacao do extrato com um lancamento"""
+    try:
+        dados = request.json
+        lancamento_id = dados.get('lancamento_id')
+        
+        resultado = extrato_functions.conciliar_transacao(
+            database,
+            transacao_id,
+            lancamento_id
+        )
+        
+        return jsonify(resultado), 200 if resultado['success'] else 400
+        
+    except Exception as e:
+        log(f"Erro ao conciliar: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/extratos/<int:transacao_id>/sugestoes', methods=['GET'])
+@require_permission('lancamentos_view')
+def sugerir_conciliacoes_extrato(transacao_id):
+    """Sugere lancamentos para conciliar com uma transacao"""
+    try:
+        usuario = get_usuario_logado()
+        
+        sugestoes = extrato_functions.sugerir_conciliacoes(
+            database,
+            usuario['empresa_id'],
+            transacao_id
+        )
+        
+        return jsonify(sugestoes), 200
+        
+    except Exception as e:
+        log(f"Erro ao sugerir conciliacoes: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/extratos/importacao/<importacao_id>', methods=['DELETE'])
+@require_permission('lancamentos_delete')
+def deletar_importacao_extrato(importacao_id):
+    """Deleta todas as transacoes de uma importacao"""
+    try:
+        resultado = extrato_functions.deletar_transacoes_extrato(
+            database,
+            importacao_id
+        )
+        
+        return jsonify(resultado), 200 if resultado['success'] else 400
+        
+    except Exception as e:
+        log(f"Erro ao deletar importacao: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # === ROTAS DE RELATÓRIOS ===
 
 @app.route('/api/relatorios/fluxo-caixa', methods=['GET'])
