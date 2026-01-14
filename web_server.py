@@ -2244,7 +2244,7 @@ def index():
     if not usuario:
         return render_template('login.html')
     
-    return render_template('interface_nova.html')
+    return render_template('index.html')
 
 @app.route('/old')
 @require_auth
