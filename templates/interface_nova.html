@@ -1336,6 +1336,7 @@
             <div class="submenu" id="submenu-financeiro" style="display: none;">
                 <button class="submenu-button" onclick="showSection('contas-receber')" data-permission="lancamentos_view">💵 Contas a Receber</button>
                 <button class="submenu-button" onclick="showSection('contas-pagar')" data-permission="lancamentos_view">💳 Contas a Pagar</button>
+                <button class="submenu-button" onclick="showSection('extrato-bancario')" data-permission="lancamentos_view">🏦 Extrato Bancário</button>
             </div>
             
             <!-- Menu de Relatórios com Submenu -->
@@ -1688,6 +1689,89 @@
                         </thead>
                         <tbody id="tbody-pagar">
                             <tr><td colspan="10" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Extrato Bancário -->
+            <div id="extrato-bancario-section" class="content-card hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">🏦 Extrato Bancário - Importação OFX</h2>
+                </div>
+
+                <!-- Upload de Arquivo OFX -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px dashed #3498db;">
+                    <h3 style="margin-top: 0; color: #2c3e50;">📤 Importar Arquivo OFX</h3>
+                    <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 250px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Conta Bancária:</label>
+                            <select id="conta-bancaria-extrato" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" required>
+                                <option value="">Selecione a conta...</option>
+                            </select>
+                        </div>
+                        <div style="flex: 1; min-width: 250px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Arquivo OFX:</label>
+                            <input type="file" id="arquivo-ofx" accept=".ofx" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" required>
+                        </div>
+                        <button onclick="uploadExtratoOFX()" class="btn btn-primary" style="padding: 10px 30px; background: #3498db; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 14px;">
+                            ⬆️ Enviar Arquivo
+                        </button>
+                    </div>
+                    <p style="margin-top: 15px; margin-bottom: 0; color: #666; font-size: 13px;">
+                        💡 <strong>Dica:</strong> Baixe o arquivo OFX do seu internet banking e importe aqui para visualizar suas transações bancárias.
+                    </p>
+                </div>
+
+                <!-- Filtros -->
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0; color: #2c3e50;">🔍 Filtros</h3>
+                    <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Conta:</label>
+                            <select id="filtro-conta-extrato" onchange="loadExtratoTransacoes()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">Todas as contas</option>
+                            </select>
+                        </div>
+                        <div style="flex: 1; min-width: 150px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Data Início:</label>
+                            <input type="date" id="filtro-data-inicio-extrato" onchange="loadExtratoTransacoes()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="flex: 1; min-width: 150px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Data Fim:</label>
+                            <input type="date" id="filtro-data-fim-extrato" onchange="loadExtratoTransacoes()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="flex: 1; min-width: 150px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Status:</label>
+                            <select id="filtro-conciliado-extrato" onchange="loadExtratoTransacoes()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">Todos</option>
+                                <option value="true">Conciliados</option>
+                                <option value="false">Não conciliados</option>
+                            </select>
+                        </div>
+                        <button onclick="limparFiltrosExtrato()" class="btn btn-secondary" style="padding: 8px 20px; background: #95a5a6; border: none; border-radius: 4px; color: white; cursor: pointer;">
+                            🔄 Limpar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabela de Transações -->
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 100px;">Data</th>
+                                <th style="width: 350px;">Descrição</th>
+                                <th style="width: 120px;">Valor</th>
+                                <th style="width: 80px;">Tipo</th>
+                                <th style="width: 120px;">Saldo</th>
+                                <th style="width: 150px;">Conta</th>
+                                <th style="width: 100px;">Status</th>
+                                <th style="width: 150px;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-extrato">
+                            <tr><td colspan="8" class="loading">Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -3770,6 +3854,11 @@
             } else if (sectionId === 'contas-pagar') {
                 console.log('  ➡️ loadContasPagar:', typeof loadContasPagar);
                 if (typeof loadContasPagar === 'function') loadContasPagar();
+            } else if (sectionId === 'extrato-bancario') {
+                console.log('  ➡️ carregarContasBancariasExtrato:', typeof carregarContasBancariasExtrato);
+                console.log('  ➡️ loadExtratoTransacoes:', typeof loadExtratoTransacoes);
+                if (typeof carregarContasBancariasExtrato === 'function') carregarContasBancariasExtrato();
+                if (typeof loadExtratoTransacoes === 'function') loadExtratoTransacoes();
             } else if (sectionId === 'fluxo-caixa') {
                 console.log('  ➡️ carregarBancosFluxo:', typeof carregarBancosFluxo);
                 console.log('  ➡️ carregarFluxoCaixa:', typeof carregarFluxoCaixa);
@@ -3983,6 +4072,232 @@
                     }
                 }
             });
+        }
+
+        // ==================== FUNÇÕES DE EXTRATO BANCÁRIO ====================
+        
+        // Carregar contas bancárias nos selects
+        async function carregarContasBancariasExtrato() {
+            try {
+                const response = await fetch('/api/contas');
+                if (!response.ok) throw new Error('Erro ao carregar contas');
+                
+                const contas = await response.json();
+                
+                // Preencher select de upload
+                const selectUpload = document.getElementById('conta-bancaria-extrato');
+                selectUpload.innerHTML = '<option value="">Selecione a conta...</option>';
+                
+                // Preencher select de filtro
+                const selectFiltro = document.getElementById('filtro-conta-extrato');
+                selectFiltro.innerHTML = '<option value="">Todas as contas</option>';
+                
+                contas.forEach(conta => {
+                    const optionUpload = document.createElement('option');
+                    optionUpload.value = conta.id;
+                    optionUpload.textContent = `${conta.nome_banco} - ${conta.tipo_conta}`;
+                    selectUpload.appendChild(optionUpload);
+                    
+                    const optionFiltro = document.createElement('option');
+                    optionFiltro.value = conta.id;
+                    optionFiltro.textContent = `${conta.nome_banco} - ${conta.tipo_conta}`;
+                    selectFiltro.appendChild(optionFiltro);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar contas bancárias:', error);
+            }
+        }
+
+        // Upload de arquivo OFX
+        async function uploadExtratoOFX() {
+            const contaId = document.getElementById('conta-bancaria-extrato').value;
+            const arquivoInput = document.getElementById('arquivo-ofx');
+            
+            if (!contaId) {
+                alert('❌ Por favor, selecione uma conta bancária!');
+                return;
+            }
+            
+            if (!arquivoInput.files || arquivoInput.files.length === 0) {
+                alert('❌ Por favor, selecione um arquivo OFX!');
+                return;
+            }
+            
+            const arquivo = arquivoInput.files[0];
+            
+            // Validar extensão
+            if (!arquivo.name.toLowerCase().endsWith('.ofx')) {
+                alert('❌ Por favor, selecione um arquivo com extensão .ofx!');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', arquivo);
+            formData.append('conta_bancaria', contaId);
+            
+            try {
+                const button = event.target;
+                button.disabled = true;
+                button.textContent = '⏳ Processando...';
+                
+                const response = await fetch('/api/extratos/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(`✅ Arquivo importado com sucesso!\n\n📊 Transações importadas: ${result.transacoes_importadas || 0}`);
+                    
+                    // Limpar formulário
+                    document.getElementById('conta-bancaria-extrato').value = '';
+                    arquivoInput.value = '';
+                    
+                    // Recarregar lista de transações
+                    await loadExtratoTransacoes();
+                } else {
+                    alert(`❌ Erro ao importar arquivo:\n${result.error || 'Erro desconhecido'}`);
+                }
+            } catch (error) {
+                console.error('Erro ao fazer upload:', error);
+                alert('❌ Erro ao enviar arquivo. Verifique sua conexão e tente novamente.');
+            } finally {
+                const button = event.target;
+                button.disabled = false;
+                button.textContent = '⬆️ Enviar Arquivo';
+            }
+        }
+
+        // Carregar transações do extrato
+        async function loadExtratoTransacoes() {
+            const tbody = document.getElementById('tbody-extrato');
+            tbody.innerHTML = '<tr><td colspan="8" class="loading">Carregando transações...</td></tr>';
+            
+            try {
+                // Construir query parameters
+                const params = new URLSearchParams();
+                
+                const contaId = document.getElementById('filtro-conta-extrato').value;
+                if (contaId) params.append('conta', contaId);
+                
+                const dataInicio = document.getElementById('filtro-data-inicio-extrato').value;
+                if (dataInicio) params.append('data_inicio', dataInicio);
+                
+                const dataFim = document.getElementById('filtro-data-fim-extrato').value;
+                if (dataFim) params.append('data_fim', dataFim);
+                
+                const conciliado = document.getElementById('filtro-conciliado-extrato').value;
+                if (conciliado) params.append('conciliado', conciliado);
+                
+                const response = await fetch(`/api/extratos?${params.toString()}`);
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar transações');
+                }
+                
+                const transacoes = await response.json();
+                
+                if (transacoes.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">📭 Nenhuma transação encontrada. Importe um arquivo OFX para começar.</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                
+                transacoes.forEach(transacao => {
+                    const tr = document.createElement('tr');
+                    
+                    // Data
+                    const tdData = document.createElement('td');
+                    tdData.textContent = new Date(transacao.data).toLocaleDateString('pt-BR');
+                    tr.appendChild(tdData);
+                    
+                    // Descrição
+                    const tdDescricao = document.createElement('td');
+                    tdDescricao.textContent = transacao.descricao || '-';
+                    tdDescricao.style.maxWidth = '350px';
+                    tdDescricao.style.overflow = 'hidden';
+                    tdDescricao.style.textOverflow = 'ellipsis';
+                    tdDescricao.style.whiteSpace = 'nowrap';
+                    tr.appendChild(tdDescricao);
+                    
+                    // Valor
+                    const tdValor = document.createElement('td');
+                    const valor = parseFloat(transacao.valor);
+                    tdValor.textContent = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    tdValor.style.color = valor >= 0 ? '#27ae60' : '#e74c3c';
+                    tdValor.style.fontWeight = 'bold';
+                    tr.appendChild(tdValor);
+                    
+                    // Tipo
+                    const tdTipo = document.createElement('td');
+                    tdTipo.textContent = transacao.tipo === 'CREDITO' ? '📈 Crédito' : '📉 Débito';
+                    tdTipo.style.fontSize = '12px';
+                    tr.appendChild(tdTipo);
+                    
+                    // Saldo
+                    const tdSaldo = document.createElement('td');
+                    if (transacao.saldo !== null && transacao.saldo !== undefined) {
+                        const saldo = parseFloat(transacao.saldo);
+                        tdSaldo.textContent = saldo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                        tdSaldo.style.color = saldo >= 0 ? '#555' : '#e74c3c';
+                    } else {
+                        tdSaldo.textContent = '-';
+                    }
+                    tr.appendChild(tdSaldo);
+                    
+                    // Conta
+                    const tdConta = document.createElement('td');
+                    tdConta.textContent = transacao.conta_nome || '-';
+                    tdConta.style.fontSize = '12px';
+                    tr.appendChild(tdConta);
+                    
+                    // Status
+                    const tdStatus = document.createElement('td');
+                    if (transacao.conciliado) {
+                        tdStatus.innerHTML = '<span style="background: #27ae60; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">✓ Conciliado</span>';
+                    } else {
+                        tdStatus.innerHTML = '<span style="background: #f39c12; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">⏳ Pendente</span>';
+                    }
+                    tr.appendChild(tdStatus);
+                    
+                    // Ações
+                    const tdAcoes = document.createElement('td');
+                    if (!transacao.conciliado) {
+                        const btnConciliar = document.createElement('button');
+                        btnConciliar.textContent = '🔗 Conciliar';
+                        btnConciliar.className = 'btn btn-sm btn-primary';
+                        btnConciliar.style.fontSize = '11px';
+                        btnConciliar.style.padding = '4px 8px';
+                        btnConciliar.onclick = () => conciliarTransacao(transacao.id);
+                        tdAcoes.appendChild(btnConciliar);
+                    } else {
+                        tdAcoes.textContent = '-';
+                    }
+                    tr.appendChild(tdAcoes);
+                    
+                    tbody.appendChild(tr);
+                });
+                
+            } catch (error) {
+                console.error('Erro ao carregar transações:', error);
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #e74c3c;">❌ Erro ao carregar transações</td></tr>';
+            }
+        }
+
+        // Limpar filtros
+        function limparFiltrosExtrato() {
+            document.getElementById('filtro-conta-extrato').value = '';
+            document.getElementById('filtro-data-inicio-extrato').value = '';
+            document.getElementById('filtro-data-fim-extrato').value = '';
+            document.getElementById('filtro-conciliado-extrato').value = '';
+            loadExtratoTransacoes();
+        }
+
+        // Conciliar transação (placeholder - pode ser expandido)
+        async function conciliarTransacao(transacaoId) {
+            alert('🔗 Funcionalidade de conciliação será implementada em breve!\n\nEsta transação será vinculada a um lançamento do sistema.');
         }
 
         // toggleSubmenu() já definida no HEAD - não redefinir aqui
