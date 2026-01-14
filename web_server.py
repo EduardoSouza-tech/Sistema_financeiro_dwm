@@ -283,7 +283,7 @@ try:
     # Criar tabela de extratos bancários se não existir
     try:
         print("\n🏦 Verificando tabela de extratos bancários...")
-        with db.get_db_connection() as conn:
+        with db.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS transacoes_extrato (
@@ -323,7 +323,7 @@ try:
     # Criar tabelas de Funcionários e Eventos
     try:
         print("\n👥 Verificando tabelas de Folha de Pagamento e Eventos...")
-        with db.get_db_connection() as conn:
+        with db.get_connection() as conn:
             cursor = conn.cursor()
             
             # Tabela de Funcionários
@@ -1802,7 +1802,7 @@ def deletar_extrato_filtrado():
             }), 400
         
         # Deletar transações que correspondem aos filtros
-        with database.get_db_connection() as conn:
+        with db.get_connection() as conn:
             conn.autocommit = False
             cursor = conn.cursor()
             
