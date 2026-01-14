@@ -1884,20 +1884,37 @@ def listar_funcionarios():
         
         funcionarios = []
         for row in rows:
-            funcionarios.append({
-                'id': row[0],
-                'empresa_id': row[1],
-                'nome': row[2],
-                'cpf': row[3],
-                'endereco': row[4],
-                'tipo_chave_pix': row[5],
-                'chave_pix': row[6],
-                'ativo': row[7],
-                'data_admissao': row[8].isoformat() if row[8] else None,
-                'observacoes': row[9],
-                'data_criacao': row[10].isoformat() if row[10] else None,
-                'data_atualizacao': row[11].isoformat() if row[11] else None
-            })
+            # Verifica se row é dict ou tupla
+            if isinstance(row, dict):
+                funcionarios.append({
+                    'id': row['id'],
+                    'empresa_id': row['empresa_id'],
+                    'nome': row['nome'],
+                    'cpf': row['cpf'],
+                    'endereco': row['endereco'],
+                    'tipo_chave_pix': row['tipo_chave_pix'],
+                    'chave_pix': row['chave_pix'],
+                    'ativo': row['ativo'],
+                    'data_admissao': row['data_admissao'].isoformat() if row['data_admissao'] else None,
+                    'observacoes': row['observacoes'],
+                    'data_criacao': row['data_criacao'].isoformat() if row['data_criacao'] else None,
+                    'data_atualizacao': row['data_atualizacao'].isoformat() if row['data_atualizacao'] else None
+                })
+            else:
+                funcionarios.append({
+                    'id': row[0],
+                    'empresa_id': row[1],
+                    'nome': row[2],
+                    'cpf': row[3],
+                    'endereco': row[4],
+                    'tipo_chave_pix': row[5],
+                    'chave_pix': row[6],
+                    'ativo': row[7],
+                    'data_admissao': row[8].isoformat() if row[8] else None,
+                    'observacoes': row[9],
+                    'data_criacao': row[10].isoformat() if row[10] else None,
+                    'data_atualizacao': row[11].isoformat() if row[11] else None
+                })
         
         return jsonify({'funcionarios': funcionarios}), 200
     
@@ -2124,21 +2141,39 @@ def listar_eventos():
         
         eventos = []
         for row in rows:
-            eventos.append({
-                'id': row[0],
-                'empresa_id': row[1],
-                'nome_evento': row[2],
-                'data_evento': row[3].isoformat() if row[3] else None,
-                'nf_associada': row[4],
-                'valor_liquido_nf': float(row[5]) if row[5] else None,
-                'custo_evento': float(row[6]) if row[6] else None,
-                'margem': float(row[7]) if row[7] else None,
-                'tipo_evento': row[8],
-                'status': row[9],
-                'observacoes': row[10],
-                'data_criacao': row[11].isoformat() if row[11] else None,
-                'data_atualizacao': row[12].isoformat() if row[12] else None
-            })
+            # Verifica se row é dict ou tupla
+            if isinstance(row, dict):
+                eventos.append({
+                    'id': row['id'],
+                    'empresa_id': row['empresa_id'],
+                    'nome_evento': row['nome_evento'],
+                    'data_evento': row['data_evento'].isoformat() if row['data_evento'] else None,
+                    'nf_associada': row['nf_associada'],
+                    'valor_liquido_nf': float(row['valor_liquido_nf']) if row['valor_liquido_nf'] else None,
+                    'custo_evento': float(row['custo_evento']) if row['custo_evento'] else None,
+                    'margem': float(row['margem']) if row['margem'] else None,
+                    'tipo_evento': row['tipo_evento'],
+                    'status': row['status'],
+                    'observacoes': row['observacoes'],
+                    'data_criacao': row['data_criacao'].isoformat() if row['data_criacao'] else None,
+                    'data_atualizacao': row['data_atualizacao'].isoformat() if row['data_atualizacao'] else None
+                })
+            else:
+                eventos.append({
+                    'id': row[0],
+                    'empresa_id': row[1],
+                    'nome_evento': row[2],
+                    'data_evento': row[3].isoformat() if row[3] else None,
+                    'nf_associada': row[4],
+                    'valor_liquido_nf': float(row[5]) if row[5] else None,
+                    'custo_evento': float(row[6]) if row[6] else None,
+                    'margem': float(row[7]) if row[7] else None,
+                    'tipo_evento': row[8],
+                    'status': row[9],
+                    'observacoes': row[10],
+                    'data_criacao': row[11].isoformat() if row[11] else None,
+                    'data_atualizacao': row[12].isoformat() if row[12] else None
+                })
         
         return jsonify({'eventos': eventos}), 200
     

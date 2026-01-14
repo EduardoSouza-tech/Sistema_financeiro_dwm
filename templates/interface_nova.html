@@ -4741,6 +4741,12 @@
                 const response = await fetch('/api/funcionarios', {
                     credentials: 'include'
                 });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || `Erro ${response.status}`);
+                }
+                
                 const result = await response.json();
 
                 const tbody = document.getElementById('tbody-funcionarios');
@@ -4767,6 +4773,7 @@
                 }
             } catch (error) {
                 console.error('Erro ao carregar funcionários:', error);
+                showToast(error.message || 'Erro ao carregar funcionários', 'error');
                 document.getElementById('tbody-funcionarios').innerHTML = '<tr><td colspan="7" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>';
             }
         }
