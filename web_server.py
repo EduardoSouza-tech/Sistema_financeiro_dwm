@@ -278,7 +278,47 @@ try:
         else:
             print("⚠️ Migração Multi-Tenant falhou (pode já estar aplicada)\n")
     except Exception as e:
-        print(f"⚠️ Aviso: Não foi possível executar migração multi-tenant: {e}\n")
+        print(f"⚠️ Aviso: Não foi possível executar migração multi-tenant: {e}")
+    
+    # Criar tabela de extratos bancários se não existir
+    try:
+        print("\n🏦 Verificando tabela de extratos bancários...")
+        with db.get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS transacoes_extrato (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id INTEGER NOT NULL,
+                    conta_bancaria VARCHAR(255) NOT NULL,
+                    data DATE NOT NULL,
+                    descricao TEXT,
+                    valor DECIMAL(15, 2) NOT NULL,
+                    tipo VARCHAR(20) NOT NULL,
+                    saldo DECIMAL(15, 2),
+                    fitid VARCHAR(255),
+                    memo TEXT,
+                    checknum VARCHAR(50),
+                    importacao_id VARCHAR(100),
+                    conciliado BOOLEAN DEFAULT FALSE,
+                    lancamento_id INTEGER,
+                    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uk_fitid_empresa UNIQUE (fitid, empresa_id)
+                )
+            """)
+            
+            # Criar índices
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_transacoes_extrato_empresa ON transacoes_extrato(empresa_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_transacoes_extrato_conta ON transacoes_extrato(conta_bancaria)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_transacoes_extrato_data ON transacoes_extrato(data)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_transacoes_extrato_importacao ON transacoes_extrato(importacao_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_transacoes_extrato_conciliado ON transacoes_extrato(conciliado)")
+            
+            conn.commit()
+            cursor.close()
+            print("✅ Tabela transacoes_extrato verificada/criada com sucesso!\n")
+    except Exception as e:
+        print(f"⚠️ Aviso: Não foi possível criar tabela de extratos: {e}\n")
         
 except Exception as e:
     print(f"❌ ERRO CRÍTICO ao inicializar DatabaseManager: {e}")
@@ -1550,7 +1590,14 @@ def upload_extrato_ofx():
         )
         
         if resultado['success']:
-            return jsonify(resultado), 200
+            # Formatar resposta para o frontend
+            return jsonify({
+                'success': True,
+                'message': 'Extrato importado com sucesso',
+                'transacoes_importadas': resultado.get('inseridas', 0),
+                'transacoes_duplicadas': resultado.get('duplicadas', 0),
+                'importacao_id': resultado.get('importacao_id')
+            }), 200
         else:
             return jsonify(resultado), 400
         
