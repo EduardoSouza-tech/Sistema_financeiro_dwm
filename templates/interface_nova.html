@@ -1752,6 +1752,9 @@
                         <button onclick="limparFiltrosExtrato()" class="btn btn-secondary" style="padding: 8px 20px; background: #95a5a6; border: none; border-radius: 4px; color: white; cursor: pointer;">
                             🔄 Limpar
                         </button>
+                        <button onclick="deletarExtratoFiltrado()" class="btn btn-danger" style="padding: 8px 20px; background: #e74c3c; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold;">
+                            🗑️ Deletar Extrato
+                        </button>
                     </div>
                 </div>
 
@@ -4297,6 +4300,60 @@
             document.getElementById('filtro-data-fim-extrato').value = '';
             document.getElementById('filtro-conciliado-extrato').value = '';
             loadExtratoTransacoes();
+        }
+
+        // Deletar extratos filtrados
+        async function deletarExtratoFiltrado() {
+            const contaId = document.getElementById('filtro-conta-extrato').value;
+            const dataInicio = document.getElementById('filtro-data-inicio-extrato').value;
+            const dataFim = document.getElementById('filtro-data-fim-extrato').value;
+            
+            // Verificar se há filtros aplicados
+            if (!contaId && !dataInicio && !dataFim) {
+                alert('⚠️ Por favor, aplique pelo menos um filtro (conta ou período) antes de deletar!\n\nIsso evita deletar todos os extratos acidentalmente.');
+                return;
+            }
+            
+            // Confirmação
+            let mensagem = '⚠️ ATENÇÃO: Esta ação não pode ser desfeita!\n\nVocê está prestes a deletar os extratos com os seguintes filtros:\n';
+            if (contaId) {
+                const contaSelect = document.getElementById('filtro-conta-extrato');
+                const contaNome = contaSelect.options[contaSelect.selectedIndex].text;
+                mensagem += `\n📌 Conta: ${contaNome}`;
+            }
+            if (dataInicio) mensagem += `\n📅 Data início: ${new Date(dataInicio).toLocaleDateString('pt-BR')}`;
+            if (dataFim) mensagem += `\n📅 Data fim: ${new Date(dataFim).toLocaleDateString('pt-BR')}`;
+            mensagem += '\n\nDeseja continuar?';
+            
+            if (!confirm(mensagem)) {
+                return;
+            }
+            
+            try {
+                // Construir query parameters
+                const params = new URLSearchParams();
+                if (contaId) params.append('conta', contaId);
+                if (dataInicio) params.append('data_inicio', dataInicio);
+                if (dataFim) params.append('data_fim', dataFim);
+                
+                const response = await fetch(`/api/extratos/deletar-filtrado?${params.toString()}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(`✅ Extratos deletados com sucesso!\n\n📊 Total deletado: ${result.deletados || 0} transação(ões)`);
+                    
+                    // Limpar filtros e recarregar
+                    limparFiltrosExtrato();
+                } else {
+                    alert(`❌ Erro ao deletar extratos:\n${result.error || 'Erro desconhecido'}`);
+                }
+            } catch (error) {
+                console.error('Erro ao deletar extratos:', error);
+                alert('❌ Erro ao deletar extratos. Verifique sua conexão e tente novamente.');
+            }
         }
 
         // Conciliar transação (placeholder - pode ser expandido)

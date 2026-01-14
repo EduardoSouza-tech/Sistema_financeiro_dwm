@@ -1720,6 +1720,66 @@ def deletar_importacao_extrato(importacao_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/extratos/deletar-filtrado', methods=['DELETE'])
+@require_permission('lancamentos_delete')
+def deletar_extrato_filtrado():
+    """Deleta transacoes do extrato baseado em filtros"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        
+        filtros = {
+            'conta_bancaria': request.args.get('conta'),
+            'data_inicio': request.args.get('data_inicio'),
+            'data_fim': request.args.get('data_fim')
+        }
+        
+        # Validar que pelo menos um filtro foi fornecido
+        if not any(filtros.values()):
+            return jsonify({
+                'success': False, 
+                'error': 'Pelo menos um filtro deve ser fornecido (conta, data_inicio ou data_fim)'
+            }), 400
+        
+        # Deletar transações que correspondem aos filtros
+        with database.get_db_connection() as conn:
+            conn.autocommit = False
+            cursor = conn.cursor()
+            
+            query = "DELETE FROM transacoes_extrato WHERE empresa_id = %s"
+            params = [empresa_id]
+            
+            if filtros['conta_bancaria']:
+                query += " AND conta_bancaria = %s"
+                params.append(filtros['conta_bancaria'])
+            
+            if filtros['data_inicio']:
+                query += " AND data >= %s"
+                params.append(filtros['data_inicio'])
+            
+            if filtros['data_fim']:
+                query += " AND data <= %s"
+                params.append(filtros['data_fim'])
+            
+            cursor.execute(query, params)
+            deletados = cursor.rowcount
+            
+            conn.commit()
+            cursor.close()
+            
+            return jsonify({
+                'success': True,
+                'deletados': deletados,
+                'message': f'{deletados} transação(ões) deletada(s) com sucesso'
+            }), 200
+        
+    except Exception as e:
+        logger.info(f"Erro ao deletar extratos filtrados: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # === ROTAS DE RELATÓRIOS ===
 
 @app.route('/api/relatorios/fluxo-caixa', methods=['GET'])
