@@ -154,15 +154,22 @@ async function loadDashboard() {
         const response = await fetch(`${API_URL}/relatorios/dashboard`);
         const data = await response.json();
         
-        document.getElementById('saldo-total').textContent = formatarMoeda(data.saldo_total);
-        document.getElementById('contas-receber').textContent = formatarMoeda(data.contas_receber);
-        document.getElementById('contas-pagar').textContent = formatarMoeda(data.contas_pagar);
-        document.getElementById('contas-vencidas').textContent = formatarMoeda(data.contas_vencidas);
-        document.getElementById('total-contas').textContent = data.total_contas;
-        document.getElementById('total-lancamentos').textContent = data.total_lancamentos;
+        // Verificar se os elementos existem antes de atualizar
+        const saldoTotal = document.getElementById('saldo-total');
+        const contasReceber = document.getElementById('contas-receber');
+        const contasPagar = document.getElementById('contas-pagar');
+        const contasVencidas = document.getElementById('contas-vencidas');
+        const totalContas = document.getElementById('total-contas');
+        const totalLancamentos = document.getElementById('total-lancamentos');
+        
+        if (saldoTotal) saldoTotal.textContent = formatarMoeda(data.saldo_total);
+        if (contasReceber) contasReceber.textContent = formatarMoeda(data.contas_receber);
+        if (contasPagar) contasPagar.textContent = formatarMoeda(data.contas_pagar);
+        if (contasVencidas) contasVencidas.textContent = formatarMoeda(data.contas_vencidas);
+        if (totalContas) totalContas.textContent = data.total_contas;
+        if (totalLancamentos) totalLancamentos.textContent = data.total_lancamentos;
     } catch (error) {
         console.error('Erro ao carregar dashboard:', error);
-        alert('Erro ao carregar dashboard. Verifique se o servidor está rodando.');
     }
 }
 
@@ -173,33 +180,40 @@ async function loadContas() {
         contas = await response.json();
         
         const tbody = document.getElementById('tbody-contas');
-        tbody.innerHTML = '';
+        const selectConta = document.getElementById('select-conta');
+        
+        // Verificar se os elementos existem antes de atualizar
+        if (tbody) {
+            tbody.innerHTML = '';
+            
+            contas.forEach(conta => {
+                // Tabela
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${conta.nome}</td>
+                    <td>${conta.banco}</td>
+                    <td>${conta.agencia}</td>
+                    <td>${conta.conta}</td>
+                    <td>${formatarMoeda(conta.saldo_inicial)}</td>
+                    <td>
+                        <button class="btn btn-danger" onclick="excluirConta('${conta.nome}')">🗑️</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
         
         // Atualizar select de contas nos formulários
-        const selectConta = document.getElementById('select-conta');
-        selectConta.innerHTML = '<option value="">Selecione...</option>';
-        
-        contas.forEach(conta => {
-            // Tabela
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${conta.nome}</td>
-                <td>${conta.banco}</td>
-                <td>${conta.agencia}</td>
-                <td>${conta.conta}</td>
-                <td>${formatarMoeda(conta.saldo_inicial)}</td>
-                <td>
-                    <button class="btn btn-danger" onclick="excluirConta('${conta.nome}')">🗑️</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
+        if (selectConta) {
+            selectConta.innerHTML = '<option value="">Selecione...</option>';
             
-            // Select
-            const option = document.createElement('option');
-            option.value = conta.nome;
-            option.textContent = conta.nome;
-            selectConta.appendChild(option);
-        });
+            contas.forEach(conta => {
+                const option = document.createElement('option');
+                option.value = conta.nome;
+                option.textContent = conta.nome;
+                selectConta.appendChild(option);
+            });
+        }
     } catch (error) {
         console.error('Erro ao carregar contas:', error);
     }
@@ -262,48 +276,59 @@ async function loadCategorias() {
         categorias = await response.json();
         
         const tbody = document.getElementById('tbody-categorias');
-        tbody.innerHTML = '';
+        const selectCategoria = document.getElementById('select-categoria');
+        
+        // Verificar se os elementos existem antes de atualizar
+        if (tbody) {
+            tbody.innerHTML = '';
+            
+            categorias.forEach(cat => {
+                // Tabela
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${cat.nome}</td>
+                    <td><span class="badge badge-${cat.tipo.toLowerCase()}">${cat.tipo}</span></td>
+                    <td>${cat.subcategorias.join(', ') || '-'}</td>
+                    <td>
+                        <button class="btn btn-danger" onclick="excluirCategoria('${cat.nome}')">🗑️</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
         
         // Atualizar select de categorias nos formulários
-        const selectCategoria = document.getElementById('select-categoria');
-        selectCategoria.innerHTML = '<option value="">Selecione...</option>';
-        
-        categorias.forEach(cat => {
-            // Tabela
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${cat.nome}</td>
-                <td><span class="badge badge-${cat.tipo.toLowerCase()}">${cat.tipo}</span></td>
-                <td>${cat.subcategorias.join(', ') || '-'}</td>
-                <td>
-                    <button class="btn btn-danger" onclick="excluirCategoria('${cat.nome}')">🗑️</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
+        if (selectCategoria) {
+            selectCategoria.innerHTML = '<option value="">Selecione...</option>';
             
-            // Select
-            const option = document.createElement('option');
-            option.value = cat.nome;
-            option.textContent = cat.nome;
-            option.dataset.subcategorias = JSON.stringify(cat.subcategorias);
-            selectCategoria.appendChild(option);
-        });
-        
-        // Listener para atualizar subcategorias
-        selectCategoria.addEventListener('change', function() {
-            const selectSubcategoria = document.getElementById('select-subcategoria');
-            selectSubcategoria.innerHTML = '<option value="">Selecione...</option>';
+            categorias.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.nome;
+                option.textContent = cat.nome;
+                option.dataset.subcategorias = JSON.stringify(cat.subcategorias);
+                selectCategoria.appendChild(option);
+            });
             
-            const selectedOption = this.options[this.selectedIndex];
-            if (selectedOption.dataset.subcategorias) {
-                const subcats = JSON.parse(selectedOption.dataset.subcategorias);
-                subcats.forEach(sub => {
-                    const option = document.createElement('option');
-                    option.value = sub;
-                    option.textContent = sub;
-                    selectSubcategoria.appendChild(option);
-                });
-            }
+            // Listener para atualizar subcategorias
+            selectCategoria.addEventListener('change', function() {
+                const selectSubcategoria = document.getElementById('select-subcategoria');
+                if (!selectSubcategoria) return;
+                
+                selectSubcategoria.innerHTML = '<option value="">Selecione...</option>';
+                
+                const selectedOption = this.options[this.selectedIndex];
+                if (selectedOption.dataset.subcategorias) {
+                    const subcats = JSON.parse(selectedOption.dataset.subcategorias);
+                    subcats.forEach(sub => {
+                        const option = document.createElement('option');
+                        option.value = sub;
+                        option.textContent = sub;
+                        selectSubcategoria.appendChild(option);
+                    });
+                }
+            });
+        }
+    } catch (error) {
         });
     } catch (error) {
         console.error('Erro ao carregar categorias:', error);
