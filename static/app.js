@@ -346,17 +346,30 @@ function clearElement(id) {
 /**
  * Inicializa a aplicação quando o DOM estiver pronto
  */
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     try {
         console.log('🚀 Inicializando Sistema Financeiro...');
         
-        // Inicializa datas padrão
+        // 1. Inicializa sistema de permissões
+        if (window.PermissionManager) {
+            await window.PermissionManager.init();
+        }
+        
+        // 2. Inicializa sistema de navegação
+        if (window.NavigationManager) {
+            window.NavigationManager.init();
+        }
+        
+        // 3. Inicializa datas padrão
         initializeDefaultDates();
         
-        // Carrega dados iniciais
-        loadInitialData();
+        // 4. Configura listeners da aplicação
+        setupApplicationListeners();
         
-        // Configura listeners globais
+        // 5. Carrega dados iniciais
+        await loadInitialData();
+        
+        // 6. Configura listeners globais
         setupGlobalListeners();
         
         console.log('✅ Sistema Financeiro iniciado com sucesso!');
@@ -395,6 +408,141 @@ function initializeDefaultDates() {
         setElementValue('filter-ano2', anoAtual, 'value');
     } catch (error) {
         logError('initializeDefaultDates', error);
+    }
+}
+
+/**
+ * Configura listeners específicos da aplicação
+ * Conecta botões com data-attributes aos seus handlers
+ */
+function setupApplicationListeners() {
+    console.log('⚙️ Configurando listeners da aplicação...');
+    
+    try {
+        // ====================================================================
+        // BOTÕES DE ABERTURA DE MODAL [data-modal]
+        // ====================================================================
+        document.querySelectorAll('[data-modal]').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const modalId = this.dataset.modal;
+                const tipo = this.dataset.tipo; // Para lançamentos (RECEITA/DESPESA)
+                
+                if (window.NavigationManager) {
+                    window.NavigationManager.openModal(modalId);
+                }
+                
+                // Se for modal de lançamento, pré-seleciona o tipo
+                if (modalId === 'modal-lancamento' && tipo) {
+                    setTimeout(() => {
+                        const tipoSelect = document.querySelector('#modal-lancamento select[name="tipo"]');
+                        if (tipoSelect) tipoSelect.value = tipo;
+                    }, 50);
+                }
+            });
+        });
+        
+        // ====================================================================
+        // BOTÕES DE FECHAR MODAL [data-close-modal]
+        // ====================================================================
+        document.querySelectorAll('[data-close-modal]').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const modalId = this.dataset.closeModal;
+                
+                if (window.NavigationManager) {
+                    window.NavigationManager.closeModal(modalId);
+                }
+            });
+        });
+        
+        // ====================================================================
+        // BOTÕES DE AÇÃO [data-action]
+        // ====================================================================
+        document.querySelectorAll('[data-action]').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const action = this.dataset.action;
+                
+                // Mapeamento de ações
+                const actionHandlers = {
+                    // Exportações
+                    'exportar-excel': () => window.exportarExcel?.(),
+                    'exportar-pdf': () => window.exportarPDF?.(),
+                    'exportar-lancamentos-excel': () => window.exportarLancamentosExcel?.(),
+                    'exportar-extrato-excel': () => window.exportarExtratoExcel?.(),
+                    'exportar-fluxo-excel': () => window.exportarFluxoExcel?.(),
+                    
+                    // Filtros
+                    'aplicar-filtros-extrato': () => window.aplicarFiltrosExtrato?.(),
+                    'limpar-filtros-extrato': () => window.limparFiltrosExtrato?.(),
+                    
+                    // Importações
+                    'importar-extrato': () => window.importarExtrato?.(),
+                    
+                    // Atualizações
+                    'atualizar-fluxo': () => window.loadFluxoCaixa?.(),
+                    'atualizar-projecao': () => window.loadFluxoProjetado?.(),
+                    'atualizar-analise': () => window.loadAnaliseContas?.(),
+                    'atualizar-analise-categorias': () => window.loadAnaliseCategorias?.(),
+                    
+                    // Conciliação
+                    'desconciliar': () => window.desconciliarTransacao?.(),
+                    'criar-lancamento-conciliacao': () => window.criarLancamentoConciliacao?.()
+                };
+                
+                const handler = actionHandlers[action];
+                if (handler) {
+                    handler();
+                } else {
+                    console.warn(`⚠️ Handler não encontrado para ação: ${action}`);
+                }
+            });
+        });
+        
+        // ====================================================================
+        // FORMULÁRIOS [data-form]
+        // ====================================================================
+        document.querySelectorAll('[data-form]').forEach(form => {
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formType = this.dataset.form;
+                
+                // Mapeamento de handlers de formulário
+                const formHandlers = {
+                    'lancamento': (e) => window.salvarLancamento?.(e),
+                    'conta': (e) => window.salvarConta?.(e),
+                    'categoria': (e) => window.salvarCategoria?.(e),
+                    'cliente': (e) => window.salvarCliente?.(e),
+                    'fornecedor': (e) => window.salvarFornecedor?.(e)
+                };
+                
+                const handler = formHandlers[formType];
+                if (handler) {
+                    await handler(e);
+                } else {
+                    console.warn(`⚠️ Handler não encontrado para formulário: ${formType}`);
+                }
+            });
+        });
+        
+        // ====================================================================
+        // MUDANÇA DE CATEGORIA (carrega subcategorias)
+        // ====================================================================
+        const categoriaSelect = document.getElementById('select-categoria');
+        if (categoriaSelect) {
+            categoriaSelect.addEventListener('change', function() {
+                const categoriaId = this.value;
+                if (categoriaId && window.loadSubcategorias) {
+                    window.loadSubcategorias(categoriaId);
+                }
+            });
+        }
+        
+        console.log('✅ Listeners da aplicação configurados');
+        
+    } catch (error) {
+        logError('setupApplicationListeners', error);
     }
 }
 

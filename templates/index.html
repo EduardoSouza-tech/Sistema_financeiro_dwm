@@ -9,10 +9,10 @@
     
     <!-- Preload CSS crítico -->
     <link rel="preload" href="/static/style.css" as="style">
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=20260114refactor">
     
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>💰</text></svg>">
 </head>
 <body>
     <!-- ============================================================================
@@ -24,39 +24,69 @@
         </div>
         
         <nav class="sidebar-nav">
-            <button class="nav-button active" onclick="showPage('dashboard')">
+            <!-- Dashboard -->
+            <button class="nav-button active" data-page="dashboard" data-permission="dashboard">
                 📊 Dashboard
             </button>
             
-            <button class="nav-button" onclick="toggleSubmenu('lancamentos')">
-                💵 Lançamentos ▼
+            <!-- Lançamentos -->
+            <button class="nav-button" data-submenu="lancamentos" data-permission="lancamentos_view">
+                💵 Lançamentos <span class="submenu-icon">▶</span>
             </button>
-            <div class="submenu" id="submenu-lancamentos">
-                <button class="submenu-button" onclick="showPage('contas-receber')">💰 Contas a Receber</button>
-                <button class="submenu-button" onclick="showPage('contas-pagar')">💳 Contas a Pagar</button>
-                <button class="submenu-button" onclick="showPage('extrato-bancario')">🏦 Extrato Bancário</button>
-                <button class="submenu-button" onclick="showPage('lancamentos')">📋 Todos Lançamentos</button>
+            <div class="submenu" id="submenu-lancamentos" style="display: none;">
+                <button class="submenu-button" data-page="contas-receber" data-permission="lancamentos_view">
+                    💰 Contas a Receber
+                </button>
+                <button class="submenu-button" data-page="contas-pagar" data-permission="lancamentos_view">
+                    💳 Contas a Pagar
+                </button>
+                <button class="submenu-button" data-page="extrato-bancario" data-permission="lancamentos_view">
+                    🏦 Extrato Bancário
+                </button>
+                <button class="submenu-button" data-page="lancamentos" data-permission="lancamentos_view">
+                    📋 Todos Lançamentos
+                </button>
             </div>
             
-            <button class="nav-button" onclick="toggleSubmenu('cadastros')">
-                📝 Cadastros ▼
+            <!-- Cadastros -->
+            <button class="nav-button" data-submenu="cadastros" data-permission="contas_view">
+                📝 Cadastros <span class="submenu-icon">▶</span>
             </button>
-            <div class="submenu" id="submenu-cadastros">
-                <button class="submenu-button" onclick="showPage('contas')">Contas Bancárias</button>
-                <button class="submenu-button" onclick="showPage('categorias')">Categorias</button>
-                <button class="submenu-button" onclick="showPage('clientes')">Clientes</button>
-                <button class="submenu-button" onclick="showPage('fornecedores')">Fornecedores</button>
+            <div class="submenu" id="submenu-cadastros" style="display: none;">
+                <button class="submenu-button" data-page="contas" data-permission="contas_view">
+                    🏦 Contas Bancárias
+                </button>
+                <button class="submenu-button" data-page="categorias" data-permission="categorias_view">
+                    📂 Categorias
+                </button>
+                <button class="submenu-button" data-page="clientes" data-permission="clientes_view">
+                    👤 Clientes
+                </button>
+                <button class="submenu-button" data-page="fornecedores" data-permission="fornecedores_view">
+                    🏢 Fornecedores
+                </button>
             </div>
             
-            <button class="nav-button" onclick="toggleSubmenu('relatorios')">
-                📈 Relatórios ▼
+            <!-- Relatórios -->
+            <button class="nav-button" data-submenu="relatorios" data-permission="relatorios_view">
+                📈 Relatórios <span class="submenu-icon">▶</span>
             </button>
-            <div class="submenu" id="submenu-relatorios">
-                <button class="submenu-button" onclick="showPage('fluxo-caixa')">Fluxo de Caixa</button>
-                <button class="submenu-button" onclick="showPage('fluxo-projetado')">Fluxo Projetado</button>
-                <button class="submenu-button" onclick="showPage('analise-contas')">Análise de Contas</button>
-                <button class="submenu-button" onclick="showPage('analise-categorias')">Análise de Categorias</button>
-                <button class="submenu-button" onclick="showPage('inadimplencia')">Inadimplência</button>
+            <div class="submenu" id="submenu-relatorios" style="display: none;">
+                <button class="submenu-button" data-page="fluxo-caixa" data-permission="relatorios_view">
+                    📊 Fluxo de Caixa
+                </button>
+                <button class="submenu-button" data-page="fluxo-projetado" data-permission="relatorios_view">
+                    🔮 Fluxo Projetado
+                </button>
+                <button class="submenu-button" data-page="analise-contas" data-permission="relatorios_view">
+                    📈 Análise de Contas
+                </button>
+                <button class="submenu-button" data-page="analise-categorias" data-permission="relatorios_view">
+                    📊 Análise de Categorias
+                </button>
+                <button class="submenu-button" data-page="inadimplencia" data-permission="relatorios_view">
+                    ⚠️ Inadimplência
+                </button>
             </div>
         </nav>
         
@@ -65,12 +95,18 @@
         </div>
     </div>
 
-    <!-- Main Content -->
+    <!-- ============================================================================
+         MAIN CONTENT - Páginas do sistema
+         ============================================================================ -->
     <div class="main-content" id="mainContent">
-        <!-- Dashboard Page -->
-        <div class="page active" id="page-dashboard">
-            <h1 class="page-title">Dashboard</h1>
+        
+        <!-- ====================================================================
+             PÁGINA: DASHBOARD
+             ==================================================================== -->
+        <div class="page active" id="dashboard">
+            <h1 class="page-title">📊 Dashboard</h1>
             
+            <!-- Cards de resumo -->
             <div class="cards-container">
                 <div class="card card-primary">
                     <div class="card-title">💰 Saldo Total</div>
@@ -93,6 +129,7 @@
                 </div>
             </div>
             
+            <!-- Informações adicionais -->
             <div class="info-cards">
                 <div class="info-card">
                     <span class="info-label">Total de Contas:</span>
@@ -105,219 +142,232 @@
             </div>
         </div>
 
-        <!-- Contas a Receber Page -->
-        <div class="page" id="page-contas-receber">
+        <!-- ====================================================================
+             PÁGINA: CONTAS A RECEBER
+             ==================================================================== -->
+        <div class="page" id="contas-receber" style="display: none;">
             <h1 class="page-title">💰 Contas a Receber</h1>
             
-            <button class="btn btn-primary" onclick="showModal('modal-lancamento'); document.querySelector('#modal-lancamento select[name=tipo]').value='RECEITA'">
-                ➕ Nova Receita
-            </button>
-            
-            <div class="filters">
-                <input type="text" id="filter-receber" class="input" placeholder="Filtrar por descrição..." onkeyup="loadContasReceber()">
-                <select id="filter-status-receber" class="select" onchange="loadContasReceber()">
-                    <option value="">Todos os status</option>
-                    <option value="PENDENTE">Pendente</option>
-                    <option value="PAGO">Pago</option>
-                    <option value="VENCIDO">Vencido</option>
-                </select>
+            <div class="page-actions">
+                <button class="btn btn-primary" data-modal="modal-lancamento" data-tipo="RECEITA">
+                    ➕ Nova Receita
+                </button>
+                <button class="btn btn-success" data-action="exportar-excel">
+                    📊 Exportar Excel
+                </button>
             </div>
             
             <div class="table-container">
-                <table class="table" id="table-receber">
+                <table class="table">
                     <thead>
                         <tr>
-                            <th>Cliente</th>
+                            <th>Data</th>
                             <th>Descrição</th>
-                            <th>Valor</th>
-                            <th>Vencimento</th>
+                            <th>Cliente</th>
                             <th>Categoria</th>
+                            <th>Valor</th>
                             <th>Status</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
-                    <tbody id="tbody-receber">
-                        <!-- Dados serão carregados aqui -->
+                    <tbody id="contas-receber-list">
+                        <tr>
+                            <td colspan="7" class="text-center">Carregando...</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Contas a Pagar Page -->
-        <div class="page" id="page-contas-pagar">
+        <!-- ====================================================================
+             PÁGINA: CONTAS A PAGAR
+             ==================================================================== -->
+        <div class="page" id="contas-pagar" style="display: none;">
             <h1 class="page-title">💳 Contas a Pagar</h1>
             
-            <button class="btn btn-primary" onclick="showModal('modal-lancamento'); document.querySelector('#modal-lancamento select[name=tipo]').value='DESPESA'">
-                ➕ Nova Despesa
-            </button>
-            
-            <div class="filters">
-                <input type="text" id="filter-pagar" class="input" placeholder="Filtrar por descrição..." onkeyup="loadContasPagar()">
-                <select id="filter-status-pagar" class="select" onchange="loadContasPagar()">
-                    <option value="">Todos os status</option>
-                    <option value="PENDENTE">Pendente</option>
-                    <option value="PAGO">Pago</option>
-                    <option value="VENCIDO">Vencido</option>
-                </select>
+            <div class="page-actions">
+                <button class="btn btn-primary" data-modal="modal-lancamento" data-tipo="DESPESA">
+                    ➕ Nova Despesa
+                </button>
+                <button class="btn btn-danger" data-action="exportar-pdf">
+                    📄 Exportar PDF
+                </button>
             </div>
             
             <div class="table-container">
-                <table class="table" id="table-pagar">
+                <table class="table">
                     <thead>
                         <tr>
-                            <th>Fornecedor</th>
+                            <th>Data</th>
                             <th>Descrição</th>
-                            <th>Valor</th>
-                            <th>Vencimento</th>
+                            <th>Fornecedor</th>
                             <th>Categoria</th>
+                            <th>Valor</th>
                             <th>Status</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
-                    <tbody id="tbody-pagar">
-                        <!-- Dados serão carregados aqui -->
+                    <tbody id="contas-pagar-list">
+                        <tr>
+                            <td colspan="7" class="text-center">Carregando...</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Extrato Bancário Page -->
-        <div class="page" id="page-extrato-bancario">
+        <!-- ====================================================================
+             PÁGINA: EXTRATO BANCÁRIO
+             ==================================================================== -->
+        <div class="page" id="extrato-bancario" style="display: none;">
             <h1 class="page-title">🏦 Extrato Bancário</h1>
             
-            <div class="card" style="margin-bottom: 20px;">
-                <h3 style="margin-bottom: 15px;">📤 Importar Extrato OFX</h3>
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <select id="extrato-conta-importar" class="select" style="flex: 1; min-width: 200px;">
-                        <option value="">Selecione a conta bancária...</option>
+            <!-- Filtros -->
+            <div class="filters-container">
+                <div class="form-group">
+                    <label>Conta Bancária:</label>
+                    <select id="extrato-conta" class="input">
+                        <option value="">Todas as contas</option>
                     </select>
-                    <input type="file" id="extrato-file-input" accept=".ofx" class="input" style="flex: 1; min-width: 200px;">
-                    <button class="btn btn-primary" onclick="importarExtrato()" style="white-space: nowrap;">
-                        📤 Importar Extrato
+                </div>
+                
+                <div class="form-group">
+                    <label>Data Início:</label>
+                    <input type="date" id="extrato-data-inicio" class="input">
+                </div>
+                
+                <div class="form-group">
+                    <label>Data Fim:</label>
+                    <input type="date" id="extrato-data-fim" class="input">
+                </div>
+                
+                <div class="form-group">
+                    <button class="btn btn-primary" data-action="aplicar-filtros-extrato">
+                        🔍 Filtrar
+                    </button>
+                    <button class="btn btn-secondary" data-action="limpar-filtros-extrato">
+                        🔄 Limpar
                     </button>
                 </div>
             </div>
-
-            <div class="filters">
-                <select id="extrato-filter-conta" class="select">
-                    <option value="">Todas as contas</option>
-                </select>
-                <input type="date" id="extrato-filter-data-inicio" class="input" placeholder="Data inicial">
-                <input type="date" id="extrato-filter-data-fim" class="input" placeholder="Data final">
-                <select id="extrato-filter-conciliado" class="select">
-                    <option value="">Todos</option>
-                    <option value="true">Conciliados</option>
-                    <option value="false">Não Conciliados</option>
-                </select>
-                <button class="btn btn-primary" onclick="aplicarFiltrosExtrato()">🔍 Filtrar</button>
-                <button class="btn btn-secondary" onclick="limparFiltrosExtrato()">🔄 Limpar</button>
-            </div>
-
-            <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3>Transações do Extrato</h3>
-                </div>
-                
-                <div class="table-container">
-                    <table class="table" id="table-extratos">
-                        <thead>
-                            <tr>
-                                <th style="width: 100px;">Data</th>
-                                <th>Descrição</th>
-                                <th style="width: 120px;">Valor</th>
-                                <th style="width: 80px;">Tipo</th>
-                                <th style="width: 120px;">Saldo</th>
-                                <th style="width: 100px;">Status</th>
-                                <th style="width: 180px;">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-extratos">
-                            <!-- Dados serão carregados aqui -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Lançamentos Page -->
-        <div class="page" id="page-lancamentos">
-            <h1 class="page-title">📋 Todos os Lançamentos</h1>
             
-            <button class="btn btn-primary" onclick="showModal('modal-lancamento')">
-                ➕ Novo Lançamento
-            </button>
-            
-            <div class="filters">
-                <input type="text" id="filter-lancamento" class="input" placeholder="Filtrar por descrição...">
-                <select id="filter-tipo" class="select" onchange="loadLancamentos()">
-                    <option value="">Todos os tipos</option>
-                    <option value="RECEITA">Receitas</option>
-                    <option value="DESPESA">Despesas</option>
-                </select>
-                <select id="filter-status" class="select" onchange="loadLancamentos()">
-                    <option value="">Todos os status</option>
-                    <option value="PENDENTE">Pendente</option>
-                    <option value="PAGO">Pago</option>
-                </select>
+            <div class="page-actions">
+                <button class="btn btn-primary" data-action="importar-extrato">
+                    📥 Importar OFX
+                </button>
+                <button class="btn btn-success" data-action="exportar-extrato-excel">
+                    📊 Exportar Excel
+                </button>
             </div>
             
             <div class="table-container">
-                <table class="table" id="table-lancamentos">
+                <table class="table">
                     <thead>
                         <tr>
-                            <th>Tipo</th>
+                            <th>Data</th>
                             <th>Descrição</th>
+                            <th>Tipo</th>
                             <th>Valor</th>
-                            <th>Vencimento</th>
-                            <th>Categoria</th>
+                            <th>Saldo</th>
                             <th>Status</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
-                    <tbody id="tbody-lancamentos">
-                        <!-- Dados serão carregados aqui -->
+                    <tbody id="extrato-list">
+                        <tr>
+                            <td colspan="7" class="text-center">Selecione uma conta e período</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Contas Bancárias Page -->
-        <div class="page" id="page-contas">
-            <h1 class="page-title">Contas Bancárias</h1>
+        <!-- ====================================================================
+             PÁGINA: TODOS OS LANÇAMENTOS
+             ==================================================================== -->
+        <div class="page" id="lancamentos" style="display: none;">
+            <h1 class="page-title">📋 Todos os Lançamentos</h1>
             
-            <button class="btn btn-primary" onclick="showModal('modal-conta')">
-                ➕ Nova Conta
-            </button>
+            <div class="page-actions">
+                <button class="btn btn-primary" data-modal="modal-lancamento">
+                    ➕ Novo Lançamento
+                </button>
+                <button class="btn btn-success" data-action="exportar-lancamentos-excel">
+                    📊 Exportar Excel
+                </button>
+            </div>
             
             <div class="table-container">
-                <table class="table" id="table-contas">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Tipo</th>
+                            <th>Descrição</th>
+                            <th>Categoria</th>
+                            <th>Conta</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lancamentos-list">
+                        <tr>
+                            <td colspan="8" class="text-center">Carregando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             PÁGINA: CONTAS BANCÁRIAS
+             ==================================================================== -->
+        <div class="page" id="contas" style="display: none;">
+            <h1 class="page-title">🏦 Contas Bancárias</h1>
+            
+            <div class="page-actions">
+                <button class="btn btn-primary" data-modal="modal-conta">
+                    ➕ Nova Conta
+                </button>
+            </div>
+            
+            <div class="table-container">
+                <table class="table">
                     <thead>
                         <tr>
                             <th>Nome</th>
                             <th>Banco</th>
                             <th>Agência</th>
-                            <th>Conta</th>
+                            <th>Número</th>
                             <th>Saldo Inicial</th>
+                            <th>Saldo Atual</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
-                    <tbody id="tbody-contas">
-                        <!-- Dados serão carregados aqui -->
+                    <tbody id="contas-list">
+                        <tr>
+                            <td colspan="7" class="text-center">Carregando...</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Categorias Page -->
-        <div class="page" id="page-categorias">
-            <h1 class="page-title">Categorias</h1>
+        <!-- ====================================================================
+             PÁGINA: CATEGORIAS
+             ==================================================================== -->
+        <div class="page" id="categorias" style="display: none;">
+            <h1 class="page-title">📂 Categorias</h1>
             
-            <button class="btn btn-primary" onclick="showModal('modal-categoria')">
-                ➕ Nova Categoria
-            </button>
+            <div class="page-actions">
+                <button class="btn btn-primary" data-modal="modal-categoria">
+                    ➕ Nova Categoria
+                </button>
+            </div>
             
             <div class="table-container">
-                <table class="table" id="table-categorias">
+                <table class="table">
                     <thead>
                         <tr>
                             <th>Nome</th>
@@ -326,444 +376,688 @@
                             <th>Ações</th>
                         </tr>
                     </thead>
-                    <tbody id="tbody-categorias">
-                        <!-- Dados serão carregados aqui -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Clientes Page -->
-        <div class="page" id="page-clientes">
-            <h1 class="page-title">Clientes</h1>
-            
-            <button class="btn btn-primary" onclick="showModal('modal-cliente')">
-                ➕ Novo Cliente
-            </button>
-            
-            <div class="table-container">
-                <table class="table" id="table-clientes">
-                    <thead>
+                    <tbody id="categorias-list">
                         <tr>
-                            <th>Nome</th>
-                            <th>Documento</th>
-                            <th>Telefone</th>
-                            <th>Email</th>
-                            <th>Ações</th>
+                            <td colspan="4" class="text-center">Carregando...</td>
                         </tr>
-                    </thead>
-                    <tbody id="tbody-clientes">
-                        <!-- Dados serão carregados aqui -->
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Fornecedores Page -->
-        <div class="page" id="page-fornecedores">
-            <h1 class="page-title">Fornecedores</h1>
+        <!-- ====================================================================
+             PÁGINA: CLIENTES
+             ==================================================================== -->
+        <div class="page" id="clientes" style="display: none;">
+            <h1 class="page-title">👤 Clientes</h1>
             
-            <button class="btn btn-primary" onclick="showModal('modal-fornecedor')">
-                ➕ Novo Fornecedor
-            </button>
-            
-            <div class="table-container">
-                <table class="table" id="table-fornecedores">
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>Documento</th>
-                            <th>Telefone</th>
-                            <th>Email</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-fornecedores">
-                        <!-- Dados serão carregados aqui -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Fluxo de Caixa Page -->
-        <div class="page" id="page-fluxo-caixa">
-            <h1 class="page-title">Fluxo de Caixa</h1>
-            
-            <div class="filters">
-                <label>De: <input type="date" id="fluxo-data-inicio" class="input"></label>
-                <label>Até: <input type="date" id="fluxo-data-fim" class="input"></label>
-                <button class="btn btn-primary" onclick="loadFluxoCaixa()">🔄 Atualizar</button>
-                <button class="btn btn-success" onclick="exportarFluxoExcel()">📊 Exportar Excel</button>
+            <div class="page-actions">
+                <button class="btn btn-primary" data-modal="modal-cliente">
+                    ➕ Novo Cliente
+                </button>
             </div>
             
-            <div class="table-container">
-                <table class="table" id="table-fluxo">
-                    <thead>
-                        <tr>
-                            <th>Tipo</th>
-                            <th>Data</th>
-                            <th>Descrição</th>
-                            <th>Categoria</th>
-                            <th>Pessoa</th>
-                            <th>Entrada</th>
-                            <th>Saída</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-fluxo">
-                        <!-- Dados serão carregados aqui -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Análise de Categorias Page -->
-        <div class="page" id="page-analise-categorias">
-            <h1 class="page-title">Análise de Categorias</h1>
-            
-            <div class="filters">
-                <label>De: <input type="date" id="analise-data-inicio" class="input"></label>
-                <label>Até: <input type="date" id="analise-data-fim" class="input"></label>
-                <button class="btn btn-primary" onclick="loadAnaliseCategorias()">🔄 Atualizar</button>
-            </div>
-            
-            <div id="analise-content" class="analise-content">
-                <!-- Conteúdo será carregado aqui -->
-            </div>
-        </div>
-
-        <!-- Inadimplência Page -->
-        <div class="page" id="page-inadimplencia">
-            <h1 class="page-title">Análise de Inadimplência</h1>
-            
-            <div class="table-container">
-                <table class="table" id="table-inadimplencia">
-                    <thead>
-                        <tr>
-                            <th>Cliente</th>
-                            <th>Descrição</th>
-                            <th>Vencimento</th>
-                            <th>Dias em Atraso</th>
-                            <th>Valor</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-inadimplencia">
-                        <!-- Dados serão carregados aqui -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Fluxo Projetado Page -->
-        <div class="page" id="page-fluxo-projetado">
-            <h1 class="page-title">Fluxo de Caixa Projetado</h1>
-            
-            <div class="filters">
-                <label>Projetar até: <input type="date" id="projecao-data-final" class="input"></label>
-                <button class="btn btn-primary" onclick="loadFluxoProjetado()">🔄 Atualizar</button>
-            </div>
-
-            <div class="cards-container" style="margin-bottom: 20px;">
-                <div class="card card-primary">
-                    <div class="card-title">💰 Saldo Atual</div>
-                    <div class="card-value" id="saldo-atual-projecao">R$ 0,00</div>
-                </div>
-                <div class="card card-success">
-                    <div class="card-title">📈 Saldo Projetado</div>
-                    <div class="card-value" id="saldo-projetado">R$ 0,00</div>
-                </div>
-            </div>
-            
-            <div class="table-container">
-                <table class="table" id="table-projecao">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Descrição</th>
-                            <th>Tipo</th>
-                            <th>Valor</th>
-                            <th>Categoria</th>
-                            <th>Saldo Projetado</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-projecao">
-                        <!-- Dados serão carregados aqui -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Análise de Contas Page -->
-        <div class="page" id="page-analise-contas">
-            <h1 class="page-title">Análise de Contas a Pagar/Receber</h1>
-            
-            <div class="cards-container">
-                <div class="card card-success">
-                    <div class="card-title">💰 Total a Receber</div>
-                    <div class="card-value" id="total-receber-analise">R$ 0,00</div>
-                    <div style="font-size: 12px; margin-top: 10px; color: #e74c3c;">
-                        Vencidos: <span id="receber-vencidos">R$ 0,00</span>
-                    </div>
-                </div>
-                <div class="card card-danger">
-                    <div class="card-title">💳 Total a Pagar</div>
-                    <div class="card-value" id="total-pagar-analise">R$ 0,00</div>
-                    <div style="font-size: 12px; margin-top: 10px; color: #e74c3c;">
-                        Vencidos: <span id="pagar-vencidos">R$ 0,00</span>
-                    </div>
-                </div>
-            </div>
-
-            <h2 style="margin-top: 30px; color: #667eea;">📊 Aging (Análise de Vencimento)</h2>
             <div class="table-container">
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>Período</th>
-                            <th>Valor</th>
+                            <th>Nome</th>
+                            <th>Documento</th>
+                            <th>Telefone</th>
+                            <th>Email</th>
+                            <th>Ações</th>
                         </tr>
                     </thead>
-                    <tbody id="tbody-aging">
-                        <!-- Dados serão carregados aqui -->
+                    <tbody id="clientes-list">
+                        <tr>
+                            <td colspan="5" class="text-center">Carregando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             PÁGINA: FORNECEDORES
+             ==================================================================== -->
+        <div class="page" id="fornecedores" style="display: none;">
+            <h1 class="page-title">🏢 Fornecedores</h1>
+            
+            <div class="page-actions">
+                <button class="btn btn-primary" data-modal="modal-fornecedor">
+                    ➕ Novo Fornecedor
+                </button>
+            </div>
+            
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Documento</th>
+                            <th>Telefone</th>
+                            <th>Email</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fornecedores-list">
+                        <tr>
+                            <td colspan="5" class="text-center">Carregando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             PÁGINA: FLUXO DE CAIXA
+             ==================================================================== -->
+        <div class="page" id="fluxo-caixa" style="display: none;">
+            <h1 class="page-title">📊 Fluxo de Caixa</h1>
+            
+            <!-- Filtros -->
+            <div class="filters-container">
+                <div class="form-group">
+                    <label>Data Início:</label>
+                    <input type="date" id="fluxo-data-inicio" class="input">
+                </div>
+                
+                <div class="form-group">
+                    <label>Data Fim:</label>
+                    <input type="date" id="fluxo-data-fim" class="input">
+                </div>
+                
+                <div class="form-group">
+                    <button class="btn btn-primary" data-action="atualizar-fluxo">
+                        🔄 Atualizar
+                    </button>
+                    <button class="btn btn-success" data-action="exportar-fluxo-excel">
+                        📊 Exportar Excel
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Resumo -->
+            <div class="cards-container">
+                <div class="card card-success">
+                    <div class="card-title">💰 Total Entradas</div>
+                    <div class="card-value" id="fluxo-entradas">R$ 0,00</div>
+                </div>
+                
+                <div class="card card-danger">
+                    <div class="card-title">💳 Total Saídas</div>
+                    <div class="card-value" id="fluxo-saidas">R$ 0,00</div>
+                </div>
+                
+                <div class="card card-primary">
+                    <div class="card-title">📊 Saldo do Período</div>
+                    <div class="card-value" id="fluxo-saldo">R$ 0,00</div>
+                </div>
+            </div>
+            
+            <!-- Gráfico -->
+            <div class="chart-container">
+                <canvas id="fluxo-chart"></canvas>
+            </div>
+            
+            <!-- Tabela detalhada -->
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Categoria</th>
+                            <th>Entradas</th>
+                            <th>Saídas</th>
+                            <th>Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fluxo-list">
+                        <tr>
+                            <td colspan="5" class="text-center">Selecione um período</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             PÁGINA: FLUXO PROJETADO
+             ==================================================================== -->
+        <div class="page" id="fluxo-projetado" style="display: none;">
+            <h1 class="page-title">🔮 Fluxo Projetado</h1>
+            
+            <!-- Filtros -->
+            <div class="filters-container">
+                <div class="form-group">
+                    <label>Projetar até:</label>
+                    <input type="date" id="projecao-data-final" class="input">
+                </div>
+                
+                <div class="form-group">
+                    <button class="btn btn-primary" data-action="atualizar-projecao">
+                        🔄 Atualizar Projeção
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Resumo -->
+            <div class="cards-container">
+                <div class="card card-success">
+                    <div class="card-title">💰 Receitas Projetadas</div>
+                    <div class="card-value" id="projecao-receitas">R$ 0,00</div>
+                </div>
+                
+                <div class="card card-danger">
+                    <div class="card-title">💳 Despesas Projetadas</div>
+                    <div class="card-value" id="projecao-despesas">R$ 0,00</div>
+                </div>
+                
+                <div class="card card-primary">
+                    <div class="card-title">📊 Saldo Projetado</div>
+                    <div class="card-value" id="projecao-saldo">R$ 0,00</div>
+                </div>
+            </div>
+            
+            <!-- Gráfico -->
+            <div class="chart-container">
+                <canvas id="projecao-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             PÁGINA: ANÁLISE DE CONTAS
+             ==================================================================== -->
+        <div class="page" id="analise-contas" style="display: none;">
+            <h1 class="page-title">📈 Análise de Contas</h1>
+            
+            <!-- Filtros -->
+            <div class="filters-container">
+                <div class="form-group">
+                    <label>Data Início:</label>
+                    <input type="date" id="analise-data-inicio" class="input">
+                </div>
+                
+                <div class="form-group">
+                    <label>Data Fim:</label>
+                    <input type="date" id="analise-data-fim" class="input">
+                </div>
+                
+                <div class="form-group">
+                    <button class="btn btn-primary" data-action="atualizar-analise">
+                        🔄 Atualizar
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Resumo por conta -->
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Conta</th>
+                            <th>Saldo Inicial</th>
+                            <th>Entradas</th>
+                            <th>Saídas</th>
+                            <th>Saldo Final</th>
+                        </tr>
+                    </thead>
+                    <tbody id="analise-contas-list">
+                        <tr>
+                            <td colspan="5" class="text-center">Selecione um período</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             PÁGINA: ANÁLISE DE CATEGORIAS
+             ==================================================================== -->
+        <div class="page" id="analise-categorias" style="display: none;">
+            <h1 class="page-title">📊 Análise de Categorias</h1>
+            
+            <div class="page-actions">
+                <button class="btn btn-primary" data-action="atualizar-analise-categorias">
+                    🔄 Atualizar
+                </button>
+            </div>
+            
+            <!-- Gráfico de Pizza -->
+            <div class="chart-container">
+                <canvas id="categorias-chart"></canvas>
+            </div>
+            
+            <!-- Tabela detalhada -->
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Categoria</th>
+                            <th>Tipo</th>
+                            <th>Total</th>
+                            <th>Percentual</th>
+                        </tr>
+                    </thead>
+                    <tbody id="analise-categorias-list">
+                        <tr>
+                            <td colspan="4" class="text-center">Carregando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             PÁGINA: INADIMPLÊNCIA
+             ==================================================================== -->
+        <div class="page" id="inadimplencia" style="display: none;">
+            <h1 class="page-title">⚠️ Inadimplência</h1>
+            
+            <!-- Resumo -->
+            <div class="cards-container">
+                <div class="card card-danger">
+                    <div class="card-title">⚠️ Total Vencido</div>
+                    <div class="card-value" id="inadimplencia-total">R$ 0,00</div>
+                </div>
+                
+                <div class="card card-warning">
+                    <div class="card-title">📅 Contas Vencidas</div>
+                    <div class="card-value" id="inadimplencia-qtd">0</div>
+                </div>
+                
+                <div class="card card-info">
+                    <div class="card-title">👤 Clientes Inadimplentes</div>
+                    <div class="card-value" id="inadimplencia-clientes">0</div>
+                </div>
+            </div>
+            
+            <!-- Tabela de inadimplentes -->
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Vencimento</th>
+                            <th>Dias em Atraso</th>
+                            <th>Valor</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inadimplencia-list">
+                        <tr>
+                            <td colspan="5" class="text-center">Carregando...</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <!-- Modals -->
-    <!-- Modal Lançamento -->
+    <!-- ============================================================================
+         MODAIS - Formulários de cadastro e edição
+         ============================================================================ -->
+    
+    <!-- ====================================================================
+         MODAL: LANÇAMENTO
+         ==================================================================== -->
     <div class="modal" id="modal-lancamento">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Novo Lançamento</h2>
-                <button class="modal-close" onclick="closeModal('modal-lancamento')">&times;</button>
+                <h2>💵 Novo Lançamento</h2>
+                <button class="modal-close" data-close-modal="modal-lancamento">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="form-lancamento" onsubmit="salvarLancamento(event)">
-                    <div class="form-group">
-                        <label>Tipo *</label>
-                        <select name="tipo" class="input" required>
-                            <option value="RECEITA">Receita</option>
-                            <option value="DESPESA">Despesa</option>
-                        </select>
+                <form id="form-lancamento" data-form="lancamento">
+                    <input type="hidden" name="id" id="lancamento-id">
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tipo *</label>
+                            <select name="tipo" class="input" required>
+                                <option value="RECEITA">💰 Receita</option>
+                                <option value="DESPESA">💳 Despesa</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Status *</label>
+                            <select name="status" class="input" required>
+                                <option value="PENDENTE">⏳ Pendente</option>
+                                <option value="PAGO">✅ Pago</option>
+                                <option value="CANCELADO">❌ Cancelado</option>
+                            </select>
+                        </div>
                     </div>
+                    
                     <div class="form-group">
                         <label>Descrição *</label>
-                        <input type="text" name="descricao" class="input" required>
+                        <input type="text" name="descricao" class="input" required placeholder="Ex: Venda de produto, Pagamento de fornecedor">
                     </div>
-                    <div class="form-group">
-                        <label>Valor *</label>
-                        <input type="number" name="valor" class="input" step="0.01" required>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Valor *</label>
+                            <input type="number" name="valor" class="input" step="0.01" min="0" required placeholder="0,00">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Data de Vencimento *</label>
+                            <input type="date" name="data_vencimento" class="input" required>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Data de Vencimento *</label>
-                        <input type="date" name="data_vencimento" class="input" required>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Categoria *</label>
+                            <select name="categoria_id" id="select-categoria" class="input" required>
+                                <option value="">Selecione uma categoria</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Subcategoria</label>
+                            <select name="subcategoria_id" id="select-subcategoria" class="input">
+                                <option value="">Nenhuma subcategoria</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Categoria</label>
-                        <select name="categoria" id="select-categoria" class="input"></select>
-                    </div>
-                    <div class="form-group">
-                        <label>Subcategoria</label>
-                        <select name="subcategoria" id="select-subcategoria" class="input"></select>
-                    </div>
+                    
                     <div class="form-group">
                         <label>Conta Bancária *</label>
-                        <select name="conta_bancaria" id="select-conta" class="input" required></select>
-                    </div>
-                    <div class="form-group">
-                        <label>Cliente/Fornecedor</label>
-                        <input type="text" name="pessoa" class="input">
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <select name="status" class="input">
-                            <option value="PENDENTE">Pendente</option>
-                            <option value="PAGO">Pago</option>
+                        <select name="conta_bancaria_id" id="select-conta" class="input" required>
+                            <option value="">Selecione uma conta</option>
                         </select>
                     </div>
+                    
+                    <div class="form-group">
+                        <label>Cliente/Fornecedor</label>
+                        <input type="text" name="pessoa" class="input" placeholder="Nome do cliente ou fornecedor">
+                    </div>
+                    
                     <div class="form-group">
                         <label>Data de Pagamento</label>
                         <input type="date" name="data_pagamento" class="input">
                     </div>
+                    
+                    <div class="form-group">
+                        <label>Observações</label>
+                        <textarea name="observacoes" class="input" rows="3" placeholder="Informações adicionais (opcional)"></textarea>
+                    </div>
+                    
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-lancamento')">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Salvar</button>
+                        <button type="button" class="btn btn-secondary" data-close-modal="modal-lancamento">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">💾 Salvar</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal Conta -->
+    <!-- ====================================================================
+         MODAL: CONTA BANCÁRIA
+         ==================================================================== -->
     <div class="modal" id="modal-conta">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Nova Conta Bancária</h2>
-                <button class="modal-close" onclick="closeModal('modal-conta')">&times;</button>
+                <h2>🏦 Nova Conta Bancária</h2>
+                <button class="modal-close" data-close-modal="modal-conta">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="form-conta" onsubmit="salvarConta(event)">
+                <form id="form-conta" data-form="conta">
+                    <input type="hidden" name="id" id="conta-id">
+                    
                     <div class="form-group">
-                        <label>Nome *</label>
-                        <input type="text" name="nome" class="input" required>
+                        <label>Nome da Conta *</label>
+                        <input type="text" name="nome" class="input" required placeholder="Ex: Conta Corrente Principal">
                     </div>
-                    <div class="form-group">
-                        <label>Banco *</label>
-                        <input type="text" name="banco" class="input" required>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Banco *</label>
+                            <input type="text" name="banco" class="input" required placeholder="Ex: Banco do Brasil">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Agência *</label>
+                            <input type="text" name="agencia" class="input" required placeholder="0000-0">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Agência *</label>
-                        <input type="text" name="agencia" class="input" required>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Número da Conta *</label>
+                            <input type="text" name="conta" class="input" required placeholder="00000-0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Saldo Inicial</label>
+                            <input type="number" name="saldo_inicial" class="input" step="0.01" value="0.00">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Conta *</label>
-                        <input type="text" name="conta" class="input" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Saldo Inicial</label>
-                        <input type="number" name="saldo_inicial" class="input" step="0.01" value="0">
-                    </div>
+                    
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-conta')">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Salvar</button>
+                        <button type="button" class="btn btn-secondary" data-close-modal="modal-conta">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">💾 Salvar</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal Conciliação -->
-    <div class="modal" id="modal-conciliacao">
-        <div class="modal-content" style="max-width: 800px;">
+    <!-- ====================================================================
+         MODAL: CATEGORIA
+         ==================================================================== -->
+    <div class="modal" id="modal-categoria">
+        <div class="modal-content">
             <div class="modal-header">
-                <h2>🔗 Conciliar Transação</h2>
-                <button class="modal-close" onclick="closeModal('modal-conciliacao')">&times;</button>
+                <h2>📂 Nova Categoria</h2>
+                <button class="modal-close" data-close-modal="modal-categoria">&times;</button>
             </div>
             <div class="modal-body">
+                <form id="form-categoria" data-form="categoria">
+                    <input type="hidden" name="id" id="categoria-id">
+                    
+                    <div class="form-group">
+                        <label>Nome *</label>
+                        <input type="text" name="nome" class="input" required placeholder="Ex: Vendas, Despesas Operacionais">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Tipo *</label>
+                        <select name="tipo" class="input" required>
+                            <option value="">Selecione um tipo</option>
+                            <option value="RECEITA">💰 Receita</option>
+                            <option value="DESPESA">💳 Despesa</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Descrição</label>
+                        <textarea name="descricao" class="input" rows="3" placeholder="Descrição opcional da categoria"></textarea>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-close-modal="modal-categoria">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">💾 Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL: CLIENTE
+         ==================================================================== -->
+    <div class="modal" id="modal-cliente">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>👤 Novo Cliente</h2>
+                <button class="modal-close" data-close-modal="modal-cliente">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-cliente" data-form="cliente">
+                    <input type="hidden" name="id" id="cliente-id">
+                    
+                    <div class="form-group">
+                        <label>Nome *</label>
+                        <input type="text" name="nome" class="input" required placeholder="Nome completo">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>CPF/CNPJ</label>
+                            <input type="text" name="documento" class="input" placeholder="000.000.000-00">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Telefone</label>
+                            <input type="tel" name="telefone" class="input" placeholder="(00) 00000-0000">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" class="input" placeholder="cliente@email.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Endereço</label>
+                        <textarea name="endereco" class="input" rows="2" placeholder="Rua, número, complemento"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Observações</label>
+                        <textarea name="observacoes" class="input" rows="2" placeholder="Informações adicionais"></textarea>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-close-modal="modal-cliente">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">💾 Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL: FORNECEDOR
+         ==================================================================== -->
+    <div class="modal" id="modal-fornecedor">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🏢 Novo Fornecedor</h2>
+                <button class="modal-close" data-close-modal="modal-fornecedor">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-fornecedor" data-form="fornecedor">
+                    <input type="hidden" name="id" id="fornecedor-id">
+                    
+                    <div class="form-group">
+                        <label>Nome/Razão Social *</label>
+                        <input type="text" name="nome" class="input" required placeholder="Nome do fornecedor">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>CPF/CNPJ</label>
+                            <input type="text" name="documento" class="input" placeholder="00.000.000/0000-00">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Telefone</label>
+                            <input type="tel" name="telefone" class="input" placeholder="(00) 0000-0000">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" class="input" placeholder="fornecedor@email.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Endereço</label>
+                        <textarea name="endereco" class="input" rows="2" placeholder="Endereço completo"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Observações</label>
+                        <textarea name="observacoes" class="input" rows="2" placeholder="Informações adicionais"></textarea>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-close-modal="modal-fornecedor">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">💾 Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL: CONCILIAÇÃO BANCÁRIA
+         ==================================================================== -->
+    <div class="modal" id="modal-conciliacao">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>🔗 Conciliar Transação Bancária</h2>
+                <button class="modal-close" data-close-modal="modal-conciliacao">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Informações da transação -->
                 <div id="transacao-info" class="card" style="margin-bottom: 20px; background: #f8f9fa; padding: 15px;">
-                    <!-- Info da transação será inserida aqui -->
+                    <p><strong>Carregando informações da transação...</strong></p>
                 </div>
                 
-                <h3 style="margin-bottom: 15px;">Sugestões de Lançamentos</h3>
-                <div id="sugestoes-conciliacao" style="max-height: 400px; overflow-y: auto;">
-                    <!-- Sugestões serão carregadas aqui -->
+                <!-- Sugestões de lançamentos -->
+                <h3 style="margin-bottom: 15px;">💡 Sugestões de Lançamentos</h3>
+                <div id="sugestoes-conciliacao" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 10px;">
+                    <p class="text-center">Buscando sugestões...</p>
                 </div>
                 
-                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-conciliacao')">Cancelar</button>
-                    <button type="button" class="btn btn-danger" onclick="desconciliarTransacao()" id="btn-desconciliar" style="display: none;">
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close-modal="modal-conciliacao">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="btn-desconciliar" style="display: none;" data-action="desconciliar">
                         ❌ Desconciliar
+                    </button>
+                    <button type="button" class="btn btn-success" id="btn-criar-lancamento" data-action="criar-lancamento-conciliacao">
+                        ➕ Criar Novo Lançamento
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Categoria -->
-    <div class="modal" id="modal-categoria">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Nova Categoria</h2>
-                <button class="modal-close" onclick="closeModal('modal-categoria')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="form-categoria" onsubmit="salvarCategoria(event)">
-                    <div class="form-group">
-                        <label>Nome *</label>
-                        <input type="text" name="nome" class="input" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Tipo *</label>
-                        <select name="tipo" class="input" required>
-                            <option value="RECEITA">Receita</option>
-                            <option value="DESPESA">Despesa</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Subcategorias (separadas por vírgula)</label>
-                        <input type="text" name="subcategorias" class="input" placeholder="Ex: Subcategoria 1, Subcategoria 2">
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-categoria')">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Salvar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+    <!-- ============================================================================
+         CONTAINER DE NOTIFICAÇÕES
+         ============================================================================ -->
+    <div id="notification-container" class="notification-container"></div>
 
-    <!-- Modal Cliente -->
-    <div class="modal" id="modal-cliente">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Novo Cliente</h2>
-                <button class="modal-close" onclick="closeModal('modal-cliente')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="form-cliente" onsubmit="salvarCliente(event)">
-                    <div class="form-group">
-                        <label>Nome *</label>
-                        <input type="text" name="nome" class="input" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Documento</label>
-                        <input type="text" name="documento" class="input">
-                    </div>
-                    <div class="form-group">
-                        <label>Telefone</label>
-                        <input type="text" name="telefone" class="input">
-                    </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" name="email" class="input">
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-cliente')">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Salvar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Fornecedor -->
-    <div class="modal" id="modal-fornecedor">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Novo Fornecedor</h2>
-                <button class="modal-close" onclick="closeModal('modal-fornecedor')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="form-fornecedor" onsubmit="salvarFornecedor(event)">
-                    <div class="form-group">
-                        <label>Nome *</label>
-                        <input type="text" name="nome" class="input" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Documento</label>
-                        <input type="text" name="documento" class="input">
-                    </div>
-                    <div class="form-group">
-                        <label>Telefone</label>
-                        <input type="text" name="telefone" class="input">
-                    </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" name="email" class="input">
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-fornecedor')">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Salvar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
+    <!-- ============================================================================
+         LOADING OVERLAY
+         ============================================================================ -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Carregando...</p>
     </div>
 
     <!-- ============================================================================
-         SCRIPTS - Carregamento otimizado
+         SCRIPTS - Carregamento otimizado e modular
          ============================================================================ -->
-    <script src="/static/app.js?v=20260114hotfix"></script>
+    
+    <!-- Core dependencies (ordem importa!) -->
+    <script src="/static/permissions.js?v=20260114refactor"></script>
+    <script src="/static/navigation.js?v=20260114refactor"></script>
+    <script src="/static/crud_functions.js?v=20260114refactor"></script>
+    <script src="/static/app.js?v=20260114refactor"></script>
+    
+    <!-- Feature modules (carregam em paralelo) -->
+    <script src="/static/pdf_functions.js?v=20250113" defer></script>
+    <script src="/static/excel_functions.js?v=20250113" defer></script>
+    <script src="/static/analise_functions.js?v=20250113" defer></script>
+    <script src="/static/modals.js?v=20250113" defer></script>
+    
+    <!-- Analytics e monitoring (opcional) -->
+    <!-- <script src="/static/analytics.js" defer></script> -->
 </body>
 </html>
