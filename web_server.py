@@ -168,14 +168,6 @@ def log_request_info():
     # Log estruturado
     log_request(request, user_id=user_id, proprietario_id=proprietario_id)
     
-    # Detectar dispositivo mobile e redirecionar se configurado
-    # (apenas para páginas HTML, não para API ou static)
-    if not request.path.startswith(('/api/', '/static/', '/login', '/logout')):
-        if should_use_mobile() and user_id:  # Só redirecionar se autenticado
-            # Criar página de redirecionamento para app mobile
-            device_info = get_device_info()
-            return render_template('mobile_redirect.html', device_info=device_info)
-    
     # Breadcrumb para Sentry
     if SENTRY_ENABLED:
         add_breadcrumb(
