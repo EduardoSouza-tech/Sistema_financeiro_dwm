@@ -1582,9 +1582,11 @@ def upload_extrato_ofx():
         
         # Salvar no banco
         usuario = get_usuario_logado()
+        # Usar cliente_id como empresa_id (multi-tenancy)
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         resultado = extrato_functions.salvar_transacoes_extrato(
             database, 
-            usuario['empresa_id'], 
+            empresa_id, 
             conta_bancaria, 
             transacoes
         )
@@ -1614,6 +1616,8 @@ def listar_extratos():
     """Lista transacoes do extrato com filtros"""
     try:
         usuario = get_usuario_logado()
+        # Usar cliente_id como empresa_id (multi-tenancy)
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         
         filtros = {
             'conta_bancaria': request.args.get('conta'),
@@ -1628,7 +1632,7 @@ def listar_extratos():
         
         transacoes = extrato_functions.listar_transacoes_extrato(
             database,
-            usuario['empresa_id'],
+            empresa_id,
             filtros
         )
         
@@ -1666,10 +1670,12 @@ def sugerir_conciliacoes_extrato(transacao_id):
     """Sugere lancamentos para conciliar com uma transacao"""
     try:
         usuario = get_usuario_logado()
+        # Usar cliente_id como empresa_id (multi-tenancy)
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         
         sugestoes = extrato_functions.sugerir_conciliacoes(
             database,
-            usuario['empresa_id'],
+            empresa_id,
             transacao_id
         )
         
