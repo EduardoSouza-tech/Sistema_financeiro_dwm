@@ -45,42 +45,50 @@
     
     <!-- Funções essenciais disponíveis imediatamente -->
     <script>
-        // Função para toggle de submenus - COM DEBUG
-        function toggleSubmenu(submenuId) {
-            console.log('🔍 toggleSubmenu chamada com ID:', submenuId);
-            
-            const submenu = document.getElementById('submenu-' + submenuId);
-            const button = document.getElementById('btn-' + submenuId);
-            
-            console.log('📍 Submenu element:', submenu);
-            console.log('📍 Button element:', button);
-            
-            if (!submenu || !button) {
-                console.error('❌ Elementos não encontrados!');
-                console.error('   submenu ID procurado:', 'submenu-' + submenuId);
-                console.error('   button ID procurado:', 'btn-' + submenuId);
-                return;
+        // Função para toggle de submenus - COM DEBUG E PROTEÇÃO DE ERRO
+        window.toggleSubmenu = function(submenuId) {
+            try {
+                console.log('🔍 toggleSubmenu chamada com ID:', submenuId);
+                
+                const submenu = document.getElementById('submenu-' + submenuId);
+                const button = document.getElementById('btn-' + submenuId);
+                
+                console.log('📍 Submenu element:', submenu);
+                console.log('📍 Button element:', button);
+                
+                if (!submenu || !button) {
+                    console.error('❌ Elementos não encontrados!');
+                    console.error('   submenu ID procurado:', 'submenu-' + submenuId);
+                    console.error('   button ID procurado:', 'btn-' + submenuId);
+                    return;
+                }
+                
+                // Verificar estado atual
+                const currentDisplay = window.getComputedStyle(submenu).display;
+                const isHidden = currentDisplay === 'none';
+                
+                console.log('📊 Display atual:', currentDisplay);
+                console.log('📊 Está oculto?', isHidden);
+                
+                if (isHidden) {
+                    console.log('➡️ Mostrando submenu...');
+                    submenu.style.display = 'block';
+                    button.classList.add('active');
+                } else {
+                    console.log('➡️ Ocultando submenu...');
+                    submenu.style.display = 'none';
+                    button.classList.remove('active');
+                }
+                
+                console.log('✅ Toggle concluído. Novo display:', submenu.style.display);
+            } catch (error) {
+                console.error('💥 ERRO em toggleSubmenu:', error);
+                console.error('Stack:', error.stack);
             }
-            
-            // Verificar estado atual
-            const currentDisplay = window.getComputedStyle(submenu).display;
-            const isHidden = currentDisplay === 'none';
-            
-            console.log('📊 Display atual:', currentDisplay);
-            console.log('📊 Está oculto?', isHidden);
-            
-            if (isHidden) {
-                console.log('➡️ Mostrando submenu...');
-                submenu.style.display = 'block';
-                button.classList.add('active');
-            } else {
-                console.log('➡️ Ocultando submenu...');
-                submenu.style.display = 'none';
-                button.classList.remove('active');
-            }
-            
-            console.log('✅ Toggle concluído. Novo display:', submenu.style.display);
-        }
+        };
+        
+        // Garantir que está no escopo global
+        console.log('✅ toggleSubmenu definida no escopo window');
         
         // Função para mostrar seções
         function showSection(sectionId) {

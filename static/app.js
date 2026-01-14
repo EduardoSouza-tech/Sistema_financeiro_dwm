@@ -673,9 +673,11 @@ async function loadPageData(pageName) {
 }
 
 /**
- * Toggle submenu na sidebar
- * @param {string} submenuName - Nome do submenu
+ * Toggle submenu na sidebar - DESABILITADA
+ * Função movida para interface_nova.html (HEAD) com implementação correta
+ * Esta versão antiga usava classList.toggle('open') que não funcionava
  */
+/*
 function toggleSubmenu(submenuName) {
     try {
         const submenu = getElement(`submenu-${submenuName}`, 'toggleSubmenu');
@@ -686,6 +688,7 @@ function toggleSubmenu(submenuName) {
         logError('toggleSubmenu', error, { submenuName });
     }
 }
+*/
 
 // ============================================================================
 // MODAIS
