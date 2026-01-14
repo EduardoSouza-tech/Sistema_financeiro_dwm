@@ -1322,7 +1322,7 @@
             </button>
             
             <!-- Menu Financeiro com Submenu -->
-            <button class="nav-button" onclick="toggleSubmenu('financeiro')" id="btn-financeiro" data-permission="lancamentos_view">
+            <button class="nav-button" onclick="console.log('🖱️ BOTÃO FINANCEIRO CLICADO!'); toggleSubmenu('financeiro')" id="btn-financeiro" data-permission="lancamentos_view">
                 💰 Financeiro ▼
             </button>
             <div class="submenu" id="submenu-financeiro" style="display: none;">
@@ -1331,7 +1331,7 @@
             </div>
             
             <!-- Menu de Relatórios com Submenu -->
-            <button class="nav-button" onclick="toggleSubmenu('relatorios')" id="btn-relatorios" data-permission="relatorios_view">
+            <button class="nav-button" onclick="console.log('🖱️ BOTÃO RELATÓRIOS CLICADO!'); toggleSubmenu('relatorios')" id="btn-relatorios" data-permission="relatorios_view">
                 📊 Relatórios ▼
             </button>
             <div class="submenu" id="submenu-relatorios" style="display: none;">
@@ -3640,6 +3640,15 @@
             
             // Verificar se toggleSubmenu está disponível
             console.log('🔍 Verificando função toggleSubmenu:', typeof toggleSubmenu);
+            
+            // TESTE: Adicionar listener de click nos botões de submenu para debug
+            document.querySelectorAll('[id^="btn-"]').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    console.log('🔴 CLICK EVENT CAPTURADO no botão:', this.id);
+                    console.log('   Target:', e.target);
+                    console.log('   CurrentTarget:', e.currentTarget);
+                });
+            });
             
             // Verificar autenticação primeiro
             console.log('🔐 Chamando checkUserAuth...');
