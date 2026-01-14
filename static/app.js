@@ -23,11 +23,18 @@ document.addEventListener('DOMContentLoaded', function() {
     tresMesesFrente.setMonth(tresMesesFrente.getMonth() + 3);
     const tresMesesFrenteStr = tresMesesFrente.toISOString().split('T')[0];
     
-    document.getElementById('fluxo-data-inicio').value = umMesAtrasStr;
-    document.getElementById('fluxo-data-fim').value = hoje;
-    document.getElementById('analise-data-inicio').value = umMesAtrasStr;
-    document.getElementById('analise-data-fim').value = hoje;
-    document.getElementById('projecao-data-final').value = tresMesesFrenteStr;
+    // Definir datas padrão apenas se os elementos existirem
+    const fluxoDataInicio = document.getElementById('fluxo-data-inicio');
+    const fluxoDataFim = document.getElementById('fluxo-data-fim');
+    const analiseDataInicio = document.getElementById('analise-data-inicio');
+    const analiseDataFim = document.getElementById('analise-data-fim');
+    const projecaoDataFinal = document.getElementById('projecao-data-final');
+    
+    if (fluxoDataInicio) fluxoDataInicio.value = umMesAtrasStr;
+    if (fluxoDataFim) fluxoDataFim.value = hoje;
+    if (analiseDataInicio) analiseDataInicio.value = umMesAtrasStr;
+    if (analiseDataFim) analiseDataFim.value = hoje;
+    if (projecaoDataFinal) projecaoDataFinal.value = tresMesesFrenteStr;
     
     // Preencher anos no Comparativo de Períodos
     const anoAtual = new Date().getFullYear();
