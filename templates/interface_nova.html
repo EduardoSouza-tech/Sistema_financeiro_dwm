@@ -3513,10 +3513,31 @@
         
         // Verificar usuário logado
         async function checkUserAuth() {
-            // As funções de permissão estão no app.js
-            // Chamamos apenas a função de lá
-            if (typeof carregarPermissoesUsuario === 'function') {
-                await carregarPermissoesUsuario();
+            try {
+                // Verificar autenticação e carregar dados do usuário
+                const response = await fetch('/api/auth/verify');
+                const data = await response.json();
+                
+                if (data.success && data.authenticated && data.usuario) {
+                    // Atualizar nome do usuário na sidebar
+                    const userElement = document.getElementById('userNameSidebar');
+                    if (userElement) {
+                        const nome = data.usuario.nome_completo || data.usuario.username || 'Usuário';
+                        userElement.textContent = `👤 ${nome}`;
+                    }
+                    
+                    // Carregar permissões se necessário (app.js)
+                    if (typeof carregarPermissoesUsuario === 'function') {
+                        await carregarPermissoesUsuario();
+                    }
+                } else {
+                    // Não autenticado, redirecionar para login
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Erro ao verificar autenticação:', error);
+                // Em caso de erro, também redirecionar para login
+                window.location.href = '/login';
             }
         }
         
@@ -3912,37 +3933,7 @@
             });
         }
 
-        function toggleSubmenu(submenuId) {
-            console.log('%c 🔍 DEBUG - toggleSubmenu() chamada ', 'background: #9C27B0; color: white; font-weight: bold; padding: 4px;');
-            console.log('  📍 submenuId:', submenuId);
-            
-            const submenu = document.getElementById('submenu-' + submenuId);
-            const button = document.getElementById('btn-' + submenuId);
-            
-            console.log('  🎯 submenu element:', submenu ? '✅ Encontrado' : '❌ NÃO ENCONTRADO');
-            console.log('  🎯 button element:', button ? '✅ Encontrado' : '❌ NÃO ENCONTRADO');
-            
-            if (!submenu || !button) {
-                console.warn('  ⚠️ Elementos não encontrados, abortando toggleSubmenu');
-                return;
-            }
-            
-            // Alternar visibilidade do submenu
-            const isHidden = submenu.style.display === 'none' || submenu.style.display === '';
-            console.log('  📊 Estado atual:', isHidden ? 'Oculto' : 'Visível');
-            
-            if (isHidden) {
-                console.log('  ➡️ Mostrando submenu');
-                submenu.style.display = 'block';
-                button.classList.add('active');
-            } else {
-                console.log('  ➡️ Ocultando submenu');
-                submenu.style.display = 'none';
-                button.classList.remove('active');
-            }
-            
-            console.log('%c ✅ toggleSubmenu() finalizada ', 'background: #4CAF50; color: white; font-weight: bold; padding: 4px;');
-        }
+        // toggleSubmenu() já definida no HEAD - não redefinir aqui
 
         // ====================================
         // SISTEMA DE NOTIFICAÇÕES TOAST
