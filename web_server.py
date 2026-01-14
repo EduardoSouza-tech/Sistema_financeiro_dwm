@@ -2260,7 +2260,7 @@ def index():
         return render_template('login.html')
     
     # Passa o timestamp de build para o template
-    return render_template('index.html', build_timestamp=BUILD_TIMESTAMP)
+    return render_template('interface_nova.html', build_timestamp=BUILD_TIMESTAMP)
 
 @app.route('/old')
 @require_auth

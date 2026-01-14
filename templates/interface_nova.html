@@ -3,10 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Meta tags anti-cache -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    
     <title>Sistema Financeiro</title>
+    
+    <!-- 🔥 BUILD: {{ build_timestamp }} - SEMPRE ATUALIZADO 🔥 -->
+    
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     
     <!-- SUPRESSOR DE ERROS DE EXTENSÕES - DEVE SER A PRIMEIRA COISA -->
@@ -4098,11 +4104,21 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <script src="/static/app.js?v=20250113final"></script>
-    <script src="/static/pdf_functions.js?v=20250113"></script>
-    <script src="/static/excel_functions.js?v=20250113"></script>
-    <script src="/static/analise_functions.js?v=20250113"></script>
-    <script src="/static/modals.js?v=20250113"></script>
+    <script src="/static/app.js?v={{ build_timestamp }}"></script>
+    <script src="/static/pdf_functions.js?v={{ build_timestamp }}"></script>
+    <script src="/static/excel_functions.js?v={{ build_timestamp }}"></script>
+    <script src="/static/analise_functions.js?v={{ build_timestamp }}"></script>
+    <script src="/static/modals.js?v={{ build_timestamp }}"></script>
+    
+    <!-- Service Worker para controle de cache -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/service-worker.js?v={{ build_timestamp }}')
+                .then(reg => console.log('✅ Service Worker registrado'))
+                .catch(err => console.warn('⚠️ Service Worker erro:', err));
+        }
+    </script>
+    
     <script>
         // Garantir que contas sejam carregadas ao abrir a seção
         setTimeout(() => {
