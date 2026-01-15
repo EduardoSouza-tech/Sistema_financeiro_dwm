@@ -4293,7 +4293,8 @@ def criar_empresa(dados):
                 dados.get('ativo', True)
             ))
             
-            empresa_id = cursor.fetchone()[0]
+            resultado = cursor.fetchone()
+            empresa_id = resultado['id'] if isinstance(resultado, dict) else resultado[0]
             conn.commit()
             cursor.close()
             conn.autocommit = True  # Religar autocommit
@@ -4305,7 +4306,6 @@ def criar_empresa(dados):
         log(f"Erro ao criar empresa: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
-        return {'success': False, 'error': str(e)}
         return {'success': False, 'error': str(e)}
 
 
