@@ -93,8 +93,8 @@ def criar_usuario(dados: Dict, db) -> int:
             'nome_completo': str,
             'email': str,
             'telefone': str (opcional),
-            'cliente_id': int (opcional, obrigatório se tipo='cliente'),
-            'empresa_id': int (aceito como sinônimo de cliente_id),
+            'empresa_id': int (obrigatório se tipo='cliente'),
+            'cliente_id': int (aceito como sinônimo de empresa_id para compatibilidade),
             'created_by': int (id do admin que está criando)
         }
     """
@@ -102,12 +102,12 @@ def criar_usuario(dados: Dict, db) -> int:
     cursor = conn.cursor()
     
     # Validar empresa_id (obrigatório para usuários normais)
-    if dados['tipo'] == 'cliente' and not dados.get('cliente_id') and not dados.get('empresa_id'):
-        raise ValueError("empresa_id é obrigatório para usuários do tipo 'cliente'")
-    
-    # Mapear empresa_id para cliente_id se necessário
-    if 'empresa_id' in dados and 'cliente_id' not in dados:
-        dados['cliente_id'] = dados['empresa_id']
+    if dados['tipo'] == 'cliente':
+        empresa_id = dados.get('empresa_id') or dados.get('cliente_id')
+        if not empresa_id:
+            raise ValueError("empresa_id é obrigatório para usuários do tipo 'cliente'")
+        # Garantir que empresa_id está em dados
+        dados['empresa_id'] = empresa_id
     
     # Validações
     if dados['tipo'] not in ['admin', 'cliente']:
@@ -126,10 +126,13 @@ def criar_usuario(dados: Dict, db) -> int:
     # Hash da senha
     password_hash = hash_password(dados['password'])
     
+    # Determinar empresa_id (usar cliente_id como fallback para compatibilidade)
+    empresa_id = dados.get('empresa_id') or dados.get('cliente_id')
+    
     # Inserir usuário
     cursor.execute("""
         INSERT INTO usuarios 
-        (username, password_hash, tipo, nome_completo, email, telefone, cliente_id, ativo, created_by)
+        (username, password_hash, tipo, nome_completo, email, telefone, empresa_id, ativo, created_by)
         VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE, %s)
         RETURNING id
     """, (
@@ -139,7 +142,7 @@ def criar_usuario(dados: Dict, db) -> int:
         dados['nome_completo'],
         dados['email'],
         dados.get('telefone'),
-        dados.get('cliente_id'),
+        empresa_id,
         dados.get('created_by')
     ))
     

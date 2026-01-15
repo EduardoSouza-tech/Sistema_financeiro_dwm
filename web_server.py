@@ -691,10 +691,10 @@ def gerenciar_usuarios():
             admin = request.usuario
             data['created_by'] = admin['id']
             
-            # Mapear empresa_id para cliente_id (compatibilidade temporária)
-            if 'empresa_id' in data and 'cliente_id' not in data:
-                data['cliente_id'] = data['empresa_id']
-                print(f"⚠️ Mapeando empresa_id={data['empresa_id']} para cliente_id")
+            print(f"📥 Dados recebidos do frontend: {data}")
+            print(f"   - empresa_id: {data.get('empresa_id')}")
+            print(f"   - cliente_id: {data.get('cliente_id')}")
+            print(f"   - tipo: {data.get('tipo')}")
             
             # Validar força da senha
             from auth_functions import validar_senha_forte
