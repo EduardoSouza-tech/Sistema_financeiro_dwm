@@ -634,10 +634,20 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Empresa *</label>
-                    <select id="empresaSelect" class="form-control" required>
-                        <option value="">Carregando empresas...</option>
-                    </select>
+                    <label>Empresas * <small style="color: #666;">(Selecione ao menos uma)</small></label>
+                    <div id="empresasCheckboxList" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background: #f9f9f9;">
+                        <p style="color: #999; text-align: center;">Carregando empresas...</p>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="background: #e3f2fd; padding: 10px; border-radius: 5px; border-left: 4px solid #2196F3;">
+                    <label style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                        <input type="checkbox" id="defineEmpresaPadrao" style="width: auto;">
+                        <span>⭐ Definir empresa padrão para este usuário</span>
+                    </label>
+                    <small style="color: #666; display: block; margin-top: 5px; margin-left: 28px;">
+                        Marque este checkbox e selecione apenas UMA empresa acima para defini-la como padrão.
+                    </small>
                 </div>
 
                 <div class="form-group">
@@ -1168,6 +1178,56 @@
             });
         }
 
+        // 🆕 MULTI-EMPRESA: Popular checkboxes de empresas
+        function populateEmpresasCheckboxes(empresasVinculadas = []) {
+            const container = document.getElementById('empresasCheckboxList');
+            
+            if (allCompanies.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center;">Nenhuma empresa disponível</p>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            const empresasVinculadasIds = empresasVinculadas.map(e => e.empresa_id);
+            const empresaPadraoId = empresasVinculadas.find(e => e.is_empresa_padrao)?.empresa_id;
+            
+            allCompanies.filter(c => c.ativo).forEach(company => {
+                const isChecked = empresasVinculadasIds.includes(company.id);
+                const isPadrao = company.id === empresaPadraoId;
+                
+                const div = document.createElement('div');
+                div.style.cssText = 'padding: 8px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px;';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.name = 'empresas';
+                checkbox.value = company.id;
+                checkbox.id = `empresa_${company.id}`;
+                checkbox.checked = isChecked;
+                checkbox.style.cssText = 'width: auto; margin: 0;';
+                
+                const label = document.createElement('label');
+                label.htmlFor = `empresa_${company.id}`;
+                label.style.cssText = 'margin: 0; cursor: pointer; flex: 1;';
+                label.innerHTML = `
+                    <strong>${company.razao_social}</strong>
+                    ${isPadrao ? '<span style="color: #FFB300; margin-left: 8px;">⭐ Padrão</span>' : ''}
+                    <br>
+                    <small style="color: #666;">${company.cnpj || 'Sem CNPJ'}</small>
+                `;
+                
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                container.appendChild(div);
+            });
+            
+            // Atualizar checkbox de empresa padrão se houver
+            if (empresaPadraoId) {
+                document.getElementById('defineEmpresaPadrao').checked = true;
+            }
+        }
+
         // Abrir modal de nova empresa
         function openNewCompanyModal() {
             document.getElementById('companyModalTitle').textContent = 'Nova Empresa';
@@ -1669,13 +1729,12 @@
                 await loadCompanies();
             } else {
                 console.log('🔍 [openNewUserModal] Empresas já carregadas:', allCompanies.length);
-                // Garantir que o select está populado
-                populateEmpresaSelect();
             }
             
             document.getElementById('modalTitle').textContent = 'Novo Usuário';
             document.getElementById('userForm').reset();
             document.getElementById('userId').value = '';
+            populateEmpresasCheckboxes(); // Nova função para checkboxes
             renderModalPermissions();
             document.getElementById('userModal').classList.add('active');
         }
@@ -1689,8 +1748,6 @@
                     await loadCompanies();
                 } else {
                     console.log('🔍 [editUser] Empresas já carregadas:', allCompanies.length);
-                    // Garantir que o select está populado
-                    populateEmpresaSelect();
                 }
                 
                 const response = await fetch(`/api/usuarios/${userId}`, {
@@ -1701,16 +1758,25 @@
                 
                 console.log('🔍 DEBUG - Usuário carregado:', user);
                 console.log('🔍 DEBUG - Nome completo:', user.nome_completo);
-                console.log('🔍 DEBUG - Empresa ID:', user.empresa_id);
-                console.log('🔍 DEBUG - Empresa Nome:', user.empresa_nome);
+                
+                // Carregar empresas vinculadas ao usuário
+                const empresasResponse = await fetch(`/api/admin/usuarios/${userId}/empresas`, {
+                    credentials: 'include'
+                });
+                const empresasData = await empresasResponse.json();
+                const empresasVinculadas = empresasData.success ? empresasData.empresas : [];
+                
+                console.log('🏢 Empresas vinculadas:', empresasVinculadas);
                 
                 document.getElementById('modalTitle').textContent = 'Editar Usuário';
                 document.getElementById('userId').value = user.id;
                 document.getElementById('username').value = user.username;
                 document.getElementById('fullName').value = user.nome_completo || user.nome || '';
-                document.getElementById('empresaSelect').value = user.empresa_id || '';
                 document.getElementById('userTypeSelect').value = user.tipo;
                 document.getElementById('password').value = '';
+                
+                // Popular checkboxes com empresas vinculadas marcadas
+                populateEmpresasCheckboxes(empresasVinculadas);
                 
                 renderModalPermissions(user.permissoes || []);
                 
@@ -1763,12 +1829,27 @@
             const nome = document.getElementById('fullName').value;
             const senha = document.getElementById('password').value;
             const tipo = document.getElementById('userTypeSelect').value;
-            const empresaId = document.getElementById('empresaSelect').value;
             
-            // Validar empresa
-            if (!empresaId) {
-                showAlert('Selecione uma empresa', 'error');
+            // Obter empresas selecionadas
+            const empresasCheckboxes = document.querySelectorAll('input[name="empresas"]:checked');
+            const empresasIds = Array.from(empresasCheckboxes).map(cb => parseInt(cb.value));
+            
+            // Validar empresas
+            if (empresasIds.length === 0) {
+                showAlert('Selecione ao menos uma empresa', 'error');
                 return;
+            }
+            
+            // Verificar empresa padrão
+            const defineEmpresaPadrao = document.getElementById('defineEmpresaPadrao').checked;
+            let empresaIdPadrao = null;
+            
+            if (defineEmpresaPadrao) {
+                if (empresasIds.length !== 1) {
+                    showAlert('Para definir empresa padrão, selecione apenas UMA empresa', 'error');
+                    return;
+                }
+                empresaIdPadrao = empresasIds[0];
             }
             
             // Obter permissões selecionadas
@@ -1778,9 +1859,10 @@
             const data = {
                 username,
                 nome_completo: nome,
-                email: `${username}@sistema.com`,  // Email gerado automaticamente
+                email: `${username}@sistema.com`,
                 tipo,
-                empresa_id: parseInt(empresaId),
+                empresas_ids: empresasIds, // Array de IDs de empresas
+                empresa_id_padrao: empresaIdPadrao,
                 permissoes
             };
             

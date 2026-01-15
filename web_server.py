@@ -1154,9 +1154,17 @@ def gerenciar_usuarios():
             data['created_by'] = admin['id']
             
             print(f"📥 Dados recebidos do frontend: {data}")
-            print(f"   - empresa_id: {data.get('empresa_id')}")
-            print(f"   - cliente_id: {data.get('cliente_id')}")
+            print(f"   - empresas_ids: {data.get('empresas_ids')}")
+            print(f"   - empresa_id_padrao: {data.get('empresa_id_padrao')}")
             print(f"   - tipo: {data.get('tipo')}")
+            
+            # Validar empresas
+            empresas_ids = data.get('empresas_ids', [])
+            if not empresas_ids or len(empresas_ids) == 0:
+                return jsonify({
+                    'success': False,
+                    'error': 'Selecione ao menos uma empresa'
+                }), 400
             
             # Validar força da senha
             from auth_functions import validar_senha_forte
@@ -1168,11 +1176,33 @@ def gerenciar_usuarios():
                         'error': f'Senha fraca: {mensagem}'
                     }), 400
             
+            # 🏢 MULTI-EMPRESA: Usar primeira empresa para criação (compatibilidade)
+            data['empresa_id'] = empresas_ids[0]
+            
             print(f"📝 Dados para criar_usuario: {data}")
             usuario_id = auth_db.criar_usuario(data)
             print(f"✅ Usuário criado com ID: {usuario_id}")
             
-            # Conceder permissões se fornecidas
+            # 🏢 MULTI-EMPRESA: Criar vínculos na tabela usuario_empresas
+            from auth_functions import vincular_usuario_empresa
+            empresa_id_padrao = data.get('empresa_id_padrao')
+            
+            for empresa_id in empresas_ids:
+                is_padrao = (empresa_id == empresa_id_padrao)
+                
+                print(f"🔗 Vinculando usuário {usuario_id} à empresa {empresa_id} (padrão: {is_padrao})")
+                
+                vincular_usuario_empresa(
+                    usuario_id=usuario_id,
+                    empresa_id=empresa_id,
+                    papel='usuario',  # Papel padrão
+                    permissoes=data.get('permissoes', []),
+                    is_padrao=is_padrao,
+                    criado_por=admin['id'],
+                    db=auth_db
+                )
+            
+            # Conceder permissões globais se fornecidas (legado)
             if 'permissoes' in data:
                 print(f"🔑 Concedendo {len(data['permissoes'])} permissões")
                 auth_db.sincronizar_permissoes_usuario(
@@ -1185,7 +1215,7 @@ def gerenciar_usuarios():
             auth_db.registrar_log_acesso(
                 usuario_id=admin['id'],
                 acao='create_user',
-                descricao=f'Usuário criado: {data["username"]}',
+                descricao=f'Usuário criado: {data["username"]} com {len(empresas_ids)} empresa(s)',
                 ip_address=request.remote_addr,
                 sucesso=True
             )
@@ -1233,6 +1263,8 @@ def gerenciar_usuario_especifico(usuario_id):
             data = request.json
             admin = request.usuario
             
+            print(f"📥 Atualizando usuário {usuario_id}: {data}")
+            
             # Validar força da senha se estiver sendo alterada
             if 'password' in data and data['password']:
                 from auth_functions import validar_senha_forte
@@ -1249,7 +1281,62 @@ def gerenciar_usuario_especifico(usuario_id):
             if not success:
                 return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
             
-            # Atualizar permissões se fornecidas
+            # 🏢 MULTI-EMPRESA: Atualizar vínculos se empresas_ids fornecido
+            if 'empresas_ids' in data:
+                from auth_functions import (
+                    vincular_usuario_empresa,
+                    remover_usuario_empresa,
+                    listar_empresas_usuario
+                )
+                
+                empresas_ids = data['empresas_ids']
+                empresa_id_padrao = data.get('empresa_id_padrao')
+                
+                # Obter empresas atuais
+                empresas_atuais = listar_empresas_usuario(usuario_id, auth_db)
+                empresas_atuais_ids = [e['empresa_id'] for e in empresas_atuais]
+                
+                # Remover vínculos que não estão mais selecionados
+                for empresa_id_atual in empresas_atuais_ids:
+                    if empresa_id_atual not in empresas_ids:
+                        print(f"🗑️ Removendo vínculo com empresa {empresa_id_atual}")
+                        remover_usuario_empresa(usuario_id, empresa_id_atual, auth_db)
+                
+                # Adicionar novos vínculos
+                for empresa_id in empresas_ids:
+                    if empresa_id not in empresas_atuais_ids:
+                        is_padrao = (empresa_id == empresa_id_padrao)
+                        print(f"➕ Adicionando vínculo com empresa {empresa_id} (padrão: {is_padrao})")
+                        
+                        vincular_usuario_empresa(
+                            usuario_id=usuario_id,
+                            empresa_id=empresa_id,
+                            papel='usuario',
+                            permissoes=data.get('permissoes', []),
+                            is_padrao=is_padrao,
+                            criado_por=admin['id'],
+                            db=auth_db
+                        )
+                    else:
+                        # Atualizar empresa padrão se necessário
+                        from auth_functions import atualizar_usuario_empresa
+                        is_padrao = (empresa_id == empresa_id_padrao)
+                        
+                        # Obter vínculo atual
+                        vinculo_atual = next((e for e in empresas_atuais if e['empresa_id'] == empresa_id), None)
+                        
+                        if vinculo_atual and vinculo_atual.get('is_empresa_padrao') != is_padrao:
+                            print(f"🔄 Atualizando vínculo com empresa {empresa_id} (padrão: {is_padrao})")
+                            atualizar_usuario_empresa(
+                                usuario_id=usuario_id,
+                                empresa_id=empresa_id,
+                                papel=vinculo_atual.get('papel', 'usuario'),
+                                permissoes=data.get('permissoes', []),
+                                is_padrao=is_padrao,
+                                db=auth_db
+                            )
+            
+            # Atualizar permissões globais se fornecidas (legado)
             if 'permissoes' in data:
                 auth_db.sincronizar_permissoes_usuario(
                     usuario_id,
@@ -1273,6 +1360,8 @@ def gerenciar_usuario_especifico(usuario_id):
             
         except Exception as e:
             print(f"❌ Erro ao atualizar usuário: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
     
     else:  # DELETE
