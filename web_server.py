@@ -691,6 +691,11 @@ def gerenciar_usuarios():
             admin = request.usuario
             data['created_by'] = admin['id']
             
+            # Mapear empresa_id para cliente_id (compatibilidade temporária)
+            if 'empresa_id' in data and 'cliente_id' not in data:
+                data['cliente_id'] = data['empresa_id']
+                print(f"⚠️ Mapeando empresa_id={data['empresa_id']} para cliente_id")
+            
             # Validar força da senha
             from auth_functions import validar_senha_forte
             if 'password' in data:
@@ -701,10 +706,13 @@ def gerenciar_usuarios():
                         'error': f'Senha fraca: {mensagem}'
                     }), 400
             
+            print(f"📝 Dados para criar_usuario: {data}")
             usuario_id = auth_db.criar_usuario(data)
+            print(f"✅ Usuário criado com ID: {usuario_id}")
             
             # Conceder permissões se fornecidas
             if 'permissoes' in data:
+                print(f"🔑 Concedendo {len(data['permissoes'])} permissões")
                 auth_db.sincronizar_permissoes_usuario(
                     usuario_id,
                     data['permissoes'],

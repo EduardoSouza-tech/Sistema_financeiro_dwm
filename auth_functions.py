@@ -94,11 +94,20 @@ def criar_usuario(dados: Dict, db) -> int:
             'email': str,
             'telefone': str (opcional),
             'cliente_id': int (opcional, obrigatório se tipo='cliente'),
+            'empresa_id': int (aceito como sinônimo de cliente_id),
             'created_by': int (id do admin que está criando)
         }
     """
     conn = db.get_connection()
     cursor = conn.cursor()
+    
+    # Validar empresa_id (obrigatório para usuários normais)
+    if dados['tipo'] == 'cliente' and not dados.get('cliente_id') and not dados.get('empresa_id'):
+        raise ValueError("empresa_id é obrigatório para usuários do tipo 'cliente'")
+    
+    # Mapear empresa_id para cliente_id se necessário
+    if 'empresa_id' in dados and 'cliente_id' not in dados:
+        dados['cliente_id'] = dados['empresa_id']
     
     # Validações
     if dados['tipo'] not in ['admin', 'cliente']:
