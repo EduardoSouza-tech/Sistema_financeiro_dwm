@@ -1257,7 +1257,7 @@ def gerenciar_usuario_especifico(usuario_id):
             
             print(f"   🔄 Convertendo para dict...")
             # Converter para dict se necessário
-            usuario_dict = dict(usuario) if not isinstance(usuario, dict) else usuario
+            usuario_dict = dict(usuario) if not isinstance(usuario, dict) else usuario.copy()
             print(f"   ✅ Dict criado. Keys: {list(usuario_dict.keys())}")
             
             print(f"   🔄 Serializando campos datetime...")
@@ -1265,8 +1265,19 @@ def gerenciar_usuario_especifico(usuario_id):
             datetime_fields = ['created_at', 'ultima_sessao', 'updated_at', 'ultimo_acesso']
             for field in datetime_fields:
                 if field in usuario_dict and usuario_dict[field]:
-                    print(f"      - {field}: {type(usuario_dict[field])} → str")
-                    usuario_dict[field] = str(usuario_dict[field])
+                    try:
+                        print(f"      - {field}: {type(usuario_dict[field])} → str")
+                        usuario_dict[field] = str(usuario_dict[field])
+                    except Exception as e:
+                        print(f"      ⚠️ Erro ao serializar {field}: {e}")
+                        usuario_dict[field] = None
+            
+            # Garantir que empresa_id é int ou None
+            if 'empresa_id' in usuario_dict and usuario_dict['empresa_id']:
+                try:
+                    usuario_dict['empresa_id'] = int(usuario_dict['empresa_id'])
+                except:
+                    usuario_dict['empresa_id'] = None
             
             print(f"   🔄 Obtendo permissões...")
             # Incluir permissões
