@@ -326,10 +326,10 @@ def listar_usuarios(db, apenas_ativos: bool = True) -> List[Dict]:
     
     query = """
         SELECT u.id, u.username, u.tipo, u.nome_completo, u.email, u.telefone,
-               u.ativo, u.cliente_id, u.ultimo_acesso, u.created_at,
-               c.nome as cliente_nome
+               u.ativo, u.empresa_id, u.ultimo_acesso, u.created_at,
+               e.razao_social as empresa_nome
         FROM usuarios u
-        LEFT JOIN clientes c ON u.cliente_id = c.id
+        LEFT JOIN empresas e ON u.empresa_id = e.id
     """
     
     if apenas_ativos:
@@ -352,10 +352,10 @@ def obter_usuario(usuario_id: int, db) -> Optional[Dict]:
     
     cursor.execute("""
         SELECT u.id, u.username, u.tipo, u.nome_completo, u.email, u.telefone,
-               u.ativo, u.cliente_id, u.ultimo_acesso, u.created_at,
-               c.nome as cliente_nome
+               u.ativo, u.empresa_id, u.ultimo_acesso, u.created_at,
+               e.razao_social as empresa_nome
         FROM usuarios u
-        LEFT JOIN clientes c ON u.cliente_id = c.id
+        LEFT JOIN empresas e ON u.empresa_id = e.id
         WHERE u.id = %s
     """, (usuario_id,))
     
