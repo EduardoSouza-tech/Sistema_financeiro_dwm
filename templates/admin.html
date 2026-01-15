@@ -1195,10 +1195,14 @@
                 plano: document.getElementById('plano').value
             };
             
+            console.log('📤 [saveCompany] Dados a enviar:', data);
+            console.log('📤 [saveCompany] CSRF Token:', getCsrfToken());
+            
             try {
                 let response;
                 
                 if (companyId) {
+                    console.log('📝 [saveCompany] Editando empresa ID:', companyId);
                     response = await fetch(`/api/empresas/${companyId}`, {
                         method: 'PUT',
                         headers: { 
@@ -1209,6 +1213,7 @@
                         body: JSON.stringify(data)
                     });
                 } else {
+                    console.log('➕ [saveCompany] Criando nova empresa');
                     response = await fetch('/api/empresas', {
                         method: 'POST',
                         headers: { 
@@ -1220,14 +1225,20 @@
                     });
                 }
                 
+                console.log('📥 [saveCompany] Response status:', response.status);
+                console.log('📥 [saveCompany] Response ok:', response.ok);
+                
                 if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ [saveCompany] Resultado:', result);
                     showAlert('Empresa salva com sucesso!', 'success');
                     closeCompanyModal();
                     await loadCompanies();
                     await loadUsers(); // Recarregar usuários para atualizar relações
                 } else {
                     const error = await response.json();
-                    showAlert(error.error || 'Erro ao salvar empresa', 'error');
+                    console.error('❌ [saveCompany] Erro do servidor:', error);
+                    showAlert(error.error || error.message || 'Erro ao salvar empresa', 'error');
                 }
             } catch (error) {
                 console.error('Erro ao salvar empresa:', error);
