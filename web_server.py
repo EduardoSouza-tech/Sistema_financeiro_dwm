@@ -1262,15 +1262,11 @@ def gerenciar_usuario_especifico(usuario_id):
             
             print(f"   🔄 Serializando campos datetime...")
             # Converter datetime para string (JSON serializable)
-            if 'created_at' in usuario_dict and usuario_dict['created_at']:
-                print(f"      - created_at: {type(usuario_dict['created_at'])} → str")
-                usuario_dict['created_at'] = str(usuario_dict['created_at'])
-            if 'ultima_sessao' in usuario_dict and usuario_dict['ultima_sessao']:
-                print(f"      - ultima_sessao: {type(usuario_dict['ultima_sessao'])} → str")
-                usuario_dict['ultima_sessao'] = str(usuario_dict['ultima_sessao'])
-            if 'updated_at' in usuario_dict and usuario_dict['updated_at']:
-                print(f"      - updated_at: {type(usuario_dict['updated_at'])} → str")
-                usuario_dict['updated_at'] = str(usuario_dict['updated_at'])
+            datetime_fields = ['created_at', 'ultima_sessao', 'updated_at', 'ultimo_acesso']
+            for field in datetime_fields:
+                if field in usuario_dict and usuario_dict[field]:
+                    print(f"      - {field}: {type(usuario_dict[field])} → str")
+                    usuario_dict[field] = str(usuario_dict[field])
             
             print(f"   🔄 Obtendo permissões...")
             # Incluir permissões
