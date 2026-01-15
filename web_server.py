@@ -1171,19 +1171,24 @@ def adicionar_cliente():
 
 @app.route('/api/clientes/<path:nome>', methods=['PUT', 'DELETE'])  # type: ignore
 @require_permission('clientes_edit')
+@aplicar_filtro_cliente
 def modificar_cliente(nome):
-    """Atualiza ou remove um cliente"""
+    """Atualiza ou remove um cliente com validação de empresa"""
+    filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
+    
     if request.method == 'PUT':
         try:
             data = request.json
             print(f"\n=== Atualizando cliente ===")
             print(f"URL recebida: {request.url}")
             print(f"Nome da URL (raw): '{nome}'")
-            print(f"Nome da URL (tipo): {type(nome)}")
             print(f"Dados recebidos: {data}")
-            if data:
-                print(f"Novo nome nos dados: '{data.get('nome')}'")
-                print(f"Nova razão social nos dados: '{data.get('razao_social')}'")
+            
+            # Validar propriedade antes de atualizar (se não for admin)
+            if filtro_cliente_id is not None:
+                cliente_atual = db.obter_cliente_por_nome(nome)
+                if not cliente_atual or cliente_atual.get('proprietario_id') != filtro_cliente_id:
+                    return jsonify({'success': False, 'error': 'Cliente não encontrado ou sem permissão'}), 403
             
             success = atualizar_cliente(nome, data)
             print(f"Cliente atualizado: {success}")
@@ -1199,6 +1204,12 @@ def modificar_cliente(nome):
     
     elif request.method == 'DELETE':
         try:
+            # Validar propriedade antes de deletar (se não for admin)
+            if filtro_cliente_id is not None:
+                cliente_atual = db.obter_cliente_por_nome(nome)
+                if not cliente_atual or cliente_atual.get('proprietario_id') != filtro_cliente_id:
+                    return jsonify({'success': False, 'error': 'Cliente não encontrado ou sem permissão'}), 403
+            
             success, mensagem = db.excluir_cliente(nome)
             if success:
                 return jsonify({'success': True, 'message': mensagem})
@@ -1240,11 +1251,20 @@ def adicionar_fornecedor():
 
 @app.route('/api/fornecedores/<path:nome>', methods=['PUT', 'DELETE'])  # type: ignore
 @require_permission('fornecedores_edit')
+@aplicar_filtro_cliente
 def modificar_fornecedor(nome):
-    """Atualiza ou remove um fornecedor"""
+    """Atualiza ou remove um fornecedor com validação de empresa"""
+    filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
+    
     if request.method == 'PUT':
         try:
             data = request.json
+            
+            # Validar propriedade antes de atualizar (se não for admin)
+            if filtro_cliente_id is not None:
+                fornecedor_atual = db.obter_fornecedor_por_nome(nome)
+                if not fornecedor_atual or fornecedor_atual.get('proprietario_id') != filtro_cliente_id:
+                    return jsonify({'success': False, 'error': 'Fornecedor não encontrado ou sem permissão'}), 403
             
             success = atualizar_fornecedor(nome, data)
             return jsonify({'success': success})
@@ -1258,6 +1278,12 @@ def modificar_fornecedor(nome):
     
     elif request.method == 'DELETE':
         try:
+            # Validar propriedade antes de deletar (se não for admin)
+            if filtro_cliente_id is not None:
+                fornecedor_atual = db.obter_fornecedor_por_nome(nome)
+                if not fornecedor_atual or fornecedor_atual.get('proprietario_id') != filtro_cliente_id:
+                    return jsonify({'success': False, 'error': 'Fornecedor não encontrado ou sem permissão'}), 403
+            
             success, mensagem = db.excluir_fornecedor(nome)
             if success:
                 return jsonify({'success': True, 'message': mensagem})

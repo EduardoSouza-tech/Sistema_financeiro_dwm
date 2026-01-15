@@ -181,8 +181,8 @@ def require_permission(permission_code: str):
 
 def filtrar_por_cliente(query_result, usuario):
     """
-    Filtra resultados de query para mostrar apenas dados do cliente logado
-    Admin vê tudo, cliente vê apenas seus dados
+    Filtra resultados de query para mostrar apenas dados da empresa do usuário
+    Admin vê tudo, usuário normal vê apenas dados da sua empresa
     
     Args:
         query_result: Lista de dicts com resultados da query
@@ -194,22 +194,22 @@ def filtrar_por_cliente(query_result, usuario):
     if usuario.get('tipo') == 'admin':
         return query_result
     
-    if not usuario.get('cliente_id'):
-        return []  # Cliente sem cliente_id associado não vê nada
+    if not usuario.get('empresa_id'):
+        return []  # Usuário sem empresa_id associado não vê nada
     
-    # Filtrar apenas registros onde cliente_id corresponde
+    # Filtrar apenas registros onde empresa_id corresponde
     return [
         item for item in query_result 
-        if item.get('cliente_id') == usuario['cliente_id']
+        if item.get('empresa_id') == usuario['empresa_id']
     ]
 
 
 def aplicar_filtro_cliente(f):
     """
-    Decorador que adiciona filtro automático de cliente ao request
+    Decorador que adiciona filtro automático de empresa ao request
     
     - Admin: Sem filtros (vê tudo)
-    - Cliente: Filtro automático por cliente_id
+    - Usuário: Filtro automático por empresa_id
     
     Uso:
         @app.route('/api/recurso')
@@ -217,7 +217,7 @@ def aplicar_filtro_cliente(f):
         @aplicar_filtro_cliente
         def listar_recurso():
             # request.filtro_cliente_id estará disponível
-            # None para admin, ID do cliente para clientes
+            # None para admin, ID da empresa para usuários normais
             pass
     """
     @wraps(f)
@@ -231,13 +231,13 @@ def aplicar_filtro_cliente(f):
                 'redirect': '/login'
             }), 401
         
-        # Definir filtro de cliente
+        # Definir filtro de empresa
         if usuario['tipo'] == 'admin':
             request.filtro_cliente_id = None  # Admin vê tudo
             print(f"   🔓 Admin: SEM filtros (acesso total)")
         else:
-            request.filtro_cliente_id = usuario.get('cliente_id')
-            print(f"   🔒 Cliente ID {request.filtro_cliente_id}: Apenas dados próprios")
+            request.filtro_cliente_id = usuario.get('empresa_id') or usuario.get('cliente_id')  # Fallback temporário
+            print(f"   🔒 Empresa ID {request.filtro_cliente_id}: Apenas dados próprios")
         
         # Adicionar usuário ao request
         request.usuario = usuario
