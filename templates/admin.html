@@ -426,6 +426,7 @@
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('users')">👥 Usuários</button>
                 <button class="tab" onclick="switchTab('companies')">🏢 Empresas</button>
+                <button class="tab" onclick="switchTab('access')">🔗 Acessos Multi-Empresa</button>
                 <button class="tab" onclick="switchTab('permissions')">🔐 Permissões</button>
                 <button class="tab" onclick="switchTab('logs')">📋 Logs de Acesso</button>
                 <button class="tab" onclick="switchTab('export')">📦 Exportar Dados</button>
@@ -488,6 +489,37 @@
                     </thead>
                     <tbody id="companiesTableBody">
                     </tbody>
+                </table>
+            </div>
+
+            <!-- Tab: Acessos Multi-Empresa -->
+            <div id="accessTab" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h2>Gerenciar Acessos Multi-Empresa</h2>
+                        <p style="color: #666; margin-top: 5px;">Vincule usuários a empresas com permissões específicas</p>
+                    </div>
+                    <button onclick="openNewAccessModal()" class="btn btn-success">➕ Novo Vínculo</button>
+                </div>
+
+                <div id="accessLoading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Carregando acessos...</p>
+                </div>
+
+                <table id="accessTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Usuário</th>
+                            <th>Empresa</th>
+                            <th>Papel</th>
+                            <th>Empresa Padrão</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="accessTableBody"></tbody>
                 </table>
             </div>
 
@@ -687,11 +719,67 @@
         </div>
     </div>
 
+    <!-- Modal: Novo/Editar Acesso Multi-Empresa -->
+    <div id="accessModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="accessModalTitle">Novo Vínculo Usuário-Empresa</h3>
+            </div>
+
+            <form id="accessForm">
+                <input type="hidden" id="accessId">
+                
+                <div class="form-group">
+                    <label>Usuário *</label>
+                    <select id="accessUsuarioSelect" class="form-control" required>
+                        <option value="">Selecione um usuário...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Empresa *</label>
+                    <select id="accessEmpresaSelect" class="form-control" required>
+                        <option value="">Selecione uma empresa...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Papel *</label>
+                    <select id="accessPapelSelect" class="form-control" required>
+                        <option value="usuario">Usuário (acesso conforme permissões)</option>
+                        <option value="admin_empresa">Admin da Empresa (acesso total)</option>
+                        <option value="visualizador">Visualizador (somente leitura)</option>
+                    </select>
+                    <small style="color: #666;">Define o nível de acesso do usuário nesta empresa específica</small>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="accessPadraoCheck">
+                        Definir como empresa padrão (selecionada no login)
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label>Permissões Específicas</label>
+                    <div id="accessPermissionsGrid" class="permissions-grid" style="max-height: 300px; overflow-y: auto;"></div>
+                    <small style="color: #666;">Permissões específicas para esta empresa. Se vazio, usa permissões globais do usuário.</small>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" onclick="closeAccessModal()" class="btn btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         let allPermissions = [];
         let allUsers = [];
         let allClients = [];
         let allCompanies = [];
+        let allAccess = [];
 
         // Verificar autenticação
         async function checkAuth() {
@@ -1191,6 +1279,295 @@
             document.getElementById('companyModal').classList.remove('active');
         }
 
+        // ===================================================================
+        // FUNÇÕES DE ACESSOS MULTI-EMPRESA
+        // ===================================================================
+
+        async function loadAccess() {
+            console.log('[loadAccess] Carregando acessos...');
+            document.getElementById('accessLoading').classList.add('active');
+            document.getElementById('accessTable').style.display = 'none';
+            
+            try {
+                // Carregar usuários e empresas se ainda não foram carregados
+                if (allUsers.length === 0) {
+                    await loadUsers();
+                }
+                if (allCompanies.length === 0) {
+                    await loadCompanies();
+                }
+                
+                // Buscar todos os vínculos usuario-empresa
+                allAccess = [];
+                for (const user of allUsers) {
+                    if (user.tipo !== 'admin') {  // Super admin não tem vínculos
+                        const response = await fetch(`/api/admin/usuarios/${user.id}/empresas`, {
+                            credentials: 'include'
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.empresas && data.empresas.length > 0) {
+                                data.empresas.forEach(emp => {
+                                    allAccess.push({
+                                        usuario_id: user.id,
+                                        usuario_nome: user.nome_completo || user.username,
+                                        empresa_id: emp.id,
+                                        empresa_nome: emp.razao_social,
+                                        papel: emp.papel,
+                                        is_padrao: emp.is_empresa_padrao,
+                                        ativo: emp.acesso_ativo,
+                                        permissoes: emp.permissoes_empresa
+                                    });
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                console.log('[loadAccess] Acessos carregados:', allAccess.length);
+                renderAccessTable();
+            } catch (error) {
+                console.error('Erro ao carregar acessos:', error);
+                showAlert('Erro ao carregar acessos', 'error');
+            } finally {
+                document.getElementById('accessLoading').classList.remove('active');
+            }
+        }
+
+        function renderAccessTable() {
+            const tbody = document.getElementById('accessTableBody');
+            tbody.innerHTML = '';
+
+            if (allAccess.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum vínculo encontrado</td></tr>';
+                document.getElementById('accessTable').style.display = 'table';
+                return;
+            }
+
+            allAccess.forEach((access, index) => {
+                const tr = document.createElement('tr');
+                
+                const papelBadge = {
+                    'admin_empresa': '<span class="badge badge-admin">Admin Empresa</span>',
+                    'usuario': '<span class="badge badge-client">Usuário</span>',
+                    'visualizador': '<span class="badge" style="background: #6c757d;">Visualizador</span>'
+                };
+                
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td><strong>${access.usuario_nome}</strong></td>
+                    <td>${access.empresa_nome}</td>
+                    <td>${papelBadge[access.papel] || access.papel}</td>
+                    <td>${access.is_padrao ? '⭐ Sim' : 'Não'}</td>
+                    <td><span class="badge ${access.ativo ? 'badge-active' : 'badge-inactive'}">${access.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                    <td>
+                        <button onclick="editAccess(${access.usuario_id}, ${access.empresa_id})" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;">✏️ Editar</button>
+                        <button onclick="deleteAccess(${access.usuario_id}, ${access.empresa_id})" class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;">🗑️ Remover</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('accessTable').style.display = 'table';
+        }
+
+        async function openNewAccessModal() {
+            document.getElementById('accessModalTitle').textContent = 'Novo Vínculo Usuário-Empresa';
+            document.getElementById('accessForm').reset();
+            document.getElementById('accessId').value = '';
+            
+            // Popul usuários e empresas
+            await populateAccessUsuarios();
+            await populateAccessEmpresas();
+            
+            // Carregar permissões para seleção
+            await renderAccessPermissions([]);
+            
+            document.getElementById('accessModal').classList.add('active');
+        }
+
+        async function populateAccessUsuarios() {
+            const select = document.getElementById('accessUsuarioSelect');
+            select.innerHTML = '<option value="">Selecione um usuário...</option>';
+            
+            if (allUsers.length === 0) {
+                await loadUsers();
+            }
+            
+            allUsers.filter(u => u.tipo !== 'admin').forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = `${user.nome_completo || user.username} (${user.username})`;
+                select.appendChild(option);
+            });
+        }
+
+        async function populateAccessEmpresas() {
+            const select = document.getElementById('accessEmpresaSelect');
+            select.innerHTML = '<option value="">Selecione uma empresa...</option>';
+            
+            if (allCompanies.length === 0) {
+                await loadCompanies();
+            }
+            
+            allCompanies.filter(c => c.ativo).forEach(company => {
+                const option = document.createElement('option');
+                option.value = company.id;
+                option.textContent = company.razao_social;
+                select.appendChild(option);
+            });
+        }
+
+        async function renderAccessPermissions(selectedPermissions = []) {
+            const grid = document.getElementById('accessPermissionsGrid');
+            grid.innerHTML = '';
+            
+            if (allPermissions.length === 0) {
+                await loadPermissions();
+            }
+            
+            allPermissions.forEach(perm => {
+                const isChecked = selectedPermissions.includes(perm.codigo);
+                const checkbox = `
+                    <label class="permission-item">
+                        <input type="checkbox" name="accessPermissions" value="${perm.codigo}" ${isChecked ? 'checked' : ''}>
+                        <span>${perm.nome}</span>
+                    </label>
+                `;
+                grid.innerHTML += checkbox;
+            });
+        }
+
+        function closeAccessModal() {
+            document.getElementById('accessModal').classList.remove('active');
+        }
+
+        // Submeter formulário de acesso
+        document.getElementById('accessForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const usuario_id = parseInt(document.getElementById('accessUsuarioSelect').value);
+            const empresa_id = parseInt(document.getElementById('accessEmpresaSelect').value);
+            const papel = document.getElementById('accessPapelSelect').value;
+            const is_padrao = document.getElementById('accessPadraoCheck').checked;
+            
+            // Obter permissões selecionadas
+            const permissionsCheckboxes = document.querySelectorAll('input[name="accessPermissions"]:checked');
+            const permissoes = Array.from(permissionsCheckboxes).map(cb => cb.value);
+            
+            const data = {
+                usuario_id,
+                empresa_id,
+                papel,
+                permissoes,
+                is_padrao
+            };
+            
+            try {
+                const accessId = document.getElementById('accessId').value;
+                let response;
+                
+                if (accessId) {
+                    // Atualizar existente
+                    response = await fetch(`/api/admin/usuario-empresas/${usuario_id}/${empresa_id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ papel, permissoes, is_padrao })
+                    });
+                } else {
+                    // Criar novo
+                    response = await fetch('/api/admin/usuario-empresas', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify(data)
+                    });
+                }
+                
+                if (response.ok) {
+                    showAlert('Vínculo salvo com sucesso!', 'success');
+                    closeAccessModal();
+                    await loadAccess();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Erro ao salvar vínculo', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar vínculo:', error);
+                showAlert('Erro ao salvar vínculo', 'error');
+            }
+        });
+
+        async function editAccess(usuario_id, empresa_id) {
+            try {
+                // Buscar dados do vínculo
+                const access = allAccess.find(a => a.usuario_id === usuario_id && a.empresa_id === empresa_id);
+                
+                if (!access) {
+                    showAlert('Vínculo não encontrado', 'error');
+                    return;
+                }
+                
+                document.getElementById('accessModalTitle').textContent = 'Editar Vínculo Usuário-Empresa';
+                document.getElementById('accessId').value = `${usuario_id}_${empresa_id}`;
+                
+                await populateAccessUsuarios();
+                await populateAccessEmpresas();
+                
+                document.getElementById('accessUsuarioSelect').value = usuario_id;
+                document.getElementById('accessUsuarioSelect').disabled = true;
+                document.getElementById('accessEmpresaSelect').value = empresa_id;
+                document.getElementById('accessEmpresaSelect').disabled = true;
+                document.getElementById('accessPapelSelect').value = access.papel;
+                document.getElementById('accessPadraoCheck').checked = access.is_padrao;
+                
+                await renderAccessPermissions(access.permissoes || []);
+                
+                document.getElementById('accessModal').classList.add('active');
+            } catch (error) {
+                console.error('Erro ao editar vínculo:', error);
+                showAlert('Erro ao carregar dados do vínculo', 'error');
+            }
+        }
+
+        async function deleteAccess(usuario_id, empresa_id) {
+            if (!confirm('Tem certeza que deseja remover este vínculo?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/admin/usuario-empresas/${usuario_id}/${empresa_id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    showAlert('Vínculo removido com sucesso!', 'success');
+                    await loadAccess();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Erro ao remover vínculo', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao remover vínculo:', error);
+                showAlert('Erro ao remover vínculo', 'error');
+            }
+        }
+
+        // ===== FIM DAS FUNÇÕES DE ACESSOS MULTI-EMPRESA =====
+
+
         // Submit form de empresa
         document.getElementById('companyForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1472,6 +1849,11 @@
                 if (allCompanies.length === 0) {
                     loadCompanies();
                 }
+            }
+            
+            // Carregar acessos multi-empresa
+            if (tabName === 'access') {
+                loadAccess();
             }
             
             // Se a aba de exportação foi selecionada, carregar os clientes
