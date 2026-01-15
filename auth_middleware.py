@@ -141,22 +141,28 @@ def require_admin(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        usuario = get_usuario_logado()
-        
-        if not usuario:
-            # Se for uma requisição HTML, redirecionar para login
-            if request.path.startswith('/admin') or not request.path.startswith('/api/'):
-                return redirect('/login')
-            return jsonify({
-                'success': False,
-                'error': 'Não autenticado',
-                'redirect': '/login'
-            }), 401
-        
-        # Verificar se é admin (normalizado)
-        tipo_normalizado = usuario.get('tipo', '').strip().lower()
-        
-        if tipo_normalizado != 'admin':
+        try:
+            print(f"\n🔒 [require_admin] Verificando acesso admin para {request.path}")
+            
+            usuario = get_usuario_logado()
+            
+            if not usuario:
+                print(f"   ❌ Usuário não autenticado")
+                # Se for uma requisição HTML, redirecionar para login
+                if request.path.startswith('/admin') or not request.path.startswith('/api/'):
+                    return redirect('/login')
+                return jsonify({
+                    'success': False,
+                    'error': 'Não autenticado',
+                    'redirect': '/login'
+                }), 401
+            
+            # Verificar se é admin (normalizado)
+            tipo_normalizado = usuario.get('tipo', '').strip().lower()
+            print(f"   👤 Usuário: {usuario.get('username')} - Tipo: {tipo_normalizado}")
+            
+            if tipo_normalizado != 'admin':
+                print(f"   ❌ Acesso negado - não é admin")
             # Se for uma requisição HTML, retornar erro HTML
             if request.path.startswith('/admin') or not request.path.startswith('/api/'):
                 return '''
@@ -186,9 +192,21 @@ def require_admin(f):
                 'error': 'Acesso negado - Apenas administradores'
             }), 403
         
+        
         # Adicionar dados do usuário ao request
+        print(f"   ✅ Acesso autorizado - chamando função...")
         request.usuario = usuario
-        return f(*args, **kwargs)
+        result = f(*args, **kwargs)
+        print(f"   ✅ Função executada com sucesso")
+        return result
+        
+        except Exception as e:
+            print(f"\n❌ ERRO em require_admin:")
+            print(f"   Tipo: {type(e).__name__}")
+            print(f"   Mensagem: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': f'Erro interno: {str(e)}'}), 500
     
     return decorated_function
 
