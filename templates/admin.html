@@ -1275,7 +1275,17 @@
         }
 
         // Abrir modal de novo usuário
-        function openNewUserModal() {
+        async function openNewUserModal() {
+            // Carregar empresas se ainda não foram carregadas
+            if (allCompanies.length === 0) {
+                console.log('🔍 [openNewUserModal] Empresas não carregadas, carregando...');
+                await loadCompanies();
+            } else {
+                console.log('🔍 [openNewUserModal] Empresas já carregadas:', allCompanies.length);
+                // Garantir que o select está populado
+                populateEmpresaSelect();
+            }
+            
             document.getElementById('modalTitle').textContent = 'Novo Usuário';
             document.getElementById('userForm').reset();
             document.getElementById('userId').value = '';
