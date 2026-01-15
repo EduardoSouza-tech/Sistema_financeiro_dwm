@@ -1249,13 +1249,27 @@ def gerenciar_usuario_especifico(usuario_id):
                 print(f"   ❌ Usuário {usuario_id} não encontrado")
                 return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
             
+            # Converter para dict se necessário
+            usuario_dict = dict(usuario) if not isinstance(usuario, dict) else usuario
+            
+            # Converter datetime para string (JSON serializable)
+            if 'created_at' in usuario_dict and usuario_dict['created_at']:
+                usuario_dict['created_at'] = str(usuario_dict['created_at'])
+            if 'ultima_sessao' in usuario_dict and usuario_dict['ultima_sessao']:
+                usuario_dict['ultima_sessao'] = str(usuario_dict['ultima_sessao'])
+            if 'updated_at' in usuario_dict and usuario_dict['updated_at']:
+                usuario_dict['updated_at'] = str(usuario_dict['updated_at'])
+            
             # Incluir permissões
             permissoes = auth_db.obter_permissoes_usuario(usuario_id)
-            usuario['permissoes'] = permissoes
+            usuario_dict['permissoes'] = permissoes
             
-            return jsonify(usuario)
+            print(f"   ✅ Retornando usuário com permissões")
+            return jsonify(usuario_dict)
         except Exception as e:
             print(f"❌ Erro ao obter usuário: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
     
     elif request.method == 'PUT':
