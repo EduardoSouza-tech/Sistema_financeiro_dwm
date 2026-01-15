@@ -163,43 +163,42 @@ def require_admin(f):
             
             if tipo_normalizado != 'admin':
                 print(f"   ❌ Acesso negado - não é admin")
-            # Se for uma requisição HTML, retornar erro HTML
-            if request.path.startswith('/admin') or not request.path.startswith('/api/'):
-                return '''
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Acesso Negado</title>
-                    <style>
-                        body { font-family: Arial; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f5; }
-                        .container { text-align: center; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-                        h1 { color: #e74c3c; }
-                        button { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 20px; }
-                        button:hover { background: #2980b9; }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <h1>🚫 Acesso Negado</h1>
-                        <p>Apenas administradores podem acessar esta página.</p>
-                        <button onclick=\"window.location.href='/'\">Voltar ao Dashboard</button>
-                    </div>
-                </body>
-                </html>
-                ''', 403
-            return jsonify({
-                'success': False,
-                'error': 'Acesso negado - Apenas administradores'
-            }), 403
-        
-        
-        # Adicionar dados do usuário ao request
-        print(f"   ✅ Acesso autorizado - chamando função...")
-        request.usuario = usuario
-        result = f(*args, **kwargs)
-        print(f"   ✅ Função executada com sucesso")
-        return result
-        
+                # Se for uma requisição HTML, retornar erro HTML
+                if request.path.startswith('/admin') or not request.path.startswith('/api/'):
+                    return '''
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Acesso Negado</title>
+                        <style>
+                            body { font-family: Arial; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f5; }
+                            .container { text-align: center; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                            h1 { color: #e74c3c; }
+                            button { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 20px; }
+                            button:hover { background: #2980b9; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <h1>🚫 Acesso Negado</h1>
+                            <p>Apenas administradores podem acessar esta página.</p>
+                            <button onclick=\"window.location.href='/'\">Voltar ao Dashboard</button>
+                        </div>
+                    </body>
+                    </html>
+                    ''', 403
+                return jsonify({
+                    'success': False,
+                    'error': 'Acesso negado - Apenas administradores'
+                }), 403
+            
+            # Adicionar dados do usuário ao request
+            print(f"   ✅ Acesso autorizado - chamando função...")
+            request.usuario = usuario
+            result = f(*args, **kwargs)
+            print(f"   ✅ Função executada com sucesso")
+            return result
+            
         except Exception as e:
             print(f"\n❌ ERRO em require_admin:")
             print(f"   Tipo: {type(e).__name__}")
