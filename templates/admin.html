@@ -1107,8 +1107,8 @@
                 console.log('[loadCompanies] Chamando renderCompaniesTable...');
                 renderCompaniesTable();
                 
-                console.log('[loadCompanies] Chamando populateEmpresaSelect...');
-                populateEmpresaSelect();
+                // 🆕 MULTI-EMPRESA: Não chama mais populateEmpresaSelect (elemento não existe)
+                // Os checkboxes são populados diretamente ao abrir os modais
                 
                 console.log('[loadCompanies] FIM - Sucesso');
                 console.log('==========================================');
@@ -1166,17 +1166,8 @@
         }
 
         // Popula o select de empresas no formulário de usuário
-        function populateEmpresaSelect() {
-            const select = document.getElementById('empresaSelect');
-            select.innerHTML = '<option value="">Selecione uma empresa...</option>';
-            
-            allCompanies.filter(c => c.ativo).forEach(company => {
-                const option = document.createElement('option');
-                option.value = company.id;
-                option.textContent = company.razao_social;
-                select.appendChild(option);
-            });
-        }
+        // 🗑️ REMOVIDO: populateEmpresaSelect() - substituído por populateEmpresasCheckboxes()
+        // O select único foi substituído por checkboxes de múltiplas empresas
 
         // 🆕 MULTI-EMPRESA: Popular checkboxes de empresas
         function populateEmpresasCheckboxes(empresasVinculadas = []) {
