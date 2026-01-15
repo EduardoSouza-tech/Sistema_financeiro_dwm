@@ -637,6 +637,363 @@ def change_password():
         }), 500
 
 
+# ===================================================================
+# ROTAS DE GESTÃO MULTI-EMPRESA (Usuário com Acesso a Múltiplas Empresas)
+# ===================================================================
+
+@app.route('/api/auth/minhas-empresas', methods=['GET'])
+@require_auth
+def minhas_empresas():
+    """Lista todas as empresas que o usuário tem acesso"""
+    try:
+        usuario = request.usuario
+        
+        # Super admin tem acesso a todas as empresas
+        if usuario['tipo'] == 'admin':
+            empresas = database.listar_empresas({})
+            return jsonify({
+                'success': True,
+                'empresas': [{
+                    'id': e['id'],
+                    'razao_social': e['razao_social'],
+                    'cnpj': e.get('cnpj'),
+                    'papel': 'admin',
+                    'is_padrao': False,
+                    'permissoes': ['*']  # Todas as permissões
+                } for e in empresas]
+            })
+        
+        # Usuários normais: buscar empresas vinculadas
+        from auth_functions import listar_empresas_usuario
+        empresas = listar_empresas_usuario(usuario['id'], auth_db)
+        
+        if not empresas:
+            return jsonify({
+                'success': True,
+                'empresas': [],
+                'message': 'Usuário não está vinculado a nenhuma empresa'
+            })
+        
+        return jsonify({
+            'success': True,
+            'empresas': empresas
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao listar empresas do usuário: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/auth/switch-empresa', methods=['POST'])
+@require_auth
+def switch_empresa():
+    """Troca a empresa atual do usuário na sessão"""
+    try:
+        data = request.json
+        empresa_id = data.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'empresa_id é obrigatório'
+            }), 400
+        
+        usuario = request.usuario
+        
+        # Super admin pode acessar qualquer empresa
+        if usuario['tipo'] != 'admin':
+            # Validar se usuário tem acesso à empresa
+            from auth_functions import tem_acesso_empresa
+            if not tem_acesso_empresa(usuario['id'], empresa_id, auth_db):
+                return jsonify({
+                    'success': False,
+                    'error': 'Acesso negado a esta empresa'
+                }), 403
+        
+        # Buscar dados da empresa
+        empresa = database.obter_empresa(empresa_id)
+        if not empresa:
+            return jsonify({
+                'success': False,
+                'error': 'Empresa não encontrada'
+            }), 404
+        
+        # Atualizar sessão
+        session['empresa_id'] = empresa_id
+        session.modified = True
+        
+        # Registrar troca de empresa
+        auth_db.registrar_log_acesso(
+            usuario_id=usuario['id'],
+            acao='switch_empresa',
+            descricao=f'Trocou para empresa: {empresa["razao_social"]}',
+            ip_address=request.remote_addr,
+            sucesso=True
+        )
+        
+        # Carregar permissões da nova empresa
+        if usuario['tipo'] != 'admin':
+            from auth_functions import obter_permissoes_usuario_empresa
+            permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
+        else:
+            permissoes = ['*']  # Super admin tem todas as permissões
+        
+        return jsonify({
+            'success': True,
+            'message': 'Empresa alterada com sucesso',
+            'empresa': {
+                'id': empresa['id'],
+                'razao_social': empresa['razao_social'],
+                'cnpj': empresa.get('cnpj')
+            },
+            'permissoes': permissoes
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao trocar empresa: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/auth/empresa-padrao', methods=['PUT'])
+@require_auth
+def definir_empresa_padrao():
+    """Define a empresa padrão do usuário (selecionada automaticamente no login)"""
+    try:
+        data = request.json
+        empresa_id = data.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'empresa_id é obrigatório'
+            }), 400
+        
+        usuario = request.usuario
+        
+        # Super admin não precisa de empresa padrão
+        if usuario['tipo'] == 'admin':
+            return jsonify({
+                'success': False,
+                'error': 'Super admin não precisa de empresa padrão'
+            }), 400
+        
+        # Validar acesso à empresa
+        from auth_functions import tem_acesso_empresa, atualizar_usuario_empresa
+        if not tem_acesso_empresa(usuario['id'], empresa_id, auth_db):
+            return jsonify({
+                'success': False,
+                'error': 'Acesso negado a esta empresa'
+            }), 403
+        
+        # Atualizar empresa padrão
+        sucesso = atualizar_usuario_empresa(
+            usuario['id'], 
+            empresa_id,
+            is_padrao=True,
+            db=auth_db
+        )
+        
+        if not sucesso:
+            return jsonify({
+                'success': False,
+                'error': 'Erro ao definir empresa padrão'
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'message': 'Empresa padrão definida com sucesso'
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao definir empresa padrão: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/admin/usuario-empresas', methods=['POST'])
+@require_admin
+def vincular_usuario_empresa_admin():
+    """Vincula um usuário a uma empresa (apenas admin)"""
+    try:
+        data = request.json
+        usuario_id = data.get('usuario_id')
+        empresa_id = data.get('empresa_id')
+        papel = data.get('papel', 'usuario')
+        permissoes = data.get('permissoes', [])
+        is_padrao = data.get('is_padrao', False)
+        
+        if not usuario_id or not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'usuario_id e empresa_id são obrigatórios'
+            }), 400
+        
+        if papel not in ['admin_empresa', 'usuario', 'visualizador']:
+            return jsonify({
+                'success': False,
+                'error': 'Papel inválido. Use: admin_empresa, usuario ou visualizador'
+            }), 400
+        
+        admin = request.usuario
+        
+        # Vincular usuário à empresa
+        from auth_functions import vincular_usuario_empresa
+        vinculo_id = vincular_usuario_empresa(
+            usuario_id=usuario_id,
+            empresa_id=empresa_id,
+            papel=papel,
+            permissoes=permissoes,
+            is_padrao=is_padrao,
+            criado_por=admin['id'],
+            db=auth_db
+        )
+        
+        # Registrar ação
+        auth_db.registrar_log_acesso(
+            usuario_id=admin['id'],
+            acao='vincular_usuario_empresa',
+            descricao=f'Vinculou usuário {usuario_id} à empresa {empresa_id}',
+            ip_address=request.remote_addr,
+            sucesso=True
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Usuário vinculado à empresa com sucesso',
+            'id': vinculo_id
+        }), 201
+        
+    except Exception as e:
+        print(f"❌ Erro ao vincular usuário à empresa: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/admin/usuario-empresas/<int:usuario_id>/<int:empresa_id>', methods=['PUT'])
+@require_admin
+def atualizar_usuario_empresa_admin(usuario_id: int, empresa_id: int):
+    """Atualiza o vínculo de um usuário com uma empresa (apenas admin)"""
+    try:
+        data = request.json
+        papel = data.get('papel')
+        permissoes = data.get('permissoes')
+        is_padrao = data.get('is_padrao')
+        
+        from auth_functions import atualizar_usuario_empresa
+        sucesso = atualizar_usuario_empresa(
+            usuario_id=usuario_id,
+            empresa_id=empresa_id,
+            papel=papel,
+            permissoes=permissoes,
+            is_padrao=is_padrao,
+            db=auth_db
+        )
+        
+        if not sucesso:
+            return jsonify({
+                'success': False,
+                'error': 'Erro ao atualizar vínculo'
+            }), 500
+        
+        # Registrar ação
+        admin = request.usuario
+        auth_db.registrar_log_acesso(
+            usuario_id=admin['id'],
+            acao='atualizar_usuario_empresa',
+            descricao=f'Atualizou vínculo do usuário {usuario_id} com empresa {empresa_id}',
+            ip_address=request.remote_addr,
+            sucesso=True
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Vínculo atualizado com sucesso'
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao atualizar vínculo: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/admin/usuario-empresas/<int:usuario_id>/<int:empresa_id>', methods=['DELETE'])
+@require_admin
+def remover_usuario_empresa_admin(usuario_id: int, empresa_id: int):
+    """Remove o vínculo de um usuário com uma empresa (apenas admin)"""
+    try:
+        from auth_functions import remover_usuario_empresa
+        sucesso = remover_usuario_empresa(usuario_id, empresa_id, auth_db)
+        
+        if not sucesso:
+            return jsonify({
+                'success': False,
+                'error': 'Erro ao remover vínculo'
+            }), 500
+        
+        # Registrar ação
+        admin = request.usuario
+        auth_db.registrar_log_acesso(
+            usuario_id=admin['id'],
+            acao='remover_usuario_empresa',
+            descricao=f'Removeu vínculo do usuário {usuario_id} com empresa {empresa_id}',
+            ip_address=request.remote_addr,
+            sucesso=True
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Vínculo removido com sucesso'
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao remover vínculo: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/admin/usuarios/<int:usuario_id>/empresas', methods=['GET'])
+@require_admin
+def listar_empresas_do_usuario_admin(usuario_id: int):
+    """Lista todas as empresas que um usuário tem acesso (apenas admin)"""
+    try:
+        from auth_functions import listar_empresas_usuario
+        empresas = listar_empresas_usuario(usuario_id, auth_db)
+        
+        return jsonify({
+            'success': True,
+            'empresas': empresas
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao listar empresas do usuário: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ===== FIM DAS ROTAS MULTI-EMPRESA =====
+
 # ===== ROTAS DE GERENCIAMENTO DE USUÁRIOS (APENAS ADMIN) =====
 
 @app.route('/api/usuarios', methods=['GET', 'POST'])
