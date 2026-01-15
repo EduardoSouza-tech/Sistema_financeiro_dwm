@@ -149,7 +149,7 @@ def executar_migracao(db: DatabaseManager):
                     FROM usuario_permissoes up
                     JOIN permissoes p ON up.permissao_id = p.id
                     WHERE up.usuario_id = ue.usuario_id
-                    AND up.ativo = TRUE
+                    AND p.ativo = TRUE
                 ), '[]'::jsonb)
                 WHERE ue.permissoes_empresa = '[]'::jsonb
             """)
