@@ -1374,6 +1374,14 @@
                 <div style="color: #95a5a6; font-size: 12px; margin-bottom: 10px;">
                     <span id="userTypeSidebar">-</span>
                 </div>
+                
+                <!-- Seletor de Empresa Multi-Empresa -->
+                <div id="empresaSelectorContainer" style="margin-bottom: 10px; display: none;">
+                    <select id="empresaSelector" onchange="switchEmpresa()" style="width: 100%; padding: 6px 8px; background: #1a252f; color: #fff; border: 1px solid #34495e; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                        <option value="">🏢 Carregando empresas...</option>
+                    </select>
+                </div>
+                
                 <div style="display: flex; gap: 5px;">
                     <button id="adminBtn" onclick="window.location.href='/admin'" style="display: none; flex: 1; padding: 6px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">⚙️ Admin</button>
                     <button onclick="logoutUser()" style="flex: 1; padding: 6px; background: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🚪 Sair</button>
@@ -3951,6 +3959,12 @@
                         console.log('ℹ️ Botão de admin oculto (usuário não é admin)');
                     }
                     
+                    // 🆕 MULTI-EMPRESA: Carregar empresas disponíveis
+                    if (data.empresas_disponiveis && data.empresas_disponiveis.length > 0) {
+                        console.log('🏢 Carregando empresas disponíveis:', data.empresas_disponiveis);
+                        loadEmpresasSelector(data.empresas_disponiveis, data.empresa_atual);
+                    }
+                    
                     // Carregar permissões se necessário (app.js)
                     if (typeof carregarPermissoesUsuario === 'function') {
                         console.log('📋 Carregando permissões...');
@@ -3968,6 +3982,84 @@
                 console.error('Stack trace:', error.stack);
                 // Em caso de erro, também redirecionar para login
                 // window.location.href = '/login';
+            }
+        }
+        
+        // 🆕 MULTI-EMPRESA: Carregar seletor de empresas
+        function loadEmpresasSelector(empresas, empresaAtual) {
+            console.log('🏢 loadEmpresasSelector:', empresas, empresaAtual);
+            
+            const container = document.getElementById('empresaSelectorContainer');
+            const selector = document.getElementById('empresaSelector');
+            
+            if (!container || !selector || empresas.length === 0) {
+                console.log('ℹ️ Seletor de empresa não necessário');
+                return;
+            }
+            
+            // Limpar opções
+            selector.innerHTML = '';
+            
+            // Adicionar empresas ao select
+            empresas.forEach(empresa => {
+                const option = document.createElement('option');
+                option.value = empresa.id;
+                option.textContent = `🏢 ${empresa.nome}`;
+                if (empresaAtual && empresa.id === empresaAtual.id) {
+                    option.selected = true;
+                }
+                selector.appendChild(option);
+            });
+            
+            // Mostrar container
+            container.style.display = 'block';
+            console.log('✅ Seletor de empresas carregado');
+        }
+        
+        // 🆕 MULTI-EMPRESA: Trocar empresa
+        async function switchEmpresa() {
+            const selector = document.getElementById('empresaSelector');
+            const empresaId = parseInt(selector.value);
+            
+            if (!empresaId) return;
+            
+            console.log('🔄 Trocando para empresa:', empresaId);
+            
+            // Desabilitar seletor
+            selector.disabled = true;
+            
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                
+                const response = await fetch('/api/auth/switch-empresa', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ empresa_id: empresaId }),
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('✅ Empresa trocada com sucesso');
+                    showToast('Empresa alterada com sucesso! Recarregando...', 'success');
+                    
+                    // Recarregar página após 1 segundo
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    console.error('❌ Erro ao trocar empresa:', result.error);
+                    showToast(result.error || 'Erro ao trocar empresa', 'error');
+                    selector.disabled = false;
+                }
+            } catch (error) {
+                console.error('❌ Erro ao trocar empresa:', error);
+                showToast('Erro de conexão com o servidor', 'error');
+                selector.disabled = false;
             }
         }
         

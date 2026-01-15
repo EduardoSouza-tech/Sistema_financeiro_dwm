@@ -219,9 +219,143 @@
             font-size: 11px;
             color: #999;
         }
+
+        /* Modal de Seleção de Empresa */
+        .empresa-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .empresa-modal {
+            background: white;
+            border-radius: 15px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .empresa-modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px 15px 0 0;
+            text-align: center;
+        }
+
+        .empresa-modal-header h2 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        .empresa-modal-body {
+            padding: 30px;
+        }
+
+        .empresa-option {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .empresa-option:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+            transform: translateX(5px);
+        }
+
+        .empresa-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+
+        .empresa-icon {
+            font-size: 24px;
+        }
+
+        .empresa-info {
+            flex: 1;
+        }
+
+        .empresa-nome {
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .empresa-papel {
+            font-size: 12px;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        .btn-confirm-empresa {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+
+        .btn-confirm-empresa:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-confirm-empresa:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
+    <!-- Modal de Seleção de Empresa -->
+    <div class="empresa-modal-overlay" id="empresaModalOverlay">
+        <div class="empresa-modal">
+            <div class="empresa-modal-header">
+                <h2>🏢 Selecione uma Empresa</h2>
+                <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">Escolha qual empresa deseja acessar</p>
+            </div>
+            <div class="empresa-modal-body">
+                <div id="empresasList"></div>
+                <button id="btnConfirmEmpresa" class="btn-confirm-empresa" onclick="confirmEmpresaSelection()" disabled>
+                    Confirmar Seleção
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="login-container">
         <div class="login-header">
             <h1>💼 Sistema Financeiro</h1>
@@ -329,16 +463,21 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    showAlert('Login realizado com sucesso! Redirecionando...', 'success');
-                    
                     // Guardar dados no localStorage
                     localStorage.setItem('usuario', JSON.stringify(result.usuario));
                     localStorage.setItem('permissoes', JSON.stringify(result.permissoes));
 
-                    // Redirecionar após 1 segundo
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 1000);
+                    // Verificar se precisa selecionar empresa
+                    if (result.require_empresa_selection && result.empresas_disponiveis && result.empresas_disponiveis.length > 1) {
+                        // Mostrar modal de seleção de empresa
+                        showEmpresaSelectionModal(result.empresas_disponiveis);
+                    } else {
+                        // Redirecionar diretamente
+                        showAlert('Login realizado com sucesso! Redirecionando...', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 1000);
+                    }
                 } else {
                     showAlert(result.error || 'Erro ao fazer login', 'error');
                     
@@ -381,6 +520,100 @@
                 console.log('Não autenticado');
             }
         });
+
+        // Variável para armazenar empresas disponíveis
+        let availableEmpresas = [];
+        let selectedEmpresaId = null;
+
+        // Mostrar modal de seleção de empresa
+        function showEmpresaSelectionModal(empresas) {
+            availableEmpresas = empresas;
+            const empresasList = document.getElementById('empresasList');
+            empresasList.innerHTML = '';
+
+            empresas.forEach(empresa => {
+                const div = document.createElement('div');
+                div.className = 'empresa-option';
+                div.onclick = () => selectEmpresa(empresa.id);
+                
+                const papelBadge = empresa.papel === 'admin_empresa' ? '👑 Admin' : 
+                                   empresa.papel === 'usuario' ? '👤 Usuário' : 
+                                   '👁️ Visualizador';
+                
+                div.innerHTML = `
+                    <div class="empresa-icon">🏢</div>
+                    <div class="empresa-info">
+                        <div class="empresa-nome">${empresa.nome}</div>
+                        <div class="empresa-papel">${papelBadge}${empresa.is_padrao ? ' • ⭐ Padrão' : ''}</div>
+                    </div>
+                `;
+                
+                empresasList.appendChild(div);
+            });
+
+            // Mostrar modal
+            document.getElementById('empresaModalOverlay').style.display = 'flex';
+            
+            // Ocultar botões de login
+            document.getElementById('btnLogin').style.display = 'none';
+        }
+
+        // Selecionar empresa no modal
+        function selectEmpresa(empresaId) {
+            selectedEmpresaId = empresaId;
+            
+            // Atualizar visual
+            document.querySelectorAll('.empresa-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            
+            // Habilitar botão de confirmar
+            document.getElementById('btnConfirmEmpresa').disabled = false;
+        }
+
+        // Confirmar seleção de empresa
+        async function confirmEmpresaSelection() {
+            if (!selectedEmpresaId) return;
+
+            const btnConfirm = document.getElementById('btnConfirmEmpresa');
+            btnConfirm.disabled = true;
+            btnConfirm.innerHTML = '<span class="loading"></span> Carregando...';
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                
+                const response = await fetch('/api/auth/switch-empresa', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ empresa_id: selectedEmpresaId }),
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('Empresa selecionada com sucesso! Redirecionando...', 'success');
+                    document.getElementById('empresaModalOverlay').style.display = 'none';
+                    
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                } else {
+                    showAlert(result.error || 'Erro ao selecionar empresa', 'error');
+                    btnConfirm.disabled = false;
+                    btnConfirm.textContent = 'Confirmar Seleção';
+                }
+            } catch (error) {
+                console.error('Erro ao selecionar empresa:', error);
+                showAlert('Erro de conexão com o servidor', 'error');
+                btnConfirm.disabled = false;
+                btnConfirm.textContent = 'Confirmar Seleção';
+            }
+        }
     </script>
 </body>
 </html>
