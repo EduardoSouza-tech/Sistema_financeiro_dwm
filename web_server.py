@@ -471,10 +471,46 @@ def login():
             sucesso=True
         )
         
-        # Obter permissões do usuário
-        permissoes = auth_db.obter_permissoes_usuario(usuario['id'])
+        # ============================================================
+        # MULTI-EMPRESA: Carregar empresas do usuário
+        # ============================================================
+        empresas_disponiveis = []
+        empresa_selecionada = None
         
-        return jsonify({
+        if usuario['tipo'] == 'admin':
+            # Super admin tem acesso a todas as empresas
+            empresas_disponiveis = database.listar_empresas({})
+            # Não selecionar empresa automaticamente para super admin
+        else:
+            # Carregar empresas que o usuário tem acesso
+            from auth_functions import listar_empresas_usuario, obter_empresa_padrao
+            empresas_disponiveis = listar_empresas_usuario(usuario['id'], auth_db)
+            
+            if empresas_disponiveis:
+                # Buscar empresa padrão
+                empresa_padrao_id = obter_empresa_padrao(usuario['id'], auth_db)
+                
+                if empresa_padrao_id:
+                    empresa_selecionada = next((e for e in empresas_disponiveis if e['id'] == empresa_padrao_id), None)
+                else:
+                    # Se não tem padrão, selecionar a primeira
+                    empresa_selecionada = empresas_disponiveis[0]
+                
+                if empresa_selecionada:
+                    session['empresa_id'] = empresa_selecionada['id']
+                    print(f"✅ Empresa selecionada no login: {empresa_selecionada['razao_social']}")
+        
+        # Obter permissões do usuário
+        if usuario['tipo'] == 'admin':
+            permissoes = ['*']  # Super admin tem todas as permissões
+        elif empresa_selecionada:
+            from auth_functions import obter_permissoes_usuario_empresa
+            permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_selecionada['id'], auth_db)
+        else:
+            permissoes = auth_db.obter_permissoes_usuario(usuario['id'])
+        
+        # Preparar resposta
+        response_data = {
             'success': True,
             'message': 'Login realizado com sucesso',
             'usuario': {
@@ -482,11 +518,28 @@ def login():
                 'username': usuario['username'],
                 'nome_completo': usuario['nome_completo'],
                 'tipo': usuario['tipo'],
-                'email': usuario['email'],
-                'cliente_id': usuario.get('cliente_id')
+                'email': usuario['email']
             },
-            'permissoes': permissoes
-        })
+            'permissoes': permissoes,
+            'empresas_disponiveis': [{
+                'id': e['id'],
+                'razao_social': e['razao_social'],
+                'is_padrao': e.get('is_empresa_padrao', False)
+            } for e in empresas_disponiveis] if empresas_disponiveis else []
+        }
+        
+        # Adicionar empresa selecionada se houver
+        if empresa_selecionada:
+            response_data['empresa_selecionada'] = {
+                'id': empresa_selecionada['id'],
+                'razao_social': empresa_selecionada['razao_social']
+            }
+        
+        # Se usuário tem múltiplas empresas, indicar que precisa escolher
+        if len(empresas_disponiveis) > 1 and usuario['tipo'] != 'admin':
+            response_data['require_empresa_selection'] = True
+        
+        return jsonify(response_data)
         
     except Exception as e:
         print(f"❌ Erro no login: {e}")
@@ -545,10 +598,37 @@ def verify_session():
                 'authenticated': False
             })
         
-        # Obter permissões
-        permissoes = auth_db.obter_permissoes_usuario(usuario['id'])
+        # ============================================================
+        # MULTI-EMPRESA: Carregar empresa atual e empresas disponíveis
+        # ============================================================
+        empresa_atual = None
+        empresas_disponiveis = []
         
-        return jsonify({
+        if usuario['tipo'] == 'admin':
+            # Super admin
+            permissoes = ['*']
+            empresas_disponiveis = database.listar_empresas({})
+            empresa_id = session.get('empresa_id')
+            if empresa_id:
+                empresa_atual = database.obter_empresa(empresa_id)
+        else:
+            # Usuário normal
+            from auth_functions import listar_empresas_usuario
+            empresas_disponiveis = listar_empresas_usuario(usuario['id'], auth_db)
+            
+            empresa_id = session.get('empresa_id')
+            if empresa_id:
+                # Carregar permissões específicas da empresa
+                from auth_functions import obter_permissoes_usuario_empresa
+                permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
+                
+                # Buscar dados da empresa atual
+                empresa_atual = next((e for e in empresas_disponiveis if e['id'] == empresa_id), None)
+            else:
+                # Sem empresa selecionada
+                permissoes = auth_db.obter_permissoes_usuario(usuario['id'])
+        
+        response = {
             'success': True,
             'authenticated': True,
             'usuario': {
@@ -557,14 +637,29 @@ def verify_session():
                 'nome_completo': usuario['nome_completo'],
                 'tipo': usuario['tipo'],
                 'email': usuario['email'],
-                'cliente_id': usuario.get('cliente_id'),
-                'permissoes': permissoes  # Incluir permissões no objeto usuario
+                'permissoes': permissoes
             },
-            'permissoes': permissoes
-        })
+            'permissoes': permissoes,
+            'empresas_disponiveis': [{
+                'id': e['id'],
+                'razao_social': e['razao_social'],
+                'is_padrao': e.get('is_empresa_padrao', False)
+            } for e in empresas_disponiveis] if empresas_disponiveis else []
+        }
+        
+        # Adicionar empresa atual se houver
+        if empresa_atual:
+            response['empresa_atual'] = {
+                'id': empresa_atual['id'],
+                'razao_social': empresa_atual['razao_social']
+            }
+        
+        return jsonify(response)
         
     except Exception as e:
         print(f"❌ Erro ao verificar sessão: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': 'Erro ao verificar sessão'

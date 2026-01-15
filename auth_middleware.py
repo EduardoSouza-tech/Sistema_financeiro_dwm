@@ -49,6 +49,11 @@ def require_auth(f):
     """
     Decorador que requer autenticacao
     Redireciona para login se nao autenticado
+    
+    Multi-Empresa:
+    - Valida empresa_id na sessão
+    - Verifica se usuário tem acesso à empresa
+    - Carrega permissões específicas da empresa
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -65,6 +70,57 @@ def require_auth(f):
                     'redirect': '/login'
                 }), 401
             
+            # ============================================================
+            # VALIDAÇÃO MULTI-EMPRESA
+            # ============================================================
+            if usuario['tipo'] != 'admin':
+                # Usuários normais precisam ter empresa selecionada
+                empresa_id = session.get('empresa_id')
+                
+                if not empresa_id:
+                    log(f"[require_auth] Usuario {usuario['username']} sem empresa na sessao")
+                    # Tentar obter empresa padrão
+                    from auth_functions import obter_empresa_padrao
+                    empresa_id = obter_empresa_padrao(usuario['id'], auth_db)
+                    
+                    if empresa_id:
+                        session['empresa_id'] = empresa_id
+                        log(f"[require_auth] Empresa padrao definida na sessao: {empresa_id}")
+                    else:
+                        log("[require_auth] Usuario nao possui empresa - precisa selecionar")
+                        return jsonify({
+                            'success': False,
+                            'error': 'Selecione uma empresa para continuar',
+                            'requireEmpresaSelection': True
+                        }), 403
+                
+                # Validar se usuário tem acesso à empresa
+                from auth_functions import tem_acesso_empresa
+                if not tem_acesso_empresa(usuario['id'], empresa_id, auth_db):
+                    log(f"[require_auth] Usuario {usuario['username']} sem acesso a empresa {empresa_id}")
+                    session.pop('empresa_id', None)  # Remover empresa inválida da sessão
+                    return jsonify({
+                        'success': False,
+                        'error': 'Acesso negado a esta empresa',
+                        'requireEmpresaSelection': True
+                    }), 403
+                
+                # Carregar permissões específicas da empresa
+                from auth_functions import obter_permissoes_usuario_empresa
+                permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
+                usuario['permissoes'] = permissoes
+                usuario['empresa_id'] = empresa_id
+                
+                log(f"[require_auth] Empresa validada: {empresa_id}, Permissoes: {len(permissoes)}")
+            else:
+                # Super admin tem acesso a todas as empresas
+                usuario['permissoes'] = ['*']  # Todas as permissões
+                empresa_id = session.get('empresa_id')
+                if empresa_id:
+                    usuario['empresa_id'] = empresa_id
+                log(f"[require_auth] Super admin com acesso total")
+            
+            # ============================================================
             # Adicionar dados do usuario ao request
             request.usuario = usuario
             log(f"[require_auth] Autenticacao OK - Chamando {f.__name__}")
