@@ -1296,26 +1296,39 @@ def gerenciar_usuario_especifico(usuario_id):
             data = request.json
             admin = request.usuario
             
-            print(f"📥 Atualizando usuário {usuario_id}: {data}")
+            print(f"\n{'='*80}")
+            print(f"📝 PUT /api/usuarios/{usuario_id}")
+            print(f"{'='*80}")
+            print(f"📥 Dados recebidos: {data}")
+            print(f"   - empresas_ids: {data.get('empresas_ids')}")
+            print(f"   - empresa_id_padrao: {data.get('empresa_id_padrao')}")
+            print(f"   - permissoes: {data.get('permissoes')}")
             
             # Validar força da senha se estiver sendo alterada
             if 'password' in data and data['password']:
+                print(f"🔐 Validando senha...")
                 from auth_functions import validar_senha_forte
                 valida, mensagem = validar_senha_forte(data['password'])
                 if not valida:
+                    print(f"❌ Senha fraca: {mensagem}")
                     return jsonify({
                         'success': False,
                         'error': f'Senha fraca: {mensagem}'
                     }), 400
             
+            print(f"🔄 Atualizando dados do usuário...")
             # Atualizar dados do usuário
             success = auth_db.atualizar_usuario(usuario_id, data)
             
             if not success:
+                print(f"❌ Usuário {usuario_id} não encontrado")
                 return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
+            
+            print(f"✅ Dados do usuário atualizados")
             
             # 🏢 MULTI-EMPRESA: Atualizar vínculos se empresas_ids fornecido
             if 'empresas_ids' in data:
+                print(f"🏢 Atualizando vínculos multi-empresa...")
                 from auth_functions import (
                     vincular_usuario_empresa,
                     remover_usuario_empresa,
@@ -1325,9 +1338,14 @@ def gerenciar_usuario_especifico(usuario_id):
                 empresas_ids = data['empresas_ids']
                 empresa_id_padrao = data.get('empresa_id_padrao')
                 
+                print(f"   - Empresas selecionadas: {empresas_ids}")
+                print(f"   - Empresa padrão: {empresa_id_padrao}")
+                
                 # Obter empresas atuais
+                print(f"   🔍 Obtendo empresas atuais...")
                 empresas_atuais = listar_empresas_usuario(usuario_id, auth_db)
                 empresas_atuais_ids = [e['empresa_id'] for e in empresas_atuais]
+                print(f"   - Empresas atuais: {empresas_atuais_ids}")
                 
                 # Remover vínculos que não estão mais selecionados
                 for empresa_id_atual in empresas_atuais_ids:
@@ -1371,11 +1389,14 @@ def gerenciar_usuario_especifico(usuario_id):
             
             # Atualizar permissões globais se fornecidas (legado)
             if 'permissoes' in data:
+                print(f"🔑 Atualizando permissões globais...")
+                print(f"   - Permissões: {data['permissoes']}")
                 auth_db.sincronizar_permissoes_usuario(
                     usuario_id,
                     data['permissoes'],
                     admin['id']
                 )
+                print(f"   ✅ Permissões atualizadas")
             
             # Registrar atualização
             auth_db.registrar_log_acesso(
@@ -1386,10 +1407,24 @@ def gerenciar_usuario_especifico(usuario_id):
                 sucesso=True
             )
             
+            print(f"✅ Usuário {usuario_id} atualizado com sucesso!")
+            print(f"{'='*80}\n")
+            
             return jsonify({
                 'success': True,
                 'message': 'Usuário atualizado com sucesso'
             })
+            
+        except Exception as e:
+            print(f"\n{'='*80}")
+            print(f"❌ ERRO ao atualizar usuário {usuario_id}")
+            print(f"❌ Tipo do erro: {type(e).__name__}")
+            print(f"❌ Mensagem: {e}")
+            print(f"❌ Stacktrace:")
+            import traceback
+            traceback.print_exc()
+            print(f"{'='*80}\n")
+            return jsonify({'success': False, 'error': str(e)}), 500
             
         except Exception as e:
             print(f"❌ Erro ao atualizar usuário: {e}")
