@@ -1242,34 +1242,57 @@ def gerenciar_usuario_especifico(usuario_id):
     print(f"\n👤 [gerenciar_usuario_especifico] FUNÇÃO CHAMADA - ID: {usuario_id}, Método: {request.method}")
     if request.method == 'GET':
         try:
+            print(f"\n{'='*80}")
+            print(f"   🔍 GET /api/usuarios/{usuario_id}")
+            print(f"{'='*80}")
             print(f"   🔍 Buscando usuário ID {usuario_id}...")
+            
             usuario = auth_db.obter_usuario(usuario_id)
+            print(f"   📊 Tipo do resultado: {type(usuario)}")
             print(f"   📊 Resultado: {usuario if usuario else 'NÃO ENCONTRADO'}")
+            
             if not usuario:
                 print(f"   ❌ Usuário {usuario_id} não encontrado")
                 return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
             
+            print(f"   🔄 Convertendo para dict...")
             # Converter para dict se necessário
             usuario_dict = dict(usuario) if not isinstance(usuario, dict) else usuario
+            print(f"   ✅ Dict criado. Keys: {list(usuario_dict.keys())}")
             
+            print(f"   🔄 Serializando campos datetime...")
             # Converter datetime para string (JSON serializable)
             if 'created_at' in usuario_dict and usuario_dict['created_at']:
+                print(f"      - created_at: {type(usuario_dict['created_at'])} → str")
                 usuario_dict['created_at'] = str(usuario_dict['created_at'])
             if 'ultima_sessao' in usuario_dict and usuario_dict['ultima_sessao']:
+                print(f"      - ultima_sessao: {type(usuario_dict['ultima_sessao'])} → str")
                 usuario_dict['ultima_sessao'] = str(usuario_dict['ultima_sessao'])
             if 'updated_at' in usuario_dict and usuario_dict['updated_at']:
+                print(f"      - updated_at: {type(usuario_dict['updated_at'])} → str")
                 usuario_dict['updated_at'] = str(usuario_dict['updated_at'])
             
+            print(f"   🔄 Obtendo permissões...")
             # Incluir permissões
             permissoes = auth_db.obter_permissoes_usuario(usuario_id)
+            print(f"   📊 Permissões: {permissoes}")
             usuario_dict['permissoes'] = permissoes
             
-            print(f"   ✅ Retornando usuário com permissões")
-            return jsonify(usuario_dict)
+            print(f"   🔄 Serializando para JSON...")
+            result = jsonify(usuario_dict)
+            print(f"   ✅ JSON criado com sucesso")
+            print(f"{'='*80}\n")
+            return result
+            
         except Exception as e:
-            print(f"❌ Erro ao obter usuário: {e}")
+            print(f"\n{'='*80}")
+            print(f"❌ ERRO ao obter usuário {usuario_id}")
+            print(f"❌ Tipo do erro: {type(e).__name__}")
+            print(f"❌ Mensagem: {e}")
+            print(f"❌ Stacktrace:")
             import traceback
             traceback.print_exc()
+            print(f"{'='*80}\n")
             return jsonify({'success': False, 'error': str(e)}), 500
     
     elif request.method == 'PUT':
