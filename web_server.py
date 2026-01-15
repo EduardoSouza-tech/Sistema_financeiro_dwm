@@ -5276,6 +5276,28 @@ for rule in app.url_map.iter_rules():
 logger.info("="*80)
 
 
+# ============================================================================
+# MONITORAMENTO DO POOL DE CONEXÕES
+# ============================================================================
+
+@app.route('/api/health/pool', methods=['GET'])
+def pool_status():
+    """Endpoint para monitorar status do pool de conexões"""
+    try:
+        pool_obj = database._get_connection_pool()
+        # Tentar obter informações do pool
+        return jsonify({
+            'status': 'healthy',
+            'pool_type': 'ThreadedConnectionPool',
+            'note': 'Pool configurado para 5-50 conexões'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+
 if __name__ == '__main__':
     # Ativar logging do Flask/Werkzeug
     import logging

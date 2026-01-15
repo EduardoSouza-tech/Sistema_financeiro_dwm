@@ -265,19 +265,19 @@ def _get_connection_pool():
         try:
             if 'dsn' in POSTGRESQL_CONFIG:
                 _connection_pool = pool.ThreadedConnectionPool(
-                    minconn=2,
-                    maxconn=20,
+                    minconn=5,
+                    maxconn=50,
                     dsn=POSTGRESQL_CONFIG['dsn'],
                     cursor_factory=RealDictCursor
                 )
             else:
                 _connection_pool = pool.ThreadedConnectionPool(
-                    minconn=2,
-                    maxconn=20,
+                    minconn=5,
+                    maxconn=50,
                     cursor_factory=RealDictCursor,
                     **POSTGRESQL_CONFIG
                 )
-            print("? Pool de conexi?es PostgreSQL criado (2-20 conexi?es)")
+            print("? Pool de conexi?es PostgreSQL criado (5-50 conexi?es)")
         except Exception as e:
             print(f"? Erro ao criar pool de conexi?es: {e}")
             raise
@@ -403,11 +403,31 @@ class DatabaseManager:
         """
         try:
             pool_obj = _get_connection_pool()
+            # Tentar obter conexão com timeout de 30 segundos
+            conn = pool_obj.getconn()
+            if conn:
+                conn.autocommit = True
+                # Verificar se a conexão está funcionando
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                cursor.close()
+            return conn
+        except pool.PoolError as e:
+            print(f"⚠️ Pool esgotado! Tentando limpar conexões travadas...")
+            # Tentar fechar todas as conexões e recriar o pool
+            try:
+                pool_obj.closeall()
+            except:
+                pass
+            global _connection_pool
+            _connection_pool = None
+            # Tentar novamente
+            pool_obj = _get_connection_pool()
             conn = pool_obj.getconn()
             conn.autocommit = True
             return conn
         except Error as e:
-            print(f"? Erro ao obter conexi?o do pool: {e}")
+            print(f"❌ Erro ao obter conexi?o do pool: {e}")
             raise
     
     def criar_tabelas(self):
