@@ -920,13 +920,23 @@
             tbody.innerHTML = '';
 
             allUsers.forEach(user => {
+                console.log('👤 [renderUsersTable] Usuário:', {
+                    id: user.id,
+                    username: user.username,
+                    empresa_id: user.empresa_id,
+                    empresa_nome: user.empresa_nome
+                });
+                
                 const tr = document.createElement('tr');
                 const typeBadge = user.tipo === 'admin' ? 'badge-admin' : 'badge-client';
                 const statusBadge = user.ativo ? 'badge-active' : 'badge-inactive';
                 
-                // Encontrar nome da empresa
-                const empresa = allCompanies.find(c => c.id === user.empresa_id);
-                const empresaNome = empresa ? empresa.razao_social : 'Não atribuída';
+                // Usar empresa_nome se vier do backend, senão buscar em allCompanies
+                let empresaNome = user.empresa_nome || 'Não atribuída';
+                if (!user.empresa_nome && user.empresa_id) {
+                    const empresa = allCompanies.find(c => c.id === user.empresa_id);
+                    empresaNome = empresa ? empresa.razao_social : 'Não atribuída';
+                }
                 
                 tr.innerHTML = `
                     <td>${user.id}</td>
@@ -1296,6 +1306,16 @@
         // Editar usuário
         async function editUser(userId) {
             try {
+                // Carregar empresas se ainda não foram carregadas
+                if (allCompanies.length === 0) {
+                    console.log('🔍 [editUser] Empresas não carregadas, carregando...');
+                    await loadCompanies();
+                } else {
+                    console.log('🔍 [editUser] Empresas já carregadas:', allCompanies.length);
+                    // Garantir que o select está populado
+                    populateEmpresaSelect();
+                }
+                
                 const response = await fetch(`/api/usuarios/${userId}`, {
                     credentials: 'include'
                 });
@@ -1305,6 +1325,7 @@
                 console.log('🔍 DEBUG - Usuário carregado:', user);
                 console.log('🔍 DEBUG - Nome completo:', user.nome_completo);
                 console.log('🔍 DEBUG - Empresa ID:', user.empresa_id);
+                console.log('🔍 DEBUG - Empresa Nome:', user.empresa_nome);
                 
                 document.getElementById('modalTitle').textContent = 'Editar Usuário';
                 document.getElementById('userId').value = user.id;
