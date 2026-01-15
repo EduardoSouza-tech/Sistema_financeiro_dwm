@@ -280,6 +280,16 @@ try:
     except Exception as e:
         print(f"⚠️ Aviso: Não foi possível executar migração multi-tenant: {e}")
     
+    try:
+        print("\n👥 Executando migração Usuário Multi-Empresa...")
+        from migration_usuario_multi_empresa import executar_migracao as migrar_usuario_multi_empresa
+        if migrar_usuario_multi_empresa(db):
+            print("✅ Sistema Usuário Multi-Empresa configurado com sucesso!\n")
+        else:
+            print("⚠️ Migração Usuário Multi-Empresa falhou (pode já estar aplicada)\n")
+    except Exception as e:
+        print(f"⚠️ Aviso: Não foi possível executar migração usuário multi-empresa: {e}")
+    
     # Criar tabela de extratos bancários se não existir
     try:
         print("\n🏦 Verificando tabela de extratos bancários...")
