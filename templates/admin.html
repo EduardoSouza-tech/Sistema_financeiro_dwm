@@ -1238,6 +1238,9 @@
                 } else {
                     const error = await response.json();
                     console.error('❌ [saveCompany] Erro do servidor:', error);
+                    console.error('❌ [saveCompany] error.error:', error.error);
+                    console.error('❌ [saveCompany] error.message:', error.message);
+                    console.error('❌ [saveCompany] JSON completo:', JSON.stringify(error, null, 2));
                     showAlert(error.error || error.message || 'Erro ao salvar empresa', 'error');
                 }
             } catch (error) {
