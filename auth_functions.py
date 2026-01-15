@@ -677,3 +677,259 @@ def limpar_tentativas_login(username: str, db):
     finally:
         cursor.close()
         conn.close()
+
+
+# ===================================================================
+# FUNÇÕES MULTI-EMPRESA (Usuário com Acesso a Múltiplas Empresas)
+# ===================================================================
+
+def listar_empresas_usuario(usuario_id: int, db) -> List[Dict]:
+    """
+    Lista todas as empresas que um usuário tem acesso
+    
+    Retorna lista de dicts com:
+    - id, razao_social, cnpj, papel, permissoes_empresa, is_empresa_padrao, ativo
+    """
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT 
+                e.id,
+                e.razao_social,
+                e.cnpj,
+                e.ativo as empresa_ativa,
+                ue.papel,
+                ue.permissoes_empresa,
+                ue.is_empresa_padrao,
+                ue.ativo as acesso_ativo,
+                ue.criado_em,
+                ue.atualizado_em
+            FROM empresas e
+            JOIN usuario_empresas ue ON e.id = ue.empresa_id
+            WHERE ue.usuario_id = %s
+            AND ue.ativo = TRUE
+            AND e.ativo = TRUE
+            ORDER BY ue.is_empresa_padrao DESC, e.razao_social
+        """, (usuario_id,))
+        
+        empresas = cursor.fetchall()
+        return [dict(e) for e in empresas]
+        
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def vincular_usuario_empresa(usuario_id: int, empresa_id: int, papel: str, 
+                             permissoes: List[str], is_padrao: bool, 
+                             criado_por: int, db) -> int:
+    """
+    Vincula um usuário a uma empresa
+    
+    Args:
+        usuario_id: ID do usuário
+        empresa_id: ID da empresa
+        papel: 'admin_empresa', 'usuario', 'visualizador'
+        permissoes: Lista de códigos de permissões
+        is_padrao: Se é a empresa padrão do usuário
+        criado_por: ID do admin que está criando
+        
+    Returns:
+        ID do vínculo criado
+    """
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Se é empresa padrão, desmarcar outras
+        if is_padrao:
+            cursor.execute("""
+                UPDATE usuario_empresas
+                SET is_empresa_padrao = FALSE
+                WHERE usuario_id = %s
+            """, (usuario_id,))
+        
+        # Inserir vínculo
+        cursor.execute("""
+            INSERT INTO usuario_empresas 
+                (usuario_id, empresa_id, papel, permissoes_empresa, 
+                 is_empresa_padrao, ativo, criado_por)
+            VALUES (%s, %s, %s, %s, %s, TRUE, %s)
+            ON CONFLICT (usuario_id, empresa_id)
+            DO UPDATE SET
+                papel = EXCLUDED.papel,
+                permissoes_empresa = EXCLUDED.permissoes_empresa,
+                is_empresa_padrao = EXCLUDED.is_empresa_padrao,
+                ativo = TRUE,
+                atualizado_em = CURRENT_TIMESTAMP
+            RETURNING id
+        """, (usuario_id, empresa_id, papel, 
+              str(permissoes).replace("'", '"'),  # Converter para JSON
+              is_padrao, criado_por))
+        
+        result = cursor.fetchone()
+        vinculo_id = result['id'] if result else None
+        
+        conn.commit()
+        return vinculo_id
+        
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def remover_usuario_empresa(usuario_id: int, empresa_id: int, db) -> bool:
+    """Remove vínculo de usuário com empresa"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            UPDATE usuario_empresas
+            SET ativo = FALSE,
+                atualizado_em = CURRENT_TIMESTAMP
+            WHERE usuario_id = %s AND empresa_id = %s
+        """, (usuario_id, empresa_id))
+        
+        conn.commit()
+        return True
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Erro ao remover vínculo: {e}")
+        return False
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def atualizar_usuario_empresa(usuario_id: int, empresa_id: int, 
+                              papel: str = None, permissoes: List[str] = None,
+                              is_padrao: bool = None, db = None) -> bool:
+    """Atualiza dados do vínculo usuário-empresa"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        updates = []
+        params = []
+        
+        if papel is not None:
+            updates.append("papel = %s")
+            params.append(papel)
+            
+        if permissoes is not None:
+            updates.append("permissoes_empresa = %s")
+            params.append(str(permissoes).replace("'", '"'))
+            
+        if is_padrao is not None:
+            if is_padrao:
+                # Desmarcar outras empresas
+                cursor.execute("""
+                    UPDATE usuario_empresas
+                    SET is_empresa_padrao = FALSE
+                    WHERE usuario_id = %s
+                """, (usuario_id,))
+            
+            updates.append("is_empresa_padrao = %s")
+            params.append(is_padrao)
+        
+        if not updates:
+            return False
+        
+        updates.append("atualizado_em = CURRENT_TIMESTAMP")
+        params.extend([usuario_id, empresa_id])
+        
+        query = f"""
+            UPDATE usuario_empresas
+            SET {', '.join(updates)}
+            WHERE usuario_id = %s AND empresa_id = %s
+        """
+        
+        cursor.execute(query, params)
+        conn.commit()
+        return True
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Erro ao atualizar vínculo: {e}")
+        return False
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def tem_acesso_empresa(usuario_id: int, empresa_id: int, db) -> bool:
+    """Verifica se usuário tem acesso à empresa"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT COUNT(*) as count
+            FROM usuario_empresas
+            WHERE usuario_id = %s 
+            AND empresa_id = %s 
+            AND ativo = TRUE
+        """, (usuario_id, empresa_id))
+        
+        result = cursor.fetchone()
+        return result['count'] > 0 if result else False
+        
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def obter_empresa_padrao(usuario_id: int, db) -> Optional[int]:
+    """Retorna o ID da empresa padrão do usuário"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT empresa_id
+            FROM usuario_empresas
+            WHERE usuario_id = %s 
+            AND is_empresa_padrao = TRUE
+            AND ativo = TRUE
+            LIMIT 1
+        """, (usuario_id,))
+        
+        result = cursor.fetchone()
+        return result['empresa_id'] if result else None
+        
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def obter_permissoes_usuario_empresa(usuario_id: int, empresa_id: int, db) -> List[str]:
+    """Retorna lista de permissões do usuário em uma empresa específica"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT permissoes_empresa
+            FROM usuario_empresas
+            WHERE usuario_id = %s 
+            AND empresa_id = %s 
+            AND ativo = TRUE
+        """, (usuario_id, empresa_id))
+        
+        result = cursor.fetchone()
+        if result and result['permissoes_empresa']:
+            # Converter JSONB para lista Python
+            import json
+            return json.loads(result['permissoes_empresa']) if isinstance(result['permissoes_empresa'], str) else result['permissoes_empresa']
+        return []
+        
+    finally:
+        cursor.close()
+        conn.close()
