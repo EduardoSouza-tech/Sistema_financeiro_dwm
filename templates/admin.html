@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Painel Administrativo - Sistema Financeiro</title>
     <style>
         * {
@@ -951,8 +952,13 @@
             document.getElementById('activeUsers').textContent = allUsers.filter(u => u.ativo).length;
         }
 
+        // === CSRF TOKEN ===
+        function getCsrfToken() {
+            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        }
+
         // === FUNÇÕES DE EMPRESAS ===
-        
+
         // Carregar empresas
         async function loadCompanies() {
             console.log('==========================================');
@@ -1151,6 +1157,9 @@
             try {
                 const response = await fetch(`/api/empresas/${companyId}`, {
                     method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    },
                     credentials: 'include'
                 });
                 
@@ -1192,14 +1201,20 @@
                 if (companyId) {
                     response = await fetch(`/api/empresas/${companyId}`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        },
                         credentials: 'include',
                         body: JSON.stringify(data)
                     });
                 } else {
                     response = await fetch('/api/empresas', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        },
                         credentials: 'include',
                         body: JSON.stringify(data)
                     });
@@ -1291,6 +1306,9 @@
             try {
                 const response = await fetch(`/api/usuarios/${userId}`, {
                     method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    },
                     credentials: 'include'
                 });
                 
@@ -1356,7 +1374,8 @@
                     response = await fetch(`/api/usuarios/${userId}`, {
                         method: 'PUT',
                         headers: {
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
                         },
                         credentials: 'include',
                         body: JSON.stringify(data)
@@ -1371,7 +1390,8 @@
                     response = await fetch('/api/usuarios', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
                         },
                         credentials: 'include',
                         body: JSON.stringify(data)
@@ -1714,6 +1734,9 @@
             try {
                 await fetch('/api/auth/logout', {
                     method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    },
                     credentials: 'include'
                 });
                 window.location.href = '/login';
