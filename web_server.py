@@ -1903,11 +1903,7 @@ def modificar_categoria(nome):
             print(f'   📝 Nome novo normalizado: {nome_normalizado}')
             print(f'   🔄 Nome mudou? {nome_normalizado != nome_original_normalizado}')
             
-            # Se o nome mudou, atualizar o nome primeiro
-            if nome_normalizado != nome_original_normalizado:
-                print('   ➡️ Atualizando nome da categoria...')
-                db.atualizar_nome_categoria(nome_original_normalizado, nome_normalizado)
-            
+            # Criar objeto categoria com os novos dados
             categoria = Categoria(
                 nome=nome_normalizado,  # type: ignore
                 tipo=TipoLancamento(tipo_str),  # type: ignore
@@ -1916,7 +1912,10 @@ def modificar_categoria(nome):
             )
             
             print(f'   💾 Atualizando categoria: {categoria.nome} (tipo: {categoria.tipo.value}, empresa: {categoria.empresa_id})')
-            success = db.atualizar_categoria(categoria)
+            print(f'   🔍 Usando nome_original para localizar: {nome_original_normalizado}')
+            
+            # Passar nome_original para a função UPDATE usar no WHERE
+            success = db.atualizar_categoria(categoria, nome_original=nome_original_normalizado)
             
             print(f'   {"✅" if success else "❌"} Resultado: {success}')
             print('='*80 + '\n')

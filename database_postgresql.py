@@ -1562,20 +1562,31 @@ class DatabaseManager:
         return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
-    def atualizar_categoria(self, categoria: Categoria) -> bool:
-        """Atualiza uma categoria pelo nome"""
+    def atualizar_categoria(self, categoria: Categoria, nome_original: Optional[str] = None) -> bool:
+        """Atualiza uma categoria pelo nome original
+        
+        Args:
+            categoria: Objeto Categoria com os novos dados
+            nome_original: Nome original da categoria (para localizar no banco)
+                          Se None, usa categoria.nome como original
+        """
         conn = self.get_connection()
         cursor = conn.cursor()
         
         print('🔄 DATABASE: atualizar_categoria() iniciada')
-        print(f'   📝 Nome: {categoria.nome}')
+        print(f'   📝 Nome novo: {categoria.nome}')
+        print(f'   📝 Nome original: {nome_original or categoria.nome}')
         print(f'   🏷️ Tipo: {categoria.tipo.value}')
         print(f'   🏢 Empresa ID: {getattr(categoria, "empresa_id", "N/A")}')
         
         subcategorias_json = json.dumps(categoria.subcategorias) if categoria.subcategorias else None
         
-        # Normalizar nome
-        nome_normalizado = categoria.nome.strip().upper()
+        # Normalizar nomes
+        nome_novo_normalizado = categoria.nome.strip().upper()
+        nome_busca = (nome_original or categoria.nome).strip().upper()
+        
+        print(f'   🔍 Buscando por (WHERE): {nome_busca}')
+        print(f'   💾 Atualizando para (SET nome): {nome_novo_normalizado}')
         
         # Incluir empresa_id no UPDATE se estiver presente
         empresa_id = getattr(categoria, 'empresa_id', None)
@@ -1584,32 +1595,47 @@ class DatabaseManager:
             print(f'   ➡️ Atualizando COM empresa_id = {empresa_id}')
             cursor.execute("""
                 UPDATE categorias 
-                SET tipo = %s, subcategorias = %s, empresa_id = %s
+                SET nome = %s, tipo = %s, subcategorias = %s, empresa_id = %s
                 WHERE UPPER(TRIM(nome)) = %s
             """, (
+                nome_novo_normalizado,
                 categoria.tipo.value,
                 subcategorias_json,
                 empresa_id,
-                nome_normalizado
+                nome_busca
             ))
         else:
             print('   ➡️ Atualizando SEM empresa_id (mantém valor existente)')
             cursor.execute("""
                 UPDATE categorias 
-                SET tipo = %s, subcategorias = %s
+                SET nome = %s, tipo = %s, subcategorias = %s
                 WHERE UPPER(TRIM(nome)) = %s
             """, (
+                nome_novo_normalizado,
                 categoria.tipo.value,
                 subcategorias_json,
-                nome_normalizado
+                nome_busca
             ))
         
-        sucesso = cursor.rowcount > 0
+        linhas_afetadas = cursor.rowcount
+        sucesso = linhas_afetadas > 0
+        
+        # Se mudou o nome, também atualizar referências nos lançamentos
+        if sucesso and nome_busca != nome_novo_normalizado:
+            print(f'   🔄 Nome mudou! Atualizando referências nos lançamentos...')
+            cursor.execute("""
+                UPDATE lancamentos 
+                SET categoria = %s 
+                WHERE UPPER(TRIM(categoria)) = %s
+            """, (nome_novo_normalizado, nome_busca))
+            lancamentos_atualizados = cursor.rowcount
+            print(f'   📊 {lancamentos_atualizados} lançamento(s) atualizado(s)')
+        
         conn.commit()
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
         
-        print(f'   {"✅" if sucesso else "❌"} Linhas afetadas: {cursor.rowcount if sucesso else 0}')
+        print(f'   {"✅" if sucesso else "❌"} Linhas afetadas: {linhas_afetadas}')
         return sucesso
     
     def atualizar_nome_categoria(self, nome_antigo: str, nome_novo: str) -> bool:
