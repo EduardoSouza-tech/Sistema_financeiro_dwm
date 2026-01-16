@@ -715,10 +715,23 @@ async function salvarCategoria(event) {
         
         const result = await response.json();
         
+        console.log('📡 Resposta recebida:', result);
+        console.log('   Status HTTP:', response.status);
+        console.log('   response.ok:', response.ok);
+        console.log('   result.success:', result.success);
+        
         if (response.ok && result.success) {
             showToast(isEdit ? '✓ Categoria atualizada com sucesso!' : '✓ Categoria adicionada com sucesso!', 'success');
             closeModal();
-            if (typeof loadCategoriasTable === 'function') loadCategoriasTable();
+            
+            // Recarregar lista de categorias
+            console.log('♻️ Recarregando lista de categorias...');
+            if (typeof loadCategorias === 'function') {
+                await loadCategorias();
+                console.log('✅ Lista de categorias recarregada!');
+            } else {
+                console.error('❌ Função loadCategorias não encontrada!');
+            }
         } else {
             // Melhorar mensagem de erro para duplicatas
             let errorMsg = result.error || 'Erro desconhecido';
@@ -726,7 +739,7 @@ async function salvarCategoria(event) {
                 errorMsg = errorMsg + ' Verifique a lista de categorias existentes na aba "Categorias".';
             }
             showToast(errorMsg, 'error');
-            console.error('Erro do servidor:', result.error);
+            console.error('❌ Erro do servidor:', result.error);
         }
     } catch (error) {
         showToast('Erro ao salvar categoria', 'error');
