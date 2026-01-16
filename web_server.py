@@ -1932,9 +1932,26 @@ def modificar_categoria(nome):
     
     elif request.method == 'DELETE':
         try:
+            print('\n' + '='*80)
+            print('🗑️ DELETE /api/categorias - Excluindo categoria')
+            print(f'   📍 Nome (URL): {nome}')
+            print(f'   👤 Usuário: {session.get("usuario_id")}')
+            print(f'   🏢 Empresa: {session.get("empresa_id")}')
+            
+            # Normalizar nome
+            nome_normalizado = nome.strip().upper()
+            print(f'   📝 Nome normalizado: {nome_normalizado}')
+            
             success = db.excluir_categoria(nome)
+            
+            print(f'   {"✅" if success else "❌"} Resultado: {success}')
+            print('='*80 + '\n')
+            
             return jsonify({'success': success})
         except Exception as e:
+            print(f'   ❌ Erro ao excluir: {str(e)}')
+            import traceback
+            traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 400
 
 

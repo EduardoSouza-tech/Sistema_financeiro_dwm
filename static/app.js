@@ -1238,24 +1238,40 @@ async function editarCategoria(nome, tipo) {
 }
 
 async function excluirCategoria(nome) {
-    if (!confirm(`Deseja realmente excluir a categoria "${nome}"?`)) return;
+    console.log('🗑️ excluirCategoria chamada com:', nome);
+    
+    if (!confirm(`Deseja realmente excluir a categoria "${nome}"?`)) {
+        console.log('   ❌ Usuário cancelou');
+        return;
+    }
     
     try {
-        const response = await fetch(`${API_URL}/categorias/${encodeURIComponent(nome)}`, {
+        const url = `${API_URL}/categorias/${encodeURIComponent(nome)}`;
+        console.log('   🌐 URL:', url);
+        console.log('   📨 Method: DELETE');
+        
+        const response = await fetch(url, {
             method: 'DELETE'
         });
         
-        const result = await response.json();
+        console.log('   📡 Status:', response.status);
+        console.log('   📡 Status Text:', response.statusText);
         
-        if (result.success) {
-            alert('Categoria excluída com sucesso!');
-            loadCategorias();
+        const result = await response.json();
+        console.log('   📦 Resposta:', result);
+        
+        if (response.ok && result.success) {
+            showToast('✓ Categoria excluída com sucesso!', 'success');
+            await loadCategorias();
+            console.log('   ✅ Lista recarregada');
         } else {
-            alert('Erro: ' + result.error);
+            const errorMsg = result.error || 'Erro desconhecido';
+            showToast('Erro ao excluir: ' + errorMsg, 'error');
+            console.error('   ❌ Erro:', errorMsg);
         }
     } catch (error) {
-        console.error('Erro ao excluir categoria:', error);
-        alert('Erro ao excluir categoria');
+        console.error('   ❌ Exception:', error);
+        showToast('Erro ao excluir categoria', 'error');
     }
 }
 
