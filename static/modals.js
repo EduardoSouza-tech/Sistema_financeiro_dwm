@@ -984,7 +984,7 @@ async function salvarCliente(event) {
         if (result.success) {
             showToast(isEdit ? '✓ Cliente atualizado com sucesso!' : '✓ Cliente adicionado com sucesso!', 'success');
             closeModal();
-            if (typeof loadClientesTable === 'function') loadClientesTable();
+            if (typeof loadClientes === 'function') await loadClientes();
             if (typeof loadClientes === 'function') loadClientes();
         } else {
             showToast('Erro: ' + result.error, 'error');

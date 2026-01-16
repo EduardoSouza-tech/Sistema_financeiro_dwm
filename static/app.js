@@ -1300,7 +1300,8 @@ async function loadClientes() {
                 <td>${cliente.telefone || '-'}</td>
                 <td>${cliente.email || '-'}</td>
                 <td>
-                    <button class="btn btn-danger" onclick="excluirCliente('${cliente.nome}')">🗑️</button>
+                    <button class="btn btn-sm btn-primary" onclick="editarCliente('${escapeHtml(cliente.nome)}')" title="Editar cliente">✏️</button>
+                    <button class="btn btn-sm btn-danger" onclick="excluirCliente('${escapeHtml(cliente.nome)}')" title="Excluir cliente">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -1338,25 +1339,112 @@ async function salvarCliente(event) {
     }
 }
 
+// Função para editar cliente
+async function editarCliente(nome) {
+    try {
+        console.log('✏️ Editando cliente:', nome);
+        
+        if (!nome) {
+            showToast('Erro: Nome do cliente não informado', 'error');
+            return;
+        }
+        
+        // Buscar dados do cliente
+        const response = await fetch(`${API_URL}/clientes/${encodeURIComponent(nome)}`);
+        const cliente = await response.json();
+        
+        if (!cliente) {
+            showToast('Erro: Cliente não encontrado', 'error');
+            return;
+        }
+        
+        console.log('✅ Cliente encontrado:', cliente);
+        
+        // Chamar função do modals.js para abrir modal de edição
+        if (typeof openModalCliente === 'function') {
+            openModalCliente(cliente);
+            console.log('✅ Modal de edição aberto');
+        } else {
+            showToast('Erro: Função de edição não disponível', 'error');
+            console.error('❌ Função openModalCliente não encontrada!');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao editar cliente:', error);
+        showToast('Erro ao abrir edição: ' + error.message, 'error');
+    }
+}
+
+// Função para alternar abas de clientes (ativos/inativos)
+function showClienteTab(tab) {
+    console.log('🔄 Alternando aba de clientes:', tab);
+    
+    // Atualizar botões das abas
+    document.querySelectorAll('.cliente-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    const activeBtn = document.querySelector(`.cliente-tab-btn[onclick="showClienteTab('${tab}')"]`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
+    
+    // Filtrar clientes por status
+    const tbody = document.getElementById('tbody-clientes');
+    if (!tbody) {
+        console.error('❌ tbody-clientes não encontrado');
+        return;
+    }
+    
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach(row => {
+        // Por enquanto mostra todos - implementar filtro de status quando houver
+        row.style.display = '';
+    });
+    
+    console.log('✅ Aba alternada:', tab);
+}
+
 async function excluirCliente(nome) {
-    if (!confirm(`Deseja realmente excluir o cliente "${nome}"?`)) return;
+    console.log('🗑️ excluirCliente chamada com:', nome);
+    
+    if (!confirm(`Deseja realmente excluir o cliente "${nome}"?`)) {
+        console.log('   ❌ Usuário cancelou');
+        return;
+    }
     
     try {
-        const response = await fetch(`${API_URL}/clientes/${encodeURIComponent(nome)}`, {
-            method: 'DELETE'
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        console.log('   🔑 CSRF Token:', csrfToken ? 'Presente' : 'AUSENTE');
+        
+        const url = `${API_URL}/clientes/${encodeURIComponent(nome)}`;
+        console.log('   🌐 URL:', url);
+        
+        const response = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
         });
         
-        const result = await response.json();
+        console.log('   📡 Status:', response.status);
         
-        if (result.success) {
-            alert('Cliente excluído com sucesso!');
-            loadClientes();
+        const result = await response.json();
+        console.log('   📦 Resposta:', result);
+        
+        if (response.ok && result.success) {
+            showToast('✓ Cliente excluído com sucesso!', 'success');
+            await loadClientes();
+            console.log('   ✅ Lista recarregada');
         } else {
-            alert('Erro: ' + result.error);
+            const errorMsg = result.error || 'Erro desconhecido';
+            showToast('Erro ao excluir: ' + errorMsg, 'error');
+            console.error('   ❌ Erro:', errorMsg);
         }
     } catch (error) {
-        console.error('Erro ao excluir cliente:', error);
-        alert('Erro ao excluir cliente');
+        console.error('   ❌ Exception:', error);
+        showToast('Erro ao excluir cliente', 'error');
     }
 }
 
