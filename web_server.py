@@ -2860,7 +2860,7 @@ def atualizar_funcionario(funcionario_id):
 # === ROTAS DE EVENTOS ===
 
 @app.route('/api/eventos', methods=['GET'])
-@require_permission('admin')
+@require_permission('eventos_view')
 def listar_eventos():
     """Listar eventos com filtros opcionais"""
     try:
@@ -2953,7 +2953,7 @@ def listar_eventos():
 
 
 @app.route('/api/eventos', methods=['POST'])
-@require_permission('admin')
+@require_permission('eventos_create')
 def criar_evento():
     """Criar novo evento"""
     try:
@@ -3016,7 +3016,7 @@ def criar_evento():
 
 
 @app.route('/api/eventos/<int:evento_id>', methods=['PUT'])
-@require_permission('admin')
+@require_permission('eventos_edit')
 def atualizar_evento(evento_id):
     """Atualizar evento existente"""
     try:
@@ -3105,7 +3105,7 @@ def atualizar_evento(evento_id):
 
 
 @app.route('/api/eventos/<int:evento_id>', methods=['DELETE'])
-@require_permission('admin')
+@require_permission('eventos_delete')
 def deletar_evento(evento_id):
     """Deletar evento"""
     try:

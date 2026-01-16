@@ -1211,6 +1211,10 @@ class DatabaseManager:
             ('agenda_create', 'Criar Eventos', 'Criar eventos na agenda', 'operacional'),
             ('agenda_edit', 'Editar Eventos', 'Editar eventos da agenda', 'operacional'),
             ('agenda_delete', 'Excluir Eventos', 'Excluir eventos da agenda', 'operacional'),
+            ('eventos_view', 'Ver Eventos', 'Visualizar eventos', 'operacional'),
+            ('eventos_create', 'Criar Eventos', 'Criar novos eventos', 'operacional'),
+            ('eventos_edit', 'Editar Eventos', 'Editar eventos existentes', 'operacional'),
+            ('eventos_delete', 'Excluir Eventos', 'Excluir eventos', 'operacional'),
             
             # Relati?rios
             ('exportar_pdf', 'Exportar PDF', 'Exportar dados em PDF', 'relatorios'),
