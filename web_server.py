@@ -490,7 +490,7 @@ def login():
             request.remote_addr,
             request.headers.get('User-Agent', '')
         )
-        print(f"✅ Sessão criada: {token[:20]}..."
+        print(f"✅ Sessão criada: {token[:20]}...")
         
         # Guardar token na sessão do Flask
         session['session_token'] = token
