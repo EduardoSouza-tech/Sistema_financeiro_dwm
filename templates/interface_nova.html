@@ -3965,6 +3965,10 @@
                         loadEmpresasSelector(data.empresas_disponiveis, data.empresa_atual);
                     }
                     
+                    // 🆕 Filtrar menu baseado nas permissões do usuário
+                    console.log('🔐 Filtrando menu baseado nas permissões...');
+                    filterMenuByPermissions(data.usuario);
+                    
                     // Carregar permissões se necessário (app.js)
                     if (typeof carregarPermissoesUsuario === 'function') {
                         console.log('📋 Carregando permissões...');
@@ -3985,15 +3989,77 @@
             }
         }
         
+        // 🆕 Filtrar menu baseado nas permissões do usuário
+        function filterMenuByPermissions(usuario) {
+            console.log('🔐 filterMenuByPermissions iniciada');
+            console.log('👤 Usuário:', usuario);
+            console.log('📋 Permissões:', usuario.permissoes);
+            console.log('🏷️ Tipo:', usuario.tipo);
+            
+            // Admin tem acesso a tudo
+            if (usuario.tipo === 'admin') {
+                console.log('👑 Usuário admin - mostrar todos os menus');
+                return;
+            }
+            
+            // Array de permissões do usuário
+            const permissoes = usuario.permissoes || [];
+            console.log('📝 Permissões disponíveis:', permissoes);
+            
+            // Selecionar todos os botões com data-permission
+            const botoes = document.querySelectorAll('[data-permission]');
+            console.log('🔍 Total de botões com permissão:', botoes.length);
+            
+            let ocultados = 0;
+            let visiveis = 0;
+            
+            botoes.forEach(botao => {
+                const permissaoRequerida = botao.getAttribute('data-permission');
+                const temPermissao = permissoes.includes(permissaoRequerida);
+                
+                console.log(`  📍 Botão: ${botao.textContent.trim().substring(0, 30)}...`);
+                console.log(`     - Permissão requerida: ${permissaoRequerida}`);
+                console.log(`     - Tem permissão? ${temPermissao}`);
+                
+                if (!temPermissao) {
+                    // Ocultar botão
+                    botao.style.display = 'none';
+                    ocultados++;
+                    
+                    // Se for um botão de menu principal, ocultar também o submenu
+                    const btnId = botao.id;
+                    if (btnId && btnId.startsWith('btn-')) {
+                        const submenuId = btnId.replace('btn-', 'submenu-');
+                        const submenu = document.getElementById(submenuId);
+                        if (submenu) {
+                            submenu.style.display = 'none';
+                            console.log(`     ↳ Submenu ${submenuId} também ocultado`);
+                        }
+                    }
+                } else {
+                    visiveis++;
+                }
+            });
+            
+            console.log(`✅ Filtro concluído: ${visiveis} visíveis, ${ocultados} ocultados`);
+        }
+        
         // 🆕 MULTI-EMPRESA: Carregar seletor de empresas
         function loadEmpresasSelector(empresas, empresaAtual) {
-            console.log('🏢 loadEmpresasSelector:', empresas, empresaAtual);
+            console.log('🏢 loadEmpresasSelector chamada');
+            console.log('  📦 empresas:', JSON.stringify(empresas, null, 2));
+            console.log('  🏢 empresaAtual:', JSON.stringify(empresaAtual, null, 2));
             
             const container = document.getElementById('empresaSelectorContainer');
             const selector = document.getElementById('empresaSelector');
             
-            if (!container || !selector || empresas.length === 0) {
-                console.log('ℹ️ Seletor de empresa não necessário');
+            if (!container || !selector) {
+                console.error('❌ Elementos do seletor não encontrados!');
+                return;
+            }
+            
+            if (!empresas || empresas.length === 0) {
+                console.log('ℹ️ Nenhuma empresa disponível - seletor não necessário');
                 return;
             }
             
@@ -4001,19 +4067,21 @@
             selector.innerHTML = '';
             
             // Adicionar empresas ao select
-            empresas.forEach(empresa => {
+            empresas.forEach((empresa, index) => {
+                console.log(`  [${index}] Adicionando empresa:`, empresa);
                 const option = document.createElement('option');
                 option.value = empresa.id;
-                option.textContent = `🏢 ${empresa.nome}`;
+                option.textContent = `🏢 ${empresa.razao_social}`;
                 if (empresaAtual && empresa.id === empresaAtual.id) {
                     option.selected = true;
+                    console.log(`     ✅ Empresa selecionada por padrão`);
                 }
                 selector.appendChild(option);
             });
             
             // Mostrar container
             container.style.display = 'block';
-            console.log('✅ Seletor de empresas carregado');
+            console.log(`✅ Seletor de empresas carregado com ${empresas.length} empresa(s)`);
         }
         
         // 🆕 MULTI-EMPRESA: Trocar empresa
