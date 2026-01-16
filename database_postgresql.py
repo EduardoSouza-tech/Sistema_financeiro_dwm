@@ -1216,6 +1216,12 @@ class DatabaseManager:
             ('exportar_pdf', 'Exportar PDF', 'Exportar dados em PDF', 'relatorios'),
             ('exportar_excel', 'Exportar Excel', 'Exportar dados em Excel', 'relatorios'),
             
+            # Recursos Humanos
+            ('folha_pagamento_view', 'Ver Folha de Pagamento', 'Visualizar folha de pagamento', 'recursos_humanos'),
+            ('folha_pagamento_create', 'Criar Folha de Pagamento', 'Criar nova folha de pagamento', 'recursos_humanos'),
+            ('folha_pagamento_edit', 'Editar Folha de Pagamento', 'Editar folha de pagamento', 'recursos_humanos'),
+            ('folha_pagamento_delete', 'Excluir Folha de Pagamento', 'Excluir folha de pagamento', 'recursos_humanos'),
+            
             # Sistema
             ('configuracoes', 'Configurai?i?es', 'Acessar configurai?i?es', 'sistema'),
             ('usuarios_admin', 'Gerenciar Usui?rios', 'Gerenciar usui?rios e permissi?es (apenas admin)', 'sistema')

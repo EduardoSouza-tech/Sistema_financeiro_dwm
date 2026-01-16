@@ -852,41 +852,60 @@ def minhas_empresas():
 @require_auth
 def switch_empresa():
     """Troca a empresa atual do usuário na sessão"""
+    print(f"\n{'='*80}")
+    print(f"🔄 [SWITCH-EMPRESA] Requisição recebida")
     try:
         data = request.json
+        print(f"📦 Dados recebidos: {data}")
         empresa_id = data.get('empresa_id')
+        print(f"🏢 Empresa ID: {empresa_id}")
         
         if not empresa_id:
+            print(f"❌ empresa_id não fornecido")
             return jsonify({
                 'success': False,
                 'error': 'empresa_id é obrigatório'
             }), 400
         
         usuario = request.usuario
+        print(f"👤 Usuário: {usuario['username']} (tipo: {usuario['tipo']})")
         
         # Super admin pode acessar qualquer empresa
         if usuario['tipo'] != 'admin':
             # Validar se usuário tem acesso à empresa
             from auth_functions import tem_acesso_empresa
+            print(f"🔐 Validando acesso do usuário à empresa...")
             if not tem_acesso_empresa(usuario['id'], empresa_id, auth_db):
+                print(f"❌ Acesso negado")
                 return jsonify({
                     'success': False,
                     'error': 'Acesso negado a esta empresa'
                 }), 403
+            print(f"✅ Acesso validado")
+        else:
+            print(f"👑 Admin - acesso total")
         
         # Buscar dados da empresa
+        print(f"🔍 Buscando dados da empresa {empresa_id}...")
         empresa = database.obter_empresa(empresa_id)
+        print(f"📊 Resultado da busca: {empresa}")
         if not empresa:
+            print(f"❌ Empresa {empresa_id} não encontrada no banco de dados")
             return jsonify({
                 'success': False,
                 'error': 'Empresa não encontrada'
             }), 404
         
+        print(f"✅ Empresa encontrada: {empresa.get('razao_social')}")
+        
         # Atualizar sessão
+        print(f"💾 Atualizando sessão com empresa_id={empresa_id}")
         session['empresa_id'] = empresa_id
         session.modified = True
+        print(f"✅ Sessão atualizada")
         
         # Registrar troca de empresa
+        print(f"📝 Registrando log de troca de empresa...")
         auth_db.registrar_log_acesso(
             usuario_id=usuario['id'],
             acao='switch_empresa',
@@ -894,14 +913,19 @@ def switch_empresa():
             ip_address=request.remote_addr,
             sucesso=True
         )
+        print(f"✅ Log registrado")
         
         # Carregar permissões da nova empresa
+        print(f"🔐 Carregando permissões...")
         if usuario['tipo'] != 'admin':
             from auth_functions import obter_permissoes_usuario_empresa
             permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
         else:
             permissoes = ['*']  # Super admin tem todas as permissões
+        print(f"📋 Permissões carregadas: {len(permissoes)}")
         
+        print(f"✅ Troca de empresa concluída com sucesso")
+        print(f"{'='*80}\n")
         return jsonify({
             'success': True,
             'message': 'Empresa alterada com sucesso',
@@ -914,10 +938,15 @@ def switch_empresa():
         })
         
     except Exception as e:
-        print(f"❌ Erro ao trocar empresa: {e}")
+        print(f"❌ ERRO em switch-empresa: {e}")
+        print(f"❌ Tipo do erro: {type(e)}")
         import traceback
         traceback.print_exc()
+        print(f"{'='*80}\n")
         return jsonify({
+            'success': False,
+            'error': 'Erro ao trocar empresa'
+        }), 500
             'success': False,
             'error': str(e)
         }), 500
