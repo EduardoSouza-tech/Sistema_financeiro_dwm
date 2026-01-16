@@ -1567,25 +1567,49 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
         
+        print('🔄 DATABASE: atualizar_categoria() iniciada')
+        print(f'   📝 Nome: {categoria.nome}')
+        print(f'   🏷️ Tipo: {categoria.tipo.value}')
+        print(f'   🏢 Empresa ID: {getattr(categoria, "empresa_id", "N/A")}')
+        
         subcategorias_json = json.dumps(categoria.subcategorias) if categoria.subcategorias else None
         
         # Normalizar nome
         nome_normalizado = categoria.nome.strip().upper()
         
-        cursor.execute("""
-            UPDATE categorias 
-            SET tipo = %s, subcategorias = %s
-            WHERE UPPER(TRIM(nome)) = %s
-        """, (
-            categoria.tipo.value,
-            subcategorias_json,
-            nome_normalizado
-        ))
+        # Incluir empresa_id no UPDATE se estiver presente
+        empresa_id = getattr(categoria, 'empresa_id', None)
+        
+        if empresa_id is not None:
+            print(f'   ➡️ Atualizando COM empresa_id = {empresa_id}')
+            cursor.execute("""
+                UPDATE categorias 
+                SET tipo = %s, subcategorias = %s, empresa_id = %s
+                WHERE UPPER(TRIM(nome)) = %s
+            """, (
+                categoria.tipo.value,
+                subcategorias_json,
+                empresa_id,
+                nome_normalizado
+            ))
+        else:
+            print('   ➡️ Atualizando SEM empresa_id (mantém valor existente)')
+            cursor.execute("""
+                UPDATE categorias 
+                SET tipo = %s, subcategorias = %s
+                WHERE UPPER(TRIM(nome)) = %s
+            """, (
+                categoria.tipo.value,
+                subcategorias_json,
+                nome_normalizado
+            ))
         
         sucesso = cursor.rowcount > 0
         conn.commit()
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
+        
+        print(f'   {"✅" if sucesso else "❌"} Linhas afetadas: {cursor.rowcount if sucesso else 0}')
         return sucesso
     
     def atualizar_nome_categoria(self, nome_antigo: str, nome_novo: str) -> bool:

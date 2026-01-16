@@ -1080,7 +1080,8 @@ async function loadCategorias() {
                     tr.innerHTML = `
                         <td>${escapeHtml(cat.nome)}</td>
                         <td>
-                            <button class="btn btn-sm btn-danger" onclick="excluirCategoria('${escapeHtml(cat.nome)}')">🗑️</button>
+                            <button class="btn btn-sm btn-primary" onclick="editarCategoria('${escapeHtml(cat.nome)}', '${escapeHtml(cat.tipo)}')" title="Editar categoria">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="excluirCategoria('${escapeHtml(cat.nome)}')" title="Excluir categoria">🗑️</button>
                         </td>
                     `;
                     tbodyReceita.appendChild(tr);
@@ -1103,7 +1104,8 @@ async function loadCategorias() {
                     tr.innerHTML = `
                         <td>${escapeHtml(cat.nome)}</td>
                         <td>
-                            <button class="btn btn-sm btn-danger" onclick="excluirCategoria('${escapeHtml(cat.nome)}')">🗑️</button>
+                            <button class="btn btn-sm btn-primary" onclick="editarCategoria('${escapeHtml(cat.nome)}', '${escapeHtml(cat.tipo)}')" title="Editar categoria">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="excluirCategoria('${escapeHtml(cat.nome)}')" title="Excluir categoria">🗑️</button>
                         </td>
                     `;
                     tbodyDespesa.appendChild(tr);
@@ -1186,6 +1188,52 @@ async function salvarCategoria(event) {
     } catch (error) {
         console.error('Erro ao salvar categoria:', error);
         alert('Erro ao salvar categoria');
+    }
+}
+
+// Função para editar categoria
+async function editarCategoria(nome, tipo) {
+    try {
+        console.log('✏️ Editando categoria:', nome, 'Tipo:', tipo);
+        
+        // Validações básicas
+        if (!nome) {
+            showToast('Erro: Nome da categoria não informado', 'error');
+            console.error('❌ Nome da categoria vazio!');
+            return;
+        }
+        
+        if (!window.currentEmpresaId) {
+            showToast('Erro: Empresa não identificada. Recarregue a página.', 'error');
+            console.error('❌ currentEmpresaId não definido!');
+            return;
+        }
+        
+        // Buscar dados da categoria
+        const categoria = AppState.categorias.find(c => c.nome === nome);
+        
+        if (!categoria) {
+            showToast('Erro: Categoria não encontrada', 'error');
+            console.error('❌ Categoria não encontrada na lista:', nome);
+            console.log('   📋 Categorias disponíveis:', AppState.categorias.map(c => c.nome));
+            return;
+        }
+        
+        console.log('✅ Categoria encontrada:', categoria);
+        
+        // Chamar função do modals.js para abrir modal de edição
+        if (typeof openModalCategoria === 'function') {
+            // Passar dados da categoria para preencher o formulário
+            openModalCategoria(categoria);
+            console.log('✅ Modal de edição aberto');
+        } else {
+            showToast('Erro: Função de edição não disponível', 'error');
+            console.error('❌ Função openModalCategoria não encontrada!');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao editar categoria:', error);
+        showToast('Erro ao abrir edição: ' + error.message, 'error');
     }
 }
 

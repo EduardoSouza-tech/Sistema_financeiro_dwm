@@ -1877,6 +1877,19 @@ def modificar_categoria(nome):
         try:
             data = request.json
             
+            print('\n' + '='*80)
+            print('✏️ PUT /api/categorias - Atualizando categoria')
+            print(f'   📍 Nome original (URL): {nome}')
+            print(f'   📦 Dados recebidos: {data}')
+            print(f'   🏢 Empresa na sessão: {session.get("empresa_id")}')
+            
+            # Extrair empresa_id do request ou sessão
+            empresa_id = data.get('empresa_id') if data else None
+            if not empresa_id:
+                empresa_id = session.get('empresa_id')
+            
+            print(f'   🏢 empresa_id a ser usado: {empresa_id}')
+            
             # Converter tipo para minúscula para compatibilidade com o enum
             tipo_str = data['tipo'].lower() if data and data.get('tipo') else 'receita'  # type: ignore
             
@@ -1886,16 +1899,28 @@ def modificar_categoria(nome):
             # Se o nome mudou, precisamos atualizar com atualizar_nome_categoria primeiro
             nome_original_normalizado = nome.strip().upper()
             
+            print(f'   📝 Nome original normalizado: {nome_original_normalizado}')
+            print(f'   📝 Nome novo normalizado: {nome_normalizado}')
+            print(f'   🔄 Nome mudou? {nome_normalizado != nome_original_normalizado}')
+            
             # Se o nome mudou, atualizar o nome primeiro
             if nome_normalizado != nome_original_normalizado:
+                print('   ➡️ Atualizando nome da categoria...')
                 db.atualizar_nome_categoria(nome_original_normalizado, nome_normalizado)
             
             categoria = Categoria(
                 nome=nome_normalizado,  # type: ignore
                 tipo=TipoLancamento(tipo_str),  # type: ignore
-                subcategorias=data.get('subcategorias', []) if data else []  # type: ignore
+                subcategorias=data.get('subcategorias', []) if data else [],  # type: ignore
+                empresa_id=empresa_id  # type: ignore
             )
+            
+            print(f'   💾 Atualizando categoria: {categoria.nome} (tipo: {categoria.tipo.value}, empresa: {categoria.empresa_id})')
             success = db.atualizar_categoria(categoria)
+            
+            print(f'   {"✅" if success else "❌"} Resultado: {success}')
+            print('='*80 + '\n')
+            
             return jsonify({'success': success})
         except Exception as e:
             import traceback
@@ -1903,6 +1928,7 @@ def modificar_categoria(nome):
             error_msg = str(e)
             if 'UNIQUE constraint' in error_msg:
                 error_msg = 'Já existe uma categoria com este nome'
+            print(f'   ❌ Erro ao atualizar: {error_msg}')
             return jsonify({'success': False, 'error': error_msg}), 400
     
     elif request.method == 'DELETE':
