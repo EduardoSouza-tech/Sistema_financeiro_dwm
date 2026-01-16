@@ -1497,6 +1497,7 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
         
+        print('\n' + '='*80)
         print('🔍 DATABASE: listar_categorias() iniciada')
         print(f'   📍 Filtro por tipo: {tipo.value if tipo else "Nenhum (todos os tipos)"}')
         print(f'   🏢 Filtro por empresa_id: {empresa_id if empresa_id else "Nenhum (todas as empresas)"}')
@@ -1509,13 +1510,13 @@ class DatabaseManager:
             query += " AND tipo = %s"
             params.append(tipo.value)
         
-        if empresa_id:
+        if empresa_id is not None:
             query += " AND (empresa_id = %s OR empresa_id IS NULL)"
             params.append(empresa_id)
         
         query += " ORDER BY nome"
         
-        print(f'   📝 Query: {query}')
+        print(f'   📝 Query SQL: {query}')
         print(f'   📝 Params: {params}')
         
         cursor.execute(query, tuple(params))
@@ -1543,6 +1544,7 @@ class DatabaseManager:
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
         print(f'   ✅ Retornando {len(categorias)} categorias')
+        print('='*80 + '\n')
         return categorias
     
     def excluir_categoria(self, nome: str) -> bool:

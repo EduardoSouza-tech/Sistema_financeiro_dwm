@@ -1797,15 +1797,23 @@ def criar_transferencia():
 def listar_categorias():
     """Lista todas as categorias"""
     try:
+        print('\n' + '='*80)
         print('🔍 GET /api/categorias - Iniciando listagem de categorias')
         print(f'   📍 Empresa na sessão: {session.get("empresa_id")}')
         print(f'   👤 Usuário na sessão: {session.get("usuario_id")}')
+        print(f'   🔑 Session completa: {dict(session)}')
         
         # Filtrar por empresa_id da sessão
         empresa_id = session.get('empresa_id')
+        
+        # PRIMEIRO: Listar TODAS sem filtro para debug
+        todas_categorias = db.listar_categorias(empresa_id=None)
+        print(f'   📊 Total de categorias SEM filtro: {len(todas_categorias)}')
+        
+        # DEPOIS: Listar com filtro
         categorias = db.listar_categorias(empresa_id=empresa_id)
         
-        print(f'   📊 Total de categorias encontradas: {len(categorias)}')
+        print(f'   📊 Total de categorias COM filtro (empresa_id={empresa_id}): {len(categorias)}')
         for i, c in enumerate(categorias):
             print(f'   [{i+1}] {c.nome} (tipo: {c.tipo.value}, empresa_id: {getattr(c, "empresa_id", "N/A")})')
         
@@ -1817,6 +1825,7 @@ def listar_categorias():
         } for c in categorias]
         
         print(f'   ✅ Retornando {len(resultado)} categorias')
+        print('='*80 + '\n')
         return jsonify(resultado)
     except Exception as e:
         print(f'   ❌ Erro ao listar categorias: {str(e)}')

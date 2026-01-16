@@ -1053,26 +1053,65 @@ async function loadCategorias() {
         AppState.categorias = data;
         categorias = AppState.categorias; // Sincroniza alias
         
-        const tbody = document.getElementById('tbody-categorias');
+        // CORREÇÃO: Usar os IDs corretos das tabelas separadas
+        const tbodyReceita = document.getElementById('tbody-categorias-receita');
+        const tbodyDespesa = document.getElementById('tbody-categorias-despesa');
         const selectCategoria = document.getElementById('select-categoria');
         
-        // Verificar se os elementos existem antes de atualizar
-        if (tbody) {
-            tbody.innerHTML = '';
+        console.log('   🔍 Elementos encontrados:');
+        console.log('      tbody-categorias-receita:', tbodyReceita ? '✅' : '❌');
+        console.log('      tbody-categorias-despesa:', tbodyDespesa ? '✅' : '❌');
+        
+        // Separar categorias por tipo
+        const categoriasReceita = data.filter(cat => cat.tipo.toLowerCase() === 'receita');
+        const categoriasDespesa = data.filter(cat => cat.tipo.toLowerCase() === 'despesa');
+        
+        console.log(`   📊 Receitas: ${categoriasReceita.length}, Despesas: ${categoriasDespesa.length}`);
+        
+        // Atualizar tabela de receitas
+        if (tbodyReceita) {
+            tbodyReceita.innerHTML = '';
             
-            data.forEach(cat => {
-                // Tabela
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${escapeHtml(cat.nome)}</td>
-                    <td><span class="badge badge-${cat.tipo.toLowerCase()}">${escapeHtml(cat.tipo)}</span></td>
-                    <td>${cat.subcategorias ? cat.subcategorias.join(', ') : '-'}</td>
-                    <td>
-                        <button class="btn btn-danger" onclick="excluirCategoria('${escapeHtml(cat.nome)}')">🗑️</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+            if (categoriasReceita.length === 0) {
+                tbodyReceita.innerHTML = '<tr><td colspan="2">Nenhuma categoria de receita cadastrada</td></tr>';
+            } else {
+                categoriasReceita.forEach(cat => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${escapeHtml(cat.nome)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="excluirCategoria('${escapeHtml(cat.nome)}')">🗑️</button>
+                        </td>
+                    `;
+                    tbodyReceita.appendChild(tr);
+                });
+            }
+            console.log('   ✅ Tabela de receitas atualizada');
+        } else {
+            console.warn('   ⚠️ tbody-categorias-receita não encontrado!');
+        }
+        
+        // Atualizar tabela de despesas
+        if (tbodyDespesa) {
+            tbodyDespesa.innerHTML = '';
+            
+            if (categoriasDespesa.length === 0) {
+                tbodyDespesa.innerHTML = '<tr><td colspan="2">Nenhuma categoria de despesa cadastrada</td></tr>';
+            } else {
+                categoriasDespesa.forEach(cat => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${escapeHtml(cat.nome)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="excluirCategoria('${escapeHtml(cat.nome)}')">🗑️</button>
+                        </td>
+                    `;
+                    tbodyDespesa.appendChild(tr);
+                });
+            }
+            console.log('   ✅ Tabela de despesas atualizada');
+        } else {
+            console.warn('   ⚠️ tbody-categorias-despesa não encontrado!');
         }
         
         // Atualizar select de categorias nos formulários
