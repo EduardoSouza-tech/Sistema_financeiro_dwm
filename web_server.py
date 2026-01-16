@@ -2618,7 +2618,7 @@ def deletar_extrato_filtrado():
 # === ROTAS DE FOLHA DE PAGAMENTO (FUNCIONÁRIOS) ===
 
 @app.route('/api/funcionarios', methods=['GET'])
-@require_permission('admin')
+@require_permission('folha_pagamento_view')
 def listar_funcionarios():
     """Listar todos os funcionários da empresa"""
     try:
@@ -2690,7 +2690,7 @@ def listar_funcionarios():
 
 
 @app.route('/api/funcionarios', methods=['POST'])
-@require_permission('admin')
+@require_permission('folha_pagamento_create')
 def criar_funcionario():
     """Criar novo funcionário"""
     try:
@@ -2762,7 +2762,7 @@ def criar_funcionario():
 
 
 @app.route('/api/funcionarios/<int:funcionario_id>', methods=['PUT'])
-@require_permission('admin')
+@require_permission('folha_pagamento_edit')
 def atualizar_funcionario(funcionario_id):
     """Atualizar funcionário existente"""
     try:
