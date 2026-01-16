@@ -836,25 +836,56 @@ async function loadContas() {
         
         const tbody = document.getElementById('tbody-contas');
         const selectConta = document.getElementById('select-conta');
+        const saldoTotalDisplay = document.getElementById('saldo-total-display');
+        const filtroBanco = document.getElementById('filtro-banco');
+        
+        // Calcular saldo total de todas as contas
+        let saldoTotal = 0;
+        const bancosUnicos = new Set();
         
         // Verificar se os elementos existem antes de atualizar
         if (tbody) {
             tbody.innerHTML = '';
             
             data.forEach(conta => {
+                // Somar saldo real (ou saldo_inicial se não tiver saldo_real)
+                const saldoConta = conta.saldo_real !== undefined ? conta.saldo_real : conta.saldo_inicial || 0;
+                saldoTotal += parseFloat(saldoConta) || 0;
+                
+                // Adicionar banco à lista de bancos únicos
+                if (conta.banco) {
+                    bancosUnicos.add(conta.banco);
+                }
+                
                 // Tabela
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${conta.nome}</td>
                     <td>${conta.banco}</td>
                     <td>${conta.agencia}</td>
                     <td>${conta.conta}</td>
                     <td>${formatarMoeda(conta.saldo_inicial)}</td>
+                    <td>${formatarMoeda(conta.saldo_real !== undefined ? conta.saldo_real : conta.saldo_inicial)}</td>
                     <td>
                         <button class="btn btn-danger" onclick="excluirConta('${conta.nome}')">🗑️</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
+            });
+        }
+        
+        // Atualizar display do saldo total
+        if (saldoTotalDisplay) {
+            saldoTotalDisplay.textContent = formatarMoeda(saldoTotal);
+        }
+        
+        // Atualizar filtro de bancos
+        if (filtroBanco) {
+            filtroBanco.innerHTML = '<option value="">Todos os Bancos</option>';
+            Array.from(bancosUnicos).sort().forEach(banco => {
+                const option = document.createElement('option');
+                option.value = banco;
+                option.textContent = banco;
+                filtroBanco.appendChild(option);
             });
         }
         
@@ -871,11 +902,62 @@ async function loadContas() {
         }
         
         console.log('✅ Contas carregadas com sucesso');
+        console.log('💰 Saldo total calculado:', formatarMoeda(saldoTotal));
         
     } catch (error) {
         logError(context, error);
         showNotification('Erro ao carregar contas bancárias', 'error');
     }
+}
+
+/**
+ * Filtra contas bancárias por banco selecionado
+ */
+function filtrarPorBanco() {
+    const filtroBanco = document.getElementById('filtro-banco');
+    const tbody = document.getElementById('tbody-contas');
+    const saldoTotalDisplay = document.getElementById('saldo-total-display');
+    
+    if (!filtroBanco || !tbody || !AppState.contas) return;
+    
+    const bancoSelecionado = filtroBanco.value;
+    let saldoTotal = 0;
+    
+    // Limpar tabela
+    tbody.innerHTML = '';
+    
+    // Filtrar e exibir contas
+    const contasFiltradas = bancoSelecionado 
+        ? AppState.contas.filter(conta => conta.banco === bancoSelecionado)
+        : AppState.contas;
+    
+    contasFiltradas.forEach(conta => {
+        // Somar saldo real (ou saldo_inicial se não tiver saldo_real)
+        const saldoConta = conta.saldo_real !== undefined ? conta.saldo_real : conta.saldo_inicial || 0;
+        saldoTotal += parseFloat(saldoConta) || 0;
+        
+        // Adicionar linha na tabela
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${conta.banco}</td>
+            <td>${conta.agencia}</td>
+            <td>${conta.conta}</td>
+            <td>${formatarMoeda(conta.saldo_inicial)}</td>
+            <td>${formatarMoeda(conta.saldo_real !== undefined ? conta.saldo_real : conta.saldo_inicial)}</td>
+            <td>
+                <button class="btn btn-danger" onclick="excluirConta('${conta.nome}')">🗑️</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+    
+    // Atualizar display do saldo total
+    if (saldoTotalDisplay) {
+        saldoTotalDisplay.textContent = formatarMoeda(saldoTotal);
+    }
+    
+    console.log(`🔍 Filtro aplicado: ${bancoSelecionado || 'Todos os Bancos'}`);
+    console.log(`💰 Saldo total filtrado: ${formatarMoeda(saldoTotal)}`);
 }
 
 async function salvarConta(event) {
