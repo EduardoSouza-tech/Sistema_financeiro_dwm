@@ -1806,13 +1806,27 @@ class DatabaseManager:
         return dict(row) if row else None
     
     def excluir_cliente(self, nome: str) -> tuple[bool, str]:
-        """Exclui um cliente pelo nome (verifica se não tem lançamentos vinculados)"""
+        """Exclui um cliente pelo nome (verifica se não tem lançamentos ou contratos vinculados)"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
         nome_normalizado = nome.upper().strip()
         
-        # Verificar se tem lançamentos vinculados
+        # Primeiro, buscar o ID do cliente pelo nome
+        cursor.execute("""
+            SELECT id FROM clientes 
+            WHERE UPPER(TRIM(nome)) = %s
+        """, (nome_normalizado,))
+        
+        cliente_row = cursor.fetchone()
+        if not cliente_row:
+            cursor.close()
+            return_to_pool(conn)
+            return (False, "Cliente não encontrado")
+        
+        cliente_id = cliente_row['id']
+        
+        # Verificar se tem lançamentos vinculados (pelo nome)
         cursor.execute("""
             SELECT COUNT(*) as total FROM lancamentos 
             WHERE UPPER(TRIM(cliente_fornecedor)) = %s
@@ -1824,10 +1838,35 @@ class DatabaseManager:
             return_to_pool(conn)
             return (False, f"Cliente possui {result['total']} lançamento(s) vinculado(s)")
         
-        # Se não tem lançamentos, pode excluir
+        # Verificar se tem contratos vinculados (pelo ID)
+        cursor.execute("""
+            SELECT COUNT(*) as total FROM contratos 
+            WHERE cliente_id = %s
+        """, (cliente_id,))
+        
+        result_contratos = cursor.fetchone()
+        if result_contratos and result_contratos['total'] > 0:
+            cursor.close()
+            return_to_pool(conn)
+            return (False, f"Cliente possui {result_contratos['total']} contrato(s) vinculado(s)")
+        
+        # Verificar se tem sessões vinculadas
+        cursor.execute("""
+            SELECT COUNT(*) as total FROM sessoes 
+            WHERE cliente_id = %s
+        """, (cliente_id,))
+        
+        result_sessoes = cursor.fetchone()
+        if result_sessoes and result_sessoes['total'] > 0:
+            cursor.close()
+            return_to_pool(conn)
+            return (False, f"Cliente possui {result_sessoes['total']} sessão(ões) vinculada(s)")
+        
+        # Se não tem vínculos, pode excluir
         cursor.execute("""
             DELETE FROM clientes 
-            WHERE UPPER(TRIM(nome)) = %s
+            WHERE id = %s
+        """, (cliente_id,))
         """, (nome_normalizado,))
         
         sucesso = cursor.rowcount > 0
