@@ -1788,6 +1788,55 @@ class DatabaseManager:
         return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
+    def obter_cliente_por_nome(self, nome: str) -> Dict | None:
+        """Busca um cliente pelo nome"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        nome_normalizado = nome.upper().strip()
+        cursor.execute("""
+            SELECT * FROM clientes 
+            WHERE UPPER(TRIM(nome)) = %s
+        """, (nome_normalizado,))
+        
+        row = cursor.fetchone()
+        cursor.close()
+        return_to_pool(conn)
+        
+        return dict(row) if row else None
+    
+    def excluir_cliente(self, nome: str) -> tuple[bool, str]:
+        """Exclui um cliente pelo nome (verifica se não tem lançamentos vinculados)"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        nome_normalizado = nome.upper().strip()
+        
+        # Verificar se tem lançamentos vinculados
+        cursor.execute("""
+            SELECT COUNT(*) as total FROM lancamentos 
+            WHERE UPPER(TRIM(cliente_fornecedor)) = %s
+        """, (nome_normalizado,))
+        
+        result = cursor.fetchone()
+        if result and result['total'] > 0:
+            cursor.close()
+            return_to_pool(conn)
+            return (False, f"Cliente possui {result['total']} lançamento(s) vinculado(s)")
+        
+        # Se não tem lançamentos, pode excluir
+        cursor.execute("""
+            DELETE FROM clientes 
+            WHERE UPPER(TRIM(nome)) = %s
+        """, (nome_normalizado,))
+        
+        sucesso = cursor.rowcount > 0
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        
+        return (sucesso, "Cliente excluído com sucesso" if sucesso else "Cliente não encontrado")
+    
     def adicionar_fornecedor(self, fornecedor_data, cpf_cnpj: str = None,
                            email: str = None, telefone: str = None,
                            endereco: str = None, proprietario_id: int = None) -> int:

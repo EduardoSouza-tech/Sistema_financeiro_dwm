@@ -1989,6 +1989,36 @@ def adicionar_cliente():
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
+@app.route('/api/clientes/<path:nome>', methods=['GET'])
+@require_permission('clientes_view')
+@aplicar_filtro_cliente
+def obter_cliente(nome):
+    """Busca um cliente específico pelo nome"""
+    try:
+        filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
+        
+        print(f"\n=== Buscando cliente ===")
+        print(f"Nome: {nome}")
+        print(f"Filtro cliente ID: {filtro_cliente_id}")
+        
+        cliente = db.obter_cliente_por_nome(nome)
+        
+        if not cliente:
+            return jsonify({'success': False, 'error': 'Cliente não encontrado'}), 404
+        
+        # Validar propriedade (se não for admin)
+        if filtro_cliente_id is not None and cliente.get('proprietario_id') != filtro_cliente_id:
+            return jsonify({'success': False, 'error': 'Cliente não encontrado ou sem permissão'}), 403
+        
+        print(f"Cliente encontrado: {cliente}")
+        return jsonify(cliente)
+    except Exception as e:
+        print(f"ERRO ao buscar cliente: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/clientes/<path:nome>', methods=['PUT', 'DELETE'])  # type: ignore
 @require_permission('clientes_edit')
 @aplicar_filtro_cliente
