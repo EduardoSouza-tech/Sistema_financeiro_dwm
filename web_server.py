@@ -427,28 +427,43 @@ except Exception as e:
 def login():
     """Endpoint de login com proteção contra brute force"""
     try:
+        print(f"\n{'='*80}")
+        print(f"🔐 [LOGIN] Iniciando processo de login...")
+        print(f"{'='*80}")
+        
         data = request.json
         username = data.get('username')
         password = data.get('password')
         
+        print(f"📝 Dados recebidos:")
+        print(f"   - username: {username}")
+        print(f"   - password: {'***' if password else 'VAZIO'}")
+        
         if not username or not password:
+            print(f"❌ Username ou senha vazios")
             return jsonify({
                 'success': False,
                 'error': 'Username e senha são obrigatórios'
             }), 400
         
         # Verificar se conta está bloqueada
+        print(f"🔍 Verificando se conta está bloqueada...")
         from auth_functions import verificar_conta_bloqueada
         if verificar_conta_bloqueada(username, db):
+            print(f"🚫 Conta bloqueada!")
             return jsonify({
                 'success': False,
                 'error': 'Conta temporariamente bloqueada por excesso de tentativas. Tente novamente em 15 minutos.'
             }), 429
+        print(f"✅ Conta não bloqueada")
         
         # Autenticar usuário
+        print(f"🔑 Chamando auth_db.autenticar_usuario('{username}', '***')...")
         usuario = auth_db.autenticar_usuario(username, password)
+        print(f"📊 Resultado autenticação: {usuario if usuario else 'FALHOU'}")
         
         if not usuario:
+            print(f"❌ Autenticação falhou!")
             # Registrar tentativa falha
             auth_db.registrar_log_acesso(
                 usuario_id=None,
@@ -457,17 +472,25 @@ def login():
                 ip_address=request.remote_addr,
                 sucesso=False
             )
+            print(f"{'='*80}\n")
             return jsonify({
                 'success': False,
                 'error': 'Usuário ou senha inválidos'
             }), 401
         
+        print(f"✅ Usuário autenticado:")
+        print(f"   - id: {usuario.get('id')}")
+        print(f"   - username: {usuario.get('username')}")
+        print(f"   - tipo: {usuario.get('tipo')}")
+        
         # Criar sessão
+        print(f"🎫 Criando sessão...")
         token = auth_db.criar_sessao(
             usuario['id'],
             request.remote_addr,
             request.headers.get('User-Agent', '')
         )
+        print(f"✅ Sessão criada: {token[:20]}..."
         
         # Guardar token na sessão do Flask
         session['session_token'] = token
@@ -502,21 +525,21 @@ def login():
                 empresa_padrao_id = obter_empresa_padrao(usuario['id'], auth_db)
                 
                 if empresa_padrao_id:
-                    empresa_selecionada = next((e for e in empresas_disponiveis if e['id'] == empresa_padrao_id), None)
+                    empresa_selecionada = next((e for e in empresas_disponiveis if e.get('empresa_id') == empresa_padrao_id), None)
                 else:
                     # Se não tem padrão, selecionar a primeira
                     empresa_selecionada = empresas_disponiveis[0]
                 
                 if empresa_selecionada:
-                    session['empresa_id'] = empresa_selecionada['id']
-                    print(f"✅ Empresa selecionada no login: {empresa_selecionada['razao_social']}")
+                    session['empresa_id'] = empresa_selecionada.get('empresa_id')
+                    print(f"✅ Empresa selecionada no login: {empresa_selecionada.get('razao_social')}")
         
         # Obter permissões do usuário
         if usuario['tipo'] == 'admin':
             permissoes = ['*']  # Super admin tem todas as permissões
         elif empresa_selecionada:
             from auth_functions import obter_permissoes_usuario_empresa
-            permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_selecionada['id'], auth_db)
+            permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_selecionada.get('empresa_id'), auth_db)
         else:
             permissoes = auth_db.obter_permissoes_usuario(usuario['id'])
         
@@ -533,8 +556,8 @@ def login():
             },
             'permissoes': permissoes,
             'empresas_disponiveis': [{
-                'id': e['id'],
-                'razao_social': e['razao_social'],
+                'id': e.get('empresa_id'),
+                'razao_social': e.get('razao_social'),
                 'is_padrao': e.get('is_empresa_padrao', False)
             } for e in empresas_disponiveis] if empresas_disponiveis else []
         }
@@ -542,8 +565,8 @@ def login():
         # Adicionar empresa selecionada se houver
         if empresa_selecionada:
             response_data['empresa_selecionada'] = {
-                'id': empresa_selecionada['id'],
-                'razao_social': empresa_selecionada['razao_social']
+                'id': empresa_selecionada.get('empresa_id'),
+                'razao_social': empresa_selecionada.get('razao_social')
             }
         
         # Se usuário tem múltiplas empresas, indicar que precisa escolher
