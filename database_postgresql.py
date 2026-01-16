@@ -42,7 +42,7 @@ class Categoria:
     """Categoria de lancamento financeiro"""
     def __init__(self, nome: str, tipo: TipoLancamento, descricao: str = "", 
                  subcategorias: Optional[List[str]] = None, id: Optional[int] = None, 
-                 cor: str = "#000000", icone: str = "folder"):
+                 cor: str = "#000000", icone: str = "folder", empresa_id: Optional[int] = None):
         self.id = id
         self.nome = nome
         self.tipo = tipo
@@ -50,6 +50,7 @@ class Categoria:
         self.subcategorias = subcategorias if subcategorias is not None else []
         self.cor = cor
         self.icone = icone
+        self.empresa_id = empresa_id
     
     def to_dict(self) -> dict:
         return {
@@ -59,7 +60,8 @@ class Categoria:
             'descricao': self.descricao,
             'subcategorias': self.subcategorias,
             'cor': self.cor,
-            'icone': self.icone
+            'icone': self.icone,
+            'empresa_id': self.empresa_id
         }
 
 
@@ -1471,8 +1473,8 @@ class DatabaseManager:
         
         cursor.execute("""
             INSERT INTO categorias 
-            (nome, tipo, subcategorias, cor, icone, descricao)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            (nome, tipo, subcategorias, cor, icone, descricao, empresa_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             categoria.nome,
@@ -1480,7 +1482,8 @@ class DatabaseManager:
             subcategorias_json,
             categoria.cor,
             categoria.icone,
-            categoria.descricao
+            categoria.descricao,
+            categoria.empresa_id
         ))
         
         categoria_id = cursor.fetchone()['id']

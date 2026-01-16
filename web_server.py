@@ -1811,6 +1811,11 @@ def adicionar_categoria():
     try:
         data = request.json
         
+        # Extrair empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+        
         # Converter tipo para minúscula para compatibilidade com o enum
         tipo_str = data['tipo'].lower() if data and data.get('tipo') else 'receita'  # type: ignore
         
@@ -1820,7 +1825,8 @@ def adicionar_categoria():
         categoria = Categoria(
             nome=nome_normalizado,  # type: ignore
             tipo=TipoLancamento(tipo_str),  # type: ignore
-            subcategorias=data.get('subcategorias', []) if data else []  # type: ignore
+            subcategorias=data.get('subcategorias', []) if data else [],  # type: ignore
+            empresa_id=empresa_id  # type: ignore
         )
         categoria_id = db.adicionar_categoria(categoria)
         return jsonify({'success': True, 'id': categoria_id})

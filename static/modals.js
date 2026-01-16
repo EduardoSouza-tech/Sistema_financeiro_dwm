@@ -698,10 +698,14 @@ async function salvarCategoria(event) {
     console.log('Modo de edição:', isEdit);
     console.log('Nome original:', nomeOriginal);
     console.log('Dados a enviar:', data);
+    console.log('📦 JSON.stringify(data):', JSON.stringify(data, null, 2));
     
     try {
         const url = isEdit ? `/api/categorias/${encodeURIComponent(nomeOriginal)}` : '/api/categorias';
         const method = isEdit ? 'PUT' : 'POST';
+        
+        console.log('🌐 Fazendo requisição:', method, url);
+        console.log('📨 Body:', JSON.stringify(data));
         
         const response = await fetch(url, {
             method: method,
