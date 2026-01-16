@@ -5518,6 +5518,102 @@ def listar_proprietarios_disponiveis():
                 proprietarios_ids.add(proprietario_id)
                 
                 proprietarios_info.append({
+
+
+@app.route('/api/admin/limpar-duplicatas-categorias', methods=['POST'])
+@require_admin
+def limpar_duplicatas_categorias():
+    """
+    Remove categorias duplicadas mantendo apenas a mais antiga (menor ID)
+    Duplicata = mesmo nome + mesma empresa_id
+    """
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        print('\n' + '='*80)
+        print('🧹 ADMIN: Limpando categorias duplicadas')
+        print('='*80)
+        
+        # Buscar todas as categorias
+        cursor.execute("""
+            SELECT id, nome, tipo, empresa_id 
+            FROM categorias 
+            ORDER BY empresa_id, nome, id
+        """)
+        categorias = cursor.fetchall()
+        
+        print(f'📊 Total de categorias no banco: {len(categorias)}')
+        
+        # Agrupar por (nome normalizado, empresa_id)
+        grupos = {}
+        for cat in categorias:
+            chave = (cat['nome'].strip().upper(), cat['empresa_id'])
+            if chave not in grupos:
+                grupos[chave] = []
+            grupos[chave].append(cat)
+        
+        # Filtrar apenas grupos com duplicatas
+        duplicatas = {k: v for k, v in grupos.items() if len(v) > 1}
+        
+        if not duplicatas:
+            print('✅ Nenhuma duplicata encontrada!')
+            cursor.close()
+            db.return_to_pool(conn)
+            return jsonify({
+                'success': True,
+                'message': 'Nenhuma duplicata encontrada',
+                'removidas': 0
+            })
+        
+        print(f'⚠️  Encontradas {len(duplicatas)} categorias com duplicatas')
+        
+        ids_removidos = []
+        detalhes = []
+        
+        for (nome, empresa), lista in duplicatas.items():
+            # Ordenar por ID (manter o menor = mais antigo)
+            lista_ordenada = sorted(lista, key=lambda x: x['id'])
+            manter = lista_ordenada[0]
+            excluir = lista_ordenada[1:]
+            
+            print(f'\n📁 {nome} (Empresa: {empresa})')
+            print(f'   ✅ MANTER: ID={manter["id"]}')
+            
+            for cat in excluir:
+                print(f'   ❌ EXCLUIR: ID={cat["id"]}')
+                cursor.execute('DELETE FROM categorias WHERE id = %s', (cat['id'],))
+                ids_removidos.append(cat['id'])
+            
+            detalhes.append({
+                'nome': nome,
+                'empresa_id': empresa,
+                'mantido': manter['id'],
+                'removidos': [c['id'] for c in excluir]
+            })
+        
+        conn.commit()
+        cursor.close()
+        db.return_to_pool(conn)
+        
+        print(f'\n✅ Removidas {len(ids_removidos)} duplicatas!')
+        print('='*80 + '\n')
+        
+        return jsonify({
+            'success': True,
+            'message': f'{len(ids_removidos)} categoria(s) duplicada(s) removida(s)',
+            'removidas': len(ids_removidos),
+            'detalhes': detalhes
+        })
+        
+    except Exception as e:
+        print(f'❌ Erro ao limpar duplicatas: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
                     'proprietario_id': proprietario_id,
                     'nome': usuario.get('nome_completo') or usuario.get('nome') or f'Usuário {proprietario_id}',
                     'email': usuario.get('email') or 'Sem email',
