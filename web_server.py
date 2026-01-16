@@ -947,9 +947,6 @@ def switch_empresa():
             'success': False,
             'error': 'Erro ao trocar empresa'
         }), 500
-            'success': False,
-            'error': str(e)
-        }), 500
 
 
 @app.route('/api/auth/empresa-padrao', methods=['PUT'])
