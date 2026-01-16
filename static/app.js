@@ -1284,30 +1284,48 @@ async function excluirCategoria(nome) {
 }
 
 // === CLIENTES ===
-async function loadClientes() {
+async function loadClientes(ativos = true) {
+    console.log('📋 Carregando clientes...', ativos ? 'Ativos' : 'Inativos');
+    
     try {
-        const response = await fetch(`${API_URL}/clientes`);
+        const response = await fetch(`${API_URL}/clientes?ativos=${ativos}`);
         const clientes = await response.json();
+        
+        console.log(`✅ ${clientes.length} clientes carregados`);
         
         const tbody = document.getElementById('tbody-clientes');
         tbody.innerHTML = '';
         
+        if (clientes.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5">${ativos ? 'Nenhum cliente ativo' : 'Nenhum cliente inativo'}</td></tr>`;
+            return;
+        }
+        
         clientes.forEach(cliente => {
             const tr = document.createElement('tr');
+            const nomeEscaped = escapeHtml(cliente.nome);
+            
+            // Botões diferentes para ativos e inativos
+            const botoesAcao = ativos ? `
+                <button class="btn btn-sm btn-primary" onclick="editarCliente('${nomeEscaped}')" title="Editar cliente">✏️</button>
+                <button class="btn btn-sm btn-warning" onclick="inativarCliente('${nomeEscaped}')" title="Desativar cliente">⏸️</button>
+                <button class="btn btn-sm btn-danger" onclick="excluirCliente('${nomeEscaped}')" title="Excluir cliente">🗑️</button>
+            ` : `
+                <button class="btn btn-sm btn-success" onclick="ativarCliente('${nomeEscaped}')" title="Reativar cliente">▶️ Ativar</button>
+                <button class="btn btn-sm btn-danger" onclick="excluirCliente('${nomeEscaped}')" title="Excluir cliente">🗑️</button>
+            `;
+            
             tr.innerHTML = `
                 <td>${cliente.nome}</td>
-                <td>${cliente.documento || '-'}</td>
+                <td>${cliente.documento || cliente.cpf_cnpj || '-'}</td>
                 <td>${cliente.telefone || '-'}</td>
                 <td>${cliente.email || '-'}</td>
-                <td>
-                    <button class="btn btn-sm btn-primary" onclick="editarCliente('${escapeHtml(cliente.nome)}')" title="Editar cliente">✏️</button>
-                    <button class="btn btn-sm btn-danger" onclick="excluirCliente('${escapeHtml(cliente.nome)}')" title="Excluir cliente">🗑️</button>
-                </td>
+                <td>${botoesAcao}</td>
             `;
             tbody.appendChild(tr);
         });
     } catch (error) {
-        console.error('Erro ao carregar clientes:', error);
+        console.error('❌ Erro ao carregar clientes:', error);
     }
 }
 
@@ -1389,20 +1407,99 @@ function showClienteTab(tab) {
         activeBtn.classList.add('active');
     }
     
-    // Filtrar clientes por status
-    const tbody = document.getElementById('tbody-clientes');
-    if (!tbody) {
-        console.error('❌ tbody-clientes não encontrado');
+    // Carregar clientes filtrados por status
+    const ativos = (tab === 'ativos');
+    loadClientes(ativos);
+    
+    console.log('✅ Aba alternada:', tab, '- Ativos:', ativos);
+}
+
+// Função para inativar cliente
+async function inativarCliente(nome) {
+    console.log('⏸️ inativarCliente chamada com:', nome);
+    
+    if (!confirm(`Deseja realmente desativar o cliente "${nome}"?`)) {
+        console.log('   ❌ Usuário cancelou');
         return;
     }
     
-    const rows = tbody.querySelectorAll('tr');
-    rows.forEach(row => {
-        // Por enquanto mostra todos - implementar filtro de status quando houver
-        row.style.display = '';
-    });
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        console.log('   🔑 CSRF Token:', csrfToken ? 'Presente' : 'AUSENTE');
+        
+        const url = `${API_URL}/clientes/${encodeURIComponent(nome)}/inativar`;
+        console.log('   🌐 URL:', url);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        
+        console.log('   📡 Status:', response.status);
+        
+        const result = await response.json();
+        console.log('   📦 Resposta:', result);
+        
+        if (response.ok && result.success) {
+            showToast('✓ Cliente desativado com sucesso!', 'success');
+            await loadClientes(true); // Recarregar ativos
+            console.log('   ✅ Lista recarregada');
+        } else {
+            const errorMsg = result.error || 'Erro desconhecido';
+            showToast('Erro ao desativar: ' + errorMsg, 'error');
+            console.error('   ❌ Erro:', errorMsg);
+        }
+    } catch (error) {
+        console.error('   ❌ Exception:', error);
+        showToast('Erro ao desativar cliente', 'error');
+    }
+}
+
+// Função para reativar cliente
+async function ativarCliente(nome) {
+    console.log('▶️ ativarCliente chamada com:', nome);
     
-    console.log('✅ Aba alternada:', tab);
+    if (!confirm(`Deseja realmente reativar o cliente "${nome}"?`)) {
+        console.log('   ❌ Usuário cancelou');
+        return;
+    }
+    
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        console.log('   🔑 CSRF Token:', csrfToken ? 'Presente' : 'AUSENTE');
+        
+        const url = `${API_URL}/clientes/${encodeURIComponent(nome)}/reativar`;
+        console.log('   🌐 URL:', url);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        
+        console.log('   📡 Status:', response.status);
+        
+        const result = await response.json();
+        console.log('   📦 Resposta:', result);
+        
+        if (response.ok && result.success) {
+            showToast('✓ Cliente reativado com sucesso!', 'success');
+            await loadClientes(false); // Recarregar inativos
+            console.log('   ✅ Lista recarregada');
+        } else {
+            const errorMsg = result.error || 'Erro desconhecido';
+            showToast('Erro ao reativar: ' + errorMsg, 'error');
+            console.error('   ❌ Erro:', errorMsg);
+        }
+    } catch (error) {
+        console.error('   ❌ Exception:', error);
+        showToast('Erro ao reativar cliente', 'error');
+    }
 }
 
 async function excluirCliente(nome) {
