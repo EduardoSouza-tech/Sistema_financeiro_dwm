@@ -1474,13 +1474,15 @@ def gerenciar_usuario_especifico(usuario_id):
                 for empresa_id in empresas_ids:
                     if empresa_id not in empresas_atuais_ids:
                         is_padrao = (empresa_id == empresa_id_padrao)
+                        permissoes_para_empresa = data.get('permissoes', [])
                         print(f"➕ Adicionando vínculo com empresa {empresa_id} (padrão: {is_padrao})")
+                        print(f"   📋 Permissões a serem salvas: {permissoes_para_empresa}")
                         
                         vincular_usuario_empresa(
                             usuario_id=usuario_id,
                             empresa_id=empresa_id,
                             papel='usuario',
-                            permissoes=data.get('permissoes', []),
+                            permissoes=permissoes_para_empresa,
                             is_padrao=is_padrao,
                             criado_por=admin['id'],
                             db=auth_db
@@ -1489,20 +1491,22 @@ def gerenciar_usuario_especifico(usuario_id):
                         # Atualizar empresa padrão se necessário
                         from auth_functions import atualizar_usuario_empresa
                         is_padrao = (empresa_id == empresa_id_padrao)
+                        permissoes_para_empresa = data.get('permissoes', [])
                         
                         # Obter vínculo atual
                         vinculo_atual = next((e for e in empresas_atuais if e['empresa_id'] == empresa_id), None)
                         
-                        if vinculo_atual and vinculo_atual.get('is_empresa_padrao') != is_padrao:
-                            print(f"🔄 Atualizando vínculo com empresa {empresa_id} (padrão: {is_padrao})")
-                            atualizar_usuario_empresa(
-                                usuario_id=usuario_id,
-                                empresa_id=empresa_id,
-                                papel=vinculo_atual.get('papel', 'usuario'),
-                                permissoes=data.get('permissoes', []),
-                                is_padrao=is_padrao,
-                                db=auth_db
-                            )
+                        print(f"🔄 Atualizando vínculo com empresa {empresa_id} (padrão: {is_padrao})")
+                        print(f"   📋 Permissões a serem salvas: {permissoes_para_empresa}")
+                        
+                        atualizar_usuario_empresa(
+                            usuario_id=usuario_id,
+                            empresa_id=empresa_id,
+                            papel=vinculo_atual.get('papel', 'usuario') if vinculo_atual else 'usuario',
+                            permissoes=permissoes_para_empresa,
+                            is_padrao=is_padrao,
+                            db=auth_db
+                        )
             
             # Atualizar permissões globais se fornecidas (legado)
             if 'permissoes' in data:
