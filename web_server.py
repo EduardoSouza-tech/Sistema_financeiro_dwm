@@ -5634,12 +5634,14 @@ def obter_empresa_api(empresa_id):
         usuario = get_usuario_logado()
         logger.info(f"[obter_empresa_api] Usuario: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
-        # Admin pode ver qualquer empresa, usuário comum só a própria
+        # Admin pode ver qualquer empresa, usuário comum só se tiver vínculo ativo
         if usuario['tipo'] != 'admin':
-            logger.info(f"[obter_empresa_api] Usuario nao e admin - verificando empresa_id...")
-            usuario_completo = database.obter_usuario_por_id(usuario['id'])
-            if usuario_completo.get('empresa_id') != empresa_id:
-                logger.info(f"[obter_empresa_api] Acesso negado - empresa diferente")
+            logger.info(f"[obter_empresa_api] Usuario nao e admin - verificando acesso...")
+            from auth_functions import verificar_acesso_empresa
+            tem_acesso = verificar_acesso_empresa(usuario['id'], empresa_id, auth_db)
+            logger.info(f"[obter_empresa_api] Usuario tem acesso? {tem_acesso}")
+            if not tem_acesso:
+                logger.info(f"[obter_empresa_api] Acesso negado - sem vinculo ativo com empresa")
                 return jsonify({'error': 'Acesso negado'}), 403
         
         logger.info(f"[obter_empresa_api] Chamando database.obter_empresa({empresa_id})...")
@@ -5907,10 +5909,11 @@ def estatisticas_empresa_api(empresa_id):
     try:
         usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
-        # Verificar acesso
+        # Verificar acesso - admin ou usuário com vínculo ativo
         if usuario['tipo'] != 'admin':
-            usuario_completo = database.obter_usuario_por_id(usuario['id'])
-            if usuario_completo.get('empresa_id') != empresa_id:
+            from auth_functions import verificar_acesso_empresa
+            tem_acesso = verificar_acesso_empresa(usuario['id'], empresa_id, auth_db)
+            if not tem_acesso:
                 return jsonify({'error': 'Acesso negado'}), 403
         
         stats = database.obter_estatisticas_empresa(empresa_id)
