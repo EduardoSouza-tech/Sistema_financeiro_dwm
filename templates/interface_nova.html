@@ -3965,6 +3965,14 @@
                         loadEmpresasSelector(data.empresas_disponiveis, data.empresa_atual);
                     }
                     
+                    // 🆕 Armazenar empresa_id atual globalmente
+                    if (data.empresa_atual && data.empresa_atual.id) {
+                        window.currentEmpresaId = data.empresa_atual.id;
+                        console.log('🏢 window.currentEmpresaId definido como:', window.currentEmpresaId);
+                    } else {
+                        console.error('❌ Empresa atual não encontrada nos dados do usuário!');
+                    }
+                    
                     // 🆕 Filtrar menu baseado nas permissões do usuário
                     console.log('🔐 Filtrando menu baseado nas permissões...');
                     filterMenuByPermissions(data.usuario);
@@ -4113,6 +4121,11 @@
                 
                 if (result.success) {
                     console.log('✅ Empresa trocada com sucesso');
+                    
+                    // Atualizar empresa_id global
+                    window.currentEmpresaId = empresaId;
+                    console.log('🏢 window.currentEmpresaId atualizado para:', empresaId);
+                    
                     showToast('Empresa alterada com sucesso! Recarregando...', 'success');
                     
                     // Recarregar página após 1 segundo

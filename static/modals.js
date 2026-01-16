@@ -169,6 +169,13 @@ function atualizarSubcategoriasReceita() {
 async function salvarReceita(event) {
     event.preventDefault();
     
+    // Validar empresa_id
+    if (!window.currentEmpresaId) {
+        showToast('Erro: Empresa não identificada. Por favor, recarregue a página.', 'error');
+        console.error('❌ window.currentEmpresaId não está definido!');
+        return;
+    }
+    
     const id = document.getElementById('receita-id').value;
     const isEdicao = id && id.trim() !== '';
     const parcelas = parseInt(document.getElementById('receita-parcelas').value) || 1;
@@ -393,6 +400,13 @@ function atualizarSubcategoriasDespesa() {
 async function salvarDespesa(event) {
     event.preventDefault();
     
+    // Validar empresa_id
+    if (!window.currentEmpresaId) {
+        showToast('Erro: Empresa não identificada. Por favor, recarregue a página.', 'error');
+        console.error('❌ window.currentEmpresaId não está definido!');
+        return;
+    }
+    
     const id = document.getElementById('despesa-id').value;
     const isEdicao = id && id.trim() !== '';
     const parcelas = parseInt(document.getElementById('despesa-parcelas').value) || 1;
@@ -516,6 +530,13 @@ function formatarValorParaExibicao(valor) {
 
 async function salvarConta(event) {
     event.preventDefault();
+    
+    // Validar empresa_id
+    if (!window.currentEmpresaId) {
+        showToast('Erro: Empresa não identificada. Por favor, recarregue a página.', 'error');
+        console.error('❌ window.currentEmpresaId não está definido!');
+        return;
+    }
     
     const isEdit = document.getElementById('conta-edit-mode').value === 'true';
     const nomeOriginal = document.getElementById('conta-nome-original').value;
@@ -656,6 +677,13 @@ async function salvarCategoria(event) {
     
     // Normalizar nome: uppercase e trim
     const nomeInput = document.getElementById('categoria-nome').value.trim().toUpperCase();
+    
+    // Validar empresa_id
+    if (!window.currentEmpresaId) {
+        showToast('Erro: Empresa não identificada. Por favor, recarregue a página.', 'error');
+        console.error('❌ window.currentEmpresaId não está definido!');
+        return;
+    }
     
     const data = {
         nome: nomeInput,
@@ -879,6 +907,13 @@ async function buscarCepCliente() {
 
 async function salvarCliente(event) {
     event.preventDefault();
+    
+    // Validar empresa_id
+    if (!window.currentEmpresaId) {
+        showToast('Erro: Empresa não identificada. Por favor, recarregue a página.', 'error');
+        console.error('❌ window.currentEmpresaId não está definido!');
+        return;
+    }
     
     const isEdit = document.getElementById('cliente-edit-mode').value === 'true';
     const nomeOriginal = document.getElementById('cliente-nome-original').value;
@@ -1122,6 +1157,13 @@ async function buscarCepFornecedor() {
 async function salvarFornecedor(event) {
     event.preventDefault();
     
+    // Validar empresa_id
+    if (!window.currentEmpresaId) {
+        showToast('Erro: Empresa não identificada. Por favor, recarregue a página.', 'error');
+        console.error('❌ window.currentEmpresaId não está definido!');
+        return;
+    }
+    
     const isEdit = document.getElementById('fornecedor-edit-mode').value === 'true';
     const nomeOriginal = document.getElementById('fornecedor-nome-original').value;
     
@@ -1301,6 +1343,13 @@ function closeModalTransferencia() {
 }
 
 async function salvarTransferencia() {
+    // Validar empresa_id
+    if (!window.currentEmpresaId) {
+        showToast('Erro: Empresa não identificada. Por favor, recarregue a página.', 'error');
+        console.error('❌ window.currentEmpresaId não está definido!');
+        return;
+    }
+    
     const origem = document.getElementById('transferencia-origem').value;
     const destino = document.getElementById('transferencia-destino').value;
     const valor = parseFloat(document.getElementById('transferencia-valor').value);
