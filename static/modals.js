@@ -679,11 +679,13 @@ async function salvarCategoria(event) {
     const nomeInput = document.getElementById('categoria-nome').value.trim().toUpperCase();
     
     // Validar empresa_id
+    console.log('🔍 VERIFICANDO window.currentEmpresaId:', window.currentEmpresaId);
     if (!window.currentEmpresaId) {
         showToast('Erro: Empresa não identificada. Por favor, recarregue a página.', 'error');
         console.error('❌ window.currentEmpresaId não está definido!');
         return;
     }
+    console.log('✅ window.currentEmpresaId validado:', window.currentEmpresaId);
     
     const data = {
         nome: nomeInput,
