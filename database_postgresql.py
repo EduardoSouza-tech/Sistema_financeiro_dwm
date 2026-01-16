@@ -3497,14 +3497,29 @@ def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
     try:
         filtro = "WHERE u.ativo = TRUE" if apenas_ativos else ""
         cursor.execute(f"""
-            SELECT u.id, u.username, u.tipo, u.nome_completo, u.email, 
-                   u.cliente_id, u.ativo, u.created_at,
-                   c.nome as cliente_nome,
+            SELECT u.id, u.username, u.tipo, u.nome_completo, u.email, u.telefone,
+                   u.ativo, u.empresa_id, u.ultimo_acesso, u.created_at,
+                   COALESCE(
+                       (SELECT e.razao_social 
+                        FROM usuario_empresas ue 
+                        JOIN empresas e ON ue.empresa_id = e.id 
+                        WHERE ue.usuario_id = u.id 
+                          AND ue.ativo = TRUE 
+                          AND ue.is_empresa_padrao = TRUE 
+                        LIMIT 1),
+                       (SELECT e.razao_social 
+                        FROM usuario_empresas ue 
+                        JOIN empresas e ON ue.empresa_id = e.id 
+                        WHERE ue.usuario_id = u.id 
+                          AND ue.ativo = TRUE 
+                        ORDER BY ue.id ASC 
+                        LIMIT 1),
+                       'Não atribuída'
+                   ) as empresa_nome,
                    (SELECT MAX(sl.criado_em) FROM sessoes_login sl WHERE sl.usuario_id = u.id) as ultima_sessao
             FROM usuarios u
-            LEFT JOIN clientes c ON u.cliente_id = c.id
             {filtro}
-            ORDER BY u.created_at DESC
+            ORDER BY u.tipo, u.nome_completo
         """)
         rows = cursor.fetchall()
         
@@ -3531,11 +3546,26 @@ def obter_usuario(usuario_id: int) -> Optional[Dict]:
     
     try:
         query = """
-            SELECT u.id, u.username, u.tipo, u.nome_completo, u.email, 
-                   u.cliente_id, u.ativo, u.created_at, u.empresa_id,
-                   c.nome as cliente_nome
+            SELECT u.id, u.username, u.tipo, u.nome_completo, u.email, u.telefone,
+                   u.ativo, u.empresa_id, u.ultimo_acesso, u.created_at,
+                   COALESCE(
+                       (SELECT e.razao_social 
+                        FROM usuario_empresas ue 
+                        JOIN empresas e ON ue.empresa_id = e.id 
+                        WHERE ue.usuario_id = u.id 
+                          AND ue.ativo = TRUE 
+                          AND ue.is_empresa_padrao = TRUE 
+                        LIMIT 1),
+                       (SELECT e.razao_social 
+                        FROM usuario_empresas ue 
+                        JOIN empresas e ON ue.empresa_id = e.id 
+                        WHERE ue.usuario_id = u.id 
+                          AND ue.ativo = TRUE 
+                        ORDER BY ue.id ASC 
+                        LIMIT 1),
+                       'Não atribuída'
+                   ) as empresa_nome
             FROM usuarios u
-            LEFT JOIN clientes c ON u.cliente_id = c.id
             WHERE u.id = %s
         """
         log(f"   Query: {query.strip()}")
