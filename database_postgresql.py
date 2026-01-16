@@ -1197,6 +1197,22 @@ class DatabaseManager:
             ('fornecedores_create', 'Criar Fornecedores', 'Criar novos fornecedores', 'cadastros'),
             ('fornecedores_edit', 'Editar Fornecedores', 'Editar fornecedores existentes', 'cadastros'),
             ('fornecedores_delete', 'Excluir Fornecedores', 'Excluir fornecedores', 'cadastros'),
+            ('categorias_view', 'Ver Categorias', 'Visualizar categorias', 'cadastros'),
+            ('categorias_create', 'Criar Categorias', 'Criar novas categorias', 'cadastros'),
+            ('categorias_edit', 'Editar Categorias', 'Editar categorias existentes', 'cadastros'),
+            ('categorias_delete', 'Excluir Categorias', 'Excluir categorias', 'cadastros'),
+            ('contas_view', 'Ver Contas Bancárias', 'Visualizar contas bancárias', 'cadastros'),
+            ('contas_create', 'Criar Contas Bancárias', 'Criar novas contas bancárias', 'cadastros'),
+            ('contas_edit', 'Editar Contas Bancárias', 'Editar contas bancárias existentes', 'cadastros'),
+            ('contas_delete', 'Excluir Contas Bancárias', 'Excluir contas bancárias', 'cadastros'),
+            ('contas_bancarias_view', 'Ver Contas Bancárias', 'Visualizar contas bancárias', 'cadastros'),
+            ('contas_bancarias_create', 'Criar Contas Bancárias', 'Criar novas contas bancárias', 'cadastros'),
+            ('contas_bancarias_edit', 'Editar Contas Bancárias', 'Editar contas bancárias existentes', 'cadastros'),
+            ('contas_bancarias_delete', 'Excluir Contas Bancárias', 'Excluir contas bancárias', 'cadastros'),
+            ('tipos_sessao_view', 'Ver Tipos de Sessão', 'Visualizar tipos de sessão', 'cadastros'),
+            ('tipos_sessao_create', 'Criar Tipos de Sessão', 'Criar novos tipos de sessão', 'cadastros'),
+            ('tipos_sessao_edit', 'Editar Tipos de Sessão', 'Editar tipos de sessão existentes', 'cadastros'),
+            ('tipos_sessao_delete', 'Excluir Tipos de Sessão', 'Excluir tipos de sessão', 'cadastros'),
             
             # Operacional
             ('contratos_view', 'Ver Contratos', 'Visualizar contratos', 'operacional'),
@@ -1215,6 +1231,10 @@ class DatabaseManager:
             ('eventos_create', 'Criar Eventos', 'Criar novos eventos', 'operacional'),
             ('eventos_edit', 'Editar Eventos', 'Editar eventos existentes', 'operacional'),
             ('eventos_delete', 'Excluir Eventos', 'Excluir eventos', 'operacional'),
+            ('estoque_view', 'Ver Estoque', 'Visualizar estoque e produtos', 'operacional'),
+            ('estoque_create', 'Criar Produtos', 'Criar novos produtos no estoque', 'operacional'),
+            ('estoque_edit', 'Editar Estoque', 'Editar produtos e movimentações de estoque', 'operacional'),
+            ('estoque_delete', 'Excluir Produtos', 'Excluir produtos do estoque', 'operacional'),
             
             # Relati?rios
             ('exportar_pdf', 'Exportar PDF', 'Exportar dados em PDF', 'relatorios'),
