@@ -718,7 +718,7 @@ def listar_empresas_usuario(usuario_id: int, db) -> List[Dict]:
     Lista todas as empresas que um usuário tem acesso
     
     Retorna lista de dicts com:
-    - id, razao_social, cnpj, papel, permissoes_empresa, is_empresa_padrao, ativo
+    - empresa_id, razao_social, cnpj, papel, permissoes_empresa, is_empresa_padrao, ativo
     """
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -726,7 +726,7 @@ def listar_empresas_usuario(usuario_id: int, db) -> List[Dict]:
     try:
         cursor.execute("""
             SELECT 
-                e.id,
+                e.id AS empresa_id,
                 e.razao_social,
                 e.cnpj,
                 e.ativo as empresa_ativa,
