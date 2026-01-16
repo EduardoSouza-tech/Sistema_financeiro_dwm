@@ -1436,12 +1436,6 @@ def gerenciar_usuario_especifico(usuario_id):
             traceback.print_exc()
             print(f"{'='*80}\n")
             return jsonify({'success': False, 'error': str(e)}), 500
-            
-        except Exception as e:
-            print(f"❌ Erro ao atualizar usuário: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'success': False, 'error': str(e)}), 500
     
     else:  # DELETE
         try:

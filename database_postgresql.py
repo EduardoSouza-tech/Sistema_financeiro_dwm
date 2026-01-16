@@ -3604,12 +3604,15 @@ def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
         if 'email' in dados:
             campos.append("email = %s")
             valores.append(dados['email'])
+        if 'telefone' in dados:
+            campos.append("telefone = %s")
+            valores.append(dados['telefone'])
         if 'tipo' in dados:
             campos.append("tipo = %s")
             valores.append(dados['tipo'])
-        if 'cliente_id' in dados:
-            campos.append("cliente_id = %s")
-            valores.append(dados['cliente_id'])
+        if 'empresa_id' in dados:
+            campos.append("empresa_id = %s")
+            valores.append(dados['empresa_id'])
         if 'ativo' in dados:
             campos.append("ativo = %s")
             valores.append(dados['ativo'])
@@ -3626,8 +3629,10 @@ def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
         query = f"UPDATE usuarios SET {', '.join(campos)} WHERE id = %s"
         cursor.execute(query, valores)
         affected = cursor.rowcount
+        conn.commit()
         return affected > 0
     except Exception as e:
+        conn.rollback()
         print(f"? Erro ao atualizar usui?rio: {e}")
         import traceback
         traceback.print_exc()
