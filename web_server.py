@@ -624,13 +624,25 @@ def logout():
 def verify_session():
     """Verifica se a sessão está válida"""
     try:
+        print(f"\n{'='*80}")
+        print(f"🔍 [VERIFY] Verificando sessão...")
+        print(f"{'='*80}")
+        
         usuario = get_usuario_logado()
+        print(f"📊 Usuário logado: {usuario if usuario else 'NENHUM'}")
         
         if not usuario:
+            print(f"❌ Usuário não autenticado - retornando False")
+            print(f"{'='*80}\n")
             return jsonify({
                 'success': False,
                 'authenticated': False
             })
+        
+        print(f"✅ Usuário autenticado:")
+        print(f"   - id: {usuario.get('id')}")
+        print(f"   - username: {usuario.get('username')}")
+        print(f"   - tipo: {usuario.get('tipo')}")
         
         # ============================================================
         # MULTI-EMPRESA: Carregar empresa atual e empresas disponíveis
@@ -639,28 +651,41 @@ def verify_session():
         empresas_disponiveis = []
         
         if usuario['tipo'] == 'admin':
+            print(f"👑 Tipo: Admin")
             # Super admin
             permissoes = ['*']
             empresas_disponiveis = database.listar_empresas({})
+            print(f"   - Empresas disponíveis: {len(empresas_disponiveis)}")
             empresa_id = session.get('empresa_id')
+            print(f"   - empresa_id na sessão: {empresa_id}")
             if empresa_id:
                 empresa_atual = database.obter_empresa(empresa_id)
+                print(f"   - Empresa atual: {empresa_atual.get('razao_social') if empresa_atual else 'Não encontrada'}")
         else:
+            print(f"👤 Tipo: Cliente")
             # Usuário normal
             from auth_functions import listar_empresas_usuario
             empresas_disponiveis = listar_empresas_usuario(usuario['id'], auth_db)
+            print(f"   - Empresas disponíveis: {len(empresas_disponiveis)}")
+            print(f"   - IDs: {[e.get('empresa_id') for e in empresas_disponiveis]}")
             
             empresa_id = session.get('empresa_id')
+            print(f"   - empresa_id na sessão: {empresa_id}")
+            
             if empresa_id:
                 # Carregar permissões específicas da empresa
                 from auth_functions import obter_permissoes_usuario_empresa
                 permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
+                print(f"   - Permissões da empresa: {len(permissoes)} itens")
                 
                 # Buscar dados da empresa atual
-                empresa_atual = next((e for e in empresas_disponiveis if e['id'] == empresa_id), None)
+                empresa_atual = next((e for e in empresas_disponiveis if e.get('empresa_id') == empresa_id), None)
+                print(f"   - Empresa atual: {empresa_atual.get('razao_social') if empresa_atual else 'Não encontrada'}")
             else:
                 # Sem empresa selecionada
+                print(f"   ⚠️ Sem empresa na sessão - usando permissões globais")
                 permissoes = auth_db.obter_permissoes_usuario(usuario['id'])
+                print(f"   - Permissões globais: {len(permissoes)} itens")
         
         response = {
             'success': True,
@@ -675,8 +700,8 @@ def verify_session():
             },
             'permissoes': permissoes,
             'empresas_disponiveis': [{
-                'id': e['id'],
-                'razao_social': e['razao_social'],
+                'id': e.get('empresa_id') if usuario['tipo'] != 'admin' else e.get('id'),
+                'razao_social': e.get('razao_social'),
                 'is_padrao': e.get('is_empresa_padrao', False)
             } for e in empresas_disponiveis] if empresas_disponiveis else []
         }
@@ -684,16 +709,21 @@ def verify_session():
         # Adicionar empresa atual se houver
         if empresa_atual:
             response['empresa_atual'] = {
-                'id': empresa_atual['id'],
-                'razao_social': empresa_atual['razao_social']
+                'id': empresa_atual.get('empresa_id') if usuario['tipo'] != 'admin' else empresa_atual.get('id'),
+                'razao_social': empresa_atual.get('razao_social')
             }
         
+        print(f"✅ Sessão válida - retornando dados")
+        print(f"{'='*80}\n")
         return jsonify(response)
         
     except Exception as e:
-        print(f"❌ Erro ao verificar sessão: {e}")
+        print(f"\n❌ ERRO ao verificar sessão:")
+        print(f"   Tipo: {type(e).__name__}")
+        print(f"   Mensagem: {e}")
         import traceback
         traceback.print_exc()
+        print(f"{'='*80}\n")
         return jsonify({
             'success': False,
             'error': 'Erro ao verificar sessão'
