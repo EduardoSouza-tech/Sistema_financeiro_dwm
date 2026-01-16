@@ -1246,12 +1246,20 @@ async function excluirCategoria(nome) {
     }
     
     try {
+        // Obter CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        console.log('   🔑 CSRF Token:', csrfToken ? 'Presente' : 'AUSENTE');
+        
         const url = `${API_URL}/categorias/${encodeURIComponent(nome)}`;
         console.log('   🌐 URL:', url);
         console.log('   📨 Method: DELETE');
         
         const response = await fetch(url, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
         });
         
         console.log('   📡 Status:', response.status);
