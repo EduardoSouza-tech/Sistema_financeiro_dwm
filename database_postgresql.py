@@ -3584,6 +3584,13 @@ def obter_usuario(usuario_id: int) -> Optional[Dict]:
         return_to_pool(conn)  # Devolver ao pool
 def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
     """Atualiza dados de um usui?rio"""
+    print(f"\n{'='*80}")
+    print(f"[database_postgresql.atualizar_usuario] INICIANDO")
+    print(f"   - usuario_id: {usuario_id} (tipo: {type(usuario_id)})")
+    print(f"   - dados: {dados}")
+    print(f"   - Keys em dados: {list(dados.keys())}")
+    print(f"{'='*80}")
+    
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -3592,50 +3599,84 @@ def atualizar_usuario(usuario_id: int, dados: Dict) -> bool:
         campos = []
         valores = []
         
+        print(f"🔍 Processando campos...")
+        
         if 'username' in dados:
+            print(f"   ✅ username: {dados['username']}")
             campos.append("username = %s")
             valores.append(dados['username'])
         if 'nome_completo' in dados:
+            print(f"   ✅ nome_completo: {dados['nome_completo']}")
             campos.append("nome_completo = %s")
             valores.append(dados['nome_completo'])
         if 'nome' in dados:  # Aceita tambi?m 'nome'
+            print(f"   ✅ nome: {dados['nome']}")
             campos.append("nome_completo = %s")
             valores.append(dados['nome'])
         if 'email' in dados:
+            print(f"   ✅ email: {dados['email']}")
             campos.append("email = %s")
             valores.append(dados['email'])
         if 'telefone' in dados:
+            print(f"   ✅ telefone: {dados['telefone']}")
             campos.append("telefone = %s")
             valores.append(dados['telefone'])
         if 'tipo' in dados:
+            print(f"   ✅ tipo: {dados['tipo']}")
             campos.append("tipo = %s")
             valores.append(dados['tipo'])
         if 'empresa_id' in dados:
-            campos.append("empresa_id = %s")
-            valores.append(dados['empresa_id'])
+            print(f"   ✅ empresa_id: {dados['empresa_id']} (tipo: {type(dados['empresa_id'])})")
+            # Validar se é None ou int válido
+            empresa_id_val = dados['empresa_id']
+            if empresa_id_val is None or empresa_id_val == '':
+                print(f"      ⚠️ empresa_id é None/vazio - setando NULL")
+                campos.append("empresa_id = NULL")
+            else:
+                print(f"      ✅ empresa_id válido: {empresa_id_val}")
+                campos.append("empresa_id = %s")
+                valores.append(int(empresa_id_val))
         if 'ativo' in dados:
+            print(f"   ✅ ativo: {dados['ativo']}")
             campos.append("ativo = %s")
             valores.append(dados['ativo'])
         if 'password' in dados and dados['password']:  # Si? atualiza se senha ni?o vazia
+            print(f"   ✅ password: *** (hash será gerado)")
             import hashlib
             password_hash = hashlib.sha256(dados['password'].encode()).hexdigest()
             campos.append("password_hash = %s")
             valores.append(password_hash)
         
         if not campos:
+            print(f"   ⚠️ Nenhum campo para atualizar!")
+            print(f"{'='*80}\n")
             return False
         
         valores.append(usuario_id)
         query = f"UPDATE usuarios SET {', '.join(campos)} WHERE id = %s"
+        print(f"\n📝 Query SQL:")
+        print(f"   {query}")
+        print(f"   Valores: {valores}")
+        
         cursor.execute(query, valores)
         affected = cursor.rowcount
         conn.commit()
+        
+        print(f"\n✅ UPDATE executado com sucesso!")
+        print(f"   Linhas afetadas: {affected}")
+        print(f"{'='*80}\n")
+        
         return affected > 0
     except Exception as e:
         conn.rollback()
-        print(f"? Erro ao atualizar usui?rio: {e}")
+        print(f"\n❌ ERRO em atualizar_usuario!")
+        print(f"   Tipo: {type(e).__name__}")
+        print(f"   Mensagem: {e}")
+        print(f"   Query tentada: {query if 'query' in locals() else 'Query não construída'}")
+        print(f"   Valores: {valores if 'valores' in locals() else 'Valores não definidos'}")
         import traceback
         traceback.print_exc()
+        print(f"{'='*80}\n")
         return False
     finally:
         cursor.close()

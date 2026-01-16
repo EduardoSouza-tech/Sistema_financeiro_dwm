@@ -1308,28 +1308,44 @@ def gerenciar_usuario_especifico(usuario_id):
             admin = request.usuario
             
             print(f"\n{'='*80}")
-            print(f"📝 PUT /api/usuarios/{usuario_id}")
+            print(f"📝 PUT /api/usuarios/{usuario_id} - INICIANDO")
             print(f"{'='*80}")
-            print(f"📥 Dados recebidos: {data}")
-            print(f"   - empresas_ids: {data.get('empresas_ids')}")
-            print(f"   - empresa_id_padrao: {data.get('empresa_id_padrao')}")
-            print(f"   - permissoes: {data.get('permissoes')}")
+            print(f"📥 DADOS RECEBIDOS DO FRONTEND:")
+            print(f"   - Tipo de data: {type(data)}")
+            print(f"   - Keys presentes: {list(data.keys()) if data else 'NENHUMA'}")
+            print(f"   - JSON completo: {json.dumps(data, indent=2, default=str)}")
+            print(f"\n🔍 CAMPOS ESPECÍFICOS:")
+            print(f"   - username: {data.get('username')} (tipo: {type(data.get('username'))})")
+            print(f"   - nome_completo: {data.get('nome_completo')} (tipo: {type(data.get('nome_completo'))})")
+            print(f"   - email: {data.get('email')} (tipo: {type(data.get('email'))})")
+            print(f"   - telefone: {data.get('telefone')} (tipo: {type(data.get('telefone'))})")
+            print(f"   - tipo: {data.get('tipo')} (tipo: {type(data.get('tipo'))})")
+            print(f"   - ativo: {data.get('ativo')} (tipo: {type(data.get('ativo'))})")
+            print(f"   - empresa_id: {data.get('empresa_id')} (tipo: {type(data.get('empresa_id'))})")
+            print(f"   - empresas_ids: {data.get('empresas_ids')} (tipo: {type(data.get('empresas_ids'))})")
+            print(f"   - empresa_id_padrao: {data.get('empresa_id_padrao')} (tipo: {type(data.get('empresa_id_padrao'))})")
+            print(f"   - permissoes: {data.get('permissoes')} (tipo: {type(data.get('permissoes'))})")
+            print(f"   - password presente: {'Sim' if 'password' in data else 'Não'}")
             
             # Validar força da senha se estiver sendo alterada
             if 'password' in data and data['password']:
-                print(f"🔐 Validando senha...")
+                print(f"\n🔐 Validando senha...")
                 from auth_functions import validar_senha_forte
                 valida, mensagem = validar_senha_forte(data['password'])
                 if not valida:
                     print(f"❌ Senha fraca: {mensagem}")
+                    print(f"{'='*80}\n")
                     return jsonify({
                         'success': False,
                         'error': f'Senha fraca: {mensagem}'
                     }), 400
+                print(f"✅ Senha válida")
             
-            print(f"🔄 Atualizando dados do usuário...")
+            print(f"\n🔄 Chamando auth_db.atualizar_usuario({usuario_id}, data)...")
+            print(f"   Função: {auth_db.atualizar_usuario}")
             # Atualizar dados do usuário
             success = auth_db.atualizar_usuario(usuario_id, data)
+            print(f"   Resultado: {success} (tipo: {type(success)})")
             
             if not success:
                 print(f"❌ Usuário {usuario_id} não encontrado")
