@@ -327,9 +327,24 @@ def listar_usuarios(db, apenas_ativos: bool = True) -> List[Dict]:
     query = """
         SELECT u.id, u.username, u.tipo, u.nome_completo, u.email, u.telefone,
                u.ativo, u.empresa_id, u.ultimo_acesso, u.created_at,
-               e.razao_social as empresa_nome
+               COALESCE(
+                   (SELECT e.razao_social 
+                    FROM usuario_empresas ue 
+                    JOIN empresas e ON ue.empresa_id = e.id 
+                    WHERE ue.usuario_id = u.id 
+                      AND ue.ativo = TRUE 
+                      AND ue.is_empresa_padrao = TRUE 
+                    LIMIT 1),
+                   (SELECT e.razao_social 
+                    FROM usuario_empresas ue 
+                    JOIN empresas e ON ue.empresa_id = e.id 
+                    WHERE ue.usuario_id = u.id 
+                      AND ue.ativo = TRUE 
+                    ORDER BY ue.id ASC 
+                    LIMIT 1),
+                   'Não atribuída'
+               ) as empresa_nome
         FROM usuarios u
-        LEFT JOIN empresas e ON u.empresa_id = e.id
     """
     
     if apenas_ativos:
@@ -353,9 +368,24 @@ def obter_usuario(usuario_id: int, db) -> Optional[Dict]:
     cursor.execute("""
         SELECT u.id, u.username, u.tipo, u.nome_completo, u.email, u.telefone,
                u.ativo, u.empresa_id, u.ultimo_acesso, u.created_at,
-               e.razao_social as empresa_nome
+               COALESCE(
+                   (SELECT e.razao_social 
+                    FROM usuario_empresas ue 
+                    JOIN empresas e ON ue.empresa_id = e.id 
+                    WHERE ue.usuario_id = u.id 
+                      AND ue.ativo = TRUE 
+                      AND ue.is_empresa_padrao = TRUE 
+                    LIMIT 1),
+                   (SELECT e.razao_social 
+                    FROM usuario_empresas ue 
+                    JOIN empresas e ON ue.empresa_id = e.id 
+                    WHERE ue.usuario_id = u.id 
+                      AND ue.ativo = TRUE 
+                    ORDER BY ue.id ASC 
+                    LIMIT 1),
+                   'Não atribuída'
+               ) as empresa_nome
         FROM usuarios u
-        LEFT JOIN empresas e ON u.empresa_id = e.id
         WHERE u.id = %s
     """, (usuario_id,))
     
