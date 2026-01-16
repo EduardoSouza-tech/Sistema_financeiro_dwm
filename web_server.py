@@ -143,6 +143,17 @@ else:
 # MANIPULADORES DE ERRO GLOBAIS
 # ============================================================================
 
+@app.before_request
+def log_request_info():
+    """Log de todas as requisições para debug"""
+    if request.path.startswith('/api/'):
+        print(f"\n{'🔵'*40}")
+        print(f"📥 REQUISIÇÃO: {request.method} {request.path}")
+        print(f"   Session token: {'Presente' if session.get('session_token') else 'AUSENTE'}")
+        print(f"   Cookies: {list(request.cookies.keys())}")
+        print(f"   Headers Authorization: {request.headers.get('Authorization', 'Não presente')}")
+        print(f"{'🔵'*40}")
+
 @app.after_request
 def add_no_cache_headers(response):
     """Força navegador a NUNCA cachear HTML, CSS e JS"""
