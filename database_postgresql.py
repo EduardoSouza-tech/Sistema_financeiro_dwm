@@ -1492,21 +1492,33 @@ class DatabaseManager:
         return_to_pool(conn)  # Devolver ao pool
         return categoria_id
     
-    def listar_categorias(self, tipo: Optional[TipoLancamento] = None) -> List[Categoria]:
-        """Lista todas as categorias, opcionalmente filtradas por tipo"""
+    def listar_categorias(self, tipo: Optional[TipoLancamento] = None, empresa_id: Optional[int] = None) -> List[Categoria]:
+        """Lista todas as categorias, opcionalmente filtradas por tipo e empresa"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
         print('🔍 DATABASE: listar_categorias() iniciada')
         print(f'   📍 Filtro por tipo: {tipo.value if tipo else "Nenhum (todos os tipos)"}')
+        print(f'   🏢 Filtro por empresa_id: {empresa_id if empresa_id else "Nenhum (todas as empresas)"}')
+        
+        # Construir query com filtros
+        query = "SELECT * FROM categorias WHERE 1=1"
+        params = []
         
         if tipo:
-            cursor.execute(
-                "SELECT * FROM categorias WHERE tipo = %s ORDER BY nome",
-                (tipo.value,)
-            )
-        else:
-            cursor.execute("SELECT * FROM categorias ORDER BY nome")
+            query += " AND tipo = %s"
+            params.append(tipo.value)
+        
+        if empresa_id:
+            query += " AND (empresa_id = %s OR empresa_id IS NULL)"
+            params.append(empresa_id)
+        
+        query += " ORDER BY nome"
+        
+        print(f'   📝 Query: {query}')
+        print(f'   📝 Params: {params}')
+        
+        cursor.execute(query, tuple(params))
         
         rows = cursor.fetchall()
         print(f'   📊 Rows retornadas do banco: {len(rows)}')

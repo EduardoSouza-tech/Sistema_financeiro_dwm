@@ -1801,7 +1801,9 @@ def listar_categorias():
         print(f'   📍 Empresa na sessão: {session.get("empresa_id")}')
         print(f'   👤 Usuário na sessão: {session.get("usuario_id")}')
         
-        categorias = db.listar_categorias()
+        # Filtrar por empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        categorias = db.listar_categorias(empresa_id=empresa_id)
         
         print(f'   📊 Total de categorias encontradas: {len(categorias)}')
         for i, c in enumerate(categorias):

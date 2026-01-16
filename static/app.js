@@ -554,6 +554,21 @@ function setupApplicationListeners() {
  */
 async function loadInitialData() {
     try {
+        console.log('⏳ Aguardando autenticação antes de carregar dados...');
+        
+        // Aguardar window.currentEmpresaId estar definido (máximo 5 segundos)
+        let attempts = 0;
+        while (!window.currentEmpresaId && attempts < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+        
+        if (!window.currentEmpresaId) {
+            console.warn('⚠️ currentEmpresaId não definido após 5 segundos. Continuando mesmo assim...');
+        } else {
+            console.log('✅ currentEmpresaId confirmado:', window.currentEmpresaId);
+        }
+        
         AppState.isLoading = true;
         
         // Carrega dados em paralelo para melhor performance
