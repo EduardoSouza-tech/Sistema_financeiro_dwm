@@ -1497,6 +1497,9 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
         
+        print('🔍 DATABASE: listar_categorias() iniciada')
+        print(f'   📍 Filtro por tipo: {tipo.value if tipo else "Nenhum (todos os tipos)"}')
+        
         if tipo:
             cursor.execute(
                 "SELECT * FROM categorias WHERE tipo = %s ORDER BY nome",
@@ -1506,9 +1509,11 @@ class DatabaseManager:
             cursor.execute("SELECT * FROM categorias ORDER BY nome")
         
         rows = cursor.fetchall()
+        print(f'   📊 Rows retornadas do banco: {len(rows)}')
         
         categorias = []
         for row in rows:
+            print(f'   🔎 Row: id={row["id"]}, nome={row["nome"]}, tipo={row["tipo"]}, empresa_id={row.get("empresa_id", "N/A")}')
             subcategorias = json.loads(row['subcategorias']) if row['subcategorias'] else []  # type: ignore
             
             categoria = Categoria(
@@ -1518,12 +1523,14 @@ class DatabaseManager:
                 subcategorias=subcategorias,
                 cor=row['cor'],
                 icone=row['icone'],
-                descricao=row['descricao']
+                descricao=row['descricao'],
+                empresa_id=row.get('empresa_id')
             )
             categorias.append(categoria)
         
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
+        print(f'   ✅ Retornando {len(categorias)} categorias')
         return categorias
     
     def excluir_categoria(self, nome: str) -> bool:

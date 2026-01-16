@@ -1016,12 +1016,24 @@ async function loadCategorias() {
     
     try {
         console.log('📂 Carregando categorias...');
+        console.log('   🏢 window.currentEmpresaId:', window.currentEmpresaId);
         
         const data = await apiGet('/categorias');
+        
+        console.log('   📦 Resposta recebida:', data);
+        console.log('   📊 Total de categorias:', data.length);
         
         if (!Array.isArray(data)) {
             throw new Error('Formato de resposta inválido');
         }
+        
+        // Log detalhado de cada categoria
+        data.forEach((cat, index) => {
+            console.log(`   [${index + 1}] ${cat.nome} (${cat.tipo}) - empresa_id: ${cat.empresa_id || 'N/A'}`);
+            if (cat.subcategorias && cat.subcategorias.length > 0) {
+                console.log(`       Subcategorias: ${cat.subcategorias.join(', ')}`);
+            }
+        });
         
         AppState.categorias = data;
         categorias = AppState.categorias; // Sincroniza alias

@@ -1796,12 +1796,31 @@ def criar_transferencia():
 @require_permission('categorias_view')
 def listar_categorias():
     """Lista todas as categorias"""
-    categorias = db.listar_categorias()
-    return jsonify([{
-        'nome': c.nome,
-        'tipo': c.tipo.value,
-        'subcategorias': c.subcategorias
-    } for c in categorias])
+    try:
+        print('🔍 GET /api/categorias - Iniciando listagem de categorias')
+        print(f'   📍 Empresa na sessão: {session.get("empresa_id")}')
+        print(f'   👤 Usuário na sessão: {session.get("usuario_id")}')
+        
+        categorias = db.listar_categorias()
+        
+        print(f'   📊 Total de categorias encontradas: {len(categorias)}')
+        for i, c in enumerate(categorias):
+            print(f'   [{i+1}] {c.nome} (tipo: {c.tipo.value}, empresa_id: {getattr(c, "empresa_id", "N/A")})')
+        
+        resultado = [{
+            'nome': c.nome,
+            'tipo': c.tipo.value,
+            'subcategorias': c.subcategorias,
+            'empresa_id': getattr(c, 'empresa_id', None)
+        } for c in categorias]
+        
+        print(f'   ✅ Retornando {len(resultado)} categorias')
+        return jsonify(resultado)
+    except Exception as e:
+        print(f'   ❌ Erro ao listar categorias: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/categorias', methods=['POST'])
