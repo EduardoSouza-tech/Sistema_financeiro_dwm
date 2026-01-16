@@ -1,4 +1,4 @@
-"""
+﻿"""
 Servidor Web para o Sistema Financeiro
 Otimizado para PostgreSQL com pool de conexões
 """
@@ -5679,75 +5679,8 @@ def limpar_duplicatas_categorias():
             'success': False,
             'error': str(e)
         }), 500
-                    'proprietario_id': proprietario_id,
-                    'nome': usuario.get('nome_completo') or usuario.get('nome') or f'Usuário {proprietario_id}',
-                    'email': usuario.get('email') or 'Sem email',
-                    'tipo': usuario.get('tipo', 'cliente'),
-                    'usuario_id': usuario.get('id')
-                })
-        
-        # Também buscar proprietario_id únicos das tabelas (para dados órfãos)
-        db = DatabaseManager()
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
-        # Buscar proprietario_id que não correspondem a usuários
-        cursor.execute("""
-            SELECT DISTINCT proprietario_id 
-            FROM (
-                SELECT proprietario_id FROM clientes WHERE proprietario_id IS NOT NULL
-                UNION
-                SELECT proprietario_id FROM fornecedores WHERE proprietario_id IS NOT NULL
-                UNION
-                SELECT proprietario_id FROM lancamentos WHERE proprietario_id IS NOT NULL
-                UNION
-                SELECT proprietario_id FROM contas_bancarias WHERE proprietario_id IS NOT NULL
-                UNION
-                SELECT proprietario_id FROM categorias WHERE proprietario_id IS NOT NULL
-            ) AS todos_proprietarios
-            ORDER BY proprietario_id
-        """)
-        
-        proprietarios_db = cursor.fetchall()
-        cursor.close()
-        database.return_to_pool(conn)
-        
-        # Adicionar proprietários órfãos (que existem nas tabelas mas não têm usuário)
-        for row in proprietarios_db:
-            prop_id = row['proprietario_id']
-            if prop_id not in proprietarios_ids:
-                proprietarios_ids.add(prop_id)
-                proprietarios_info.append({
-                    'proprietario_id': prop_id,
-                    'nome': f'Cliente ID {prop_id} (sem usuário)',
-                    'email': 'Não disponível',
-                    'tipo': 'orfao'
-                })
-        
-        # Ordenar por nome
-        proprietarios_info.sort(key=lambda x: x['nome'])
-        
-        print(f"✅ Encontrados {len(proprietarios_info)} proprietários únicos")
-        
-        return jsonify({
-            'success': True,
-            'proprietarios': proprietarios_info,
-            'total': len(proprietarios_info)
-        })
-        
-    except Exception as e:
-        print(f"❌ Erro ao listar proprietários: {e}")
-        import traceback
-        traceback.print_exc()
-        
-        return jsonify({
-            'success': False,
-            'error': f'Erro ao listar proprietários: {str(e)}'
-        }), 500
-
 
 # ==================== ROTAS DE PREFERÊNCIAS DO USUÁRIO ====================
-
 @app.route('/api/preferencias/menu-order', methods=['GET'])
 @require_auth
 def obter_ordem_menu():
