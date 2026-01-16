@@ -1867,7 +1867,6 @@ class DatabaseManager:
             DELETE FROM clientes 
             WHERE id = %s
         """, (cliente_id,))
-        """, (nome_normalizado,))
         
         sucesso = cursor.rowcount > 0
         conn.commit()
