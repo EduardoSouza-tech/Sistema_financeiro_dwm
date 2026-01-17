@@ -2512,9 +2512,8 @@ def upload_extrato_ofx():
         # Extrair transacoes
         transacoes = []
         for account in ofx.accounts:
-            # Obter saldo final e inicial do OFX
+            # Obter saldo final do OFX
             saldo_final = float(account.statement.balance) if hasattr(account.statement, 'balance') else None
-            saldo_inicial_ofx = float(account.statement.balance_date) if hasattr(account.statement, 'balance_date') else None
             
             print(f"\n{'='*60}")
             print(f"📊 ANÁLISE DO ARQUIVO OFX")
