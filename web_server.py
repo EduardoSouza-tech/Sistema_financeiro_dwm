@@ -2521,7 +2521,12 @@ def upload_extrato_ofx():
             # Calcular saldo inicial subtraindo todas as transações do saldo final
             if saldo_final is not None:
                 soma_transacoes = sum(float(t.amount) for t in transactions_list)
-                saldo_atual = saldo_final - soma_transacoes
+                saldo_inicial = saldo_final - soma_transacoes
+                saldo_atual = saldo_inicial
+                
+                print(f"📊 Saldo Final do OFX: {saldo_final}")
+                print(f"📊 Soma de transações: {soma_transacoes}")
+                print(f"📊 Saldo Inicial calculado: {saldo_inicial}")
             else:
                 saldo_atual = 0
             
@@ -2529,6 +2534,8 @@ def upload_extrato_ofx():
             for trans in transactions_list:
                 valor = float(trans.amount)
                 saldo_atual += valor  # Atualizar saldo progressivamente
+                
+                print(f"   📌 {trans.date.date() if hasattr(trans.date, 'date') else trans.date} | Valor: {valor:+.2f} | Saldo: {saldo_atual:.2f}")
                 
                 transacoes.append({
                     'data': trans.date.date() if hasattr(trans.date, 'date') else trans.date,
