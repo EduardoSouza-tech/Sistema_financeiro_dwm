@@ -2512,8 +2512,17 @@ def upload_extrato_ofx():
         # Extrair transacoes
         transacoes = []
         for account in ofx.accounts:
-            # Obter saldo final e inicial
+            # Obter saldo final e inicial do OFX
             saldo_final = float(account.statement.balance) if hasattr(account.statement, 'balance') else None
+            saldo_inicial_ofx = float(account.statement.balance_date) if hasattr(account.statement, 'balance_date') else None
+            
+            print(f"\n{'='*60}")
+            print(f"📊 ANÁLISE DO ARQUIVO OFX")
+            print(f"{'='*60}")
+            print(f"🏦 Conta: {account.number if hasattr(account, 'number') else 'N/A'}")
+            print(f"📅 Período: {account.statement.start_date} a {account.statement.end_date}")
+            print(f"💰 Saldo Final (OFX): R$ {saldo_final:,.2f}" if saldo_final else "💰 Saldo Final: NÃO INFORMADO")
+            print(f"📋 Total de transações: {len(account.statement.transactions)}")
             
             # Ordenar transações por data (mais antiga primeiro)
             transactions_list = sorted(account.statement.transactions, key=lambda t: t.date)
@@ -2521,21 +2530,30 @@ def upload_extrato_ofx():
             # Calcular saldo inicial subtraindo todas as transações do saldo final
             if saldo_final is not None:
                 soma_transacoes = sum(float(t.amount) for t in transactions_list)
-                saldo_inicial = saldo_final - soma_transacoes
-                saldo_atual = saldo_inicial
+                saldo_inicial_calculado = saldo_final - soma_transacoes
                 
-                print(f"📊 Saldo Final do OFX: {saldo_final}")
-                print(f"📊 Soma de transações: {soma_transacoes}")
-                print(f"📊 Saldo Inicial calculado: {saldo_inicial}")
+                print(f"\n📊 CÁLCULOS:")
+                print(f"   Soma de todas transações: R$ {soma_transacoes:+,.2f}")
+                print(f"   Saldo Final: R$ {saldo_final:,.2f}")
+                print(f"   Saldo Inicial calculado: R$ {saldo_inicial_calculado:,.2f}")
+                print(f"   Fórmula: {saldo_final:,.2f} - ({soma_transacoes:+,.2f}) = {saldo_inicial_calculado:,.2f}")
+                
+                saldo_atual = saldo_inicial_calculado
             else:
+                print(f"\n⚠️ AVISO: Saldo final não informado no OFX, iniciando em R$ 0,00")
                 saldo_atual = 0
+            
+            print(f"\n📋 PROCESSANDO TRANSAÇÕES (cronológica):")
+            print(f"{'Data':<12} {'Valor':>15} {'Saldo Após':>15}")
+            print(f"{'-'*44}")
             
             # Processar cada transação e calcular saldo progressivo
             for trans in transactions_list:
                 valor = float(trans.amount)
                 saldo_atual += valor  # Atualizar saldo progressivamente
                 
-                print(f"   📌 {trans.date.date() if hasattr(trans.date, 'date') else trans.date} | Valor: {valor:+.2f} | Saldo: {saldo_atual:.2f}")
+                data_str = str(trans.date.date() if hasattr(trans.date, 'date') else trans.date)
+                print(f"{data_str:<12} {valor:>+15,.2f} {saldo_atual:>15,.2f}")
                 
                 transacoes.append({
                     'data': trans.date.date() if hasattr(trans.date, 'date') else trans.date,
