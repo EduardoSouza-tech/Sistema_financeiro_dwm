@@ -2544,22 +2544,49 @@ def upload_extrato_ofx():
                 saldo_atual = 0
             
             print(f"\n📋 PROCESSANDO TRANSAÇÕES (cronológica):")
-            print(f"{'Data':<12} {'Valor':>15} {'Saldo Após':>15}")
-            print(f"{'-'*44}")
+            print(f"{'Data':<12} {'Tipo':<10} {'Valor OFX':>15} {'Valor Correto':>15} {'Saldo Após':>15}")
+            print(f"{'-'*70}")
             
             # Processar cada transação e calcular saldo progressivo
             for trans in transactions_list:
-                valor = float(trans.amount)
-                saldo_atual += valor  # Atualizar saldo progressivamente
+                valor_ofx = float(trans.amount)
+                
+                # Determinar tipo da transação baseado no valor E tipo OFX
+                # Alguns bancos invertem sinais, então precisamos corrigir
+                trans_type = getattr(trans, 'type', None)
+                
+                # Lógica correta:
+                # - DÉBITO (saída) deve ser NEGATIVO
+                # - CRÉDITO (entrada) deve ser POSITIVO
+                
+                # Se o OFX informar tipo explicitamente, usar isso
+                if trans_type:
+                    if trans_type.upper() in ['DEBIT', 'DÉBITO', 'DEB']:
+                        # Débito deve ser negativo
+                        valor_correto = -abs(valor_ofx)
+                        tipo = 'debito'
+                    else:
+                        # Crédito deve ser positivo
+                        valor_correto = abs(valor_ofx)
+                        tipo = 'credito'
+                else:
+                    # Se não tem tipo, assumir pelo sinal
+                    # IMPORTANTE: Verificar se o banco inverte sinais
+                    valor_correto = valor_ofx
+                    tipo = 'credito' if valor_ofx > 0 else 'debito'
+                
+                # Atualizar saldo
+                saldo_atual += valor_correto
                 
                 data_str = str(trans.date.date() if hasattr(trans.date, 'date') else trans.date)
-                print(f"{data_str:<12} {valor:>+15,.2f} {saldo_atual:>15,.2f}")
+                tipo_label = 'DÉBITO' if tipo == 'debito' else 'CRÉDITO'
+                print(f"{data_str:<12} {tipo_label:<10} {valor_ofx:>+15,.2f} {valor_correto:>+15,.2f} {saldo_atual:>15,.2f}")
                 
                 transacoes.append({
                     'data': trans.date.date() if hasattr(trans.date, 'date') else trans.date,
                     'descricao': trans.payee or trans.memo or 'Sem descricao',
-                    'valor': valor,
-                    'tipo': 'credito' if valor > 0 else 'debito',
+                    'valor': valor_correto,  # Usar valor corrigido
+                    'tipo': tipo,
                     'saldo': saldo_atual,  # Saldo após esta transação
                     'fitid': trans.id,
                     'memo': trans.memo,
