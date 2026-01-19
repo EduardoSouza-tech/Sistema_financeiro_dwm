@@ -2528,6 +2528,16 @@ def upload_extrato_ofx():
         if not file.filename.lower().endswith('.ofx'):
             return jsonify({'success': False, 'error': 'Apenas arquivos .ofx sao permitidos'}), 400
         
+        # Buscar informações da conta bancária cadastrada
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        
+        contas_cadastradas = database.listar_contas()
+        conta_info = next((c for c in contas_cadastradas if c.nome == conta_bancaria), None)
+        
+        if not conta_info:
+            return jsonify({'success': False, 'error': f'Conta bancária "{conta_bancaria}" não encontrada'}), 400
+        
         # Parse OFX
         try:
             import ofxparse
@@ -2583,20 +2593,44 @@ def upload_extrato_ofx():
                 })
             
             # Calcular saldo inicial baseado no saldo final e soma correta das transações
+            # OU usar saldo_inicial da conta se data_inicio for anterior às transações
             if saldo_final is not None:
                 soma_transacoes = sum(t['valor_correto'] for t in transacoes_processadas)
-                saldo_inicial_calculado = saldo_final - soma_transacoes
+                saldo_inicial_calculado_ofx = saldo_final - soma_transacoes
                 
-                print(f"\n📊 CÁLCULOS:")
-                print(f"   Soma de todas transações (corrigida): R$ {soma_transacoes:+,.2f}")
-                print(f"   Saldo Final (OFX): R$ {saldo_final:,.2f}")
-                print(f"   Saldo Inicial calculado: R$ {saldo_inicial_calculado:,.2f}")
-                print(f"   Fórmula: {saldo_final:,.2f} - ({soma_transacoes:+,.2f}) = {saldo_inicial_calculado:,.2f}")
+                # Verificar se temos data_inicio configurada e se é anterior às transações
+                data_primeira_transacao = transactions_list[0].date.date() if hasattr(transactions_list[0].date, 'date') else transactions_list[0].date
                 
-                saldo_atual = saldo_inicial_calculado
+                usar_saldo_conta = False
+                if hasattr(conta_info, 'data_inicio') and conta_info.data_inicio:
+                    data_inicio_conta = conta_info.data_inicio.date() if hasattr(conta_info.data_inicio, 'date') else conta_info.data_inicio
+                    
+                    # Se data_inicio da conta for anterior ou igual à primeira transação, usar saldo_inicial da conta
+                    if data_inicio_conta <= data_primeira_transacao:
+                        usar_saldo_conta = True
+                        saldo_atual = float(conta_info.saldo_inicial)
+                        print(f"\n✅ USANDO SALDO INICIAL DA CONTA:")
+                        print(f"   Data de início da conta: {data_inicio_conta}")
+                        print(f"   Primeira transação OFX: {data_primeira_transacao}")
+                        print(f"   Saldo inicial da conta: R$ {saldo_atual:,.2f}")
+                        print(f"   (Saldo calculado pelo OFX seria: R$ {saldo_inicial_calculado_ofx:,.2f})")
+                
+                if not usar_saldo_conta:
+                    saldo_atual = saldo_inicial_calculado_ofx
+                    print(f"\n📊 CÁLCULOS (Saldo calculado pelo OFX):")
+                    print(f"   Soma de todas transações (corrigida): R$ {soma_transacoes:+,.2f}")
+                    print(f"   Saldo Final (OFX): R$ {saldo_final:,.2f}")
+                    print(f"   Saldo Inicial calculado: R$ {saldo_inicial_calculado_ofx:,.2f}")
+                    print(f"   Fórmula: {saldo_final:,.2f} - ({soma_transacoes:+,.2f}) = {saldo_inicial_calculado_ofx:,.2f}")
             else:
-                print(f"\n⚠️ AVISO: Saldo final não informado no OFX, iniciando em R$ 0,00")
-                saldo_atual = 0
+                print(f"\n⚠️ AVISO: Saldo final não informado no OFX")
+                # Usar saldo_inicial da conta se disponível
+                if hasattr(conta_info, 'saldo_inicial'):
+                    saldo_atual = float(conta_info.saldo_inicial)
+                    print(f"   Usando saldo inicial da conta: R$ {saldo_atual:,.2f}")
+                else:
+                    saldo_atual = 0
+                    print(f"   Iniciando em R$ 0,00")
             
             print(f"\n📋 PROCESSANDO TRANSAÇÕES (cronológica):")
             print(f"{'Data':<12} {'Tipo':<15} {'Valor OFX':>15} {'Valor Correto':>15} {'Saldo Após':>15}")
@@ -2630,10 +2664,7 @@ def upload_extrato_ofx():
         if not transacoes:
             return jsonify({'success': False, 'error': 'Nenhuma transacao encontrada no arquivo'}), 400
         
-        # Salvar no banco
-        usuario = get_usuario_logado()
-        # Usar cliente_id como empresa_id (multi-tenancy)
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        # Salvar no banco (empresa_id já foi obtido no início da função)
         resultado = extrato_functions.salvar_transacoes_extrato(
             database, 
             empresa_id, 
