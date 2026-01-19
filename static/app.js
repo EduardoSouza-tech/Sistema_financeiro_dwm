@@ -2055,7 +2055,7 @@ function atualizarSomaSelecionados(tipo) {
 
 function atualizarBotoesEmMassa(tipo) {
     const checkboxes = document.querySelectorAll(`.checkbox-${tipo}:checked`);
-    const btnBaixar = document.getElementById(`btn-baixar-massa-${tipo}`);
+    const btnBaixar = document.getElementById(`btn-liquidar-massa-${tipo}`); // Alterado de btn-baixar para btn-liquidar
     const btnExcluir = document.getElementById(`btn-excluir-massa-${tipo}`);
     
     if (checkboxes.length > 0) {
@@ -2107,6 +2107,11 @@ async function baixarEmMassa(tipo) {
         console.error('Erro ao baixar em massa:', error);
         showToast('Erro ao baixar lançamentos', 'error');
     }
+}
+
+// Alias para compatibilidade com HTML
+async function liquidarEmMassa(tipo) {
+    return await baixarEmMassa(tipo);
 }
 
 async function excluirEmMassa(tipo) {
