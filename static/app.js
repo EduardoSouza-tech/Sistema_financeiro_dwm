@@ -1009,19 +1009,35 @@ async function salvarConta(event) {
  */
 async function atualizarSaldoTotalBancos(tipo) {
     try {
+        console.log('🏦 atualizarSaldoTotalBancos - Buscando contas...');
         const response = await fetch(`${API_URL}/contas`);
-        if (!response.ok) return;
+        if (!response.ok) {
+            console.error('❌ Erro ao buscar contas:', response.status);
+            return;
+        }
         
         const contas = await response.json();
-        const saldoTotal = contas.reduce((sum, conta) => sum + (parseFloat(conta.saldo) || 0), 0);
+        console.log('📦 Contas recebidas:', contas);
+        console.log('📊 Primeira conta:', contas[0]);
+        
+        const saldoTotal = contas.reduce((sum, conta) => {
+            const saldo = parseFloat(conta.saldo) || 0;
+            console.log(`   💰 ${conta.nome}: R$ ${saldo.toFixed(2)} (saldo_inicial: ${conta.saldo_inicial})`);
+            return sum + saldo;
+        }, 0);
+        
+        console.log('✅ Saldo total calculado:', saldoTotal);
         
         const elementId = tipo === 'receber' ? 'saldo-total-bancos-receber' : 'saldo-total-bancos-pagar';
         const element = document.getElementById(elementId);
         if (element) {
             element.textContent = formatarMoeda(saldoTotal);
+            console.log(`✅ Saldo atualizado no elemento ${elementId}:`, formatarMoeda(saldoTotal));
+        } else {
+            console.error(`❌ Elemento ${elementId} não encontrado`);
         }
     } catch (error) {
-        console.error('Erro ao atualizar saldo total:', error);
+        console.error('❌ Erro ao atualizar saldo total:', error);
     }
 }
 
