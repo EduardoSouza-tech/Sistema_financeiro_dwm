@@ -1698,11 +1698,19 @@ async function loadLancamentos() {
 
 // === CONTAS A RECEBER ===
 async function loadContasReceber() {
+    console.log('🔄 loadContasReceber CHAMADA!');
     try {
+        console.log('   📡 Buscando lançamentos...');
         const response = await fetch(`${API_URL}/lancamentos`);
         const todosLancamentos = await response.json();
+        console.log('   📦 Total de lançamentos recebidos:', todosLancamentos.length);
         
         const tbody = document.getElementById('tbody-receber');
+        if (!tbody) {
+            console.error('   ❌ Elemento tbody-receber NÃO ENCONTRADO!');
+            return;
+        }
+        console.log('   ✅ Elemento tbody-receber encontrado');
         tbody.innerHTML = '';
         
         // Filtros (opcionais)
@@ -1719,6 +1727,11 @@ async function loadContasReceber() {
             const matchStatus = !filterStatus || lanc.status === filterStatus;
             return isReceita && matchText && matchStatus;
         });
+        
+        console.log('   💰 Total de receitas filtradas:', receitas.length);
+        if (receitas.length > 0) {
+            console.log('   📋 Primeira receita:', receitas[0]);
+        }
         
         receitas.forEach(lanc => {
             const tr = document.createElement('tr');

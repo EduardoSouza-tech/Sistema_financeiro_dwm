@@ -230,8 +230,18 @@ async function salvarReceita(event) {
             const mensagem = isEdicao ? '✓ Receita atualizada com sucesso!' : '✓ Receita adicionada com sucesso!';
             showToast(mensagem, 'success');
             closeModal();
+            
+            console.log('🔄 Recarregando dados após salvar...');
+            console.log('   loadDashboard existe?', typeof loadDashboard);
+            console.log('   loadContasReceber existe?', typeof loadContasReceber);
+            
             if (typeof loadDashboard === 'function') loadDashboard();
-            if (typeof loadContasReceber === 'function') loadContasReceber();
+            if (typeof loadContasReceber === 'function') {
+                console.log('   ✅ Chamando loadContasReceber...');
+                loadContasReceber();
+            } else {
+                console.error('   ❌ loadContasReceber não é uma função!');
+            }
             if (typeof atualizarBadgeInadimplencia === 'function') {
                 atualizarBadgeInadimplencia();
             }
