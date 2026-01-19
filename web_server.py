@@ -1619,40 +1619,26 @@ def listar_contas():
         filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
         
         contas = db.listar_contas(filtro_cliente_id=filtro_cliente_id)
-        lancamentos = db.listar_lancamentos(filtro_cliente_id=filtro_cliente_id)
         
-        # Calcular saldo real de cada conta
+        # Preparar resposta - usar saldo_inicial como saldo atual
+        # (o campo saldo_inicial já representa o saldo atual da conta)
         contas_com_saldo = []
         for c in contas:
-            saldo_real = Decimal(str(c.saldo_inicial))
-            
-            # Somar/subtrair lançamentos pagos desta conta
-            for lanc in lancamentos:
-                if lanc.status == StatusLancamento.PAGO:
-                    valor_decimal = Decimal(str(lanc.valor))
-                    
-                    if lanc.tipo == TipoLancamento.TRANSFERENCIA:
-                        # Transferência: origem está em conta_bancaria, destino em subcategoria
-                        if hasattr(lanc, 'conta_bancaria') and lanc.conta_bancaria == c.nome:
-                            # Esta é a conta de origem - subtrai
-                            saldo_real -= valor_decimal
-                        if hasattr(lanc, 'subcategoria') and lanc.subcategoria == c.nome:
-                            # Esta é a conta de destino - adiciona
-                            saldo_real += valor_decimal
-                    elif hasattr(lanc, 'conta_bancaria') and lanc.conta_bancaria == c.nome:
-                        # Receitas e despesas normais
-                        if lanc.tipo == TipoLancamento.RECEITA:
-                            saldo_real += valor_decimal
-                        elif lanc.tipo == TipoLancamento.DESPESA:
-                            saldo_real -= valor_decimal
-            
             contas_com_saldo.append({
                 'nome': c.nome,
                 'banco': c.banco,
                 'agencia': c.agencia,
                 'conta': c.conta,
                 'saldo_inicial': float(c.saldo_inicial),
-                'saldo': float(saldo_real)  # Saldo real com movimentações
+                'saldo': float(c.saldo_inicial)  # Usar saldo_inicial como saldo atual
+            })
+        
+        return jsonify(contas_com_saldo)
+    except Exception as e:
+        print(f"❌ Erro em /api/contas: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
             })
         
         return jsonify(contas_com_saldo)
