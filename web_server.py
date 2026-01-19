@@ -1639,14 +1639,7 @@ def listar_contas():
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-            })
-        
-        return jsonify(contas_com_saldo)
-    except Exception as e:
-        print(f"❌ Erro em /api/contas: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+
 
 
 @app.route('/api/contas', methods=['POST'])
