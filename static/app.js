@@ -1872,8 +1872,14 @@ async function excluirLancamento(id) {
     if (!confirm('Deseja realmente excluir este lançamento?')) return;
     
     try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
         const response = await fetch(`${API_URL}/lancamentos/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
         });
         
         const result = await response.json();
@@ -2000,12 +2006,19 @@ async function excluirEmMassa(tipo) {
     if (!confirm(`ATENÇÃO: Confirma exclusão de ${ids.length} lançamento(s)? Esta ação não pode ser desfeita!`)) return;
     
     try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         let sucesso = 0;
         let erros = 0;
         
         for (const id of ids) {
             try {
-                const response = await fetch(`${API_URL}/lancamentos/${id}`, { method: 'DELETE' });
+                const response = await fetch(`${API_URL}/lancamentos/${id}`, { 
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
+                });
                 const result = await response.json();
                 if (result.success) sucesso++;
                 else erros++;
