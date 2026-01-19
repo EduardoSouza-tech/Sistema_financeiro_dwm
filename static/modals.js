@@ -1426,6 +1426,12 @@ function closeModal() {
 
 // === EDITAR LANÇAMENTO ===
 // Exportar funções para escopo global
+window.openModalReceita = openModalReceita;
+window.salvarReceita = salvarReceita;
+window.editarReceita = editarReceita;
+window.openModalDespesa = openModalDespesa;
+window.salvarDespesa = salvarDespesa;
+window.editarDespesa = editarDespesa;
 window.openModalCliente = openModalCliente;
 window.salvarCliente = salvarCliente;
 window.openModalFornecedor = openModalFornecedor;
