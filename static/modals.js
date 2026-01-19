@@ -2050,6 +2050,25 @@ async function openModalContrato(contratoEdit = null) {
     }, 100);
 }
 
+// Helper para converter valor formatado pt-BR para número
+function parseValorBR(valor) {
+    if (typeof valor === 'number') return valor;
+    if (!valor) return 0;
+    
+    // Remover espaços e R$
+    let valorLimpo = valor.toString().trim().replace(/R\$\s*/g, '');
+    
+    // Remover pontos (separador de milhar)
+    valorLimpo = valorLimpo.replace(/\./g, '');
+    
+    // Substituir vírgula por ponto (separador decimal)
+    valorLimpo = valorLimpo.replace(/,/g, '.');
+    
+    const resultado = parseFloat(valorLimpo) || 0;
+    console.log(`   🔄 parseValorBR("${valor}") = ${resultado}`);
+    return resultado;
+}
+
 function atualizarCalculoContrato() {
     const campoValorMensal = document.getElementById('contrato-valor-mensal');
     const campoMeses = document.getElementById('contrato-meses');
@@ -2060,18 +2079,45 @@ function atualizarCalculoContrato() {
         return;
     }
     
-    // Usar valueAsNumber para evitar problemas com formatação locale
-    const valorMensal = campoValorMensal.valueAsNumber || 0;
-    const meses = campoMeses.valueAsNumber || 0;
+    // Usar parseValorBR para lidar com formatação pt-BR
+    const valorMensal = parseValorBR(campoValorMensal.value);
+    const meses = parseInt(campoMeses.value) || 0;
     const valorTotal = valorMensal * meses;
     
     console.log('🧮 Calculando:');
     console.log('   📝 Valor Mensal (.value):', campoValorMensal.value);
-    console.log('   🔢 Valor Mensal (.valueAsNumber):', campoValorMensal.valueAsNumber);
-    console.log('   💰 Valor Mensal (usado):', valorMensal);
+    console.log('   💰 Valor Mensal (parseado):', valorMensal);
     console.log('   📝 Meses (.value):', campoMeses.value);
-    console.log('   🔢 Meses (.valueAsNumber):', campoMeses.valueAsNumber);
-    console.log('   🔢 Meses (usado):', meses);
+    console.log('   🔢 Meses (parseado):', meses);
+    console.log('   💵 Valor Total:', valorTotal);
+    
+    // Formatar e exibir
+    campoTotal.value = 'R$ ' + valorTotal.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+    
+    console.log('   ✅ Campo atualizado para:', campoTotal.value);
+}
+    
+    // Função helper para limpar formatação e converter para número
+    function parseValor(valor) {
+        if (typeof valor === 'number') return valor;
+        if (!valor) return 0;
+        // Remove pontos (separador de milhar) e troca vírgula por ponto (decimal)
+        const limpo = String(valor).replace(/\./g, '').replace(',', '.');
+        return parseFloat(limpo) || 0;
+    }
+    
+    const valorMensal = parseValor(campoValorMensal.value);
+    const meses = parseInt(campoMeses.value) || 0;
+    const valorTotal = valorMensal * meses;
+    
+    console.log('🧮 Calculando:');
+    console.log('   📝 Valor Mensal (.value):', campoValorMensal.value);
+    console.log('   💰 Valor Mensal (parseado):', valorMensal);
+    console.log('   📝 Meses (.value):', campoMeses.value);
+    console.log('   🔢 Meses (parseado):', meses);
     console.log('   💵 Valor Total:', valorTotal);
     
     // Formatar e exibir
@@ -2123,17 +2169,15 @@ async function salvarContrato(event) {
         }
     });
     
-    const valorMensal = document.getElementById('contrato-valor-mensal').valueAsNumber || 0;
-    const quantidadeMeses = document.getElementById('contrato-meses').valueAsNumber || 1;
+    const valorMensal = parseValorBR(document.getElementById('contrato-valor-mensal').value);
+    const quantidadeMeses = parseInt(document.getElementById('contrato-meses').value) || 1;
     const valorTotal = valorMensal * quantidadeMeses;
     
     console.log('💰 Valores coletados no salvar:');
     console.log('   📝 Valor Mensal (campo .value):', document.getElementById('contrato-valor-mensal').value);
-    console.log('   🔢 Valor Mensal (valueAsNumber):', document.getElementById('contrato-valor-mensal').valueAsNumber);
-    console.log('   💰 Valor Mensal (usado):', valorMensal);
+    console.log('   💰 Valor Mensal (parseado):', valorMensal);
     console.log('   🔢 Qtd Meses (campo .value):', document.getElementById('contrato-meses').value);
-    console.log('   🔢 Qtd Meses (valueAsNumber):', document.getElementById('contrato-meses').valueAsNumber);
-    console.log('   🔢 Qtd Meses (usado):', quantidadeMeses);
+    console.log('   🔢 Qtd Meses (parseado):', quantidadeMeses);
     console.log('   💵 Valor Total calculado:', valorTotal);
     
     const data = {
