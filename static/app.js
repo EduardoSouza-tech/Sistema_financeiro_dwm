@@ -1725,7 +1725,7 @@ async function loadContasReceber() {
         
         // Filtrar apenas receitas
         const receitas = todosLancamentos.filter(lanc => {
-            const isReceita = lanc.tipo === 'RECEITA';
+            const isReceita = lanc.tipo && lanc.tipo.toUpperCase() === 'RECEITA';
             const matchText = !filterText || lanc.descricao.toLowerCase().includes(filterText) || 
                              (lanc.pessoa && lanc.pessoa.toLowerCase().includes(filterText));
             const matchStatus = !filterStatus || lanc.status === filterStatus;
@@ -1780,7 +1780,7 @@ async function loadContasPagar() {
         
         // Filtrar apenas despesas
         const despesas = todosLancamentos.filter(lanc => {
-            const isDespesa = lanc.tipo === 'DESPESA';
+            const isDespesa = lanc.tipo && lanc.tipo.toUpperCase() === 'DESPESA';
             const matchText = !filterText || lanc.descricao.toLowerCase().includes(filterText) || 
                              (lanc.pessoa && lanc.pessoa.toLowerCase().includes(filterText));
             const matchStatus = !filterStatus || lanc.status === filterStatus;
