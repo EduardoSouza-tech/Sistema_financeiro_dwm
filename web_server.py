@@ -1712,6 +1712,19 @@ def modificar_conta(nome):
         try:
             data = request.json
             
+            print(f"\n{'='*80}")
+            print(f"🔧 PUT /api/contas/{nome}")
+            print(f"{'='*80}")
+            print(f"📥 Nome da conta a atualizar (parâmetro URL): {nome}")
+            print(f"📦 Dados recebidos: {data}")
+            print(f"   - Nome novo: {data.get('nome')}")
+            print(f"   - Banco: {data.get('banco')}")
+            print(f"   - Agência: {data.get('agencia')}")
+            print(f"   - Conta: {data.get('conta')}")
+            print(f"   - Saldo inicial: {data.get('saldo_inicial')}")
+            print(f"   - Data início: {data.get('data_inicio')}")
+            print(f"   - Tipo saldo: {data.get('tipo_saldo_inicial')}")
+            
             conta = ContaBancaria(
                 nome=data['nome'],  # type: ignore
                 banco=data['banco'],  # type: ignore
@@ -1721,7 +1734,16 @@ def modificar_conta(nome):
                 tipo_saldo_inicial=data.get('tipo_saldo_inicial', 'credor'),  # type: ignore
                 data_inicio=data.get('data_inicio')  # type: ignore
             )
+            
+            print(f"✅ Objeto ContaBancaria criado:")
+            print(f"   - Nome: {conta.nome}")
+            print(f"📤 Chamando db.atualizar_conta(nome_original='{nome}', conta={conta.nome})")
+            
             success = db.atualizar_conta(nome, conta)
+            
+            print(f"📡 Resultado: success={success}")
+            print(f"{'='*80}\n")
+            
             return jsonify({'success': success})
         except Exception as e:
             import traceback
