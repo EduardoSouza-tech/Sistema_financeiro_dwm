@@ -2851,19 +2851,29 @@ async function loadContratos() {
         tbody.innerHTML = '';
         
         if (contratos.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum contrato cadastrado</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align: center;">Nenhum contrato cadastrado</td></tr>';
             return;
         }
         
         contratos.forEach(contrato => {
             const tr = document.createElement('tr');
+            
+            // Preparar dados
+            const dataInicio = contrato.data_inicio || contrato.data_contrato;
+            const dataFormatada = dataInicio ? new Date(dataInicio).toLocaleDateString('pt-BR') : '-';
+            
             tr.innerHTML = `
-                <td>${escapeHtml(contrato.numero)}</td>
-                <td>${escapeHtml(contrato.cliente_nome || '')}</td>
-                <td>${formatarMoeda(contrato.valor_total || 0)}</td>
-                <td>${contrato.data_assinatura ? new Date(contrato.data_assinatura).toLocaleDateString('pt-BR') : '-'}</td>
+                <td>${escapeHtml(contrato.numero || '-')}</td>
+                <td>${escapeHtml(contrato.cliente_nome || '-')}</td>
+                <td><span class="badge" style="background: #3498db; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${escapeHtml(contrato.tipo || '-')}</span></td>
+                <td>${escapeHtml(contrato.nome || contrato.descricao || '-')}</td>
+                <td>${formatarMoeda(contrato.valor_mensal || 0)}</td>
+                <td style="text-align: center;">${contrato.quantidade_meses || '-'}</td>
+                <td style="font-weight: bold; color: #27ae60;">${formatarMoeda(contrato.valor_total || contrato.valor || 0)}</td>
+                <td>${dataFormatada}</td>
+                <td><span style="font-size: 11px;">${escapeHtml(contrato.forma_pagamento || '-')}</span></td>
                 <td><span class="status-badge status-${contrato.status || 'ativo'}">${contrato.status || 'Ativo'}</span></td>
-                <td>
+                <td style="white-space: nowrap;">
                     <button class="btn btn-sm btn-primary" onclick="editarContrato(${contrato.id})" title="Editar">✏️</button>
                     <button class="btn btn-sm btn-danger" onclick="excluirContrato(${contrato.id})" title="Excluir">🗑️</button>
                 </td>
@@ -2877,7 +2887,7 @@ async function loadContratos() {
         logError(context, error);
         const tbody = document.getElementById('tbody-contratos');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #e74c3c;">Erro ao carregar contratos</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: #e74c3c;">Erro ao carregar contratos</td></tr>';
         }
     }
 }
