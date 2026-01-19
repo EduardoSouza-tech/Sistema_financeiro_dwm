@@ -2042,14 +2042,25 @@ async function openModalContrato(contratoEdit = null) {
 }
 
 function atualizarCalculoContrato() {
-    const valorMensal = parseFloat(document.getElementById('contrato-valor-mensal')?.value || 0);
-    const meses = parseInt(document.getElementById('contrato-meses')?.value || 1);
+    const campoValorMensal = document.getElementById('contrato-valor-mensal');
+    const campoMeses = document.getElementById('contrato-meses');
+    const campoTotal = document.getElementById('contrato-valor-total');
+    
+    if (!campoValorMensal || !campoMeses || !campoTotal) {
+        console.warn('⚠️ Campos de cálculo não encontrados');
+        return;
+    }
+    
+    const valorMensal = parseFloat(campoValorMensal.value) || 0;
+    const meses = parseInt(campoMeses.value) || 0;
     const valorTotal = valorMensal * meses;
     
-    const campoTotal = document.getElementById('contrato-valor-total');
-    if (campoTotal) {
-        campoTotal.value = 'R$ ' + valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-    }
+    console.log('🧮 Calculando:', valorMensal, 'x', meses, '=', valorTotal);
+    
+    campoTotal.value = 'R$ ' + valorTotal.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
 }
 
 function adicionarComissaoContrato() {
