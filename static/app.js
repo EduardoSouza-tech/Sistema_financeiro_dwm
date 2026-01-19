@@ -1085,6 +1085,7 @@ async function loadCategorias() {
         
         AppState.categorias = data;
         categorias = AppState.categorias; // Sincroniza alias
+        window.categorias = data; // Expor globalmente para modals
         
         // CORREÇÃO: Usar os IDs corretos das tabelas separadas
         const tbodyReceita = document.getElementById('tbody-categorias-receita');
@@ -1326,7 +1327,18 @@ async function loadClientes(ativos = true) {
         
         console.log(`✅ ${clientes.length} clientes carregados`);
         
+        // Armazenar clientes globalmente para uso nos modals
+        if (ativos) {
+            window.clientes = clientes;
+            AppState.clientes = clientes;
+        }
+        
         const tbody = document.getElementById('tbody-clientes');
+        if (!tbody) {
+            console.warn('⚠️ tbody-clientes não encontrado, apenas armazenando dados');
+            return;
+        }
+        
         tbody.innerHTML = '';
         
         if (clientes.length === 0) {
