@@ -133,7 +133,17 @@ function atualizarSubcategoriasReceita() {
     console.log('Categoria selecionada:', categoriaSel);
     console.log('window.categorias disponíveis:', window.categorias);
     
+    if (!subcatSelect) {
+        console.error('❌ Elemento receita-subcategoria não encontrado!');
+        return;
+    }
+    
     subcatSelect.innerHTML = '<option value="">Selecione...</option>';
+    
+    if (!categoriaSel) {
+        console.log('⚠️ Nenhuma categoria selecionada');
+        return;
+    }
     
     const categoria = window.categorias.find(c => c.nome === categoriaSel);
     console.log('Categoria encontrada:', categoria);
@@ -154,16 +164,19 @@ function atualizarSubcategoriasReceita() {
         if (Array.isArray(subs) && subs.length > 0) {
             subs.forEach(sub => {
                 if (sub) {
+                    console.log('Adicionando subcategoria:', sub);
                     subcatSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
                 }
             });
-            console.log('Subcategorias adicionadas com sucesso!');
+            console.log('✅ Subcategorias adicionadas com sucesso!');
+            console.log('HTML final do select:', subcatSelect.innerHTML);
         } else {
-            console.log('Array vazio ou inválido');
+            console.log('⚠️ Array vazio ou inválido');
         }
     } else {
-        console.log('Nenhuma subcategoria encontrada');
+        console.log('⚠️ Nenhuma subcategoria encontrada para esta categoria');
     }
+    console.log('=== FIM atualizarSubcategoriasReceita ===');
 }
 
 async function salvarReceita(event) {
