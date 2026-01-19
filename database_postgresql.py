@@ -2010,7 +2010,7 @@ class DatabaseManager:
         return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
-    def adicionar_lancamento(self, lancamento: Lancamento, proprietario_id: int = None) -> int:
+    def adicionar_lancamento(self, lancamento: Lancamento, proprietario_id: int = None, empresa_id: int = None) -> int:
         """Adiciona um novo lani?amento"""
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -2019,8 +2019,8 @@ class DatabaseManager:
             INSERT INTO lancamentos 
             (tipo, descricao, valor, data_vencimento, data_pagamento,
              categoria, subcategoria, conta_bancaria, cliente_fornecedor, pessoa,
-             status, observacoes, anexo, recorrente, frequencia_recorrencia, dia_vencimento, proprietario_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             status, observacoes, anexo, recorrente, frequencia_recorrencia, dia_vencimento, proprietario_id, empresa_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             lancamento.tipo.value,
@@ -2039,7 +2039,8 @@ class DatabaseManager:
             lancamento.recorrente,
             lancamento.frequencia_recorrencia,
             lancamento.dia_vencimento,
-            proprietario_id
+            proprietario_id,
+            empresa_id
         ))
         
         lancamento_id = cursor.fetchone()['id']

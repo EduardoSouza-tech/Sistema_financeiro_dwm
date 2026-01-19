@@ -1766,6 +1766,7 @@ def criar_transferencia():
     """Cria uma transferência entre contas bancárias"""
     try:
         data = request.json
+        empresa_id = data.get('empresa_id') if data else None
         
         # Validar dados
         if not data or not data.get('conta_origem') or not data.get('conta_destino'):
@@ -1806,7 +1807,7 @@ def criar_transferencia():
         )
         
         lancamento.status = StatusLancamento.PAGO
-        lancamento_id = db.adicionar_lancamento(lancamento)
+        lancamento_id = db.adicionar_lancamento(lancamento, empresa_id=empresa_id)
         
         return jsonify({'success': True, 'id': lancamento_id})
         
@@ -2278,6 +2279,7 @@ def adicionar_lancamento():
     try:
         data = request.json
         proprietario_id = getattr(request, 'filtro_cliente_id', None)
+        empresa_id = data.get('empresa_id') if data else None
         
         parcelas = int(data.get('parcelas', 1)) if data else 1
         
@@ -2309,7 +2311,7 @@ def adicionar_lancamento():
                 if data and data.get('status'):
                     lancamento.status = StatusLancamento(data['status'])
                 
-                lancamento_id = db.adicionar_lancamento(lancamento, proprietario_id=proprietario_id)
+                lancamento_id = db.adicionar_lancamento(lancamento, proprietario_id=proprietario_id, empresa_id=empresa_id)
                 lancamentos_ids.append(lancamento_id)
             
             print(f"Lançamentos parcelados adicionados! IDs: {lancamentos_ids}")
@@ -2336,7 +2338,7 @@ def adicionar_lancamento():
             if data and data.get('status'):
                 lancamento.status = StatusLancamento(data['status'])
             
-            lancamento_id = db.adicionar_lancamento(lancamento, proprietario_id=proprietario_id)
+            lancamento_id = db.adicionar_lancamento(lancamento, proprietario_id=proprietario_id, empresa_id=empresa_id)
             return jsonify({'success': True, 'id': lancamento_id})
     except Exception as e:
         import traceback
