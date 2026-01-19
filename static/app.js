@@ -670,6 +670,7 @@ async function loadPageData(pageName) {
         'categorias': loadCategorias,
         'clientes': loadClientes,
         'fornecedores': loadFornecedores,
+        'contratos': loadContratos,
         'fluxo-caixa': loadFluxoCaixa,
         'fluxo-projetado': loadFluxoProjetado,
         'analise-contas': loadAnaliseContas,
@@ -2824,4 +2825,272 @@ function limparFiltrosExtrato() {
     document.getElementById('extrato-filter-data-fim').value = '';
     document.getElementById('extrato-filter-conciliado').value = '';
     loadExtratos();
+}
+
+// ============================================================================
+// CONTRATOS E SESSÕES
+// ============================================================================
+
+/**
+ * Carrega lista de contratos
+ */
+async function loadContratos() {
+    const context = 'loadContratos';
+    
+    try {
+        console.log('📋 Carregando contratos...');
+        
+        const contratos = await apiGet('/contratos');
+        const tbody = document.getElementById('tbody-contratos');
+        
+        if (!tbody) {
+            console.error('❌ tbody-contratos não encontrado');
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        
+        if (contratos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum contrato cadastrado</td></tr>';
+            return;
+        }
+        
+        contratos.forEach(contrato => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${escapeHtml(contrato.numero)}</td>
+                <td>${escapeHtml(contrato.cliente_nome || '')}</td>
+                <td>${formatarMoeda(contrato.valor_total || 0)}</td>
+                <td>${contrato.data_assinatura ? new Date(contrato.data_assinatura).toLocaleDateString('pt-BR') : '-'}</td>
+                <td><span class="status-badge status-${contrato.status || 'ativo'}">${contrato.status || 'Ativo'}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="editarContrato(${contrato.id})" title="Editar">✏️</button>
+                    <button class="btn btn-sm btn-danger" onclick="excluirContrato(${contrato.id})" title="Excluir">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+        console.log('✅ Contratos carregados:', contratos.length);
+        
+    } catch (error) {
+        logError(context, error);
+        const tbody = document.getElementById('tbody-contratos');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #e74c3c;">Erro ao carregar contratos</td></tr>';
+        }
+    }
+}
+
+/**
+ * Carrega lista de sessões
+ */
+async function loadSessoes() {
+    const context = 'loadSessoes';
+    
+    try {
+        console.log('📷 Carregando sessões...');
+        
+        const sessoes = await apiGet('/sessoes');
+        const tbody = document.getElementById('tbody-sessoes');
+        
+        if (!tbody) {
+            console.error('❌ tbody-sessoes não encontrado');
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        
+        if (sessoes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhuma sessão cadastrada</td></tr>';
+            return;
+        }
+        
+        sessoes.forEach(sessao => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${escapeHtml(sessao.contrato_numero || '-')}</td>
+                <td>${escapeHtml(sessao.titulo || '')}</td>
+                <td>${sessao.data_sessao ? new Date(sessao.data_sessao).toLocaleDateString('pt-BR') : '-'}</td>
+                <td>${sessao.duracao || '-'}</td>
+                <td>${escapeHtml(sessao.cliente_nome || '')}</td>
+                <td>${formatarMoeda(sessao.valor || 0)}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="editarSessao(${sessao.id})" title="Editar">✏️</button>
+                    <button class="btn btn-sm btn-danger" onclick="excluirSessao(${sessao.id})" title="Excluir">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+        console.log('✅ Sessões carregadas:', sessoes.length);
+        
+    } catch (error) {
+        logError(context, error);
+        const tbody = document.getElementById('tbody-sessoes');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #e74c3c;">Erro ao carregar sessões</td></tr>';
+        }
+    }
+}
+
+/**
+ * Carrega lista de comissões
+ */
+async function loadComissoes() {
+    const context = 'loadComissoes';
+    
+    try {
+        console.log('💰 Carregando comissões...');
+        
+        const comissoes = await apiGet('/comissoes');
+        const tbody = document.getElementById('tbody-comissoes');
+        
+        if (!tbody) {
+            console.error('❌ tbody-comissoes não encontrado');
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        
+        if (comissoes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhuma comissão cadastrada</td></tr>';
+            return;
+        }
+        
+        comissoes.forEach(comissao => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${escapeHtml(comissao.contrato_numero || '-')}</td>
+                <td>${escapeHtml(comissao.cliente_nome || '')}</td>
+                <td>${escapeHtml(comissao.tipo || '')}</td>
+                <td>${formatarMoeda(comissao.valor || 0)}</td>
+                <td>${comissao.percentual || 0}%</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="editarComissao(${comissao.id})" title="Editar">✏️</button>
+                    <button class="btn btn-sm btn-danger" onclick="excluirComissao(${comissao.id})" title="Excluir">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+        console.log('✅ Comissões carregadas:', comissoes.length);
+        
+    } catch (error) {
+        logError(context, error);
+        const tbody = document.getElementById('tbody-comissoes');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #e74c3c;">Erro ao carregar comissões</td></tr>';
+        }
+    }
+}
+
+// Funções auxiliares de contratos
+function editarContrato(id) {
+    console.log('🔧 Editar contrato:', id);
+    showMessage('Função de edição de contrato em desenvolvimento', 'info');
+}
+
+function excluirContrato(id) {
+    if (confirm('Tem certeza que deseja excluir este contrato?')) {
+        console.log('🗑️ Excluir contrato:', id);
+        showMessage('Função de exclusão de contrato em desenvolvimento', 'info');
+    }
+}
+
+function editarSessao(id) {
+    console.log('🔧 Editar sessão:', id);
+    showMessage('Função de edição de sessão em desenvolvimento', 'info');
+}
+
+function excluirSessao(id) {
+    if (confirm('Tem certeza que deseja excluir esta sessão?')) {
+        console.log('🗑️ Excluir sessão:', id);
+        showMessage('Função de exclusão de sessão em desenvolvimento', 'info');
+    }
+}
+
+function editarComissao(id) {
+    console.log('🔧 Editar comissão:', id);
+    showMessage('Função de edição de comissão em desenvolvimento', 'info');
+}
+
+function excluirComissao(id) {
+    if (confirm('Tem certeza que deseja excluir esta comissão?')) {
+        console.log('🗑️ Excluir comissão:', id);
+        showMessage('Função de exclusão de comissão em desenvolvimento', 'info');
+    }
+}
+
+/**
+ * Alterna entre as tabs de Contratos
+ */
+function showContratoTab(tabName) {
+    console.log('📑 Alternando para tab:', tabName);
+    
+    // Ocultar todos os conteúdos
+    const contents = ['contratos', 'sessoes', 'comissoes', 'equipe'];
+    contents.forEach(name => {
+        const content = document.getElementById(`tab-content-${name}`);
+        if (content) content.style.display = 'none';
+    });
+    
+    // Remover classe active de todos os botões
+    const buttons = document.querySelectorAll('.tab-button');
+    buttons.forEach(btn => {
+        btn.style.background = '#bdc3c7';
+        btn.style.color = '#555';
+        btn.classList.remove('active');
+    });
+    
+    // Mostrar conteúdo selecionado
+    const selectedContent = document.getElementById(`tab-content-${tabName}`);
+    if (selectedContent) {
+        selectedContent.style.display = 'block';
+    }
+    
+    // Ativar botão selecionado
+    const selectedButton = document.getElementById(`tab-${tabName}`);
+    if (selectedButton) {
+        selectedButton.style.background = '#9b59b6';
+        selectedButton.style.color = 'white';
+        selectedButton.classList.add('active');
+    }
+    
+    // Carregar dados da tab
+    switch(tabName) {
+        case 'contratos':
+            loadContratos();
+            break;
+        case 'sessoes':
+            loadSessoes();
+            break;
+        case 'comissoes':
+            loadComissoes();
+            break;
+        case 'equipe':
+            console.log('Tab Equipe - em desenvolvimento');
+            break;
+    }
+}
+
+// Funções de modal (placeholders)
+function openModalContrato() {
+    showMessage('Modal de novo contrato em desenvolvimento', 'info');
+}
+
+function openModalSessao() {
+    showMessage('Modal de nova sessão em desenvolvimento', 'info');
+}
+
+function openModalComissao() {
+    showMessage('Modal de nova comissão em desenvolvimento', 'info');
+}
+
+function openModalSessaoEquipe() {
+    showMessage('Modal de adicionar membro à equipe em desenvolvimento', 'info');
+}
+
+function exportarContratosPDF() {
+    showMessage('Exportação de contratos para PDF em desenvolvimento', 'info');
 }
