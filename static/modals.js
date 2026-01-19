@@ -1904,6 +1904,15 @@ window.buscarDadosCNPJFornecedor = buscarDadosCNPJFornecedor;
 async function openModalContrato(contratoEdit = null) {
     console.log('📋 openModalContrato chamada', contratoEdit ? 'MODO EDIÇÃO' : 'MODO CRIAÇÃO');
     
+    if (contratoEdit) {
+        console.log('📦 Dados do contrato recebidos:', {
+            id: contratoEdit.id,
+            valor_mensal: contratoEdit.valor_mensal,
+            quantidade_meses: contratoEdit.quantidade_meses,
+            valor_total: contratoEdit.valor_total
+        });
+    }
+    
     // Carregar clientes se necessário
     if (!window.clientes || window.clientes.length === 0) {
         await loadClientes();
@@ -2121,6 +2130,13 @@ async function salvarContrato(event) {
     const valorMensal = parseFloat(document.getElementById('contrato-valor-mensal').value) || 0;
     const quantidadeMeses = parseInt(document.getElementById('contrato-meses').value) || 1;
     const valorTotal = valorMensal * quantidadeMeses;
+    
+    console.log('💰 Valores coletados no salvar:');
+    console.log('   📝 Valor Mensal (campo .value):', document.getElementById('contrato-valor-mensal').value);
+    console.log('   💰 Valor Mensal (parseFloat):', valorMensal);
+    console.log('   🔢 Qtd Meses (campo .value):', document.getElementById('contrato-meses').value);
+    console.log('   🔢 Qtd Meses (parseInt):', quantidadeMeses);
+    console.log('   💵 Valor Total calculado:', valorTotal);
     
     const data = {
         cliente_id: parseInt(document.getElementById('contrato-cliente').value),
