@@ -1760,8 +1760,16 @@ async function loadContasReceber() {
             tbody.appendChild(tr);
         });
         
+        // Adicionar event listeners nos checkboxes
+        document.querySelectorAll('.checkbox-receber').forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                atualizarSomaSelecionados('receber');
+                atualizarBotoesEmMassa('receber');
+            });
+        });
+        
         if (receitas.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px;">💰 Nenhuma conta a receber</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 30px;">💰 Nenhuma conta a receber</td></tr>';
         }
     } catch (error) {
         console.error('Erro ao carregar contas a receber:', error);
@@ -1815,8 +1823,16 @@ async function loadContasPagar() {
             tbody.appendChild(tr);
         });
         
+        // Adicionar event listeners nos checkboxes
+        document.querySelectorAll('.checkbox-pagar').forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                atualizarSomaSelecionados('pagar');
+                atualizarBotoesEmMassa('pagar');
+            });
+        });
+        
         if (despesas.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px;">💳 Nenhuma conta a pagar</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 30px;">💳 Nenhuma conta a pagar</td></tr>';
         }
     } catch (error) {
         console.error('Erro ao carregar contas a pagar:', error);
@@ -1873,6 +1889,139 @@ async function excluirLancamento(id) {
     } catch (error) {
         console.error('Erro ao excluir lançamento:', error);
         showToast('Erro ao excluir lançamento', 'error');
+    }
+}
+
+// ============================================================================
+// FUNÇÕES DE SELEÇÃO EM MASSA
+// ============================================================================
+
+function toggleSelectAll(tipo) {
+    const selectAllCheckbox = document.getElementById(`select-all-${tipo}`);
+    const checkboxes = document.querySelectorAll(`.checkbox-${tipo}`);
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    atualizarSomaSelecionados(tipo);
+    atualizarBotoesEmMassa(tipo);
+}
+
+function atualizarSomaSelecionados(tipo) {
+    const checkboxes = document.querySelectorAll(`.checkbox-${tipo}:checked`);
+    let soma = 0;
+    
+    checkboxes.forEach(checkbox => {
+        const row = checkbox.closest('tr');
+        const valorCell = row.querySelector('td:nth-child(8)'); // Coluna de valor
+        if (valorCell) {
+            const valorTexto = valorCell.textContent.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+            soma += parseFloat(valorTexto) || 0;
+        }
+    });
+    
+    const somaDiv = document.getElementById(`soma-selecionados-${tipo}`);
+    const valorSpan = document.getElementById(`valor-soma-${tipo}`);
+    
+    if (checkboxes.length > 0) {
+        somaDiv.style.display = 'block';
+        valorSpan.textContent = formatarMoeda(soma);
+    } else {
+        somaDiv.style.display = 'none';
+    }
+}
+
+function atualizarBotoesEmMassa(tipo) {
+    const checkboxes = document.querySelectorAll(`.checkbox-${tipo}:checked`);
+    const btnBaixar = document.getElementById(`btn-baixar-massa-${tipo}`);
+    const btnExcluir = document.getElementById(`btn-excluir-massa-${tipo}`);
+    
+    if (checkboxes.length > 0) {
+        if (btnBaixar) btnBaixar.style.display = 'inline-block';
+        if (btnExcluir) btnExcluir.style.display = 'inline-block';
+    } else {
+        if (btnBaixar) btnBaixar.style.display = 'none';
+        if (btnExcluir) btnExcluir.style.display = 'none';
+    }
+}
+
+async function baixarEmMassa(tipo) {
+    const checkboxes = document.querySelectorAll(`.checkbox-${tipo === 'RECEITA' ? 'receber' : 'pagar'}:checked`);
+    const ids = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (ids.length === 0) {
+        showToast('Selecione pelo menos um lançamento', 'warning');
+        return;
+    }
+    
+    if (!confirm(`Confirma baixa de ${ids.length} lançamento(s)?`)) return;
+    
+    try {
+        let sucesso = 0;
+        let erros = 0;
+        
+        for (const id of ids) {
+            try {
+                const response = await fetch(`${API_URL}/lancamentos/${id}/baixar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data_pagamento: new Date().toISOString().split('T')[0] })
+                });
+                
+                const result = await response.json();
+                if (result.success) sucesso++;
+                else erros++;
+            } catch {
+                erros++;
+            }
+        }
+        
+        showToast(`✓ ${sucesso} baixado(s), ${erros} erro(s)`, sucesso > 0 ? 'success' : 'error');
+        
+        if (tipo === 'RECEITA') loadContasReceber();
+        else loadContasPagar();
+        loadDashboard();
+    } catch (error) {
+        console.error('Erro ao baixar em massa:', error);
+        showToast('Erro ao baixar lançamentos', 'error');
+    }
+}
+
+async function excluirEmMassa(tipo) {
+    const checkboxes = document.querySelectorAll(`.checkbox-${tipo === 'RECEITA' ? 'receber' : 'pagar'}:checked`);
+    const ids = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (ids.length === 0) {
+        showToast('Selecione pelo menos um lançamento', 'warning');
+        return;
+    }
+    
+    if (!confirm(`ATENÇÃO: Confirma exclusão de ${ids.length} lançamento(s)? Esta ação não pode ser desfeita!`)) return;
+    
+    try {
+        let sucesso = 0;
+        let erros = 0;
+        
+        for (const id of ids) {
+            try {
+                const response = await fetch(`${API_URL}/lancamentos/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) sucesso++;
+                else erros++;
+            } catch {
+                erros++;
+            }
+        }
+        
+        showToast(`✓ ${sucesso} excluído(s), ${erros} erro(s)`, sucesso > 0 ? 'success' : 'error');
+        
+        if (tipo === 'RECEITA') loadContasReceber();
+        else loadContasPagar();
+        loadDashboard();
+    } catch (error) {
+        console.error('Erro ao excluir em massa:', error);
+        showToast('Erro ao excluir lançamentos', 'error');
     }
 }
 
