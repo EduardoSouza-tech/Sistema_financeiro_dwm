@@ -2233,7 +2233,7 @@ async function salvarContrato(event) {
         console.error('❌ Erro ao salvar contrato:', error);
         showToast('❌ Erro ao salvar contrato: ' + error.message, 'error');
     }
-}
+} // Fecha a função salvarContrato
 
 window.openModalContrato = openModalContrato;
 window.salvarContrato = salvarContrato;
