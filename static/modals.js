@@ -1897,5 +1897,253 @@ window.salvarTransferencia = salvarTransferencia;
 window.buscarDadosCNPJ = buscarDadosCNPJ;
 window.buscarDadosCNPJFornecedor = buscarDadosCNPJFornecedor;
 
-console.log('✓ Modals.js v20251204lancamentos5 carregado com sucesso');
+// ============================================================================
+// MODAL CONTRATO
+// ============================================================================
 
+async function openModalContrato(contratoEdit = null) {
+    console.log('📋 openModalContrato chamada', contratoEdit ? 'MODO EDIÇÃO' : 'MODO CRIAÇÃO');
+    
+    // Carregar clientes se necessário
+    if (!window.clientes || window.clientes.length === 0) {
+        await loadClientes();
+    }
+    
+    const isEdit = contratoEdit !== null;
+    const titulo = isEdit ? 'Editar Contrato' : 'Novo Contrato';
+    
+    // Opções de clientes
+    const opcoesClientes = window.clientes && window.clientes.length > 0
+        ? window.clientes.map(c => {
+            const selected = isEdit && contratoEdit.cliente_id === c.id ? 'selected' : '';
+            return `<option value="${c.id}" ${selected}>${c.razao_social || c.nome}</option>`;
+        }).join('')
+        : '<option value="">Nenhum cliente cadastrado</option>';
+    
+    const modal = createModal(titulo, `
+        <form id="form-contrato" onsubmit="salvarContrato(event)" style="max-height: 80vh; overflow-y: auto;">
+            <input type="hidden" id="contrato-id" value="${isEdit ? contratoEdit.id : ''}">
+            
+            <!-- Linha 1: Cliente e Tipo -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>*Cliente:</label>
+                    <select id="contrato-cliente" required>
+                        <option value="">Selecione...</option>
+                        ${opcoesClientes}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>*Tipo:</label>
+                    <select id="contrato-tipo" required onchange="atualizarCalculoContrato()">
+                        <option value="Mensal" ${isEdit && contratoEdit.tipo === 'Mensal' ? 'selected' : ''}>Mensal</option>
+                        <option value="Único" ${isEdit && contratoEdit.tipo === 'Único' ? 'selected' : ''}>Único</option>
+                        <option value="Anual" ${isEdit && contratoEdit.tipo === 'Anual' ? 'selected' : ''}>Anual</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Linha 2: Nome e Descrição -->
+            <div class="form-group">
+                <label>*Nome do Contrato:</label>
+                <input type="text" id="contrato-nome" required value="${isEdit ? contratoEdit.nome || '' : ''}" placeholder="Ex: Mensal 2026">
+            </div>
+            
+            <div class="form-group">
+                <label>Descrição:</label>
+                <textarea id="contrato-descricao" rows="3" placeholder="Ex: Contrato mensal de horas para captação de fotos e vídeos...">${isEdit ? contratoEdit.descricao || '' : ''}</textarea>
+            </div>
+            
+            <!-- Linha 3: Valores e Meses -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>*Valor Mensal:</label>
+                    <input type="number" id="contrato-valor-mensal" step="0.01" required value="${isEdit ? contratoEdit.valor_mensal || '' : ''}" placeholder="6300.00" onchange="atualizarCalculoContrato()">
+                </div>
+                
+                <div class="form-group">
+                    <label>*Qtd. Meses:</label>
+                    <input type="number" id="contrato-meses" min="1" required value="${isEdit ? contratoEdit.quantidade_meses || '1' : '1'}" onchange="atualizarCalculoContrato()">
+                </div>
+                
+                <div class="form-group">
+                    <label>Valor Total:</label>
+                    <input type="text" id="contrato-valor-total" readonly style="background: #f0f0f0; font-weight: bold; color: #27ae60;" value="${isEdit ? 'R$ ' + (contratoEdit.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2}) : 'R$ 0,00'}">
+                </div>
+            </div>
+            
+            <!-- Linha 4: Horas, Pagamento, Parcelas -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>Horas Mensais:</label>
+                    <input type="number" id="contrato-horas" min="0" value="${isEdit ? contratoEdit.horas_mensais || '' : ''}" placeholder="8">
+                </div>
+                
+                <div class="form-group">
+                    <label>*Forma Pagamento:</label>
+                    <select id="contrato-pagamento" required>
+                        <option value="PIX" ${isEdit && contratoEdit.forma_pagamento === 'PIX' ? 'selected' : ''}>PIX</option>
+                        <option value="Boleto" ${isEdit && contratoEdit.forma_pagamento === 'Boleto' ? 'selected' : ''}>Boleto</option>
+                        <option value="Transferência" ${isEdit && contratoEdit.forma_pagamento === 'Transferência' ? 'selected' : ''}>Transferência</option>
+                        <option value="Dinheiro" ${isEdit && contratoEdit.forma_pagamento === 'Dinheiro' ? 'selected' : ''}>Dinheiro</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>*Qtd. Parcelas:</label>
+                    <input type="number" id="contrato-parcelas" min="1" required value="${isEdit ? contratoEdit.quantidade_parcelas || '1' : '1'}">
+                </div>
+            </div>
+            
+            <!-- Linha 5: Datas -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>*Data Contrato:</label>
+                    <input type="date" id="contrato-data" required value="${isEdit && contratoEdit.data_contrato ? contratoEdit.data_contrato.split('T')[0] : ''}">
+                </div>
+                
+                <div class="form-group">
+                    <label>Dia Pagamento:</label>
+                    <input type="number" id="contrato-dia-pagamento" min="1" max="31" placeholder="10" value="${isEdit ? contratoEdit.dia_pagamento || '' : ''}">
+                </div>
+                
+                <div class="form-group">
+                    <label>Dia Emissão NF:</label>
+                    <input type="number" id="contrato-dia-nf" min="1" max="31" placeholder="3" value="${isEdit ? contratoEdit.dia_emissao_nf || '' : ''}">
+                </div>
+                
+                <div class="form-group">
+                    <label>Imposto (%):</label>
+                    <input type="number" id="contrato-imposto" step="0.01" min="0" max="100" placeholder="10.00" value="${isEdit ? contratoEdit.imposto_percentual || '' : ''}">
+                </div>
+            </div>
+            
+            <!-- Comissões -->
+            <div class="form-group">
+                <label>Comissões:</label>
+                <div id="contrato-comissoes-container" style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9;">
+                    <div id="contrato-comissoes-list"></div>
+                    <button type="button" onclick="adicionarComissaoContrato()" class="btn btn-sm" style="margin-top: 10px; background: #3498db; color: white;">➕ Adicionar Comissão</button>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px; position: sticky; bottom: 0; background: white; padding: 15px 0; border-top: 2px solid #eee;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar Contrato</button>
+            </div>
+        </form>
+    `);
+    
+    // Calcular valor total inicial
+    setTimeout(() => {
+        atualizarCalculoContrato();
+    }, 100);
+}
+
+function atualizarCalculoContrato() {
+    const valorMensal = parseFloat(document.getElementById('contrato-valor-mensal')?.value || 0);
+    const meses = parseInt(document.getElementById('contrato-meses')?.value || 1);
+    const valorTotal = valorMensal * meses;
+    
+    const campoTotal = document.getElementById('contrato-valor-total');
+    if (campoTotal) {
+        campoTotal.value = 'R$ ' + valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+    }
+}
+
+function adicionarComissaoContrato() {
+    const container = document.getElementById('contrato-comissoes-list');
+    if (!container) return;
+    
+    const index = container.children.length;
+    const div = document.createElement('div');
+    div.className = 'comissao-item';
+    div.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
+    div.innerHTML = `
+        <input type="text" class="comissao-nome" placeholder="Nome do colaborador" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <input type="number" class="comissao-percentual" step="0.01" min="0" max="100" placeholder="4.25" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm btn-danger" style="padding: 8px 12px;">🗑️</button>
+    `;
+    container.appendChild(div);
+}
+
+async function salvarContrato(event) {
+    event.preventDefault();
+    
+    console.log('\n💾 ========== SALVAR CONTRATO ==========');
+    
+    const id = document.getElementById('contrato-id').value;
+    const isEdit = id && id.trim() !== '';
+    
+    console.log('🎯 Modo:', isEdit ? 'EDIÇÃO' : 'CRIAÇÃO');
+    console.log('📋 ID:', id);
+    
+    // Coletar comissões
+    const comissoes = [];
+    document.querySelectorAll('.comissao-item').forEach(item => {
+        const nome = item.querySelector('.comissao-nome').value;
+        const percentual = item.querySelector('.comissao-percentual').value;
+        if (nome && percentual) {
+            comissoes.push({
+                nome: nome,
+                percentual: parseFloat(percentual)
+            });
+        }
+    });
+    
+    const data = {
+        cliente_id: parseInt(document.getElementById('contrato-cliente').value),
+        tipo: document.getElementById('contrato-tipo').value,
+        nome: document.getElementById('contrato-nome').value,
+        descricao: document.getElementById('contrato-descricao').value,
+        valor_mensal: parseFloat(document.getElementById('contrato-valor-mensal').value),
+        quantidade_meses: parseInt(document.getElementById('contrato-meses').value),
+        horas_mensais: parseInt(document.getElementById('contrato-horas').value) || null,
+        forma_pagamento: document.getElementById('contrato-pagamento').value,
+        quantidade_parcelas: parseInt(document.getElementById('contrato-parcelas').value),
+        data_contrato: document.getElementById('contrato-data').value,
+        dia_pagamento: parseInt(document.getElementById('contrato-dia-pagamento').value) || null,
+        dia_emissao_nf: parseInt(document.getElementById('contrato-dia-nf').value) || null,
+        imposto_percentual: parseFloat(document.getElementById('contrato-imposto').value) || null,
+        comissoes: comissoes
+    };
+    
+    console.log('📦 Dados a enviar:', data);
+    
+    try {
+        const url = isEdit ? `/api/contratos/${id}` : '/api/contratos';
+        const method = isEdit ? 'PUT' : 'POST';
+        
+        console.log('🌐 URL:', url);
+        console.log('📤 Method:', method);
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        console.log('📡 Resposta do servidor:', result);
+        
+        if (result.success || response.ok) {
+            showToast(isEdit ? '✅ Contrato atualizado com sucesso!' : '✅ Contrato criado com sucesso!', 'success');
+            closeModal();
+            if (typeof loadContratos === 'function') loadContratos();
+        } else {
+            showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao salvar contrato:', error);
+        showToast('❌ Erro ao salvar contrato: ' + error.message, 'error');
+    }
+}
+
+window.openModalContrato = openModalContrato;
+window.salvarContrato = salvarContrato;
+window.atualizarCalculoContrato = atualizarCalculoContrato;
+window.adicionarComissaoContrato = adicionarComissaoContrato;
+
+console.log('✓ Modals.js v20251204lancamentos5 carregado com sucesso');

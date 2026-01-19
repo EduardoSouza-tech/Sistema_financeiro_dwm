@@ -3074,11 +3074,7 @@ function showContratoTab(tabName) {
     }
 }
 
-// Funções de modal (placeholders)
-function openModalContrato() {
-    showToast('Modal de novo contrato em desenvolvimento', 'info');
-}
-
+// Funções de modal (placeholders - openModalContrato está em modals.js)
 function openModalSessao() {
     showToast('Modal de nova sessão em desenvolvimento', 'info');
 }
