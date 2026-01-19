@@ -2062,19 +2062,20 @@ function atualizarCalculoContrato() {
     // Calcular total
     const valorTotal = valorMensal * meses;
     
-    console.log('🧮 Calculando:', {
-        valorMensalStr,
-        mesesStr,
-        valorMensal,
-        meses,
-        valorTotal
-    });
+    console.log('🧮 Calculando:');
+    console.log('   📝 Valor Mensal (string):', valorMensalStr);
+    console.log('   📝 Meses (string):', mesesStr);
+    console.log('   💰 Valor Mensal (número):', valorMensal);
+    console.log('   🔢 Meses (número):', meses);
+    console.log('   💵 Valor Total:', valorTotal);
     
     // Formatar e exibir
     campoTotal.value = 'R$ ' + valorTotal.toLocaleString('pt-BR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
+    
+    console.log('   ✅ Campo atualizado para:', campoTotal.value);
 }
 
 function adicionarComissaoContrato() {
