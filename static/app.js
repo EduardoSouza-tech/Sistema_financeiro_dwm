@@ -1046,10 +1046,16 @@ async function atualizarSaldoTotalBancos(tipo) {
  */
 async function carregarSelectBancos(tipo) {
     try {
+        console.log('🏦 carregarSelectBancos - Buscando contas para select...');
         const response = await fetch(`${API_URL}/contas`);
-        if (!response.ok) return;
+        if (!response.ok) {
+            console.error('❌ Erro ao buscar contas para select:', response.status);
+            return;
+        }
         
         const contas = await response.json();
+        console.log('📦 Contas recebidas para select:', contas);
+        
         const selectId = tipo === 'receber' ? 'select-banco-receber' : 'select-banco-pagar';
         const select = document.getElementById(selectId);
         
@@ -1061,13 +1067,18 @@ async function carregarSelectBancos(tipo) {
             contas.forEach(conta => {
                 const option = document.createElement('option');
                 option.value = conta.id;
-                option.textContent = `${conta.nome} - ${formatarMoeda(conta.saldo)}`;
+                const textoOption = `${conta.nome} - ${formatarMoeda(conta.saldo)}`;
+                option.textContent = textoOption;
                 option.dataset.saldo = conta.saldo;
+                console.log(`   📋 Option adicionada: ${textoOption} (saldo raw: ${conta.saldo})`);
                 select.appendChild(option);
             });
+            console.log(`✅ Select ${selectId} carregado com ${contas.length} bancos`);
+        } else {
+            console.error(`❌ Select ${selectId} não encontrado`);
         }
     } catch (error) {
-        console.error('Erro ao carregar select de bancos:', error);
+        console.error('❌ Erro ao carregar select de bancos:', error);
     }
 }
 
