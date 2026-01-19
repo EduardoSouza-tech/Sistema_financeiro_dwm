@@ -499,6 +499,27 @@ function openModalConta(contaEdit = null) {
                 <input type="text" id="conta-saldo" inputmode="numeric" placeholder="0,00" value="${isEdit ? formatarValorParaExibicao(contaEdit.saldo_inicial || 0) : ''}" required>
             </div>
             
+            <div class="form-group">
+                <label>*Data de Início do Saldo:</label>
+                <input type="date" id="conta-data-inicio" value="${isEdit && contaEdit.data_inicio ? contaEdit.data_inicio : ''}" required>
+                <small style="color: #7f8c8d; font-size: 11px;">
+                    📅 Data em que o saldo inicial foi registrado/implantado na conta. Esta data não será alterada ao importar extratos.
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label>*Tipo de Saldo Inicial:</label>
+                <select id="conta-tipo-saldo" required>
+                    <option value="">Selecione...</option>
+                    <option value="credor" ${isEdit && contaEdit.tipo_saldo_inicial === 'credor' ? 'selected' : ''}>💰 Credor (Positivo - Tenho dinheiro)</option>
+                    <option value="devedor" ${isEdit && contaEdit.tipo_saldo_inicial === 'devedor' ? 'selected' : ''}>⚠️ Devedor (Negativo - Devo dinheiro)</option>
+                </select>
+                <small style="color: #7f8c8d; font-size: 11px;">
+                    <strong>Credor:</strong> Conta com saldo positivo (você tem dinheiro)<br>
+                    <strong>Devedor:</strong> Conta com saldo negativo (você deve ao banco, ex: cheque especial usado)
+                </small>
+            </div>
+            
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
                 <button type="submit" class="btn btn-primary">Salvar</button>
@@ -545,6 +566,8 @@ async function salvarConta(event) {
     const agencia = document.getElementById('conta-agencia').value.trim();
     const conta = document.getElementById('conta-conta').value.trim();
     const campoSaldo = document.getElementById('conta-saldo');
+    const dataInicio = document.getElementById('conta-data-inicio').value;
+    const tipoSaldo = document.getElementById('conta-tipo-saldo').value;
     
     // Validar campos obrigatórios
     if (!banco) {
@@ -565,6 +588,18 @@ async function salvarConta(event) {
         return;
     }
     
+    if (!dataInicio) {
+        showToast('⚠️ Preencha a data de início do saldo', 'warning');
+        document.getElementById('conta-data-inicio').focus();
+        return;
+    }
+    
+    if (!tipoSaldo) {
+        showToast('⚠️ Selecione o tipo de saldo inicial (Credor ou Devedor)', 'warning');
+        document.getElementById('conta-tipo-saldo').focus();
+        return;
+    }
+    
     // Gerar nome automático: BANCO - AGENCIA/CONTA
     const nomeGerado = `${banco} - ${agencia}/${conta}`;
     
@@ -582,18 +617,32 @@ async function salvarConta(event) {
         saldoInicial = parseFloat(valorTexto) || 0;
     }
     
+    // Se for devedor, o saldo deve ser negativo
+    if (tipoSaldo === 'devedor' && saldoInicial > 0) {
+        saldoInicial = -saldoInicial;
+    }
+    // Se for credor, o saldo deve ser positivo
+    if (tipoSaldo === 'credor' && saldoInicial < 0) {
+        saldoInicial = Math.abs(saldoInicial);
+    }
+    
     const data = {
         nome: nomeGerado,
         banco: banco,
         agencia: agencia,
         conta: conta,
         saldo_inicial: saldoInicial,
+        data_inicio: dataInicio,
+        tipo_saldo_inicial: tipoSaldo,
         empresa_id: window.currentEmpresaId
     };
     
     console.log('=== Salvando Conta ===');
     console.log('Modo de edição:', isEdit);
     console.log('Nome original:', nomeOriginal);
+    console.log('Data de início:', dataInicio);
+    console.log('Tipo de saldo:', tipoSaldo);
+    console.log('Saldo ajustado:', saldoInicial);
     console.log('Dados a enviar:', data);
     
     try {

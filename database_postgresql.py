@@ -71,13 +71,17 @@ class ContaBancaria:
                  saldo_inicial: float = 0.0, id: Optional[int] = None, 
                  tipo_conta: str = "corrente", moeda: str = "BRL",
                  ativa: bool = True, proprietario_id: Optional[int] = None,
-                 data_criacao: Optional[datetime] = None):
+                 data_criacao: Optional[datetime] = None, 
+                 tipo_saldo_inicial: str = "credor",
+                 data_inicio: Optional[datetime] = None):
         self.id = id
         self.nome = nome
         self.banco = banco
         self.agencia = agencia
         self.conta = conta
         self.saldo_inicial = saldo_inicial
+        self.tipo_saldo_inicial = tipo_saldo_inicial
+        self.data_inicio = data_inicio or datetime.now().date()
         self.tipo_conta = tipo_conta
         self.moeda = moeda
         self.ativa = ativa
@@ -92,6 +96,8 @@ class ContaBancaria:
             'agencia': self.agencia,
             'conta': self.conta,
             'saldo_inicial': float(self.saldo_inicial),
+            'tipo_saldo_inicial': self.tipo_saldo_inicial,
+            'data_inicio': self.data_inicio.isoformat() if isinstance(self.data_inicio, (date, datetime)) else self.data_inicio,
             'tipo_conta': self.tipo_conta,
             'moeda': self.moeda
         }
@@ -446,6 +452,8 @@ class DatabaseManager:
                 agencia VARCHAR(50) NOT NULL,
                 conta VARCHAR(50) NOT NULL,
                 saldo_inicial DECIMAL(15,2) NOT NULL,
+                tipo_saldo_inicial VARCHAR(10) DEFAULT 'credor' CHECK (tipo_saldo_inicial IN ('credor', 'devedor')),
+                data_inicio DATE NOT NULL,
                 ativa BOOLEAN DEFAULT TRUE,
                 data_criacao TIMESTAMP NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1373,8 +1381,8 @@ class DatabaseManager:
         
         cursor.execute("""
             INSERT INTO contas_bancarias 
-            (nome, banco, agencia, conta, saldo_inicial, ativa, data_criacao, proprietario_id)
-            VALUES (%s, %s, %s, %s, %s, %s, COALESCE(%s, CURRENT_TIMESTAMP), %s)
+            (nome, banco, agencia, conta, saldo_inicial, tipo_saldo_inicial, data_inicio, ativa, data_criacao, proprietario_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, COALESCE(%s, CURRENT_TIMESTAMP), %s)
             RETURNING id
         """, (
             conta.nome,
@@ -1382,6 +1390,8 @@ class DatabaseManager:
             conta.agencia,
             conta.conta,
             float(conta.saldo_inicial),
+            conta.tipo_saldo_inicial,
+            conta.data_inicio,
             conta.ativa,
             conta.data_criacao,
             proprietario_id
@@ -1415,6 +1425,8 @@ class DatabaseManager:
                 agencia=row['agencia'],
                 conta=row['conta'],
                 saldo_inicial=Decimal(str(row['saldo_inicial'])),
+                tipo_saldo_inicial=row.get('tipo_saldo_inicial', 'credor'),
+                data_inicio=row.get('data_inicio'),
                 ativa=row['ativa'],
                 data_criacao=row['data_criacao']
             )
@@ -1440,10 +1452,10 @@ class DatabaseManager:
         
         cursor.execute("""
             UPDATE contas_bancarias
-            SET nome = %s, banco = %s, agencia = %s, conta = %s, saldo_inicial = %s
+            SET nome = %s, banco = %s, agencia = %s, conta = %s, saldo_inicial = %s, tipo_saldo_inicial = %s, data_inicio = %s
             WHERE nome = %s
         """, (conta.nome, conta.banco, conta.agencia, conta.conta,
-              float(conta.saldo_inicial), nome_antigo))
+              float(conta.saldo_inicial), conta.tipo_saldo_inicial, conta.data_inicio, nome_antigo))
         
         success = cursor.rowcount > 0
         conn.commit()

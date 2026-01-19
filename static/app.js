@@ -881,7 +881,8 @@ async function loadContas() {
                     <td>${formatarMoeda(conta.saldo_inicial)}</td>
                     <td>${formatarMoeda(conta.saldo_real !== undefined ? conta.saldo_real : conta.saldo_inicial)}</td>
                     <td>
-                        <button class="btn btn-danger" onclick="excluirConta('${conta.nome}')">🗑️</button>
+                        <button class="btn btn-primary" onclick="editarConta('${conta.nome}')" title="Editar conta">✏️ Editar</button>
+                        <button class="btn btn-danger" onclick="excluirConta('${conta.nome}')" title="Excluir conta">🗑️ Excluir</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1003,6 +1004,38 @@ async function salvarConta(event) {
     }
 }
 
+/**
+ * Abre modal para editar uma conta bancária
+ * @param {string} nome - Nome da conta a ser editada
+ */
+async function editarConta(nome) {
+    try {
+        // Buscar dados da conta
+        const response = await fetch(`${API_URL}/contas/${encodeURIComponent(nome)}`);
+        
+        if (!response.ok) {
+            throw new Error('Erro ao buscar dados da conta');
+        }
+        
+        const conta = await response.json();
+        
+        // Chamar função do modals.js para abrir modal em modo de edição
+        if (typeof openModalConta === 'function') {
+            openModalConta(conta);
+        } else {
+            console.error('Função openModalConta não encontrada');
+            alert('Erro ao abrir modal de edição');
+        }
+    } catch (error) {
+        console.error('Erro ao editar conta:', error);
+        alert('Erro ao carregar dados da conta para edição');
+    }
+}
+
+/**
+ * Exclui uma conta bancária
+ * @param {string} nome - Nome da conta a ser excluída
+ */
 async function excluirConta(nome) {
     if (!confirm(`Deseja realmente excluir a conta "${nome}"?`)) return;
     
@@ -2203,14 +2236,25 @@ async function loadExtratos() {
             const statusIcon = transacao.conciliado ? '✅' : '⏳';
             const statusText = transacao.conciliado ? 'Conciliado' : 'Pendente';
             const statusColor = transacao.conciliado ? '#27ae60' : '#f39c12';
-            const valorColor = transacao.tipo === 'CREDITO' ? '#27ae60' : '#c0392b';
+            
+            // Determinar se é crédito ou débito (case-insensitive)
+            const isCredito = transacao.tipo?.toUpperCase() === 'CREDITO' || transacao.valor > 0;
+            const valorColor = isCredito ? '#27ae60' : '#c0392b';
+            const tipoLabel = isCredito ? 'Crédito' : 'Débito';
+            
+            // Formatar valor com sinal correto
+            const valorFormatado = formatarMoeda(transacao.valor);
+            
+            // Formatar saldo (pode ser positivo ou negativo)
+            const saldoFormatado = formatarMoeda(transacao.saldo);
+            const saldoColor = transacao.saldo >= 0 ? '#27ae60' : '#c0392b';
             
             tr.innerHTML = `
                 <td>${formatarData(transacao.data)}</td>
                 <td style="max-width: 300px;">${transacao.descricao}</td>
-                <td style="color: ${valorColor}; font-weight: bold;">${formatarMoeda(transacao.valor)}</td>
-                <td><span class="badge badge-${transacao.tipo === 'CREDITO' ? 'success' : 'danger'}">${transacao.tipo}</span></td>
-                <td style="font-weight: bold;">${formatarMoeda(transacao.saldo)}</td>
+                <td style="color: ${valorColor}; font-weight: bold;">${valorFormatado}</td>
+                <td><span class="badge badge-${isCredito ? 'success' : 'danger'}">${tipoLabel}</span></td>
+                <td style="font-weight: bold; color: ${saldoColor};">${saldoFormatado}</td>
                 <td>
                     <span style="color: ${statusColor}; font-weight: bold;">
                         ${statusIcon} ${statusText}

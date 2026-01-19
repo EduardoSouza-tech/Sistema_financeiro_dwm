@@ -301,6 +301,26 @@ try:
     except Exception as e:
         print(f"⚠️ Aviso: Não foi possível executar migração usuário multi-empresa: {e}")
     
+    try:
+        print("\n💰 Executando migração Tipo Saldo Inicial...")
+        from migration_tipo_saldo_inicial import executar_migracao as migrar_tipo_saldo
+        if migrar_tipo_saldo(db):
+            print("✅ Coluna tipo_saldo_inicial adicionada com sucesso!\n")
+        else:
+            print("⚠️ Migração tipo_saldo_inicial falhou (pode já estar aplicada)\n")
+    except Exception as e:
+        print(f"⚠️ Aviso: Não foi possível executar migração tipo_saldo_inicial: {e}")
+    
+    try:
+        print("\n📅 Executando migração Data de Início...")
+        from migration_data_inicio import executar_migracao as migrar_data_inicio
+        if migrar_data_inicio(db):
+            print("✅ Coluna data_inicio adicionada com sucesso!\n")
+        else:
+            print("⚠️ Migração data_inicio falhou (pode já estar aplicada)\n")
+    except Exception as e:
+        print(f"⚠️ Aviso: Não foi possível executar migração data_inicio: {e}")
+    
     # Criar tabela de extratos bancários se não existir
     try:
         print("\n🏦 Verificando tabela de extratos bancários...")
@@ -1666,7 +1686,9 @@ def adicionar_conta():
             banco=data['banco'],  # type: ignore
             agencia=data['agencia'],  # type: ignore
             conta=data['conta'],  # type: ignore
-            saldo_inicial=float(data.get('saldo_inicial', 0) if data else 0)  # type: ignore
+            saldo_inicial=float(data.get('saldo_inicial', 0) if data else 0),  # type: ignore
+            tipo_saldo_inicial=data.get('tipo_saldo_inicial', 'credor'),  # type: ignore
+            data_inicio=data.get('data_inicio')  # type: ignore
         )
         
         conta_id = db.adicionar_conta(conta, proprietario_id=proprietario_id)
@@ -1699,7 +1721,9 @@ def modificar_conta(nome):
                         'banco': conta.banco,
                         'agencia': conta.agencia,
                         'conta': conta.conta,
-                        'saldo_inicial': float(conta.saldo_inicial)
+                        'saldo_inicial': float(conta.saldo_inicial),
+                        'tipo_saldo_inicial': conta.tipo_saldo_inicial,
+                        'data_inicio': conta.data_inicio.isoformat() if hasattr(conta.data_inicio, 'isoformat') else str(conta.data_inicio)
                     })
             return jsonify({'success': False, 'error': 'Conta não encontrada'}), 404
         except Exception as e:
@@ -1714,7 +1738,9 @@ def modificar_conta(nome):
                 banco=data['banco'],  # type: ignore
                 agencia=data['agencia'],  # type: ignore
                 conta=data['conta'],  # type: ignore
-                saldo_inicial=float(data.get('saldo_inicial', 0) if data else 0)  # type: ignore
+                saldo_inicial=float(data.get('saldo_inicial', 0) if data else 0),  # type: ignore
+                tipo_saldo_inicial=data.get('tipo_saldo_inicial', 'credor'),  # type: ignore
+                data_inicio=data.get('data_inicio')  # type: ignore
             )
             success = db.atualizar_conta(nome, conta)
             return jsonify({'success': success})
@@ -2526,14 +2552,44 @@ def upload_extrato_ofx():
             # Ordenar transações por data (mais antiga primeiro)
             transactions_list = sorted(account.statement.transactions, key=lambda t: t.date)
             
-            # Calcular saldo inicial subtraindo todas as transações do saldo final
+            # PRIMEIRO: processar transações para corrigir sinais
+            transacoes_processadas = []
+            for trans in transactions_list:
+                valor_ofx = float(trans.amount)
+                trans_type = getattr(trans, 'type', None)
+                
+                # Determinar tipo e corrigir sinal
+                if trans_type:
+                    if trans_type.upper() in ['DEBIT', 'DÉBITO', 'DEB', 'DEBIT', 'PAYMENT', 'ATM']:
+                        tipo = 'debito'
+                        valor_correto = -abs(valor_ofx)  # DÉBITO sempre negativo
+                    else:
+                        tipo = 'credito'
+                        valor_correto = abs(valor_ofx)  # CRÉDITO sempre positivo
+                else:
+                    # Usar sinal do valor
+                    if valor_ofx < 0:
+                        tipo = 'debito'
+                        valor_correto = valor_ofx  # Já é negativo
+                    else:
+                        tipo = 'credito'
+                        valor_correto = valor_ofx  # Já é positivo
+                
+                transacoes_processadas.append({
+                    'trans': trans,
+                    'valor_ofx': valor_ofx,
+                    'valor_correto': valor_correto,
+                    'tipo': tipo
+                })
+            
+            # Calcular saldo inicial baseado no saldo final e soma correta das transações
             if saldo_final is not None:
-                soma_transacoes = sum(float(t.amount) for t in transactions_list)
+                soma_transacoes = sum(t['valor_correto'] for t in transacoes_processadas)
                 saldo_inicial_calculado = saldo_final - soma_transacoes
                 
                 print(f"\n📊 CÁLCULOS:")
-                print(f"   Soma de todas transações: R$ {soma_transacoes:+,.2f}")
-                print(f"   Saldo Final: R$ {saldo_final:,.2f}")
+                print(f"   Soma de todas transações (corrigida): R$ {soma_transacoes:+,.2f}")
+                print(f"   Saldo Final (OFX): R$ {saldo_final:,.2f}")
                 print(f"   Saldo Inicial calculado: R$ {saldo_inicial_calculado:,.2f}")
                 print(f"   Fórmula: {saldo_final:,.2f} - ({soma_transacoes:+,.2f}) = {saldo_inicial_calculado:,.2f}")
                 
@@ -2543,49 +2599,28 @@ def upload_extrato_ofx():
                 saldo_atual = 0
             
             print(f"\n📋 PROCESSANDO TRANSAÇÕES (cronológica):")
-            print(f"{'Data':<12} {'Tipo':<10} {'Valor OFX':>15} {'Valor Correto':>15} {'Saldo Após':>15}")
-            print(f"{'-'*70}")
+            print(f"{'Data':<12} {'Tipo':<15} {'Valor OFX':>15} {'Valor Correto':>15} {'Saldo Após':>15}")
+            print(f"{'-'*72}")
             
-            # Processar cada transação e calcular saldo progressivo
-            for trans in transactions_list:
-                valor_ofx = float(trans.amount)
+            # Processar cada transação já calculada e atualizar saldo
+            for t_proc in transacoes_processadas:
+                trans = t_proc['trans']
+                valor_ofx = t_proc['valor_ofx']
+                valor_correto = t_proc['valor_correto']
+                tipo = t_proc['tipo']
                 
-                # Determinar tipo da transação baseado no valor E tipo OFX
-                # Alguns bancos invertem sinais, então precisamos corrigir
-                trans_type = getattr(trans, 'type', None)
-                
-                # Lógica correta:
-                # - DÉBITO (saída) deve ser NEGATIVO
-                # - CRÉDITO (entrada) deve ser POSITIVO
-                
-                # Se o OFX informar tipo explicitamente, usar isso
-                if trans_type:
-                    if trans_type.upper() in ['DEBIT', 'DÉBITO', 'DEB']:
-                        # Débito deve ser negativo
-                        valor_correto = -abs(valor_ofx)
-                        tipo = 'debito'
-                    else:
-                        # Crédito deve ser positivo
-                        valor_correto = abs(valor_ofx)
-                        tipo = 'credito'
-                else:
-                    # Se não tem tipo, assumir pelo sinal
-                    # IMPORTANTE: Verificar se o banco inverte sinais
-                    valor_correto = valor_ofx
-                    tipo = 'credito' if valor_ofx > 0 else 'debito'
-                
-                # Atualizar saldo
+                # Atualizar saldo: saldo += valor (negativo diminui, positivo aumenta)
                 saldo_atual += valor_correto
                 
                 data_str = str(trans.date.date() if hasattr(trans.date, 'date') else trans.date)
-                tipo_label = 'DÉBITO' if tipo == 'debito' else 'CRÉDITO'
-                print(f"{data_str:<12} {tipo_label:<10} {valor_ofx:>+15,.2f} {valor_correto:>+15,.2f} {saldo_atual:>15,.2f}")
+                tipo_label = '🔴 DÉBITO' if tipo == 'debito' else '🟢 CRÉDITO'
+                print(f"{data_str:<12} {tipo_label:<15} {valor_ofx:>+15.2f} {valor_correto:>+15.2f} {saldo_atual:>15.2f}")
                 
                 transacoes.append({
                     'data': trans.date.date() if hasattr(trans.date, 'date') else trans.date,
                     'descricao': trans.payee or trans.memo or 'Sem descricao',
-                    'valor': valor_correto,  # Usar valor corrigido
-                    'tipo': tipo,
+                    'valor': valor_correto,  # Guardar valor com sinal (negativo para débito, positivo para crédito)
+                    'tipo': tipo.upper(),  # DEBITO ou CREDITO (maiúsculo)
                     'saldo': saldo_atual,  # Saldo após esta transação
                     'fitid': trans.id,
                     'memo': trans.memo,
