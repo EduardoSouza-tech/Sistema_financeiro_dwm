@@ -2303,7 +2303,6 @@ def adicionar_lancamento():
                     conta_bancaria=data['conta_bancaria'] if data else '',
                     pessoa=data.get('pessoa', '') if data else '',
                     observacoes=data.get('observacoes', '') if data else '',
-                    num_documento=data.get('num_documento', '') if data else '',
                     subcategoria=data.get('subcategoria', '') if data else ''
                 )
                 
@@ -2331,7 +2330,6 @@ def adicionar_lancamento():
                 conta_bancaria=data['conta_bancaria'] if data else '',
                 pessoa=data.get('pessoa', '') if data else '',
                 observacoes=data.get('observacoes', '') if data else '',
-                num_documento=data.get('num_documento', '') if data else '',
                 subcategoria=data.get('subcategoria', '') if data else ''
             )
             
@@ -2458,7 +2456,6 @@ def gerenciar_lancamento(lancamento_id):
                 recorrente=data.get('recorrente', False),
                 frequencia_recorrencia=data.get('frequencia_recorrencia', ''),
                 dia_vencimento=data.get('dia_vencimento', 0),
-                num_documento=data.get('num_documento', ''),
                 juros=juros_atual,
                 desconto=desconto_atual
             )
