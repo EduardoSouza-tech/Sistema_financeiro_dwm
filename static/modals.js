@@ -2092,29 +2092,6 @@ function atualizarCalculoContrato() {
     console.log('   💵 Valor Total:', valorTotal);
     
     // Formatar e exibir
-function atualizarCalculoContrato() {
-    const campoValorMensal = document.getElementById('contrato-valor-mensal');
-    const campoMeses = document.getElementById('contrato-meses');
-    const campoTotal = document.getElementById('contrato-valor-total');
-    
-    if (!campoValorMensal || !campoMeses || !campoTotal) {
-        console.warn('⚠️ Campos de cálculo não encontrados');
-        return;
-    }
-    
-    // Usar parseValorBR para lidar com formatação pt-BR
-    const valorMensal = parseValorBR(campoValorMensal.value);
-    const meses = parseInt(campoMeses.value) || 0;
-    const valorTotal = valorMensal * meses;
-    
-    console.log('🧮 Calculando:');
-    console.log('   📝 Valor Mensal (.value):', campoValorMensal.value);
-    console.log('   💰 Valor Mensal (parseado):', valorMensal);
-    console.log('   📝 Meses (.value):', campoMeses.value);
-    console.log('   🔢 Meses (parseado):', meses);
-    console.log('   💵 Valor Total:', valorTotal);
-    
-    // Formatar e exibir
     campoTotal.value = 'R$ ' + valorTotal.toLocaleString('pt-BR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
