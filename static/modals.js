@@ -2092,24 +2092,18 @@ function atualizarCalculoContrato() {
     console.log('   💵 Valor Total:', valorTotal);
     
     // Formatar e exibir
-    campoTotal.value = 'R$ ' + valorTotal.toLocaleString('pt-BR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
+function atualizarCalculoContrato() {
+    const campoValorMensal = document.getElementById('contrato-valor-mensal');
+    const campoMeses = document.getElementById('contrato-meses');
+    const campoTotal = document.getElementById('contrato-valor-total');
     
-    console.log('   ✅ Campo atualizado para:', campoTotal.value);
-}
-    
-    // Função helper para limpar formatação e converter para número
-    function parseValor(valor) {
-        if (typeof valor === 'number') return valor;
-        if (!valor) return 0;
-        // Remove pontos (separador de milhar) e troca vírgula por ponto (decimal)
-        const limpo = String(valor).replace(/\./g, '').replace(',', '.');
-        return parseFloat(limpo) || 0;
+    if (!campoValorMensal || !campoMeses || !campoTotal) {
+        console.warn('⚠️ Campos de cálculo não encontrados');
+        return;
     }
     
-    const valorMensal = parseValor(campoValorMensal.value);
+    // Usar parseValorBR para lidar com formatação pt-BR
+    const valorMensal = parseValorBR(campoValorMensal.value);
     const meses = parseInt(campoMeses.value) || 0;
     const valorTotal = valorMensal * meses;
     
