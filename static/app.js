@@ -1700,10 +1700,23 @@ async function excluirCliente(nome) {
 // === FORNECEDORES ===
 async function loadFornecedores() {
     try {
+        console.log('🏭 loadFornecedores - Buscando fornecedores...');
         const response = await fetch(`${API_URL}/fornecedores`);
         const fornecedores = await response.json();
         
+        console.log('📦 Fornecedores recebidos:', fornecedores);
+        console.log('📊 Total de fornecedores:', fornecedores.length);
+        
+        // Armazenar em window.fornecedores para uso nos modais
+        window.fornecedores = fornecedores;
+        console.log('✅ window.fornecedores definido:', window.fornecedores.length, 'fornecedores');
+        
         const tbody = document.getElementById('tbody-fornecedores');
+        if (!tbody) {
+            console.log('⚠️ tbody-fornecedores não encontrado (provavelmente não está na página de fornecedores)');
+            return;
+        }
+        
         tbody.innerHTML = '';
         
         fornecedores.forEach(fornecedor => {
@@ -1719,8 +1732,10 @@ async function loadFornecedores() {
             `;
             tbody.appendChild(tr);
         });
+        
+        console.log('✅ Tabela de fornecedores atualizada');
     } catch (error) {
-        console.error('Erro ao carregar fornecedores:', error);
+        console.error('❌ Erro ao carregar fornecedores:', error);
     }
 }
 
