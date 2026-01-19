@@ -1516,8 +1516,75 @@
                 
                 <!-- Gráfico de Crescimento -->
                 <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-                    <h3 style="margin: 0 0 20px 0; color: #2c3e50; font-size: 18px;">📈 Evolução Financeira</h3>
+                    <h3 style="margin: 0 0 20px 0; color: #2c3e50; font-size: 18px;">📈 Evolução Financeira (Pagamentos Realizados)</h3>
                     <canvas id="grafico-crescimento" style="max-height: 400px;"></canvas>
+                </div>
+                
+                <!-- Cards de Contas Pendentes -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                    <!-- Contas a Receber -->
+                    <div style="background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3); color: white;">
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                                💰
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 13px; opacity: 0.9; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Contas a Receber</div>
+                                <div id="dashboard-contas-receber" style="font-size: 28px; font-weight: 700; margin-top: 5px;">R$ 0,00</div>
+                            </div>
+                        </div>
+                        <div style="font-size: 12px; opacity: 0.8; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                            📊 Receitas pendentes de recebimento
+                        </div>
+                    </div>
+                    
+                    <!-- Contas a Pagar -->
+                    <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3); color: white;">
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                                💳
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 13px; opacity: 0.9; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Contas a Pagar</div>
+                                <div id="dashboard-contas-pagar" style="font-size: 28px; font-weight: 700; margin-top: 5px;">R$ 0,00</div>
+                            </div>
+                        </div>
+                        <div style="font-size: 12px; opacity: 0.8; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                            💸 Despesas pendentes de pagamento
+                        </div>
+                    </div>
+                    
+                    <!-- Contas Vencidas -->
+                    <div style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3); color: white;">
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                                ⚠️
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 13px; opacity: 0.9; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Contas Vencidas</div>
+                                <div id="dashboard-contas-vencidas" style="font-size: 28px; font-weight: 700; margin-top: 5px;">R$ 0,00</div>
+                            </div>
+                        </div>
+                        <div style="font-size: 12px; opacity: 0.8; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                            📅 Pagamentos atrasados
+                        </div>
+                    </div>
+                    
+                    <!-- Saldo Total -->
+                    <div style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3); color: white;">
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                                🏦
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 13px; opacity: 0.9; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Saldo Total</div>
+                                <div id="dashboard-saldo-total" style="font-size: 28px; font-weight: 700; margin-top: 5px;">R$ 0,00</div>
+                            </div>
+                        </div>
+                        <div style="font-size: 12px; opacity: 0.8; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                            💵 Saldo atual em contas bancárias
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Análises Detalhadas -->
@@ -4435,6 +4502,26 @@
                 if (!response.ok) throw new Error('Erro ao carregar dashboard');
                 
                 const data = await response.json();
+                
+                // Atualizar cards com valores pendentes
+                const formatarMoeda = (valor) => {
+                    return new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL'
+                    }).format(valor || 0);
+                };
+                
+                document.getElementById('dashboard-contas-receber').textContent = formatarMoeda(data.contas_receber);
+                document.getElementById('dashboard-contas-pagar').textContent = formatarMoeda(data.contas_pagar);
+                document.getElementById('dashboard-contas-vencidas').textContent = formatarMoeda(data.contas_vencidas);
+                document.getElementById('dashboard-saldo-total').textContent = formatarMoeda(data.saldo_total);
+                
+                console.log('📊 Valores atualizados:', {
+                    'Contas a Receber': formatarMoeda(data.contas_receber),
+                    'Contas a Pagar': formatarMoeda(data.contas_pagar),
+                    'Contas Vencidas': formatarMoeda(data.contas_vencidas),
+                    'Saldo Total': formatarMoeda(data.saldo_total)
+                });
                 
                 // Atualizar conteúdo de análises se existir
                 const analiseContent = document.getElementById('dashboard-analises-content');
