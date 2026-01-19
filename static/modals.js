@@ -255,6 +255,34 @@ async function salvarReceita(event) {
     }
 }
 
+// Função para editar receita
+async function editarReceita(id) {
+    try {
+        const response = await fetch(`${API_URL}/lancamentos/${id}`);
+        const lancamento = await response.json();
+        
+        if (lancamento) {
+            // Preencher o modal com os dados
+            await openModalReceita();
+            document.getElementById('receita-id').value = lancamento.id;
+            document.getElementById('receita-cliente').value = lancamento.pessoa || '';
+            document.getElementById('receita-categoria').value = lancamento.categoria || '';
+            
+            // Aguardar subcategorias carregarem
+            await atualizarSubcategoriasReceita();
+            document.getElementById('receita-subcategoria').value = lancamento.subcategoria || '';
+            
+            document.getElementById('receita-vencimento').value = lancamento.data_vencimento ? lancamento.data_vencimento.split('T')[0] : '';
+            document.getElementById('receita-descricao').value = lancamento.descricao || '';
+            document.getElementById('receita-valor').value = lancamento.valor || '';
+            document.getElementById('receita-observacoes').value = lancamento.observacoes || '';
+        }
+    } catch (error) {
+        console.error('Erro ao carregar receita para edição:', error);
+        showToast('Erro ao carregar receita', 'error');
+    }
+}
+
 // === MODAL DESPESA ===
 async function openModalDespesa() {
     // Sempre recarregar categorias para pegar subcategorias atualizadas
@@ -482,6 +510,34 @@ async function salvarDespesa(event) {
     } catch (error) {
         console.error('Erro ao salvar despesa:', error);
         showToast('Erro ao salvar despesa', 'error');
+    }
+}
+
+// Função para editar despesa
+async function editarDespesa(id) {
+    try {
+        const response = await fetch(`${API_URL}/lancamentos/${id}`);
+        const lancamento = await response.json();
+        
+        if (lancamento) {
+            // Preencher o modal com os dados
+            await openModalDespesa();
+            document.getElementById('despesa-id').value = lancamento.id;
+            document.getElementById('despesa-fornecedor').value = lancamento.pessoa || '';
+            document.getElementById('despesa-categoria').value = lancamento.categoria || '';
+            
+            // Aguardar subcategorias carregarem
+            await atualizarSubcategoriasDespesa();
+            document.getElementById('despesa-subcategoria').value = lancamento.subcategoria || '';
+            
+            document.getElementById('despesa-vencimento').value = lancamento.data_vencimento ? lancamento.data_vencimento.split('T')[0] : '';
+            document.getElementById('despesa-descricao').value = lancamento.descricao || '';
+            document.getElementById('despesa-valor').value = lancamento.valor || '';
+            document.getElementById('despesa-observacoes').value = lancamento.observacoes || '';
+        }
+    } catch (error) {
+        console.error('Erro ao carregar despesa para edição:', error);
+        showToast('Erro ao carregar despesa', 'error');
     }
 }
 

@@ -1739,16 +1739,19 @@ async function loadContasReceber() {
         
         receitas.forEach(lanc => {
             const tr = document.createElement('tr');
-            const statusClass = lanc.status === 'PAGO' ? 'badge-success' : lanc.status === 'VENCIDO' ? 'badge-danger' : 'badge-warning';
+            const statusClass = lanc.status && lanc.status.toUpperCase() === 'PAGO' ? 'badge-success' : 
+                               lanc.status && lanc.status.toUpperCase() === 'VENCIDO' ? 'badge-danger' : 'badge-warning';
             
             tr.innerHTML = `
+                <td>${formatarData(lanc.data_vencimento)}</td>
                 <td>${lanc.pessoa || '-'}</td>
                 <td>${lanc.descricao}</td>
-                <td style="font-weight: bold; color: #27ae60;">${formatarMoeda(lanc.valor)}</td>
-                <td>${formatarData(lanc.data_vencimento)}</td>
                 <td>${lanc.categoria || '-'}</td>
-                <td><span class="badge ${statusClass}">${lanc.status}</span></td>
+                <td>${lanc.subcategoria || '-'}</td>
+                <td style="font-weight: bold; color: #27ae60;">${formatarMoeda(lanc.valor)}</td>
+                <td><span class="badge ${statusClass}">${lanc.status || 'PENDENTE'}</span></td>
                 <td>
+                    <button class="btn btn-primary" onclick="editarReceita(${lanc.id})" title="Editar">✏️</button>
                     <button class="btn btn-danger" onclick="excluirLancamento(${lanc.id})" title="Excluir">🗑️</button>
                 </td>
             `;
@@ -1756,7 +1759,7 @@ async function loadContasReceber() {
         });
         
         if (receitas.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px;">💰 Nenhuma conta a receber</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px;">💰 Nenhuma conta a receber</td></tr>';
         }
     } catch (error) {
         console.error('Erro ao carregar contas a receber:', error);
@@ -1789,16 +1792,19 @@ async function loadContasPagar() {
         
         despesas.forEach(lanc => {
             const tr = document.createElement('tr');
-            const statusClass = lanc.status === 'PAGO' ? 'badge-success' : lanc.status === 'VENCIDO' ? 'badge-danger' : 'badge-warning';
+            const statusClass = lanc.status && lanc.status.toUpperCase() === 'PAGO' ? 'badge-success' : 
+                               lanc.status && lanc.status.toUpperCase() === 'VENCIDO' ? 'badge-danger' : 'badge-warning';
             
             tr.innerHTML = `
+                <td>${formatarData(lanc.data_vencimento)}</td>
                 <td>${lanc.pessoa || '-'}</td>
                 <td>${lanc.descricao}</td>
-                <td style="font-weight: bold; color: #e74c3c;">${formatarMoeda(lanc.valor)}</td>
-                <td>${formatarData(lanc.data_vencimento)}</td>
                 <td>${lanc.categoria || '-'}</td>
-                <td><span class="badge ${statusClass}">${lanc.status}</span></td>
+                <td>${lanc.subcategoria || '-'}</td>
+                <td style="font-weight: bold; color: #e74c3c;">${formatarMoeda(lanc.valor)}</td>
+                <td><span class="badge ${statusClass}">${lanc.status || 'PENDENTE'}</span></td>
                 <td>
+                    <button class="btn btn-primary" onclick="editarDespesa(${lanc.id})" title="Editar">✏️</button>
                     <button class="btn btn-danger" onclick="excluirLancamento(${lanc.id})" title="Excluir">🗑️</button>
                 </td>
             `;
@@ -1806,7 +1812,7 @@ async function loadContasPagar() {
         });
         
         if (despesas.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px;">💳 Nenhuma conta a pagar</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px;">💳 Nenhuma conta a pagar</td></tr>';
         }
     } catch (error) {
         console.error('Erro ao carregar contas a pagar:', error);
@@ -1853,15 +1859,16 @@ async function excluirLancamento(id) {
         const result = await response.json();
         
         if (result.success) {
-            alert('Lançamento excluído com sucesso!');
-            loadLancamentos();
-            loadDashboard();
+            showToast('✓ Lançamento excluído com sucesso!', 'success');
+            if (typeof loadContasReceber === 'function') loadContasReceber();
+            if (typeof loadContasPagar === 'function') loadContasPagar();
+            if (typeof loadDashboard === 'function') loadDashboard();
         } else {
-            alert('Erro: ' + result.error);
+            showToast('Erro: ' + result.error, 'error');
         }
     } catch (error) {
         console.error('Erro ao excluir lançamento:', error);
-        alert('Erro ao excluir lançamento');
+        showToast('Erro ao excluir lançamento', 'error');
     }
 }
 
