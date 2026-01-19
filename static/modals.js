@@ -2092,24 +2092,29 @@ async function salvarContrato(event) {
         }
     });
     
+    const valorMensal = parseFloat(document.getElementById('contrato-valor-mensal').value) || 0;
+    const quantidadeMeses = parseInt(document.getElementById('contrato-meses').value) || 1;
+    const valorTotal = valorMensal * quantidadeMeses;
+    
     const data = {
         cliente_id: parseInt(document.getElementById('contrato-cliente').value),
         tipo: document.getElementById('contrato-tipo').value,
         nome: document.getElementById('contrato-nome').value,
         descricao: document.getElementById('contrato-descricao').value,
-        valor_mensal: parseFloat(document.getElementById('contrato-valor-mensal').value),
-        quantidade_meses: parseInt(document.getElementById('contrato-meses').value),
+        valor_mensal: valorMensal,
+        quantidade_meses: quantidadeMeses,
+        valor_total: valorTotal,
         horas_mensais: parseInt(document.getElementById('contrato-horas').value) || null,
         forma_pagamento: document.getElementById('contrato-pagamento').value,
         quantidade_parcelas: parseInt(document.getElementById('contrato-parcelas').value),
         data_contrato: document.getElementById('contrato-data').value,
         dia_pagamento: parseInt(document.getElementById('contrato-dia-pagamento').value) || null,
         dia_emissao_nf: parseInt(document.getElementById('contrato-dia-nf').value) || null,
-        imposto_percentual: parseFloat(document.getElementById('contrato-imposto').value) || null,
+        imposto: parseFloat(document.getElementById('contrato-imposto').value) || null,
         comissoes: comissoes
     };
     
-    console.log('📦 Dados a enviar:', data);
+    console.log('📦 Dados a enviar:', JSON.stringify(data, null, 2));
     
     try {
         const url = isEdit ? `/api/contratos/${id}` : '/api/contratos';
@@ -2124,8 +2129,18 @@ async function salvarContrato(event) {
             body: JSON.stringify(data)
         });
         
-        const result = await response.json();
-        console.log('📡 Resposta do servidor:', result);
+        console.log('📡 Status da resposta:', response.status);
+        
+        let result;
+        try {
+            result = await response.json();
+            console.log('📡 Resposta do servidor:', result);
+        } catch (e) {
+            console.error('❌ Erro ao parsear JSON:', e);
+            const text = await response.text();
+            console.error('📄 Resposta em texto:', text);
+            throw new Error('Resposta inválida do servidor');
+        }
         
         if (result.success || response.ok) {
             showToast(isEdit ? '✅ Contrato atualizado com sucesso!' : '✅ Contrato criado com sucesso!', 'success');
@@ -2133,6 +2148,7 @@ async function salvarContrato(event) {
             if (typeof loadContratos === 'function') loadContratos();
         } else {
             showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
+            console.error('❌ Detalhes do erro:', result);
         }
         
     } catch (error) {
