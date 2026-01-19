@@ -1959,12 +1959,12 @@ async function openModalContrato(contratoEdit = null) {
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                 <div class="form-group">
                     <label>*Valor Mensal:</label>
-                    <input type="number" id="contrato-valor-mensal" step="0.01" required value="${isEdit ? contratoEdit.valor_mensal || '' : ''}" placeholder="6300.00" oninput="atualizarCalculoContrato()">
+                    <input type="number" id="contrato-valor-mensal" step="any" min="0" required value="${isEdit ? contratoEdit.valor_mensal || '' : ''}" placeholder="3500.00" oninput="atualizarCalculoContrato()">
                 </div>
                 
                 <div class="form-group">
                     <label>*Qtd. Meses:</label>
-                    <input type="number" id="contrato-meses" min="1" required value="${isEdit ? contratoEdit.quantidade_meses || '1' : '1'}" oninput="atualizarCalculoContrato()">
+                    <input type="number" id="contrato-meses" min="1" step="1" required value="${isEdit ? contratoEdit.quantidade_meses || '1' : '1'}" oninput="atualizarCalculoContrato()">
                 </div>
                 
                 <div class="form-group">
@@ -2051,12 +2051,26 @@ function atualizarCalculoContrato() {
         return;
     }
     
-    const valorMensal = parseFloat(campoValorMensal.value) || 0;
-    const meses = parseInt(campoMeses.value) || 0;
+    // Pegar valores limpos
+    const valorMensalStr = campoValorMensal.value.trim();
+    const mesesStr = campoMeses.value.trim();
+    
+    // Converter para números
+    const valorMensal = valorMensalStr === '' ? 0 : parseFloat(valorMensalStr);
+    const meses = mesesStr === '' ? 0 : parseInt(mesesStr);
+    
+    // Calcular total
     const valorTotal = valorMensal * meses;
     
-    console.log('🧮 Calculando:', valorMensal, 'x', meses, '=', valorTotal);
+    console.log('🧮 Calculando:', {
+        valorMensalStr,
+        mesesStr,
+        valorMensal,
+        meses,
+        valorTotal
+    });
     
+    // Formatar e exibir
     campoTotal.value = 'R$ ' + valorTotal.toLocaleString('pt-BR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
