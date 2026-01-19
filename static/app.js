@@ -1111,6 +1111,8 @@ function atualizarSaldoBanco(tipo) {
  */
 async function editarConta(nome) {
     try {
+        console.log('🔧 editarConta chamada para:', nome);
+        
         // Buscar dados da conta
         const response = await fetch(`${API_URL}/contas/${encodeURIComponent(nome)}`);
         
@@ -1119,6 +1121,10 @@ async function editarConta(nome) {
         }
         
         const conta = await response.json();
+        console.log('📦 Dados da conta recebidos do backend:', conta);
+        console.log('   🔹 nome:', conta.nome);
+        console.log('   🔹 saldo_inicial (raw):', conta.saldo_inicial, 'tipo:', typeof conta.saldo_inicial);
+        console.log('   🔹 saldo (raw):', conta.saldo, 'tipo:', typeof conta.saldo);
         
         // Chamar função do modals.js para abrir modal em modo de edição
         if (typeof openModalConta === 'function') {

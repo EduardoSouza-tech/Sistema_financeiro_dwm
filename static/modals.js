@@ -549,6 +549,14 @@ function openModalConta(contaEdit = null) {
     const isEdit = contaEdit !== null;
     const titulo = isEdit ? 'Editar Conta Bancária' : 'Nova Conta Bancária';
     
+    if (isEdit) {
+        console.log('🔍 Modo EDIÇÃO');
+        console.log('   📊 saldo_inicial recebido:', contaEdit.saldo_inicial, 'tipo:', typeof contaEdit.saldo_inicial);
+        console.log('   📊 saldo recebido:', contaEdit.saldo, 'tipo:', typeof contaEdit.saldo);
+        const valorFormatado = formatarValorParaExibicao(contaEdit.saldo_inicial || 0);
+        console.log('   ✏️ Valor formatado para exibição:', valorFormatado);
+    }
+    
     const modal = createModal(titulo, `
         <form id="form-conta" onsubmit="salvarConta(event)">
             <input type="hidden" id="conta-edit-mode" value="${isEdit}">
@@ -620,10 +628,14 @@ function openModalConta(contaEdit = null) {
 }
 
 function formatarValorParaExibicao(valor) {
+    console.log('💱 formatarValorParaExibicao - entrada:', valor, 'tipo:', typeof valor);
     if (!valor || valor === 0) return '';
     // Converte o valor para o formato brasileiro
     const valorNum = parseFloat(valor);
-    return valorNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\./g, '_').replace(/,/g, '.').replace(/_/g, ',');
+    console.log('   📍 valorNum parseFloat:', valorNum);
+    const resultado = valorNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\./g, '_').replace(/,/g, '.').replace(/_/g, ',');
+    console.log('   ✅ Resultado formatado:', resultado);
+    return resultado;
 }
 
 async function salvarConta(event) {
