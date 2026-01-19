@@ -2060,22 +2060,18 @@ function atualizarCalculoContrato() {
         return;
     }
     
-    // Pegar valores limpos
-    const valorMensalStr = campoValorMensal.value.trim();
-    const mesesStr = campoMeses.value.trim();
-    
-    // Converter para números
-    const valorMensal = valorMensalStr === '' ? 0 : parseFloat(valorMensalStr);
-    const meses = mesesStr === '' ? 0 : parseInt(mesesStr);
-    
-    // Calcular total
+    // Usar valueAsNumber para evitar problemas com formatação locale
+    const valorMensal = campoValorMensal.valueAsNumber || 0;
+    const meses = campoMeses.valueAsNumber || 0;
     const valorTotal = valorMensal * meses;
     
     console.log('🧮 Calculando:');
-    console.log('   📝 Valor Mensal (string):', valorMensalStr);
-    console.log('   📝 Meses (string):', mesesStr);
-    console.log('   💰 Valor Mensal (número):', valorMensal);
-    console.log('   🔢 Meses (número):', meses);
+    console.log('   📝 Valor Mensal (.value):', campoValorMensal.value);
+    console.log('   🔢 Valor Mensal (.valueAsNumber):', campoValorMensal.valueAsNumber);
+    console.log('   💰 Valor Mensal (usado):', valorMensal);
+    console.log('   📝 Meses (.value):', campoMeses.value);
+    console.log('   🔢 Meses (.valueAsNumber):', campoMeses.valueAsNumber);
+    console.log('   🔢 Meses (usado):', meses);
     console.log('   💵 Valor Total:', valorTotal);
     
     // Formatar e exibir
@@ -2127,15 +2123,17 @@ async function salvarContrato(event) {
         }
     });
     
-    const valorMensal = parseFloat(document.getElementById('contrato-valor-mensal').value) || 0;
-    const quantidadeMeses = parseInt(document.getElementById('contrato-meses').value) || 1;
+    const valorMensal = document.getElementById('contrato-valor-mensal').valueAsNumber || 0;
+    const quantidadeMeses = document.getElementById('contrato-meses').valueAsNumber || 1;
     const valorTotal = valorMensal * quantidadeMeses;
     
     console.log('💰 Valores coletados no salvar:');
     console.log('   📝 Valor Mensal (campo .value):', document.getElementById('contrato-valor-mensal').value);
-    console.log('   💰 Valor Mensal (parseFloat):', valorMensal);
+    console.log('   🔢 Valor Mensal (valueAsNumber):', document.getElementById('contrato-valor-mensal').valueAsNumber);
+    console.log('   💰 Valor Mensal (usado):', valorMensal);
     console.log('   🔢 Qtd Meses (campo .value):', document.getElementById('contrato-meses').value);
-    console.log('   🔢 Qtd Meses (parseInt):', quantidadeMeses);
+    console.log('   🔢 Qtd Meses (valueAsNumber):', document.getElementById('contrato-meses').valueAsNumber);
+    console.log('   🔢 Qtd Meses (usado):', quantidadeMeses);
     console.log('   💵 Valor Total calculado:', valorTotal);
     
     const data = {
