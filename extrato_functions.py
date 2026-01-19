@@ -131,7 +131,8 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
                     query += " AND t.conciliado = %s"
                     params.append(filtros['conciliado'])
             
-            query += " ORDER BY t.data DESC, t.id DESC LIMIT 1000"
+            # Ordenar do passado para o presente (ASC) para que o saldo faça sentido visual
+            query += " ORDER BY t.data ASC, t.id ASC LIMIT 1000"
             
             cursor.execute(query, params)
             transacoes = cursor.fetchall()
