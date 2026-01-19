@@ -1,6 +1,6 @@
 // Modals - Sistema Financeiro
 // ============================
-console.log('%c ✓ MODALS.JS v20251203upper2 CARREGADO ', 'background: #0099ff; color: white; font-size: 16px; font-weight: bold');
+console.log('%c ✓ MODALS.JS v20260119_SEM_NUM_DOCUMENTO CARREGADO ', 'background: #00ff00; color: black; font-size: 16px; font-weight: bold');
 
 // === MODAL RECEITA ===
 async function openModalReceita() {
