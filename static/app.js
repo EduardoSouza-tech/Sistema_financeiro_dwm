@@ -1705,14 +1705,16 @@ async function loadContasReceber() {
         const tbody = document.getElementById('tbody-receber');
         tbody.innerHTML = '';
         
-        // Filtros
-        const filterText = document.getElementById('filter-receber').value.toLowerCase();
-        const filterStatus = document.getElementById('filter-status-receber').value;
+        // Filtros (opcionais)
+        const filterTextElement = document.getElementById('filter-receber');
+        const filterStatusElement = document.getElementById('filter-status-receber');
+        const filterText = filterTextElement ? filterTextElement.value.toLowerCase() : '';
+        const filterStatus = filterStatusElement ? filterStatusElement.value : '';
         
         // Filtrar apenas receitas
         const receitas = todosLancamentos.filter(lanc => {
             const isReceita = lanc.tipo === 'RECEITA';
-            const matchText = lanc.descricao.toLowerCase().includes(filterText) || 
+            const matchText = !filterText || lanc.descricao.toLowerCase().includes(filterText) || 
                              (lanc.pessoa && lanc.pessoa.toLowerCase().includes(filterText));
             const matchStatus = !filterStatus || lanc.status === filterStatus;
             return isReceita && matchText && matchStatus;
@@ -1753,14 +1755,16 @@ async function loadContasPagar() {
         const tbody = document.getElementById('tbody-pagar');
         tbody.innerHTML = '';
         
-        // Filtros
-        const filterText = document.getElementById('filter-pagar').value.toLowerCase();
-        const filterStatus = document.getElementById('filter-status-pagar').value;
+        // Filtros (opcionais)
+        const filterTextElement = document.getElementById('filter-pagar');
+        const filterStatusElement = document.getElementById('filter-status-pagar');
+        const filterText = filterTextElement ? filterTextElement.value.toLowerCase() : '';
+        const filterStatus = filterStatusElement ? filterStatusElement.value : '';
         
         // Filtrar apenas despesas
         const despesas = todosLancamentos.filter(lanc => {
             const isDespesa = lanc.tipo === 'DESPESA';
-            const matchText = lanc.descricao.toLowerCase().includes(filterText) || 
+            const matchText = !filterText || lanc.descricao.toLowerCase().includes(filterText) || 
                              (lanc.pessoa && lanc.pessoa.toLowerCase().includes(filterText));
             const matchStatus = !filterStatus || lanc.status === filterStatus;
             return isDespesa && matchText && matchStatus;
