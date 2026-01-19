@@ -1743,8 +1743,10 @@ async function loadContasReceber() {
                                lanc.status && lanc.status.toUpperCase() === 'VENCIDO' ? 'badge-danger' : 'badge-warning';
             
             tr.innerHTML = `
+                <td><input type="checkbox" class="checkbox-receber" value="${lanc.id}"></td>
                 <td>${formatarData(lanc.data_vencimento)}</td>
                 <td>${lanc.pessoa || '-'}</td>
+                <td>${lanc.id || '-'}</td>
                 <td>${lanc.descricao}</td>
                 <td>${lanc.categoria || '-'}</td>
                 <td>${lanc.subcategoria || '-'}</td>
@@ -1796,8 +1798,10 @@ async function loadContasPagar() {
                                lanc.status && lanc.status.toUpperCase() === 'VENCIDO' ? 'badge-danger' : 'badge-warning';
             
             tr.innerHTML = `
+                <td><input type="checkbox" class="checkbox-pagar" value="${lanc.id}"></td>
                 <td>${formatarData(lanc.data_vencimento)}</td>
                 <td>${lanc.pessoa || '-'}</td>
+                <td>${lanc.id || '-'}</td>
                 <td>${lanc.descricao}</td>
                 <td>${lanc.categoria || '-'}</td>
                 <td>${lanc.subcategoria || '-'}</td>
