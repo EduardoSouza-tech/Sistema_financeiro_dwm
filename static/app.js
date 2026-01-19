@@ -2996,15 +2996,59 @@ async function loadComissoes() {
 }
 
 // Funções auxiliares de contratos
-function editarContrato(id) {
+async function editarContrato(id) {
     console.log('🔧 Editar contrato:', id);
-    showToast('Função de edição de contrato em desenvolvimento', 'info');
+    
+    try {
+        // Buscar dados do contrato
+        const response = await fetch(`/api/contratos/${id}`);
+        if (!response.ok) {
+            throw new Error('Erro ao buscar contrato');
+        }
+        
+        const result = await response.json();
+        const contrato = result.contrato || result;
+        
+        console.log('📋 Dados do contrato:', contrato);
+        
+        // Abrir modal de edição
+        if (typeof window.openModalContrato === 'function') {
+            window.openModalContrato(contrato);
+        } else {
+            showToast('❌ Erro: Função openModalContrato não encontrada', 'error');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao editar contrato:', error);
+        showToast('❌ Erro ao carregar dados do contrato: ' + error.message, 'error');
+    }
 }
 
-function excluirContrato(id) {
-    if (confirm('Tem certeza que deseja excluir este contrato?')) {
-        console.log('🗑️ Excluir contrato:', id);
-        showToast('Função de exclusão de contrato em desenvolvimento', 'info');
+async function excluirContrato(id) {
+    if (!confirm('⚠️ Tem certeza que deseja excluir este contrato?\n\nEsta ação não pode ser desfeita!')) {
+        return;
+    }
+    
+    console.log('🗑️ Excluir contrato:', id);
+    
+    try {
+        const response = await fetch(`/api/contratos/${id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success || response.ok) {
+            showToast('✅ Contrato excluído com sucesso!', 'success');
+            loadContratos(); // Recarregar lista
+        } else {
+            showToast('❌ Erro ao excluir contrato: ' + (result.error || 'Erro desconhecido'), 'error');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao excluir contrato:', error);
+        showToast('❌ Erro ao excluir contrato: ' + error.message, 'error');
     }
 }
 

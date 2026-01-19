@@ -5004,11 +5004,30 @@ def proximo_numero_contrato():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/contratos/<int:contrato_id>', methods=['PUT', 'DELETE'])
-@require_permission('contratos_edit')
+@app.route('/api/contratos/<int:contrato_id>', methods=['GET', 'PUT', 'DELETE'])
+@require_permission('contratos_view')
 def contrato_detalhes(contrato_id):
-    """Atualizar ou excluir contrato"""
-    if request.method == 'PUT':
+    """Buscar, atualizar ou excluir contrato"""
+    if request.method == 'GET':
+        try:
+            print(f"🔍 Buscando contrato {contrato_id}")
+            contratos = db.listar_contratos()
+            contrato = next((c for c in contratos if c.get('id') == contrato_id), None)
+            
+            if contrato:
+                print(f"✅ Contrato {contrato_id} encontrado")
+                return jsonify({'success': True, 'contrato': contrato})
+            
+            print(f"❌ Contrato {contrato_id} não encontrado")
+            return jsonify({'success': False, 'error': 'Contrato não encontrado'}), 404
+            
+        except Exception as e:
+            print(f"❌ Erro ao buscar contrato {contrato_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
+            
+    elif request.method == 'PUT':
         try:
             data = request.json
             print(f"🔍 Atualizando contrato {contrato_id} com dados: {data}")
