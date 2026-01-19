@@ -2480,7 +2480,7 @@ async function loadContasForExtrato() {
         
     } catch (error) {
         console.error('Erro ao carregar contas para extrato:', error);
-        showMessage('Erro ao carregar contas bancárias', 'error');
+        showToast('Erro ao carregar contas bancárias', 'error');
     }
 }
 
@@ -2490,12 +2490,12 @@ async function importarExtrato() {
     const contaSelect = document.getElementById('extrato-conta-importar');
     
     if (!fileInput.files.length) {
-        showMessage('Selecione um arquivo OFX', 'error');
+        showToast('Selecione um arquivo OFX', 'error');
         return;
     }
     
     if (!contaSelect.value) {
-        showMessage('Selecione a conta bancária', 'error');
+        showToast('Selecione a conta bancária', 'error');
         return;
     }
     
@@ -2504,7 +2504,7 @@ async function importarExtrato() {
     formData.append('conta_bancaria', contaSelect.value);
     
     try {
-        showMessage('Importando extrato...', 'info');
+        showToast('Importando extrato...', 'info');
         
         const response = await fetch(`${API_URL}/extratos/upload`, {
             method: 'POST',
@@ -2518,7 +2518,7 @@ async function importarExtrato() {
         
         if (!response.ok) throw new Error(result.error || 'Erro ao importar extrato');
         
-        showMessage(
+        showToast(
             `✅ Importação concluída!\n` +
             `✔️ ${result.inseridas} transações inseridas\n` +
             `⚠️ ${result.duplicadas} transações duplicadas (ignoradas)`,
@@ -2534,7 +2534,7 @@ async function importarExtrato() {
         
     } catch (error) {
         console.error('Erro ao importar extrato:', error);
-        showMessage(`Erro ao importar extrato: ${error.message}`, 'error');
+        showToast(`Erro ao importar extrato: ${error.message}`, 'error');
     }
 }
 
@@ -2619,7 +2619,7 @@ async function loadExtratos() {
         
     } catch (error) {
         console.error('Erro ao carregar extratos:', error);
-        showMessage('Erro ao carregar transações do extrato', 'error');
+        showToast('Erro ao carregar transações do extrato', 'error');
     }
 }
 
@@ -2713,7 +2713,7 @@ async function mostrarSugestoesConciliacao(transacaoId) {
         
     } catch (error) {
         console.error('Erro ao buscar sugestões:', error);
-        showMessage('Erro ao buscar sugestões de conciliação', 'error');
+        showToast('Erro ao buscar sugestões de conciliação', 'error');
     }
 }
 
@@ -2749,7 +2749,7 @@ async function mostrarDetalheConciliacao(transacaoId) {
         
     } catch (error) {
         console.error('Erro ao exibir detalhe:', error);
-        showMessage('Erro ao exibir detalhes da conciliação', 'error');
+        showToast('Erro ao exibir detalhes da conciliação', 'error');
     }
 }
 
@@ -2769,7 +2769,7 @@ async function conciliarTransacao(transacaoId, lancamentoId) {
         
         if (!response.ok) throw new Error(result.error || 'Erro ao conciliar');
         
-        showMessage('✅ Transação conciliada com sucesso!', 'success');
+        showToast('✅ Transação conciliada com sucesso!', 'success');
         
         // Fechar modal e recarregar
         closeModal('modal-conciliacao');
@@ -2777,7 +2777,7 @@ async function conciliarTransacao(transacaoId, lancamentoId) {
         
     } catch (error) {
         console.error('Erro ao conciliar:', error);
-        showMessage(`Erro ao conciliar transação: ${error.message}`, 'error');
+        showToast(`Erro ao conciliar transação: ${error.message}`, 'error');
     }
 }
 
@@ -2801,7 +2801,7 @@ async function desconciliarTransacao() {
         
         if (!response.ok) throw new Error(result.error || 'Erro ao desconciliar');
         
-        showMessage('✅ Transação desconciliada!', 'success');
+        showToast('✅ Transação desconciliada!', 'success');
         
         // Fechar modal e recarregar
         closeModal('modal-conciliacao');
@@ -2809,7 +2809,7 @@ async function desconciliarTransacao() {
         
     } catch (error) {
         console.error('Erro ao desconciliar:', error);
-        showMessage(`Erro ao desconciliar: ${error.message}`, 'error');
+        showToast(`Erro ao desconciliar: ${error.message}`, 'error');
     }
 }
 
@@ -2988,37 +2988,37 @@ async function loadComissoes() {
 // Funções auxiliares de contratos
 function editarContrato(id) {
     console.log('🔧 Editar contrato:', id);
-    showMessage('Função de edição de contrato em desenvolvimento', 'info');
+    showToast('Função de edição de contrato em desenvolvimento', 'info');
 }
 
 function excluirContrato(id) {
     if (confirm('Tem certeza que deseja excluir este contrato?')) {
         console.log('🗑️ Excluir contrato:', id);
-        showMessage('Função de exclusão de contrato em desenvolvimento', 'info');
+        showToast('Função de exclusão de contrato em desenvolvimento', 'info');
     }
 }
 
 function editarSessao(id) {
     console.log('🔧 Editar sessão:', id);
-    showMessage('Função de edição de sessão em desenvolvimento', 'info');
+    showToast('Função de edição de sessão em desenvolvimento', 'info');
 }
 
 function excluirSessao(id) {
     if (confirm('Tem certeza que deseja excluir esta sessão?')) {
         console.log('🗑️ Excluir sessão:', id);
-        showMessage('Função de exclusão de sessão em desenvolvimento', 'info');
+        showToast('Função de exclusão de sessão em desenvolvimento', 'info');
     }
 }
 
 function editarComissao(id) {
     console.log('🔧 Editar comissão:', id);
-    showMessage('Função de edição de comissão em desenvolvimento', 'info');
+    showToast('Função de edição de comissão em desenvolvimento', 'info');
 }
 
 function excluirComissao(id) {
     if (confirm('Tem certeza que deseja excluir esta comissão?')) {
         console.log('🗑️ Excluir comissão:', id);
-        showMessage('Função de exclusão de comissão em desenvolvimento', 'info');
+        showToast('Função de exclusão de comissão em desenvolvimento', 'info');
     }
 }
 
@@ -3076,21 +3076,21 @@ function showContratoTab(tabName) {
 
 // Funções de modal (placeholders)
 function openModalContrato() {
-    showMessage('Modal de novo contrato em desenvolvimento', 'info');
+    showToast('Modal de novo contrato em desenvolvimento', 'info');
 }
 
 function openModalSessao() {
-    showMessage('Modal de nova sessão em desenvolvimento', 'info');
+    showToast('Modal de nova sessão em desenvolvimento', 'info');
 }
 
 function openModalComissao() {
-    showMessage('Modal de nova comissão em desenvolvimento', 'info');
+    showToast('Modal de nova comissão em desenvolvimento', 'info');
 }
 
 function openModalSessaoEquipe() {
-    showMessage('Modal de adicionar membro à equipe em desenvolvimento', 'info');
+    showToast('Modal de adicionar membro à equipe em desenvolvimento', 'info');
 }
 
 function exportarContratosPDF() {
-    showMessage('Exportação de contratos para PDF em desenvolvimento', 'info');
+    showToast('Exportação de contratos para PDF em desenvolvimento', 'info');
 }
