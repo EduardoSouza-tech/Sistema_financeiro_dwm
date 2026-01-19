@@ -2347,8 +2347,8 @@ def adicionar_lancamento():
 
 
 @app.route('/api/lancamentos/<int:lancamento_id>', methods=['GET'])
-@require_permission('lancamentos_view')
 @aplicar_filtro_cliente
+@require_permission('lancamentos_view')
 def obter_lancamento_route(lancamento_id):
     """Retorna os dados de um lançamento específico"""
     try:
