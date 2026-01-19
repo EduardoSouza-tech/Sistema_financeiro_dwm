@@ -2630,6 +2630,28 @@ def adicionar_contrato(dados: Dict) -> int:
     conn = db.get_connection()
     cursor = conn.cursor()
     
+    # Mapear dados do frontend para os campos do banco
+    # Frontend: nome, tipo, valor_mensal, quantidade_meses, valor_total, data_contrato, etc
+    # Banco: numero, cliente_id, descricao, valor, data_inicio, data_fim, status, observacoes
+    
+    # Preparar observações com todos os dados adicionais
+    observacoes_dict = {
+        'tipo': dados.get('tipo'),
+        'nome': dados.get('nome'),
+        'valor_mensal': dados.get('valor_mensal'),
+        'quantidade_meses': dados.get('quantidade_meses'),
+        'horas_mensais': dados.get('horas_mensais'),
+        'forma_pagamento': dados.get('forma_pagamento'),
+        'quantidade_parcelas': dados.get('quantidade_parcelas'),
+        'dia_pagamento': dados.get('dia_pagamento'),
+        'dia_emissao_nf': dados.get('dia_emissao_nf'),
+        'imposto': dados.get('imposto'),
+        'comissoes': dados.get('comissoes', [])
+    }
+    
+    import json
+    observacoes_json = json.dumps(observacoes_dict)
+    
     cursor.execute("""
         INSERT INTO contratos (numero, cliente_id, descricao, valor, data_inicio, data_fim, status, observacoes)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
@@ -2637,12 +2659,12 @@ def adicionar_contrato(dados: Dict) -> int:
     """, (
         dados.get('numero'),
         dados.get('cliente_id'),
-        dados.get('descricao'),
-        dados.get('valor'),
-        dados.get('data_inicio'),
+        dados.get('descricao', dados.get('nome')),  # usar 'nome' se 'descricao' não existir
+        dados.get('valor_total', dados.get('valor')),  # usar 'valor_total' ou 'valor'
+        dados.get('data_contrato', dados.get('data_inicio')),  # usar 'data_contrato' ou 'data_inicio'
         dados.get('data_fim'),
         dados.get('status', 'ativo'),
-        dados.get('observacoes')
+        observacoes_json
     ))
     
     contrato_id = cursor.fetchone()['id']
@@ -2663,7 +2685,21 @@ def listar_contratos() -> List[Dict]:
         ORDER BY c.created_at DESC
     """)
     
-    contratos = [dict(row) for row in cursor.fetchall()]
+    contratos = []
+    for row in cursor.fetchall():
+        contrato = dict(row)
+        
+        # Extrair dados do JSON de observações
+        if contrato.get('observacoes'):
+            try:
+                import json
+                obs_data = json.loads(contrato['observacoes'])
+                contrato.update(obs_data)  # Adicionar campos extras ao contrato
+            except:
+                pass
+        
+        contratos.append(contrato)
+    
     cursor.close()
     return_to_pool(conn)  # Devolver ao pool
     return contratos
@@ -2674,6 +2710,24 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
     conn = db.get_connection()
     cursor = conn.cursor()
     
+    # Preparar observações com todos os dados adicionais
+    observacoes_dict = {
+        'tipo': dados.get('tipo'),
+        'nome': dados.get('nome'),
+        'valor_mensal': dados.get('valor_mensal'),
+        'quantidade_meses': dados.get('quantidade_meses'),
+        'horas_mensais': dados.get('horas_mensais'),
+        'forma_pagamento': dados.get('forma_pagamento'),
+        'quantidade_parcelas': dados.get('quantidade_parcelas'),
+        'dia_pagamento': dados.get('dia_pagamento'),
+        'dia_emissao_nf': dados.get('dia_emissao_nf'),
+        'imposto': dados.get('imposto'),
+        'comissoes': dados.get('comissoes', [])
+    }
+    
+    import json
+    observacoes_json = json.dumps(observacoes_dict)
+    
     cursor.execute("""
         UPDATE contratos
         SET numero = %s, cliente_id = %s, descricao = %s, valor = %s,
@@ -2683,12 +2737,12 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
     """, (
         dados.get('numero'),
         dados.get('cliente_id'),
-        dados.get('descricao'),
-        dados.get('valor'),
-        dados.get('data_inicio'),
+        dados.get('descricao', dados.get('nome')),
+        dados.get('valor_total', dados.get('valor')),
+        dados.get('data_contrato', dados.get('data_inicio')),
         dados.get('data_fim'),
         dados.get('status'),
-        dados.get('observacoes'),
+        observacoes_json,
         contrato_id
     ))
     

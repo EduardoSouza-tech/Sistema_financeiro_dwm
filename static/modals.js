@@ -1959,17 +1959,17 @@ async function openModalContrato(contratoEdit = null) {
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                 <div class="form-group">
                     <label>*Valor Mensal:</label>
-                    <input type="number" id="contrato-valor-mensal" step="0.01" required value="${isEdit ? contratoEdit.valor_mensal || '' : ''}" placeholder="6300.00" onchange="atualizarCalculoContrato()">
+                    <input type="number" id="contrato-valor-mensal" step="0.01" required value="${isEdit ? contratoEdit.valor_mensal || '' : ''}" placeholder="6300.00" oninput="atualizarCalculoContrato()">
                 </div>
                 
                 <div class="form-group">
                     <label>*Qtd. Meses:</label>
-                    <input type="number" id="contrato-meses" min="1" required value="${isEdit ? contratoEdit.quantidade_meses || '1' : '1'}" onchange="atualizarCalculoContrato()">
+                    <input type="number" id="contrato-meses" min="1" required value="${isEdit ? contratoEdit.quantidade_meses || '1' : '1'}" oninput="atualizarCalculoContrato()">
                 </div>
                 
                 <div class="form-group">
                     <label>Valor Total:</label>
-                    <input type="text" id="contrato-valor-total" readonly style="background: #f0f0f0; font-weight: bold; color: #27ae60;" value="${isEdit ? 'R$ ' + (contratoEdit.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2}) : 'R$ 0,00'}">
+                    <input type="text" id="contrato-valor-total" readonly style="background: #f0f0f0; font-weight: bold; color: #27ae60; font-size: 16px;" value="${isEdit ? 'R$ ' + (contratoEdit.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2}) : 'R$ 0,00'}">
                 </div>
             </div>
             
