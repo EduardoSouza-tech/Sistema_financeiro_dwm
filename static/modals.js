@@ -118,11 +118,8 @@ async function openModalReceita() {
         </form>
     `);
     
-    // Limpar ID para garantir que seja criação e não edição
-    setTimeout(() => {
-        const idField = document.getElementById('receita-id');
-        if (idField) idField.value = '';
-    }, 100);
+    // NOTA: NÃO limpar o ID aqui, pois a função editarReceita precisa definir o ID após abrir o modal
+    // O campo hidden receita-id começa vazio por padrão no HTML acima
 }
 
 function atualizarSubcategoriasReceita() {
@@ -182,6 +179,8 @@ function atualizarSubcategoriasReceita() {
 async function salvarReceita(event) {
     event.preventDefault();
     
+    console.log('\n💾 ========== SALVAR RECEITA ==========');
+    
     // Validar empresa_id
     if (!window.currentEmpresaId) {
         showToast('Erro: Empresa não identificada. Por favor, recarregue a página.', 'error');
@@ -190,7 +189,10 @@ async function salvarReceita(event) {
     }
     
     const id = document.getElementById('receita-id').value;
+    console.log('🔍 ID do campo receita-id:', id, 'tipo:', typeof id, 'length:', id?.length);
+    
     const isEdicao = id && id.trim() !== '';
+    console.log('🎯 Modo detectado:', isEdicao ? '✏️ EDIÇÃO' : '🆕 CRIAÇÃO');
     const parcelas = parseInt(document.getElementById('receita-parcelas').value) || 1;
     const campoValor = document.getElementById('receita-valor');
     
@@ -210,12 +212,15 @@ async function salvarReceita(event) {
     };
     
     console.log(isEdicao ? '=== Atualizando Receita ===' : '=== Criando Nova Receita ===');
-    console.log('ID:', id);
-    console.log('Dados a enviar:', data);
+    console.log('📋 ID:', id);
+    console.log('📦 Dados a enviar:', data);
     
     try {
         const url = isEdicao ? `/api/lancamentos/${id}` : '/api/lancamentos';
         const method = isEdicao ? 'PUT' : 'POST';
+        
+        console.log('🌐 URL:', url);
+        console.log('📤 Method:', method);
         
         const response = await fetch(url, {
             method: method,
@@ -257,14 +262,23 @@ async function salvarReceita(event) {
 
 // Função para editar receita
 async function editarReceita(id) {
+    console.log('\n🔧 ========== EDITAR RECEITA ==========');
+    console.log('📥 ID recebido:', id, 'tipo:', typeof id);
+    
     try {
+        console.log('📡 Buscando lançamento...');
         const response = await fetch(`${API_URL}/lancamentos/${id}`);
         const lancamento = await response.json();
+        console.log('✅ Lançamento recebido:', lancamento);
         
         if (lancamento) {
+            console.log('🎨 Abrindo modal para edição...');
             // Preencher o modal com os dados
             await openModalReceita();
+            
+            console.log('📝 Preenchendo campo receita-id com:', lancamento.id);
             document.getElementById('receita-id').value = lancamento.id;
+            console.log('✅ Campo receita-id preenchido. Valor atual:', document.getElementById('receita-id').value);
             document.getElementById('receita-cliente').value = lancamento.pessoa || '';
             document.getElementById('receita-categoria').value = lancamento.categoria || '';
             
@@ -276,9 +290,13 @@ async function editarReceita(id) {
             document.getElementById('receita-descricao').value = lancamento.descricao || '';
             document.getElementById('receita-valor').value = lancamento.valor || '';
             document.getElementById('receita-observacoes').value = lancamento.observacoes || '';
+            
+            console.log('🎯 Modal preenchido completamente');
+            console.log('🔍 Verificação final do ID:', document.getElementById('receita-id').value);
+            console.log('========== FIM EDITAR RECEITA ==========\n');
         }
     } catch (error) {
-        console.error('Erro ao carregar receita para edição:', error);
+        console.error('❌ Erro ao carregar receita para edição:', error);
         showToast('Erro ao carregar receita', 'error');
     }
 }
@@ -399,11 +417,8 @@ async function openModalDespesa() {
         </form>
     `);
     
-    // Limpar ID para garantir que seja criação e não edição
-    setTimeout(() => {
-        const idField = document.getElementById('despesa-id');
-        if (idField) idField.value = '';
-    }, 100);
+    // NOTA: NÃO limpar o ID aqui, pois a função editarDespesa precisa definir o ID após abrir o modal
+    // O campo hidden despesa-id começa vazio por padrão no HTML acima
 }
 
 function atualizarSubcategoriasDespesa() {
@@ -450,6 +465,8 @@ function atualizarSubcategoriasDespesa() {
 async function salvarDespesa(event) {
     event.preventDefault();
     
+    console.log('\n💾 ========== SALVAR DESPESA ==========');
+    
     // Validar empresa_id
     if (!window.currentEmpresaId) {
         showToast('Erro: Empresa não identificada. Por favor, recarregue a página.', 'error');
@@ -458,7 +475,10 @@ async function salvarDespesa(event) {
     }
     
     const id = document.getElementById('despesa-id').value;
+    console.log('🔍 ID do campo despesa-id:', id, 'tipo:', typeof id, 'length:', id?.length);
+    
     const isEdicao = id && id.trim() !== '';
+    console.log('🎯 Modo detectado:', isEdicao ? '✏️ EDIÇÃO' : '🆕 CRIAÇÃO');
     const parcelas = parseInt(document.getElementById('despesa-parcelas').value) || 1;
     const campoValor = document.getElementById('despesa-valor');
     
@@ -478,12 +498,15 @@ async function salvarDespesa(event) {
     };
     
     console.log(isEdicao ? '=== Atualizando Despesa ===' : '=== Criando Nova Despesa ===');
-    console.log('ID:', id);
-    console.log('Dados a enviar:', data);
+    console.log('📋 ID:', id);
+    console.log('📦 Dados a enviar:', data);
     
     try {
         const url = isEdicao ? `/api/lancamentos/${id}` : '/api/lancamentos';
         const method = isEdicao ? 'PUT' : 'POST';
+        
+        console.log('🌐 URL:', url);
+        console.log('📤 Method:', method);
         
         const response = await fetch(url, {
             method: method,
@@ -515,14 +538,23 @@ async function salvarDespesa(event) {
 
 // Função para editar despesa
 async function editarDespesa(id) {
+    console.log('\n🔧 ========== EDITAR DESPESA ==========');
+    console.log('📥 ID recebido:', id, 'tipo:', typeof id);
+    
     try {
+        console.log('📡 Buscando lançamento...');
         const response = await fetch(`${API_URL}/lancamentos/${id}`);
         const lancamento = await response.json();
+        console.log('✅ Lançamento recebido:', lancamento);
         
         if (lancamento) {
+            console.log('🎨 Abrindo modal para edição...');
             // Preencher o modal com os dados
             await openModalDespesa();
+            
+            console.log('📝 Preenchendo campo despesa-id com:', lancamento.id);
             document.getElementById('despesa-id').value = lancamento.id;
+            console.log('✅ Campo despesa-id preenchido. Valor atual:', document.getElementById('despesa-id').value);
             document.getElementById('despesa-fornecedor').value = lancamento.pessoa || '';
             document.getElementById('despesa-categoria').value = lancamento.categoria || '';
             
@@ -534,9 +566,13 @@ async function editarDespesa(id) {
             document.getElementById('despesa-descricao').value = lancamento.descricao || '';
             document.getElementById('despesa-valor').value = lancamento.valor || '';
             document.getElementById('despesa-observacoes').value = lancamento.observacoes || '';
+            
+            console.log('🎯 Modal preenchido completamente');
+            console.log('🔍 Verificação final do ID:', document.getElementById('despesa-id').value);
+            console.log('========== FIM EDITAR DESPESA ==========\n');
         }
     } catch (error) {
-        console.error('Erro ao carregar despesa para edição:', error);
+        console.error('❌ Erro ao carregar despesa para edição:', error);
         showToast('Erro ao carregar despesa', 'error');
     }
 }
