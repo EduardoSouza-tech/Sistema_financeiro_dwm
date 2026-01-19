@@ -1005,6 +1005,80 @@ async function salvarConta(event) {
 }
 
 /**
+ * Atualiza saldo total de todos os bancos
+ */
+async function atualizarSaldoTotalBancos(tipo) {
+    try {
+        const response = await fetch(`${API_URL}/contas`);
+        if (!response.ok) return;
+        
+        const contas = await response.json();
+        const saldoTotal = contas.reduce((sum, conta) => sum + (parseFloat(conta.saldo) || 0), 0);
+        
+        const elementId = tipo === 'receber' ? 'saldo-total-bancos-receber' : 'saldo-total-bancos-pagar';
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = formatarMoeda(saldoTotal);
+        }
+    } catch (error) {
+        console.error('Erro ao atualizar saldo total:', error);
+    }
+}
+
+/**
+ * Carrega select de bancos
+ */
+async function carregarSelectBancos(tipo) {
+    try {
+        const response = await fetch(`${API_URL}/contas`);
+        if (!response.ok) return;
+        
+        const contas = await response.json();
+        const selectId = tipo === 'receber' ? 'select-banco-receber' : 'select-banco-pagar';
+        const select = document.getElementById(selectId);
+        
+        if (select) {
+            // Limpar opções existentes (exceto primeira)
+            select.innerHTML = '<option value="">Selecione um banco</option>';
+            
+            // Adicionar opções
+            contas.forEach(conta => {
+                const option = document.createElement('option');
+                option.value = conta.id;
+                option.textContent = `${conta.nome} - ${formatarMoeda(conta.saldo)}`;
+                option.dataset.saldo = conta.saldo;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao carregar select de bancos:', error);
+    }
+}
+
+/**
+ * Atualiza saldo do banco selecionado
+ */
+function atualizarSaldoBanco(tipo) {
+    const selectId = tipo === 'receber' ? 'select-banco-receber' : 'select-banco-pagar';
+    const saldoId = tipo === 'receber' ? 'saldo-banco-selecionado-receber' : 'saldo-banco-selecionado-pagar';
+    
+    const select = document.getElementById(selectId);
+    const saldoDiv = document.getElementById(saldoId);
+    
+    if (!select || !saldoDiv) return;
+    
+    const selectedOption = select.options[select.selectedIndex];
+    
+    if (selectedOption && selectedOption.value) {
+        const saldo = parseFloat(selectedOption.dataset.saldo) || 0;
+        saldoDiv.textContent = formatarMoeda(saldo);
+        saldoDiv.style.display = 'block';
+    } else {
+        saldoDiv.style.display = 'none';
+    }
+}
+
+/**
  * Abre modal para editar uma conta bancária
  * @param {string} nome - Nome da conta a ser editada
  */
@@ -1771,6 +1845,10 @@ async function loadContasReceber() {
         if (receitas.length === 0) {
             tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 30px;">💰 Nenhuma conta a receber</td></tr>';
         }
+        
+        // Atualizar saldo total dos bancos e carregar select
+        await atualizarSaldoTotalBancos('receber');
+        await carregarSelectBancos('receber');
     } catch (error) {
         console.error('Erro ao carregar contas a receber:', error);
     }
@@ -1834,6 +1912,10 @@ async function loadContasPagar() {
         if (despesas.length === 0) {
             tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 30px;">💳 Nenhuma conta a pagar</td></tr>';
         }
+        
+        // Atualizar saldo total dos bancos e carregar select
+        await atualizarSaldoTotalBancos('pagar');
+        await carregarSelectBancos('pagar');
     } catch (error) {
         console.error('Erro ao carregar contas a pagar:', error);
     }
