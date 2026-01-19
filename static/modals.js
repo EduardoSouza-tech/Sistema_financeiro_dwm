@@ -630,11 +630,14 @@ function openModalConta(contaEdit = null) {
 function formatarValorParaExibicao(valor) {
     console.log('💱 formatarValorParaExibicao - entrada:', valor, 'tipo:', typeof valor);
     if (!valor || valor === 0) return '';
-    // Converte o valor para o formato brasileiro
+    
+    // Converte o valor para string com vírgula (formato brasileiro)
     const valorNum = parseFloat(valor);
     console.log('   📍 valorNum parseFloat:', valorNum);
-    const resultado = valorNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\./g, '_').replace(/,/g, '.').replace(/_/g, ',');
-    console.log('   ✅ Resultado formatado:', resultado);
+    
+    // Formatar para padrão brasileiro: 560.00 -> "560,00"
+    const resultado = valorNum.toFixed(2).replace('.', ',');
+    console.log('   ✅ Resultado formatado (BR):', resultado);
     return resultado;
 }
 
