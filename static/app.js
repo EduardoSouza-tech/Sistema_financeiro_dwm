@@ -1704,6 +1704,10 @@ async function loadContasReceber() {
         const response = await fetch(`${API_URL}/lancamentos`);
         const todosLancamentos = await response.json();
         console.log('   📦 Total de lançamentos recebidos:', todosLancamentos.length);
+        if (todosLancamentos.length > 0) {
+            console.log('   🔍 Exemplo de lançamento:', todosLancamentos[0]);
+            console.log('   🔍 Tipos encontrados:', [...new Set(todosLancamentos.map(l => l.tipo))]);
+        }
         
         const tbody = document.getElementById('tbody-receber');
         if (!tbody) {
