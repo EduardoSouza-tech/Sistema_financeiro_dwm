@@ -2668,14 +2668,27 @@ function openModalKit(kitEdit = null) {
     const isEdit = kitEdit !== null;
     const titulo = isEdit ? 'Editar Kit' : 'Novo Kit';
     
+    // Separar descrição e itens ao editar
+    let descricao = '';
+    let itens = '';
+    
+    if (isEdit && kitEdit.descricao) {
+        const partes = kitEdit.descricao.split('\n\nItens incluídos:\n');
+        descricao = partes[0] || '';
+        itens = partes[1] || '';
+        
+        console.log('🔍 Separando descrição:', { original: kitEdit.descricao, descricao, itens });
+    }
+    
     const modal = createModal(titulo, `
         <form id="form-kit" novalidate style="max-height: 70vh; overflow-y: auto;">
-            <input type="hidden" id="kit-id" value="${isEdit ? kitEdit.id : ''}">
+            <input type="hidden" id="kit-id" name="kit-id" value="${isEdit ? kitEdit.id : ''}">
             
             <div class="form-group">
                 <label>*Nome do Kit:</label>
                 <input type="text" 
                     id="kit-nome" 
+                    name="kit-nome"
                     value="${isEdit ? kitEdit.nome : ''}" 
                     placeholder="Ex: Kit Fotografia Básico"
                     style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
@@ -2685,26 +2698,29 @@ function openModalKit(kitEdit = null) {
                 <label>Descrição:</label>
                 <textarea 
                     id="kit-descricao" 
+                    name="kit-descricao"
                     rows="4"
                     placeholder="Descreva o que está incluso no kit..."
                     style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"
-                >${isEdit ? (kitEdit.descricao || '') : ''}</textarea>
+                >${isEdit ? descricao : ''}</textarea>
             </div>
             
             <div class="form-group">
                 <label>Itens do Kit:</label>
                 <textarea 
                     id="kit-itens" 
+                    name="kit-itens"
                     rows="3"
                     placeholder="Liste os itens incluídos (ex: Câmera Canon, Tripé, Lentes 50mm...)"
                     style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"
-                >${isEdit ? (kitEdit.itens || '') : ''}</textarea>
+                >${isEdit ? itens : ''}</textarea>
             </div>
             
             <div class="form-group">
                 <label>Valor Total (R$):</label>
                 <input type="number" 
                     id="kit-preco" 
+                    name="kit-preco"
                     step="0.01"
                     min="0"
                     value="${isEdit ? (kitEdit.preco || 0) : 0}" 
@@ -2769,8 +2785,11 @@ async function salvarKit(event) {
     }
     form.dataset.submitting = 'true';
     
-    const id = document.getElementById('kit-id').value;
-    const isEdit = id !== '';
+    const idInput = form.elements['kit-id'];
+    const id = idInput?.value || '';
+    const isEdit = id !== '' && id !== null && id !== undefined;
+    
+    console.log('🔑 ID capturado:', id, '| Modo:', isEdit ? 'EDIÇÃO' : 'CRIAÇÃO');
     
     // CAPTURAR VALORES PELO FORMULÁRIO (não por getElementById)
     const nomeInput = form.elements['kit-nome'];
