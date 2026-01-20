@@ -2787,7 +2787,9 @@ async function salvarKit(event) {
             body: JSON.stringify(dados)
         });
         
+        console.log('📡 Response status:', response.status);
         const result = await response.json();
+        console.log('📦 Response data:', result);
         
         if (response.ok && result.success) {
             showToast(isEdit ? '✅ Kit atualizado com sucesso!' : '✅ Kit criado com sucesso!', 'success');
@@ -2797,8 +2799,10 @@ async function salvarKit(event) {
             }
         } else {
             form.dataset.submitting = 'false';
-            showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
-            console.error('❌ Detalhes do erro:', result);
+            const errorMsg = result.error || result.message || 'Erro desconhecido';
+            showToast('❌ Erro: ' + errorMsg, 'error');
+            console.error('❌ Detalhes do erro completo:', result);
+            console.error('❌ Status HTTP:', response.status);
         }
         
     } catch (error) {
