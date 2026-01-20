@@ -5673,11 +5673,17 @@ def fix_p1_issues():
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.columns 
                         WHERE table_name = %s AND column_name = 'empresa_id'
-                    )
+                    ) as existe
                 """, (table_name,))
                 
                 result = cursor.fetchone()
-                empresa_id_existe = result[0]  # Resultado de EXISTS é sempre uma tupla com boolean
+                # Tenta diferentes formas de acessar o resultado
+                if isinstance(result, dict):
+                    empresa_id_existe = result['existe']
+                elif isinstance(result, tuple):
+                    empresa_id_existe = result[0]
+                else:
+                    empresa_id_existe = bool(result)
                 
                 if not empresa_id_existe:
                     # Adiciona coluna empresa_id
@@ -5692,11 +5698,16 @@ def fix_p1_issues():
                     SELECT EXISTS (
                         SELECT 1 FROM pg_indexes 
                         WHERE indexname = %s
-                    )
+                    ) as existe
                 """, (index_name,))
                 
                 result = cursor.fetchone()
-                index_existe = result[0]  # Resultado de EXISTS é sempre uma tupla com boolean
+                if isinstance(result, dict):
+                    index_existe = result['existe']
+                elif isinstance(result, tuple):
+                    index_existe = result[0]
+                else:
+                    index_existe = bool(result)
                 
                 if not index_existe:
                     cursor.execute(f"CREATE INDEX {index_name} ON {table_name}(empresa_id)")
