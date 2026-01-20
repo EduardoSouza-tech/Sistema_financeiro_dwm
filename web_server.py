@@ -5640,7 +5640,7 @@ def fix_p1_issues():
         JSON com resultados detalhados da migration
     """
     try:
-        conn = db.conectar()
+        conn = database.get_connection()
         cursor = conn.cursor()
         
         results = {
