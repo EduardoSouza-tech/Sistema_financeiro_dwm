@@ -25,7 +25,7 @@ from flask import Blueprint, request, jsonify
 from auth_middleware import require_permission
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from models import StatusLancamento, TipoLancamento
+from database_postgresql import StatusLancamento, TipoLancamento
 import database_postgresql as db
 from app.utils import parse_date, format_date_br, get_current_date_br, get_current_date_filename
 
