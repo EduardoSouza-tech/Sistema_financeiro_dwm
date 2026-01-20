@@ -5416,6 +5416,36 @@ def produto_detalhes(produto_id):
             return jsonify({'error': str(e)}), 500
 
 
+# ============================================================================
+# RECURSOS HUMANOS - FUNCIONÁRIOS
+# ============================================================================
+
+@app.route('/api/rh/funcionarios', methods=['GET'])
+@require_permission('folha_pagamento_view')
+def listar_funcionarios_rh():
+    """Listar funcionários para uso em dropdowns"""
+    try:
+        # Buscar todos os funcionários ativos
+        conn = db.get_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT id, nome, cargo, departamento, salario
+            FROM funcionarios
+            WHERE ativo = true
+            ORDER BY nome
+        """)
+        
+        funcionarios = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'data': funcionarios})
+    except Exception as e:
+        print(f"❌ Erro ao listar funcionários: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/kits', methods=['GET', 'POST'])
 @require_permission('estoque_view')
 def kits():
@@ -5423,16 +5453,16 @@ def kits():
     if request.method == 'GET':
         try:
             kits = db.listar_kits()
-            return jsonify(kits)
+            return jsonify({'success': True, 'data': kits})
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'success': False, 'error': str(e)}), 500
     else:  # POST
         try:
             data = request.json
             kit_id = db.adicionar_kit(data)
-            return jsonify({'message': 'Kit criado com sucesso', 'id': kit_id}), 201
+            return jsonify({'success': True, 'message': 'Kit criado com sucesso', 'id': kit_id}), 201
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/kits/<int:kit_id>', methods=['PUT', 'DELETE'])
