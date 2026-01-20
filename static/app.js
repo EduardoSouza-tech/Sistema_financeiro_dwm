@@ -2834,9 +2834,9 @@ function limparFiltrosExtrato() {
 /**
  * Carrega lista de funcionários/RH para uso em modais
  */
-async function loadFuncionarios() {
+async function loadFuncionariosRH() {
     try {
-        console.log('👥 Carregando funcionários...');
+        console.log('👥 Carregando funcionários para dropdown...');
         
         const response = await fetch('/api/rh/funcionarios', {
             method: 'GET',
@@ -2851,13 +2851,13 @@ async function loadFuncionarios() {
         
         if (result.success && result.data) {
             window.funcionarios = result.data;
-            console.log('✅ Funcionários carregados:', window.funcionarios.length);
+            console.log('✅ Funcionários RH carregados:', window.funcionarios.length);
         } else {
             window.funcionarios = [];
             console.warn('⚠️ Nenhum funcionário encontrado');
         }
     } catch (error) {
-        console.error('❌ Erro ao carregar funcionários:', error);
+        console.error('❌ Erro ao carregar funcionários RH:', error);
         window.funcionarios = [];
     }
 }

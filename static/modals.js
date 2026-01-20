@@ -2232,7 +2232,7 @@ async function openModalSessao(sessaoEdit = null) {
         await loadContratos();
     }
     if (!window.funcionarios || window.funcionarios.length === 0) {
-        await loadFuncionarios();
+        await loadFuncionariosRH();
     }
     if (!window.kits || window.kits.length === 0) {
         await loadKits();
