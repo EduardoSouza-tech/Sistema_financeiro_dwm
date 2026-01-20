@@ -5566,11 +5566,18 @@ def kits():
             conn = db.get_connection()
             cursor = conn.cursor()
             
+            # Gerar código único para o kit (timestamp + random)
+            import random
+            import time
+            codigo = f"KIT-{int(time.time())}-{random.randint(1000, 9999)}"
+            
+            print(f"🔢 Código gerado: {codigo}")
+            
             cursor.execute("""
-                INSERT INTO kits (nome, descricao)
-                VALUES (%s, %s)
+                INSERT INTO kits (codigo, nome, descricao, empresa_id)
+                VALUES (%s, %s, %s, %s)
                 RETURNING id
-            """, (data['nome'], data.get('descricao', '')))
+            """, (codigo, data['nome'], data.get('descricao', ''), 1))  # empresa_id = 1 por padrão
             
             result = cursor.fetchone()
             kit_id = result['id'] if isinstance(result, dict) else result[0]
@@ -5579,8 +5586,8 @@ def kits():
             cursor.close()
             conn.close()
             
-            print(f"✅ Kit criado com ID: {kit_id}")
-            return jsonify({'success': True, 'message': 'Kit criado com sucesso', 'id': kit_id}), 201
+            print(f"✅ Kit criado com ID: {kit_id} e código: {codigo}")
+            return jsonify({'success': True, 'message': 'Kit criado com sucesso', 'id': kit_id, 'codigo': codigo}), 201
         except Exception as e:
             print(f"❌ Erro ao criar kit: {e}")
             import traceback
