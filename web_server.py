@@ -5421,9 +5421,8 @@ def produto_detalhes(produto_id):
 # ============================================================================
 
 @app.route('/api/rh/funcionarios', methods=['GET'])
-@require_permission('folha_pagamento_view')
 def listar_funcionarios_rh():
-    """Listar funcionários para uso em dropdowns"""
+    """Listar funcionários para uso em dropdowns (sem require_permission para permitir uso em modais)"""
     try:
         conn = db.get_connection()
         cursor = conn.cursor()
@@ -5464,9 +5463,8 @@ def listar_funcionarios_rh():
 
 
 @app.route('/api/kits', methods=['GET', 'POST'])
-@require_permission('estoque_view')
 def kits():
-    """Gerenciar kits"""
+    """Gerenciar kits (GET sem require_permission para permitir uso em modais)"""
     if request.method == 'GET':
         try:
             kits = db.listar_kits()
