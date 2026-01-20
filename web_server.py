@@ -5580,11 +5580,16 @@ def kits():
             print(f"💰 Preço: R$ {preco:.2f}")
             print(f"📦 Itens: {itens}")
             
+            # Concatenar itens na descrição se houver
+            descricao_completa = data.get('descricao', '')
+            if itens:
+                descricao_completa += f"\n\nItens incluídos:\n{itens}"
+            
             cursor.execute("""
-                INSERT INTO kits (codigo, nome, descricao, empresa_id, preco, itens)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO kits (codigo, nome, descricao, empresa_id, preco)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING id
-            """, (codigo, data['nome'], data.get('descricao', ''), 1, preco, itens))
+            """, (codigo, data['nome'], descricao_completa, 1, preco))
             
             result = cursor.fetchone()
             kit_id = result['id'] if isinstance(result, dict) else result[0]
