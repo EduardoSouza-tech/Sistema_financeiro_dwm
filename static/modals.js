@@ -2715,12 +2715,25 @@ async function salvarKit(event) {
     const id = document.getElementById('kit-id').value;
     const isEdit = id !== '';
     
+    const nomeInput = document.getElementById('kit-nome');
+    const descricaoInput = document.getElementById('kit-descricao');
+    
+    console.log('🔍 Elementos do formulário:', {
+        nomeInput: nomeInput,
+        nomeValue: nomeInput ? nomeInput.value : 'ELEMENTO NÃO ENCONTRADO',
+        descricaoInput: descricaoInput,
+        descricaoValue: descricaoInput ? descricaoInput.value : 'ELEMENTO NÃO ENCONTRADO'
+    });
+    
     const dados = {
-        nome: document.getElementById('kit-nome').value.trim(),
-        descricao: document.getElementById('kit-descricao').value.trim()
+        nome: nomeInput ? nomeInput.value.trim() : '',
+        descricao: descricaoInput ? descricaoInput.value.trim() : ''
     };
     
+    console.log('📦 Dados coletados:', dados);
+    
     if (!dados.nome) {
+        console.error('❌ Validação falhou: nome vazio');
         showToast('❌ Nome do kit é obrigatório', 'error');
         return;
     }
