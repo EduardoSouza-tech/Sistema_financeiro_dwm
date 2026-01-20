@@ -2669,7 +2669,7 @@ function openModalKit(kitEdit = null) {
     const titulo = isEdit ? 'Editar Kit' : 'Novo Kit';
     
     const modal = createModal(titulo, `
-        <form id="form-kit" onsubmit="salvarKit(event)" style="max-height: 70vh; overflow-y: auto;">
+        <form id="form-kit" style="max-height: 70vh; overflow-y: auto;">
             <input type="hidden" id="kit-id" value="${isEdit ? kitEdit.id : ''}">
             
             <div class="form-group">
@@ -2704,6 +2704,17 @@ function openModalKit(kitEdit = null) {
             </div>
         </form>
     `);
+    
+    // Registrar event listener DEPOIS que o DOM for atualizado
+    setTimeout(() => {
+        const form = document.getElementById('form-kit');
+        if (form) {
+            console.log('✅ Registrando event listener no formulário');
+            form.addEventListener('submit', salvarKit);
+        } else {
+            console.error('❌ Formulário form-kit não encontrado!');
+        }
+    }, 0);
 }
 
 /**
