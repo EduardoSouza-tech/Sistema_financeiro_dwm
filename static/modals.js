@@ -2709,19 +2709,29 @@ function openModalKit(kitEdit = null) {
     setTimeout(() => {
         const form = document.getElementById('form-kit');
         if (form) {
+            // Remover listeners antigos se existirem
+            form.removeEventListener('submit', salvarKit);
+            
             console.log('✅ Registrando event listener no formulário');
-            form.addEventListener('submit', salvarKit);
+            form.addEventListener('submit', salvarKit, { once: false });
+            
+            // Verificar se não está sendo disparado imediatamente
+            console.log('🔍 Formulário pronto. Aguardando preenchimento...');
         } else {
             console.error('❌ Formulário form-kit não encontrado!');
         }
-    }, 0);
+    }, 100); // Aumentar delay para 100ms
 }
 
 /**
  * Salva kit (criar ou atualizar)
  */
 async function salvarKit(event) {
-    console.log('🎯 salvarKit INICIADA - event:', event);
+    console.log('🎯 salvarKit INICIADA');
+    console.log('   📍 event:', event);
+    console.log('   📍 event.type:', event?.type);
+    console.log('   📍 event.target:', event?.target);
+    console.log('   📍 Stack trace:', new Error().stack);
     
     if (!event) {
         console.error('❌ Event é null!');
@@ -2730,6 +2740,7 @@ async function salvarKit(event) {
     
     event.preventDefault();
     event.stopPropagation();
+    event.stopImmediatePropagation();
     
     // Prevenir dupla submissão
     const form = event.target;
