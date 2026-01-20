@@ -5705,7 +5705,9 @@ def fix_p1_issues():
                     results['indexes'].append(f'ℹ️ Index {index_name} já existe')
                     
             except Exception as e:
-                results['warnings'].append(f'⚠️ {table_name}: {str(e)}')
+                import traceback
+                error_detail = traceback.format_exc()
+                results['warnings'].append(f'⚠️ {table_name}: {type(e).__name__} - {str(e)}')
         
         # 2. Avisos sobre conversões VARCHAR → FK que precisam ser manuais
         fk_conversions_needed = [
