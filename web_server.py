@@ -5427,6 +5427,11 @@ def listar_funcionarios_rh():
         conn = db.get_connection()
         cursor = conn.cursor()
         
+        # Primeiro, verificar se a tabela existe e tem dados
+        cursor.execute("SELECT COUNT(*) FROM funcionarios")
+        total = cursor.fetchone()[0]
+        print(f"🔍 Total de funcionários na tabela: {total}")
+        
         cursor.execute("""
             SELECT id, nome, cargo, departamento, salario, ativo
             FROM funcionarios
@@ -5441,13 +5446,14 @@ def listar_funcionarios_rh():
         # Converter para dicionários
         funcionarios = []
         for row in rows:
-            funcionarios.append({
+            funcionario = {
                 'id': row[0],
                 'nome': row[1],
-                'cargo': row[2],
-                'departamento': row[3],
+                'cargo': row[2] if row[2] else '',
+                'departamento': row[3] if row[3] else '',
                 'salario': float(row[4]) if row[4] else 0
-            })
+            }
+            funcionarios.append(funcionario)
             print(f"  ✅ Funcionário: {row[1]} (ID: {row[0]}, Ativo: {row[5]})")
         
         cursor.close()
@@ -5456,7 +5462,7 @@ def listar_funcionarios_rh():
         print(f"✅ Retornando {len(funcionarios)} funcionários")
         return jsonify({'success': True, 'data': funcionarios})
     except Exception as e:
-        print(f"❌ Erro ao listar funcionários: {e}")
+        print(f"❌ Erro ao listar funcionários RH: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -5467,8 +5473,34 @@ def kits():
     """Gerenciar kits (GET sem require_permission para permitir uso em modais)"""
     if request.method == 'GET':
         try:
-            kits = db.listar_kits()
-            return jsonify({'success': True, 'data': kits})
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT id, nome, descricao
+                FROM kits
+                ORDER BY nome
+            """)
+            
+            rows = cursor.fetchall()
+            
+            print(f"🔍 Total de kits encontrados: {len(rows)}")
+            
+            # Converter para dicionários
+            kits_lista = []
+            for row in rows:
+                kits_lista.append({
+                    'id': row[0],
+                    'nome': row[1],
+                    'descricao': row[2] if len(row) > 2 else ''
+                })
+                print(f"  ✅ Kit: {row[1]} (ID: {row[0]})")
+            
+            cursor.close()
+            conn.close()
+            
+            print(f"✅ Retornando {len(kits_lista)} kits")
+            return jsonify({'success': True, 'data': kits_lista})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
     else:  # POST
