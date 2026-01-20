@@ -5425,15 +5425,36 @@ def produto_detalhes(produto_id):
 def listar_funcionarios_rh():
     """Listar funcionários para uso em dropdowns"""
     try:
-        # Buscar todos os funcionários ativos usando o método do database
-        funcionarios = db.listar_funcionarios()
+        conn = db.get_connection()
+        cursor = conn.cursor()
         
-        # Filtrar apenas ativos
-        funcionarios_ativos = [f for f in funcionarios if f.get('ativo', True)]
+        cursor.execute("""
+            SELECT id, nome, cargo, departamento, salario
+            FROM funcionarios
+            WHERE ativo = true
+            ORDER BY nome
+        """)
         
-        return jsonify({'success': True, 'data': funcionarios_ativos})
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        # Converter para dicionários
+        funcionarios = []
+        for row in rows:
+            funcionarios.append({
+                'id': row[0],
+                'nome': row[1],
+                'cargo': row[2],
+                'departamento': row[3],
+                'salario': float(row[4]) if row[4] else 0
+            })
+        
+        return jsonify({'success': True, 'data': funcionarios})
     except Exception as e:
         print(f"❌ Erro ao listar funcionários: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
