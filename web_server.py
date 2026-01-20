@@ -5541,6 +5541,7 @@ def listar_funcionarios_rh():
 # ============================================================================
 
 @app.route('/api/debug/fix-kits-table', methods=['POST'])
+@csrf_instance.exempt
 def fix_kits_table():
     """
     Migration: Adiciona colunas 'descricao' e 'empresa_id' na tabela kits
