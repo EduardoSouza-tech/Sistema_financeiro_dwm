@@ -5677,7 +5677,7 @@ def fix_p1_issues():
                 """, (table_name,))
                 
                 result = cursor.fetchone()
-                empresa_id_existe = result[0] if isinstance(result, tuple) else result['existe']
+                empresa_id_existe = result[0]  # Resultado de EXISTS é sempre uma tupla com boolean
                 
                 if not empresa_id_existe:
                     # Adiciona coluna empresa_id
@@ -5696,7 +5696,7 @@ def fix_p1_issues():
                 """, (index_name,))
                 
                 result = cursor.fetchone()
-                index_existe = result[0] if isinstance(result, tuple) else result['existe']
+                index_existe = result[0]  # Resultado de EXISTS é sempre uma tupla com boolean
                 
                 if not index_existe:
                     cursor.execute(f"CREATE INDEX {index_name} ON {table_name}(empresa_id)")
