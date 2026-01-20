@@ -5638,7 +5638,7 @@ def kit_detalhes(kit_id):
             
             cursor.execute("""
                 UPDATE kits 
-                SET nome = %s, descricao = %s, preco = %s, data_atualizacao = CURRENT_TIMESTAMP
+                SET nome = %s, descricao = %s, preco = %s
                 WHERE id = %s
             """, (data['nome'], descricao_completa, preco, kit_id))
             
