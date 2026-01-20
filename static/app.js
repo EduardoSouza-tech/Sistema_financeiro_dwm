@@ -240,14 +240,13 @@ async function apiDelete(endpoint) {
 /**
  * Formata valor monetário de forma segura
  * @param {number} valor - Valor a ser formatado
+ * 
+ * NOTA: Esta função agora usa a biblioteca utils.js (Fase 4)
  */
 function formatarMoeda(valor) {
-    try {
-        if (!isValidValue(valor) || isNaN(valor)) {
-            return 'R$ 0,00';
-        }
-        
-        return new Intl.NumberFormat(CONFIG.DATE_FORMAT, {
+    // Delega para a função da biblioteca utils.js
+    return Utils.formatarMoeda(valor);
+}
             style: 'currency',
             currency: CONFIG.CURRENCY_FORMAT
         }).format(Number(valor));
@@ -260,22 +259,12 @@ function formatarMoeda(valor) {
 /**
  * Formata data de forma segura
  * @param {string} data - Data a ser formatada
+ * 
+ * NOTA: Esta função agora usa a biblioteca utils.js (Fase 4)
  */
 function formatarData(data) {
-    try {
-        if (!data) return '-';
-        
-        const date = new Date(data + 'T00:00:00');
-        
-        if (isNaN(date.getTime())) {
-            return '-';
-        }
-        
-        return date.toLocaleDateString(CONFIG.DATE_FORMAT);
-    } catch (error) {
-        logError('formatarData', error, { data });
-        return '-';
-    }
+    // Delega para a função da biblioteca utils.js
+    return Utils.formatarData(data);
 }
 
 /**
@@ -754,20 +743,6 @@ function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
     // Limpar formulário
     document.querySelector(`#${modalId} form`).reset();
-}
-
-// Formatação
-function formatarMoeda(valor) {
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(valor);
-}
-
-function formatarData(data) {
-    if (!data) return '-';
-    const d = new Date(data + 'T00:00:00');
-    return d.toLocaleDateString('pt-BR');
 }
 
 // === DASHBOARD ===

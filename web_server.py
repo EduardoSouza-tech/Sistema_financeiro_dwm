@@ -79,6 +79,19 @@ import os
 import secrets
 import time
 
+# ============================================================================
+# UTILITÁRIOS COMPARTILHADOS (FASE 4)
+# ============================================================================
+from app.utils import (
+    parse_date,
+    format_date_br,
+    format_date_iso,
+    get_current_date_br,
+    get_current_date_filename,
+    format_currency,
+    parse_currency
+)
+
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
 # Detectar ambiente de produção
@@ -3391,10 +3404,10 @@ def relatorio_fluxo_caixa():
     data_fim_str = request.args.get('data_fim', date.today().isoformat())
     
     # Converter strings para date objects
-    if isinstance(data_inicio_str, str):
-        data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date()
-    else:
-        data_inicio = data_inicio_str
+    data_inicio = parse_date(data_inicio_str)
+    
+    if isinstance(data_fim_str, str):
+        data_fim = parse_date(data_fim_str)
         
     if isinstance(data_fim_str, str):
         data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date()
@@ -3632,8 +3645,8 @@ def dashboard_completo():
         if not data_inicio or not data_fim:
             return jsonify({'error': 'Datas obrigatórias'}), 400
         
-        data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
-        data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+        data_inicio_obj = parse_date(data_inicio)
+        data_fim_obj = parse_date(data_fim)
         
         lancamentos = db.listar_lancamentos()
         
@@ -4529,8 +4542,8 @@ def relatorio_indicadores():
         hoje = date.today()
         
         if data_inicio_str and data_fim_str:
-            inicio_mes = datetime.strptime(data_inicio_str, '%Y-%m-%d').date()
-            fim_periodo = datetime.strptime(data_fim_str, '%Y-%m-%d').date()
+            inicio_mes = parse_date(data_inicio_str)
+            fim_periodo = parse_date(data_fim_str)
         else:
             # Padrão: mês atual
             inicio_mes = date(hoje.year, hoje.month, 1)
@@ -4685,7 +4698,7 @@ def exportar_clientes_pdf():
         
         # Título
         title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor('#2c3e50'), spaceAfter=15, alignment=1)
-        elements.append(Paragraph(f'LISTA DE CLIENTES - {datetime.now().strftime("%d/%m/%Y")}', title_style))
+        elements.append(Paragraph(f'LISTA DE CLIENTES - {get_current_date_br()}', title_style))
         elements.append(Spacer(1, 0.3*cm))
         
         # Estilo de parágrafo para células
@@ -4748,7 +4761,7 @@ def exportar_clientes_pdf():
         doc.build(elements)
         buffer.seek(0)
         
-        return send_file(buffer, mimetype='application/pdf', as_attachment=True, download_name=f'clientes_{datetime.now().strftime("%Y%m%d")}.pdf')
+        return send_file(buffer, mimetype='application/pdf', as_attachment=True, download_name=f'clientes_{get_current_date_filename()}.pdf')
     
     except Exception as e:
         print(f"Erro ao exportar PDF: {e}")
@@ -4805,7 +4818,7 @@ def exportar_clientes_excel():
         wb.save(buffer)
         buffer.seek(0)
         
-        return send_file(buffer, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=f'clientes_{datetime.now().strftime("%Y%m%d")}.xlsx')
+        return send_file(buffer, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=f'clientes_{get_current_date_filename()}.xlsx')
     
     except Exception as e:
         print(f"Erro ao exportar Excel: {e}")
@@ -4834,7 +4847,7 @@ def exportar_fornecedores_pdf():
         styles = getSampleStyleSheet()
         
         title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor('#2c3e50'), spaceAfter=15, alignment=1)
-        elements.append(Paragraph(f'LISTA DE FORNECEDORES - {datetime.now().strftime("%d/%m/%Y")}', title_style))
+        elements.append(Paragraph(f'LISTA DE FORNECEDORES - {get_current_date_br()}', title_style))
         elements.append(Spacer(1, 0.3*cm))
         
         # Estilo de parágrafo para células
@@ -4893,7 +4906,7 @@ def exportar_fornecedores_pdf():
         doc.build(elements)
         buffer.seek(0)
         
-        return send_file(buffer, mimetype='application/pdf', as_attachment=True, download_name=f'fornecedores_{datetime.now().strftime("%Y%m%d")}.pdf')
+        return send_file(buffer, mimetype='application/pdf', as_attachment=True, download_name=f'fornecedores_{get_current_date_filename()}.pdf')
     
     except Exception as e:
         print(f"Erro ao exportar PDF: {e}")
@@ -4950,7 +4963,7 @@ def exportar_fornecedores_excel():
         wb.save(buffer)
         buffer.seek(0)
         
-        return send_file(buffer, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=f'fornecedores_{datetime.now().strftime("%Y%m%d")}.xlsx')
+        return send_file(buffer, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=f'fornecedores_{get_current_date_filename()}.xlsx')
     
     except Exception as e:
         print(f"Erro ao exportar Excel: {e}")
