@@ -5438,8 +5438,9 @@ def listar_funcionarios_rh():
         total = result['total'] if isinstance(result, dict) else (result[0] if result else 0)
         print(f"🔍 Total de funcionários na tabela: {total}")
         
+        # Buscar apenas colunas que existem (id, nome, ativo)
         cursor.execute("""
-            SELECT id, nome, cargo, departamento, salario, ativo
+            SELECT id, nome, ativo
             FROM funcionarios
             WHERE ativo = true
             ORDER BY nome
@@ -5449,27 +5450,21 @@ def listar_funcionarios_rh():
         
         print(f"🔍 Total de funcionários ativos encontrados: {len(rows)}")
         
-        # Converter para dicionários
+        # Converter para dicionários (apenas id e nome para dropdown)
         funcionarios = []
         for row in rows:
             if isinstance(row, dict):
                 funcionario = {
                     'id': row['id'],
-                    'nome': row['nome'],
-                    'cargo': row.get('cargo', ''),
-                    'departamento': row.get('departamento', ''),
-                    'salario': float(row['salario']) if row.get('salario') else 0
+                    'nome': row['nome']
                 }
-                print(f"  ✅ Funcionário: {row['nome']} (ID: {row['id']}, Ativo: {row['ativo']})")
+                print(f"  ✅ Funcionário: {row['nome']} (ID: {row['id']}, Ativo: {row.get('ativo', True)})")
             else:
                 funcionario = {
                     'id': row[0],
-                    'nome': row[1],
-                    'cargo': row[2] if row[2] else '',
-                    'departamento': row[3] if row[3] else '',
-                    'salario': float(row[4]) if row[4] else 0
+                    'nome': row[1]
                 }
-                print(f"  ✅ Funcionário: {row[1]} (ID: {row[0]}, Ativo: {row[5]})")
+                print(f"  ✅ Funcionário: {row[1]} (ID: {row[0]}, Ativo: {row[2] if len(row) > 2 else True})")
             funcionarios.append(funcionario)
         
         cursor.close()
