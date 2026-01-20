@@ -2828,6 +2828,72 @@ function limparFiltrosExtrato() {
 }
 
 // ============================================================================
+// FUNÇÕES AUXILIARES PARA SESSÕES
+// ============================================================================
+
+/**
+ * Carrega lista de funcionários/RH para uso em modais
+ */
+async function loadFuncionarios() {
+    try {
+        console.log('👥 Carregando funcionários...');
+        
+        const response = await fetch('/api/rh/funcionarios', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Erro ao buscar funcionários');
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            window.funcionarios = result.data;
+            console.log('✅ Funcionários carregados:', window.funcionarios.length);
+        } else {
+            window.funcionarios = [];
+            console.warn('⚠️ Nenhum funcionário encontrado');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar funcionários:', error);
+        window.funcionarios = [];
+    }
+}
+
+/**
+ * Carrega lista de kits de equipamentos para uso em modais
+ */
+async function loadKits() {
+    try {
+        console.log('📦 Carregando kits de equipamentos...');
+        
+        const response = await fetch('/api/kits', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Erro ao buscar kits');
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            window.kits = result.data;
+            console.log('✅ Kits carregados:', window.kits.length);
+        } else {
+            window.kits = [];
+            console.warn('⚠️ Nenhum kit encontrado');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar kits:', error);
+        window.kits = [];
+    }
+}
+
+// ============================================================================
 // CONTRATOS E SESSÕES
 // ============================================================================
 
