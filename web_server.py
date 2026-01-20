@@ -5573,14 +5573,18 @@ def kits():
             
             print(f"🔢 Código gerado: {codigo}")
             
-            # Preço padrão = 0.00 (pode ser editado depois)
-            preco = data.get('preco', 0.00)
+            # Preço do kit
+            preco = float(data.get('preco', 0.00))
+            itens = data.get('itens', '')
+            
+            print(f"💰 Preço: R$ {preco:.2f}")
+            print(f"📦 Itens: {itens}")
             
             cursor.execute("""
-                INSERT INTO kits (codigo, nome, descricao, empresa_id, preco)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO kits (codigo, nome, descricao, empresa_id, preco, itens)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING id
-            """, (codigo, data['nome'], data.get('descricao', ''), 1, preco))  # empresa_id = 1, preco = 0.00 por padrão
+            """, (codigo, data['nome'], data.get('descricao', ''), 1, preco, itens))
             
             result = cursor.fetchone()
             kit_id = result['id'] if isinstance(result, dict) else result[0]

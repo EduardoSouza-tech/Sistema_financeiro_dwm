@@ -2691,6 +2691,27 @@ function openModalKit(kitEdit = null) {
                 >${isEdit ? (kitEdit.descricao || '') : ''}</textarea>
             </div>
             
+            <div class="form-group">
+                <label>Itens do Kit:</label>
+                <textarea 
+                    id="kit-itens" 
+                    rows="3"
+                    placeholder="Liste os itens incluídos (ex: Câmera Canon, Tripé, Lentes 50mm...)"
+                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"
+                >${isEdit ? (kitEdit.itens || '') : ''}</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Valor Total (R$):</label>
+                <input type="number" 
+                    id="kit-preco" 
+                    step="0.01"
+                    min="0"
+                    value="${isEdit ? (kitEdit.preco || 0) : 0}" 
+                    placeholder="0.00"
+                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            
             <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;">
                 <button type="button" class="btn" onclick="closeModal()" 
                     style="background: #95a5a6; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">
@@ -2754,16 +2775,22 @@ async function salvarKit(event) {
     // CAPTURAR VALORES PELO FORMULÁRIO (não por getElementById)
     const nomeInput = form.elements['kit-nome'];
     const descricaoInput = form.elements['kit-descricao'];
+    const itensInput = form.elements['kit-itens'];
+    const precoInput = form.elements['kit-preco'];
     
     console.log('🔍 DEBUG COMPLETO:');
     console.log('   1. nomeInput element:', nomeInput);
     console.log('   2. nomeInput.value:', nomeInput?.value);
     console.log('   3. descricaoInput element:', descricaoInput);
     console.log('   4. descricaoInput.value:', descricaoInput?.value);
+    console.log('   5. itensInput.value:', itensInput?.value);
+    console.log('   6. precoInput.value:', precoInput?.value);
     
     const dados = {
         nome: (nomeInput?.value || '').trim(),
-        descricao: (descricaoInput?.value || '').trim()
+        descricao: (descricaoInput?.value || '').trim(),
+        itens: (itensInput?.value || '').trim(),
+        preco: parseFloat(precoInput?.value || 0)
     };
     
     console.log('📦 DADOS COLETADOS:', dados);
