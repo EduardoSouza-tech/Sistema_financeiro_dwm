@@ -2718,22 +2718,27 @@ async function salvarKit(event) {
     const nomeInput = document.getElementById('kit-nome');
     const descricaoInput = document.getElementById('kit-descricao');
     
-    console.log('🔍 Elementos do formulário:', {
-        nomeInput: nomeInput,
-        nomeValue: nomeInput ? nomeInput.value : 'ELEMENTO NÃO ENCONTRADO',
-        descricaoInput: descricaoInput,
-        descricaoValue: descricaoInput ? descricaoInput.value : 'ELEMENTO NÃO ENCONTRADO'
-    });
+    console.log('🔍 ELEMENTOS:');
+    console.log('  nomeInput:', nomeInput);
+    console.log('  nomeInput é null?', nomeInput === null);
+    console.log('  nomeInput.value:', nomeInput ? nomeInput.value : 'ELEMENTO NULL');
+    console.log('  nomeInput.value.length:', nomeInput && nomeInput.value ? nomeInput.value.length : 0);
+    console.log('  descricaoInput:', descricaoInput);
+    console.log('  descricaoInput.value:', descricaoInput ? descricaoInput.value : 'ELEMENTO NULL');
     
     const dados = {
         nome: nomeInput ? nomeInput.value.trim() : '',
         descricao: descricaoInput ? descricaoInput.value.trim() : ''
     };
     
-    console.log('📦 Dados coletados:', dados);
+    console.log('📦 DADOS COLETADOS:');
+    console.log('  dados.nome:', JSON.stringify(dados.nome));
+    console.log('  dados.nome.length:', dados.nome.length);
+    console.log('  dados.descricao:', JSON.stringify(dados.descricao));
+    console.log('  Validação (!dados.nome):', !dados.nome);
     
     if (!dados.nome) {
-        console.error('❌ Validação falhou: nome vazio');
+        console.error('❌ VALIDAÇÃO FALHOU - nome está vazio ou falsy');
         showToast('❌ Nome do kit é obrigatório', 'error');
         return;
     }
