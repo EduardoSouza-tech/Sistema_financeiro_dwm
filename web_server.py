@@ -5476,6 +5476,30 @@ def kits():
             conn = db.get_connection()
             cursor = conn.cursor()
             
+            # Verificar se a tabela existe
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'kits'
+                )
+            """)
+            tabela_existe = cursor.fetchone()[0]
+            
+            if not tabela_existe:
+                print("⚠️ Tabela kits não existe - criando...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS kits (
+                        id SERIAL PRIMARY KEY,
+                        nome VARCHAR(255) NOT NULL,
+                        descricao TEXT,
+                        empresa_id INTEGER,
+                        data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                conn.commit()
+                print("✅ Tabela kits criada com sucesso")
+            
             cursor.execute("""
                 SELECT id, nome, descricao
                 FROM kits
@@ -5492,9 +5516,10 @@ def kits():
                 kits_lista.append({
                     'id': row[0],
                     'nome': row[1],
-                    'descricao': row[2] if len(row) > 2 else ''
+                    'descricao': row[2] if len(row) > 2 and row[2] else ''
                 })
-                print(f"  ✅ Kit: {row[1]} (ID: {row[0]})")
+                if len(rows) > 0:
+                    print(f"  ✅ Kit: {row[1]} (ID: {row[0]})")
             
             cursor.close()
             conn.close()
@@ -5502,6 +5527,9 @@ def kits():
             print(f"✅ Retornando {len(kits_lista)} kits")
             return jsonify({'success': True, 'data': kits_lista})
         except Exception as e:
+            print(f"❌ Erro ao listar kits: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
     else:  # POST
         try:
