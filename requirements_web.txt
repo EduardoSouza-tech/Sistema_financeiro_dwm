@@ -1,7 +1,8 @@
-# Dependências do Sistema Financeiro - Atualizado 2026-01-11
+# Dependências do Sistema Financeiro - Atualizado 2026-01-20 (Fase 7)
 flask==3.0.0
 flask-cors==4.0.0
 flask-limiter==3.5.0
+flask-compress==1.14  # Fase 7: Compressão gzip
 bcrypt==4.1.2
 psycopg2-binary==2.9.9
 ofxparse==0.21

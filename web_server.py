@@ -4,6 +4,7 @@ Otimizado para PostgreSQL com pool de conexões
 """
 from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
+from flask_compress import Compress
 from functools import wraps
 import os
 import sys
@@ -93,6 +94,23 @@ from app.utils import (
 )
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
+
+# ============================================================================
+# COMPRESSÃO DE RESPOSTAS (FASE 7)
+# ============================================================================
+compress = Compress()
+compress.init_app(app)
+app.config['COMPRESS_MIMETYPES'] = [
+    'text/html',
+    'text/css',
+    'text/xml',
+    'application/json',
+    'application/javascript',
+    'text/javascript'
+]
+app.config['COMPRESS_LEVEL'] = 6  # Nível de compressão (1-9)
+app.config['COMPRESS_MIN_SIZE'] = 500  # Comprimir respostas > 500 bytes
+logger.info("✅ Compressão gzip ativada")
 
 # Detectar ambiente de produção
 IS_PRODUCTION = bool(os.getenv('RAILWAY_ENVIRONMENT'))
@@ -5783,6 +5801,57 @@ def fix_p1_issues():
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 500
+
+
+@app.route('/api/debug/create-performance-indexes', methods=['POST'])
+@csrf_instance.exempt
+def create_performance_indexes():
+    """
+    🚀 FASE 7: Migration de performance - Criar índices otimizados
+    
+    Cria índices em:
+    - Foreign keys (cliente_id, conta_id, categoria_id, etc)
+    - Campos de filtro comum (data_lancamento, status, tipo)
+    - Campos de ordenação
+    - Índices compostos para queries comuns
+    
+    Returns:
+        JSON com índices criados e estatísticas
+    """
+    try:
+        # Importar e executar migration
+        import migration_performance_indexes
+        
+        created, skipped, errors = migration_performance_indexes.create_indexes()
+        
+        # Atualizar estatísticas se criou índices
+        if created > 0:
+            migration_performance_indexes.analyze_tables()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Migration de performance concluída',
+            'summary': {
+                'indexes_created': created,
+                'indexes_skipped': skipped,
+                'errors': errors,
+                'total_processed': created + skipped + errors
+            },
+            'next_steps': [
+                'Testar performance dos relatórios',
+                'Monitorar uso de índices com EXPLAIN ANALYZE',
+                'Considerar adicionar cache para queries mais pesadas'
+            ]
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
         }), 500
 
 
