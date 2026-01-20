@@ -2710,7 +2710,23 @@ function openModalKit(kitEdit = null) {
  * Salva kit (criar ou atualizar)
  */
 async function salvarKit(event) {
+    console.log('🎯 salvarKit INICIADA - event:', event);
+    
+    if (!event) {
+        console.error('❌ Event é null!');
+        return;
+    }
+    
     event.preventDefault();
+    event.stopPropagation();
+    
+    // Prevenir dupla submissão
+    const form = event.target;
+    if (form.dataset.submitting === 'true') {
+        console.log('⚠️ Já está processando, ignorando...');
+        return;
+    }
+    form.dataset.submitting = 'true';
     
     const id = document.getElementById('kit-id').value;
     const isEdit = id !== '';
@@ -2739,6 +2755,7 @@ async function salvarKit(event) {
     
     if (!dados.nome) {
         console.error('❌ VALIDAÇÃO FALHOU - nome está vazio ou falsy');
+        form.dataset.submitting = 'false';
         showToast('❌ Nome do kit é obrigatório', 'error');
         return;
     }
@@ -2764,11 +2781,13 @@ async function salvarKit(event) {
                 loadKitsTable(); // Recarrega tabela
             }
         } else {
+            form.dataset.submitting = 'false';
             showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
             console.error('❌ Detalhes do erro:', result);
         }
         
     } catch (error) {
+        form.dataset.submitting = 'false';
         console.error('❌ Erro ao salvar kit:', error);
         showToast('❌ Erro ao salvar kit: ' + error.message, 'error');
     }
