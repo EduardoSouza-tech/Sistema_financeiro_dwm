@@ -2751,18 +2751,15 @@ async function salvarKit(event) {
     const id = document.getElementById('kit-id').value;
     const isEdit = id !== '';
     
-    // IMPORTANTE: Capturar valores DIRETAMENTE do DOM
-    const nomeInput = document.getElementById('kit-nome');
-    const descricaoInput = document.getElementById('kit-descricao');
+    // CAPTURAR VALORES PELO FORMULÁRIO (não por getElementById)
+    const nomeInput = form.elements['kit-nome'];
+    const descricaoInput = form.elements['kit-descricao'];
     
     console.log('🔍 DEBUG COMPLETO:');
     console.log('   1. nomeInput element:', nomeInput);
     console.log('   2. nomeInput.value:', nomeInput?.value);
-    console.log('   3. nomeInput.getAttribute("value"):', nomeInput?.getAttribute('value'));
-    console.log('   4. nomeInput.innerText:', nomeInput?.innerText);
-    console.log('   5. form.elements["kit-nome"]:', form.elements['kit-nome']);
-    console.log('   6. form.elements["kit-nome"]?.value:', form.elements['kit-nome']?.value);
-    console.log('   7. Todos os inputs do form:', Array.from(form.elements).map(el => ({id: el.id, value: el.value})));
+    console.log('   3. descricaoInput element:', descricaoInput);
+    console.log('   4. descricaoInput.value:', descricaoInput?.value);
     
     const dados = {
         nome: (nomeInput?.value || '').trim(),
