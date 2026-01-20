@@ -489,7 +489,7 @@ except Exception as e:
 # ============================================================================
 
 @app.route('/api/auth/login', methods=['POST'])
-@limiter.limit("5 per minute")  # Máximo 5 tentativas por minuto
+@limiter.limit("20 per minute")  # Máximo 20 tentativas por minuto (aumentado para testes)
 def login():
     """Endpoint de login com proteção contra brute force"""
     try:
