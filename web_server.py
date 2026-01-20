@@ -5511,6 +5511,167 @@ def listar_funcionarios_rh():
 # como parte da Fase 2 de otimização (refatoração modular)
 
 
+# ============================================================================
+# ENDPOINT TEMPORÁRIO PARA EXTRAÇÃO DO SCHEMA (FASE 3)
+# ============================================================================
+@app.route('/api/debug/extrair-schema', methods=['GET'])
+def extrair_schema_debug():
+    """
+    Endpoint temporário para extrair schema do banco de dados
+    Usado na Fase 3 da otimização para documentar o banco
+    """
+    try:
+        import json
+        from datetime import datetime
+        
+        conn = database.get_connection()
+        cursor = conn.cursor()
+        
+        schema_info = {
+            'data_extracao': datetime.now().isoformat(),
+            'tabelas': []
+        }
+        
+        # 1. Obter lista de todas as tabelas
+        cursor.execute("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_type = 'BASE TABLE'
+            ORDER BY table_name
+        """)
+        
+        tabelas = cursor.fetchall()
+        
+        for tabela_row in tabelas:
+            tabela_nome = tabela_row[0] if isinstance(tabela_row, tuple) else tabela_row['table_name']
+            
+            tabela_info = {
+                'nome': tabela_nome,
+                'colunas': [],
+                'constraints': [],
+                'foreign_keys': [],
+                'indexes': []
+            }
+            
+            # 2. Obter colunas da tabela
+            cursor.execute("""
+                SELECT 
+                    column_name,
+                    data_type,
+                    character_maximum_length,
+                    is_nullable,
+                    column_default
+                FROM information_schema.columns
+                WHERE table_name = %s
+                ORDER BY ordinal_position
+            """, (tabela_nome,))
+            
+            colunas = cursor.fetchall()
+            
+            for coluna in colunas:
+                if isinstance(coluna, dict):
+                    col_info = {
+                        'nome': coluna['column_name'],
+                        'tipo': coluna['data_type'],
+                        'tamanho': coluna.get('character_maximum_length'),
+                        'nullable': coluna['is_nullable'] == 'YES',
+                        'default': coluna.get('column_default')
+                    }
+                else:
+                    col_info = {
+                        'nome': coluna[0],
+                        'tipo': coluna[1],
+                        'tamanho': coluna[2],
+                        'nullable': coluna[3] == 'YES',
+                        'default': coluna[4]
+                    }
+                
+                tabela_info['colunas'].append(col_info)
+            
+            # 3. Obter constraints
+            cursor.execute("""
+                SELECT 
+                    tc.constraint_name,
+                    tc.constraint_type,
+                    kcu.column_name
+                FROM information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu 
+                    ON tc.constraint_name = kcu.constraint_name
+                WHERE tc.table_name = %s
+                AND tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE', 'CHECK')
+            """, (tabela_nome,))
+            
+            constraints = cursor.fetchall()
+            
+            for constraint in constraints:
+                if isinstance(constraint, dict):
+                    const_info = {
+                        'nome': constraint['constraint_name'],
+                        'tipo': constraint['constraint_type'],
+                        'coluna': constraint['column_name']
+                    }
+                else:
+                    const_info = {
+                        'nome': constraint[0],
+                        'tipo': constraint[1],
+                        'coluna': constraint[2]
+                    }
+                
+                tabela_info['constraints'].append(const_info)
+            
+            # 4. Obter Foreign Keys
+            cursor.execute("""
+                SELECT
+                    kcu.column_name,
+                    ccu.table_name AS foreign_table_name,
+                    ccu.column_name AS foreign_column_name
+                FROM information_schema.table_constraints AS tc
+                JOIN information_schema.key_column_usage AS kcu
+                    ON tc.constraint_name = kcu.constraint_name
+                JOIN information_schema.constraint_column_usage AS ccu
+                    ON ccu.constraint_name = tc.constraint_name
+                WHERE tc.constraint_type = 'FOREIGN KEY'
+                AND tc.table_name = %s
+            """, (tabela_nome,))
+            
+            fks = cursor.fetchall()
+            
+            for fk in fks:
+                if isinstance(fk, dict):
+                    fk_info = {
+                        'coluna': fk['column_name'],
+                        'referencia_tabela': fk['foreign_table_name'],
+                        'referencia_coluna': fk['foreign_column_name']
+                    }
+                else:
+                    fk_info = {
+                        'coluna': fk[0],
+                        'referencia_tabela': fk[1],
+                        'referencia_coluna': fk[2]
+                    }
+                
+                tabela_info['foreign_keys'].append(fk_info)
+            
+            schema_info['tabelas'].append(tabela_info)
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'schema': schema_info
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/tags', methods=['GET', 'POST'])
 @require_permission('operacional_view')
 def tags():
