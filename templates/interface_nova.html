@@ -4974,22 +4974,27 @@
                 const tbody = document.getElementById('tbody-funcionarios');
 
                 if (result.funcionarios && result.funcionarios.length > 0) {
-                    tbody.innerHTML = result.funcionarios.map(func => `
+                    tbody.innerHTML = result.funcionarios.map(func => {
+                        // Escapar aspas para JSON seguro
+                        const funcEscaped = JSON.stringify(func).replace(/'/g, "\\'");
+                        const ativoStatus = func.ativo ? true : false;
+                        
+                        return `
                         <tr>
                             <td>${func.nome}</td>
                             <td>${formatarCPF(func.cpf)}</td>
                             <td>${func.endereco || '-'}</td>
                             <td>${func.tipo_chave_pix}</td>
                             <td>${func.chave_pix || '-'}</td>
-                            <td><span class="badge badge-${func.ativo ? 'success' : 'danger'}">${func.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                            <td><span class="badge badge-${ativoStatus ? 'success' : 'danger'}">${ativoStatus ? 'Ativo' : 'Inativo'}</span></td>
                             <td>
-                                <button onclick='abrirModalFuncionario(${JSON.stringify(func)})' class="btn btn-sm btn-primary" title="Editar">✏️</button>
-                                <button onclick="toggleAtivoFuncionario(${func.id}, ${func.ativo})" class="btn btn-sm btn-${func.ativo ? 'warning' : 'success'}" title="${func.ativo ? 'Inativar' : 'Ativar'}">
-                                    ${func.ativo ? '🚫' : '✅'}
+                                <button onclick='abrirModalFuncionario(${funcEscaped})' class="btn btn-sm btn-primary" title="Editar">✏️</button>
+                                <button onclick="toggleAtivoFuncionario(${func.id}, ${ativoStatus})" class="btn btn-sm btn-${ativoStatus ? 'warning' : 'success'}" title="${ativoStatus ? 'Inativar' : 'Ativar'}">
+                                    ${ativoStatus ? '🚫' : '✅'}
                                 </button>
                             </td>
-                        </tr>
-                    `).join('');
+                        </tr>`;
+                    }).join('');
                 } else {
                     tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário cadastrado</td></tr>';
                 }
