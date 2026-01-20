@@ -5085,26 +5085,52 @@ def sessoes():
             return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/api/sessoes/<int:sessao_id>', methods=['PUT', 'DELETE'])
-@require_permission('sessoes_edit')
+@app.route('/api/sessoes/<int:sessao_id>', methods=['GET', 'PUT', 'DELETE'])
+@require_permission('sessoes_view')
 def sessao_detalhes(sessao_id):
-    """Atualizar ou excluir sessão"""
-    if request.method == 'PUT':
+    """Buscar, atualizar ou excluir sessão"""
+    if request.method == 'GET':
         try:
-            data = request.json
-            success = db.atualizar_sessao(sessao_id, data)
-            if success:
-                return jsonify({'success': True, 'message': 'Sessão atualizada com sucesso'})
+            print(f"🔍 Buscando sessão {sessao_id}")
+            sessao = db.buscar_sessao(sessao_id)
+            if sessao:
+                print(f"✅ Sessão {sessao_id} encontrada")
+                return jsonify({'success': True, 'data': sessao})
+            print(f"❌ Sessão {sessao_id} não encontrada")
             return jsonify({'success': False, 'error': 'Sessão não encontrada'}), 404
         except Exception as e:
+            print(f"❌ Erro ao buscar sessão {sessao_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
+    elif request.method == 'PUT':
+        try:
+            data = request.json
+            print(f"🔍 Atualizando sessão {sessao_id} com dados: {data}")
+            success = db.atualizar_sessao(sessao_id, data)
+            if success:
+                print(f"✅ Sessão {sessao_id} atualizada")
+                return jsonify({'success': True, 'message': 'Sessão atualizada com sucesso'})
+            print(f"❌ Sessão {sessao_id} não encontrada")
+            return jsonify({'success': False, 'error': 'Sessão não encontrada'}), 404
+        except Exception as e:
+            print(f"❌ Erro ao atualizar sessão {sessao_id}: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
     else:  # DELETE
         try:
+            print(f"🔍 Deletando sessão {sessao_id}")
             success = db.deletar_sessao(sessao_id)
             if success:
+                print(f"✅ Sessão {sessao_id} deletada")
                 return jsonify({'success': True, 'message': 'Sessão excluída com sucesso'})
+            print(f"❌ Sessão {sessao_id} não encontrada")
             return jsonify({'success': False, 'error': 'Sessão não encontrada'}), 404
         except Exception as e:
+            print(f"❌ Erro ao deletar sessão {sessao_id}: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
 
 

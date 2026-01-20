@@ -2748,12 +2748,6 @@
                     <button class="tab-button" onclick="showContratoTab('sessoes')" id="tab-sessoes" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
                         Sessões
                     </button>
-                    <button class="tab-button" onclick="showContratoTab('comissoes')" id="tab-comissoes" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
-                        Comissões
-                    </button>
-                    <button class="tab-button" onclick="showContratoTab('equipe')" id="tab-equipe" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
-                        Equipe
-                    </button>
                 </div>
 
                 <!-- Tab Contratos -->
@@ -2790,69 +2784,25 @@
                 <div id="tab-content-sessoes" style="display: none;">
                     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                         <button class="btn btn-primary" onclick="openModalSessao()">➕ Nova Sessão</button>
+                        <button class="btn" onclick="exportarSessoesPDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
                     </div>
                     <div class="table-scroll-container">
                         <table id="table-sessoes">
                             <thead>
                                 <tr>
-                                    <th>Contrato</th>
-                                    <th>Título</th>
-                                    <th>Data Sessão</th>
-                                    <th>Duração</th>
+                                    <th>Data</th>
+                                    <th>Horário</th>
                                     <th>Cliente</th>
-                                    <th>Valor</th>
+                                    <th>Contrato</th>
+                                    <th>Local</th>
+                                    <th>Tipo Captação</th>
+                                    <th>Prazo Entrega</th>
+                                    <th>Status</th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-sessoes">
-                                <tr><td colspan="7" class="loading">Carregando...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Tab Comissões -->
-                <div id="tab-content-comissoes" style="display: none;">
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <button class="btn btn-primary" onclick="openModalComissao()">➕ Nova Comissão</button>
-                    </div>
-                    <div class="table-scroll-container">
-                        <table id="table-comissoes">
-                            <thead>
-                                <tr>
-                                    <th>Contrato</th>
-                                    <th>Cliente</th>
-                                    <th>Tipo</th>
-                                    <th>Valor</th>
-                                    <th>Percentual</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-comissoes">
-                                <tr><td colspan="6" class="loading">Carregando...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Tab Equipe -->
-                <div id="tab-content-equipe" style="display: none;">
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <button class="btn btn-primary" onclick="openModalSessaoEquipe()">➕ Adicionar Membro</button>
-                    </div>
-                    <div class="table-scroll-container">
-                        <table id="table-sessao-equipe">
-                            <thead>
-                                <tr>
-                                    <th>Sessão</th>
-                                    <th>Membro</th>
-                                    <th>Função</th>
-                                    <th>Observações</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-sessao-equipe">
-                                <tr><td colspan="5" class="loading">Carregando...</td></tr>
+                                <tr><td colspan="9" class="loading">Carregando...</td></tr>
                             </tbody>
                         </table>
                     </div>

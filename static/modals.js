@@ -2217,4 +2217,431 @@ window.salvarContrato = salvarContrato;
 window.atualizarCalculoContrato = atualizarCalculoContrato;
 window.adicionarComissaoContrato = adicionarComissaoContrato;
 
+// ========================================
+// SESSÕES
+// ========================================
+
+async function openModalSessao(sessaoEdit = null) {
+    console.log('📋 openModalSessao chamada', sessaoEdit ? 'MODO EDIÇÃO' : 'MODO CRIAÇÃO');
+    
+    // Carregar dependências
+    if (!window.clientes || window.clientes.length === 0) {
+        await loadClientes();
+    }
+    if (!window.contratos || window.contratos.length === 0) {
+        await loadContratos();
+    }
+    if (!window.funcionarios || window.funcionarios.length === 0) {
+        await loadFuncionarios();
+    }
+    if (!window.kits || window.kits.length === 0) {
+        await loadKits();
+    }
+    
+    const isEdit = sessaoEdit !== null;
+    const titulo = isEdit ? 'Editar Sessão' : 'Nova Sessão';
+    
+    // Opções de clientes
+    const opcoesClientes = window.clientes && window.clientes.length > 0
+        ? window.clientes.map(c => {
+            const selected = isEdit && sessaoEdit.cliente_id === c.id ? 'selected' : '';
+            return `<option value="${c.id}" ${selected}>${c.razao_social || c.nome}</option>`;
+        }).join('')
+        : '<option value="">Nenhum cliente cadastrado</option>';
+    
+    // Opções de contratos
+    const opcoesContratos = window.contratos && window.contratos.length > 0
+        ? window.contratos.map(c => {
+            const selected = isEdit && sessaoEdit.contrato_id === c.id ? 'selected' : '';
+            return `<option value="${c.id}" ${selected}>${c.nome || c.numero}</option>`;
+        }).join('')
+        : '<option value="">Nenhum contrato cadastrado</option>';
+    
+    // Opções de funcionários
+    const opcoesFuncionarios = window.funcionarios && window.funcionarios.length > 0
+        ? window.funcionarios.map(f => `<option value="${f.id}">${f.nome}</option>`).join('')
+        : '<option value="">Nenhum funcionário cadastrado</option>';
+    
+    // Checkboxes de kits
+    const kitsDisponiveis = window.kits && window.kits.length > 0
+        ? window.kits.map(k => {
+            const checked = isEdit && sessaoEdit.equipamentos && sessaoEdit.equipamentos.includes(k.id) ? 'checked' : '';
+            return `<label style="display: inline-block; margin-right: 15px; margin-bottom: 10px;">
+                <input type="checkbox" class="kit-checkbox" value="${k.id}" ${checked}> ${k.nome}
+            </label>`;
+        }).join('')
+        : '<p>Nenhum kit cadastrado</p>';
+    
+    const modal = createModal(titulo, `
+        <form id="form-sessao" onsubmit="salvarSessao(event)" style="max-height: 85vh; overflow-y: auto;">
+            <input type="hidden" id="sessao-id" value="${isEdit ? sessaoEdit.id : ''}">
+            
+            <!-- Linha 1: Cliente e Contrato -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>*Cliente:</label>
+                    <select id="sessao-cliente" required>
+                        <option value="">Selecione...</option>
+                        ${opcoesClientes}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>*Contrato:</label>
+                    <select id="sessao-contrato" required>
+                        <option value="">Selecione...</option>
+                        ${opcoesContratos}
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Linha 2: Data, Horário, Quantidade de Horas -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>*Data:</label>
+                    <input type="date" id="sessao-data" required value="${isEdit && sessaoEdit.data ? sessaoEdit.data.split('T')[0] : ''}">
+                </div>
+                
+                <div class="form-group">
+                    <label>*Horário:</label>
+                    <input type="text" id="sessao-horario" required value="${isEdit ? sessaoEdit.horario || '' : ''}" placeholder="14h às 18h">
+                </div>
+                
+                <div class="form-group">
+                    <label>Quantidade de Horas:</label>
+                    <input type="number" id="sessao-horas" step="0.5" min="0" value="${isEdit ? sessaoEdit.quantidade_horas || '' : ''}" placeholder="4">
+                </div>
+            </div>
+            
+            <!-- Linha 3: Endereço -->
+            <div class="form-group">
+                <label>*Endereço:</label>
+                <input type="text" id="sessao-endereco" required value="${isEdit ? sessaoEdit.endereco || '' : ''}" placeholder="R. Mourato Coelho, 1300 - Vl Madalena / São Paulo">
+            </div>
+            
+            <!-- Linha 4: Tipo de Captação -->
+            <div class="form-group">
+                <label>*Tipo de Captação:</label>
+                <div style="display: flex; gap: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <label><input type="checkbox" id="sessao-tipo-foto" ${isEdit && sessaoEdit.tipo_foto ? 'checked' : ''}> Foto</label>
+                    <label><input type="checkbox" id="sessao-tipo-video" ${isEdit && sessaoEdit.tipo_video ? 'checked' : ''}> Vídeo</label>
+                    <label><input type="checkbox" id="sessao-tipo-mobile" ${isEdit && sessaoEdit.tipo_mobile ? 'checked' : ''}> Mobile</label>
+                </div>
+            </div>
+            
+            <!-- Linha 5: Descrição -->
+            <div class="form-group">
+                <label>*Descrição da Sessão:</label>
+                <textarea id="sessao-descricao" rows="3" required placeholder="Fotos dos coquetéis de carnaval com a linha nova de sabores da Monin.">${isEdit ? sessaoEdit.descricao || '' : ''}</textarea>
+            </div>
+            
+            <!-- Linha 6: Tags -->
+            <div class="form-group">
+                <label>Tags:</label>
+                <input type="text" id="sessao-tags" value="${isEdit ? sessaoEdit.tags || '' : ''}" placeholder="Redes sociais, press kit">
+            </div>
+            
+            <!-- Linha 7: Prazo de Entrega -->
+            <div class="form-group">
+                <label>*Prazo de Entrega:</label>
+                <input type="date" id="sessao-prazo" required value="${isEdit && sessaoEdit.prazo_entrega ? sessaoEdit.prazo_entrega.split('T')[0] : ''}">
+            </div>
+            
+            <!-- Seção: Equipe -->
+            <div class="form-group">
+                <label style="font-size: 18px; font-weight: bold; color: #2c3e50; margin-top: 20px; border-bottom: 2px solid #3498db; padding-bottom: 5px;">Equipe</label>
+                <div id="sessao-equipe-container" style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9; margin-top: 10px;">
+                    <div id="sessao-equipe-list"></div>
+                    <button type="button" onclick="adicionarEquipeSessao()" class="btn btn-sm" style="margin-top: 10px; background: #3498db; color: white;">➕ Adicionar Membro</button>
+                </div>
+            </div>
+            
+            <!-- Seção: Responsáveis -->
+            <div class="form-group">
+                <label style="font-size: 18px; font-weight: bold; color: #2c3e50; margin-top: 20px; border-bottom: 2px solid #3498db; padding-bottom: 5px;">Responsáveis</label>
+                <div id="sessao-responsaveis-container" style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9; margin-top: 10px;">
+                    <div id="sessao-responsaveis-list"></div>
+                    <button type="button" onclick="adicionarResponsavelSessao()" class="btn btn-sm" style="margin-top: 10px; background: #3498db; color: white;">➕ Adicionar Responsável</button>
+                </div>
+            </div>
+            
+            <!-- Seção: Equipamentos -->
+            <div class="form-group">
+                <label style="font-size: 18px; font-weight: bold; color: #2c3e50; margin-top: 20px; border-bottom: 2px solid #3498db; padding-bottom: 5px;">Equipamentos</label>
+                <div style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9; margin-top: 10px;">
+                    ${kitsDisponiveis}
+                </div>
+            </div>
+            
+            <!-- Seção: Equipamentos Alugados -->
+            <div class="form-group">
+                <label style="font-size: 18px; font-weight: bold; color: #2c3e50; margin-top: 20px; border-bottom: 2px solid #3498db; padding-bottom: 5px;">Equipamentos Alugados</label>
+                <div id="sessao-equipamentos-alugados-container" style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9; margin-top: 10px;">
+                    <div id="sessao-equipamentos-alugados-list"></div>
+                    <button type="button" onclick="adicionarEquipamentoAlugado()" class="btn btn-sm" style="margin-top: 10px; background: #3498db; color: white;">➕ Adicionar Equipamento</button>
+                </div>
+            </div>
+            
+            <!-- Seção: Custos Adicionais -->
+            <div class="form-group">
+                <label style="font-size: 18px; font-weight: bold; color: #2c3e50; margin-top: 20px; border-bottom: 2px solid #3498db; padding-bottom: 5px;">Custos Adicionais</label>
+                <div id="sessao-custos-container" style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9; margin-top: 10px;">
+                    <div id="sessao-custos-list"></div>
+                    <button type="button" onclick="adicionarCustoAdicional()" class="btn btn-sm" style="margin-top: 10px; background: #3498db; color: white;">➕ Adicionar Custo</button>
+                </div>
+            </div>
+            
+            <!-- Seção: Observações -->
+            <div class="form-group">
+                <label>Observações Adicionais:</label>
+                <textarea id="sessao-observacoes" rows="3" placeholder="Observações gerais sobre a sessão...">${isEdit ? sessaoEdit.observacoes || '' : ''}</textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px; position: sticky; bottom: 0; background: white; padding: 15px 0; border-top: 2px solid #eee;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar Sessão</button>
+            </div>
+        </form>
+    `);
+    
+    // Preencher listas dinâmicas se estiver editando
+    if (isEdit) {
+        setTimeout(() => {
+            if (sessaoEdit.equipe) {
+                sessaoEdit.equipe.forEach(e => {
+                    adicionarEquipeSessao(e);
+                });
+            }
+            if (sessaoEdit.responsaveis) {
+                sessaoEdit.responsaveis.forEach(r => {
+                    adicionarResponsavelSessao(r);
+                });
+            }
+            if (sessaoEdit.equipamentos_alugados) {
+                sessaoEdit.equipamentos_alugados.forEach(ea => {
+                    adicionarEquipamentoAlugado(ea);
+                });
+            }
+            if (sessaoEdit.custos_adicionais) {
+                sessaoEdit.custos_adicionais.forEach(ca => {
+                    adicionarCustoAdicional(ca);
+                });
+            }
+        }, 100);
+    }
+}
+
+function adicionarEquipeSessao(dadosIniciais = null) {
+    const container = document.getElementById('sessao-equipe-list');
+    if (!container) return;
+    
+    const opcoesFuncionarios = window.funcionarios && window.funcionarios.length > 0
+        ? window.funcionarios.map(f => {
+            const selected = dadosIniciais && dadosIniciais.funcionario_id === f.id ? 'selected' : '';
+            return `<option value="${f.id}" ${selected}>${f.nome}</option>`;
+        }).join('')
+        : '<option value="">Nenhum funcionário</option>';
+    
+    const div = document.createElement('div');
+    div.className = 'equipe-item';
+    div.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
+    div.innerHTML = `
+        <select class="equipe-funcionario" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <option value="">Selecione...</option>
+            ${opcoesFuncionarios}
+        </select>
+        <input type="text" class="equipe-funcao" placeholder="Fotógrafo" value="${dadosIniciais ? dadosIniciais.funcao || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <input type="number" class="equipe-pagamento" step="0.01" min="0" placeholder="1000.00" value="${dadosIniciais ? dadosIniciais.pagamento || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm btn-danger" style="padding: 8px 12px;">🗑️</button>
+    `;
+    container.appendChild(div);
+}
+
+function adicionarResponsavelSessao(dadosIniciais = null) {
+    const container = document.getElementById('sessao-responsaveis-list');
+    if (!container) return;
+    
+    const opcoesFuncionarios = window.funcionarios && window.funcionarios.length > 0
+        ? window.funcionarios.map(f => {
+            const selected = dadosIniciais && dadosIniciais.funcionario_id === f.id ? 'selected' : '';
+            return `<option value="${f.id}" ${selected}>${f.nome}</option>`;
+        }).join('')
+        : '<option value="">Nenhum funcionário</option>';
+    
+    const div = document.createElement('div');
+    div.className = 'responsavel-item';
+    div.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
+    div.innerHTML = `
+        <select class="responsavel-funcionario" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <option value="">Selecione...</option>
+            ${opcoesFuncionarios}
+        </select>
+        <input type="text" class="responsavel-funcao" placeholder="Captação" value="${dadosIniciais ? dadosIniciais.funcao || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm btn-danger" style="padding: 8px 12px;">🗑️</button>
+    `;
+    container.appendChild(div);
+}
+
+function adicionarEquipamentoAlugado(dadosIniciais = null) {
+    const container = document.getElementById('sessao-equipamentos-alugados-list');
+    if (!container) return;
+    
+    const div = document.createElement('div');
+    div.className = 'equipamento-alugado-item';
+    div.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
+    div.innerHTML = `
+        <input type="text" class="eq-alugado-nome" placeholder="Lente Cânon RF 10-20mm" value="${dadosIniciais ? dadosIniciais.nome || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <input type="number" class="eq-alugado-valor" step="0.01" min="0" placeholder="300.00" value="${dadosIniciais ? dadosIniciais.valor || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <input type="text" class="eq-alugado-locadora" placeholder="Freshcam" value="${dadosIniciais ? dadosIniciais.locadora || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm btn-danger" style="padding: 8px 12px;">🗑️</button>
+    `;
+    container.appendChild(div);
+}
+
+function adicionarCustoAdicional(dadosIniciais = null) {
+    const container = document.getElementById('sessao-custos-list');
+    if (!container) return;
+    
+    const div = document.createElement('div');
+    div.className = 'custo-adicional-item';
+    div.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
+    div.innerHTML = `
+        <input type="text" class="custo-descricao" placeholder="Estacionamento" value="${dadosIniciais ? dadosIniciais.descricao || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <input type="number" class="custo-valor" step="0.01" min="0" placeholder="65.00" value="${dadosIniciais ? dadosIniciais.valor || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <input type="text" class="custo-tipo" placeholder="Transporte" value="${dadosIniciais ? dadosIniciais.tipo || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm btn-danger" style="padding: 8px 12px;">🗑️</button>
+    `;
+    container.appendChild(div);
+}
+
+async function salvarSessao(event) {
+    event.preventDefault();
+    
+    console.log('\n💾 ========== SALVAR SESSÃO ==========');
+    
+    const id = document.getElementById('sessao-id').value;
+    const isEdit = id && id.trim() !== '';
+    
+    console.log('🎯 Modo:', isEdit ? 'EDIÇÃO' : 'CRIAÇÃO');
+    
+    // Coletar equipe
+    const equipe = [];
+    document.querySelectorAll('.equipe-item').forEach(item => {
+        const funcionario_id = item.querySelector('.equipe-funcionario').value;
+        const funcao = item.querySelector('.equipe-funcao').value;
+        const pagamento = parseFloat(item.querySelector('.equipe-pagamento').value) || 0;
+        if (funcionario_id) {
+            equipe.push({ funcionario_id: parseInt(funcionario_id), funcao, pagamento });
+        }
+    });
+    
+    // Coletar responsáveis
+    const responsaveis = [];
+    document.querySelectorAll('.responsavel-item').forEach(item => {
+        const funcionario_id = item.querySelector('.responsavel-funcionario').value;
+        const funcao = item.querySelector('.responsavel-funcao').value;
+        if (funcionario_id) {
+            responsaveis.push({ funcionario_id: parseInt(funcionario_id), funcao });
+        }
+    });
+    
+    // Coletar equipamentos selecionados
+    const equipamentos = [];
+    document.querySelectorAll('.kit-checkbox:checked').forEach(checkbox => {
+        equipamentos.push(parseInt(checkbox.value));
+    });
+    
+    // Coletar equipamentos alugados
+    const equipamentos_alugados = [];
+    document.querySelectorAll('.equipamento-alugado-item').forEach(item => {
+        const nome = item.querySelector('.eq-alugado-nome').value;
+        const valor = parseFloat(item.querySelector('.eq-alugado-valor').value) || 0;
+        const locadora = item.querySelector('.eq-alugado-locadora').value;
+        if (nome) {
+            equipamentos_alugados.push({ nome, valor, locadora });
+        }
+    });
+    
+    // Coletar custos adicionais
+    const custos_adicionais = [];
+    document.querySelectorAll('.custo-adicional-item').forEach(item => {
+        const descricao = item.querySelector('.custo-descricao').value;
+        const valor = parseFloat(item.querySelector('.custo-valor').value) || 0;
+        const tipo = item.querySelector('.custo-tipo').value;
+        if (descricao) {
+            custos_adicionais.push({ descricao, valor, tipo });
+        }
+    });
+    
+    const data = {
+        cliente_id: parseInt(document.getElementById('sessao-cliente').value),
+        contrato_id: parseInt(document.getElementById('sessao-contrato').value),
+        data: document.getElementById('sessao-data').value,
+        horario: document.getElementById('sessao-horario').value,
+        quantidade_horas: parseFloat(document.getElementById('sessao-horas').value) || null,
+        endereco: document.getElementById('sessao-endereco').value,
+        tipo_foto: document.getElementById('sessao-tipo-foto').checked,
+        tipo_video: document.getElementById('sessao-tipo-video').checked,
+        tipo_mobile: document.getElementById('sessao-tipo-mobile').checked,
+        descricao: document.getElementById('sessao-descricao').value,
+        tags: document.getElementById('sessao-tags').value,
+        prazo_entrega: document.getElementById('sessao-prazo').value,
+        equipe: equipe,
+        responsaveis: responsaveis,
+        equipamentos: equipamentos,
+        equipamentos_alugados: equipamentos_alugados,
+        custos_adicionais: custos_adicionais,
+        observacoes: document.getElementById('sessao-observacoes').value
+    };
+    
+    console.log('📦 Dados a enviar:', JSON.stringify(data, null, 2));
+    
+    try {
+        const url = isEdit ? `/api/sessoes/${id}` : '/api/sessoes';
+        const method = isEdit ? 'PUT' : 'POST';
+        
+        console.log('🌐 URL:', url);
+        console.log('📤 Method:', method);
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        console.log('📡 Status da resposta:', response.status);
+        
+        let result;
+        try {
+            result = await response.json();
+            console.log('📡 Resposta do servidor:', result);
+        } catch (e) {
+            console.error('❌ Erro ao parsear JSON:', e);
+            const text = await response.text();
+            console.error('📄 Resposta em texto:', text);
+            throw new Error('Resposta inválida do servidor');
+        }
+        
+        if (result.success || response.ok) {
+            showToast(isEdit ? '✅ Sessão atualizada com sucesso!' : '✅ Sessão criada com sucesso!', 'success');
+            closeModal();
+            if (typeof loadSessoes === 'function') loadSessoes();
+        } else {
+            showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
+            console.error('❌ Detalhes do erro:', result);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao salvar sessão:', error);
+        showToast('❌ Erro ao salvar sessão: ' + error.message, 'error');
+    }
+}
+
+window.openModalSessao = openModalSessao;
+window.salvarSessao = salvarSessao;
+window.adicionarEquipeSessao = adicionarEquipeSessao;
+window.adicionarResponsavelSessao = adicionarResponsavelSessao;
+window.adicionarEquipamentoAlugado = adicionarEquipamentoAlugado;
+window.adicionarCustoAdicional = adicionarCustoAdicional;
+
 console.log('✓ Modals.js v20251204lancamentos5 carregado com sucesso');

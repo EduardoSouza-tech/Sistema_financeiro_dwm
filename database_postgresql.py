@@ -919,6 +919,60 @@ class DatabaseManager:
             END $$;
         """)
         
+        # Migração: Adicionar novos campos para estrutura completa de sessões (2026)
+        cursor.execute("""
+            DO $$ 
+            BEGIN
+                -- Adicionar data se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='data'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN data DATE;
+                END IF;
+                
+                -- Adicionar endereco se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='endereco'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN endereco TEXT;
+                END IF;
+                
+                -- Adicionar descricao se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='descricao'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN descricao TEXT;
+                END IF;
+                
+                -- Adicionar prazo_entrega se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='prazo_entrega'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN prazo_entrega DATE;
+                END IF;
+                
+                -- Adicionar dados_json se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='dados_json'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN dados_json JSONB;
+                END IF;
+                
+                -- Adicionar empresa_id se não existir
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='sessoes' AND column_name='empresa_id'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN empresa_id INTEGER REFERENCES empresas(id);
+                END IF;
+            END $$;
+        """)
+        
         # Tabela de tipos de sessi?o
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS tipos_sessao (
@@ -2762,6 +2816,237 @@ def deletar_contrato(contrato_id: int) -> bool:
     sucesso = cursor.rowcount > 0
     cursor.close()
     return_to_pool(conn)  # Devolver ao pool
+    return sucesso
+
+
+# ==================== FUNÇÕES CRUD - SESSÕES ====================
+def adicionar_sessao(dados: Dict) -> int:
+    """Adiciona uma nova sessão"""
+    import json
+    
+    db = DatabaseManager()
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    # Preparar dados JSON para campos complexos
+    dados_json = {
+        'horario': dados.get('horario'),
+        'quantidade_horas': dados.get('quantidade_horas'),
+        'tipo_foto': dados.get('tipo_foto', False),
+        'tipo_video': dados.get('tipo_video', False),
+        'tipo_mobile': dados.get('tipo_mobile', False),
+        'tags': dados.get('tags'),
+        'equipe': dados.get('equipe', []),
+        'responsaveis': dados.get('responsaveis', []),
+        'equipamentos': dados.get('equipamentos', []),
+        'equipamentos_alugados': dados.get('equipamentos_alugados', []),
+        'custos_adicionais': dados.get('custos_adicionais', [])
+    }
+    
+    cursor.execute("""
+        INSERT INTO sessoes 
+        (cliente_id, contrato_id, data, endereco, descricao, prazo_entrega, 
+         observacoes, dados_json, empresa_id, created_at, updated_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING id
+    """, (
+        dados.get('cliente_id'),
+        dados.get('contrato_id'),
+        dados.get('data'),
+        dados.get('endereco'),
+        dados.get('descricao'),
+        dados.get('prazo_entrega'),
+        dados.get('observacoes'),
+        json.dumps(dados_json),
+        dados.get('empresa_id', 1)
+    ))
+    
+    sessao_id = cursor.fetchone()['id']
+    conn.commit()
+    cursor.close()
+    return_to_pool(conn)
+    return sessao_id
+
+
+def listar_sessoes(empresa_id: int = None) -> List[Dict]:
+    """Lista todas as sessões"""
+    import json
+    
+    db = DatabaseManager()
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    query = """
+        SELECT 
+            s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
+            s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
+            s.created_at, s.updated_at,
+            c.nome AS cliente_nome, c.razao_social AS cliente_razao_social,
+            ct.numero AS contrato_numero, ct.descricao AS contrato_nome
+        FROM sessoes s
+        LEFT JOIN clientes c ON s.cliente_id = c.id
+        LEFT JOIN contratos ct ON s.contrato_id = ct.id
+    """
+    
+    params = []
+    if empresa_id:
+        query += " WHERE s.empresa_id = %s"
+        params.append(empresa_id)
+    
+    query += " ORDER BY s.data DESC, s.id DESC"
+    
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    
+    sessoes = []
+    for row in rows:
+        dados_json = json.loads(row['dados_json']) if row['dados_json'] else {}
+        
+        sessao = {
+            'id': row['id'],
+            'cliente_id': row['cliente_id'],
+            'cliente_nome': row['cliente_nome'] or row['cliente_razao_social'] or '-',
+            'contrato_id': row['contrato_id'],
+            'contrato_numero': row['contrato_numero'],
+            'contrato_nome': row['contrato_nome'],
+            'data': row['data'].isoformat() if row['data'] else None,
+            'horario': dados_json.get('horario'),
+            'quantidade_horas': dados_json.get('quantidade_horas'),
+            'endereco': row['endereco'],
+            'tipo_foto': dados_json.get('tipo_foto', False),
+            'tipo_video': dados_json.get('tipo_video', False),
+            'tipo_mobile': dados_json.get('tipo_mobile', False),
+            'descricao': row['descricao'],
+            'tags': dados_json.get('tags'),
+            'prazo_entrega': row['prazo_entrega'].isoformat() if row['prazo_entrega'] else None,
+            'equipe': dados_json.get('equipe', []),
+            'responsaveis': dados_json.get('responsaveis', []),
+            'equipamentos': dados_json.get('equipamentos', []),
+            'equipamentos_alugados': dados_json.get('equipamentos_alugados', []),
+            'custos_adicionais': dados_json.get('custos_adicionais', []),
+            'observacoes': row['observacoes']
+        }
+        
+        sessoes.append(sessao)
+    
+    cursor.close()
+    return_to_pool(conn)
+    return sessoes
+
+
+def buscar_sessao(sessao_id: int) -> Dict:
+    """Busca uma sessão específica"""
+    import json
+    
+    db = DatabaseManager()
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT 
+            s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
+            s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
+            c.nome AS cliente_nome, c.razao_social AS cliente_razao_social,
+            ct.numero AS contrato_numero, ct.descricao AS contrato_nome
+        FROM sessoes s
+        LEFT JOIN clientes c ON s.cliente_id = c.id
+        LEFT JOIN contratos ct ON s.contrato_id = ct.id
+        WHERE s.id = %s
+    """, (sessao_id,))
+    
+    row = cursor.fetchone()
+    cursor.close()
+    return_to_pool(conn)
+    
+    if not row:
+        return None
+    
+    dados_json = json.loads(row['dados_json']) if row['dados_json'] else {}
+    
+    return {
+        'id': row['id'],
+        'cliente_id': row['cliente_id'],
+        'cliente_nome': row['cliente_nome'] or row['cliente_razao_social'],
+        'contrato_id': row['contrato_id'],
+        'contrato_numero': row['contrato_numero'],
+        'contrato_nome': row['contrato_nome'],
+        'data': row['data'].isoformat() if row['data'] else None,
+        'horario': dados_json.get('horario'),
+        'quantidade_horas': dados_json.get('quantidade_horas'),
+        'endereco': row['endereco'],
+        'tipo_foto': dados_json.get('tipo_foto', False),
+        'tipo_video': dados_json.get('tipo_video', False),
+        'tipo_mobile': dados_json.get('tipo_mobile', False),
+        'descricao': row['descricao'],
+        'tags': dados_json.get('tags'),
+        'prazo_entrega': row['prazo_entrega'].isoformat() if row['prazo_entrega'] else None,
+        'equipe': dados_json.get('equipe', []),
+        'responsaveis': dados_json.get('responsaveis', []),
+        'equipamentos': dados_json.get('equipamentos', []),
+        'equipamentos_alugados': dados_json.get('equipamentos_alugados', []),
+        'custos_adicionais': dados_json.get('custos_adicionais', []),
+        'observacoes': row['observacoes']
+    }
+
+
+def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
+    """Atualiza uma sessão existente"""
+    import json
+    
+    db = DatabaseManager()
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    # Preparar dados JSON
+    dados_json = {
+        'horario': dados.get('horario'),
+        'quantidade_horas': dados.get('quantidade_horas'),
+        'tipo_foto': dados.get('tipo_foto', False),
+        'tipo_video': dados.get('tipo_video', False),
+        'tipo_mobile': dados.get('tipo_mobile', False),
+        'tags': dados.get('tags'),
+        'equipe': dados.get('equipe', []),
+        'responsaveis': dados.get('responsaveis', []),
+        'equipamentos': dados.get('equipamentos', []),
+        'equipamentos_alugados': dados.get('equipamentos_alugados', []),
+        'custos_adicionais': dados.get('custos_adicionais', [])
+    }
+    
+    cursor.execute("""
+        UPDATE sessoes
+        SET cliente_id = %s, contrato_id = %s, data = %s, endereco = %s,
+            descricao = %s, prazo_entrega = %s, observacoes = %s, dados_json = %s,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+    """, (
+        dados.get('cliente_id'),
+        dados.get('contrato_id'),
+        dados.get('data'),
+        dados.get('endereco'),
+        dados.get('descricao'),
+        dados.get('prazo_entrega'),
+        dados.get('observacoes'),
+        json.dumps(dados_json),
+        sessao_id
+    ))
+    
+    sucesso = cursor.rowcount > 0
+    cursor.close()
+    return_to_pool(conn)
+    return sucesso
+
+
+def deletar_sessao(sessao_id: int) -> bool:
+    """Deleta uma sessão"""
+    db = DatabaseManager()
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM sessoes WHERE id = %s", (sessao_id,))
+    
+    sucesso = cursor.rowcount > 0
+    cursor.close()
+    return_to_pool(conn)
     return sucesso
 
 

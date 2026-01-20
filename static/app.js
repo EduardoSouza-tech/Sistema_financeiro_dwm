@@ -2912,19 +2912,45 @@ async function loadSessoes() {
         tbody.innerHTML = '';
         
         if (sessoes.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhuma sessão cadastrada</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">Nenhuma sessão cadastrada</td></tr>';
             return;
         }
         
         sessoes.forEach(sessao => {
+            // Tipos de captação
+            const tipos = [];
+            if (sessao.tipo_foto) tipos.push('Foto');
+            if (sessao.tipo_video) tipos.push('Vídeo');
+            if (sessao.tipo_mobile) tipos.push('Mobile');
+            const tiposCaptacao = tipos.join(', ') || '-';
+            
+            // Status baseado no prazo
+            let statusClass = 'badge-success';
+            let statusText = 'No Prazo';
+            const hoje = new Date();
+            const prazo = sessao.prazo_entrega ? new Date(sessao.prazo_entrega) : null;
+            
+            if (prazo) {
+                const diffDias = Math.ceil((prazo - hoje) / (1000 * 60 * 60 * 24));
+                if (diffDias < 0) {
+                    statusClass = 'badge-danger';
+                    statusText = 'Atrasado';
+                } else if (diffDias <= 3) {
+                    statusClass = 'badge-warning';
+                    statusText = 'Urgente';
+                }
+            }
+            
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${escapeHtml(sessao.contrato_numero || '-')}</td>
-                <td>${escapeHtml(sessao.titulo || '')}</td>
-                <td>${sessao.data_sessao ? new Date(sessao.data_sessao).toLocaleDateString('pt-BR') : '-'}</td>
-                <td>${sessao.duracao || '-'}</td>
-                <td>${escapeHtml(sessao.cliente_nome || '')}</td>
-                <td>${formatarMoeda(sessao.valor || 0)}</td>
+                <td>${sessao.data ? new Date(sessao.data).toLocaleDateString('pt-BR') : '-'}</td>
+                <td>${escapeHtml(sessao.horario || '-')}</td>
+                <td>${escapeHtml(sessao.cliente_nome || '-')}</td>
+                <td>${escapeHtml(sessao.contrato_nome || '-')}</td>
+                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(sessao.endereco || '')}">${escapeHtml(sessao.endereco || '-')}</td>
+                <td>${tiposCaptacao}</td>
+                <td>${sessao.prazo_entrega ? new Date(sessao.prazo_entrega).toLocaleDateString('pt-BR') : '-'}</td>
+                <td><span class="badge ${statusClass}">${statusText}</span></td>
                 <td>
                     <button class="btn btn-sm btn-primary" onclick="editarSessao(${sessao.id})" title="Editar">✏️</button>
                     <button class="btn btn-sm btn-danger" onclick="excluirSessao(${sessao.id})" title="Excluir">🗑️</button>
@@ -2939,7 +2965,7 @@ async function loadSessoes() {
         logError(context, error);
         const tbody = document.getElementById('tbody-sessoes');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #e74c3c;">Erro ao carregar sessões</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #e74c3c;">Erro ao carregar sessões</td></tr>';
         }
     }
 }
@@ -3052,15 +3078,57 @@ async function excluirContrato(id) {
     }
 }
 
-function editarSessao(id) {
+async function editarSessao(id) {
     console.log('🔧 Editar sessão:', id);
-    showToast('Função de edição de sessão em desenvolvimento', 'info');
+    
+    try {
+        const response = await fetch(`/api/sessoes/${id}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        console.log('📋 Dados da sessão:', result);
+        
+        if (result.success && result.data) {
+            window.openModalSessao(result.data);
+        } else {
+            showToast('❌ Erro ao carregar dados da sessão', 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao buscar sessão:', error);
+        showToast('❌ Erro ao carregar sessão: ' + error.message, 'error');
+    }
 }
 
-function excluirSessao(id) {
-    if (confirm('Tem certeza que deseja excluir esta sessão?')) {
-        console.log('🗑️ Excluir sessão:', id);
-        showToast('Função de exclusão de sessão em desenvolvimento', 'info');
+async function excluirSessao(id) {
+    if (!confirm('Tem certeza que deseja excluir esta sessão?')) {
+        return;
+    }
+    
+    console.log('🗑️ Excluir sessão:', id);
+    
+    try {
+        const response = await fetch(`/api/sessoes/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('✅ Sessão excluída com sucesso!', 'success');
+            loadSessoes();
+        } else {
+            showToast('❌ Erro ao excluir sessão: ' + (result.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao excluir sessão:', error);
+        showToast('❌ Erro ao excluir sessão: ' + error.message, 'error');
     }
 }
 
