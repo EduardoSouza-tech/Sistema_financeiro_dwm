@@ -115,6 +115,7 @@ register_csrf_error_handlers(app)
 
 # Exceções de CSRF para endpoints de debug/migration
 csrf_instance.exempt('/api/debug/fix-kits-table')
+csrf_instance.exempt('/api/debug/fix-p1-issues')
 csrf_instance.exempt('/api/debug/extrair-schema')
 
 # Injetar CSRF token em todos os templates
@@ -5613,6 +5614,141 @@ def fix_kits_table():
             'success': True,
             'message': 'Migration executada com sucesso',
             'results': results
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/debug/fix-p1-issues', methods=['POST'])
+@csrf_instance.exempt
+def fix_p1_issues():
+    """
+    🔧 Migration P1: Corrige bugs prioritários
+    
+    Funcionalidades:
+    1. Adiciona empresa_id em todas as tabelas (multi-tenancy)
+    2. Cria indexes para empresa_id
+    3. Reporta campos que precisam de conversão manual (VARCHAR → FK)
+    
+    Returns:
+        JSON com resultados detalhados da migration
+    """
+    try:
+        conn = db.conectar()
+        cursor = conn.cursor()
+        
+        results = {
+            'multi_tenancy': [],
+            'indexes': [],
+            'warnings': []
+        }
+        
+        # Lista de tabelas que precisam de empresa_id
+        tables_to_fix = [
+            'lancamentos',
+            'categorias', 
+            'subcategorias',
+            'clientes',
+            'fornecedores',
+            'contratos',
+            'sessoes',
+            'produtos',
+            'contas_bancarias',
+            'usuarios',
+            'equipamentos',
+            'projetos'
+        ]
+        
+        # 1. Adicionar empresa_id em todas as tabelas
+        for table_name in tables_to_fix:
+            try:
+                # Verifica se coluna já existe
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = %s AND column_name = 'empresa_id'
+                    )
+                """, (table_name,))
+                
+                result = cursor.fetchone()
+                empresa_id_existe = result[0] if isinstance(result, tuple) else result['existe']
+                
+                if not empresa_id_existe:
+                    # Adiciona coluna empresa_id
+                    cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN empresa_id INTEGER NOT NULL DEFAULT 1")
+                    results['multi_tenancy'].append(f'✅ {table_name}: empresa_id adicionado')
+                else:
+                    results['multi_tenancy'].append(f'ℹ️ {table_name}: empresa_id já existe')
+                
+                # Cria index para performance
+                index_name = f'idx_{table_name}_empresa'
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM pg_indexes 
+                        WHERE indexname = %s
+                    )
+                """, (index_name,))
+                
+                result = cursor.fetchone()
+                index_existe = result[0] if isinstance(result, tuple) else result['existe']
+                
+                if not index_existe:
+                    cursor.execute(f"CREATE INDEX {index_name} ON {table_name}(empresa_id)")
+                    results['indexes'].append(f'✅ Index {index_name} criado')
+                else:
+                    results['indexes'].append(f'ℹ️ Index {index_name} já existe')
+                    
+            except Exception as e:
+                results['warnings'].append(f'⚠️ {table_name}: {str(e)}')
+        
+        # 2. Avisos sobre conversões VARCHAR → FK que precisam ser manuais
+        fk_conversions_needed = [
+            {
+                'table': 'lancamentos',
+                'column': 'categoria',
+                'target': 'categorias',
+                'reason': 'Campo VARCHAR precisa ser convertido para INTEGER FK'
+            },
+            {
+                'table': 'lancamentos', 
+                'column': 'subcategoria',
+                'target': 'subcategorias',
+                'reason': 'Campo VARCHAR precisa ser convertido para INTEGER FK'
+            },
+            {
+                'table': 'lancamentos',
+                'column': 'conta_bancaria', 
+                'target': 'contas_bancarias',
+                'reason': 'Campo VARCHAR precisa ser convertido para INTEGER FK'
+            }
+        ]
+        
+        results['warnings'].append('⚠️ CONVERSÕES MANUAIS NECESSÁRIAS:')
+        for fk in fk_conversions_needed:
+            results['warnings'].append(
+                f"   • {fk['table']}.{fk['column']} → {fk['target']}.id: {fk['reason']}"
+            )
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Migration P1 executada com sucesso',
+            'results': results,
+            'summary': {
+                'tables_updated': len([x for x in results['multi_tenancy'] if '✅' in x]),
+                'tables_skipped': len([x for x in results['multi_tenancy'] if 'ℹ️' in x]),
+                'indexes_created': len([x for x in results['indexes'] if '✅' in x]),
+                'warnings': len(results['warnings'])
+            }
         })
         
     except Exception as e:
