@@ -5423,10 +5423,15 @@ def produto_detalhes(produto_id):
 @app.route('/api/rh/funcionarios', methods=['GET'])
 def listar_funcionarios_rh():
     """Listar funcionários para uso em dropdowns (sem require_permission para permitir uso em modais)"""
+    print("=" * 80)
+    print("🔥 REQUISIÇÃO RECEBIDA: /api/rh/funcionarios")
+    print("=" * 80)
     try:
+        print("📡 Obtendo conexão com banco...")
         conn = db.get_connection()
         cursor = conn.cursor()
         
+        print("🔍 Verificando total de funcionários na tabela...")
         # Primeiro, verificar se a tabela existe e tem dados
         cursor.execute("SELECT COUNT(*) FROM funcionarios")
         total = cursor.fetchone()[0]
@@ -5472,10 +5477,15 @@ def listar_funcionarios_rh():
 def kits():
     """Gerenciar kits (GET sem require_permission para permitir uso em modais)"""
     if request.method == 'GET':
+        print("=" * 80)
+        print("🔥 REQUISIÇÃO RECEBIDA: /api/kits")
+        print("=" * 80)
         try:
+            print("📡 Obtendo conexão com banco...")
             conn = db.get_connection()
             cursor = conn.cursor()
             
+            print("🔍 Verificando se tabela kits existe...")
             # Verificar se a tabela existe
             cursor.execute("""
                 SELECT EXISTS (
