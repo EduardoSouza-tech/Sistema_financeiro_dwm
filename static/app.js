@@ -2907,6 +2907,10 @@ async function loadContratos() {
         console.log('📋 Carregando contratos...');
         
         const contratos = await apiGet('/contratos');
+        
+        // Salvar em window para uso nos modais
+        window.contratos = contratos;
+        
         const tbody = document.getElementById('tbody-contratos');
         
         if (!tbody) {
