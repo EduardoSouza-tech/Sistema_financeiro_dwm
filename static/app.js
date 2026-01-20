@@ -2914,20 +2914,35 @@ async function loadKitsTable() {
             return;
         }
         
-        tbody.innerHTML = window.kits.map(kit => `
-            <tr>
-                <td>${kit.nome}</td>
-                <td>${kit.descricao || '-'}</td>
-                <td>-</td>
-                <td>-</td>
-                <td>
-                    <button class="btn-icon" onclick='editarKit(${JSON.stringify(kit).replace(/'/g, "\\'")})'
-                        title="Editar">✏️</button>
-                    <button class="btn-icon" onclick="excluirKit(${kit.id})"
-                        title="Excluir" style="color: #e74c3c;">🗑️</button>
-                </td>
-            </tr>
-        `).join('');
+        tbody.innerHTML = window.kits.map(kit => {
+            // Separar descrição e itens
+            let descricaoLimpa = kit.descricao || '';
+            let itensExtraidos = '';
+            
+            if (descricaoLimpa.includes('\n\nItens incluídos:\n')) {
+                const partes = descricaoLimpa.split('\n\nItens incluídos:\n');
+                descricaoLimpa = partes[0];
+                itensExtraidos = partes[1] || '';
+            }
+            
+            // Formatar preço
+            const precoFormatado = kit.preco ? `R$ ${parseFloat(kit.preco).toFixed(2)}` : '-';
+            
+            return `
+                <tr>
+                    <td>${kit.nome}</td>
+                    <td>${descricaoLimpa || '-'}</td>
+                    <td>${itensExtraidos || '-'}</td>
+                    <td>${precoFormatado}</td>
+                    <td>
+                        <button class="btn-icon" onclick='editarKit(${JSON.stringify(kit).replace(/'/g, "\\'")})'
+                            title="Editar">✏️</button>
+                        <button class="btn-icon" onclick="excluirKit(${kit.id})"
+                            title="Excluir" style="color: #e74c3c;">🗑️</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
         
         console.log('✅ Tabela de kits renderizada');
     } catch (error) {
