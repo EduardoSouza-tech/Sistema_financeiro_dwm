@@ -113,6 +113,10 @@ CORS(app,
 csrf_instance = init_csrf(app)
 register_csrf_error_handlers(app)
 
+# Exceções de CSRF para endpoints de debug/migration
+csrf_instance.exempt('/api/debug/fix-kits-table')
+csrf_instance.exempt('/api/debug/extrair-schema')
+
 # Injetar CSRF token em todos os templates
 @app.context_processor
 def inject_csrf():
