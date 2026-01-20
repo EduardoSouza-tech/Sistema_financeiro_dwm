@@ -5077,11 +5077,29 @@ def sessoes():
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # POST
+        print("=" * 80)
+        print("🔥 REQUISIÇÃO RECEBIDA: POST /api/sessoes")
+        print("=" * 80)
         try:
             data = request.json
+            print(f"📦 Dados recebidos completos:")
+            print(f"   - cliente_id: {data.get('cliente_id')}")
+            print(f"   - contrato_id: {data.get('contrato_id')}")
+            print(f"   - data: {data.get('data')}")
+            print(f"   - horario: {data.get('horario')}")
+            print(f"   - quantidade_horas: {data.get('quantidade_horas')}")
+            print(f"   - endereco: {data.get('endereco')}")
+            print(f"   - equipe: {len(data.get('equipe', []))} membros")
+            print(f"   - responsaveis: {len(data.get('responsaveis', []))} responsáveis")
+            print(f"   - equipamentos: {len(data.get('equipamentos', []))} equipamentos")
+            print(f"📡 Chamando db.adicionar_sessao...")
             sessao_id = db.adicionar_sessao(data)
+            print(f"✅ Sessão criada com ID: {sessao_id}")
             return jsonify({'success': True, 'message': 'Sessão criada com sucesso', 'id': sessao_id}), 201
         except Exception as e:
+            print(f"❌ ERRO ao criar sessão: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
 
 
