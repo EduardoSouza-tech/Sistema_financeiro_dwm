@@ -5099,8 +5099,29 @@ def sessoes():
             print(f"   - equipe: {len(data.get('equipe', []))} membros")
             print(f"   - responsaveis: {len(data.get('responsaveis', []))} responsáveis")
             print(f"   - equipamentos: {len(data.get('equipamentos', []))} equipamentos")
+            
+            # 🔧 CORREÇÃO: Mapear campos do frontend para o backend
+            # Frontend envia: data, horario, quantidade_horas
+            # Backend espera: data_sessao, duracao
+            dados_mapeados = {
+                'titulo': data.get('titulo'),
+                'data_sessao': data.get('data'),  # Frontend: 'data' → Backend: 'data_sessao'
+                'duracao': int(data.get('quantidade_horas', 0)) * 60 if data.get('quantidade_horas') else None,  # Converter horas → minutos
+                'contrato_id': data.get('contrato_id'),
+                'cliente_id': data.get('cliente_id'),
+                'valor': data.get('valor'),
+                'observacoes': data.get('observacoes'),
+                'equipe': data.get('equipe', []),
+                'responsaveis': data.get('responsaveis', []),
+                'equipamentos': data.get('equipamentos', [])
+            }
+            
+            print(f"📡 Dados mapeados para o banco:")
+            print(f"   - data_sessao: {dados_mapeados.get('data_sessao')}")
+            print(f"   - duracao: {dados_mapeados.get('duracao')} minutos")
             print(f"📡 Chamando db.adicionar_sessao...")
-            sessao_id = db.adicionar_sessao(data)
+            
+            sessao_id = db.adicionar_sessao(dados_mapeados)
             print(f"✅ Sessão criada com ID: {sessao_id}")
             return jsonify({'success': True, 'message': 'Sessão criada com sucesso', 'id': sessao_id}), 201
         except Exception as e:
@@ -5512,8 +5533,92 @@ def listar_funcionarios_rh():
 
 
 # ============================================================================
-# ENDPOINT TEMPORÁRIO PARA EXTRAÇÃO DO SCHEMA (FASE 3)
+# ENDPOINTS TEMPORÁRIOS PARA DEBUG E MIGRATIONS
 # ============================================================================
+
+@app.route('/api/debug/fix-kits-table', methods=['POST'])
+def fix_kits_table():
+    """
+    Migration: Adiciona colunas 'descricao' e 'empresa_id' na tabela kits
+    Bug descoberto na Fase 3 - código usa campos que não existem
+    """
+    try:
+        conn = database.get_connection()
+        cursor = conn.cursor()
+        
+        results = {'steps': []}
+        
+        # 1. Adicionar coluna 'descricao'
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name='kits' AND column_name='descricao'
+            ) as existe
+        """)
+        result = cursor.fetchone()
+        descricao_existe = result[0] if isinstance(result, tuple) else result['existe']
+        
+        if not descricao_existe:
+            cursor.execute("ALTER TABLE kits ADD COLUMN descricao TEXT")
+            results['steps'].append('✅ Coluna descricao adicionada')
+        else:
+            results['steps'].append('ℹ️ Coluna descricao já existe')
+        
+        # 2. Adicionar coluna 'empresa_id'
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name='kits' AND column_name='empresa_id'
+            ) as existe
+        """)
+        result = cursor.fetchone()
+        empresa_id_existe = result[0] if isinstance(result, tuple) else result['existe']
+        
+        if not empresa_id_existe:
+            cursor.execute("ALTER TABLE kits ADD COLUMN empresa_id INTEGER DEFAULT 1")
+            results['steps'].append('✅ Coluna empresa_id adicionada')
+        else:
+            results['steps'].append('ℹ️ Coluna empresa_id já existe')
+        
+        # 3. Migrar dados de observacoes para descricao
+        cursor.execute("""
+            SELECT COUNT(*) FROM kits 
+            WHERE observacoes IS NOT NULL 
+            AND (descricao IS NULL OR descricao = '')
+        """)
+        result = cursor.fetchone()
+        rows_to_migrate = result[0] if isinstance(result, tuple) else result['count']
+        
+        if rows_to_migrate > 0:
+            cursor.execute("""
+                UPDATE kits 
+                SET descricao = observacoes 
+                WHERE observacoes IS NOT NULL 
+                AND (descricao IS NULL OR descricao = '')
+            """)
+            results['steps'].append(f'✅ {rows_to_migrate} registros migrados de observacoes → descricao')
+        else:
+            results['steps'].append('ℹ️ Nenhum dado para migrar')
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Migration executada com sucesso',
+            'results': results
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/debug/extrair-schema', methods=['GET'])
 def extrair_schema_debug():
     """
