@@ -5518,7 +5518,7 @@ def kits():
                 print("✅ Tabela kits criada com sucesso")
             
             cursor.execute("""
-                SELECT id, nome, descricao
+                SELECT id, nome, descricao, preco
                 FROM kits
                 ORDER BY nome
             """)
@@ -5534,16 +5534,18 @@ def kits():
                     kits_lista.append({
                         'id': row['id'],
                         'nome': row['nome'],
-                        'descricao': row.get('descricao', '')
+                        'descricao': row.get('descricao', ''),
+                        'preco': float(row.get('preco', 0)) if row.get('preco') else 0
                     })
-                    print(f"  ✅ Kit: {row['nome']} (ID: {row['id']})")
+                    print(f"  ✅ Kit: {row['nome']} (ID: {row['id']}) - R$ {row.get('preco', 0)}")
                 else:
                     kits_lista.append({
                         'id': row[0],
                         'nome': row[1],
-                        'descricao': row[2] if len(row) > 2 and row[2] else ''
+                        'descricao': row[2] if len(row) > 2 and row[2] else '',
+                        'preco': float(row[3]) if len(row) > 3 and row[3] else 0
                     })
-                    print(f"  ✅ Kit: {row[1]} (ID: {row[0]})")
+                    print(f"  ✅ Kit: {row[1]} (ID: {row[0]}) - R$ {row[3] if len(row) > 3 else 0}")
             
             cursor.close()
             conn.close()
@@ -5621,11 +5623,24 @@ def kit_detalhes(kit_id):
             conn = db.get_connection()
             cursor = conn.cursor()
             
+            # Processar descrição e itens
+            descricao_base = data.get('descricao', '')
+            itens = data.get('itens', '')
+            preco = float(data.get('preco', 0.00))
+            
+            # Concatenar itens na descrição se houver
+            descricao_completa = descricao_base
+            if itens:
+                descricao_completa += f"\n\nItens incluídos:\n{itens}"
+            
+            print(f"💰 Preço: R$ {preco}")
+            print(f"📦 Descrição completa: {descricao_completa[:100]}...")
+            
             cursor.execute("""
                 UPDATE kits 
-                SET nome = %s, descricao = %s, data_atualizacao = CURRENT_TIMESTAMP
+                SET nome = %s, descricao = %s, preco = %s, data_atualizacao = CURRENT_TIMESTAMP
                 WHERE id = %s
-            """, (data['nome'], data.get('descricao', ''), kit_id))
+            """, (data['nome'], descricao_completa, preco, kit_id))
             
             if cursor.rowcount == 0:
                 cursor.close()
