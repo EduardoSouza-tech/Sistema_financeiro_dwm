@@ -2669,14 +2669,13 @@ function openModalKit(kitEdit = null) {
     const titulo = isEdit ? 'Editar Kit' : 'Novo Kit';
     
     const modal = createModal(titulo, `
-        <form id="form-kit" style="max-height: 70vh; overflow-y: auto;">
+        <form id="form-kit" novalidate style="max-height: 70vh; overflow-y: auto;">
             <input type="hidden" id="kit-id" value="${isEdit ? kitEdit.id : ''}">
             
             <div class="form-group">
                 <label>*Nome do Kit:</label>
                 <input type="text" 
                     id="kit-nome" 
-                    required 
                     value="${isEdit ? kitEdit.nome : ''}" 
                     placeholder="Ex: Kit Fotografia Básico"
                     style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
