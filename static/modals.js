@@ -2730,7 +2730,6 @@ async function salvarKit(event) {
     console.log('   📍 event:', event);
     console.log('   📍 event.type:', event?.type);
     console.log('   📍 event.target:', event?.target);
-    console.log('   📍 Stack trace:', new Error().stack);
     
     if (!event) {
         console.error('❌ Event é null!');
@@ -2752,30 +2751,28 @@ async function salvarKit(event) {
     const id = document.getElementById('kit-id').value;
     const isEdit = id !== '';
     
+    // IMPORTANTE: Capturar valores DIRETAMENTE do DOM
     const nomeInput = document.getElementById('kit-nome');
     const descricaoInput = document.getElementById('kit-descricao');
     
-    console.log('🔍 ELEMENTOS:');
-    console.log('  nomeInput:', nomeInput);
-    console.log('  nomeInput é null?', nomeInput === null);
-    console.log('  nomeInput.value:', nomeInput ? nomeInput.value : 'ELEMENTO NULL');
-    console.log('  nomeInput.value.length:', nomeInput && nomeInput.value ? nomeInput.value.length : 0);
-    console.log('  descricaoInput:', descricaoInput);
-    console.log('  descricaoInput.value:', descricaoInput ? descricaoInput.value : 'ELEMENTO NULL');
+    console.log('🔍 DEBUG COMPLETO:');
+    console.log('   1. nomeInput element:', nomeInput);
+    console.log('   2. nomeInput.value:', nomeInput?.value);
+    console.log('   3. nomeInput.getAttribute("value"):', nomeInput?.getAttribute('value'));
+    console.log('   4. nomeInput.innerText:', nomeInput?.innerText);
+    console.log('   5. form.elements["kit-nome"]:', form.elements['kit-nome']);
+    console.log('   6. form.elements["kit-nome"]?.value:', form.elements['kit-nome']?.value);
+    console.log('   7. Todos os inputs do form:', Array.from(form.elements).map(el => ({id: el.id, value: el.value})));
     
     const dados = {
-        nome: nomeInput ? nomeInput.value.trim() : '',
-        descricao: descricaoInput ? descricaoInput.value.trim() : ''
+        nome: (nomeInput?.value || '').trim(),
+        descricao: (descricaoInput?.value || '').trim()
     };
     
-    console.log('📦 DADOS COLETADOS:');
-    console.log('  dados.nome:', JSON.stringify(dados.nome));
-    console.log('  dados.nome.length:', dados.nome.length);
-    console.log('  dados.descricao:', JSON.stringify(dados.descricao));
-    console.log('  Validação (!dados.nome):', !dados.nome);
+    console.log('📦 DADOS COLETADOS:', dados);
     
     if (!dados.nome) {
-        console.error('❌ VALIDAÇÃO FALHOU - nome está vazio ou falsy');
+        console.error('❌ VALIDAÇÃO FALHOU - nome está vazio');
         form.dataset.submitting = 'false';
         showToast('❌ Nome do kit é obrigatório', 'error');
         return;
