@@ -2789,7 +2789,8 @@ async function salvarKit(event) {
         
         console.log('📡 Response status:', response.status);
         const result = await response.json();
-        console.log('📦 Response data:', result);
+        console.log('📦 Response data (RAW):', result);
+        console.log('📦 Response data (JSON):', JSON.stringify(result, null, 2));
         
         if (response.ok && result.success) {
             showToast(isEdit ? '✅ Kit atualizado com sucesso!' : '✅ Kit criado com sucesso!', 'success');
