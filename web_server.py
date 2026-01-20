@@ -5433,8 +5433,9 @@ def listar_funcionarios_rh():
         
         print("🔍 Verificando total de funcionários na tabela...")
         # Primeiro, verificar se a tabela existe e tem dados
-        cursor.execute("SELECT COUNT(*) FROM funcionarios")
-        total = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) as total FROM funcionarios")
+        result = cursor.fetchone()
+        total = result['total'] if isinstance(result, dict) else (result[0] if result else 0)
         print(f"🔍 Total de funcionários na tabela: {total}")
         
         cursor.execute("""
@@ -5451,15 +5452,25 @@ def listar_funcionarios_rh():
         # Converter para dicionários
         funcionarios = []
         for row in rows:
-            funcionario = {
-                'id': row[0],
-                'nome': row[1],
-                'cargo': row[2] if row[2] else '',
-                'departamento': row[3] if row[3] else '',
-                'salario': float(row[4]) if row[4] else 0
-            }
+            if isinstance(row, dict):
+                funcionario = {
+                    'id': row['id'],
+                    'nome': row['nome'],
+                    'cargo': row.get('cargo', ''),
+                    'departamento': row.get('departamento', ''),
+                    'salario': float(row['salario']) if row.get('salario') else 0
+                }
+                print(f"  ✅ Funcionário: {row['nome']} (ID: {row['id']}, Ativo: {row['ativo']})")
+            else:
+                funcionario = {
+                    'id': row[0],
+                    'nome': row[1],
+                    'cargo': row[2] if row[2] else '',
+                    'departamento': row[3] if row[3] else '',
+                    'salario': float(row[4]) if row[4] else 0
+                }
+                print(f"  ✅ Funcionário: {row[1]} (ID: {row[0]}, Ativo: {row[5]})")
             funcionarios.append(funcionario)
-            print(f"  ✅ Funcionário: {row[1]} (ID: {row[0]}, Ativo: {row[5]})")
         
         cursor.close()
         conn.close()
@@ -5491,9 +5502,10 @@ def kits():
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
                     WHERE table_name = 'kits'
-                )
+                ) as existe
             """)
-            tabela_existe = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            tabela_existe = result['existe'] if isinstance(result, dict) else (result[0] if result else False)
             
             if not tabela_existe:
                 print("⚠️ Tabela kits não existe - criando...")
@@ -5523,12 +5535,19 @@ def kits():
             # Converter para dicionários
             kits_lista = []
             for row in rows:
-                kits_lista.append({
-                    'id': row[0],
-                    'nome': row[1],
-                    'descricao': row[2] if len(row) > 2 and row[2] else ''
-                })
-                if len(rows) > 0:
+                if isinstance(row, dict):
+                    kits_lista.append({
+                        'id': row['id'],
+                        'nome': row['nome'],
+                        'descricao': row.get('descricao', '')
+                    })
+                    print(f"  ✅ Kit: {row['nome']} (ID: {row['id']})")
+                else:
+                    kits_lista.append({
+                        'id': row[0],
+                        'nome': row[1],
+                        'descricao': row[2] if len(row) > 2 and row[2] else ''
+                    })
                     print(f"  ✅ Kit: {row[1]} (ID: {row[0]})")
             
             cursor.close()
