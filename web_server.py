@@ -5429,15 +5429,15 @@ def listar_funcionarios_rh():
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT id, nome, cargo, departamento, salario
+            SELECT id, nome, cargo, departamento, salario, ativo
             FROM funcionarios
             WHERE ativo = true
             ORDER BY nome
         """)
         
         rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
+        
+        print(f"🔍 Total de funcionários ativos encontrados: {len(rows)}")
         
         # Converter para dicionários
         funcionarios = []
@@ -5449,7 +5449,12 @@ def listar_funcionarios_rh():
                 'departamento': row[3],
                 'salario': float(row[4]) if row[4] else 0
             })
+            print(f"  ✅ Funcionário: {row[1]} (ID: {row[0]}, Ativo: {row[5]})")
         
+        cursor.close()
+        conn.close()
+        
+        print(f"✅ Retornando {len(funcionarios)} funcionários")
         return jsonify({'success': True, 'data': funcionarios})
     except Exception as e:
         print(f"❌ Erro ao listar funcionários: {e}")

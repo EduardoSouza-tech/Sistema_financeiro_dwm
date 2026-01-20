@@ -2241,6 +2241,17 @@ async function openModalSessao(sessaoEdit = null) {
     const isEdit = sessaoEdit !== null;
     const titulo = isEdit ? 'Editar Sessão' : 'Nova Sessão';
     
+    // Debug: Verificar dados carregados
+    console.log('🔍 Dados carregados para modal:');
+    console.log('  - Clientes:', window.clientes ? window.clientes.length : 0);
+    console.log('  - Contratos:', window.contratos ? window.contratos.length : 0);
+    console.log('  - Funcionários:', window.funcionarios ? window.funcionarios.length : 0);
+    console.log('  - Kits:', window.kits ? window.kits.length : 0);
+    
+    if (window.funcionarios && window.funcionarios.length > 0) {
+        console.log('  - Exemplo funcionário:', window.funcionarios[0]);
+    }
+    
     // Opções de clientes
     const opcoesClientes = window.clientes && window.clientes.length > 0
         ? window.clientes.map(c => {
