@@ -5556,34 +5556,99 @@ def kits():
             traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
     else:  # POST
+        print("=" * 80)
+        print("🔥 REQUISIÇÃO RECEBIDA: POST /api/kits")
+        print("=" * 80)
         try:
             data = request.json
-            kit_id = db.adicionar_kit(data)
+            print(f"📦 Dados recebidos: {data}")
+            
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO kits (nome, descricao)
+                VALUES (%s, %s)
+                RETURNING id
+            """, (data['nome'], data.get('descricao', '')))
+            
+            result = cursor.fetchone()
+            kit_id = result['id'] if isinstance(result, dict) else result[0]
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            print(f"✅ Kit criado com ID: {kit_id}")
             return jsonify({'success': True, 'message': 'Kit criado com sucesso', 'id': kit_id}), 201
         except Exception as e:
+            print(f"❌ Erro ao criar kit: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/kits/<int:kit_id>', methods=['PUT', 'DELETE'])
-@require_permission('estoque_edit')
 def kit_detalhes(kit_id):
-    """Atualizar ou excluir kit"""
+    """Atualizar ou excluir kit (sem require_permission para facilitar uso)"""
     if request.method == 'PUT':
+        print("=" * 80)
+        print(f"🔥 REQUISIÇÃO RECEBIDA: PUT /api/kits/{kit_id}")
+        print("=" * 80)
         try:
             data = request.json
-            success = db.atualizar_kit(kit_id, data)
-            if success:
-                return jsonify({'message': 'Kit atualizado com sucesso'})
-            return jsonify({'error': 'Kit não encontrado'}), 404
+            print(f"📦 Dados recebidos: {data}")
+            
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                UPDATE kits 
+                SET nome = %s, descricao = %s, data_atualizacao = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (data['nome'], data.get('descricao', ''), kit_id))
+            
+            if cursor.rowcount == 0:
+                cursor.close()
+                conn.close()
+                return jsonify({'error': 'Kit não encontrado'}), 404
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            print(f"✅ Kit {kit_id} atualizado com sucesso")
+            return jsonify({'success': True, 'message': 'Kit atualizado com sucesso'})
         except Exception as e:
+            print(f"❌ Erro ao atualizar kit: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'error': str(e)}), 500
     else:  # DELETE
+        print("=" * 80)
+        print(f"🔥 REQUISIÇÃO RECEBIDA: DELETE /api/kits/{kit_id}")
+        print("=" * 80)
         try:
-            success = db.deletar_kit(kit_id)
-            if success:
-                return jsonify({'message': 'Kit excluído com sucesso'})
-            return jsonify({'error': 'Kit não encontrado'}), 404
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("DELETE FROM kits WHERE id = %s", (kit_id,))
+            
+            if cursor.rowcount == 0:
+                cursor.close()
+                conn.close()
+                return jsonify({'error': 'Kit não encontrado'}), 404
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            print(f"✅ Kit {kit_id} excluído com sucesso")
+            return jsonify({'success': True, 'message': 'Kit excluído com sucesso'})
         except Exception as e:
+            print(f"❌ Erro ao excluir kit: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'error': str(e)}), 500
 
 

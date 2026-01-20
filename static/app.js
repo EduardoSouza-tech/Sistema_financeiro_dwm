@@ -2893,6 +2893,95 @@ async function loadKits() {
     }
 }
 
+/**
+ * Carrega e renderiza tabela de kits
+ */
+async function loadKitsTable() {
+    try {
+        console.log('📦 Carregando tabela de kits...');
+        
+        await loadKits(); // Busca dados da API
+        
+        const tbody = document.getElementById('tbody-kits');
+        
+        if (!tbody) {
+            console.warn('⚠️ Elemento tbody-kits não encontrado');
+            return;
+        }
+        
+        if (!window.kits || window.kits.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999; padding: 20px;">Nenhum kit cadastrado</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = window.kits.map(kit => `
+            <tr>
+                <td>${kit.nome}</td>
+                <td>${kit.descricao || '-'}</td>
+                <td>-</td>
+                <td>-</td>
+                <td>
+                    <button class="btn-icon" onclick='editarKit(${JSON.stringify(kit).replace(/'/g, "\\'")})'
+                        title="Editar">✏️</button>
+                    <button class="btn-icon" onclick="excluirKit(${kit.id})"
+                        title="Excluir" style="color: #e74c3c;">🗑️</button>
+                </td>
+            </tr>
+        `).join('');
+        
+        console.log('✅ Tabela de kits renderizada');
+    } catch (error) {
+        console.error('❌ Erro ao carregar tabela de kits:', error);
+        const tbody = document.getElementById('tbody-kits');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #e74c3c;">Erro ao carregar kits</td></tr>';
+        }
+    }
+}
+
+/**
+ * Editar kit
+ */
+function editarKit(kit) {
+    console.log('✏️ Editando kit:', kit);
+    if (typeof openModalKit === 'function') {
+        openModalKit(kit);
+    } else {
+        console.error('❌ Função openModalKit não encontrada');
+        showToast('Erro: Modal de edição não disponível', 'error');
+    }
+}
+
+/**
+ * Excluir kit com confirmação
+ */
+async function excluirKit(id) {
+    if (!confirm('Tem certeza que deseja excluir este kit?')) {
+        return;
+    }
+    
+    try {
+        console.log(`🗑️ Excluindo kit ID: ${id}`);
+        
+        const response = await fetch(`/api/kits/${id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showToast('✅ Kit excluído com sucesso!', 'success');
+            loadKitsTable(); // Recarrega tabela
+        } else {
+            showToast('❌ Erro ao excluir kit: ' + (result.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao excluir kit:', error);
+        showToast('❌ Erro ao excluir kit: ' + error.message, 'error');
+    }
+}
+
 // ============================================================================
 // CONTRATOS E SESSÕES
 // ============================================================================

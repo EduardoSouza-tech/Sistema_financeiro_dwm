@@ -2655,4 +2655,108 @@ window.adicionarResponsavelSessao = adicionarResponsavelSessao;
 window.adicionarEquipamentoAlugado = adicionarEquipamentoAlugado;
 window.adicionarCustoAdicional = adicionarCustoAdicional;
 
+// ========================================
+// KITS DE EQUIPAMENTOS
+// ========================================
+
+/**
+ * Abre modal para criar ou editar kit
+ */
+function openModalKit(kitEdit = null) {
+    console.log('📦 openModalKit chamada', kitEdit ? 'MODO EDIÇÃO' : 'MODO CRIAÇÃO');
+    
+    const isEdit = kitEdit !== null;
+    const titulo = isEdit ? 'Editar Kit' : 'Novo Kit';
+    
+    const modal = createModal(titulo, `
+        <form id="form-kit" onsubmit="salvarKit(event)" style="max-height: 70vh; overflow-y: auto;">
+            <input type="hidden" id="kit-id" value="${isEdit ? kitEdit.id : ''}">
+            
+            <div class="form-group">
+                <label>*Nome do Kit:</label>
+                <input type="text" 
+                    id="kit-nome" 
+                    required 
+                    value="${isEdit ? kitEdit.nome : ''}" 
+                    placeholder="Ex: Kit Fotografia Básico"
+                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Descrição:</label>
+                <textarea 
+                    id="kit-descricao" 
+                    rows="4"
+                    placeholder="Descreva o que está incluso no kit..."
+                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"
+                >${isEdit ? (kitEdit.descricao || '') : ''}</textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;">
+                <button type="button" class="btn" onclick="closeModal()" 
+                    style="background: #95a5a6; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary" 
+                    style="background: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                    ${isEdit ? 'Atualizar' : 'Criar'} Kit
+                </button>
+            </div>
+        </form>
+    `);
+}
+
+/**
+ * Salva kit (criar ou atualizar)
+ */
+async function salvarKit(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('kit-id').value;
+    const isEdit = id !== '';
+    
+    const dados = {
+        nome: document.getElementById('kit-nome').value.trim(),
+        descricao: document.getElementById('kit-descricao').value.trim()
+    };
+    
+    if (!dados.nome) {
+        showToast('❌ Nome do kit é obrigatório', 'error');
+        return;
+    }
+    
+    try {
+        console.log(isEdit ? '✏️ Atualizando kit...' : '➕ Criando kit...', dados);
+        
+        const url = isEdit ? `/api/kits/${id}` : '/api/kits';
+        const method = isEdit ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showToast(isEdit ? '✅ Kit atualizado com sucesso!' : '✅ Kit criado com sucesso!', 'success');
+            closeModal();
+            if (typeof loadKitsTable === 'function') {
+                loadKitsTable(); // Recarrega tabela
+            }
+        } else {
+            showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
+            console.error('❌ Detalhes do erro:', result);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao salvar kit:', error);
+        showToast('❌ Erro ao salvar kit: ' + error.message, 'error');
+    }
+}
+
+window.openModalKit = openModalKit;
+window.salvarKit = salvarKit;
+
 console.log('✓ Modals.js v20251204lancamentos5 carregado com sucesso');
