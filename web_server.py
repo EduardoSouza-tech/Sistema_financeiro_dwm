@@ -131,6 +131,11 @@ csrf_instance.exempt('/api/debug/fix-kits-table')
 csrf_instance.exempt('/api/debug/fix-p1-issues')
 csrf_instance.exempt('/api/debug/extrair-schema')
 
+# Exceções de CSRF para endpoints de autenticação (não têm token ainda)
+csrf_instance.exempt('/api/auth/login')
+csrf_instance.exempt('/api/auth/logout')
+csrf_instance.exempt('/api/auth/register')
+
 # Injetar CSRF token em todos os templates
 @app.context_processor
 def inject_csrf():
