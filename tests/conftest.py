@@ -260,3 +260,71 @@ def cleanup_test_data():
         cursor.execute("DELETE FROM categorias WHERE nome LIKE '%Teste%'")
         cursor.execute("DELETE FROM contas_bancarias WHERE nome LIKE '%Teste%'")
         conn.commit()
+
+
+# ============================================================================
+# FIXTURES PARA TESTES DE INTEGRAÇÃO DOS BLUEPRINTS
+# ============================================================================
+
+@pytest.fixture
+def auth_headers_admin():
+    """Headers com token de autenticação admin"""
+    # Token fictício para testes - ajustar conforme sistema de auth
+    return {
+        'Authorization': 'Bearer admin_token_test',
+        'Content-Type': 'application/json'
+    }
+
+
+@pytest.fixture
+def auth_headers_user():
+    """Headers com token de usuário normal"""
+    return {
+        'Authorization': 'Bearer user_token_test',
+        'Content-Type': 'application/json'
+    }
+
+
+@pytest.fixture
+def auth_headers_readonly():
+    """Headers com token de usuário read-only"""
+    return {
+        'Authorization': 'Bearer readonly_token_test',
+        'Content-Type': 'application/json'
+    }
+
+
+@pytest.fixture
+def sample_kit_id():
+    """ID de um kit de exemplo para testes"""
+    return 1
+
+
+@pytest.fixture
+def sample_cliente_id():
+    """ID de um cliente de exemplo para testes"""
+    return 1
+
+
+@pytest.fixture
+def sample_contrato_id():
+    """ID de um contrato de exemplo para testes"""
+    return 1
+
+
+@pytest.fixture
+def sample_sessao_id():
+    """ID de uma sessão de exemplo para testes"""
+    return 1
+
+
+@pytest.fixture
+def sample_kit_from_other_empresa():
+    """ID de kit de outra empresa (para teste de multi-tenancy)"""
+    return 999
+
+
+@pytest.fixture
+def sample_empresa_id():
+    """ID da empresa de teste"""
+    return 1
