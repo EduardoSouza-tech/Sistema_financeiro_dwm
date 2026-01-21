@@ -216,3 +216,87 @@ def is_valid_currency(value_str: str) -> bool:
         return parsed >= 0
     except:
         return False
+
+
+def parse_percentage(value_str: str) -> float:
+    """
+    Converte string de porcentagem para float
+    
+    Args:
+        value_str: String no formato '25%', '25.5%', ou '25'
+        
+    Returns:
+        Valor da porcentagem como float
+        
+    Raises:
+        ValueError: Se a string não for um formato válido
+        
+    Example:
+        >>> parse_percentage('25%')
+        25.0
+        >>> parse_percentage('25.5')
+        25.5
+    """
+    if not value_str or not isinstance(value_str, str):
+        raise ValueError("Valor deve ser uma string não vazia")
+    
+    # Remove espaços e símbolo de porcentagem
+    clean = value_str.strip().replace('%', '').replace(',', '.')
+    
+    try:
+        return float(clean)
+    except ValueError:
+        raise ValueError(f"Valor inválido para porcentagem: {value_str}")
+
+
+def apply_percentage(value: Union[int, float, Decimal], percentage: Union[int, float, Decimal], operation: str = 'increase') -> Decimal:
+    """
+    Aplica uma porcentagem a um valor (aumento ou desconto)
+    
+    Args:
+        value: Valor base
+        percentage: Porcentagem a aplicar (ex: 10 para 10%)
+        operation: 'increase' para aumento, 'decrease' para desconto
+        
+    Returns:
+        Valor resultante como Decimal
+        
+    Example:
+        >>> apply_percentage(100, 10, 'increase')
+        Decimal('110.00')
+        >>> apply_percentage(100, 10, 'decrease')
+        Decimal('90.00')
+    """
+    value_dec = Decimal(str(value))
+    percentage_dec = Decimal(str(percentage))
+    
+    change_amount = (value_dec * percentage_dec) / Decimal('100')
+    
+    if operation == 'increase':
+        result = value_dec + change_amount
+    elif operation == 'decrease':
+        result = value_dec - change_amount
+    else:
+        raise ValueError(f"Operação inválida: {operation}. Use 'increase' ou 'decrease'")
+    
+    return result.quantize(Decimal('0.01'))
+
+
+def round_money(value: Union[int, float, Decimal]) -> Decimal:
+    """
+    Arredonda um valor monetário para 2 casas decimais
+    
+    Args:
+        value: Valor a arredondar
+        
+    Returns:
+        Valor arredondado como Decimal
+        
+    Example:
+        >>> round_money(10.126)
+        Decimal('10.13')
+        >>> round_money(10.124)
+        Decimal('10.12')
+    """
+    value_dec = Decimal(str(value))
+    return value_dec.quantize(Decimal('0.01'))

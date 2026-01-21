@@ -11,6 +11,15 @@ Data: 20/01/2026
 
 import re
 from typing import Any, Optional
+from datetime import date, datetime
+
+
+class ValidationError(Exception):
+    """Exceção customizada para erros de validação"""
+    def __init__(self, message: str, field_name: Optional[str] = None):
+        self.message = message
+        self.field_name = field_name
+        super().__init__(self.message)
 
 
 def validate_required(value: Any, field_name: str = "Campo") -> tuple[bool, Optional[str]]:
@@ -299,3 +308,30 @@ def validate_all(*validations) -> None:
     for is_valid, error_message in validations:
         if not is_valid:
             raise ValidationError(error_message)
+
+
+def validate_date_range(start_date: Optional[date], end_date: Optional[date], field_name: str = "Data") -> tuple[bool, Optional[str]]:
+    """
+    Valida se uma data final é posterior ou igual à data inicial
+    
+    Args:
+        start_date: Data inicial
+        end_date: Data final
+        field_name: Nome do campo para mensagem de erro
+        
+    Returns:
+        Tupla (is_valid, error_message)
+        
+    Example:
+        >>> validate_date_range(date(2024, 1, 1), date(2024, 12, 31))
+        (True, None)
+        >>> validate_date_range(date(2024, 12, 31), date(2024, 1, 1))
+        (False, 'Data final deve ser posterior ou igual à data inicial')
+    """
+    if start_date is None or end_date is None:
+        return (False, f"{field_name}: ambas as datas devem ser preenchidas")
+    
+    if end_date < start_date:
+        return (False, f"{field_name}: data final deve ser posterior ou igual à data inicial")
+    
+    return (True, None)

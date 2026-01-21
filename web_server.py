@@ -4,7 +4,6 @@ Otimizado para PostgreSQL com pool de conexões
 """
 from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
-from flask_compress import Compress
 from functools import wraps
 import os
 import sys
@@ -95,23 +94,6 @@ from app.utils import (
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
-# ============================================================================
-# COMPRESSÃO DE RESPOSTAS (FASE 7)
-# ============================================================================
-compress = Compress()
-compress.init_app(app)
-app.config['COMPRESS_MIMETYPES'] = [
-    'text/html',
-    'text/css',
-    'text/xml',
-    'application/json',
-    'application/javascript',
-    'text/javascript'
-]
-app.config['COMPRESS_LEVEL'] = 6  # Nível de compressão (1-9)
-app.config['COMPRESS_MIN_SIZE'] = 500  # Comprimir respostas > 500 bytes
-logger.info("✅ Compressão gzip ativada")
-
 # Detectar ambiente de produção
 IS_PRODUCTION = bool(os.getenv('RAILWAY_ENVIRONMENT'))
 
@@ -148,10 +130,6 @@ register_csrf_error_handlers(app)
 csrf_instance.exempt('/api/debug/fix-kits-table')
 csrf_instance.exempt('/api/debug/fix-p1-issues')
 csrf_instance.exempt('/api/debug/extrair-schema')
-csrf_instance.exempt('/api/debug/reset-admin')
-
-# Exceção de CSRF para login (necessário para autenticação inicial)
-csrf_instance.exempt('/api/auth/login')
 
 # Injetar CSRF token em todos os templates
 @app.context_processor
@@ -172,7 +150,7 @@ if LIMITER_AVAILABLE:
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
-        default_limits=["1000 per day", "500 per hour"],  # Aumentado para testes
+        default_limits=["200 per day", "50 per hour"],
         storage_uri="memory://"
     )
     print("✅ Rate Limiting ativado")
@@ -490,7 +468,7 @@ except Exception as e:
 # ============================================================================
 
 @app.route('/api/auth/login', methods=['POST'])
-@limiter.limit("20 per minute")  # Máximo 20 tentativas por minuto (aumentado para testes)
+@limiter.limit("5 per minute")  # Máximo 5 tentativas por minuto
 def login():
     """Endpoint de login com proteção contra brute force"""
     try:
@@ -3417,98 +3395,14 @@ def deletar_evento(evento_id):
 
 
 # === ROTAS DE RELATÓRIOS ===
+# Todos os relatórios movidos para app/routes/relatorios.py
+# - dashboard, dashboard-completo, fluxo-projetado
+# - analise-contas, resumo-parceiros, analise-categorias  
+# - comparativo-periodos, indicadores, inadimplencia
 
-@app.route('/api/relatorios/fluxo-caixa', methods=['GET'])
-@require_permission('relatorios_view')
-def relatorio_fluxo_caixa():
-    """Relatório de fluxo de caixa"""
-    data_inicio_str = request.args.get('data_inicio', (date.today() - timedelta(days=30)).isoformat())
-    data_fim_str = request.args.get('data_fim', date.today().isoformat())
-    
-    # Converter strings para date objects
-    data_inicio = parse_date(data_inicio_str)
-    
-    if isinstance(data_fim_str, str):
-        data_fim = parse_date(data_fim_str)
-        
-    if isinstance(data_fim_str, str):
-        data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date()
-    else:
-        data_fim = data_fim_str
-    
-    lancamentos = db.listar_lancamentos()
-    
-    # Filtrar lançamentos por cliente se necessário
-    usuario = request.usuario
-    if usuario['tipo'] != 'admin' and usuario.get('cliente_id'):
-        lancamentos = [l for l in lancamentos if getattr(l, 'pessoa', None) == usuario['cliente_id']]
-    
-    lancamentos_periodo = []
-    for l in lancamentos:
-        if l.status == StatusLancamento.PAGO and l.data_pagamento:
-            # Converter data_pagamento para date se for datetime
-            if isinstance(l.data_pagamento, datetime):
-                data_pgto = l.data_pagamento.date()
-            else:
-                data_pgto = l.data_pagamento
-            
-            # Comparar apenas se ambos forem date
-            try:
-                if data_inicio <= data_pgto <= data_fim:
-                    lancamentos_periodo.append(l)
-            except TypeError as e:
-                print(f"ERRO: tipo data_inicio={type(data_inicio)}, data_pgto={type(data_pgto)}, data_fim={type(data_fim)}")
-                print(f"Valores: {data_inicio} <= {data_pgto} <= {data_fim}")
-                raise
-    
-    resultado = []
-    for l in lancamentos_periodo:
-        data_pgto = l.data_pagamento
-        if hasattr(data_pgto, 'date'):
-            data_pgto = data_pgto.date()
-        
-        # Para transferências, criar dois registros: débito na origem e crédito no destino
-        if l.tipo == TipoLancamento.TRANSFERENCIA:
-            # Débito na conta origem (aparece como DESPESA)
-            resultado.append({
-                'tipo': 'despesa',
-                'descricao': f"{l.descricao} (Saída)",
-                'valor': float(l.valor),
-                'data_pagamento': data_pgto.isoformat() if data_pgto else None,
-                'categoria': l.categoria,
-                'subcategoria': l.subcategoria,
-                'pessoa': l.pessoa,
-                'conta_bancaria': l.conta_bancaria if hasattr(l, 'conta_bancaria') else None
-            })
-            # Crédito na conta destino (aparece como RECEITA)
-            resultado.append({
-                'tipo': 'receita',
-                'descricao': f"{l.descricao} (Entrada)",
-                'valor': float(l.valor),
-                'data_pagamento': data_pgto.isoformat() if data_pgto else None,
-                'categoria': l.categoria,
-                'subcategoria': l.conta_bancaria,  # Inverter: origem vai para subcategoria
-                'pessoa': l.pessoa,
-                'conta_bancaria': l.subcategoria  # Destino vira a conta bancária
-            })
-        else:
-            # Receitas e despesas normais
-            resultado.append({
-                'tipo': l.tipo.value,
-                'descricao': l.descricao,
-                'valor': float(l.valor),
-                'data_pagamento': data_pgto.isoformat() if data_pgto else None,
-                'categoria': l.categoria,
-                'subcategoria': l.subcategoria,
-                'pessoa': l.pessoa,
-                'conta_bancaria': l.conta_bancaria if hasattr(l, 'conta_bancaria') else None
-            })
-    return jsonify(resultado)
-
-
-@app.route('/api/relatorios/dashboard', methods=['GET'])
-@require_permission('relatorios_view')
-def dashboard():
+# FIXME: Dashboard route com erro de sintaxe - código comentado temporariamente
+# Esta seção precisa ser revisada/removida já que relatórios estão nos blueprints
+def __broken_dashboard_code():
     """Dados para o dashboard"""
     try:
         # Pegar filtros opcionais
@@ -4993,232 +4887,8 @@ def exportar_fornecedores_excel():
 
 
 # === ROTAS DO MENU OPERACIONAL ===
-
-@app.route('/api/contratos', methods=['GET', 'POST'])
-@require_permission('contratos_view')
-def contratos():
-    """Gerenciar contratos"""
-    if request.method == 'GET':
-        try:
-            contratos = db.listar_contratos()
-            
-            # Adicionar cliente_id para cada contrato
-            for contrato in contratos:
-                contrato['cliente_id'] = contrato.get('cliente')
-            
-            # Aplicar filtro por cliente
-            contratos_filtrados = filtrar_por_cliente(contratos, request.usuario)
-            
-            return jsonify(contratos_filtrados)
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    else:  # POST
-        try:
-            data = request.json
-            print(f"🔍 Criando contrato com dados: {data}")
-            
-            # Gerar número automaticamente se não fornecido
-            if not data.get('numero'):
-                data['numero'] = db.gerar_proximo_numero_contrato()
-            
-            contrato_id = db.adicionar_contrato(data)
-            print(f"✅ Contrato criado com ID: {contrato_id}")
-            return jsonify({
-                'success': True,
-                'message': 'Contrato criado com sucesso',
-                'id': contrato_id
-            }), 201
-        except Exception as e:
-            print(f"❌ Erro ao criar contrato: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/contratos/proximo-numero', methods=['GET'])
-@require_permission('contratos_view')
-def proximo_numero_contrato():
-    """Retorna o próximo número de contrato disponível"""
-    try:
-        print("🔍 Gerando próximo número de contrato...")
-        numero = db.gerar_proximo_numero_contrato()
-        print(f"✅ Número gerado: {numero}")
-        return jsonify({'numero': numero})
-    except Exception as e:
-        print(f"❌ Erro ao gerar número: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/contratos/<int:contrato_id>', methods=['GET', 'PUT', 'DELETE'])
-@require_permission('contratos_view')
-def contrato_detalhes(contrato_id):
-    """Buscar, atualizar ou excluir contrato"""
-    if request.method == 'GET':
-        try:
-            print(f"🔍 Buscando contrato {contrato_id}")
-            contratos = db.listar_contratos()
-            contrato = next((c for c in contratos if c.get('id') == contrato_id), None)
-            
-            if contrato:
-                print(f"✅ Contrato {contrato_id} encontrado")
-                return jsonify({'success': True, 'contrato': contrato})
-            
-            print(f"❌ Contrato {contrato_id} não encontrado")
-            return jsonify({'success': False, 'error': 'Contrato não encontrado'}), 404
-            
-        except Exception as e:
-            print(f"❌ Erro ao buscar contrato {contrato_id}: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'success': False, 'error': str(e)}), 500
-            
-    elif request.method == 'PUT':
-        try:
-            data = request.json
-            print(f"🔍 Atualizando contrato {contrato_id} com dados: {data}")
-            success = db.atualizar_contrato(contrato_id, data)
-            if success:
-                print(f"✅ Contrato {contrato_id} atualizado")
-                return jsonify({'success': True, 'message': 'Contrato atualizado com sucesso'})
-            print(f"❌ Contrato {contrato_id} não encontrado")
-            return jsonify({'success': False, 'error': 'Contrato não encontrado'}), 404
-        except Exception as e:
-            print(f"❌ Erro ao atualizar contrato {contrato_id}: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'success': False, 'error': str(e)}), 500
-    else:  # DELETE
-        try:
-            print(f"🔍 Deletando contrato {contrato_id}")
-            success = db.deletar_contrato(contrato_id)
-            if success:
-                print(f"✅ Contrato {contrato_id} deletado")
-                return jsonify({'success': True, 'message': 'Contrato excluído com sucesso'})
-            print(f"❌ Contrato {contrato_id} não encontrado")
-            return jsonify({'success': False, 'error': 'Contrato não encontrado'}), 404
-        except Exception as e:
-            print(f"❌ Erro ao deletar contrato {contrato_id}: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/sessoes', methods=['GET', 'POST'])
-@require_permission('sessoes_view')
-def sessoes():
-    """Gerenciar sessões"""
-    if request.method == 'GET':
-        try:
-            sessoes = db.listar_sessoes()
-            
-            # Adicionar cliente_id para cada sessão
-            for sessao in sessoes:
-                sessao['cliente_id'] = sessao.get('cliente')
-            
-            # Aplicar filtro por cliente
-            sessoes_filtradas = filtrar_por_cliente(sessoes, request.usuario)
-            
-            return jsonify(sessoes_filtradas)
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    else:  # POST
-        print("=" * 80)
-        print("🔥 REQUISIÇÃO RECEBIDA: POST /api/sessoes")
-        print("=" * 80)
-        try:
-            data = request.json
-            print(f"📦 Dados recebidos completos:")
-            print(f"   - cliente_id: {data.get('cliente_id')}")
-            print(f"   - contrato_id: {data.get('contrato_id')}")
-            print(f"   - data: {data.get('data')}")
-            print(f"   - horario: {data.get('horario')}")
-            print(f"   - quantidade_horas: {data.get('quantidade_horas')}")
-            print(f"   - endereco: {data.get('endereco')}")
-            print(f"   - equipe: {len(data.get('equipe', []))} membros")
-            print(f"   - responsaveis: {len(data.get('responsaveis', []))} responsáveis")
-            print(f"   - equipamentos: {len(data.get('equipamentos', []))} equipamentos")
-            
-            # 🔧 CORREÇÃO: Mapear campos do frontend para o backend
-            # Frontend envia: data, horario, quantidade_horas
-            # Backend espera: data_sessao, duracao
-            dados_mapeados = {
-                'titulo': data.get('titulo'),
-                'data_sessao': data.get('data'),  # Frontend: 'data' → Backend: 'data_sessao'
-                'duracao': int(data.get('quantidade_horas', 0)) * 60 if data.get('quantidade_horas') else None,  # Converter horas → minutos
-                'contrato_id': data.get('contrato_id'),
-                'cliente_id': data.get('cliente_id'),
-                'valor': data.get('valor'),
-                'observacoes': data.get('observacoes'),
-                'equipe': data.get('equipe', []),
-                'responsaveis': data.get('responsaveis', []),
-                'equipamentos': data.get('equipamentos', [])
-            }
-            
-            print(f"📡 Dados mapeados para o banco:")
-            print(f"   - data_sessao: {dados_mapeados.get('data_sessao')}")
-            print(f"   - duracao: {dados_mapeados.get('duracao')} minutos")
-            print(f"📡 Chamando db.adicionar_sessao...")
-            
-            sessao_id = db.adicionar_sessao(dados_mapeados)
-            print(f"✅ Sessão criada com ID: {sessao_id}")
-            return jsonify({'success': True, 'message': 'Sessão criada com sucesso', 'id': sessao_id}), 201
-        except Exception as e:
-            print(f"❌ ERRO ao criar sessão: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/sessoes/<int:sessao_id>', methods=['GET', 'PUT', 'DELETE'])
-@require_permission('sessoes_view')
-def sessao_detalhes(sessao_id):
-    """Buscar, atualizar ou excluir sessão"""
-    if request.method == 'GET':
-        try:
-            print(f"🔍 Buscando sessão {sessao_id}")
-            sessao = db.buscar_sessao(sessao_id)
-            if sessao:
-                print(f"✅ Sessão {sessao_id} encontrada")
-                return jsonify({'success': True, 'data': sessao})
-            print(f"❌ Sessão {sessao_id} não encontrada")
-            return jsonify({'success': False, 'error': 'Sessão não encontrada'}), 404
-        except Exception as e:
-            print(f"❌ Erro ao buscar sessão {sessao_id}: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'success': False, 'error': str(e)}), 500
-    elif request.method == 'PUT':
-        try:
-            data = request.json
-            print(f"🔍 Atualizando sessão {sessao_id} com dados: {data}")
-            success = db.atualizar_sessao(sessao_id, data)
-            if success:
-                print(f"✅ Sessão {sessao_id} atualizada")
-                return jsonify({'success': True, 'message': 'Sessão atualizada com sucesso'})
-            print(f"❌ Sessão {sessao_id} não encontrada")
-            return jsonify({'success': False, 'error': 'Sessão não encontrada'}), 404
-        except Exception as e:
-            print(f"❌ Erro ao atualizar sessão {sessao_id}: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'success': False, 'error': str(e)}), 500
-    else:  # DELETE
-        try:
-            print(f"🔍 Deletando sessão {sessao_id}")
-            success = db.deletar_sessao(sessao_id)
-            if success:
-                print(f"✅ Sessão {sessao_id} deletada")
-                return jsonify({'success': True, 'message': 'Sessão excluída com sucesso'})
-            print(f"❌ Sessão {sessao_id} não encontrada")
-            return jsonify({'success': False, 'error': 'Sessão não encontrada'}), 404
-        except Exception as e:
-            print(f"❌ Erro ao deletar sessão {sessao_id}: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'success': False, 'error': str(e)}), 500
-
+# Rotas de Contratos movidas para app/routes/contratos.py
+# Rotas de Sessões movidas para app/routes/sessoes.py
 
 @app.route('/api/comissoes', methods=['GET', 'POST'])
 @require_permission('operacional_view')
@@ -5808,57 +5478,6 @@ def fix_p1_issues():
         }), 500
 
 
-@app.route('/api/debug/create-performance-indexes', methods=['POST'])
-@csrf_instance.exempt
-def create_performance_indexes():
-    """
-    🚀 FASE 7: Migration de performance - Criar índices otimizados
-    
-    Cria índices em:
-    - Foreign keys (cliente_id, conta_id, categoria_id, etc)
-    - Campos de filtro comum (data_lancamento, status, tipo)
-    - Campos de ordenação
-    - Índices compostos para queries comuns
-    
-    Returns:
-        JSON com índices criados e estatísticas
-    """
-    try:
-        # Importar e executar migration
-        import migration_performance_indexes
-        
-        created, skipped, errors = migration_performance_indexes.create_indexes()
-        
-        # Atualizar estatísticas se criou índices
-        if created > 0:
-            migration_performance_indexes.analyze_tables()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Migration de performance concluída',
-            'summary': {
-                'indexes_created': created,
-                'indexes_skipped': skipped,
-                'errors': errors,
-                'total_processed': created + skipped + errors
-            },
-            'next_steps': [
-                'Testar performance dos relatórios',
-                'Monitorar uso de índices com EXPLAIN ANALYZE',
-                'Considerar adicionar cache para queries mais pesadas'
-            ]
-        })
-        
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'traceback': traceback.format_exc()
-        }), 500
-
-
 @app.route('/api/debug/extrair-schema', methods=['GET'])
 def extrair_schema_debug():
     """
@@ -6014,75 +5633,6 @@ def extrair_schema_debug():
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 500
-
-
-@app.route('/api/debug/reset-admin', methods=['POST'])
-@csrf_instance.exempt
-def reset_admin():
-    """
-    🔧 Endpoint de debug para criar/resetar usuário admin
-    Útil quando há problemas de autenticação
-    """
-    try:
-        import hashlib
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
-        # Senha padrão
-        senha_padrao = "admin123"
-        password_hash = hashlib.sha256(senha_padrao.encode()).hexdigest()
-        
-        # Verificar se admin existe
-        cursor.execute("SELECT id FROM usuarios WHERE username = 'admin'")
-        admin = cursor.fetchone()
-        
-        if admin:
-            # Atualizar senha
-            cursor.execute("""
-                UPDATE usuarios 
-                SET password_hash = %s, ativo = TRUE
-                WHERE username = 'admin'
-            """, (password_hash,))
-            message = "Senha do admin resetada com sucesso!"
-        else:
-            # Criar novo admin
-            cursor.execute("""
-                INSERT INTO usuarios (username, password_hash, tipo, nome_completo, email, ativo)
-                VALUES ('admin', %s, 'admin', 'Administrador do Sistema', 'admin@sistema.com', TRUE)
-                RETURNING id
-            """, (password_hash,))
-            admin_id = cursor.fetchone()['id']
-            
-            # Conceder todas as permissões
-            cursor.execute("""
-                INSERT INTO usuario_permissoes (usuario_id, permissao_id, concedido_por)
-                SELECT %s, id, %s FROM permissoes
-            """, (admin_id, admin_id))
-            
-            message = "Usuário admin criado com sucesso!"
-        
-        conn.commit()
-        cursor.close()
-        conn.close()
-        
-        return jsonify({
-            'success': True,
-            'message': message,
-            'credentials': {
-                'username': 'admin',
-                'password': 'admin123'
-            },
-            'warning': '⚠️ Altere a senha após o primeiro login!'
-        })
-        
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'traceback': traceback.format_exc()
         }), 500
 
 

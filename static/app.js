@@ -247,6 +247,14 @@ function formatarMoeda(valor) {
     // Delega para a função da biblioteca utils.js
     return Utils.formatarMoeda(valor);
 }
+            style: 'currency',
+            currency: CONFIG.CURRENCY_FORMAT
+        }).format(Number(valor));
+    } catch (error) {
+        logError('formatarMoeda', error, { valor });
+        return 'R$ 0,00';
+    }
+}
 
 /**
  * Formata data de forma segura

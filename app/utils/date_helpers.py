@@ -273,3 +273,61 @@ def days_between(date1: Union[date, datetime, str], date2: Union[date, datetime,
         date2 = date2.date()
     
     return (date2 - date1).days
+
+
+def is_weekend(date_obj: Union[date, datetime, str]) -> bool:
+    """
+    Verifica se uma data é fim de semana (sábado ou domingo)
+    
+    Args:
+        date_obj: Data para verificar (date, datetime ou string)
+        
+    Returns:
+        True se for fim de semana, False caso contrário
+        
+    Example:
+        >>> is_weekend(date(2024, 1, 6))  # Sábado
+        True
+        >>> is_weekend(date(2024, 1, 8))  # Segunda
+        False
+    """
+    if isinstance(date_obj, str):
+        date_obj = parse_date(date_obj)
+    
+    if isinstance(date_obj, datetime):
+        date_obj = date_obj.date()
+    
+    # weekday(): 0=Monday, 5=Saturday, 6=Sunday
+    return date_obj.weekday() in (5, 6)
+
+
+def get_next_business_day(date_obj: Union[date, datetime, str]) -> date:
+    """
+    Retorna o próximo dia útil após a data fornecida
+    (pula fins de semana, não considera feriados)
+    
+    Args:
+        date_obj: Data inicial (date, datetime ou string)
+        
+    Returns:
+        Próximo dia útil como date
+        
+    Example:
+        >>> get_next_business_day(date(2024, 1, 5))  # Sexta
+        datetime.date(2024, 1, 8)  # Segunda
+        >>> get_next_business_day(date(2024, 1, 6))  # Sábado
+        datetime.date(2024, 1, 8)  # Segunda
+    """
+    if isinstance(date_obj, str):
+        date_obj = parse_date(date_obj)
+    
+    if isinstance(date_obj, datetime):
+        date_obj = date_obj.date()
+    
+    next_day = date_obj + timedelta(days=1)
+    
+    # Se for fim de semana, avança para segunda-feira
+    while next_day.weekday() in (5, 6):  # Sábado ou domingo
+        next_day += timedelta(days=1)
+    
+    return next_day
