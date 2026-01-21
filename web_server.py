@@ -6636,48 +6636,21 @@ def pool_status():
 def criar_admin_inicial():
     """Endpoint temporário para criar usuário admin no Railway"""
     try:
-        from auth_functions import hash_password
+        from auth_functions import hash_password, verificar_senha
         
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Verificar se já existe admin
-        cursor.execute("SELECT id, password_hash FROM usuarios WHERE username = 'admin'")
-        result = cursor.fetchone()
-        
-        if result:
-            # Admin existe - resetar senha
-            admin_id = result['id']
-            hash_antigo = result['password_hash'][:50] if result['password_hash'] else 'NULO'
-            
-            senha = "admin123"
-            password_hash = hash_password(senha)
-            
-            cursor.execute("""
-                UPDATE usuarios 
-                SET password_hash = %s, ativo = TRUE
-                WHERE id = %s
-            """, (password_hash, admin_id))
-            
-            conn.commit()
-            cursor.close()
-            conn.close()
-            
-            return jsonify({
-                'success': True,
-                'message': 'Senha do admin resetada com sucesso',
-                'admin_id': admin_id,
-                'username': 'admin',
-                'senha': senha,
-                'hash_antigo_preview': hash_antigo,
-                'hash_novo_preview': password_hash[:50],
-                'hash_novo_length': len(password_hash)
-            })
-        
-        # Admin não existe - criar
         senha = "admin123"
         password_hash = hash_password(senha)
         
+        # Testar se o hash funciona
+        teste_verificacao = verificar_senha(senha, password_hash)
+        
+        # Deletar admin antigo se existir
+        cursor.execute("DELETE FROM usuarios WHERE username = 'admin'")
+        
+        # Criar novo admin
         cursor.execute("""
             INSERT INTO usuarios (username, password_hash, tipo, nome_completo, email, ativo)
             VALUES ('admin', %s, 'admin', 'Administrador do Sistema', 'admin@sistema.com', TRUE)
@@ -6693,18 +6666,20 @@ def criar_admin_inicial():
         
         return jsonify({
             'success': True,
-            'message': 'Usuário admin criado com sucesso',
+            'message': 'Admin recriado do zero',
             'admin_id': admin_id,
             'username': 'admin',
             'senha': senha,
             'hash_preview': password_hash[:50],
-            'hash_length': len(password_hash)
+            'teste_verificacao': teste_verificacao
         })
         
     except Exception as e:
+        import traceback
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': str(e),
+            'traceback': traceback.format_exc()
         }), 500
 
 if __name__ == '__main__':
