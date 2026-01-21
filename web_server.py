@@ -6647,13 +6647,12 @@ def criar_admin_inicial():
         # Testar se o hash funciona
         teste_verificacao = verificar_senha(senha, password_hash)
         
-        # Deletar admin antigo se existir
-        cursor.execute("DELETE FROM usuarios WHERE username = 'admin'")
-        
-        # Criar novo admin
+        # Atualizar ou criar admin
         cursor.execute("""
             INSERT INTO usuarios (username, password_hash, tipo, nome_completo, email, ativo)
             VALUES ('admin', %s, 'admin', 'Administrador do Sistema', 'admin@sistema.com', TRUE)
+            ON CONFLICT (username) DO UPDATE 
+            SET password_hash = EXCLUDED.password_hash, ativo = TRUE
             RETURNING id
         """, (password_hash,))
         
@@ -6666,12 +6665,12 @@ def criar_admin_inicial():
         
         return jsonify({
             'success': True,
-            'message': 'Admin recriado do zero',
+            'message': 'Admin atualizado com sucesso',
             'admin_id': admin_id,
             'username': 'admin',
             'senha': senha,
             'hash_preview': password_hash[:50],
-            'teste_verificacao': teste_verificacao
+            'teste_verificacao_interna': teste_verificacao
         })
         
     except Exception as e:
