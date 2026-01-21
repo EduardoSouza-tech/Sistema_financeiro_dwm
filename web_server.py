@@ -148,6 +148,7 @@ register_csrf_error_handlers(app)
 csrf_instance.exempt('/api/debug/fix-kits-table')
 csrf_instance.exempt('/api/debug/fix-p1-issues')
 csrf_instance.exempt('/api/debug/extrair-schema')
+csrf_instance.exempt('/api/debug/reset-admin')
 
 # Exceção de CSRF para login (necessário para autenticação inicial)
 csrf_instance.exempt('/api/auth/login')
@@ -6013,6 +6014,75 @@ def extrair_schema_debug():
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 500
+
+
+@app.route('/api/debug/reset-admin', methods=['POST'])
+@csrf_instance.exempt
+def reset_admin():
+    """
+    🔧 Endpoint de debug para criar/resetar usuário admin
+    Útil quando há problemas de autenticação
+    """
+    try:
+        import hashlib
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Senha padrão
+        senha_padrao = "admin123"
+        password_hash = hashlib.sha256(senha_padrao.encode()).hexdigest()
+        
+        # Verificar se admin existe
+        cursor.execute("SELECT id FROM usuarios WHERE username = 'admin'")
+        admin = cursor.fetchone()
+        
+        if admin:
+            # Atualizar senha
+            cursor.execute("""
+                UPDATE usuarios 
+                SET password_hash = %s, ativo = TRUE
+                WHERE username = 'admin'
+            """, (password_hash,))
+            message = "Senha do admin resetada com sucesso!"
+        else:
+            # Criar novo admin
+            cursor.execute("""
+                INSERT INTO usuarios (username, password_hash, tipo, nome_completo, email, ativo)
+                VALUES ('admin', %s, 'admin', 'Administrador do Sistema', 'admin@sistema.com', TRUE)
+                RETURNING id
+            """, (password_hash,))
+            admin_id = cursor.fetchone()['id']
+            
+            # Conceder todas as permissões
+            cursor.execute("""
+                INSERT INTO usuario_permissoes (usuario_id, permissao_id, concedido_por)
+                SELECT %s, id, %s FROM permissoes
+            """, (admin_id, admin_id))
+            
+            message = "Usuário admin criado com sucesso!"
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'credentials': {
+                'username': 'admin',
+                'password': 'admin123'
+            },
+            'warning': '⚠️ Altere a senha após o primeiro login!'
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
         }), 500
 
 
