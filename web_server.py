@@ -126,15 +126,25 @@ CORS(app,
 csrf_instance = init_csrf(app)
 register_csrf_error_handlers(app)
 
-# Exceções de CSRF para endpoints de debug/migration
-csrf_instance.exempt('/api/debug/fix-kits-table')
-csrf_instance.exempt('/api/debug/fix-p1-issues')
-csrf_instance.exempt('/api/debug/extrair-schema')
+# Lista de endpoints isentos de CSRF
+CSRF_EXEMPT_ROUTES = [
+    '/api/debug/fix-kits-table',
+    '/api/debug/fix-p1-issues',
+    '/api/debug/extrair-schema',
+    '/api/auth/login',
+    '/api/auth/logout',
+    '/api/auth/register',
+    '/api/debug/criar-admin'
+]
 
-# Exceções de CSRF para endpoints de autenticação (não têm token ainda)
-csrf_instance.exempt('/api/auth/login')
-csrf_instance.exempt('/api/auth/logout')
-csrf_instance.exempt('/api/auth/register')
+@csrf_instance.exempt
+def is_csrf_exempt():
+    """Verifica se a rota atual está isenta de CSRF"""
+    return request.path in CSRF_EXEMPT_ROUTES
+
+# Aplicar isenção para cada rota
+for route in CSRF_EXEMPT_ROUTES:
+    csrf_instance.exempt(route)
 
 # Injetar CSRF token em todos os templates
 @app.context_processor
