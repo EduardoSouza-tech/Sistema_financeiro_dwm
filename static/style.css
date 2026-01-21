@@ -651,3 +651,135 @@ body {
         min-width: 0;
     }
 }
+/* ============================================================================
+   LAZY LOADING & VIRTUAL SCROLLING - FASE 7.5
+   ============================================================================ */
+
+.lazy-loader {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 25px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 1000;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+.lazy-loader.show {
+    display: block;
+}
+
+.pagination-info {
+    text-align: center;
+    padding: 15px;
+    color: #7f8c8d;
+    font-size: 13px;
+    font-weight: 500;
+    background: linear-gradient(to right, transparent, rgba(102, 126, 234, 0.05), transparent);
+    border-radius: 5px;
+    margin: 10px 0;
+}
+
+/* Sentinel (elemento invisível que dispara o carregamento) */
+#tbody-receber-sentinel,
+#tbody-pagar-sentinel,
+#tbody-lancamentos-sentinel {
+    height: 1px !important;
+    opacity: 0;
+}
+
+/* Animação suave ao adicionar novos itens */
+tbody tr {
+    animation: fadeInRow 0.3s ease-in-out;
+}
+
+@keyframes fadeInRow {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Estilo para tabelas com scroll infinito */
+.table-container {
+    position: relative;
+    max-height: calc(100vh - 250px);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.table-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #764ba2 0%, #667eea 100%);
+}
+
+/* Indicador de carregamento inline */
+.inline-loader {
+    text-align: center;
+    padding: 20px;
+    color: #667eea;
+    font-size: 14px;
+}
+
+.inline-loader::before {
+    content: "⏳";
+    margin-right: 8px;
+    animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Badge de performance */
+.performance-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.performance-badge::before {
+    content: "⚡";
+    margin-right: 4px;
+}
