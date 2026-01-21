@@ -36,14 +36,17 @@ def hash_password(password: str) -> str:
 def verificar_senha(password: str, password_hash: str) -> bool:
     """Verifica se a senha corresponde ao hash"""
     try:
-        if BCRYPT_AVAILABLE and len(password_hash) > 64:
-            # Hash bcrypt (maior que 64 caracteres)
+        # Detectar tipo de hash pelo formato
+        # Bcrypt começa com $2b$ ou $2a$ e tem 60 caracteres
+        if BCRYPT_AVAILABLE and password_hash.startswith('$2'):
+            # Hash bcrypt
             return bcrypt.checkpw(password.encode(), password_hash.encode())
         else:
-            # Hash SHA-256 (64 caracteres)
+            # Hash SHA-256 (64 caracteres hexadecimais)
             sha256_hash = hashlib.sha256(password.encode()).hexdigest()
             return sha256_hash == password_hash
-    except Exception:
+    except Exception as e:
+        print(f"Erro na verificação de senha: {e}")
         # Fallback para SHA-256
         sha256_hash = hashlib.sha256(password.encode()).hexdigest()
         return sha256_hash == password_hash
