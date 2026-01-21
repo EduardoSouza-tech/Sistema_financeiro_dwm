@@ -6636,23 +6636,40 @@ def pool_status():
 def criar_admin_inicial():
     """Endpoint temporário para criar usuário admin no Railway"""
     try:
-        import hashlib
         from auth_functions import hash_password
         
         conn = db.get_connection()
         cursor = conn.cursor()
         
         # Verificar se já existe admin
-        cursor.execute("SELECT COUNT(*) as count FROM usuarios WHERE username = 'admin'")
+        cursor.execute("SELECT id FROM usuarios WHERE username = 'admin'")
         result = cursor.fetchone()
         
-        if result and result['count'] > 0:
+        if result:
+            # Admin existe - resetar senha
+            admin_id = result['id']
+            senha = "admin123"
+            password_hash = hash_password(senha)
+            
+            cursor.execute("""
+                UPDATE usuarios 
+                SET password_hash = %s, ativo = TRUE
+                WHERE id = %s
+            """, (password_hash, admin_id))
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
             return jsonify({
-                'success': False,
-                'message': 'Usuário admin já existe'
-            }), 400
+                'success': True,
+                'message': 'Senha do admin resetada com sucesso',
+                'admin_id': admin_id,
+                'username': 'admin',
+                'senha': senha
+            })
         
-        # Criar usuário admin
+        # Admin não existe - criar
         senha = "admin123"
         password_hash = hash_password(senha)
         
