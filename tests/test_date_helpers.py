@@ -247,3 +247,95 @@ class TestGetNextBusinessDay:
         saturday = date(2026, 1, 24)
         result = get_next_business_day(saturday)
         assert result == date(2026, 1, 26)  # Segunda
+    
+    def test_from_string(self):
+        """Testa próximo dia útil a partir de string"""
+        result = get_next_business_day('2026-01-22')
+        assert result == date(2026, 1, 23)
+    
+    def test_from_datetime(self):
+        """Testa próximo dia útil a partir de datetime"""
+        dt = datetime(2026, 1, 22, 15, 30)
+        result = get_next_business_day(dt)
+        assert result == date(2026, 1, 23)
+
+
+class TestAdditionalDateHelpers:
+    """Testes adicionais para aumentar cobertura"""
+    
+    def test_format_date_br_empty(self):
+        """Testa format_date_br com None"""
+        from app.utils.date_helpers import format_date_br
+        result = format_date_br(None)
+        assert result == ''
+    
+    def test_format_date_iso_empty(self):
+        """Testa format_date_iso com None"""
+        result = format_date_iso(None)
+        assert result == ''
+    
+    def test_format_datetime_br_empty(self):
+        """Testa format_datetime_br com None"""
+        from app.utils.date_helpers import format_datetime_br
+        result = format_datetime_br(None)
+        assert result == ''
+    
+    def test_format_datetime_br_with_time(self):
+        """Testa format_datetime_br sem tempo"""
+        from app.utils.date_helpers import format_datetime_br
+        dt = datetime(2026, 1, 20, 14, 30)
+        result = format_datetime_br(dt, include_time=False)
+        assert result == '20/01/2026'
+    
+    def test_get_current_datetime_br(self):
+        """Testa get_current_datetime_br"""
+        from app.utils.date_helpers import get_current_datetime_br
+        result = get_current_datetime_br()
+        assert '/' in result
+        assert ':' in result
+    
+    def test_get_month_range_december(self):
+        """Testa get_month_range para dezembro"""
+        from app.utils.date_helpers import get_month_range
+        first, last = get_month_range(2026, 12)
+        assert first == date(2026, 12, 1)
+        assert last == date(2026, 12, 31)
+    
+    def test_is_valid_date_string_valid(self):
+        """Testa is_valid_date_string com data válida"""
+        from app.utils.date_helpers import is_valid_date_string
+        assert is_valid_date_string('2026-01-20')
+    
+    def test_is_valid_date_string_invalid(self):
+        """Testa is_valid_date_string com data inválida"""
+        from app.utils.date_helpers import is_valid_date_string
+        assert not is_valid_date_string('invalid')
+    
+    def test_is_valid_date_string_custom_format(self):
+        """Testa is_valid_date_string com formato customizado"""
+        from app.utils.date_helpers import is_valid_date_string
+        assert is_valid_date_string('20/01/2026', '%d/%m/%Y')
+    
+    def test_days_between_with_strings(self):
+        """Testa days_between com strings"""
+        result = days_between('2026-01-01', '2026-01-10')
+        assert result == 9
+    
+    def test_days_between_with_datetime(self):
+        """Testa days_between com datetime"""
+        dt1 = datetime(2026, 1, 1, 10, 30)
+        dt2 = datetime(2026, 1, 5, 15, 45)
+        result = days_between(dt1, dt2)
+        assert result == 4
+    
+    def test_is_weekend_with_string(self):
+        """Testa is_weekend com string"""
+        assert is_weekend('2026-01-24')  # Sábado
+        assert not is_weekend('2026-01-20')  # Terça
+    
+    def test_is_weekend_with_datetime(self):
+        """Testa is_weekend com datetime"""
+        dt_weekend = datetime(2026, 1, 25, 14, 30)  # Domingo
+        dt_weekday = datetime(2026, 1, 21, 10, 0)   # Quarta
+        assert is_weekend(dt_weekend)
+        assert not is_weekend(dt_weekday)
