@@ -6642,12 +6642,14 @@ def criar_admin_inicial():
         cursor = conn.cursor()
         
         # Verificar se já existe admin
-        cursor.execute("SELECT id FROM usuarios WHERE username = 'admin'")
+        cursor.execute("SELECT id, password_hash FROM usuarios WHERE username = 'admin'")
         result = cursor.fetchone()
         
         if result:
             # Admin existe - resetar senha
             admin_id = result['id']
+            hash_antigo = result['password_hash'][:50] if result['password_hash'] else 'NULO'
+            
             senha = "admin123"
             password_hash = hash_password(senha)
             
@@ -6666,7 +6668,10 @@ def criar_admin_inicial():
                 'message': 'Senha do admin resetada com sucesso',
                 'admin_id': admin_id,
                 'username': 'admin',
-                'senha': senha
+                'senha': senha,
+                'hash_antigo_preview': hash_antigo,
+                'hash_novo_preview': password_hash[:50],
+                'hash_novo_length': len(password_hash)
             })
         
         # Admin não existe - criar
@@ -6691,7 +6696,9 @@ def criar_admin_inicial():
             'message': 'Usuário admin criado com sucesso',
             'admin_id': admin_id,
             'username': 'admin',
-            'senha': senha
+            'senha': senha,
+            'hash_preview': password_hash[:50],
+            'hash_length': len(password_hash)
         })
         
     except Exception as e:
