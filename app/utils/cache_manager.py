@@ -16,6 +16,8 @@ import hashlib
 # Cache em memória (fallback)
 _memory_cache = {}
 _cache_timestamps = {}
+_cache_hits = 0
+_cache_misses = 0
 
 # Configuração
 CACHE_DEFAULT_TTL = 300  # 5 minutos
@@ -43,9 +45,13 @@ def get_cached(key: str) -> Optional[Any]:
         return None
     
     if key in _memory_cache and _is_cache_valid(key, CACHE_DEFAULT_TTL):
+        global _cache_hits
+        _cache_hits += 1
         print(f"✅ Cache HIT: {key[:16]}...")
         return _memory_cache[key]
     
+    global _cache_misses
+    _cache_misses += 1
     print(f"❌ Cache MISS: {key[:16]}...")
     return None
 
@@ -62,6 +68,8 @@ def set_cached(key: str, value: Any, ttl: int = CACHE_DEFAULT_TTL):
 
 def invalidate_cache(pattern: str = None):
     """Invalida cache por padrão ou limpa tudo"""
+    global _cache_hits, _cache_misses
+    
     if pattern:
         keys_to_remove = [k for k in _memory_cache.keys() if pattern in k]
         for key in keys_to_remove:
@@ -71,6 +79,9 @@ def invalidate_cache(pattern: str = None):
     else:
         _memory_cache.clear()
         _cache_timestamps.clear()
+        _cache_hits = 0
+        _cache_misses = 0
+        print("🗑️ Cache completamente limpo")
         print("🗑️ Cache totalmente limpo")
 
 
@@ -115,12 +126,24 @@ def get_cache_stats() -> dict:
     valid_keys = sum(1 for k in _memory_cache.keys() if _is_cache_valid(k, CACHE_DEFAULT_TTL))
     expired_keys = total_keys - valid_keys
     
+    # Calcular hit rate
+    total_requests = _cache_hits + _cache_misses
+    hit_rate = (_cache_hits / total_requests * 100) if total_requests > 0 else 0
+    
+    # Calcular tamanho da memória
+    memory_kb = sum(len(str(v)) for v in _memory_cache.values()) / 1024
+    memory_usage = f"{memory_kb:.2f} KB" if memory_kb < 1024 else f"{memory_kb/1024:.2f} MB"
+    
     return {
         'enabled': CACHE_ENABLED,
         'total_keys': total_keys,
         'valid_keys': valid_keys,
         'expired_keys': expired_keys,
-        'memory_size_kb': sum(len(str(v)) for v in _memory_cache.values()) / 1024
+        'memory_size_kb': memory_kb,
+        'memory_usage': memory_usage,
+        'cache_hits': _cache_hits,
+        'cache_misses': _cache_misses,
+        'hit_rate': hit_rate
     }
 
 
