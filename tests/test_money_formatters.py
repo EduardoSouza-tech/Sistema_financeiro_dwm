@@ -324,6 +324,31 @@ class TestAdditionalMoneyFormatters:
         # parse_currency('invalid') retorna 0.0, então is_valid_currency retorna True
         assert is_valid_currency('invalid')  # Retorna True porque 0.0 >= 0
     
+    def test_is_valid_currency_none(self):
+        """Testa is_valid_currency com None - parse_currency retorna 0.0"""
+        # parse_currency(None) pode causar AttributeError mas retorna 0.0 no except
+        result = is_valid_currency(None)
+        # O except pega qualquer exceção e retorna False, mas parse_currency trata None
+        assert result == True  # Na verdade retorna True porque parse_currency(None) → 0.0
+    
+    def test_is_valid_currency_with_mock_exception(self):
+        """Testa is_valid_currency forçando exceção no parse_currency"""
+        # Usar um objeto que cause TypeError na comparação >= 0
+        import unittest.mock as mock
+        with mock.patch('app.utils.money_formatters.parse_currency', side_effect=Exception('Test')):
+            result = is_valid_currency('test')
+            assert result == False
+    
+    def test_apply_percentage_increase(self):
+        """Testa apply_percentage com aumento"""
+        result = apply_percentage(100, 10, 'increase')
+        assert result == Decimal('110.00')
+    
+    def test_apply_percentage_decrease_coverage(self):
+        """Testa apply_percentage com desconto para cobrir linha 278"""
+        result = apply_percentage(100, 20, 'decrease')
+        assert result == Decimal('80.00')
+    
     def test_parse_percentage_empty(self):
         """Testa parse_percentage com string vazia"""
         import pytest

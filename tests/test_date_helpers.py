@@ -269,16 +269,33 @@ class TestAdditionalDateHelpers:
         result = format_date_br(None)
         assert result == ''
     
+    def test_format_date_br_from_string(self):
+        """Testa format_date_br convertendo de string"""
+        from app.utils.date_helpers import format_date_br
+        result = format_date_br('2026-01-20')
+        assert '20/01/2026' in result
+    
     def test_format_date_iso_empty(self):
         """Testa format_date_iso com None"""
         result = format_date_iso(None)
         assert result == ''
+    
+    def test_format_date_iso_from_string(self):
+        """Testa format_date_iso convertendo de string"""
+        result = format_date_iso('2026-01-20')
+        assert result == '2026-01-20'
     
     def test_format_datetime_br_empty(self):
         """Testa format_datetime_br com None"""
         from app.utils.date_helpers import format_datetime_br
         result = format_datetime_br(None)
         assert result == ''
+    
+    def test_format_datetime_br_from_string(self):
+        """Testa format_datetime_br convertendo de string"""
+        from app.utils.date_helpers import format_datetime_br
+        result = format_datetime_br('2026-01-20 14:30:00')
+        assert '20/01/2026' in result
     
     def test_format_datetime_br_with_time(self):
         """Testa format_datetime_br sem tempo"""
