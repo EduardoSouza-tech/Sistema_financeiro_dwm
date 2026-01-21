@@ -6617,6 +6617,61 @@ def pool_status():
         }), 500
 
 
+# ============================================================================
+# ENDPOINT TEMPORÁRIO PARA CRIAR USUÁRIO ADMIN (RAILWAY)
+# ============================================================================
+@app.route('/api/debug/criar-admin', methods=['POST'])
+@csrf_instance.exempt
+def criar_admin_inicial():
+    """Endpoint temporário para criar usuário admin no Railway"""
+    try:
+        import hashlib
+        from auth_functions import hash_password
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se já existe admin
+        cursor.execute("SELECT COUNT(*) as count FROM usuarios WHERE username = 'admin'")
+        result = cursor.fetchone()
+        
+        if result and result['count'] > 0:
+            return jsonify({
+                'success': False,
+                'message': 'Usuário admin já existe'
+            }), 400
+        
+        # Criar usuário admin
+        senha = "admin123"
+        password_hash = hash_password(senha)
+        
+        cursor.execute("""
+            INSERT INTO usuarios (username, password_hash, tipo, nome_completo, email, ativo)
+            VALUES ('admin', %s, 'admin', 'Administrador do Sistema', 'admin@sistema.com', TRUE)
+            RETURNING id
+        """, (password_hash,))
+        
+        result = cursor.fetchone()
+        admin_id = result['id'] if result else None
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Usuário admin criado com sucesso',
+            'admin_id': admin_id,
+            'username': 'admin',
+            'senha': senha
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 if __name__ == '__main__':
     # Ativar logging do Flask/Werkzeug
     import logging
