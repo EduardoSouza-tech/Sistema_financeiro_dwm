@@ -5,10 +5,9 @@ Sistema completo de gestão financeira e operacional para condomínios, desenvol
 ![Python](https://img.shields.io/badge/Python-3.10%20|%203.11%20|%203.12-blue)
 ![Flask](https://img.shields.io/badge/Flask-3.0.0-green)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)
-![Tests](https://img.shields.io/badge/Tests-160+-brightgreen)
-![Unit Tests](https://img.shields.io/badge/Unit_Tests-53_passing-green)
-![Integration Tests](https://img.shields.io/badge/Integration_Tests-40+-blue)
-![Coverage](https://img.shields.io/badge/Coverage-96%25-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-110_passing-brightgreen)
+![Coverage](https://img.shields.io/badge/Coverage-100%25-success)
+[![codecov](https://codecov.io/gh/EduardoSouza-tech/Sistema_financeiro_dwm/branch/main/graph/badge.svg)](https://codecov.io/gh/EduardoSouza-tech/Sistema_financeiro_dwm)
 ![CI/CD](https://img.shields.io/badge/CI/CD-GitHub_Actions-2088FF)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
@@ -54,12 +53,14 @@ Sistema ERP empresarial para gestão de condomínios e prestadores de serviço, 
 - **Logging estruturado** com Sentry integration
 
 ### Qualidade & CI/CD
-- **160+ testes automatizados** (122 unit + 40+ integration)
-- **96% de cobertura** de código
+- **110 testes automatizados** (110 unit + 40+ integration)
+- **100% de cobertura** em módulos críticos (date_helpers, money_formatters)
 - **GitHub Actions** com pipeline completo (tests, lint, security)
+- **Codecov integration** com tracking visual de cobertura
 - **Type hints** e validações robustas
 - **Error handling** centralizado
 - **Migrations** versionadas
+- **Branch protection** configurado para main
 
 ## ✨ Funcionalidades
 
