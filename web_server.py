@@ -483,6 +483,7 @@ except Exception as e:
 # ============================================================================
 
 @app.route('/api/auth/login', methods=['POST'])
+@csrf_instance.exempt
 @limiter.limit("5 per minute")  # Máximo 5 tentativas por minuto
 def login():
     """Endpoint de login com proteção contra brute force"""
