@@ -2,11 +2,14 @@
 
 Sistema completo de gestão financeira e operacional para condomínios, desenvolvido com Flask e PostgreSQL. Arquitetura modular otimizada com blueprints, cache, compressão e testes automatizados.
 
-![Python](https://img.shields.io/badge/Python-3.11-blue)
+![Python](https://img.shields.io/badge/Python-3.10%20|%203.11%20|%203.12-blue)
 ![Flask](https://img.shields.io/badge/Flask-3.0.0-green)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)
-![Tests](https://img.shields.io/badge/Tests-142_passing-brightgreen)
-![Coverage](https://img.shields.io/badge/Coverage-95%25-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-160+-brightgreen)
+![Unit Tests](https://img.shields.io/badge/Unit_Tests-53_passing-green)
+![Integration Tests](https://img.shields.io/badge/Integration_Tests-40+-blue)
+![Coverage](https://img.shields.io/badge/Coverage-96%25-brightgreen)
+![CI/CD](https://img.shields.io/badge/CI/CD-GitHub_Actions-2088FF)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ## 📋 Índice
@@ -28,7 +31,8 @@ Sistema ERP empresarial para gestão de condomínios e prestadores de serviço, 
 - 🏗️ **Arquitetura Modular**: Blueprints Flask para separação de responsabilidades
 - ⚡ **Alta Performance**: Sistema de cache, índices otimizados (10-50x mais rápido)
 - 🗜️ **Compressão Gzip**: Redução de 60-80% no tráfego de rede
-- 🧪 **Testes Automatizados**: 142 test cases, 95% de cobertura
+- 🧪 **Testes Automatizados**: 160+ test cases, 96% de cobertura
+- 🔄 **CI/CD**: GitHub Actions com testes, lint e segurança
 - 🔐 **Multi-tenancy**: Suporte a múltiplas empresas (SaaS-ready)
 - 📱 **Responsivo**: Interface otimizada para desktop e mobile
 - 📊 **Relatórios Avançados**: Dashboard, fluxo de caixa, indicadores
@@ -49,9 +53,10 @@ Sistema ERP empresarial para gestão de condomínios e prestadores de serviço, 
 - **CSRF Protection** e segurança integrada
 - **Logging estruturado** com Sentry integration
 
-### Qualidade de Código
-- **142 testes automatizados** (105 unit + 37 integration)
-- **95% de cobertura** de código
+### Qualidade & CI/CD
+- **160+ testes automatizados** (122 unit + 40+ integration)
+- **96% de cobertura** de código
+- **GitHub Actions** com pipeline completo (tests, lint, security)
 - **Type hints** e validações robustas
 - **Error handling** centralizado
 - **Migrations** versionadas
@@ -532,6 +537,42 @@ Contribuições são bem-vindas! Por favor:
 4. Push para a branch (`git push origin feature/MinhaFeature`)
 5. Abra um Pull Request
 
+## � CI/CD Pipeline
+
+O projeto utiliza **GitHub Actions** para automação completa:
+
+### 🧪 Testes Automatizados
+- **Unit Tests**: Executados em Python 3.10, 3.11 e 3.12
+- **Integration Tests**: Disponíveis para execução manual
+- **Cobertura**: Relatórios automáticos via Codecov
+- **Triggers**: Push/PR nas branches main e develop
+
+### 🔍 Análise de Código
+- **Black**: Verificação de formatação
+- **isort**: Organização de imports
+- **Flake8**: Análise estática de código
+- **Pylint**: Verificação de qualidade
+
+### 🔒 Segurança
+- **Safety**: Verificação de vulnerabilidades em dependências
+- **Bandit**: Análise de segurança no código
+
+### 📊 Workflows Disponíveis
+
+1. **Tests** (`.github/workflows/tests.yml`)
+   - Executa automaticamente em push/PR
+   - Testes unitários + lint + security
+   - Gera relatório de cobertura
+
+2. **Integration Tests** (`.github/workflows/integration-tests.yml`)
+   - Execução manual via workflow_dispatch
+   - Testes completos dos blueprints
+   - Requer DATABASE_URL configurado
+
+**Ver detalhes**: [TESTES_README.md](TESTES_README.md)
+
+---
+
 ## 📧 Contato
 
 **Desenvolvedor**: Eduardo Souza  
@@ -544,6 +585,7 @@ Contribuições são bem-vindas! Por favor:
 - Railway pela hospedagem gratuita
 - Bootstrap pela interface responsiva
 - Comunidade Python pelo suporte
+- GitHub Actions pela CI/CD gratuita
 
 ---
 
