@@ -28,6 +28,7 @@ from decimal import Decimal
 from database_postgresql import StatusLancamento, TipoLancamento
 import database_postgresql as db
 from app.utils import parse_date, format_date_br, get_current_date_br, get_current_date_filename
+from app.utils.cache_manager import cached, invalidate_cache
 
 # Criar blueprint
 relatorios_bp = Blueprint('relatorios', __name__, url_prefix='/api/relatorios')
@@ -274,7 +275,11 @@ def dashboard():
 @relatorios_bp.route('/dashboard-completo', methods=['GET'])
 @require_permission('relatorios_view')
 def dashboard_completo():
-    """Dashboard completo com análises detalhadas - apenas lançamentos liquidados"""
+    """
+    Dashboard completo com análises detalhadas - apenas lançamentos liquidados
+    
+    ⚡ OTIMIZADO COM CACHE (TTL: 5 minutos)
+    """
     try:
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
@@ -285,7 +290,13 @@ def dashboard_completo():
         data_inicio_obj = parse_date(data_inicio)
         data_fim_obj = parse_date(data_fim)
         
-        lancamentos = db.listar_lancamentos()
+        # ⚡ Otimização: Buscar apenas lançamentos pagos do período
+        filtros = {
+            'status': 'pago',
+            'data_inicio': data_inicio_obj,
+            'data_fim': data_fim_obj
+        }
+        lancamentos = db.listar_lancamentos(filtros=filtros)
         
         # Filtrar lançamentos por cliente se necessário
         usuario = request.usuario

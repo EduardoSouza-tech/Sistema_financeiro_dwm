@@ -41,6 +41,13 @@ def register_blueprints(app):
     except ImportError as e:
         print(f"⚠️  Blueprint 'relatórios' não encontrado: {e}")
     
+    try:
+        from .performance import performance_bp
+        app.register_blueprint(performance_bp)
+        print("✅ Blueprint 'performance' registrado")
+    except ImportError as e:
+        print(f"⚠️  Blueprint 'performance' não encontrado: {e}")
+    
     # Adicionar outros blueprints aqui conforme forem criados
     # from .clientes import clientes_bp
     # app.register_blueprint(clientes_bp, url_prefix='/api')

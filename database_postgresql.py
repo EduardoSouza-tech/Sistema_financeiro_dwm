@@ -2102,12 +2102,32 @@ class DatabaseManager:
         return_to_pool(conn)  # Devolver ao pool
         return lancamento_id
     
-    def listar_lancamentos(self, filtros: Dict[str, Any] = None, filtro_cliente_id: int = None) -> List[Lancamento]:
-        """Lista lani?amentos com filtros opcionais e suporte a multi-tenancy"""
+    def listar_lancamentos(self, filtros: Dict[str, Any] = None, filtro_cliente_id: int = None, 
+                          page: int = None, per_page: int = 50) -> List[Lancamento]:
+        """
+        Lista lani?amentos com filtros opcionais, multi-tenancy e pagina??o
+        
+        Args:
+            filtros: Dicionário com filtros (tipo, status, datas, etc)
+            filtro_cliente_id: ID do cliente para multi-tenancy
+            page: Número da página (1-indexed). Se None, retorna todos.
+            per_page: Itens por página (padrão: 50, máx: 500)
+        
+        Returns:
+            Lista de objetos Lancamento
+        """
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        query = "SELECT * FROM lancamentos WHERE 1=1"
+        # Colunas específicas (otimização: evitar SELECT *)
+        columns = """
+            id, tipo, descricao, valor, data_vencimento, data_pagamento,
+            categoria, subcategoria, conta_bancaria, cliente_fornecedor,
+            pessoa, status, observacoes, anexo, recorrente,
+            frequencia_recorrencia, dia_vencimento
+        """
+        
+        query = f"SELECT {columns} FROM lancamentos WHERE 1=1"
         params = []
         
         # Filtro de multi-tenancy
@@ -2136,6 +2156,12 @@ class DatabaseManager:
                 params.append(filtros['conta_bancaria'])
         
         query += " ORDER BY data_vencimento DESC"
+        
+        # Adicionar paginação se especificado
+        if page is not None:
+            per_page = min(per_page, 500)  # Máximo 500 por página
+            offset = (page - 1) * per_page
+            query += f" LIMIT {per_page} OFFSET {offset}"
         
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -2603,10 +2629,19 @@ def adicionar_lancamento(lancamento: Lancamento) -> int:
     db = DatabaseManager()
     return db.adicionar_lancamento(lancamento)
 
-def listar_lancamentos(filtros: Dict[str, Any] = None, filtro_cliente_id: int = None) -> List[Lancamento]:
-    """Lista lani?amentos com suporte a filtros e multi-tenancy"""
+def listar_lancamentos(filtros: Dict[str, Any] = None, filtro_cliente_id: int = None, 
+                      page: int = None, per_page: int = 50) -> List[Lancamento]:
+    """
+    Lista lani?amentos com suporte a filtros, multi-tenancy e pagina??o
+    
+    Args:
+        filtros: Dicionário com filtros
+        filtro_cliente_id: ID do cliente para multi-tenancy
+        page: Número da página (1-indexed). Se None, retorna todos.
+        per_page: Itens por página (padrão: 50)
+    """
     db = DatabaseManager()
-    return db.listar_lancamentos(filtros, filtro_cliente_id)
+    return db.listar_lancamentos(filtros, filtro_cliente_id, page, per_page)
 
 def obter_lancamento(lancamento_id: int) -> Optional[Lancamento]:
     db = DatabaseManager()
