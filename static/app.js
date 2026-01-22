@@ -3001,10 +3001,10 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                 (fornecedoresPorCPF[numeros] || '');
         }
         
-        // Filtrar categorias por tipo
+        // Filtrar categorias por tipo (case-insensitive)
         const categoriasOpcoes = isCredito ? 
-            categorias.filter(c => c.tipo === 'RECEITA') : 
-            categorias.filter(c => c.tipo === 'DESPESA');
+            categorias.filter(c => c.tipo?.toUpperCase() === 'RECEITA') : 
+            categorias.filter(c => c.tipo?.toUpperCase() === 'DESPESA');
         
         console.log('📋 Categorias filtradas:', categoriasOpcoes.length);
         console.log('   Tipo buscado:', isCredito ? 'RECEITA' : 'DESPESA');
