@@ -6857,6 +6857,13 @@ def force_password_upgrade():
                 'success': False,
                 'error': 'Usuário não encontrado ou erro ao atualizar'
             }), 404
+    
+    except Exception as e:
+        logger.error(f"Erro ao forçar upgrade de senha: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 # ============================================================================
