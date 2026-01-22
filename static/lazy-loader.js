@@ -263,9 +263,11 @@ class LazyLoader {
         const container = document.getElementById(this.containerId);
         if (!container) return;
 
-        // Se for primeira página, limpar container
+        // Se for primeira página, limpar container E recriar sentinel
         if (page === 1) {
             container.innerHTML = '';
+            // Recriar sentinel após limpar
+            this._createSentinel(container);
         }
 
         // Renderizar items
