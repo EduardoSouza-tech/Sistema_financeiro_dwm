@@ -2539,8 +2539,179 @@ async function loadAnaliseContas() {
 }
 
 // === EXPORTAÇÃO ===
+window.gerarDRE = async function() {
+    try {
+        if (!window.fluxoCaixaDados) {
+            showToast('Carregue o fluxo de caixa primeiro', 'warning');
+            return;
+        }
+        
+        const dados = window.fluxoCaixaDados;
+        const receitas = dados.totais?.receitas || 0;
+        const despesas = dados.totais?.despesas || 0;
+        const lucro = receitas - despesas;
+        
+        const dreHTML = `
+            <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; margin: 20px auto; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <h2 style="text-align: center; color: #2c3e50; margin-bottom: 30px;">📈 DRE - Demonstrativo de Resultado</h2>
+                
+                <div style="margin-bottom: 20px; padding: 15px; background: #ecf0f1; border-radius: 8px;">
+                    <div style="font-weight: bold; color: #27ae60; margin-bottom: 10px; font-size: 16px;">RECEITA OPERACIONAL BRUTA</div>
+                    <div style="font-size: 24px; text-align: right; color: #27ae60;">${formatarMoeda(receitas)}</div>
+                </div>
+                
+                <div style="margin-bottom: 20px; padding: 15px; background: #ecf0f1; border-radius: 8px;">
+                    <div style="font-weight: bold; color: #e74c3c; margin-bottom: 10px; font-size: 16px;">(-) CUSTOS E DESPESAS</div>
+                    <div style="font-size: 24px; text-align: right; color: #e74c3c;">${formatarMoeda(despesas)}</div>
+                </div>
+                
+                <hr style="border: 2px solid #2c3e50; margin: 20px 0;">
+                
+                <div style="padding: 20px; background: ${lucro >= 0 ? '#d5f4e6' : '#fadbd8'}; border-radius: 8px;">
+                    <div style="font-weight: bold; color: #2c3e50; margin-bottom: 10px; font-size: 18px;">${lucro >= 0 ? '✅ LUCRO' : '❌ PREJUÍZO'} LÍQUIDO DO EXERCÍCIO</div>
+                    <div style="font-size: 32px; font-weight: bold; text-align: right; color: ${lucro >= 0 ? '#27ae60' : '#e74c3c'};">${formatarMoeda(Math.abs(lucro))}</div>
+                </div>
+                
+                <div style="margin-top: 20px; text-align: center; color: #7f8c8d; font-size: 12px;">
+                    Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+                </div>
+            </div>
+        `;
+        
+        // Criar modal para exibir DRE
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; justify-content: center; align-items: center; overflow-y: auto;';
+        modal.innerHTML = dreHTML + '<button onclick="this.parentElement.remove()" style="position: absolute; top: 20px; right: 20px; background: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 24px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">×</button>';
+        document.body.appendChild(modal);
+        
+    } catch (error) {
+        console.error('Erro ao gerar DRE:', error);
+        showToast('Erro ao gerar DRE', 'error');
+    }
+};
+
+window.exportarFluxoPDF = async function() {
+    try {
+        if (!window.fluxoCaixaDados) {
+            showToast('Carregue o fluxo de caixa primeiro', 'warning');
+            return;
+        }
+        
+        showToast('Funcionalidade PDF em desenvolvimento. Use a função de impressão do navegador (Ctrl+P)', 'info');
+        
+        // Criar versão para impressão
+        const printWindow = window.open('', '_blank');
+        const dados = window.fluxoCaixaDados;
+        
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Fluxo de Caixa - ${new Date().toLocaleDateString('pt-BR')}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    h1 { color: #2c3e50; text-align: center; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+                    th { background: #3498db; color: white; }
+                    .total { font-weight: bold; background: #ecf0f1; }
+                    .positivo { color: #27ae60; }
+                    .negativo { color: #e74c3c; }
+                </style>
+            </head>
+            <body>
+                <h1>📈 Fluxo de Caixa</h1>
+                <p style="text-align: center; color: #7f8c8d;">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Período</th>
+                            <th style="text-align: right;">Receitas</th>
+                            <th style="text-align: right;">Despesas</th>
+                            <th style="text-align: right;">Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        
+        if (dados.evolucao) {
+            dados.evolucao.forEach(item => {
+                html += `
+                    <tr>
+                        <td>${item.periodo}</td>
+                        <td style="text-align: right;" class="positivo">${formatarMoeda(item.receitas)}</td>
+                        <td style="text-align: right;" class="negativo">${formatarMoeda(item.despesas)}</td>
+                        <td style="text-align: right;" class="${item.saldo >= 0 ? 'positivo' : 'negativo'}">${formatarMoeda(item.saldo)}</td>
+                    </tr>`;
+            });
+        }
+        
+        html += `
+                        <tr class="total">
+                            <td><strong>TOTAL</strong></td>
+                            <td style="text-align: right;" class="positivo"><strong>${formatarMoeda(dados.totais?.receitas || 0)}</strong></td>
+                            <td style="text-align: right;" class="negativo"><strong>${formatarMoeda(dados.totais?.despesas || 0)}</strong></td>
+                            <td style="text-align: right;" class="${(dados.totais?.saldo || 0) >= 0 ? 'positivo' : 'negativo'}"><strong>${formatarMoeda(dados.totais?.saldo || 0)}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </body>
+            </html>`;
+        
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        
+        setTimeout(() => {
+            printWindow.print();
+        }, 250);
+        
+    } catch (error) {
+        console.error('Erro ao exportar PDF:', error);
+        showToast('Erro ao gerar PDF', 'error');
+    }
+};
+
 function exportarFluxoExcel() {
-    alert('Funcionalidade de exportação será implementada em breve!');
+    try {
+        if (!window.fluxoCaixaDados) {
+            showToast('Carregue o fluxo de caixa primeiro', 'warning');
+            return;
+        }
+        
+        const dados = window.fluxoCaixaDados;
+        
+        // Criar CSV (compatível com Excel)
+        let csv = 'Período,Receitas,Despesas,Saldo\n';
+        
+        if (dados.evolucao) {
+            dados.evolucao.forEach(item => {
+                csv += `${item.periodo},${item.receitas.toFixed(2)},${item.despesas.toFixed(2)},${item.saldo.toFixed(2)}\n`;
+            });
+        }
+        
+        csv += `\nTOTAL,${(dados.totais?.receitas || 0).toFixed(2)},${(dados.totais?.despesas || 0).toFixed(2)},${(dados.totais?.saldo || 0).toFixed(2)}`;
+        
+        // Download do arquivo
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', `fluxo_caixa_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showToast('✅ Arquivo Excel exportado com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('Erro ao exportar Excel:', error);
+        showToast('Erro ao exportar para Excel', 'error');
+    }
 }
 
 // === EXTRATO BANCÁRIO ===
@@ -3690,16 +3861,273 @@ window.carregarIndicadores = async function() {
 };
 
 window.carregarFluxoCaixa = async function() {
-    console.log('📈 carregarFluxoCaixa - Stub temporário');
-    showToast('Fluxo de Caixa em desenvolvimento', 'info');
+    try {
+        console.log('📈 Carregando Fluxo de Caixa...');
+        
+        // Obter filtros
+        const ano = document.getElementById('filter-ano-fluxo')?.value;
+        const mes = document.getElementById('filter-mes-fluxo')?.value;
+        const dataInicial = document.getElementById('filter-data-inicial-fluxo')?.value;
+        const dataFinal = document.getElementById('filter-data-final-fluxo')?.value;
+        const banco = document.getElementById('filter-banco-fluxo')?.value;
+        
+        // Construir datas do filtro
+        let dataInicio, dataFim;
+        
+        if (dataInicial && dataFinal) {
+            // Usar datas customizadas
+            dataInicio = dataInicial;
+            dataFim = dataFinal;
+        } else if (ano && mes) {
+            // Usar ano/mês específico
+            dataInicio = `${ano}-${mes}-01`;
+            const ultimoDia = new Date(parseInt(ano), parseInt(mes), 0).getDate();
+            dataFim = `${ano}-${mes}-${ultimoDia}`;
+        } else if (ano) {
+            // Usar ano inteiro
+            dataInicio = `${ano}-01-01`;
+            dataFim = `${ano}-12-31`;
+        } else {
+            // Usar mês atual
+            const hoje = new Date();
+            const anoAtual = hoje.getFullYear();
+            const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
+            dataInicio = `${anoAtual}-${mesAtual}-01`;
+            const ultimoDia = new Date(anoAtual, hoje.getMonth() + 1, 0).getDate();
+            dataFim = `${anoAtual}-${mesAtual}-${ultimoDia}`;
+        }
+        
+        // Buscar dados do dashboard
+        let url = `${API_URL}/relatorios/dashboard-completo?data_inicio=${dataInicio}&data_fim=${dataFim}`;
+        if (banco) {
+            url += `&conta=${encodeURIComponent(banco)}`;
+        }
+        
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Erro ao carregar dados');
+        
+        const dados = await response.json();
+        
+        // Renderizar tabela de fluxo
+        const content = document.getElementById('fluxo-caixa-content');
+        
+        let html = `
+            <div style="margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div style="background: linear-gradient(135deg, #27ae60, #229954); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">💰 Total de Receitas</div>
+                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(dados.totais?.receitas || 0)}</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">💸 Total de Despesas</div>
+                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(dados.totais?.despesas || 0)}</div>
+                </div>
+                <div style="background: linear-gradient(135deg, ${(dados.totais?.saldo || 0) >= 0 ? '#3498db, #2980b9' : '#e67e22, #d35400'}); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">📊 Saldo do Período</div>
+                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(dados.totais?.saldo || 0)}</div>
+                </div>
+            </div>
+            
+            <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Período</th>
+                            <th style="text-align: right; color: #27ae60;">Receitas</th>
+                            <th style="text-align: right; color: #e74c3c;">Despesas</th>
+                            <th style="text-align: right; color: #3498db;">Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        
+        if (dados.evolucao && dados.evolucao.length > 0) {
+            dados.evolucao.forEach(item => {
+                const saldoClass = item.saldo >= 0 ? 'positivo' : 'negativo';
+                html += `
+                    <tr>
+                        <td><strong>${item.periodo}</strong></td>
+                        <td style="text-align: right; color: #27ae60; font-weight: bold;">${formatarMoeda(item.receitas)}</td>
+                        <td style="text-align: right; color: #e74c3c; font-weight: bold;">${formatarMoeda(item.despesas)}</td>
+                        <td style="text-align: right; color: ${item.saldo >= 0 ? '#3498db' : '#e67e22'}; font-weight: bold;">${formatarMoeda(item.saldo)}</td>
+                    </tr>`;
+            });
+        } else {
+            html += '<tr><td colspan="4" style="text-align: center; padding: 40px; color: #999;">Nenhum lançamento encontrado no período</td></tr>';
+        }
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>`;
+        
+        content.innerHTML = html;
+        
+        // Armazenar dados para exportação
+        window.fluxoCaixaDados = dados;
+        
+        showToast('Fluxo de Caixa carregado com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar fluxo de caixa:', error);
+        const content = document.getElementById('fluxo-caixa-content');
+        content.innerHTML = '<div style="text-align: center; padding: 40px; color: #e74c3c;">❌ Erro ao carregar dados do fluxo de caixa</div>';
+        showToast('Erro ao carregar fluxo de caixa', 'error');
+    }
 };
 
 window.carregarBancosFluxo = async function() {
-    console.log('🏦 carregarBancosFluxo - Stub temporário');
-    // Esta função geralmente é chamada internamente, não mostra toast
+    try {
+        const response = await fetch(`${API_URL}/contas`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Erro ao carregar contas');
+        
+        const contas = await response.json();
+        const select = document.getElementById('filter-banco-fluxo');
+        
+        if (select) {
+            select.innerHTML = '<option value="">Todos</option>';
+            contas.forEach(conta => {
+                select.innerHTML += `<option value="${conta.nome}">${conta.nome}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao carregar bancos:', error);
+    }
+};
+
+window.limparFiltrosFluxo = function() {
+    document.getElementById('filter-ano-fluxo').value = '';
+    document.getElementById('filter-mes-fluxo').value = '';
+    document.getElementById('filter-data-inicial-fluxo').value = '';
+    document.getElementById('filter-data-final-fluxo').value = '';
+    document.getElementById('filter-banco-fluxo').value = '';
+    window.carregarFluxoCaixa();
 };
 
 window.carregarComparativoPeriodos = async function() {
     console.log('📉 carregarComparativoPeriodos - Stub temporário');
     showToast('Comparativo de Períodos em desenvolvimento', 'info');
+};
+
+// === TRANSFERÊNCIA ENTRE CONTAS ===
+window.openModalTransferencia = async function() {
+    try {
+        // Carregar contas
+        const response = await fetch(`${API_URL}/contas`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Erro ao carregar contas');
+        
+        const contas = await response.json();
+        
+        // Preencher selects
+        const selectOrigem = document.getElementById('transferencia-origem');
+        const selectDestino = document.getElementById('transferencia-destino');
+        
+        const optionsHTML = '<option value="">Selecione...</option>' + 
+            contas.map(c => `<option value="${c.nome}">${c.nome}</option>`).join('');
+        
+        selectOrigem.innerHTML = optionsHTML;
+        selectDestino.innerHTML = optionsHTML;
+        
+        // Definir data de hoje
+        document.getElementById('transferencia-data').value = new Date().toISOString().split('T')[0];
+        
+        // Limpar campos
+        document.getElementById('transferencia-valor').value = '';
+        document.getElementById('transferencia-observacoes').value = '';
+        
+        // Mostrar modal
+        document.getElementById('modal-transferencia').style.display = 'flex';
+        
+    } catch (error) {
+        console.error('Erro ao abrir modal de transferência:', error);
+        showToast('Erro ao carregar contas', 'error');
+    }
+};
+
+window.closeModalTransferencia = function() {
+    document.getElementById('modal-transferencia').style.display = 'none';
+};
+
+window.salvarTransferencia = async function() {
+    try {
+        const origem = document.getElementById('transferencia-origem').value;
+        const destino = document.getElementById('transferencia-destino').value;
+        const valor = parseFloat(document.getElementById('transferencia-valor').value);
+        const data = document.getElementById('transferencia-data').value;
+        const observacoes = document.getElementById('transferencia-observacoes').value;
+        
+        // Validações
+        if (!origem) {
+            showToast('Selecione a conta de origem', 'error');
+            return;
+        }
+        
+        if (!destino) {
+            showToast('Selecione a conta de destino', 'error');
+            return;
+        }
+        
+        if (origem === destino) {
+            showToast('Conta de origem e destino não podem ser iguais', 'error');
+            return;
+        }
+        
+        if (!valor || valor <= 0) {
+            showToast('Digite um valor válido', 'error');
+            return;
+        }
+        
+        if (!data) {
+            showToast('Selecione a data da transferência', 'error');
+            return;
+        }
+        
+        // Enviar transferência
+        const response = await fetch(`${API_URL}/transferencias`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+                conta_origem: origem,
+                conta_destino: destino,
+                valor: valor,
+                data: data,
+                observacoes: observacoes,
+                empresa_id: window.currentEmpresaId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || 'Erro ao realizar transferência');
+        }
+        
+        showToast('✅ Transferência realizada com sucesso!', 'success');
+        closeModalTransferencia();
+        
+        // Recarregar dados se estiver na tela de fluxo
+        if (window.location.hash === '#fluxo-caixa' || document.getElementById('fluxo-caixa-section')?.classList.contains('active')) {
+            await carregarFluxoCaixa();
+        }
+        
+    } catch (error) {
+        console.error('Erro ao salvar transferência:', error);
+        showToast(error.message || 'Erro ao realizar transferência', 'error');
+    }
 };
