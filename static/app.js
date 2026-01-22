@@ -3181,12 +3181,6 @@ window.conciliarTransacaoIndividual = async function() {
     }
 };
 
-    } catch (error) {
-        console.error('❌ Erro ao buscar sugestões:', error);
-        showToast('Erro ao buscar sugestões de conciliação', 'error');
-    }
-}
-
 // Mostrar detalhe de transação já conciliada
 async function mostrarDetalheConciliacao(transacaoId) {
     try {
