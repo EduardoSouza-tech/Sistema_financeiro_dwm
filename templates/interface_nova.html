@@ -4892,7 +4892,14 @@
                         btnConciliar.className = 'btn btn-sm btn-primary';
                         btnConciliar.style.fontSize = '11px';
                         btnConciliar.style.padding = '4px 8px';
-                        btnConciliar.onclick = () => conciliarTransacao(transacao.id);
+                        btnConciliar.onclick = () => {
+                            console.log('🔵 Botão Conciliar clicado! Transação ID:', transacao.id);
+                            if (typeof window.mostrarSugestoesConciliacao === 'function') {
+                                window.mostrarSugestoesConciliacao(transacao.id);
+                            } else {
+                                console.error('❌ Função mostrarSugestoesConciliacao não encontrada!');
+                            }
+                        };
                         tdAcoes.appendChild(btnConciliar);
                     } else {
                         tdAcoes.textContent = '-';
