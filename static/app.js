@@ -2958,7 +2958,7 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                             );
                             
                             return `
-                                <tr style="cursor: pointer;" onclick="conciliarTransacao(${transacaoId}, ${lanc.id})">
+                                <tr>
                                     <td>${formatarData(lanc.data_vencimento)}</td>
                                     <td>
                                         ${lanc.descricao}
@@ -2969,7 +2969,7 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                                     <td style="font-weight: bold;">${formatarMoeda(lanc.valor)}</td>
                                     <td><span class="badge badge-${lanc.tipo === 'RECEBER' ? 'success' : 'danger'}">${lanc.tipo}</span></td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary">
+                                        <button class="btn btn-sm btn-primary" onclick="conciliarTransacao(${transacaoId}, ${lanc.id})">
                                             ✓ Conciliar
                                         </button>
                                     </td>
