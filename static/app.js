@@ -3897,56 +3897,99 @@ window.carregarFluxoCaixa = async function() {
             dataFim = `${anoAtual}-${mesAtual}-${ultimoDia}`;
         }
         
-        // Buscar dados do dashboard
+        // Buscar dados do dashboard E contas a pagar/receber
         let url = `${API_URL}/relatorios/dashboard-completo?data_inicio=${dataInicio}&data_fim=${dataFim}`;
         if (banco) {
             url += `&conta=${encodeURIComponent(banco)}`;
         }
         
-        const response = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
+        const [responseRealizado, responseProjetado] = await Promise.all([
+            fetch(url, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            }),
+            fetch(`${API_URL}/relatorios/analise-contas`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            })
+        ]);
         
-        if (!response.ok) throw new Error('Erro ao carregar dados');
+        if (!responseRealizado.ok || !responseProjetado.ok) throw new Error('Erro ao carregar dados');
         
-        const dados = await response.json();
+        const dadosRealizado = await responseRealizado.json();
+        const dadosProjetado = await responseProjetado.json();
+        
+        // Calcular totais projetados (realizado + pendente)
+        const receitasRealizadas = dadosRealizado.totais?.receitas || 0;
+        const despesasRealizadas = dadosRealizado.totais?.despesas || 0;
+        const saldoRealizado = dadosRealizado.totais?.saldo || 0;
+        
+        const contasReceber = dadosProjetado.total_receber || 0;
+        const contasPagar = dadosProjetado.total_pagar || 0;
+        const saldoProjetado = saldoRealizado + contasReceber - contasPagar;
         
         // Renderizar tabela de fluxo
         const content = document.getElementById('fluxo-caixa-content');
         
         let html = `
+            <!-- Cards de Resumo -->
             <div style="margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                 <div style="background: linear-gradient(135deg, #27ae60, #229954); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">💰 Total de Receitas</div>
-                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(dados.totais?.receitas || 0)}</div>
+                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">💰 Receitas Realizadas</div>
+                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(receitasRealizadas)}</div>
+                    <div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">✅ Já recebido</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">📅 Contas a Receber</div>
+                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(contasReceber)}</div>
+                    <div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">⏳ Pendente</div>
                 </div>
                 <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">💸 Total de Despesas</div>
-                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(dados.totais?.despesas || 0)}</div>
+                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">💸 Despesas Realizadas</div>
+                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(despesasRealizadas)}</div>
+                    <div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">✅ Já pago</div>
                 </div>
-                <div style="background: linear-gradient(135deg, ${(dados.totais?.saldo || 0) >= 0 ? '#3498db, #2980b9' : '#e67e22, #d35400'}); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">📊 Saldo do Período</div>
-                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(dados.totais?.saldo || 0)}</div>
+                <div style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">📅 Contas a Pagar</div>
+                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(contasPagar)}</div>
+                    <div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">⏳ Pendente</div>
+                </div>
+                <div style="background: linear-gradient(135deg, ${saldoRealizado >= 0 ? '#16a085, #138d75' : '#c0392b, #a93226'}); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">📊 Saldo Realizado</div>
+                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(saldoRealizado)}</div>
+                    <div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">✅ Efetivo</div>
+                </div>
+                <div style="background: linear-gradient(135deg, ${saldoProjetado >= 0 ? '#8e44ad, #7d3c98' : '#e74c3c, #c0392b'}); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">🔮 Saldo Projetado</div>
+                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(saldoProjetado)}</div>
+                    <div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">📊 Com pendentes</div>
                 </div>
             </div>
             
-            <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Período</th>
-                            <th style="text-align: right; color: #27ae60;">Receitas</th>
-                            <th style="text-align: right; color: #e74c3c;">Despesas</th>
-                            <th style="text-align: right; color: #3498db;">Saldo</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
+            <!-- Abas -->
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ecf0f1;">
+                <button onclick="mostrarAbaFluxo('realizado')" id="aba-realizado" class="aba-fluxo aba-ativa" style="padding: 12px 24px; border: none; background: none; cursor: pointer; font-weight: bold; color: #27ae60; border-bottom: 3px solid #27ae60;">
+                    ✅ Fluxo Realizado
+                </button>
+                <button onclick="mostrarAbaFluxo('projetado')" id="aba-projetado" class="aba-fluxo" style="padding: 12px 24px; border: none; background: none; cursor: pointer; font-weight: bold; color: #95a5a6; border-bottom: 3px solid transparent;">
+                    🔮 Fluxo Projetado
+                </button>
+            </div>
+            
+            <!-- Conteúdo Fluxo Realizado -->
+            <div id="conteudo-realizado" class="conteudo-aba-fluxo">
+                <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Período</th>
+                                <th style="text-align: right; color: #27ae60;">Receitas</th>
+                                <th style="text-align: right; color: #e74c3c;">Despesas</th>
+                                <th style="text-align: right; color: #3498db;">Saldo</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
         
-        if (dados.evolucao && dados.evolucao.length > 0) {
-            dados.evolucao.forEach(item => {
-                const saldoClass = item.saldo >= 0 ? 'positivo' : 'negativo';
+        if (dadosRealizado.evolucao && dadosRealizado.evolucao.length > 0) {
+            dadosRealizado.evolucao.forEach(item => {
                 html += `
                     <tr>
                         <td><strong>${item.periodo}</strong></td>
@@ -3956,18 +3999,85 @@ window.carregarFluxoCaixa = async function() {
                     </tr>`;
             });
         } else {
-            html += '<tr><td colspan="4" style="text-align: center; padding: 40px; color: #999;">Nenhum lançamento encontrado no período</td></tr>';
+            html += '<tr><td colspan="4" style="text-align: center; padding: 40px; color: #999;">Nenhum lançamento pago encontrado no período</td></tr>';
         }
         
         html += `
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 10px; padding: 10px; background: #ecf0f1; border-radius: 5px; color: #7f8c8d; font-size: 13px;">
+                    📌 <strong>Fluxo Realizado:</strong> Mostra apenas receitas e despesas já pagas/recebidas (lançamentos com status "Pago").
+                </div>
+            </div>
+            
+            <!-- Conteúdo Fluxo Projetado -->
+            <div id="conteudo-projetado" class="conteudo-aba-fluxo" style="display: none;">
+                <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Período</th>
+                                <th style="text-align: right; color: #27ae60;">Receitas (Pagas)</th>
+                                <th style="text-align: right; color: #3498db;">A Receber</th>
+                                <th style="text-align: right; color: #e74c3c;">Despesas (Pagas)</th>
+                                <th style="text-align: right; color: #e67e22;">A Pagar</th>
+                                <th style="text-align: right; color: #8e44ad;">Saldo Projetado</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+        
+        if (dadosRealizado.evolucao && dadosRealizado.evolucao.length > 0) {
+            dadosRealizado.evolucao.forEach(item => {
+                const saldoProj = item.saldo + (contasReceber / dadosRealizado.evolucao.length) - (contasPagar / dadosRealizado.evolucao.length);
+                html += `
+                    <tr>
+                        <td><strong>${item.periodo}</strong></td>
+                        <td style="text-align: right; color: #27ae60; font-weight: bold;">${formatarMoeda(item.receitas)}</td>
+                        <td style="text-align: right; color: #3498db;">${formatarMoeda(contasReceber / dadosRealizado.evolucao.length)}</td>
+                        <td style="text-align: right; color: #e74c3c; font-weight: bold;">${formatarMoeda(item.despesas)}</td>
+                        <td style="text-align: right; color: #e67e22;">${formatarMoeda(contasPagar / dadosRealizado.evolucao.length)}</td>
+                        <td style="text-align: right; color: ${saldoProj >= 0 ? '#8e44ad' : '#c0392b'}; font-weight: bold;">${formatarMoeda(saldoProj)}</td>
+                    </tr>`;
+            });
+        } else {
+            html += '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #999;">Nenhum dado disponível</td></tr>';
+        }
+        
+        html += `
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 10px; padding: 10px; background: #ecf0f1; border-radius: 5px; color: #7f8c8d; font-size: 13px;">
+                    📌 <strong>Fluxo Projetado:</strong> Inclui valores já pagos/recebidos + contas a pagar e receber pendentes. Os valores pendentes são distribuídos proporcionalmente nos meses.
+                </div>
+                <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
+                        <div style="font-weight: bold; color: #856404; margin-bottom: 5px;">⚠️ Contas Vencidas a Receber</div>
+                        <div style="font-size: 20px; color: #856404;">${formatarMoeda(dadosProjetado.receber_vencidos || 0)}</div>
+                    </div>
+                    <div style="background: #f8d7da; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545;">
+                        <div style="font-weight: bold; color: #721c24; margin-bottom: 5px;">⚠️ Contas Vencidas a Pagar</div>
+                        <div style="font-size: 20px; color: #721c24;">${formatarMoeda(dadosProjetado.pagar_vencidos || 0)}</div>
+                    </div>
+                </div>
             </div>`;
         
         content.innerHTML = html;
         
         // Armazenar dados para exportação
-        window.fluxoCaixaDados = dados;
+        window.fluxoCaixaDados = {
+            ...dadosRealizado,
+            projetado: dadosProjetado,
+            totais: {
+                receitas: receitasRealizadas,
+                despesas: despesasRealizadas,
+                saldo: saldoRealizado,
+                contasReceber,
+                contasPagar,
+                saldoProjetado
+            }
+        };
         
         showToast('Fluxo de Caixa carregado com sucesso!', 'success');
         
@@ -3976,6 +4086,32 @@ window.carregarFluxoCaixa = async function() {
         const content = document.getElementById('fluxo-caixa-content');
         content.innerHTML = '<div style="text-align: center; padding: 40px; color: #e74c3c;">❌ Erro ao carregar dados do fluxo de caixa</div>';
         showToast('Erro ao carregar fluxo de caixa', 'error');
+    }
+};
+
+window.mostrarAbaFluxo = function(aba) {
+    // Atualizar botões
+    document.querySelectorAll('.aba-fluxo').forEach(btn => {
+        btn.style.color = '#95a5a6';
+        btn.style.borderBottom = '3px solid transparent';
+        btn.classList.remove('aba-ativa');
+    });
+    
+    const btnAtivo = document.getElementById(`aba-${aba}`);
+    if (btnAtivo) {
+        btnAtivo.style.color = aba === 'realizado' ? '#27ae60' : '#8e44ad';
+        btnAtivo.style.borderBottom = `3px solid ${aba === 'realizado' ? '#27ae60' : '#8e44ad'}`;
+        btnAtivo.classList.add('aba-ativa');
+    }
+    
+    // Mostrar conteúdo correto
+    document.querySelectorAll('.conteudo-aba-fluxo').forEach(div => {
+        div.style.display = 'none';
+    });
+    
+    const conteudo = document.getElementById(`conteudo-${aba}`);
+    if (conteudo) {
+        conteudo.style.display = 'block';
     }
 };
 
