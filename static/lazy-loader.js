@@ -256,7 +256,7 @@ class LazyLoader {
             params.set('sort_order', this.sortOrder);
         }
 
-        return `${CONFIG.API_URL}${this.endpoint}?${params.toString()}`;
+        return `${window.CONFIG.API_URL}${this.endpoint}?${params.toString()}`;
     }
 
     _renderPage(items, page) {

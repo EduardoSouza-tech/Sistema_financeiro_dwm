@@ -23,6 +23,9 @@ const CONFIG = {
     CURRENCY_FORMAT: 'BRL'
 };
 
+// Expor CONFIG globalmente para lazy-loader.js e outros módulos
+window.CONFIG = CONFIG;
+
 // ============================================================================
 // ESTADO GLOBAL DA APLICAÇÃO
 // ============================================================================
@@ -246,14 +249,6 @@ async function apiDelete(endpoint) {
 function formatarMoeda(valor) {
     // Delega para a função da biblioteca utils.js
     return Utils.formatarMoeda(valor);
-}
-            style: 'currency',
-            currency: CONFIG.CURRENCY_FORMAT
-        }).format(Number(valor));
-    } catch (error) {
-        logError('formatarMoeda', error, { valor });
-        return 'R$ 0,00';
-    }
 }
 
 /**
@@ -983,7 +978,7 @@ async function salvarConta(event) {
 /**
  * Atualiza saldo total de todos os bancos
  */
-async function atualizarSaldoTotalBancos(tipo) {
+window.atualizarSaldoTotalBancos = async function atualizarSaldoTotalBancos(tipo) {
     try {
         console.log('🏦 atualizarSaldoTotalBancos - Buscando contas...');
         const response = await fetch(`${API_URL}/contas`);
@@ -1020,7 +1015,7 @@ async function atualizarSaldoTotalBancos(tipo) {
 /**
  * Carrega select de bancos
  */
-async function carregarSelectBancos(tipo) {
+window.carregarSelectBancos = async function carregarSelectBancos(tipo) {
     try {
         console.log('🏦 carregarSelectBancos - Buscando contas para select...');
         const response = await fetch(`${API_URL}/contas`);
@@ -3361,3 +3356,112 @@ function openModalSessaoEquipe() {
 function exportarContratosPDF() {
     showToast('Exportação de contratos para PDF em desenvolvimento', 'info');
 }
+
+// ============================================================================
+// FUNÇÕES DE CARREGAMENTO - STUBS PARA SEÇÕES EM DESENVOLVIMENTO (Fase 7.5)
+// ============================================================================
+
+/**
+ * Funções stub para seções que ainda não foram migradas para o sistema de lazy loading
+ * ou que estão em desenvolvimento. Isso evita erros "undefined" no console.
+ */
+
+window.loadFornecedoresTable = async function() {
+    console.log('📋 loadFornecedoresTable - Stub temporário');
+    showToast('Seção de Fornecedores em desenvolvimento', 'info');
+};
+
+window.loadContasBancarias = async function() {
+    console.log('🏦 loadContasBancarias - Stub temporário');
+    showToast('Seção de Contas Bancárias em desenvolvimento', 'info');
+};
+
+window.loadTiposSessao = async function() {
+    console.log('📸 loadTiposSessao - Stub temporário');
+    showToast('Seção de Tipos de Sessão em desenvolvimento', 'info');
+};
+
+window.loadAgenda = async function() {
+    console.log('📅 loadAgenda - Stub temporário');
+    showToast('Agenda de Fotografia em desenvolvimento', 'info');
+};
+
+window.loadProdutos = async function() {
+    console.log('📦 loadProdutos - Stub temporário');
+    showToast('Gestão de Estoque em desenvolvimento', 'info');
+};
+
+window.loadTags = async function() {
+    console.log('🏷️ loadTags - Stub temporário');
+    showToast('Tags de Trabalho em desenvolvimento', 'info');
+};
+
+window.loadTemplates = async function() {
+    console.log('👥 loadTemplates - Stub temporário');
+    showToast('Templates de Equipe em desenvolvimento', 'info');
+};
+
+window.carregarInadimplencia = async function() {
+    console.log('💰 carregarInadimplencia - Stub temporário');
+    showToast('Relatório de Inadimplência em desenvolvimento', 'info');
+};
+
+window.carregarIndicadores = async function() {
+    console.log('🎯 carregarIndicadores - Stub temporário');
+    showToast('Indicadores Financeiros em desenvolvimento', 'info');
+};
+
+window.carregarFluxoCaixa = async function() {
+    console.log('📈 carregarFluxoCaixa - Stub temporário');
+    showToast('Fluxo de Caixa em desenvolvimento', 'info');
+};
+
+window.carregarBancosFluxo = async function() {
+    console.log('🏦 carregarBancosFluxo - Stub temporário');
+    // Esta função geralmente é chamada internamente, não mostra toast
+};
+
+window.loadClientes = async function() {
+    console.log('👤 loadClientes - Stub temporário');
+    showToast('Seção de Clientes em desenvolvimento', 'info');
+};
+
+window.loadCategorias = async function() {
+    console.log('📁 loadCategorias - Stub temporário');
+    showToast('Seção de Categorias em desenvolvimento', 'info');
+};
+
+window.loadContratos = async function() {
+    console.log('📋 loadContratos - Stub temporário');
+    showToast('Contratos e Sessões em desenvolvimento', 'info');
+};
+
+window.loadKitsTable = async function() {
+    console.log('🎒 loadKitsTable - Stub temporário');
+    showToast('Kits de Equipamentos em desenvolvimento', 'info');
+};
+
+// Função para controlar tabs de clientes (ativos/inativos)
+window.showClienteTab = function(tabName) {
+    console.log(`📑 showClienteTab chamada: ${tabName}`);
+    
+    // Remover classe active de todos os botões de tab
+    const tabButtons = document.querySelectorAll('.tab-button');
+    tabButtons.forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = '#bdc3c7';
+        btn.style.color = '#555';
+    });
+    
+    // Adicionar classe active ao botão clicado
+    const activeBtn = document.getElementById(`tab-clientes-${tabName}`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.style.background = '#9b59b6';
+        activeBtn.style.color = 'white';
+    }
+    
+    // Mostrar conteúdo apropriado (quando implementado)
+    console.log(`✅ Tab "${tabName}" ativada`);
+    showToast(`Visualização de clientes ${tabName} - Em desenvolvimento`, 'info');
+};

@@ -34,8 +34,8 @@ async function loadContasReceber() {
         await loadContasReceberLazy(filters);
         
         // Atualizar saldo e selects
-        await atualizarSaldoTotalBancos('receber');
-        await carregarSelectBancos('receber');
+        await window.atualizarSaldoTotalBancos('receber');
+        await window.carregarSelectBancos('receber');
     } else if (loadContasReceberOriginal) {
         console.log('📊 Usando carregamento tradicional para Contas a Receber');
         await loadContasReceberOriginal();
@@ -62,8 +62,8 @@ async function loadContasPagar() {
         
         await loadContasPagarLazy(filters);
         
-        await atualizarSaldoTotalBancos('pagar');
-        await carregarSelectBancos('pagar');
+        await window.atualizarSaldoTotalBancos('pagar');
+        await window.carregarSelectBancos('pagar');
     } else if (loadContasPagarOriginal) {
         console.log('📊 Usando carregamento tradicional para Contas a Pagar');
         await loadContasPagarOriginal();
