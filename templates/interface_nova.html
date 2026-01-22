@@ -4819,6 +4819,10 @@
                 
                 const transacoes = await response.json();
                 
+                // 🔧 Salvar transações globalmente para a função mostrarSugestoesConciliacao
+                window.extratos = transacoes;
+                console.log('✅ Array window.extratos preenchido com', transacoes.length, 'transações');
+                
                 if (transacoes.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">📭 Nenhuma transação encontrada. Importe um arquivo OFX para começar.</td></tr>';
                     return;
