@@ -4820,6 +4820,17 @@
                 window.extratos = transacoes;
                 console.log('✅ Array window.extratos preenchido com', transacoes.length, 'transações');
                 
+                // 🔍 DEBUG: Verificar se transação 3529 está conciliada
+                const trans3529 = transacoes.find(t => t.id === 3529);
+                if (trans3529) {
+                    console.log('🔍 Transação 3529 na resposta da API:', {
+                        id: trans3529.id,
+                        conciliado: trans3529.conciliado,
+                        lancamento_id: trans3529.lancamento_id,
+                        valor: trans3529.valor
+                    });
+                }
+                
                 if (transacoes.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">📭 Nenhuma transação encontrada. Importe um arquivo OFX para começar.</td></tr>';
                     return;
