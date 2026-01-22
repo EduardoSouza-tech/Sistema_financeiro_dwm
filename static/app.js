@@ -1267,6 +1267,8 @@ async function loadCategorias() {
         showNotification('Erro ao carregar categorias', 'error');
     }
 }
+// Expor globalmente para uso em showSection()
+window.loadCategorias = loadCategorias;
 
 async function salvarCategoria(event) {
     event.preventDefault();
@@ -1515,6 +1517,8 @@ async function editarCliente(nome) {
         showToast('Erro ao abrir edição: ' + error.message, 'error');
     }
 }
+// Expor globalmente para uso em showSection()
+window.loadClientes = loadClientes;
 
 // Função para alternar abas de clientes (ativos/inativos)
 function showClienteTab(tab) {
@@ -1536,6 +1540,8 @@ function showClienteTab(tab) {
     
     console.log('✅ Aba alternada:', tab, '- Ativos:', ativos);
 }
+// Expor globalmente para uso em onclick do HTML
+window.showClienteTab = showClienteTab;
 
 // Função para inativar cliente
 async function inativarCliente(nome) {
@@ -2966,6 +2972,8 @@ async function excluirKit(id) {
         showToast('❌ Erro ao excluir kit: ' + error.message, 'error');
     }
 }
+// Expor globalmente para uso em showSection()
+window.loadKitsTable = loadKitsTable;
 
 // ============================================================================
 // CONTRATOS E SESSÕES
@@ -3035,6 +3043,8 @@ async function loadContratos() {
         }
     }
 }
+// Expor globalmente para uso em showSection()
+window.loadContratos = loadContratos;
 
 /**
  * Carrega lista de sessões
@@ -3362,8 +3372,8 @@ function exportarContratosPDF() {
 // ============================================================================
 
 /**
- * Funções stub para seções que ainda não foram migradas para o sistema de lazy loading
- * ou que estão em desenvolvimento. Isso evita erros "undefined" no console.
+ * Funções stub SOMENTE para seções que realmente não existem ainda.
+ * As funções que JÁ EXISTEM no código são expostas globalmente após suas declarações.
  */
 
 window.loadFornecedoresTable = async function() {
@@ -3421,47 +3431,7 @@ window.carregarBancosFluxo = async function() {
     // Esta função geralmente é chamada internamente, não mostra toast
 };
 
-window.loadClientes = async function() {
-    console.log('👤 loadClientes - Stub temporário');
-    showToast('Seção de Clientes em desenvolvimento', 'info');
-};
-
-window.loadCategorias = async function() {
-    console.log('📁 loadCategorias - Stub temporário');
-    showToast('Seção de Categorias em desenvolvimento', 'info');
-};
-
-window.loadContratos = async function() {
-    console.log('📋 loadContratos - Stub temporário');
-    showToast('Contratos e Sessões em desenvolvimento', 'info');
-};
-
-window.loadKitsTable = async function() {
-    console.log('🎒 loadKitsTable - Stub temporário');
-    showToast('Kits de Equipamentos em desenvolvimento', 'info');
-};
-
-// Função para controlar tabs de clientes (ativos/inativos)
-window.showClienteTab = function(tabName) {
-    console.log(`📑 showClienteTab chamada: ${tabName}`);
-    
-    // Remover classe active de todos os botões de tab
-    const tabButtons = document.querySelectorAll('.tab-button');
-    tabButtons.forEach(btn => {
-        btn.classList.remove('active');
-        btn.style.background = '#bdc3c7';
-        btn.style.color = '#555';
-    });
-    
-    // Adicionar classe active ao botão clicado
-    const activeBtn = document.getElementById(`tab-clientes-${tabName}`);
-    if (activeBtn) {
-        activeBtn.classList.add('active');
-        activeBtn.style.background = '#9b59b6';
-        activeBtn.style.color = 'white';
-    }
-    
-    // Mostrar conteúdo apropriado (quando implementado)
-    console.log(`✅ Tab "${tabName}" ativada`);
-    showToast(`Visualização de clientes ${tabName} - Em desenvolvimento`, 'info');
+window.carregarComparativoPeriodos = async function() {
+    console.log('📉 carregarComparativoPeriodos - Stub temporário');
+    showToast('Comparativo de Períodos em desenvolvimento', 'info');
 };
