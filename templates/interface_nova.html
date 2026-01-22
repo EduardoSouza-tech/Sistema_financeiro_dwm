@@ -1879,6 +1879,9 @@
             <div id="extrato-bancario-section" class="content-card hidden">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2 style="margin: 0;">🏦 Extrato Bancário - Importação OFX</h2>
+                    <button onclick="abrirConciliacaoGeral()" class="btn btn-success" style="padding: 10px 20px; background: #27ae60; font-weight: bold;">
+                        🔄 Conciliação Geral
+                    </button>
                 </div>
 
                 <!-- Upload de Arquivo OFX -->
@@ -3138,6 +3141,34 @@
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                 <button class="btn btn-secondary" onclick="closeModalTransferencia()">Cancelar</button>
                 <button class="btn btn-success" onclick="salvarTransferencia()" style="background: #9b59b6;">🔄 Transferir</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Conciliação Geral Extrato -->
+    <div id="modal-conciliacao-geral" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; overflow-y: auto; padding: 20px;">
+        <div style="background: white; margin: 0 auto; border-radius: 12px; max-width: 1200px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <div style="padding: 25px; border-bottom: 2px solid #ecf0f1;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 style="margin: 0; color: #27ae60;">🔄 Conciliação Geral de Extrato</h2>
+                    <button onclick="fecharConciliacaoGeral()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #95a5a6;">&times;</button>
+                </div>
+                <p style="margin: 10px 0 0 0; color: #7f8c8d; font-size: 14px;">Selecione as transações e configure categoria/subcategoria para criar lançamentos automaticamente</p>
+            </div>
+            
+            <div style="padding: 25px;">
+                <div id="conciliacao-transacoes-lista" style="margin-bottom: 20px;">
+                    <!-- Conteúdo será preenchido via JavaScript -->
+                </div>
+                
+                <div style="display: flex; gap: 15px; justify-content: flex-end; padding-top: 20px; border-top: 2px solid #ecf0f1;">
+                    <button onclick="fecharConciliacaoGeral()" class="btn btn-secondary" style="padding: 12px 30px;">
+                        Cancelar
+                    </button>
+                    <button onclick="processarConciliacaoGeral()" class="btn btn-success" style="padding: 12px 30px; background: #27ae60; font-weight: bold;">
+                        ✅ Conciliar Selecionados
+                    </button>
+                </div>
             </div>
         </div>
     </div>

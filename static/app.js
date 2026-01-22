@@ -4267,3 +4267,304 @@ window.salvarTransferencia = async function() {
         showToast(error.message || 'Erro ao realizar transferência', 'error');
     }
 };
+// === CONCILIAÇÃO GERAL DE EXTRATO ===
+window.abrirConciliacaoGeral = async function() {
+    try {
+        // Obter extratos filtrados e não conciliados
+        const conta = document.getElementById('extrato-filter-conta')?.value || document.getElementById('filtro-conta-extrato')?.value;
+        const dataInicio = document.getElementById('extrato-filter-data-inicio')?.value || document.getElementById('filtro-data-inicio-extrato')?.value;
+        const dataFim = document.getElementById('extrato-filter-data-fim')?.value || document.getElementById('filtro-data-fim-extrato')?.value;
+        
+        const params = new URLSearchParams();
+        if (conta) params.append('conta', conta);
+        if (dataInicio) params.append('data_inicio', dataInicio);
+        if (dataFim) params.append('data_fim', dataFim);
+        params.append('conciliado', 'false');  // Apenas não conciliados
+        
+        const response = await fetch(`${API_URL}/extratos?${params.toString()}`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        
+        if (!response.ok) throw new Error('Erro ao carregar extratos');
+        
+        const transacoes = await response.json();
+        
+        if (transacoes.length === 0) {
+            showToast('Nenhuma transação não conciliada encontrada no período filtrado', 'warning');
+            return;
+        }
+        
+        // Buscar categorias e subcategorias
+        const [responseCategorias, responseClientes, responseFornecedores] = await Promise.all([
+            fetch(`${API_URL}/categorias`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            }),
+            fetch(`${API_URL}/clientes`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            }),
+            fetch(`${API_URL}/fornecedores`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            })
+        ]);
+        
+        const categorias = await responseCategorias.json();
+        const clientes = await responseClientes.json();
+        const fornecedores = await responseFornecedores.json();
+        
+        // Criar dicionário de matching CPF/CNPJ
+        window.clientesPorCPF = {};
+        clientes.forEach(c => {
+            const cpf_cnpj = (c.cpf || c.cnpj || '').replace(/\D/g, '');
+            if (cpf_cnpj) window.clientesPorCPF[cpf_cnpj] = c.nome;
+        });
+        
+        window.fornecedoresPorCPF = {};
+        fornecedores.forEach(f => {
+            const cpf_cnpj = (f.cpf || f.cnpj || '').replace(/\D/g, '');
+            if (cpf_cnpj) window.fornecedoresPorCPF[cpf_cnpj] = f.nome;
+        });
+        
+        // Agrupar categorias por tipo
+        const categoriasDespesa = categorias.filter(c => c.tipo === 'DESPESA');
+        const categoriasReceita = categorias.filter(c => c.tipo === 'RECEITA');
+        
+        // Renderizar lista de transações
+        let html = `
+            <div style="background: #ecf0f1; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="font-size: 16px;">${transacoes.length} transações encontradas</strong>
+                        <div style="color: #7f8c8d; font-size: 13px; margin-top: 5px;">
+                            ${dataInicio && dataFim ? `Período: ${formatarData(dataInicio)} a ${formatarData(dataFim)}` : 'Todas as datas'}
+                            ${conta ? ` | Conta: ${conta}` : ''}
+                        </div>
+                    </div>
+                    <label style="font-weight: bold; cursor: pointer;">
+                        <input type="checkbox" id="selecionar-todos-conciliacao" onchange="toggleTodasConciliacoes(this.checked)" style="margin-right: 8px; transform: scale(1.3);">
+                        Selecionar Todas
+                    </label>
+                </div>
+            </div>
+            
+            <div style="max-height: 500px; overflow-y: auto;">
+                <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                    <thead style="position: sticky; top: 0; background: #34495e; color: white; z-index: 1;">
+                        <tr>
+                            <th style="width: 50px; text-align: center;">✓</th>
+                            <th style="width: 100px;">Data</th>
+                            <th style="min-width: 250px;">Descrição</th>
+                            <th style="width: 120px;">Valor</th>
+                            <th style="width: 80px;">Tipo</th>
+                            <th style="width: 200px;">Razão Social</th>
+                            <th style="width: 200px;">Categoria</th>
+                            <th style="width: 200px;">Subcategoria</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        
+        transacoes.forEach((t, index) => {
+            const isCredito = t.tipo?.toUpperCase() === 'CREDITO';
+            const valorColor = isCredito ? '#27ae60' : '#e74c3c';
+            
+            // Tentar detectar CPF/CNPJ na descrição
+            const numeros = t.descricao.replace(/\D/g, '');
+            let razaoSugerida = '';
+            if (numeros.length === 11 || numeros.length === 14) {
+                razaoSugerida = isCredito ? 
+                    (window.clientesPorCPF[numeros] || '') : 
+                    (window.fornecedoresPorCPF[numeros] || '');
+            }
+            
+            // Opções de categoria filtradas por tipo
+            const categoriasOpcoes = isCredito ? categoriasReceita : categoriasDespesa;
+            
+            html += `
+                <tr style="border-bottom: 1px solid #ecf0f1;">
+                    <td style="text-align: center;">
+                        <input type="checkbox" class="checkbox-conciliacao" data-index="${index}" style="transform: scale(1.3);">
+                    </td>
+                    <td>${formatarData(t.data)}</td>
+                    <td style="font-size: 12px;">${t.descricao}</td>
+                    <td style="color: ${valorColor}; font-weight: bold;">${formatarMoeda(t.valor)}</td>
+                    <td>
+                        <span class="badge badge-${isCredito ? 'success' : 'danger'}">
+                            ${isCredito ? 'Crédito' : 'Débito'}
+                        </span>
+                    </td>
+                    <td>
+                        <input type="text" 
+                               id="razao-${t.id}" 
+                               value="${razaoSugerida}"
+                               placeholder="${isCredito ? 'Cliente' : 'Fornecedor'}"
+                               list="lista-${isCredito ? 'clientes' : 'fornecedores'}"
+                               style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                    </td>
+                    <td>
+                        <select id="categoria-${t.id}" 
+                                onchange="carregarSubcategoriasConciliacao(${t.id}, this.value)"
+                                style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                            <option value="">Selecione...</option>
+                            ${categoriasOpcoes.map(c => `<option value="${c.nome}">${c.nome}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td>
+                        <select id="subcategoria-${t.id}" 
+                                disabled
+                                style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; background: #f5f5f5;">
+                            <option value="">Primeiro selecione categoria</option>
+                        </select>
+                    </td>
+                </tr>`;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Datalists para autocomplete -->
+            <datalist id="lista-clientes">
+                ${clientes.map(c => `<option value="${c.nome}">`).join('')}
+            </datalist>
+            <datalist id="lista-fornecedores">
+                ${fornecedores.map(f => `<option value="${f.nome}">`).join('')}
+            </datalist>`;
+        
+        document.getElementById('conciliacao-transacoes-lista').innerHTML = html;
+        
+        // Armazenar dados para processamento
+        window.transacoesConciliacao = transacoes;
+        window.categoriasConciliacao = categorias;
+        
+        // Mostrar modal
+        document.getElementById('modal-conciliacao-geral').style.display = 'block';
+        
+    } catch (error) {
+        console.error('Erro ao abrir conciliação geral:', error);
+        showToast('Erro ao carregar dados de conciliação', 'error');
+    }
+};
+
+window.toggleTodasConciliacoes = function(checked) {
+    document.querySelectorAll('.checkbox-conciliacao').forEach(cb => {
+        cb.checked = checked;
+    });
+};
+
+window.carregarSubcategoriasConciliacao = function(transacaoId, categoria) {
+    const selectSubcat = document.getElementById(`subcategoria-${transacaoId}`);
+    
+    if (!categoria) {
+        selectSubcat.disabled = true;
+        selectSubcat.innerHTML = '<option value="">Primeiro selecione categoria</option>';
+        return;
+    }
+    
+    // Buscar categoria completa
+    const catObj = window.categoriasConciliacao.find(c => c.nome === categoria);
+    
+    if (!catObj || !catObj.subcategorias || catObj.subcategorias.length === 0) {
+        selectSubcat.disabled = true;
+        selectSubcat.innerHTML = '<option value="">Sem subcategorias</option>';
+        return;
+    }
+    
+    selectSubcat.disabled = false;
+    selectSubcat.innerHTML = '<option value="">Opcional</option>' + 
+        catObj.subcategorias.map(s => `<option value="${s}">${s}</option>`).join('');
+};
+
+window.processarConciliacaoGeral = async function() {
+    try {
+        // Coletar transações selecionadas
+        const selecionadas = [];
+        const checkboxes = document.querySelectorAll('.checkbox-conciliacao:checked');
+        
+        if (checkboxes.length === 0) {
+            showToast('Selecione pelo menos uma transação', 'warning');
+            return;
+        }
+        
+        let errosValidacao = [];
+        
+        checkboxes.forEach(cb => {
+            const index = parseInt(cb.dataset.index);
+            const transacao = window.transacoesConciliacao[index];
+            const categoria = document.getElementById(`categoria-${transacao.id}`).value;
+            const subcategoria = document.getElementById(`subcategoria-${transacao.id}`).value;
+            const razaoSocial = document.getElementById(`razao-${transacao.id}`).value;
+            
+            if (!categoria) {
+                errosValidacao.push(`Transação "${transacao.descricao.substring(0, 30)}...": categoria não selecionada`);
+                return;
+            }
+            
+            selecionadas.push({
+                transacao_id: transacao.id,
+                categoria: categoria,
+                subcategoria: subcategoria,
+                razao_social: razaoSocial
+            });
+        });
+        
+        if (errosValidacao.length > 0) {
+            showToast(`Erros de validação:\n${errosValidacao.join('\n')}`, 'error');
+            return;
+        }
+        
+        if (selecionadas.length === 0) {
+            showToast('Nenhuma transação válida para conciliar', 'warning');
+            return;
+        }
+        
+        // Confirmar
+        if (!confirm(`Deseja criar ${selecionadas.length} lançamento(s) em Contas a Pagar/Receber?`)) {
+            return;
+        }
+        
+        showToast('Processando conciliação...', 'info');
+        
+        // Enviar para backend
+        const response = await fetch(`${API_URL}/extratos/conciliacao-geral`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+                transacoes: selecionadas
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || 'Erro ao processar conciliação');
+        }
+        
+        let mensagem = `✅ Conciliação concluída!\n${result.criados} lançamento(s) criado(s)`;
+        
+        if (result.erros && result.erros.length > 0) {
+            mensagem += `\n\n⚠️ Avisos:\n${result.erros.slice(0, 3).join('\n')}`;
+            if (result.erros.length > 3) {
+                mensagem += `\n... e mais ${result.erros.length - 3} erro(s)`;
+            }
+        }
+        
+        showToast(mensagem, 'success');
+        
+        // Fechar modal e recarregar
+        fecharConciliacaoGeral();
+        await loadExtratos();
+        
+    } catch (error) {
+        console.error('Erro ao processar conciliação:', error);
+        showToast(error.message || 'Erro ao processar conciliação', 'error');
+    }
+};
+
+window.fecharConciliacaoGeral = function() {
+    document.getElementById('modal-conciliacao-geral').style.display = 'none';
+    window.transacoesConciliacao = null;
+    window.categoriasConciliacao = null;
+};

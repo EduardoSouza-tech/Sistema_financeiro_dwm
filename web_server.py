@@ -2960,6 +2960,137 @@ def deletar_extrato_filtrado():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/extratos/conciliacao-geral', methods=['POST'])
+@require_permission('lancamentos_create')
+def conciliacao_geral_extrato():
+    """Conciliação automática em massa de transações do extrato para contas a pagar/receber"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        
+        dados = request.json
+        transacoes = dados.get('transacoes', [])
+        
+        if not transacoes:
+            return jsonify({'success': False, 'error': 'Nenhuma transação selecionada'}), 400
+        
+        # Buscar clientes e fornecedores para matching de CPF/CNPJ
+        clientes = db.listar_clientes(ativos=True)
+        fornecedores = db.listar_fornecedores(ativos=True)
+        
+        # Criar dicionários de busca rápida por CPF/CNPJ
+        clientes_dict = {}
+        for cliente in clientes:
+            cpf_cnpj = cliente.get('cpf') or cliente.get('cnpj')
+            if cpf_cnpj:
+                # Normalizar (remover pontos, traços, barras)
+                cpf_cnpj_limpo = ''.join(filter(str.isdigit, str(cpf_cnpj)))
+                clientes_dict[cpf_cnpj_limpo] = cliente['nome']
+        
+        fornecedores_dict = {}
+        for fornecedor in fornecedores:
+            cpf_cnpj = fornecedor.get('cpf') or fornecedor.get('cnpj')
+            if cpf_cnpj:
+                cpf_cnpj_limpo = ''.join(filter(str.isdigit, str(cpf_cnpj)))
+                fornecedores_dict[cpf_cnpj_limpo] = fornecedor['nome']
+        
+        criados = 0
+        erros = []
+        
+        for item in transacoes:
+            try:
+                transacao_id = item.get('transacao_id')
+                categoria = item.get('categoria')
+                subcategoria = item.get('subcategoria', '')
+                razao_social = item.get('razao_social', '')
+                
+                # Buscar transação do extrato
+                with db.get_connection() as conn:
+                    cursor = conn.cursor(dictionary=True)
+                    cursor.execute(
+                        "SELECT * FROM transacoes_extrato WHERE id = %s AND empresa_id = %s",
+                        (transacao_id, empresa_id)
+                    )
+                    transacao = cursor.fetchone()
+                    cursor.close()
+                
+                if not transacao:
+                    erros.append(f"Transação {transacao_id} não encontrada")
+                    continue
+                
+                # Detectar CPF/CNPJ na descrição (regex simples)
+                import re
+                descricao = transacao['descricao']
+                cpf_cnpj_encontrado = None
+                
+                # Buscar CPF (11 dígitos) ou CNPJ (14 dígitos)
+                numeros = ''.join(filter(str.isdigit, descricao))
+                if len(numeros) == 11 or len(numeros) == 14:
+                    cpf_cnpj_encontrado = numeros
+                
+                # Tentar matching automático se não foi fornecida razão social
+                if not razao_social and cpf_cnpj_encontrado:
+                    if transacao['tipo'].upper() == 'CREDITO':
+                        razao_social = clientes_dict.get(cpf_cnpj_encontrado, '')
+                    else:
+                        razao_social = fornecedores_dict.get(cpf_cnpj_encontrado, '')
+                
+                # Determinar tipo de lançamento
+                tipo = TipoLancamento.RECEITA if transacao['tipo'].upper() == 'CREDITO' else TipoLancamento.DESPESA
+                
+                # Criar lançamento
+                from datetime import datetime
+                data_transacao = transacao['data']
+                if isinstance(data_transacao, str):
+                    data_transacao = datetime.fromisoformat(data_transacao.replace('Z', '+00:00')).date()
+                
+                lancamento = Lancamento(
+                    descricao=f"[EXTRATO] {descricao}",
+                    valor=abs(float(transacao['valor'])),
+                    tipo=tipo,
+                    categoria=categoria,
+                    subcategoria=subcategoria,
+                    data_vencimento=data_transacao,
+                    data_pagamento=data_transacao,  # Já foi pago
+                    conta_bancaria=transacao['conta_bancaria'],
+                    pessoa=razao_social,
+                    observacoes=f"Conciliado automaticamente do extrato bancário. ID Extrato: {transacao_id}",
+                    num_documento=str(transacao_id),
+                    status=StatusLancamento.PAGO
+                )
+                
+                lancamento_id = db.adicionar_lancamento(lancamento, empresa_id=empresa_id)
+                
+                # Marcar transação como conciliada
+                with db.get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "UPDATE transacoes_extrato SET conciliado = TRUE, lancamento_id = %s WHERE id = %s",
+                        (lancamento_id, transacao_id)
+                    )
+                    conn.commit()
+                    cursor.close()
+                
+                criados += 1
+                
+            except Exception as e:
+                erros.append(f"Erro na transação {item.get('transacao_id')}: {str(e)}")
+                logger.error(f"Erro ao conciliar transação {item.get('transacao_id')}: {e}")
+        
+        return jsonify({
+            'success': True,
+            'criados': criados,
+            'erros': erros,
+            'message': f'{criados} lançamento(s) criado(s) com sucesso'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Erro na conciliação geral: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # === ROTAS DE FOLHA DE PAGAMENTO (FUNCIONÁRIOS) ===
 
 @app.route('/api/funcionarios', methods=['GET'])
