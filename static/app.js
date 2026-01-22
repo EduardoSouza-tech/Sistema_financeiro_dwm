@@ -703,6 +703,7 @@ function showModal(modalId) {
         const modal = getElement(modalId, 'showModal');
         if (modal) {
             modal.classList.add('active');
+            modal.style.display = 'flex'; // Forçar display flex para modais
             document.body.style.overflow = 'hidden'; // Previne scroll do body
         }
     } catch (error) {
@@ -719,6 +720,7 @@ function closeModal(modalId) {
         const modal = getElement(modalId, 'closeModal');
         if (modal) {
             modal.classList.remove('active');
+            modal.style.display = 'none'; // Ocultar modal
             document.body.style.overflow = ''; // Restaura scroll
         }
     } catch (error) {
@@ -2902,14 +2904,20 @@ async function loadExtratos() {
 // Mostrar modal com sugestões de conciliação
 async function mostrarSugestoesConciliacao(transacaoId) {
     try {
+        console.log('🔍 mostrarSugestoesConciliacao chamada com ID:', transacaoId);
+        
         // Encontrar transação
         const transacao = extratos.find(t => t.id === transacaoId);
         if (!transacao) throw new Error('Transação não encontrada');
+        
+        console.log('✅ Transação encontrada:', transacao);
         
         transacaoSelecionada = transacao;
         
         // Exibir info da transação
         const infoDiv = document.getElementById('transacao-info');
+        console.log('📍 Elemento transacao-info:', infoDiv);
+        
         const valorColor = transacao.tipo === 'CREDITO' ? '#27ae60' : '#c0392b';
         infoDiv.innerHTML = `
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
@@ -2920,7 +2928,10 @@ async function mostrarSugestoesConciliacao(transacaoId) {
             </div>
         `;
         
+        console.log('✅ Info da transação preenchida');
+        
         // Buscar sugestões
+        console.log('📡 Buscando sugestões...');
         const response = await fetch(`${API_URL}/extratos/${transacaoId}/sugestoes`, {
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -2984,11 +2995,16 @@ async function mostrarSugestoesConciliacao(transacaoId) {
         // Exibir/ocultar botão desconciliar
         document.getElementById('btn-desconciliar').style.display = 'none';
         
+        console.log('🎯 Abrindo modal modal-conciliacao...');
+        console.log('📍 Modal element:', document.getElementById('modal-conciliacao'));
+        
         // Abrir modal
         showModal('modal-conciliacao');
         
+        console.log('✅ Modal deveria estar aberto agora');
+        
     } catch (error) {
-        console.error('Erro ao buscar sugestões:', error);
+        console.error('❌ Erro ao buscar sugestões:', error);
         showToast('Erro ao buscar sugestões de conciliação', 'error');
     }
 }
