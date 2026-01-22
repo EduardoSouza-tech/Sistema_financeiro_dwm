@@ -2940,10 +2940,15 @@ async function loadExtratos() {
 async function mostrarSugestoesConciliacao(transacaoId) {
     try {
         console.log('🔍 mostrarSugestoesConciliacao chamada com ID:', transacaoId);
+        console.log('🔍 Array window.extratos tem', window.extratos?.length || 0, 'transações');
         
-        // Encontrar transação
-        const transacao = extratos.find(t => t.id === transacaoId);
-        if (!transacao) throw new Error('Transação não encontrada');
+        // Encontrar transação no array global
+        const transacao = window.extratos?.find(t => t.id === transacaoId);
+        if (!transacao) {
+            console.error('❌ Transação não encontrada! ID procurado:', transacaoId);
+            console.error('   Primeiros 5 IDs disponíveis:', window.extratos?.slice(0, 5).map(t => t.id));
+            throw new Error('Transação não encontrada');
+        }
         
         console.log('✅ Transação encontrada:', transacao);
         
