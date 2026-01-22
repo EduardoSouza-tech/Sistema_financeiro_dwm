@@ -730,16 +730,31 @@ function showModal(modalId) {
  */
 function closeModal(modalId) {
     try {
+        console.log('🔷 closeModal chamada com ID:', modalId);
         const modal = getElement(modalId, 'closeModal');
+        console.log('   📍 Modal encontrado:', modal);
         if (modal) {
+            console.log('   📊 Display ANTES:', modal.style.display);
+            console.log('   📊 Classes ANTES:', modal.className);
+            
             modal.classList.remove('active');
             modal.style.display = 'none'; // Ocultar modal
             document.body.style.overflow = ''; // Restaura scroll
+            
+            console.log('   📊 Display DEPOIS:', modal.style.display);
+            console.log('   📊 Classes DEPOIS:', modal.className);
+            console.log('   ✅ Modal fechado!');
+        } else {
+            console.warn('   ⚠️ Modal não encontrado!');
         }
     } catch (error) {
+        console.error('❌ Erro em closeModal:', error);
         logError('closeModal', error, { modalId });
     }
 }
+
+// Expor globalmente para uso em HTML inline
+window.closeModal = closeModal;
 
 /**
  * Abre um modal (alias para compatibilidade)
@@ -747,12 +762,6 @@ function closeModal(modalId) {
  */
 function openModal(modalId) {
     showModal(modalId);
-}
-
-function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('active');
-    // Limpar formulário
-    document.querySelector(`#${modalId} form`).reset();
 }
 
 // === DASHBOARD ===
