@@ -3027,11 +3027,14 @@ async function mostrarDetalheConciliacao(transacaoId) {
 // Conciliar transação com lançamento
 async function conciliarTransacao(transacaoId, lancamentoId) {
     try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        
         const response = await fetch(`${API_URL}/extratos/${transacaoId}/conciliar`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({ lancamento_id: lancamentoId })
         });
