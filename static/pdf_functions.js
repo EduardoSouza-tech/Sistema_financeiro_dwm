@@ -654,8 +654,38 @@ async function exportarContasReceberPDF() {
     }
 }
 
+// ========== EXPORTAÇÃO DE CLIENTES PDF ==========
+async function exportarClientesPDF() {
+    try {
+        console.log('📄 Exportando clientes para PDF...');
+        
+        // Redirecionar para o endpoint de exportação
+        window.open('/api/clientes/exportar/pdf', '_blank');
+        
+        showToast('✅ PDF de clientes gerado com sucesso!', 'success');
+    } catch (error) {
+        console.error('❌ Erro ao exportar clientes PDF:', error);
+        showToast('Erro ao gerar PDF de clientes: ' + error.message, 'error');
+    }
+}
+
+// ========== EXPORTAÇÃO DE FORNECEDORES PDF ==========
+async function exportarFornecedoresPDF() {
+    try {
+        console.log('📄 Exportando fornecedores para PDF...');
+        
+        // Redirecionar para o endpoint de exportação
+        window.open('/api/fornecedores/exportar/pdf', '_blank');
+        
+        showToast('✅ PDF de fornecedores gerado com sucesso!', 'success');
+    } catch (error) {
+        console.error('❌ Erro ao exportar fornecedores PDF:', error);
+        showToast('Erro ao gerar PDF de fornecedores: ' + error.message, 'error');
+    }
+}
+
 // Exportar funções globalmente
 window.exportarContasPagarPDF = exportarContasPagarPDF;
 window.exportarContasReceberPDF = exportarContasReceberPDF;
-
-console.log('✓ Funções PDF profissionais carregadas');
+window.exportarClientesPDF = exportarClientesPDF;
+window.exportarFornecedoresPDF = exportarFornecedoresPDF;

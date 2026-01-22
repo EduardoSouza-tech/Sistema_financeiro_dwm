@@ -92,6 +92,8 @@
         
         // Função para mostrar seções
         function showSection(sectionId) {
+            console.log('📂 Navegando para seção:', sectionId);
+            
             // Ocultar todas as seções
             const sections = document.querySelectorAll('.content-card');
             sections.forEach(section => section.classList.add('hidden'));
@@ -100,12 +102,52 @@
             const targetSection = document.getElementById(sectionId + '-section');
             if (targetSection) {
                 targetSection.classList.remove('hidden');
+                console.log('✅ Seção exibida:', sectionId);
+            } else {
+                console.error('❌ Seção não encontrada:', sectionId + '-section');
             }
             
             // Atualizar botões de navegação
             const navButtons = document.querySelectorAll('.nav-button');
             navButtons.forEach(button => button.classList.remove('active'));
+            
+            // Carregar dados da seção
+            const loadFunctions = {
+                'dashboard': 'loadDashboard',
+                'contas': 'loadContas',
+                'categorias': 'loadCategorias',
+                'clientes': 'loadClientes',
+                'fornecedores': 'loadFornecedores',
+                'contas-receber': 'loadContasReceber',
+                'contas-pagar': 'loadContasPagar',
+                'extrato-bancario': 'loadExtratos',
+                'fluxo-caixa': 'loadFluxoCaixa',
+                'analise-categorias': 'loadAnaliseCategorias',
+                'inadimplencia': 'loadInadimplencia',
+                'fluxo-projetado': 'loadFluxoProjetado',
+                'analise-contas': 'loadAnaliseContas',
+                'kits': 'loadKits',
+                'contratos': 'loadContratos',
+                'sessoes': 'loadSessoes',
+                'comissoes': 'loadComissoes',
+                'funcionarios': 'loadFuncionariosRH'
+            };
+            
+            const loadFunctionName = loadFunctions[sectionId];
+            if (loadFunctionName && typeof window[loadFunctionName] === 'function') {
+                console.log(`🔄 Carregando dados: ${loadFunctionName}()`);
+                try {
+                    window[loadFunctionName]();
+                } catch (error) {
+                    console.error(`❌ Erro ao carregar ${loadFunctionName}:`, error);
+                }
+            } else if (loadFunctionName) {
+                console.warn(`⚠️ Função ${loadFunctionName} não encontrada`);
+            }
         }
+        
+        // Expor globalmente
+        window.showSection = showSection;
     </script>
     
     <style>
@@ -3991,8 +4033,12 @@
                     if (data.empresa_atual && data.empresa_atual.id) {
                         window.currentEmpresaId = data.empresa_atual.id;
                         console.log('🏢 window.currentEmpresaId definido como:', window.currentEmpresaId);
+                    } else if (data.empresas_disponiveis && data.empresas_disponiveis.length > 0) {
+                        // FALLBACK: Se empresa_atual não existe, usar primeira empresa disponível
+                        window.currentEmpresaId = data.empresas_disponiveis[0].id;
+                        console.warn('⚠️ Empresa atual não definida! Usando primeira empresa disponível:', window.currentEmpresaId);
                     } else {
-                        console.error('❌ Empresa atual não encontrada nos dados do usuário!');
+                        console.error('❌ Empresa atual não encontrada e nenhuma empresa disponível!');
                     }
                     
                     // 🆕 Filtrar menu baseado nas permissões do usuário

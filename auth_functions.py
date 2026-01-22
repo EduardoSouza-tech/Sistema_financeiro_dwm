@@ -189,8 +189,20 @@ def autenticar_usuario(username: str, password: str, db) -> Optional[Dict]:
         conn.close()
         return None
     
-    # Verificar senha
-    senha_correta = verificar_senha(password, usuario['password_hash'])
+    # Verificar senha COM upgrade automático para bcrypt
+    from migration_upgrade_passwords import verificar_e_upgrade_senha
+    
+    try:
+        senha_correta, novo_hash = verificar_e_upgrade_senha(
+            username, 
+            password, 
+            usuario['password_hash'],
+            db
+        )
+    except ImportError:
+        # Fallback para método antigo se migration não disponível
+        senha_correta = verificar_senha(password, usuario['password_hash'])
+        novo_hash = None
     
     if not senha_correta:
         # Registrar tentativa falha
@@ -202,13 +214,9 @@ def autenticar_usuario(username: str, password: str, db) -> Optional[Dict]:
     # Senha correta - limpar tentativas falhas
     limpar_tentativas_login(username, db)
     
-    # Verificar se é hash antigo (SHA-256) e atualizar para bcrypt (apenas se bcrypt disponível)
-    if BCRYPT_AVAILABLE and len(usuario['password_hash']) == 64:  # SHA-256 tem 64 caracteres
-        novo_hash = hash_password(password)
-        cursor.execute("""
-            UPDATE usuarios SET password_hash = %s WHERE id = %s
-        """, (novo_hash, usuario['id']))
-        conn.commit()
+    # Log se houve upgrade de senha
+    if novo_hash:
+        print(f"🔐 Senha de {username} atualizada de SHA-256 para bcrypt")
     
     cursor.close()
     conn.close()

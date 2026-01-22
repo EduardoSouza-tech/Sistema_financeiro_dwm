@@ -363,3 +363,32 @@ async function exportarContasReceberExcel() {
         alert('Erro ao gerar arquivo Excel: ' + erro.message);
     }
 }
+// ========== EXPORTAÇÃO DE CLIENTES EXCEL ==========
+async function exportarClientesExcel() {
+    try {
+        console.log('📊 Exportando clientes para Excel...');
+        
+        // Redirecionar para o endpoint de exportação
+        window.open('/api/clientes/exportar/excel', '_blank');
+        
+        showToast('✅ Excel de clientes gerado com sucesso!', 'success');
+    } catch (error) {
+        console.error('❌ Erro ao exportar clientes Excel:', error);
+        showToast('Erro ao gerar Excel de clientes: ' + error.message, 'error');
+    }
+}
+
+// ========== EXPORTAÇÃO DE FORNECEDORES EXCEL ==========
+async function exportarFornecedoresExcel() {
+    try {
+        console.log('📊 Exportando fornecedores para Excel...');
+        
+        // Redirecionar para o endpoint de exportação
+        window.open('/api/fornecedores/exportar/excel', '_blank');
+        
+        showToast('✅ Excel de fornecedores gerado com sucesso!', 'success');
+    } catch (error) {
+        console.error('❌ Erro ao exportar fornecedores Excel:', error);
+        showToast('Erro ao gerar Excel de fornecedores: ' + error.message, 'error');
+    }
+}

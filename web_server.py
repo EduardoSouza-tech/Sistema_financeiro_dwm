@@ -127,15 +127,24 @@ csrf_instance = init_csrf(app)
 register_csrf_error_handlers(app)
 
 # Lista de endpoints isentos de CSRF
+# ENDPOINTS DE DEBUG SÃO REMOVIDOS EM PRODUÇÃO
 CSRF_EXEMPT_ROUTES = [
-    '/api/debug/fix-kits-table',
-    '/api/debug/fix-p1-issues',
-    '/api/debug/extrair-schema',
     '/api/auth/login',
     '/api/auth/logout',
-    '/api/auth/register',
-    '/api/debug/criar-admin'
+    '/api/auth/register'
 ]
+
+# Adicionar endpoints de debug APENAS em desenvolvimento
+if not IS_PRODUCTION:
+    CSRF_EXEMPT_ROUTES.extend([
+        '/api/debug/fix-kits-table',
+        '/api/debug/fix-p1-issues',
+        '/api/debug/extrair-schema',
+        '/api/debug/criar-admin'
+    ])
+    logger.warning("⚠️ Endpoints de DEBUG habilitados (ambiente de desenvolvimento)")
+else:
+    logger.info("🔒 Endpoints de DEBUG desabilitados (ambiente de produção)")
 
 @csrf_instance.exempt
 def is_csrf_exempt():
@@ -1727,6 +1736,10 @@ def adicionar_conta():
 def modificar_conta(nome):
     """Busca, atualiza ou remove uma conta bancária"""
     
+    # Decode do nome que vem URL-encoded
+    from urllib.parse import unquote
+    nome = unquote(nome)
+    
     # Responder ao preflight OPTIONS
     if request.method == 'OPTIONS':
         return jsonify({'success': True}), 200
@@ -2064,6 +2077,10 @@ def adicionar_cliente():
 def obter_cliente(nome):
     """Busca um cliente específico pelo nome"""
     try:
+        # Decode do nome que vem URL-encoded
+        from urllib.parse import unquote
+        nome = unquote(nome)
+        
         filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
         
         print(f"\n=== Buscando cliente ===")
@@ -2093,6 +2110,10 @@ def obter_cliente(nome):
 @aplicar_filtro_cliente
 def modificar_cliente(nome):
     """Atualiza ou remove um cliente com validação de empresa"""
+    # Decode do nome que vem URL-encoded
+    from urllib.parse import unquote
+    nome = unquote(nome)
+    
     filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
     
     if request.method == 'PUT':
@@ -2168,11 +2189,54 @@ def adicionar_fornecedor():
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
+@app.route('/api/fornecedores/<path:nome>', methods=['GET'])
+@require_permission('fornecedores_view')
+@aplicar_filtro_cliente
+def obter_fornecedor(nome):
+    """Obtém dados de um fornecedor específico"""
+    try:
+        # Decode do nome que vem URL-encoded
+        from urllib.parse import unquote
+        nome = unquote(nome)
+        
+        filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
+        
+        # Buscar fornecedor
+        fornecedor = db.obter_fornecedor_por_nome(nome)
+        
+        if not fornecedor:
+            return jsonify({'error': 'Fornecedor não encontrado'}), 404
+        
+        # Validar propriedade (se não for admin)
+        if filtro_cliente_id is not None:
+            if fornecedor.get('proprietario_id') != filtro_cliente_id:
+                return jsonify({'error': 'Sem permissão para visualizar este fornecedor'}), 403
+        
+        # Retornar dados do fornecedor
+        return jsonify({
+            'nome': fornecedor.get('nome'),
+            'cnpj': fornecedor.get('cnpj') or fornecedor.get('documento'),
+            'telefone': fornecedor.get('telefone'),
+            'email': fornecedor.get('email'),
+            'endereco': fornecedor.get('endereco'),
+            'ativo': fornecedor.get('ativo', True),
+            'proprietario_id': fornecedor.get('proprietario_id')
+        })
+        
+    except Exception as e:
+        logger.error(f'Erro ao obter fornecedor {nome}: {e}')
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/fornecedores/<path:nome>', methods=['PUT', 'DELETE'])  # type: ignore
 @require_permission('fornecedores_edit')
 @aplicar_filtro_cliente
 def modificar_fornecedor(nome):
     """Atualiza ou remove um fornecedor com validação de empresa"""
+    # Decode do nome que vem URL-encoded
+    from urllib.parse import unquote
+    nome = unquote(nome)
+    
     filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
     
     if request.method == 'PUT':
@@ -2217,11 +2281,12 @@ def modificar_fornecedor(nome):
 def inativar_cliente(nome):
     """Inativa um cliente com motivo"""
     try:
-        data = request.json
-        motivo = data.get('motivo', '')
+        # Decode do nome que vem URL-encoded
+        from urllib.parse import unquote
+        nome = unquote(nome)
         
-        if not motivo.strip():
-            return jsonify({'success': False, 'error': 'Motivo é obrigatório'}), 400
+        data = request.json or {}
+        motivo = data.get('motivo', 'Inativado pelo usuário')
         
         success, mensagem = db.inativar_cliente(nome, motivo)
         return jsonify({'success': success, 'message': mensagem})
@@ -2234,6 +2299,10 @@ def inativar_cliente(nome):
 def reativar_cliente(nome):
     """Reativa um cliente"""
     try:
+        # Decode do nome que vem URL-encoded
+        from urllib.parse import unquote
+        nome = unquote(nome)
+        
         success = db.reativar_cliente(nome)
         return jsonify({'success': success})
     except Exception as e:
@@ -2245,11 +2314,12 @@ def reativar_cliente(nome):
 def inativar_fornecedor(nome):
     """Inativa um fornecedor com motivo"""
     try:
-        data = request.json
-        motivo = data.get('motivo', '')
+        # Decode do nome que vem URL-encoded
+        from urllib.parse import unquote
+        nome = unquote(nome)
         
-        if not motivo.strip():
-            return jsonify({'success': False, 'error': 'Motivo é obrigatório'}), 400
+        data = request.json or {}
+        motivo = data.get('motivo', 'Inativado pelo usuário')
         
         success, mensagem = db.inativar_fornecedor(nome, motivo)
         return jsonify({'success': success, 'message': mensagem})
@@ -2262,6 +2332,10 @@ def inativar_fornecedor(nome):
 def reativar_fornecedor(nome):
     """Reativa um fornecedor"""
     try:
+        # Decode do nome que vem URL-encoded
+        from urllib.parse import unquote
+        nome = unquote(nome)
+        
         success = db.reativar_fornecedor(nome)
         return jsonify({'success': success})
     except Exception as e:
@@ -5260,7 +5334,18 @@ def listar_funcionarios_rh():
 
 # ============================================================================
 # ENDPOINTS TEMPORÁRIOS PARA DEBUG E MIGRATIONS
+# ⚠️ ESTES ENDPOINTS SÓ FUNCIONAM EM DESENVOLVIMENTO
 # ============================================================================
+
+def _check_debug_endpoint_allowed():
+    """Verifica se endpoints de debug podem ser executados"""
+    if IS_PRODUCTION:
+        return jsonify({
+            'success': False,
+            'error': 'Endpoints de debug não disponíveis em produção',
+            'message': 'Use migrations adequadas ou console admin'
+        }), 403
+    return None
 
 @app.route('/api/debug/fix-kits-table', methods=['POST'])
 @csrf_instance.exempt
@@ -5268,7 +5353,14 @@ def fix_kits_table():
     """
     Migration: Adiciona colunas 'descricao' e 'empresa_id' na tabela kits
     Bug descoberto na Fase 3 - código usa campos que não existem
+    
+    ⚠️ DISPONÍVEL APENAS EM DESENVOLVIMENTO
     """
+    # Bloquear em produção
+    check = _check_debug_endpoint_allowed()
+    if check:
+        return check
+    
     try:
         conn = database.get_connection()
         cursor = conn.cursor()
@@ -5357,9 +5449,16 @@ def fix_p1_issues():
     2. Cria indexes para empresa_id
     3. Reporta campos que precisam de conversão manual (VARCHAR → FK)
     
+    ⚠️ DISPONÍVEL APENAS EM DESENVOLVIMENTO
+    
     Returns:
         JSON com resultados detalhados da migration
     """
+    # Bloquear em produção
+    check = _check_debug_endpoint_allowed()
+    if check:
+        return check
+    
     try:
         conn = database.get_connection()
         cursor = conn.cursor()
@@ -6634,7 +6733,17 @@ def pool_status():
 @app.route('/api/debug/criar-admin', methods=['POST'])
 @csrf_instance.exempt
 def criar_admin_inicial():
-    """Endpoint temporário para criar usuário admin no Railway"""
+    """
+    Endpoint temporário para criar usuário admin no Railway
+    
+    ⚠️ DISPONÍVEL APENAS EM DESENVOLVIMENTO
+    Em produção, use: python criar_admin_railway.py
+    """
+    # Bloquear em produção
+    check = _check_debug_endpoint_allowed()
+    if check:
+        return check
+    
     try:
         from auth_functions import hash_password, verificar_senha
         
@@ -6680,6 +6789,146 @@ def criar_admin_inicial():
             'error': str(e),
             'traceback': traceback.format_exc()
         }), 500
+
+
+# ============================================================================
+# ENDPOINT DE STATUS DA MIGRAÇÃO DE SENHAS
+# ============================================================================
+@app.route('/api/admin/passwords/migration-status', methods=['GET'])
+@require_admin
+def password_migration_status():
+    """Retorna status da migração de senhas SHA-256 → bcrypt"""
+    try:
+        from migration_upgrade_passwords import relatorio_hashes_pendentes
+        
+        stats = relatorio_hashes_pendentes(db)
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'total_usuarios': stats['total_usuarios'],
+                'usuarios_bcrypt': stats['usuarios_bcrypt'],
+                'usuarios_sha256': stats['usuarios_sha256'],
+                'usuarios_desconhecido': stats['usuarios_desconhecido'],
+                'percentual_migrado': round(
+                    (stats['usuarios_bcrypt'] / stats['total_usuarios'] * 100) 
+                    if stats['total_usuarios'] > 0 else 100, 
+                    2
+                ),
+                'pendentes': stats['pendentes']
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@app.route('/api/admin/passwords/force-upgrade', methods=['POST'])
+@require_admin
+def force_password_upgrade():
+    """Força upgrade de senha para um usuário específico"""
+    try:
+        from migration_upgrade_passwords import forcar_upgrade_usuario
+        
+        data = request.json
+        username = data.get('username')
+        nova_senha = data.get('nova_senha')
+        
+        if not username or not nova_senha:
+            return jsonify({
+                'success': False,
+                'error': 'username e nova_senha são obrigatórios'
+            }), 400
+        
+        sucesso = forcar_upgrade_usuario(username, nova_senha, db)
+        
+        if sucesso:
+            return jsonify({
+                'success': True,
+                'message': f'Senha de {username} atualizada com sucesso'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Usuário não encontrado ou erro ao atualizar'
+            }), 404
+
+
+# ============================================================================
+# ENDPOINT DE ANALYTICS - PERFORMANCE MONITORING
+# ============================================================================
+@app.route('/api/analytics/lazy-loading', methods=['POST'])
+@require_auth
+def log_lazy_loading_performance():
+    """Recebe e armazena métricas de performance do lazy loading"""
+    try:
+        data = request.json
+        usuario_id = get_usuario_logado()['id']
+        
+        # Log estruturado das métricas
+        logger.info("lazy_loading_metrics", extra={
+            'usuario_id': usuario_id,
+            'session_duration': data.get('summary', {}).get('sessionDuration'),
+            'total_pages': data.get('summary', {}).get('totalPagesLoaded'),
+            'cache_hit_rate': data.get('cache', {}).get('hitRate'),
+            'avg_load_time': data.get('performance', {}).get('avgLoadTime'),
+            'errors': len(data.get('errors', []))
+        })
+        
+        # Opcionalmente, armazenar em tabela de métricas
+        # (se quiser análise histórica mais complexa)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Métricas recebidas'
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao processar métricas: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/analytics/lazy-loading/summary', methods=['GET'])
+@require_admin
+def get_lazy_loading_summary():
+    """Retorna resumo de métricas de performance do lazy loading (admin only)"""
+    try:
+        # Aqui você pode implementar agregação de métricas
+        # Por enquanto, retorna instruções de uso
+        return jsonify({
+            'success': True,
+            'message': 'Métricas disponíveis nos logs estruturados',
+            'instructions': {
+                'log_query': 'Buscar por "lazy_loading_metrics" nos logs',
+                'console_usage': [
+                    'window.lazyLoadMonitors.default.printReport()',
+                    'window.lazyLoadMonitors.default.sendToBackend()'
+                ]
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
 
 if __name__ == '__main__':
     # Ativar logging do Flask/Werkzeug

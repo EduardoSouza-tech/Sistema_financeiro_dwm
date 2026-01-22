@@ -2,5 +2,12 @@
     "python.autoComplete.extraPaths": [
         "${workspaceFolder}",
         "."
-    ]
+    ],
+    // Configurações do GitHub Copilot Chat para preservar histórico
+    "github.copilot.chat.history.maximumNumberOfMessages": 1000,
+    "github.copilot.chat.history.enabled": true,
+    "github.copilot.chat.persistHistory": true,
+    "workbench.localHistory.enabled": true,
+    "workbench.localHistory.maxFileSize": 4096,
+    "workbench.localHistory.maxFileEntries": 100
 }

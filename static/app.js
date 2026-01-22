@@ -1564,7 +1564,8 @@ async function inativarCliente(nome) {
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
-            }
+            },
+            body: JSON.stringify({})
         });
         
         console.log('   📡 Status:', response.status);
@@ -1608,7 +1609,8 @@ async function ativarCliente(nome) {
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
-            }
+            },
+            body: JSON.stringify({})
         });
         
         console.log('   📡 Status:', response.status);
@@ -1744,6 +1746,40 @@ async function salvarFornecedor(event) {
     }
 }
 
+async function editarFornecedor(nome) {
+    try {
+        console.log('✏️ Editando fornecedor:', nome);
+        
+        if (!nome) {
+            showToast('Erro: Nome do fornecedor não informado', 'error');
+            return;
+        }
+        
+        // Buscar dados do fornecedor
+        const response = await fetch(`${API_URL}/fornecedores/${encodeURIComponent(nome)}`);
+        
+        if (!response.ok) {
+            throw new Error('Fornecedor não encontrado');
+        }
+        
+        const fornecedor = await response.json();
+        console.log('✅ Fornecedor encontrado:', fornecedor);
+        
+        // Abrir modal de edição
+        if (typeof openModalFornecedor === 'function') {
+            openModalFornecedor(fornecedor);
+            console.log('✅ Modal de edição aberto');
+        } else {
+            showToast('Erro: Função de edição não disponível', 'error');
+            console.error('❌ Função openModalFornecedor não encontrada!');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao editar fornecedor:', error);
+        showToast('Erro ao abrir edição: ' + error.message, 'error');
+    }
+}
+
 async function excluirFornecedor(nome) {
     if (!confirm(`Deseja realmente excluir o fornecedor "${nome}"?`)) return;
     
@@ -1763,6 +1799,94 @@ async function excluirFornecedor(nome) {
     } catch (error) {
         console.error('Erro ao excluir fornecedor:', error);
         alert('Erro ao excluir fornecedor');
+    }
+}
+
+// Função para inativar fornecedor
+async function inativarFornecedor(nome) {
+    console.log('⏸️ inativarFornecedor chamado com:', nome);
+    
+    if (!confirm(`Deseja realmente desativar o fornecedor "${nome}"?`)) {
+        console.log('   ❌ Usuário cancelou');
+        return;
+    }
+    
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        console.log('   🔑 CSRF Token:', csrfToken ? 'Presente' : 'AUSENTE');
+        
+        const url = `${API_URL}/fornecedores/${encodeURIComponent(nome)}/inativar`;
+        console.log('   🌐 URL:', url);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        
+        console.log('   📡 Status:', response.status);
+        
+        const result = await response.json();
+        console.log('   📦 Resposta:', result);
+        
+        if (response.ok && result.success) {
+            showToast('✓ Fornecedor desativado com sucesso!', 'success');
+            await loadFornecedores(true); // Recarregar ativos
+            console.log('   ✅ Lista recarregada');
+        } else {
+            const errorMsg = result.error || 'Erro desconhecido';
+            showToast('Erro ao desativar: ' + errorMsg, 'error');
+            console.error('   ❌ Erro:', errorMsg);
+        }
+    } catch (error) {
+        console.error('   ❌ Exception:', error);
+        showToast('Erro ao desativar fornecedor', 'error');
+    }
+}
+
+// Função para reativar fornecedor
+async function ativarFornecedor(nome) {
+    console.log('▶️ ativarFornecedor chamado com:', nome);
+    
+    if (!confirm(`Deseja realmente reativar o fornecedor "${nome}"?`)) {
+        console.log('   ❌ Usuário cancelou');
+        return;
+    }
+    
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        console.log('   🔑 CSRF Token:', csrfToken ? 'Presente' : 'AUSENTE');
+        
+        const url = `${API_URL}/fornecedores/${encodeURIComponent(nome)}/reativar`;
+        console.log('   🌐 URL:', url);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        
+        console.log('   📡 Status:', response.status);
+        
+        const result = await response.json();
+        console.log('   📦 Resposta:', result);
+        
+        if (response.ok && result.success) {
+            showToast('✓ Fornecedor reativado com sucesso!', 'success');
+            await loadFornecedores(false); // Recarregar inativos
+            console.log('   ✅ Lista recarregada');
+        } else {
+            const errorMsg = result.error || 'Erro desconhecido';
+            showToast('Erro ao reativar: ' + errorMsg, 'error');
+            console.error('   ❌ Erro:', errorMsg);
+        }
+    } catch (error) {
+        console.error('   ❌ Exception:', error);
+        showToast('Erro ao reativar fornecedor', 'error');
     }
 }
 
@@ -3286,15 +3410,81 @@ async function excluirSessao(id) {
     }
 }
 
-function editarComissao(id) {
-    console.log('🔧 Editar comissão:', id);
-    showToast('Função de edição de comissão em desenvolvimento', 'info');
+async function editarComissao(id) {
+    try {
+        console.log('🔧 Editando comissão ID:', id);
+        
+        // Buscar dados da comissão
+        const response = await fetch(`/api/comissoes/${id}`);
+        
+        if (!response.ok) {
+            throw new Error('Comissão não encontrada');
+        }
+        
+        const result = await response.json();
+        console.log('📋 Dados da comissão:', result);
+        
+        if (result.success && result.data) {
+            // Verificar se existe modal específico de comissão
+            if (typeof openModalComissao === 'function') {
+                openModalComissao(result.data);
+            } else {
+                // Se não houver modal, mostrar dados em alert temporário
+                console.warn('⚠️ Modal openModalComissao não encontrado');
+                showToast('Modal de edição de comissão não implementado ainda', 'warning');
+                // Aqui você pode abrir um modal genérico ou criar um novo
+            }
+        } else {
+            showToast('❌ Erro ao carregar dados da comissão', 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao buscar comissão:', error);
+        showToast('❌ Erro ao carregar comissão: ' + error.message, 'error');
+    }
 }
 
-function excluirComissao(id) {
-    if (confirm('Tem certeza que deseja excluir esta comissão?')) {
-        console.log('🗑️ Excluir comissão:', id);
-        showToast('Função de exclusão de comissão em desenvolvimento', 'info');
+async function excluirComissao(id) {
+    if (!confirm('Tem certeza que deseja excluir esta comissão?')) {
+        console.log('   ❌ Usuário cancelou');
+        return;
+    }
+    
+    try {
+        console.log('🗑️ Excluindo comissão ID:', id);
+        
+        const response = await fetch(`/api/comissoes/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content
+            }
+        });
+        
+        console.log('   📡 Status:', response.status);
+        
+        const result = await response.json();
+        console.log('   📦 Resposta:', result);
+        
+        if (response.ok && result.success) {
+            showToast('✅ Comissão excluída com sucesso!', 'success');
+            
+            // Recarregar lista de comissões (se houver função loadComissoes)
+            if (typeof loadComissoes === 'function') {
+                loadComissoes();
+            } else if (typeof loadContratos === 'function') {
+                // Pode estar dentro de contratos
+                loadContratos();
+            }
+            
+            console.log('   ✅ Lista recarregada');
+        } else {
+            const errorMsg = result.error || 'Erro desconhecido';
+            showToast('❌ Erro ao excluir: ' + errorMsg, 'error');
+            console.error('   ❌ Erro:', errorMsg);
+        }
+    } catch (error) {
+        console.error('   ❌ Exception:', error);
+        showToast('❌ Erro ao excluir comissão: ' + error.message, 'error');
     }
 }
 
@@ -3366,6 +3556,84 @@ function openModalSessaoEquipe() {
 function exportarContratosPDF() {
     showToast('Exportação de contratos para PDF em desenvolvimento', 'info');
 }
+
+// ============================================================================
+// EXPOSIÇÃO GLOBAL DE FUNÇÕES CRÍTICAS
+// ============================================================================
+
+// Funções de Contas
+window.editarConta = editarConta;
+window.excluirConta = excluirConta;
+window.salvarConta = salvarConta;
+
+// Funções de Categorias
+window.editarCategoria = editarCategoria;
+window.excluirCategoria = excluirCategoria;
+window.salvarCategoria = salvarCategoria;
+
+// Funções de Clientes
+window.editarCliente = editarCliente;
+window.excluirCliente = excluirCliente;
+window.inativarCliente = inativarCliente;
+window.ativarCliente = ativarCliente;
+window.salvarCliente = salvarCliente;
+
+// Funções de Fornecedores
+window.editarFornecedor = editarFornecedor;
+window.excluirFornecedor = excluirFornecedor;
+window.inativarFornecedor = inativarFornecedor;
+window.ativarFornecedor = ativarFornecedor;
+window.salvarFornecedor = salvarFornecedor;
+
+// Funções de Lançamentos
+window.excluirLancamento = excluirLancamento;
+window.salvarLancamento = salvarLancamento;
+window.excluirEmMassa = excluirEmMassa;
+
+// Funções de Kits
+window.editarKit = editarKit;
+window.excluirKit = excluirKit;
+
+// Funções de Contratos e Sessões
+window.editarContrato = editarContrato;
+window.excluirContrato = excluirContrato;
+window.editarSessao = editarSessao;
+window.excluirSessao = excluirSessao;
+window.showContratoTab = showContratoTab;
+
+// Funções de Comissões
+window.editarComissao = editarComissao;
+window.excluirComissao = excluirComissao;
+
+// Funções de Carregamento
+window.loadDashboard = loadDashboard;
+window.loadContas = loadContas;
+window.loadLancamentos = loadLancamentos;
+window.loadContasReceber = loadContasReceber;
+window.loadContasPagar = loadContasPagar;
+window.loadFluxoCaixa = loadFluxoCaixa;
+window.loadAnaliseCategorias = loadAnaliseCategorias;
+window.loadInadimplencia = loadInadimplencia;
+window.loadFluxoProjetado = loadFluxoProjetado;
+window.loadAnaliseContas = loadAnaliseContas;
+window.loadFornecedores = loadFornecedores;
+window.loadExtratos = loadExtratos;
+window.loadFuncionariosRH = loadFuncionariosRH;
+window.loadKits = loadKits;
+window.loadSessoes = loadSessoes;
+window.loadComissoes = loadComissoes;
+
+// Funções de Exportação
+window.exportarFluxoExcel = exportarFluxoExcel;
+window.exportarContratosPDF = exportarContratosPDF;
+
+// Funções de Interface
+window.showPage = showPage;
+window.showModal = showModal;
+window.showSection = showSection;
+window.showNotification = showNotification;
+
+console.log('✅ Todas as funções críticas expostas globalmente');
 
 // ============================================================================
 // FUNÇÕES DE CARREGAMENTO - STUBS PARA SEÇÕES EM DESENVOLVIMENTO (Fase 7.5)
