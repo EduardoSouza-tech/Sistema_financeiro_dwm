@@ -3197,9 +3197,10 @@ window.conciliarTransacaoIndividual = async function() {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
         console.log('🔐 CSRF Token:', csrfToken ? 'Presente' : 'Ausente');
         
-        console.log('📡 Enviando requisição para:', `${API_URL}/extratos/${transacao.id}/conciliar`);
+        console.log('📡 Enviando requisição para: /api/extratos/conciliacao-geral');
         
-        const response = await fetch(`${API_URL}/extratos/${transacao.id}/conciliar`, {
+        // CORRIGIDO: Usar endpoint conciliacao-geral que CRIA o lançamento
+        const response = await fetch(`${API_URL}/extratos/conciliacao-geral`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -3207,9 +3208,12 @@ window.conciliarTransacaoIndividual = async function() {
                 'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({
-                razao_social: razao,
-                categoria: categoria,
-                subcategoria: subcategoria
+                transacoes: [{
+                    transacao_id: transacao.id,
+                    razao_social: razao,
+                    categoria: categoria,
+                    subcategoria: subcategoria
+                }]
             })
         });
         
