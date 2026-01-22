@@ -1453,10 +1453,38 @@ function createModal(title, content) {
     return modal;
 }
 
-function closeModal() {
-    const modal = document.getElementById('dynamic-modal');
+function closeModal(modalId) {
+    console.log('🔷 [modals.js] closeModal chamada com ID:', modalId);
+    
+    // Se não passou modalId, tenta fechar o dynamic-modal (comportamento antigo)
+    if (!modalId) {
+        const modal = document.getElementById('dynamic-modal');
+        if (modal) {
+            console.log('   📍 Removendo dynamic-modal');
+            modal.remove();
+            return;
+        }
+        console.warn('   ⚠️ Nenhum modalId fornecido e dynamic-modal não encontrado');
+        return;
+    }
+    
+    // Fecha o modal especificado
+    const modal = document.getElementById(modalId);
+    console.log('   📍 Modal encontrado:', modal);
+    
     if (modal) {
-        modal.remove();
+        console.log('   📊 Display ANTES:', modal.style.display);
+        console.log('   📊 Classes ANTES:', modal.className);
+        
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+        
+        console.log('   📊 Display DEPOIS:', modal.style.display);
+        console.log('   📊 Classes DEPOIS:', modal.className);
+        console.log('   ✅ Modal fechado com sucesso!');
+    } else {
+        console.warn('   ⚠️ Modal não encontrado:', modalId);
     }
 }
 
