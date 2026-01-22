@@ -3158,23 +3158,31 @@ window.carregarSubcategoriasIndividual = function(categoriaNome) {
 
 // Processar conciliação individual
 window.conciliarTransacaoIndividual = async function() {
+    console.log('🎯 conciliarTransacaoIndividual chamada!');
     try {
         const transacao = window.transacaoIndividual;
+        console.log('📦 Transação armazenada:', transacao);
+        
         if (!transacao) {
+            console.error('❌ Transação não encontrada em window.transacaoIndividual');
             showToast('Transação não encontrada', 'error');
             return;
         }
         
-        const razao = document.getElementById('razao-individual').value.trim();
-        const categoria = document.getElementById('categoria-individual').value;
-        const subcategoria = document.getElementById('subcategoria-individual').value;
+        const razao = document.getElementById('razao-individual')?.value.trim();
+        const categoria = document.getElementById('categoria-individual')?.value;
+        const subcategoria = document.getElementById('subcategoria-individual')?.value;
+        
+        console.log('📝 Dados do formulário:', { razao, categoria, subcategoria });
         
         if (!categoria) {
+            console.warn('⚠️ Categoria não selecionada');
             showToast('Selecione uma categoria', 'warning');
             return;
         }
         
         if (!subcategoria) {
+            console.warn('⚠️ Subcategoria não selecionada');
             showToast('Selecione uma subcategoria', 'warning');
             return;
         }
@@ -3187,6 +3195,9 @@ window.conciliarTransacaoIndividual = async function() {
         });
         
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        console.log('🔐 CSRF Token:', csrfToken ? 'Presente' : 'Ausente');
+        
+        console.log('📡 Enviando requisição para:', `${API_URL}/extratos/${transacao.id}/conciliar`);
         
         const response = await fetch(`${API_URL}/extratos/${transacao.id}/conciliar`, {
             method: 'POST',
@@ -3202,8 +3213,12 @@ window.conciliarTransacaoIndividual = async function() {
             })
         });
         
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response ok:', response.ok);
+        
         if (!response.ok) {
             const error = await response.json();
+            console.error('❌ Erro do servidor:', error);
             throw new Error(error.erro || 'Erro ao conciliar');
         }
         
@@ -3211,7 +3226,28 @@ window.conciliarTransacaoIndividual = async function() {
         console.log('✅ Conciliação bem-sucedida:', result);
         
         showToast('✅ Transação conciliada com sucesso!', 'success');
-        closeModal('modal-conciliacao');
+        
+        console.log('🚪 Tentando fechar modal...');
+        console.log('   📍 window.closeModal existe?', typeof window.closeModal);
+        console.log('   📍 closeModal existe?', typeof closeModal);
+        
+        // Usar explicitamente window.closeModal
+        if (typeof window.closeModal === 'function') {
+            console.log('   ✅ Chamando window.closeModal()');
+            window.closeModal('modal-conciliacao');
+        } else if (typeof closeModal === 'function') {
+            console.log('   ✅ Chamando closeModal()');
+            closeModal('modal-conciliacao');
+        } else {
+            console.error('   ❌ closeModal não encontrada!');
+            // Fallback manual
+            const modal = document.getElementById('modal-conciliacao');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.remove('active');
+                console.log('   ⚡ Modal fechado manualmente');
+            }
+        }
         
         console.log('🔄 Recarregando lista de extratos...');
         
@@ -3228,9 +3264,12 @@ window.conciliarTransacaoIndividual = async function() {
         }
         
     } catch (error) {
-        console.error('❌ Erro ao conciliar:', error);
+        console.error('❌ ERRO CAPTURADO em conciliarTransacaoIndividual:', error);
+        console.error('   Stack:', error.stack);
         showToast(error.message || 'Erro ao conciliar transação', 'error');
     }
+    
+    console.log('🏁 conciliarTransacaoIndividual finalizada');
 };
 
 // Mostrar detalhe de transação já conciliada
