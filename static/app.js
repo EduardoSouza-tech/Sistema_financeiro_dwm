@@ -2968,6 +2968,11 @@ async function mostrarSugestoesConciliacao(transacaoId) {
         const clientes = await responseClientes.json();
         const fornecedores = await responseFornecedores.json();
         
+        console.log('📦 Dados carregados:');
+        console.log('   Categorias:', categorias.length);
+        console.log('   Clientes:', clientes.length);
+        console.log('   Fornecedores:', fornecedores.length);
+        
         // Criar dicionário de matching CPF/CNPJ
         const clientesPorCPF = {};
         clientes.forEach(c => {
@@ -2982,7 +2987,9 @@ async function mostrarSugestoesConciliacao(transacaoId) {
         });
         
         // Determinar tipo e cor
+        console.log('🔍 Tipo da transação:', transacao.tipo);
         const isCredito = transacao.tipo?.toUpperCase() === 'CREDITO';
+        console.log('   É crédito?', isCredito);
         const valorColor = isCredito ? '#27ae60' : '#e74c3c';
         
         // Tentar detectar CPF/CNPJ na descrição
@@ -2998,6 +3005,12 @@ async function mostrarSugestoesConciliacao(transacaoId) {
         const categoriasOpcoes = isCredito ? 
             categorias.filter(c => c.tipo === 'RECEITA') : 
             categorias.filter(c => c.tipo === 'DESPESA');
+        
+        console.log('📋 Categorias filtradas:', categoriasOpcoes.length);
+        console.log('   Tipo buscado:', isCredito ? 'RECEITA' : 'DESPESA');
+        if (categoriasOpcoes.length > 0) {
+            console.log('   Primeira categoria:', categoriasOpcoes[0]);
+        }
         
         // Montar formulário no estilo da conciliação geral
         const formHtml = `
@@ -3071,7 +3084,27 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                 ${fornecedores.map(f => `<option value="${f.nome}">`).join('')}
             </datalist>`;
         
-        document.getElementById('transacao-conciliacao-form').innerHTML = formHtml;
+        console.log('📝 HTML do formulário montado');
+        console.log('   Tamanho do HTML:', formHtml.length, 'caracteres');
+        
+        const formElement = document.getElementById('transacao-conciliacao-form');
+        console.log('📍 Elemento transacao-conciliacao-form:', formElement);
+        
+        if (!formElement) {
+            console.error('❌ Elemento transacao-conciliacao-form não encontrado!');
+            showToast('Erro: elemento do formulário não encontrado', 'error');
+            return;
+        }
+        
+        formElement.innerHTML = formHtml;
+        console.log('✅ HTML inserido no formulário');
+        
+        // Verificar se os elementos foram criados
+        const categoriaSelect = document.getElementById('categoria-individual');
+        const subcategoriaSelect = document.getElementById('subcategoria-individual');
+        console.log('🔍 Elementos após inserção:');
+        console.log('   categoria-individual:', categoriaSelect, '- Opções:', categoriaSelect?.options.length);
+        console.log('   subcategoria-individual:', subcategoriaSelect);
         
         // Armazenar dados para processamento
         window.transacaoIndividual = transacao;
