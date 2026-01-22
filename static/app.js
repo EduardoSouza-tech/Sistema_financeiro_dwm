@@ -2950,6 +2950,7 @@ async function mostrarSugestoesConciliacao(transacaoId) {
         }
         
         console.log('✅ Transação encontrada:', transacao);
+        console.log('   💰 Valor bruto da transação:', transacao.valor, 'tipo:', typeof transacao.valor);
         
         // Buscar categorias, clientes e fornecedores
         const [responseCategorias, responseClientes, responseFornecedores] = await Promise.all([
@@ -3028,7 +3029,7 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                     <div>
                         <strong>Valor:</strong> 
                         <span style="color: ${valorColor}; font-weight: bold; font-size: 18px;">
-                            ${formatarMoeda(transacao.valor)}
+                            ${parseFloat(transacao.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </span>
                     </div>
                     <div>
