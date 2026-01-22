@@ -699,14 +699,27 @@ function toggleSubmenu(submenuName) {
  * @param {string} modalId - ID do modal
  */
 function showModal(modalId) {
+    console.log('🔷 showModal chamada com ID:', modalId);
     try {
         const modal = getElement(modalId, 'showModal');
+        console.log('   📍 Modal encontrado:', modal);
+        
         if (modal) {
+            console.log('   📊 Display ANTES:', modal.style.display);
+            console.log('   📊 Classes ANTES:', modal.className);
+            
             modal.classList.add('active');
             modal.style.display = 'flex'; // Forçar display flex para modais
             document.body.style.overflow = 'hidden'; // Previne scroll do body
+            
+            console.log('   📊 Display DEPOIS:', modal.style.display);
+            console.log('   📊 Classes DEPOIS:', modal.className);
+            console.log('   ✅ Modal deveria estar visível agora!');
+        } else {
+            console.error('   ❌ Modal NÃO ENCONTRADO!');
         }
     } catch (error) {
+        console.error('❌ Erro em showModal:', error);
         logError('showModal', error, { modalId });
     }
 }
@@ -2814,6 +2827,8 @@ async function importarExtrato() {
 // Carregar e exibir transações do extrato
 async function loadExtratos() {
     try {
+        console.log('📋 loadExtratos: INICIANDO carregamento de extratos...');
+        
         // Obter filtros (com proteção contra null)
         const contaEl = document.getElementById('extrato-filter-conta');
         const dataInicioEl = document.getElementById('extrato-filter-data-inicio');
@@ -2825,6 +2840,8 @@ async function loadExtratos() {
         const dataFim = dataFimEl ? dataFimEl.value : '';
         const conciliado = conciliadoEl ? conciliadoEl.value : '';
         
+        console.log('📋 Filtros aplicados:', { conta, dataInicio, dataFim, conciliado });
+        
         // Construir URL com query params
         const params = new URLSearchParams();
         if (conta) params.append('conta', conta);
@@ -2832,7 +2849,10 @@ async function loadExtratos() {
         if (dataFim) params.append('data_fim', dataFim);
         if (conciliado) params.append('conciliado', conciliado);
         
-        const response = await fetch(`${API_URL}/extratos?${params.toString()}`, {
+        const url = `${API_URL}/extratos?${params.toString()}`;
+        console.log('📡 Fazendo requisição para:', url);
+        
+        const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
@@ -2841,17 +2861,25 @@ async function loadExtratos() {
         if (!response.ok) throw new Error('Erro ao carregar extratos');
         
         extratos = await response.json();
+        console.log(`✅ ${extratos.length} transações recebidas do backend`);
         
         // Renderizar tabela
         const tbody = document.getElementById('tbody-extratos');
+        console.log('📍 Elemento tbody-extratos:', tbody);
+        
         tbody.innerHTML = '';
         
         if (extratos.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Nenhuma transação encontrada</td></tr>';
+            console.log('⚠️ Nenhuma transação para exibir');
             return;
         }
         
-        extratos.forEach(transacao => {
+        console.log('🔄 Renderizando', extratos.length, 'transações...');
+        
+        extratos.forEach((transacao, index) => {
+            console.log(`   [${index + 1}/${extratos.length}] Renderizando transação ID:`, transacao.id, 'Conciliado:', transacao.conciliado);
+            
             const tr = document.createElement('tr');
             const statusIcon = transacao.conciliado ? '✅' : '⏳';
             const statusText = transacao.conciliado ? 'Conciliado' : 'Pendente';
@@ -2869,6 +2897,18 @@ async function loadExtratos() {
             const saldoFormatado = formatarMoeda(transacao.saldo);
             const saldoColor = transacao.saldo >= 0 ? '#27ae60' : '#c0392b';
             
+            // Determinar qual botão exibir
+            const botaoAcao = !transacao.conciliado ? 
+                `<button class="btn btn-sm btn-primary" onclick="console.log('🔵 Botão Conciliar clicado! ID:', ${transacao.id}); mostrarSugestoesConciliacao(${transacao.id})">
+                    🔗 Conciliar
+                </button>` 
+                : 
+                `<button class="btn btn-sm btn-secondary" onclick="console.log('🔵 Botão Ver clicado! ID:', ${transacao.id}); mostrarDetalheConciliacao(${transacao.id})">
+                    👁️ Ver
+                </button>`;
+            
+            console.log(`      ➡️ Botão renderizado para transação ${transacao.id}:`, transacao.conciliado ? 'Ver (conciliado)' : 'Conciliar (pendente)');
+            
             tr.innerHTML = `
                 <td>${formatarData(transacao.data)}</td>
                 <td style="max-width: 300px;">${transacao.descricao}</td>
@@ -2881,22 +2921,17 @@ async function loadExtratos() {
                     </span>
                 </td>
                 <td>
-                    ${!transacao.conciliado ? 
-                        `<button class="btn btn-sm btn-primary" onclick="mostrarSugestoesConciliacao(${transacao.id})">
-                            🔗 Conciliar
-                        </button>` 
-                        : 
-                        `<button class="btn btn-sm btn-secondary" onclick="mostrarDetalheConciliacao(${transacao.id})">
-                            👁️ Ver
-                        </button>`
-                    }
+                    ${botaoAcao}
                 </td>
             `;
             tbody.appendChild(tr);
         });
         
+        console.log('✅ loadExtratos: Tabela renderizada com sucesso!');
+        console.log('📊 Total de linhas na tabela:', tbody.children.length);
+        
     } catch (error) {
-        console.error('Erro ao carregar extratos:', error);
+        console.error('❌ Erro ao carregar extratos:', error);
         showToast('Erro ao carregar transações do extrato', 'error');
     }
 }
@@ -2931,23 +2966,32 @@ async function mostrarSugestoesConciliacao(transacaoId) {
         console.log('✅ Info da transação preenchida');
         
         // Buscar sugestões
-        console.log('📡 Buscando sugestões...');
-        const response = await fetch(`${API_URL}/extratos/${transacaoId}/sugestoes`, {
+        console.log('📡 Buscando sugestões no backend...');
+        const url = `${API_URL}/extratos/${transacaoId}/sugestoes`;
+        console.log('   URL:', url);
+        
+        const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
         });
         
+        console.log('📡 Response status:', response.status);
+        
         if (!response.ok) throw new Error('Erro ao buscar sugestões');
         
         const sugestoes = await response.json();
+        console.log(`✅ ${sugestoes.length} sugestões recebidas do backend`);
         
         // Exibir sugestões
         const sugestoesDiv = document.getElementById('sugestoes-conciliacao');
+        console.log('📍 Elemento sugestoes-conciliacao:', sugestoesDiv);
         
         if (sugestoes.length === 0) {
+            console.log('⚠️ Nenhuma sugestão encontrada');
             sugestoesDiv.innerHTML = '<p style="text-align: center; padding: 20px; color: #7f8c8d;">Nenhuma sugestão encontrada. Você pode criar um novo lançamento manualmente.</p>';
         } else {
+            console.log('📝 Montando tabela com', sugestoes.length, 'sugestões...');
             sugestoesDiv.innerHTML = `
                 <table class="table">
                     <thead>
@@ -2960,7 +3004,9 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${sugestoes.map(lanc => {
+                        ${sugestoes.map((lanc, idx) => {
+                            console.log(`      [${idx + 1}/${sugestoes.length}] Sugestão: ID=${lanc.id}, Tipo=${lanc.tipo}, Valor=${lanc.valor}`);
+                            
                             const matchPercent = Math.round(
                                 (1 - Math.abs(lanc.valor - transacao.valor) / transacao.valor) * 100
                             );
@@ -2980,7 +3026,7 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                                     <td style="font-weight: bold;">${formatarMoeda(lanc.valor)}</td>
                                     <td><span class="badge badge-${lanc.tipo === 'RECEBER' ? 'success' : 'danger'}">${lanc.tipo}</span></td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary" onclick="conciliarTransacao(${transacaoId}, ${lanc.id})">
+                                        <button class="btn btn-sm btn-primary" onclick="console.log('🟢 Conciliar clicado! Transacao:', ${transacaoId}, 'Lancamento:', ${lanc.id}); conciliarTransacao(${transacaoId}, ${lanc.id})">
                                             ✓ Conciliar
                                         </button>
                                     </td>
@@ -2990,16 +3036,30 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                     </tbody>
                 </table>
             `;
+            console.log('✅ Tabela de sugestões montada');
         }
         
         // Exibir/ocultar botão desconciliar
-        document.getElementById('btn-desconciliar').style.display = 'none';
+        const btnDesconciliar = document.getElementById('btn-desconciliar');
+        console.log('📍 Botão desconciliar:', btnDesconciliar);
+        if (btnDesconciliar) {
+            btnDesconciliar.style.display = 'none';
+            console.log('   ✅ Botão desconciliar ocultado');
+        }
         
-        console.log('🎯 Abrindo modal modal-conciliacao...');
-        console.log('📍 Modal element:', document.getElementById('modal-conciliacao'));
+        console.log('🎯 Preparando para abrir modal modal-conciliacao...');
+        const modalElement = document.getElementById('modal-conciliacao');
+        console.log('📍 Modal element:', modalElement);
+        console.log('   📊 Display atual do modal:', modalElement ? modalElement.style.display : 'ELEMENTO NÃO ENCONTRADO!');
+        console.log('   📊 Classes do modal:', modalElement ? modalElement.className : 'N/A');
         
         // Abrir modal
+        console.log('🚀 Chamando showModal("modal-conciliacao")...');
         showModal('modal-conciliacao');
+        
+        console.log('📊 Após showModal:');
+        console.log('   Display do modal:', modalElement ? modalElement.style.display : 'N/A');
+        console.log('   Classes do modal:', modalElement ? modalElement.className : 'N/A');
         
         console.log('✅ Modal deveria estar aberto agora');
         
