@@ -3203,9 +3203,18 @@ window.conciliarTransacaoIndividual = async function() {
         showToast('✅ Transação conciliada com sucesso!', 'success');
         closeModal('modal-conciliacao');
         
-        // Recarregar lista de extratos
-        if (typeof loadExtratoTransacoes === 'function') {
-            loadExtratoTransacoes();
+        console.log('🔄 Recarregando lista de extratos...');
+        
+        // Recarregar lista de extratos usando a função do HTML
+        if (typeof window.loadExtratoTransacoes === 'function') {
+            console.log('   ✅ Chamando window.loadExtratoTransacoes()');
+            window.loadExtratoTransacoes();
+        } else if (document.querySelector('[onclick*="loadExtratoTransacoes"]')) {
+            // Se a função existir no HTML inline, recarregar a seção
+            console.log('   ✅ Recarregando seção extrato-bancario');
+            showSection('extrato-bancario');
+        } else {
+            console.warn('   ⚠️ Função loadExtratoTransacoes não encontrada');
         }
         
     } catch (error) {

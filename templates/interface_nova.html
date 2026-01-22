@@ -4787,8 +4787,8 @@
             }
         }
 
-        // Carregar transações do extrato
-        async function loadExtratoTransacoes() {
+        // Carregar transações do extrato (expor globalmente para uso após conciliação)
+        window.loadExtratoTransacoes = async function() {
             const tbody = document.getElementById('tbody-extrato');
             tbody.innerHTML = '<tr><td colspan="8" class="loading">Carregando transações...</td></tr>';
             
@@ -4914,7 +4914,7 @@
                 console.error('Erro ao carregar transações:', error);
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #e74c3c;">❌ Erro ao carregar transações</td></tr>';
             }
-        }
+        };
 
         // Limpar filtros
         function limparFiltrosExtratoOFX() {
@@ -4922,7 +4922,7 @@
             document.getElementById('filtro-data-inicio-extrato').value = '';
             document.getElementById('filtro-data-fim-extrato').value = '';
             document.getElementById('filtro-conciliado-extrato').value = '';
-            loadExtratoTransacoes();
+            window.loadExtratoTransacoes();
         }
 
         // Deletar extratos filtrados
