@@ -2940,134 +2940,247 @@ async function loadExtratos() {
 async function mostrarSugestoesConciliacao(transacaoId) {
     try {
         console.log('🔍 mostrarSugestoesConciliacao chamada com ID:', transacaoId);
-        console.log('🔍 Array window.extratos tem', window.extratos?.length || 0, 'transações');
         
         // Encontrar transação no array global
         const transacao = window.extratos?.find(t => t.id === transacaoId);
         if (!transacao) {
-            console.error('❌ Transação não encontrada! ID procurado:', transacaoId);
-            console.error('   Primeiros 5 IDs disponíveis:', window.extratos?.slice(0, 5).map(t => t.id));
-            throw new Error('Transação não encontrada');
+            console.error('❌ Transação não encontrada!');
+            showToast('Transação não encontrada', 'error');
+            return;
         }
         
         console.log('✅ Transação encontrada:', transacao);
         
-        transacaoSelecionada = transacao;
+        // Buscar categorias, clientes e fornecedores
+        const [responseCategorias, responseClientes, responseFornecedores] = await Promise.all([
+            fetch(`${API_URL}/categorias`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            }),
+            fetch(`${API_URL}/clientes`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            }),
+            fetch(`${API_URL}/fornecedores`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            })
+        ]);
         
-        // Exibir info da transação
-        const infoDiv = document.getElementById('transacao-info');
-        console.log('📍 Elemento transacao-info:', infoDiv);
+        const categorias = await responseCategorias.json();
+        const clientes = await responseClientes.json();
+        const fornecedores = await responseFornecedores.json();
         
-        const valorColor = transacao.tipo === 'CREDITO' ? '#27ae60' : '#c0392b';
-        infoDiv.innerHTML = `
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                <div><strong>Data:</strong> ${formatarData(transacao.data)}</div>
-                <div><strong>Conta:</strong> ${transacao.conta_bancaria}</div>
-                <div><strong>Descrição:</strong> ${transacao.descricao}</div>
-                <div><strong>Valor:</strong> <span style="color: ${valorColor}; font-weight: bold;">${formatarMoeda(transacao.valor)}</span></div>
-            </div>
-        `;
-        
-        console.log('✅ Info da transação preenchida');
-        
-        // Buscar sugestões
-        console.log('📡 Buscando sugestões no backend...');
-        const url = `${API_URL}/extratos/${transacaoId}/sugestoes`;
-        console.log('   URL:', url);
-        
-        const response = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
+        // Criar dicionário de matching CPF/CNPJ
+        const clientesPorCPF = {};
+        clientes.forEach(c => {
+            const cpf_cnpj = (c.cpf || c.cnpj || '').replace(/\D/g, '');
+            if (cpf_cnpj) clientesPorCPF[cpf_cnpj] = c.nome;
         });
         
-        console.log('📡 Response status:', response.status);
+        const fornecedoresPorCPF = {};
+        fornecedores.forEach(f => {
+            const cpf_cnpj = (f.cpf || f.cnpj || '').replace(/\D/g, '');
+            if (cpf_cnpj) fornecedoresPorCPF[cpf_cnpj] = f.nome;
+        });
         
-        if (!response.ok) throw new Error('Erro ao buscar sugestões');
+        // Determinar tipo e cor
+        const isCredito = transacao.tipo?.toUpperCase() === 'CREDITO';
+        const valorColor = isCredito ? '#27ae60' : '#e74c3c';
         
-        const sugestoes = await response.json();
-        console.log(`✅ ${sugestoes.length} sugestões recebidas do backend`);
-        
-        // Exibir sugestões
-        const sugestoesDiv = document.getElementById('sugestoes-conciliacao');
-        console.log('📍 Elemento sugestoes-conciliacao:', sugestoesDiv);
-        
-        if (sugestoes.length === 0) {
-            console.log('⚠️ Nenhuma sugestão encontrada');
-            sugestoesDiv.innerHTML = '<p style="text-align: center; padding: 20px; color: #7f8c8d;">Nenhuma sugestão encontrada. Você pode criar um novo lançamento manualmente.</p>';
-        } else {
-            console.log('📝 Montando tabela com', sugestoes.length, 'sugestões...');
-            sugestoesDiv.innerHTML = `
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Descrição</th>
-                            <th>Valor</th>
-                            <th>Tipo</th>
-                            <th>Ação</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${sugestoes.map((lanc, idx) => {
-                            console.log(`      [${idx + 1}/${sugestoes.length}] Sugestão: ID=${lanc.id}, Tipo=${lanc.tipo}, Valor=${lanc.valor}`);
-                            
-                            const matchPercent = Math.round(
-                                (1 - Math.abs(lanc.valor - transacao.valor) / transacao.valor) * 100
-                            );
-                            const diasDiff = Math.abs(
-                                Math.floor((new Date(lanc.data_vencimento) - new Date(transacao.data)) / (1000 * 60 * 60 * 24))
-                            );
-                            
-                            return `
-                                <tr>
-                                    <td>${formatarData(lanc.data_vencimento)}</td>
-                                    <td>
-                                        ${lanc.descricao}
-                                        <br><small style="color: #7f8c8d;">
-                                            Match: ${matchPercent}% • ±${diasDiff} dias
-                                        </small>
-                                    </td>
-                                    <td style="font-weight: bold;">${formatarMoeda(lanc.valor)}</td>
-                                    <td><span class="badge badge-${lanc.tipo === 'RECEBER' ? 'success' : 'danger'}">${lanc.tipo}</span></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-primary" onclick="console.log('🟢 Conciliar clicado! Transacao:', ${transacaoId}, 'Lancamento:', ${lanc.id}); conciliarTransacao(${transacaoId}, ${lanc.id})">
-                                            ✓ Conciliar
-                                        </button>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            `;
-            console.log('✅ Tabela de sugestões montada');
+        // Tentar detectar CPF/CNPJ na descrição
+        const numeros = transacao.descricao.replace(/\D/g, '');
+        let razaoSugerida = '';
+        if (numeros.length === 11 || numeros.length === 14) {
+            razaoSugerida = isCredito ? 
+                (clientesPorCPF[numeros] || '') : 
+                (fornecedoresPorCPF[numeros] || '');
         }
         
-        // Exibir/ocultar botão desconciliar
-        const btnDesconciliar = document.getElementById('btn-desconciliar');
-        console.log('📍 Botão desconciliar:', btnDesconciliar);
-        if (btnDesconciliar) {
-            btnDesconciliar.style.display = 'none';
-            console.log('   ✅ Botão desconciliar ocultado');
-        }
+        // Filtrar categorias por tipo
+        const categoriasOpcoes = isCredito ? 
+            categorias.filter(c => c.tipo === 'RECEITA') : 
+            categorias.filter(c => c.tipo === 'DESPESA');
         
-        console.log('🎯 Preparando para abrir modal modal-conciliacao...');
-        const modalElement = document.getElementById('modal-conciliacao');
-        console.log('📍 Modal element:', modalElement);
-        console.log('   📊 Display atual do modal:', modalElement ? modalElement.style.display : 'ELEMENTO NÃO ENCONTRADO!');
-        console.log('   📊 Classes do modal:', modalElement ? modalElement.className : 'N/A');
+        // Montar formulário no estilo da conciliação geral
+        const formHtml = `
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                    <div>
+                        <strong>Data:</strong> ${formatarData(transacao.data)}
+                    </div>
+                    <div>
+                        <strong>Conta:</strong> ${transacao.conta_bancaria || 'N/A'}
+                    </div>
+                    <div style="grid-column: 1 / -1;">
+                        <strong>Descrição:</strong> ${transacao.descricao}
+                    </div>
+                    <div>
+                        <strong>Valor:</strong> 
+                        <span style="color: ${valorColor}; font-weight: bold; font-size: 18px;">
+                            ${formatarMoeda(transacao.valor)}
+                        </span>
+                    </div>
+                    <div>
+                        <strong>Tipo:</strong>
+                        <span class="badge badge-${isCredito ? 'success' : 'danger'}">
+                            ${isCredito ? 'Crédito' : 'Débito'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="background: white; border: 2px solid #ecf0f1; border-radius: 8px; padding: 20px;">
+                <h3 style="margin-top: 0; color: #2c3e50;">Dados para Conciliação</h3>
+                
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                        ${isCredito ? 'Cliente' : 'Fornecedor'} (Razão Social):
+                    </label>
+                    <input type="text" 
+                           id="razao-individual" 
+                           value="${razaoSugerida}"
+                           placeholder="${isCredito ? 'Nome do cliente' : 'Nome do fornecedor'}"
+                           list="lista-${isCredito ? 'clientes' : 'fornecedores'}-individual"
+                           style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px;">
+                    <small style="color: #7f8c8d;">Digite o nome ou selecione da lista</small>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Categoria:</label>
+                    <select id="categoria-individual" 
+                            onchange="carregarSubcategoriasIndividual(this.value)"
+                            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px;">
+                        <option value="">Selecione a categoria...</option>
+                        ${categoriasOpcoes.map(c => `<option value="${c.nome}">${c.nome}</option>`).join('')}
+                    </select>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Subcategoria:</label>
+                    <select id="subcategoria-individual" 
+                            disabled
+                            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; background: #f5f5f5;">
+                        <option value="">Primeiro selecione uma categoria</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Datalists para autocomplete -->
+            <datalist id="lista-clientes-individual">
+                ${clientes.map(c => `<option value="${c.nome}">`).join('')}
+            </datalist>
+            <datalist id="lista-fornecedores-individual">
+                ${fornecedores.map(f => `<option value="${f.nome}">`).join('')}
+            </datalist>`;
         
-        // Abrir modal
-        console.log('🚀 Chamando showModal("modal-conciliacao")...');
+        document.getElementById('transacao-conciliacao-form').innerHTML = formHtml;
+        
+        // Armazenar dados para processamento
+        window.transacaoIndividual = transacao;
+        window.categoriasIndividual = categorias;
+        
+        // Mostrar modal
         showModal('modal-conciliacao');
         
-        console.log('📊 Após showModal:');
-        console.log('   Display do modal:', modalElement ? modalElement.style.display : 'N/A');
-        console.log('   Classes do modal:', modalElement ? modalElement.className : 'N/A');
+        console.log('✅ Modal de conciliação individual aberto');
         
-        console.log('✅ Modal deveria estar aberto agora');
+    } catch (error) {
+        console.error('❌ Erro ao mostrar conciliação:', error);
+        showToast('Erro ao carregar dados de conciliação', 'error');
+    }
+}
+
+// Carregar subcategorias para conciliação individual
+window.carregarSubcategoriasIndividual = function(categoriaNome) {
+    const selectSubcat = document.getElementById('subcategoria-individual');
+    
+    if (!categoriaNome) {
+        selectSubcat.innerHTML = '<option value="">Primeiro selecione uma categoria</option>';
+        selectSubcat.disabled = true;
+        return;
+    }
+    
+    const categoria = window.categoriasIndividual.find(c => c.nome === categoriaNome);
+    
+    if (!categoria || !categoria.subcategorias || categoria.subcategorias.length === 0) {
+        selectSubcat.innerHTML = '<option value="">Nenhuma subcategoria disponível</option>';
+        selectSubcat.disabled = true;
+        return;
+    }
+    
+    selectSubcat.innerHTML = `
+        <option value="">Selecione a subcategoria...</option>
+        ${categoria.subcategorias.map(sub => `<option value="${sub}">${sub}</option>`).join('')}
+    `;
+    selectSubcat.disabled = false;
+};
+
+// Processar conciliação individual
+window.conciliarTransacaoIndividual = async function() {
+    try {
+        const transacao = window.transacaoIndividual;
+        if (!transacao) {
+            showToast('Transação não encontrada', 'error');
+            return;
+        }
         
+        const razao = document.getElementById('razao-individual').value.trim();
+        const categoria = document.getElementById('categoria-individual').value;
+        const subcategoria = document.getElementById('subcategoria-individual').value;
+        
+        if (!categoria) {
+            showToast('Selecione uma categoria', 'warning');
+            return;
+        }
+        
+        if (!subcategoria) {
+            showToast('Selecione uma subcategoria', 'warning');
+            return;
+        }
+        
+        console.log('🚀 Conciliando transação individual:', {
+            transacaoId: transacao.id,
+            razao,
+            categoria,
+            subcategoria
+        });
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        
+        const response = await fetch(`${API_URL}/extratos/${transacao.id}/conciliar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                razao_social: razao,
+                categoria: categoria,
+                subcategoria: subcategoria
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.erro || 'Erro ao conciliar');
+        }
+        
+        const result = await response.json();
+        console.log('✅ Conciliação bem-sucedida:', result);
+        
+        showToast('✅ Transação conciliada com sucesso!', 'success');
+        closeModal('modal-conciliacao');
+        
+        // Recarregar lista de extratos
+        if (typeof loadExtratoTransacoes === 'function') {
+            loadExtratoTransacoes();
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao conciliar:', error);
+        showToast(error.message || 'Erro ao conciliar transação', 'error');
+    }
+};
+
     } catch (error) {
         console.error('❌ Erro ao buscar sugestões:', error);
         showToast('Erro ao buscar sugestões de conciliação', 'error');
