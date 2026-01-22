@@ -3051,12 +3051,12 @@ def conciliacao_geral_extrato():
                     categoria=categoria,
                     subcategoria=subcategoria,
                     data_vencimento=data_transacao,
-                    data_pagamento=data_transacao,  # Já foi pago
+                    data_pagamento=None,  # PENDENTE - precisa ser pago manualmente
                     conta_bancaria=transacao['conta_bancaria'],
                     pessoa=razao_social,
-                    observacoes=f"Conciliado automaticamente do extrato bancário. ID Extrato: {transacao_id}",
+                    observacoes=f"Conciliado do extrato bancário. ID Extrato: {transacao_id}",
                     num_documento=str(transacao_id),
-                    status=StatusLancamento.PAGO
+                    status=StatusLancamento.PENDENTE  # PENDENTE para aparecer em Contas a Pagar/Receber
                 )
                 
                 lancamento_id = db.adicionar_lancamento(lancamento, empresa_id=empresa_id)
