@@ -4694,7 +4694,11 @@
         // Carregar contas bancárias nos selects
         async function carregarContasBancariasExtrato() {
             try {
-                const response = await fetch('/api/contas');
+                const response = await fetch('/api/contas', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
                 if (!response.ok) throw new Error('Erro ao carregar contas');
                 
                 const contas = await response.json();
@@ -4808,7 +4812,11 @@
                 const conciliado = document.getElementById('filtro-conciliado-extrato').value;
                 if (conciliado) params.append('conciliado', conciliado);
                 
-                const response = await fetch(`/api/extratos?${params.toString()}`);
+                const response = await fetch(`/api/extratos?${params.toString()}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
                 
                 if (!response.ok) {
                     throw new Error('Erro ao carregar transações');
