@@ -2812,11 +2812,16 @@ async function importarExtrato() {
 // Carregar e exibir transações do extrato
 async function loadExtratos() {
     try {
-        // Obter filtros
-        const conta = document.getElementById('extrato-filter-conta').value;
-        const dataInicio = document.getElementById('extrato-filter-data-inicio').value;
-        const dataFim = document.getElementById('extrato-filter-data-fim').value;
-        const conciliado = document.getElementById('extrato-filter-conciliado').value;
+        // Obter filtros (com proteção contra null)
+        const contaEl = document.getElementById('extrato-filter-conta');
+        const dataInicioEl = document.getElementById('extrato-filter-data-inicio');
+        const dataFimEl = document.getElementById('extrato-filter-data-fim');
+        const conciliadoEl = document.getElementById('extrato-filter-conciliado');
+        
+        const conta = contaEl ? contaEl.value : '';
+        const dataInicio = dataInicioEl ? dataInicioEl.value : '';
+        const dataFim = dataFimEl ? dataFimEl.value : '';
+        const conciliado = conciliadoEl ? conciliadoEl.value : '';
         
         // Construir URL com query params
         const params = new URLSearchParams();
@@ -2980,7 +2985,7 @@ async function mostrarSugestoesConciliacao(transacaoId) {
         document.getElementById('btn-desconciliar').style.display = 'none';
         
         // Abrir modal
-        openModal('modal-conciliacao');
+        showModal('modal-conciliacao');
         
     } catch (error) {
         console.error('Erro ao buscar sugestões:', error);
@@ -3016,7 +3021,7 @@ async function mostrarDetalheConciliacao(transacaoId) {
         document.getElementById('btn-desconciliar').style.display = 'inline-block';
         
         // Abrir modal
-        openModal('modal-conciliacao');
+        showModal('modal-conciliacao');
         
     } catch (error) {
         console.error('Erro ao exibir detalhe:', error);
@@ -3047,7 +3052,12 @@ async function conciliarTransacao(transacaoId, lancamentoId) {
         
         // Fechar modal e recarregar
         closeModal('modal-conciliacao');
-        loadExtratos();
+        
+        // Só recarregar extratos se estivermos na página de extrato
+        const extratoSection = document.getElementById('extrato-bancario-section');
+        if (extratoSection && extratoSection.classList.contains('active')) {
+            loadExtratos();
+        }
         
     } catch (error) {
         console.error('Erro ao conciliar:', error);
