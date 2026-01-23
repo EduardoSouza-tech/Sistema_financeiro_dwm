@@ -1042,17 +1042,28 @@
             text-transform: uppercase;
             text-align: center !important;
             vertical-align: middle !important;
+            width: 14.285% !important; /* 100% / 7 dias = exatamente 1/7 */
         }
         
         .fc-col-header-cell-cushion {
             display: block !important;
             padding: 0 !important;
             text-align: center !important;
+            width: 100% !important;
         }
         
-        /* Células dos dias */
+        .fc-scrollgrid-sync-table {
+            width: 100% !important;
+        }
+        
+        .fc-col-header {
+            width: 100% !important;
+        }
+        
+        /* Células dos dias com largura exata */
         .fc-daygrid-day {
             padding: 2px;
+            width: 14.285% !important; /* 100% / 7 dias */
         }
         
         .fc-daygrid-day-frame {

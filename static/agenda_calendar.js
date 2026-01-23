@@ -30,6 +30,8 @@ function initAgendaCalendar() {
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         locale: 'pt-br',
+        firstDay: 0, // Domingo como primeiro dia
+        dayHeaderFormat: { weekday: 'short' }, // Formato curto dos dias
         headerToolbar: {
             left: 'prev,next',
             center: 'title',
@@ -41,7 +43,6 @@ function initAgendaCalendar() {
             week: 'Semana',
             list: 'Lista'
         },
-        firstDay: 0, // Domingo
         weekNumbers: false,
         navLinks: false,
         editable: false,
