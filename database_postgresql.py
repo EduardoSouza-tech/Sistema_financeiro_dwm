@@ -3518,22 +3518,46 @@ def deletar_template(template_id: int) -> bool:
 # ==================== FUNi?i?ES CRUD - SESSi?ES ====================
 def adicionar_sessao(dados: Dict) -> int:
     """Adiciona uma nova sessi?o"""
+    import json
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
+    # Preparar dados_json com campos adicionais
+    dados_json = {
+        'horario': dados.get('horario'),
+        'quantidade_horas': dados.get('quantidade_horas'),
+        'tipo_foto': dados.get('tipo_foto', False),
+        'tipo_video': dados.get('tipo_video', False),
+        'tipo_mobile': dados.get('tipo_mobile', False),
+        'tags': dados.get('tags', ''),
+        'equipe': dados.get('equipe', []),
+        'responsaveis': dados.get('responsaveis', []),
+        'equipamentos': dados.get('equipamentos', []),
+        'equipamentos_alugados': dados.get('equipamentos_alugados', []),
+        'custos_adicionais': dados.get('custos_adicionais', [])
+    }
+    
     cursor.execute("""
-        INSERT INTO sessoes (titulo, data_sessao, duracao, contrato_id, cliente_id, valor, observacoes)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO sessoes (
+            titulo, data, data_sessao, duracao, contrato_id, cliente_id, 
+            valor, observacoes, endereco, descricao, prazo_entrega, dados_json
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id
     """, (
         dados.get('titulo'),
-        dados.get('data_sessao'),
+        dados.get('data_sessao'),  # Campo 'data' na tabela
+        dados.get('data_sessao'),  # Campo 'data_sessao' para compatibilidade
         dados.get('duracao'),
         dados.get('contrato_id'),
         dados.get('cliente_id'),
         dados.get('valor'),
-        dados.get('observacoes')
+        dados.get('observacoes', ''),
+        dados.get('endereco', ''),
+        dados.get('descricao', ''),
+        dados.get('prazo_entrega'),
+        json.dumps(dados_json)
     ))
     
     sessao_id = cursor.fetchone()['id']

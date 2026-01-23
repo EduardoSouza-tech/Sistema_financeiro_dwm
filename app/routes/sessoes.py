@@ -26,11 +26,41 @@ def sessoes():
     """Gerenciar sessões - Listar todas ou criar nova"""
     if request.method == 'GET':
         try:
+            import json
             sessoes = db.listar_sessoes()
             
-            # Adicionar cliente_id para cada sessão
+            # 🔧 Mapear campos do backend para o frontend
+            # Backend: data_sessao, duracao, dados_json → Frontend: data, horario, quantidade_horas, tipos
             for sessao in sessoes:
-                sessao['cliente_id'] = sessao.get('cliente')
+                # Mapear data_sessao → data (se data não existir)
+                if 'data_sessao' in sessao and not sessao.get('data'):
+                    sessao['data'] = sessao['data_sessao']
+                
+                # Converter duracao (minutos) → quantidade_horas
+                if 'duracao' in sessao and sessao['duracao']:
+                    sessao['quantidade_horas'] = sessao['duracao'] / 60
+                
+                # Extrair dados do dados_json
+                if 'dados_json' in sessao and sessao['dados_json']:
+                    try:
+                        dados_json = json.loads(sessao['dados_json']) if isinstance(sessao['dados_json'], str) else sessao['dados_json']
+                        sessao['horario'] = dados_json.get('horario')
+                        sessao['tipo_foto'] = dados_json.get('tipo_foto', False)
+                        sessao['tipo_video'] = dados_json.get('tipo_video', False)
+                        sessao['tipo_mobile'] = dados_json.get('tipo_mobile', False)
+                        sessao['tags'] = dados_json.get('tags', '')
+                        sessao['equipe'] = dados_json.get('equipe', [])
+                        sessao['responsaveis'] = dados_json.get('responsaveis', [])
+                        sessao['equipamentos'] = dados_json.get('equipamentos', [])
+                    except:
+                        pass
+                
+                # Adicionar cliente_id
+                sessao['cliente_id'] = sessao.get('cliente_id')
+                
+                # Adicionar contrato_nome se não existir
+                if 'contrato_numero' in sessao and not sessao.get('contrato_nome'):
+                    sessao['contrato_nome'] = sessao['contrato_numero']
             
             # Aplicar filtro por cliente
             sessoes_filtradas = filtrar_por_cliente(sessoes, request.usuario)
@@ -126,10 +156,21 @@ def sessoes():
                 'contrato_id': data.get('contrato_id'),
                 'cliente_id': data.get('cliente_id'),
                 'valor': data.get('valor'),
-                'observacoes': data.get('observacoes'),
+                'observacoes': data.get('observacoes', ''),
+                'endereco': data.get('endereco', ''),
+                'descricao': data.get('descricao', ''),
+                'prazo_entrega': data.get('prazo_entrega'),
+                'horario': data.get('horario'),
+                'quantidade_horas': data.get('quantidade_horas'),
+                'tipo_foto': data.get('tipo_foto', False),
+                'tipo_video': data.get('tipo_video', False),
+                'tipo_mobile': data.get('tipo_mobile', False),
+                'tags': data.get('tags', ''),
                 'equipe': equipe_mapeada,
                 'responsaveis': data.get('responsaveis', []),
-                'equipamentos': data.get('equipamentos', [])
+                'equipamentos': data.get('equipamentos', []),
+                'equipamentos_alugados': data.get('equipamentos_alugados', []),
+                'custos_adicionais': data.get('custos_adicionais', [])
             }
             
             print(f"📡 Dados mapeados para o banco:")
