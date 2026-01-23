@@ -1680,7 +1680,8 @@ def listar_contas():
                 'agencia': c.agencia,
                 'conta': c.conta,
                 'saldo_inicial': float(c.saldo_inicial),
-                'saldo': float(c.saldo_inicial)  # Usar saldo_inicial como saldo atual
+                'saldo': float(c.saldo_inicial),  # Usar saldo_inicial como saldo atual
+                'ativa': c.ativa if hasattr(c, 'ativa') else True
             })
         
         return jsonify(contas_com_saldo)
@@ -1809,10 +1810,115 @@ def modificar_conta(nome):
     
     elif request.method == 'DELETE':
         try:
+            print(f"\n{'='*80}")
+            print(f"🗑️ DELETE /api/contas/{nome}")
+            print(f"{'='*80}")
+            
+            # Verificar se há lançamentos vinculados
+            lancamentos = db.listar_lancamentos()
+            lancamentos_conta = [l for l in lancamentos if l.conta_bancaria == nome]
+            
+            print(f"📊 Lançamentos vinculados à conta: {len(lancamentos_conta)}")
+            
+            if lancamentos_conta:
+                print(f"❌ Exclusão bloqueada: conta possui {len(lancamentos_conta)} lançamento(s)")
+                print(f"{'='*80}\n")
+                return jsonify({
+                    'success': False, 
+                    'error': f'Não é possível excluir esta conta. Ela possui {len(lancamentos_conta)} lançamento(s) vinculado(s). Use "Inativar" em vez de excluir.'
+                }), 400
+            
+            # Verificar se há transações de extrato vinculadas
+            from database_postgresql import get_db_connection
+            import psycopg2.extras
+            
+            conn = get_db_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            # Contar transações de extrato vinculadas à conta
+            cursor.execute("""
+                SELECT COUNT(*) as total 
+                FROM transacoes_extrato 
+                WHERE conta_bancaria LIKE %s
+            """, (f'%{nome}%',))
+            
+            result = cursor.fetchone()
+            total_extratos = result['total'] if result else 0
+            
+            cursor.close()
+            conn.close()
+            
+            print(f"📊 Transações de extrato vinculadas: {total_extratos}")
+            
+            if total_extratos > 0:
+                print(f"❌ Exclusão bloqueada: conta possui {total_extratos} transação(ões) de extrato")
+                print(f"{'='*80}\n")
+                return jsonify({
+                    'success': False,
+                    'error': f'Não é possível excluir esta conta. Ela possui {total_extratos} transação(ões) de extrato importada(s). Use "Inativar" em vez de excluir.'
+                }), 400
+            
+            # Se não há movimentações, pode excluir
+            print(f"✅ Nenhuma movimentação encontrada. Excluindo conta...")
             success = db.excluir_conta(nome)
+            print(f"📡 Resultado: success={success}")
+            print(f"{'='*80}\n")
+            
             return jsonify({'success': success})
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/contas/<path:nome>/toggle-ativo', methods=['POST'])
+@require_permission('contas_edit')
+def toggle_ativo_conta(nome):
+    """Ativa ou inativa uma conta bancária"""
+    try:
+        from urllib.parse import unquote
+        nome = unquote(nome)
+        
+        print(f"\n{'='*80}")
+        print(f"🔄 POST /api/contas/{nome}/toggle-ativo")
+        print(f"{'='*80}")
+        
+        # Buscar conta atual
+        contas = db.listar_contas()
+        conta_atual = None
+        for c in contas:
+            if c.nome == nome:
+                conta_atual = c
+                break
+        
+        if not conta_atual:
+            print(f"❌ Conta não encontrada")
+            print(f"{'='*80}\n")
+            return jsonify({'success': False, 'error': 'Conta não encontrada'}), 404
+        
+        # Inverter status
+        novo_status = not conta_atual.ativa
+        print(f"📊 Status atual: {conta_atual.ativa}")
+        print(f"📊 Novo status: {novo_status}")
+        
+        # Atualizar conta com novo status
+        conta_atual.ativa = novo_status
+        success = db.atualizar_conta(nome, conta_atual)
+        
+        acao = "ativada" if novo_status else "inativada"
+        print(f"✅ Conta {acao} com sucesso")
+        print(f"{'='*80}\n")
+        
+        return jsonify({
+            'success': success,
+            'ativa': novo_status,
+            'message': f'Conta {acao} com sucesso'
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 400
 
 
 @app.route('/api/transferencias', methods=['POST'])

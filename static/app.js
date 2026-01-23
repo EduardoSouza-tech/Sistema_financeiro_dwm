@@ -1168,6 +1168,39 @@ async function excluirConta(nome) {
     }
 }
 
+/**
+ * Ativa ou inativa uma conta bancária
+ * @param {string} nome - Nome da conta
+ */
+async function toggleAtivoConta(nome) {
+    try {
+        console.log('🔄 Alterando status da conta:', nome);
+        
+        const response = await fetch(`${API_URL}/contas/${encodeURIComponent(nome)}/toggle-ativo`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        const result = await response.json();
+        console.log('📡 Resposta:', result);
+        
+        if (result.success) {
+            const acao = result.ativa ? 'reativada' : 'inativada';
+            showToast(`Conta ${acao} com sucesso!`, 'success');
+            loadContasBancarias();
+        } else {
+            showToast('Erro: ' + result.error, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao alterar status da conta:', error);
+        showToast('Erro ao alterar status da conta', 'error');
+    }
+}
+
 // === CATEGORIAS ===
 async function loadCategorias() {
     const context = 'loadCategorias';
@@ -4210,9 +4243,24 @@ window.loadContasBancarias = async function() {
             saldoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         
         // Preencher tabela
-        tbody.innerHTML = contas.map(conta => `
-            <tr>
-                <td>${conta.banco || 'N/A'}</td>
+        tbody.innerHTML = contas.map(conta => {
+            const statusBadge = conta.ativa !== false ? 
+                '<span style="background: #27ae60; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">● ATIVA</span>' :
+                '<span style="background: #95a5a6; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">● INATIVA</span>';
+            
+            const toggleButton = conta.ativa !== false ?
+                `<button class="btn btn-sm" onclick="toggleAtivoConta('${conta.nome.replace(/'/g, "\\'")}')"
+                        style="background: #f39c12; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">
+                    🔒 Inativar
+                </button>` :
+                `<button class="btn btn-sm" onclick="toggleAtivoConta('${conta.nome.replace(/'/g, "\\'")}')"
+                        style="background: #27ae60; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">
+                    🔓 Reativar
+                </button>`;
+            
+            return `
+            <tr style="${conta.ativa === false ? 'opacity: 0.6; background: #f8f9fa;' : ''}">
+                <td>${conta.banco || 'N/A'} ${statusBadge}</td>
                 <td>${conta.agencia || 'N/A'}</td>
                 <td>${conta.conta || 'N/A'}</td>
                 <td>${(conta.saldo_inicial || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
@@ -4224,13 +4272,15 @@ window.loadContasBancarias = async function() {
                             style="background: #3498db; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">
                         ✏️ Editar
                     </button>
+                    ${toggleButton}
                     <button class="btn btn-sm btn-danger" onclick="excluirConta('${conta.nome.replace(/'/g, "\\'")}')"
                             style="background: #e74c3c; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer;">
                         🗑️ Excluir
                     </button>
                 </td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
         
         // Preencher filtro de bancos
         const filtroBanco = document.getElementById('filtro-banco');
