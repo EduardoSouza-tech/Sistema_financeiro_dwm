@@ -4389,16 +4389,6 @@ window.loadTemplates = async function() {
     showToast('Templates de Equipe em desenvolvimento', 'info');
 };
 
-window.carregarInadimplencia = async function() {
-    console.log('💰 carregarInadimplencia - Stub temporário');
-    showToast('Relatório de Inadimplência em desenvolvimento', 'info');
-};
-
-window.carregarIndicadores = async function() {
-    console.log('🎯 carregarIndicadores - Stub temporário');
-    showToast('Indicadores Financeiros em desenvolvimento', 'info');
-};
-
 window.carregarFluxoCaixa = async function() {
     try {
         console.log('📈 Carregando Fluxo de Caixa...');

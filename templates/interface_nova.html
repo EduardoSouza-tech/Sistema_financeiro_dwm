@@ -5727,6 +5727,235 @@
         }
     </script>
 
+    <!-- ============================================================================
+         SCRIPTS DE INDICADORES FINANCEIROS
+         ============================================================================ -->
+    <script>
+        // Função para aplicar filtro de período aos indicadores
+        window.aplicarFiltroPeriodoIndicadores = function() {
+            const periodo = document.getElementById('filter-periodo-indicadores').value;
+            const divInicio = document.getElementById('filtro-data-inicio-indicadores');
+            const divFim = document.getElementById('filtro-data-fim-indicadores');
+            
+            if (periodo === 'custom') {
+                divInicio.style.display = 'block';
+                divFim.style.display = 'block';
+            } else {
+                divInicio.style.display = 'none';
+                divFim.style.display = 'none';
+                carregarIndicadores();
+            }
+        };
+        
+        // Função para carregar indicadores financeiros
+        window.carregarIndicadores = async function() {
+            try {
+                const contentDiv = document.getElementById('indicadores-content');
+                contentDiv.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="loading">⏳ Carregando indicadores...</div></div>';
+                
+                // Calcular datas baseadas no período selecionado
+                const periodo = document.getElementById('filter-periodo-indicadores').value;
+                let dataInicio, dataFim;
+                
+                const hoje = new Date();
+                dataFim = hoje.toISOString().split('T')[0];
+                
+                if (periodo === 'custom') {
+                    dataInicio = document.getElementById('filter-data-inicio-indicadores').value;
+                    dataFim = document.getElementById('filter-data-fim-indicadores').value;
+                    
+                    if (!dataInicio || !dataFim) {
+                        showToast('Selecione ambas as datas para período personalizado', 'warning');
+                        return;
+                    }
+                } else {
+                    const diasAtras = parseInt(periodo);
+                    const dataInicioObj = new Date(hoje);
+                    dataInicioObj.setDate(dataInicioObj.getDate() - diasAtras);
+                    dataInicio = dataInicioObj.toISOString().split('T')[0];
+                }
+                
+                const params = new URLSearchParams({
+                    data_inicio: dataInicio,
+                    data_fim: dataFim
+                });
+                
+                const response = await fetch(`/api/relatorios/indicadores?${params.toString()}`);
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar indicadores');
+                }
+                
+                const data = await response.json();
+                renderizarIndicadores(data, dataInicio, dataFim);
+                
+            } catch (error) {
+                console.error('Erro ao carregar indicadores:', error);
+                document.getElementById('indicadores-content').innerHTML = 
+                    '<div style="text-align: center; padding: 40px; color: #e74c3c;">❌ Erro ao carregar indicadores. Tente novamente.</div>';
+                showToast('Erro ao carregar indicadores financeiros', 'error');
+            }
+        };
+        
+        // Função para renderizar os indicadores
+        function renderizarIndicadores(data, dataInicio, dataFim) {
+            const contentDiv = document.getElementById('indicadores-content');
+            
+            const formatDate = (dateStr) => {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('pt-BR');
+            };
+            
+            const formatCurrency = (value) => {
+                return value.toLocaleString('pt-BR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            };
+            
+            const getCorSaldo = (valor) => {
+                return valor >= 0 ? '#27ae60' : '#e74c3c';
+            };
+            
+            const html = `
+                <!-- Cabeçalho do Período -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin-bottom: 30px; color: white; text-align: center;">
+                    <h3 style="margin: 0 0 10px 0; font-size: 18px;">📅 Período Analisado</h3>
+                    <p style="margin: 0; font-size: 14px; opacity: 0.9;">${formatDate(dataInicio)} até ${formatDate(dataFim)}</p>
+                </div>
+                
+                <!-- Saldo em Caixa -->
+                <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 25px; border-radius: 12px; margin-bottom: 30px; color: white; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">💰 Saldo em Caixa (Contas Bancárias)</div>
+                    <div style="font-size: 36px; font-weight: bold;">R$ ${formatCurrency(data.saldo_caixa)}</div>
+                </div>
+                
+                <!-- Receitas e Despesas do Período -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center;">
+                        <div style="font-size: 13px; color: #666; margin-bottom: 8px;">💚 Receitas</div>
+                        <div style="font-size: 28px; font-weight: bold; color: #27ae60;">R$ ${formatCurrency(data.mes_atual.receitas)}</div>
+                    </div>
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center;">
+                        <div style="font-size: 13px; color: #666; margin-bottom: 8px;">💔 Despesas</div>
+                        <div style="font-size: 28px; font-weight: bold; color: #e74c3c;">R$ ${formatCurrency(data.mes_atual.despesas)}</div>
+                    </div>
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center;">
+                        <div style="font-size: 13px; color: #666; margin-bottom: 8px;">📊 Saldo do Período</div>
+                        <div style="font-size: 28px; font-weight: bold; color: ${getCorSaldo(data.mes_atual.saldo)};">R$ ${formatCurrency(data.mes_atual.saldo)}</div>
+                    </div>
+                </div>
+                
+                <!-- Contas Pendentes -->
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 30px;">
+                    <h4 style="margin: 0 0 20px 0; color: #2c3e50; display: flex; align-items: center; gap: 10px;">
+                        <span>📋</span> Contas Pendentes
+                    </h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                        <div>
+                            <div style="font-size: 13px; color: #666; margin-bottom: 8px;">💰 A Receber</div>
+                            <div style="font-size: 24px; font-weight: bold; color: #27ae60;">R$ ${formatCurrency(data.pendentes.receber)}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 13px; color: #666; margin-bottom: 8px;">💸 A Pagar</div>
+                            <div style="font-size: 24px; font-weight: bold; color: #e74c3c;">R$ ${formatCurrency(data.pendentes.pagar)}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Contas Vencidas (Alerta) -->
+                ${(data.vencidos.receber > 0 || data.vencidos.pagar > 0) ? `
+                <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
+                    <h4 style="margin: 0 0 15px 0; color: #856404; display: flex; align-items: center; gap: 10px;">
+                        <span>⚠️</span> Atenção: Contas Vencidas
+                    </h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                        ${data.vencidos.receber > 0 ? `
+                        <div style="background: white; padding: 15px; border-radius: 8px;">
+                            <div style="font-size: 13px; color: #856404; margin-bottom: 5px;">💰 A Receber Vencido</div>
+                            <div style="font-size: 22px; font-weight: bold; color: #d9534f;">R$ ${formatCurrency(data.vencidos.receber)}</div>
+                        </div>
+                        ` : ''}
+                        ${data.vencidos.pagar > 0 ? `
+                        <div style="background: white; padding: 15px; border-radius: 8px;">
+                            <div style="font-size: 13px; color: #856404; margin-bottom: 5px;">💸 A Pagar Vencido</div>
+                            <div style="font-size: 22px; font-weight: bold; color: #d9534f;">R$ ${formatCurrency(data.vencidos.pagar)}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+                
+                <!-- Indicadores-Chave -->
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                    <h4 style="margin: 0 0 20px 0; color: #2c3e50; display: flex; align-items: center; gap: 10px;">
+                        <span>📈</span> Indicadores-Chave de Performance
+                    </h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                        <div style="padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 13px; color: #666; margin-bottom: 10px;">💧 Índice de Liquidez</div>
+                            <div style="font-size: 32px; font-weight: bold; color: ${data.indicadores.liquidez >= 1 ? '#27ae60' : '#e74c3c'};">
+                                ${data.indicadores.liquidez.toFixed(2)}
+                            </div>
+                            <div style="font-size: 11px; color: #999; margin-top: 8px;">
+                                ${data.indicadores.liquidez >= 1.5 ? '✅ Excelente' : data.indicadores.liquidez >= 1 ? '⚠️ Adequado' : '❌ Crítico'}
+                            </div>
+                            <div style="font-size: 10px; color: #999; margin-top: 5px;">
+                                (Saldo + A Receber) ÷ A Pagar
+                            </div>
+                        </div>
+                        <div style="padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 13px; color: #666; margin-bottom: 10px;">📊 Margem Líquida</div>
+                            <div style="font-size: 32px; font-weight: bold; color: ${data.indicadores.margem_liquida >= 0 ? '#27ae60' : '#e74c3c'};">
+                                ${data.indicadores.margem_liquida.toFixed(2)}%
+                            </div>
+                            <div style="font-size: 11px; color: #999; margin-top: 8px;">
+                                ${data.indicadores.margem_liquida >= 20 ? '✅ Ótima' : data.indicadores.margem_liquida >= 10 ? '⚠️ Razoável' : data.indicadores.margem_liquida >= 0 ? '⚠️ Baixa' : '❌ Prejuízo'}
+                            </div>
+                            <div style="font-size: 10px; color: #999; margin-top: 5px;">
+                                (Receitas - Despesas) ÷ Receitas × 100
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            contentDiv.innerHTML = html;
+        }
+        
+        // Funções de exportação (stubs)
+        window.exportarIndicadoresPDF = function() {
+            showToast('Exportação PDF em desenvolvimento', 'info');
+        };
+        
+        window.exportarIndicadoresExcel = function() {
+            showToast('Exportação Excel em desenvolvimento', 'info');
+        };
+        
+        // Carregar indicadores automaticamente ao abrir a seção (padrão: últimos 30 dias)
+        document.addEventListener('DOMContentLoaded', function() {
+            // Observar quando a seção de indicadores é mostrada
+            const indicadoresSection = document.getElementById('indicadores-section');
+            if (indicadoresSection) {
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.attributeName === 'class') {
+                            if (!indicadoresSection.classList.contains('hidden')) {
+                                // Verificar se ainda não foi carregado
+                                const content = document.getElementById('indicadores-content');
+                                if (content && content.innerHTML.includes('Selecione o período')) {
+                                    carregarIndicadores();
+                                }
+                            }
+                        }
+                    });
+                });
+                
+                observer.observe(indicadoresSection, { attributes: true });
+            }
+        });
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="/static/utils.js?v={{ build_timestamp }}"></script>
