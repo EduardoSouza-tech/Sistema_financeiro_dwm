@@ -73,16 +73,15 @@ body {
 }
 
 .submenu {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
+    display: none;
     background: rgba(13, 17, 23, 0.6);
     border-left: 2px solid rgba(102, 126, 234, 0.3);
     margin-left: 12px;
+    overflow: hidden;
 }
 
 .submenu.open {
-    max-height: 500px;
+    display: block;
 }
 
 .submenu-button {
@@ -515,6 +514,141 @@ body {
     padding-left: 20px;
     color: #7f8c8d;
     font-size: 14px;
+}
+
+/* ============================================================================
+   MODAL DE SUBCATEGORIAS
+   ============================================================================ */
+
+.modal-subcategorias-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 10000;
+    animation: fadeIn 0.3s;
+}
+
+.modal-subcategorias-overlay.active {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-subcategorias-content {
+    background: white;
+    border-radius: 12px;
+    padding: 0;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.3s;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-subcategorias-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px 30px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-subcategorias-header h3 {
+    margin: 0;
+    font-size: 1.4em;
+    font-weight: 600;
+}
+
+.modal-subcategorias-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+
+.modal-subcategorias-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+}
+
+.modal-subcategorias-body {
+    padding: 30px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.subcategorias-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.subcategorias-list li {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+    font-size: 1.05em;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+}
+
+.subcategorias-list li:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.subcategorias-list li::before {
+    content: "📌";
+    margin-right: 12px;
+    font-size: 1.1em;
+}
+
+.subcategorias-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #95a5a6;
+}
+
+.subcategorias-empty-icon {
+    font-size: 4em;
+    margin-bottom: 15px;
+}
+
+.subcategorias-empty-text {
+    font-size: 1.1em;
+    font-weight: 500;
+}
+
+.subcategoria-badge {
+    display: inline-block;
+    background: #4CAF50;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: bold;
+    margin-right: 5px;
 }
 
 /* ============================================================================
