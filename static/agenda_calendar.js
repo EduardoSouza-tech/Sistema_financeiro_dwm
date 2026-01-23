@@ -63,7 +63,7 @@ function initAgendaCalendar() {
         nextDayThreshold: '09:00:00',
         defaultAllDay: true,
         forceEventDuration: false,
-        eventDisplay: 'block'
+        eventDisplay: 'block',
         eventClick: function(info) {
             handleEventClick(info.event);
         },
