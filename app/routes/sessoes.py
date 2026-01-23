@@ -79,11 +79,21 @@ def sessoes():
             # Converter IDs de funcionários em objetos com nome
             if equipe_original:
                 for item in equipe_original:
-                    if isinstance(item, dict):
-                        # Se já é dict com 'nome', manter
+                    if isinstance(item, dict) and 'funcionario_id' in item:
+                        # Dict com funcionario_id - buscar nome
+                        funcionario_id = int(item['funcionario_id'])
+                        funcionario = db.obter_funcionario_por_id(funcionario_id)
+                        if funcionario:
+                            equipe_mapeada.append({
+                                'nome': funcionario.get('nome', f'Funcionário {funcionario_id}'),
+                                'funcao': item.get('funcao', funcionario.get('funcao', 'Membro da Equipe')),
+                                'pagamento': item.get('pagamento')
+                            })
+                    elif isinstance(item, dict) and 'nome' in item:
+                        # Dict já tem nome - usar diretamente
                         equipe_mapeada.append(item)
                     elif isinstance(item, (int, str)):
-                        # Se é ID, buscar o nome do funcionário
+                        # Apenas ID - buscar funcionário
                         funcionario_id = int(item)
                         funcionario = db.obter_funcionario_por_id(funcionario_id)
                         if funcionario:
