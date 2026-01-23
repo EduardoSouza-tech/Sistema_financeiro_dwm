@@ -80,12 +80,20 @@ def sessoes():
             if equipe_original:
                 for item in equipe_original:
                     if isinstance(item, dict) and 'funcionario_id' in item:
-                        # Dict com funcionario_id - buscar nome
+                        # Dict com funcionario_id - buscar nome diretamente no banco
                         funcionario_id = int(item['funcionario_id'])
-                        funcionario = db.obter_funcionario_por_id(funcionario_id)
+                        
+                        # Query direta para buscar funcionário
+                        conn = db.get_connection()
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT nome, funcao FROM rh_funcionarios WHERE id = %s", (funcionario_id,))
+                        funcionario = cursor.fetchone()
+                        cursor.close()
+                        db.return_to_pool(conn)
+                        
                         if funcionario:
                             equipe_mapeada.append({
-                                'nome': funcionario.get('nome', f'Funcionário {funcionario_id}'),
+                                'nome': funcionario['nome'],
                                 'funcao': item.get('funcao', funcionario.get('funcao', 'Membro da Equipe')),
                                 'pagamento': item.get('pagamento')
                             })
@@ -95,10 +103,17 @@ def sessoes():
                     elif isinstance(item, (int, str)):
                         # Apenas ID - buscar funcionário
                         funcionario_id = int(item)
-                        funcionario = db.obter_funcionario_por_id(funcionario_id)
+                        
+                        conn = db.get_connection()
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT nome, funcao FROM rh_funcionarios WHERE id = %s", (funcionario_id,))
+                        funcionario = cursor.fetchone()
+                        cursor.close()
+                        db.return_to_pool(conn)
+                        
                         if funcionario:
                             equipe_mapeada.append({
-                                'nome': funcionario.get('nome', f'Funcionário {funcionario_id}'),
+                                'nome': funcionario['nome'],
                                 'funcao': funcionario.get('funcao', 'Membro da Equipe')
                             })
             
