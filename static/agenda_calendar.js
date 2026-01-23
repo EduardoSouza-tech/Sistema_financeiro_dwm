@@ -57,6 +57,11 @@ function initAgendaCalendar() {
         height: 'auto',
         contentHeight: 650,
         aspectRatio: 2,
+        // IMPORTANTE: Configurações para evitar eventos multi-dia incorretos
+        nextDayThreshold: '00:00:00', // Eventos não se estendem para o próximo dia
+        defaultAllDay: false,
+        forceEventDuration: true,
+        defaultTimedEventDuration: '01:00', // 1 hora por padrão
         events: loadCalendarEvents,
         eventClick: function(info) {
             handleEventClick(info.event);
@@ -157,32 +162,41 @@ async function loadCalendarEvents(fetchInfo, successCallback, failureCallback) {
 💡 Clique para ver detalhes ou editar
             `.trim();
             
-            // Criar data/hora do evento
-            let eventStart = sessao.data;
-            let eventEnd = null; // Importante: Não definir eventEnd para eventos de dia único
-            let allDay = false; // Mudar padrão para false para exibir horário
+            // Criar data/hora do evento - FIXO para aparecer apenas no dia correto
+            let eventStart, eventEnd = null;
+            let allDay = true; // Padrão: dia inteiro
             
-            // Se tiver horário específico, usar time grid
-            if (sessao.horario) {
+            // Se tiver horário específico, criar evento com hora
+            if (sessao.horario && sessao.horario !== 'None' && sessao.horario !== '') {
                 try {
                     const [hora, minuto] = sessao.horario.split(':').map(n => parseInt(n) || 0);
-                    const dataEvento = new Date(sessao.data);
+                    const dataEvento = new Date(sessao.data + 'T00:00:00');
                     dataEvento.setHours(hora, minuto, 0, 0);
                     eventStart = dataEvento.toISOString();
+                    allDay = false;
                     
-                    // Adicionar duração se tiver
-                    if (sessao.quantidade_horas) {
+                    // Adicionar duração se tiver (para mostrar bloco de tempo)
+                    if (sessao.quantidade_horas && parseFloat(sessao.quantidade_horas) > 0) {
                         const dataFim = new Date(dataEvento);
                         dataFim.setHours(dataFim.getHours() + parseFloat(sessao.quantidade_horas));
                         eventEnd = dataFim.toISOString();
+                    } else {
+                        // Se não tiver duração, adicionar 1 hora por padrão
+                        const dataFim = new Date(dataEvento);
+                        dataFim.setHours(dataFim.getHours() + 1);
+                        eventEnd = dataFim.toISOString();
                     }
                 } catch (e) {
-                    console.warn('⚠️ Erro ao processar horário:', e);
-                    allDay = true; // Fallback para dia inteiro se houver erro
+                    console.warn('⚠️ Erro ao processar horário:', e, sessao);
+                    // Fallback: evento de dia inteiro
+                    eventStart = sessao.data;
+                    allDay = true;
                 }
             } else {
-                // Sem horário = evento de dia inteiro
+                // Sem horário = evento de dia inteiro (apenas a data, sem hora)
+                eventStart = sessao.data;
                 allDay = true;
+                // NÃO definir eventEnd para eventos allDay - isso causa o espalhamento!
             }
             
             
@@ -217,10 +231,27 @@ async function loadCalendarEvents(fetchInfo, successCallback, failureCallback) {
                 eventObj.end = eventEnd;
             }
             
+            // Log de debug para verificar datas
+            console.log(`📅 Evento criado:`, {
+                id: sessao.id,
+                cliente: sessao.cliente_nome,
+                data_original: sessao.data,
+                start: eventStart,
+                end: eventEnd,
+                allDay: allDay,
+                horario: sessao.horario
+            });
+            
             return eventObj;
         });
         
         console.log(`✅ ${events.length} eventos carregados para o calendário`);
+        console.log('📋 Eventos detalhados:', events.map(e => ({
+            title: e.title,
+            start: e.start,
+            end: e.end,
+            allDay: e.allDay
+        })));
         
         // Atualizar contador no UI
         updateAgendaSummary(events.length);
