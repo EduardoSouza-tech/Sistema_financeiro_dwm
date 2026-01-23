@@ -1511,8 +1511,8 @@
                     <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
                         <div style="flex: 0 0 auto;">
                             <label style="font-weight: 600; margin-bottom: 8px; display: block; color: white; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">📅 Ano</label>
-                            <input type="number" id="filter-ano-dashboard" placeholder="2025" min="2000" max="2100" 
-                                   style="width: 120px; padding: 12px 16px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; 
+                            <input type="number" id="filter-ano-dashboard" placeholder="Últimos 12 meses" min="2000" max="2100" 
+                                   style="width: 150px; padding: 12px 16px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; 
                                           box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.3s; outline: none; background: white;"
                                    onfocus="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)'; this.style.transform='translateY(-2px)';"
                                    onblur="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'; this.style.transform='translateY(0)';">
@@ -1527,7 +1527,7 @@
                                            background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px;"
                                     onfocus="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)'; this.style.transform='translateY(-2px)';"
                                     onblur="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'; this.style.transform='translateY(0)';">
-                                <option value="">Ano inteiro</option>
+                                <option value="">Últimos 12 meses</option>
                                 <option value="1">Janeiro</option>
                                 <option value="2">Fevereiro</option>
                                 <option value="3">Março</option>
@@ -4344,11 +4344,13 @@
             const inputAno = document.getElementById('filter-ano-dashboard');
             const selectMes = document.getElementById('filter-mes-dashboard');
             
+            // NÃO preencher ano/mês por padrão - mostrar últimos 12 meses
+            // Usuário pode selecionar se quiser filtrar por período específico
             if (inputAno) {
-                inputAno.value = anoAtual;
+                inputAno.placeholder = anoAtual.toString(); // Apenas sugestão no placeholder
             }
             if (selectMes) {
-                selectMes.value = mesAtual;
+                selectMes.value = ''; // Vazio = sem filtro de mês
             }
             
             // Carregar contas bancárias no início
