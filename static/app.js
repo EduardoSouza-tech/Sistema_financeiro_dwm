@@ -3276,6 +3276,58 @@ window.conciliarTransacaoIndividual = async function() {
     console.log('🏁 conciliarTransacaoIndividual finalizada');
 };
 
+// Desconciliar transação (desfazer conciliação)
+window.desconciliarTransacao = async function(transacaoId) {
+    console.log('🔙 desconciliarTransacao chamada com ID:', transacaoId);
+    
+    // Confirmar ação
+    if (!confirm('⚠️ Deseja realmente desconciliar esta transação?\n\nIsso irá:\n- Marcar a transação como NÃO conciliada\n- EXCLUIR o lançamento criado em Contas a Pagar/Receber\n\nEsta ação não pode ser desfeita!')) {
+        console.log('   ❌ Usuário cancelou a desconciliação');
+        return;
+    }
+    
+    try {
+        console.log('🚀 Enviando requisição de desconciliação...');
+        
+        const response = await fetch(`/api/extratos/${transacaoId}/desconciliar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken || ''
+            },
+            credentials: 'include'
+        });
+        
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response ok:', response.ok);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erro ao desconciliar transação');
+        }
+        
+        const data = await response.json();
+        console.log('✅ Desconciliação bem-sucedida:', data);
+        
+        showToast('Transação desconciliada com sucesso!', 'success');
+        
+        // Recarregar lista de extratos
+        console.log('🔄 Recarregando lista de extratos...');
+        if (typeof window.loadExtratoTransacoes === 'function') {
+            console.log('   ✅ Chamando window.loadExtratoTransacoes()');
+            window.loadExtratoTransacoes();
+        } else {
+            console.warn('   ⚠️ Função loadExtratoTransacoes não encontrada');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao desconciliar:', error);
+        showToast(error.message || 'Erro ao desconciliar transação', 'error');
+    }
+    
+    console.log('🏁 desconciliarTransacao finalizada');
+};
+
 // Mostrar detalhe de transação já conciliada
 async function mostrarDetalheConciliacao(transacaoId) {
     try {

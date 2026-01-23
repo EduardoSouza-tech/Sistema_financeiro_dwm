@@ -3144,6 +3144,81 @@ def conciliacao_geral_extrato():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/extratos/<int:transacao_id>/desconciliar', methods=['POST'])
+@require_permission('lancamentos_delete')
+def desconciliar_extrato(transacao_id):
+    """Desfaz a conciliação de uma transação do extrato e exclui o lançamento"""
+    try:
+        print("\n" + "="*80)
+        print(f"🔙 DESCONCILIAÇÃO INICIADA - Transação ID: {transacao_id}")
+        
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        
+        # Buscar transação do extrato
+        with db.get_connection() as conn:
+            import psycopg2.extras
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute(
+                "SELECT * FROM transacoes_extrato WHERE id = %s AND empresa_id = %s",
+                (transacao_id, empresa_id)
+            )
+            transacao = cursor.fetchone()
+            cursor.close()
+        
+        if not transacao:
+            return jsonify({'success': False, 'error': 'Transação não encontrada'}), 404
+        
+        if not transacao['conciliado']:
+            return jsonify({'success': False, 'error': 'Transação não está conciliada'}), 400
+        
+        lancamento_id = transacao['lancamento_id']
+        
+        print(f"📌 Transação: ID={transacao_id}, Conciliado={transacao['conciliado']}, Lançamento ID={lancamento_id}")
+        
+        # Excluir lançamento se existir
+        if lancamento_id:
+            print(f"🗑️ Excluindo lançamento ID={lancamento_id}")
+            db.deletar_lancamento(lancamento_id, empresa_id=empresa_id)
+            print(f"✅ Lançamento {lancamento_id} excluído")
+        
+        # Atualizar transação: desconciliar
+        conn_update = db.get_connection()
+        cursor_update = conn_update.cursor()
+        
+        print(f"🔄 Desconciliando transação {transacao_id}")
+        cursor_update.execute(
+            "UPDATE transacoes_extrato SET conciliado = FALSE, lancamento_id = NULL WHERE id = %s",
+            (transacao_id,)
+        )
+        affected_rows = cursor_update.rowcount
+        print(f"📝 UPDATE executado: {affected_rows} linha(s) afetada(s)")
+        
+        try:
+            conn_update.commit()
+            print("✅ COMMIT OK")
+        except Exception as commit_err:
+            print(f"⚠️ Erro no commit: {commit_err}")
+        
+        cursor_update.close()
+        from database_postgresql import return_to_pool
+        return_to_pool(conn_update)
+        
+        print(f"✅ Desconciliação concluída com sucesso!")
+        print("="*80 + "\n")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Desconciliação realizada com sucesso'
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Erro na desconciliação: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # === ROTAS DE FOLHA DE PAGAMENTO (FUNCIONÁRIOS) ===
 
 @app.route('/api/funcionarios', methods=['GET'])

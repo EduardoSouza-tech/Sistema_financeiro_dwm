@@ -4930,7 +4930,21 @@
                         };
                         tdAcoes.appendChild(btnConciliar);
                     } else {
-                        tdAcoes.textContent = '-';
+                        // Botão Desconciliar (quando já está conciliado)
+                        const btnDesconciliar = document.createElement('button');
+                        btnDesconciliar.textContent = '🔙 Desconciliar';
+                        btnDesconciliar.className = 'btn btn-sm btn-warning';
+                        btnDesconciliar.style.fontSize = '11px';
+                        btnDesconciliar.style.padding = '4px 8px';
+                        btnDesconciliar.onclick = () => {
+                            console.log('🔙 Botão Desconciliar clicado! Transação ID:', transacao.id);
+                            if (typeof window.desconciliarTransacao === 'function') {
+                                window.desconciliarTransacao(transacao.id);
+                            } else {
+                                console.error('❌ Função desconciliarTransacao não encontrada!');
+                            }
+                        };
+                        tdAcoes.appendChild(btnDesconciliar);
                     }
                     tr.appendChild(tdAcoes);
                     
