@@ -1142,16 +1142,19 @@ async function excluirConta(nome) {
     if (!confirm(`Deseja realmente excluir a conta "${nome}"?`)) return;
     
     try {
+        console.log('🗑️ Excluindo conta:', nome);
+        
         const response = await fetch(`${API_URL}/contas/${encodeURIComponent(nome)}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken(),
+                'X-CSRFToken': getCSRFToken(),
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
         });
         
         const result = await response.json();
+        console.log('📡 Resposta da exclusão:', result);
         
         if (result.success) {
             showToast('Conta excluída com sucesso!', 'success');
@@ -1160,7 +1163,7 @@ async function excluirConta(nome) {
             showToast('Erro: ' + result.error, 'error');
         }
     } catch (error) {
-        console.error('Erro ao excluir conta:', error);
+        console.error('❌ Erro ao excluir conta:', error);
         showToast('Erro ao excluir conta', 'error');
     }
 }
