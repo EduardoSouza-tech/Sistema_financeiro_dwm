@@ -222,9 +222,13 @@ def require_permission(permission_code: str):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
+            print(f"🔒 [PERMISSION CHECK] Verificando permissão: {permission_code}")
+            print(f"🔒 [PERMISSION CHECK] Função: {f.__name__}")
             usuario = get_usuario_logado()
+            print(f"🔒 [PERMISSION CHECK] Usuário: {usuario.get('username') if usuario else 'NENHUM'}")
             
             if not usuario:
+                print(f"❌ [PERMISSION CHECK] Usuário não autenticado!")
                 return jsonify({
                     'success': False,
                     'error': 'Não autenticado',
@@ -233,6 +237,7 @@ def require_permission(permission_code: str):
             
             # Admin tem todas as permissões
             if usuario.get('tipo') == 'admin':
+                print(f"✅ [PERMISSION CHECK] Admin - permissão concedida!")
                 request.usuario = usuario
                 return f(*args, **kwargs)
             

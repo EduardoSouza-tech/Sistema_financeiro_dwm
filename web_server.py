@@ -2960,10 +2960,15 @@ def deletar_extrato_filtrado():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+print("🔧 Registrando rota: /api/extratos/conciliacao-geral")
+
 @app.route('/api/extratos/conciliacao-geral', methods=['POST'])
 @require_permission('lancamentos_create')
 def conciliacao_geral_extrato():
     """Conciliação automática em massa de transações do extrato para contas a pagar/receber"""
+    print("🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵")
+    print("📥 ROTA /api/extratos/conciliacao-geral CHAMADA!")
+    print("🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵")
     try:
         print("\n" + "="*80)
         print("🚀 ========== CONCILIAÇÃO GERAL INICIADA ==========")
