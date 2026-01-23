@@ -201,6 +201,16 @@ def log_request_info():
         print(f"   Session token: {'Presente' if session.get('session_token') else 'AUSENTE'}")
         print(f"   Cookies: {list(request.cookies.keys())}")
         print(f"   Headers Authorization: {request.headers.get('Authorization', 'Não presente')}")
+        print(f"   CSRF Token no header: {request.headers.get('X-CSRFToken', 'AUSENTE')}")
+        
+        # Gerar CSRF token automaticamente se não existir na sessão
+        from flask_wtf.csrf import generate_csrf
+        if '_csrf_token' not in session:
+            token = generate_csrf()
+            print(f"   🔑 CSRF Token gerado automaticamente: {token[:20]}...")
+        else:
+            print(f"   🔑 CSRF Token já existe na sessão")
+        
         print(f"{'🔵'*40}")
 
 @app.after_request
@@ -4628,6 +4638,20 @@ def cancelar_lancamento_route(lancamento_id):
 def login_page():
     """Página de login"""
     return render_template('login.html')
+
+@app.route('/api/csrf-token', methods=['GET'])
+def get_csrf_token_endpoint():
+    """
+    Endpoint para obter CSRF token via API
+    Gera e retorna um token CSRF válido
+    """
+    from flask_wtf.csrf import generate_csrf
+    token = generate_csrf()
+    print(f"🔑 CSRF Token gerado via API: {token[:20]}...")
+    return jsonify({
+        'csrf_token': token,
+        'success': True
+    })
 
 @app.route('/admin')
 @require_admin
