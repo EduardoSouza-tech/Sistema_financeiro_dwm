@@ -3310,12 +3310,25 @@ def conciliacao_geral_extrato():
                 print(traceback.format_exc())
                 traceback.print_exc()
         
+        # Determinar status de sucesso
+        success = criados > 0
+        status_code = 200 if success else 400
+        
+        if not success and erros:
+            # Se nenhuma transação foi conciliada e há erros, retornar erro
+            return jsonify({
+                'success': False,
+                'criados': 0,
+                'erros': erros,
+                'message': erros[0] if len(erros) == 1 else f'{len(erros)} erro(s) encontrado(s)'
+            }), 400
+        
         return jsonify({
-            'success': True,
+            'success': success,
             'criados': criados,
             'erros': erros,
-            'message': f'{criados} lançamento(s) criado(s) com sucesso'
-        }), 200
+            'message': f'{criados} lançamento(s) criado(s) com sucesso' + (f'. {len(erros)} erro(s).' if erros else '')
+        }), status_code
         
     except Exception as e:
         logger.error(f"Erro na conciliação geral: {e}")
