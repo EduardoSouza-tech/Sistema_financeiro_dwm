@@ -225,11 +225,7 @@ __all__ = [
     'adicionar_sessao_equipe',
     'listar_sessao_equipe',
     'atualizar_sessao_equipe',
-    'deletar_sessao_equipe',
-    'adicionar_tipo_sessao',
-    'listar_tipos_sessao',
-    'atualizar_tipo_sessao',
-    'deletar_tipo_sessao'
+    'deletar_sessao_equipe'
 ]
 
 # ============================================================================
@@ -973,7 +969,8 @@ class DatabaseManager:
             END $$;
         """)
         
-        # Tabela de tipos de sessi?o
+        # Tabela de tipos de sessi?o - DEPRECATED (removida da interface em 2026-01-23)
+        # Mantida apenas para preservar dados existentes
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS tipos_sessao (
                 id SERIAL PRIMARY KEY,
@@ -1273,10 +1270,6 @@ class DatabaseManager:
             ('contas_bancarias_create', 'Criar Contas Bancárias', 'Criar novas contas bancárias', 'cadastros'),
             ('contas_bancarias_edit', 'Editar Contas Bancárias', 'Editar contas bancárias existentes', 'cadastros'),
             ('contas_bancarias_delete', 'Excluir Contas Bancárias', 'Excluir contas bancárias', 'cadastros'),
-            ('tipos_sessao_view', 'Ver Tipos de Sessão', 'Visualizar tipos de sessão', 'cadastros'),
-            ('tipos_sessao_create', 'Criar Tipos de Sessão', 'Criar novos tipos de sessão', 'cadastros'),
-            ('tipos_sessao_edit', 'Editar Tipos de Sessão', 'Editar tipos de sessão existentes', 'cadastros'),
-            ('tipos_sessao_delete', 'Excluir Tipos de Sessão', 'Excluir tipos de sessão', 'cadastros'),
             
             # Operacional
             ('contratos_view', 'Ver Contratos', 'Visualizar contratos', 'operacional'),

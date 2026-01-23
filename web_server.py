@@ -5630,48 +5630,6 @@ def sessao_equipe_detalhes(membro_id):
             return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/api/tipos-sessao', methods=['GET', 'POST'])
-@require_permission('operacional_view')
-def tipos_sessao():
-    """Listar ou criar tipos de sessão"""
-    if request.method == 'GET':
-        try:
-            tipos = db.listar_tipos_sessao()
-            return jsonify(tipos)
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    else:  # POST
-        try:
-            data = request.json
-            tipo_id = db.adicionar_tipo_sessao(data)
-            return jsonify({'success': True, 'id': tipo_id}), 201
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/tipos-sessao/<int:tipo_id>', methods=['PUT', 'DELETE'])
-@require_permission('operacional_edit')
-def tipos_sessao_detalhes(tipo_id):
-    """Atualizar ou excluir tipo de sessão"""
-    if request.method == 'PUT':
-        try:
-            data = request.json
-            success = db.atualizar_tipo_sessao(tipo_id, data)
-            if success:
-                return jsonify({'success': True, 'message': 'Tipo atualizado com sucesso'})
-            return jsonify({'error': 'Tipo não encontrado'}), 404
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    else:  # DELETE
-        try:
-            success = db.deletar_tipo_sessao(tipo_id)
-            if success:
-                return jsonify({'success': True, 'message': 'Tipo removido com sucesso'})
-            return jsonify({'error': 'Tipo não encontrado'}), 404
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-
-
 @app.route('/api/agenda', methods=['GET', 'POST'])
 @require_permission('agenda_view')
 def agenda():
