@@ -3179,7 +3179,7 @@ def desconciliar_extrato(transacao_id):
         # Excluir lançamento se existir
         if lancamento_id:
             print(f"🗑️ Excluindo lançamento ID={lancamento_id}")
-            db.deletar_lancamento(lancamento_id, empresa_id=empresa_id)
+            db.excluir_lancamento(lancamento_id)
             print(f"✅ Lançamento {lancamento_id} excluído")
         
         # Atualizar transação: desconciliar
