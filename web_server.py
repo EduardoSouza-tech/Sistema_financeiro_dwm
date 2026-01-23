@@ -3184,7 +3184,7 @@ def conciliacao_geral_extrato():
                 
                 # Validar se a conta bancária está ativa
                 conta_bancaria = transacao['conta_bancaria']
-                contas = db.listar_contas_bancarias()
+                contas = db.listar_contas()
                 conta = next((c for c in contas if c.nome == conta_bancaria), None)
                 
                 if conta and hasattr(conta, 'ativa') and not conta.ativa:
