@@ -3182,6 +3182,17 @@ def conciliacao_geral_extrato():
                     erros.append(f"Transação {transacao_id} não encontrada")
                     continue
                 
+                # Validar se a conta bancária está ativa
+                conta_bancaria = transacao['conta_bancaria']
+                contas = db.listar_contas_bancarias()
+                conta = next((c for c in contas if c.nome == conta_bancaria), None)
+                
+                if conta and hasattr(conta, 'ativa') and not conta.ativa:
+                    erros.append(f"Transação {transacao_id}: A conta bancária '{conta_bancaria}' está inativa. Reative a conta antes de conciliar.")
+                    print(f"❌ Conciliação bloqueada: conta {conta_bancaria} está inativa")
+                    logger.warning(f"❌ Tentativa de conciliar com conta inativa: {conta_bancaria}")
+                    continue
+                
                 # Detectar CPF/CNPJ na descrição (regex simples)
                 import re
                 descricao = transacao['descricao']
