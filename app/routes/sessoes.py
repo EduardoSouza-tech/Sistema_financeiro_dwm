@@ -86,15 +86,16 @@ def sessoes():
                         # Query direta para buscar funcionário
                         conn = db.get_connection()
                         cursor = conn.cursor()
-                        cursor.execute("SELECT nome, funcao FROM rh_funcionarios WHERE id = %s", (funcionario_id,))
+                        cursor.execute("SELECT nome FROM funcionarios WHERE id = %s", (funcionario_id,))
                         funcionario = cursor.fetchone()
                         cursor.close()
                         db.return_to_pool(conn)
                         
                         if funcionario:
+                            nome_funcionario = funcionario['nome'] if isinstance(funcionario, dict) else funcionario[0]
                             equipe_mapeada.append({
-                                'nome': funcionario['nome'],
-                                'funcao': item.get('funcao', funcionario.get('funcao', 'Membro da Equipe')),
+                                'nome': nome_funcionario,
+                                'funcao': item.get('funcao', 'Membro da Equipe'),
                                 'pagamento': item.get('pagamento')
                             })
                     elif isinstance(item, dict) and 'nome' in item:
@@ -106,15 +107,16 @@ def sessoes():
                         
                         conn = db.get_connection()
                         cursor = conn.cursor()
-                        cursor.execute("SELECT nome, funcao FROM rh_funcionarios WHERE id = %s", (funcionario_id,))
+                        cursor.execute("SELECT nome FROM funcionarios WHERE id = %s", (funcionario_id,))
                         funcionario = cursor.fetchone()
                         cursor.close()
                         db.return_to_pool(conn)
                         
                         if funcionario:
+                            nome_funcionario = funcionario['nome'] if isinstance(funcionario, dict) else funcionario[0]
                             equipe_mapeada.append({
-                                'nome': funcionario['nome'],
-                                'funcao': funcionario.get('funcao', 'Membro da Equipe')
+                                'nome': nome_funcionario,
+                                'funcao': 'Membro da Equipe'
                             })
             
             dados_mapeados = {
