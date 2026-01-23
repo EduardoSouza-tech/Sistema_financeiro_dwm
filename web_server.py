@@ -2965,11 +2965,15 @@ def deletar_extrato_filtrado():
 def conciliacao_geral_extrato():
     """Conciliação automática em massa de transações do extrato para contas a pagar/receber"""
     try:
+        logger.info("🚀 ========== CONCILIAÇÃO GERAL INICIADA ==========")
         usuario = get_usuario_logado()
         empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        logger.info(f"👤 Usuário: {usuario.get('username')} | Empresa ID: {empresa_id}")
         
         dados = request.json
         transacoes = dados.get('transacoes', [])
+        logger.info(f"📦 Recebidas {len(transacoes)} transação(ões) para conciliar")
+        logger.info(f"📋 Dados recebidos: {dados}")
         
         if not transacoes:
             return jsonify({'success': False, 'error': 'Nenhuma transação selecionada'}), 400
