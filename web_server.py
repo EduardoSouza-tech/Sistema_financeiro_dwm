@@ -1702,6 +1702,10 @@ def adicionar_conta():
         data = request.json
         proprietario_id = getattr(request, 'filtro_cliente_id', None)
         
+        # Obter empresa_id
+        usuario = get_usuario_logado()
+        empresa_id = data.get('empresa_id') or usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        
         # Verificar contas existentes antes de adicionar
         contas_existentes = db.listar_contas(filtro_cliente_id=proprietario_id)
         
@@ -1721,7 +1725,7 @@ def adicionar_conta():
             data_inicio=data.get('data_inicio')  # type: ignore
         )
         
-        conta_id = db.adicionar_conta(conta, proprietario_id=proprietario_id)
+        conta_id = db.adicionar_conta(conta, proprietario_id=proprietario_id, empresa_id=empresa_id)
         return jsonify({'success': True, 'id': conta_id})
     except Exception as e:
         import traceback

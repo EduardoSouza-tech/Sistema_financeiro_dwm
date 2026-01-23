@@ -1428,15 +1428,19 @@ class DatabaseManager:
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
     
-    def adicionar_conta(self, conta: ContaBancaria, proprietario_id: int = None) -> int:
+    def adicionar_conta(self, conta: ContaBancaria, proprietario_id: int = None, empresa_id: int = None) -> int:
         """Adiciona uma nova conta banci?ria"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
+        # empresa_id é obrigatório, usar 1 como fallback se não fornecido
+        if empresa_id is None:
+            empresa_id = 1
+        
         cursor.execute("""
             INSERT INTO contas_bancarias 
-            (nome, banco, agencia, conta, saldo_inicial, tipo_saldo_inicial, data_inicio, ativa, data_criacao, proprietario_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, COALESCE(%s, CURRENT_TIMESTAMP), %s)
+            (nome, banco, agencia, conta, saldo_inicial, tipo_saldo_inicial, data_inicio, ativa, data_criacao, proprietario_id, empresa_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, COALESCE(%s, CURRENT_TIMESTAMP), %s, %s)
             RETURNING id
         """, (
             conta.nome,
@@ -1448,7 +1452,8 @@ class DatabaseManager:
             conta.data_inicio,
             conta.ativa,
             conta.data_criacao,
-            proprietario_id
+            proprietario_id,
+            empresa_id
         ))
         
         conta_id = cursor.fetchone()['id']
