@@ -18,6 +18,9 @@
     
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     
+    <!-- CSS Externo com Sistema de Responsividade Completo v2.0 -->
+    <link rel="stylesheet" href="/static/style.css?v={{ build_timestamp }}">
+    
     <!-- SUPRESSOR DE ERROS DE EXTENSÕES - DEVE SER A PRIMEIRA COISA -->
     <script>
         (function() {
@@ -1400,6 +1403,132 @@
         .modal .form-group small {
             display: block;
             margin-top: 5px;
+        }
+
+        /* ============================================================================
+           OTIMIZAÇÕES RESPONSIVAS INLINE - COMPLEMENTO AO style.css
+           ============================================================================ */
+        
+        /* Ajustes de sidebar para mobile */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: relative;
+                height: auto;
+                transform: none !important;
+            }
+            
+            .sidebar.hidden {
+                display: none;
+            }
+            
+            .content-wrapper {
+                margin-left: 0 !important;
+                width: 100% !important;
+            }
+            
+            /* Ajustar cards do dashboard */
+            .cards-grid {
+                grid-template-columns: 1fr !important;
+                gap: 12px !important;
+            }
+            
+            /* Tabelas com scroll horizontal */
+            .table-container,
+            .table-scroll-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            table {
+                min-width: 600px;
+            }
+            
+            /* Reduzir padding em células */
+            th, td {
+                padding: 8px 6px !important;
+                font-size: 12px !important;
+            }
+            
+            /* Botões de ação em coluna */
+            .action-buttons,
+            .btn-group {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .action-buttons button,
+            .btn-group button {
+                width: 100%;
+                margin: 2px 0 !important;
+            }
+        }
+        
+        /* Tablets */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .sidebar {
+                width: 220px;
+            }
+            
+            .content-wrapper {
+                margin-left: 220px;
+            }
+            
+            th, td {
+                padding: 10px 8px !important;
+                font-size: 13px !important;
+            }
+        }
+        
+        /* Ajustes específicos para inputs mobile */
+        @media (max-width: 768px) {
+            input[type="text"],
+            input[type="number"],
+            input[type="email"],
+            input[type="date"],
+            select,
+            textarea {
+                font-size: 16px !important; /* Previne zoom no iOS */
+                padding: 12px !important;
+            }
+            
+            /* Modais full-screen em mobile */
+            .modal-content,
+            .modal-subcategorias-content {
+                width: 95% !important;
+                max-width: none !important;
+                margin: 10px !important;
+                max-height: 90vh !important;
+            }
+            
+            .modal-body {
+                max-height: 60vh !important;
+                overflow-y: auto !important;
+            }
+        }
+        
+        /* Ocultar elementos em telas pequenas */
+        @media (max-width: 480px) {
+            .hide-mobile {
+                display: none !important;
+            }
+            
+            /* Compactar cabeçalhos */
+            h1, h2 {
+                font-size: 18px !important;
+            }
+            
+            h3 {
+                font-size: 16px !important;
+            }
+            
+            /* Badges menores */
+            .badge,
+            .subcategoria-badge {
+                font-size: 10px !important;
+                padding: 2px 6px !important;
+            }
         }
     </style>
 </head>
