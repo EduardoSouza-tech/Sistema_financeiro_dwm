@@ -972,6 +972,171 @@
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/pt-br.global.min.js'></script>
     
+    <!-- Estilos personalizados para o calendário -->
+    <style>
+        /* Melhorias no FullCalendar */
+        .fc {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .fc .fc-toolbar-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .fc .fc-button {
+            background: #3498db;
+            border: none;
+            padding: 8px 16px;
+            font-weight: 500;
+            text-transform: capitalize;
+            transition: all 0.3s ease;
+        }
+        
+        .fc .fc-button:hover {
+            background: #2980b9;
+            transform: translateY(-1px);
+        }
+        
+        .fc .fc-button-primary:not(:disabled).fc-button-active {
+            background: #2980b9;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .fc-theme-standard .fc-scrollgrid {
+            border-color: #e0e0e0;
+        }
+        
+        .fc-theme-standard td,
+        .fc-theme-standard th {
+            border-color: #e0e0e0;
+        }
+        
+        .fc-col-header-cell {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            padding: 12px 4px;
+        }
+        
+        .fc-daygrid-day-number {
+            color: #495057;
+            font-weight: 500;
+            padding: 8px;
+        }
+        
+        .fc-daygrid-day.fc-day-today {
+            background-color: #fff9e6 !important;
+        }
+        
+        .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+            background: #f39c12;
+            color: white;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 4px;
+        }
+        
+        .fc-event {
+            border-radius: 4px;
+            padding: 4px 8px;
+            margin: 2px;
+            font-size: 13px;
+            font-weight: 500;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            transition: all 0.2s ease;
+        }
+        
+        .fc-event:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        
+        .fc-event-title {
+            font-weight: 500;
+        }
+        
+        .fc-event-time {
+            font-weight: 600;
+            margin-right: 4px;
+        }
+        
+        /* Melhorias na visualização de lista */
+        .fc-list-event:hover td {
+            background-color: #f8f9fa;
+        }
+        
+        .fc-list-event-title {
+            font-weight: 500;
+        }
+        
+        /* Container do calendário */
+        #calendar-container {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        /* Estilos personalizados para eventos da agenda */
+        .agenda-event-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 2px 0;
+        }
+        
+        .agenda-event-time {
+            font-size: 11px;
+            font-weight: 700;
+            opacity: 0.95;
+            letter-spacing: 0.3px;
+        }
+        
+        .agenda-event-title {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .agenda-event-location {
+            font-size: 11px;
+            opacity: 0.9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* Destaque de evento ao hover */
+        .fc-event.fc-h-event:hover {
+            transform: scale(1.02);
+            filter: brightness(1.1);
+            z-index: 999;
+        }
+        
+        /* Ajustar mais eventos */
+        .fc-daygrid-more-link {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin: 2px;
+        }
+        
+        .fc-daygrid-more-link:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+    </style>
+    
     <!-- Google Calendar API -->
     <script src="https://apis.google.com/js/api.js"></script>
 </head>
@@ -2434,44 +2599,50 @@
                 <h2>📷 Agenda de Fotografia</h2>
                 
                 <!-- Botões de Ação -->
-                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="showSection('contratos'); setTimeout(() => document.querySelector('[onclick*=sessoes]').click(), 100)">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+                    <button class="btn btn-primary" onclick="showSection('contratos'); setTimeout(() => document.querySelector('[onclick*=sessoes]').click(), 100)" style="font-weight: 600;">
                         ➕ Nova Sessão
                     </button>
-                    <button class="btn" onclick="toggleCalendarView()" style="background: #3498db; color: white;">
-                        📅 Alternar Visualização
+                    <button class="btn" onclick="toggleCalendarView()" style="background: #3498db; color: white; font-weight: 500;">
+                        <span id="toggle-view-icon">📋</span> <span id="toggle-view-text">Ver Lista</span>
                     </button>
-                    <button class="btn" onclick="syncGoogleCalendar()" style="background: #DB4437; color: white;">
-                        🔄 Sincronizar Google Calendar
+                    <button class="btn" onclick="syncGoogleCalendar()" style="background: #DB4437; color: white; font-weight: 500;">
+                        🔄 Sync Google Calendar
                     </button>
-                    <button class="btn" onclick="openEmailSettings()" style="background: #9b59b6; color: white;">
-                        ⚙️ Configurar E-mails
+                    <button class="btn" onclick="openEmailSettings()" style="background: #9b59b6; color: white; font-weight: 500;">
+                        ⚙️ Configurações
                     </button>
+                    
+                    <!-- Info rápida -->
+                    <div style="margin-left: auto; padding: 8px 16px; background: #ecf0f1; border-radius: 6px; font-size: 14px; color: #7f8c8d;">
+                        <span id="agenda-total-sessoes">Carregando...</span>
+                    </div>
                 </div>
 
                 <!-- Legenda de Status -->
-                <div style="display: flex; gap: 20px; margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                <div style="display: flex; gap: 20px; margin-bottom: 20px; padding: 12px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);">
+                    <div style="color: white; font-weight: 600; font-size: 14px; margin-right: 10px;">Status:</div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 20px; height: 20px; background: #27ae60; border-radius: 4px;"></div>
-                        <span>No Prazo</span>
+                        <div style="width: 20px; height: 20px; background: #27ae60; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+                        <span style="color: white; font-size: 13px; font-weight: 500;">No Prazo</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 20px; height: 20px; background: #f39c12; border-radius: 4px;"></div>
-                        <span>Próximo ao Prazo (3 dias)</span>
+                        <div style="width: 20px; height: 20px; background: #f39c12; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+                        <span style="color: white; font-size: 13px; font-weight: 500;">Próximo (≤3 dias)</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 20px; height: 20px; background: #e74c3c; border-radius: 4px;"></div>
-                        <span>Atrasado</span>
+                        <div style="width: 20px; height: 20px; background: #e74c3c; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+                        <span style="color: white; font-size: 13px; font-weight: 500;">Atrasado</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 20px; height: 20px; background: #95a5a6; border-radius: 4px;"></div>
-                        <span>Finalizado</span>
+                        <div style="width: 20px; height: 20px; background: #95a5a6; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+                        <span style="color: white; font-size: 13px; font-weight: 500;">Finalizado</span>
                     </div>
                 </div>
 
                 <!-- Calendário FullCalendar -->
                 <div id="calendar-view" style="display: block;">
-                    <div id="calendar-container" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);"></div>
+                    <div id="calendar-container"></div>
                 </div>
 
                 <!-- Visualização em Lista (oculta por padrão) -->

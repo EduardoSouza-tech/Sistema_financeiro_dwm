@@ -42,14 +42,68 @@ function initAgendaCalendar() {
             day: 'Dia',
             list: 'Lista'
         },
+        firstDay: 0, // Domingo
+        weekNumbers: false,
+        navLinks: true,
+        editable: false,
+        dayMaxEvents: 3,
+        displayEventTime: true,
+        displayEventEnd: false,
+        eventTimeFormat: {
+            hour: '2-digit',
+            minute: '2-digit',
+            meridiem: false
+        },
         height: 'auto',
+        contentHeight: 650,
+        aspectRatio: 2,
         events: loadCalendarEvents,
         eventClick: function(info) {
             handleEventClick(info.event);
         },
         eventDidMount: function(info) {
-            // Adicionar tooltip
-            info.el.title = info.event.extendedProps.tooltip;
+            // Adicionar tooltip rico
+            const tooltip = info.event.extendedProps.detailedTooltip;
+            info.el.title = tooltip;
+            
+            // Adicionar estilo personalizado
+            info.el.style.cursor = 'pointer';
+            info.el.style.borderLeft = `4px solid ${info.event.backgroundColor}`;
+            info.el.style.fontSize = '12px';
+            info.el.style.padding = '4px 6px';
+        },
+        eventContent: function(arg) {
+            // Renderização customizada do evento com informações mais claras
+            const props = arg.event.extendedProps;
+            const horario = props.horario || '';
+            
+            // Ícone baseado no tipo
+            let icon = '📷';
+            if (props.tipo_video) icon = '🎥';
+            else if (props.tipo_mobile) icon = '📱';
+            
+            // HTML compacto mas informativo
+            let html = '<div class="agenda-event-content">';
+            
+            if (horario && !arg.event.allDay) {
+                html += `<div class="agenda-event-time">${horario}</div>`;
+            }
+            
+            html += `<div class="agenda-event-title">${icon} ${props.cliente_nome || 'Cliente'}</div>`;
+            
+            if (props.endereco && arg.view.type === 'timeGridDay') {
+                html += `<div class="agenda-event-location">📍 ${props.endereco.substring(0, 30)}...</div>`;
+            }
+            
+            html += '</div>';
+            
+            return { html: html };
+        },
+        dayCellDidMount: function(info) {
+            // Adicionar estilo aos dias
+            if (info.isToday) {
+                info.el.style.backgroundColor = '#fff9e6';
+            }
         }
     });
 
@@ -71,31 +125,116 @@ async function loadCalendarEvents(fetchInfo, successCallback, failureCallback) {
         const events = sessoes.map(sessao => {
             // Determinar cor baseado no status
             const color = getStatusColor(sessao);
+            const statusText = getStatusText(sessao);
+            const tipos = getTiposCaptacao(sessao);
             
-            // Preparar tooltip
-            const tooltip = `${sessao.cliente_nome || 'Cliente não informado'}
-Local: ${sessao.endereco || 'N/A'}
-Tipo: ${getTiposCaptacao(sessao)}
-Prazo: ${sessao.prazo_entrega ? new Date(sessao.prazo_entrega).toLocaleDateString('pt-BR') : 'N/A'}`;
+            // Criar título mais informativo
+            let title = `${sessao.cliente_nome || 'Cliente'}`;
+            if (tipos && tipos !== 'N/A') {
+                const tiposArray = tipos.split(', ');
+                const icones = {
+                    'Foto': '📸',
+                    'Vídeo': '🎥',
+                    'Mobile': '📱'
+                };
+                const iconesStr = tiposArray.map(t => icones[t] || '').join('');
+                title = `${iconesStr} ${title}`;
+            }
             
-            return {
+            // Preparar tooltip detalhado
+            const detailedTooltip = `
+🎯 SESSÃO DE FOTOGRAFIA
+
+👤 Cliente: ${sessao.cliente_nome || 'Não informado'}
+📍 Local: ${sessao.endereco || 'Não informado'}
+🎬 Tipo: ${tipos}
+📅 Sessão: ${sessao.data ? new Date(sessao.data).toLocaleDateString('pt-BR') : 'N/A'}
+⏰ Horário: ${sessao.horario || 'Não definido'}
+⏱️ Duração: ${sessao.quantidade_horas ? sessao.quantidade_horas + 'h' : 'N/A'}
+📦 Entrega: ${sessao.prazo_entrega ? new Date(sessao.prazo_entrega).toLocaleDateString('pt-BR') : 'Sem prazo'}
+🏷️ Status: ${statusText}
+
+💡 Clique para ver detalhes ou editar
+            `.trim();
+            
+            // Criar data/hora do evento
+            let eventStart = sessao.data;
+            let eventEnd = null; // Importante: Não definir eventEnd para eventos de dia único
+            let allDay = false; // Mudar padrão para false para exibir horário
+            
+            // Se tiver horário específico, usar time grid
+            if (sessao.horario) {
+                try {
+                    const [hora, minuto] = sessao.horario.split(':').map(n => parseInt(n) || 0);
+                    const dataEvento = new Date(sessao.data);
+                    dataEvento.setHours(hora, minuto, 0, 0);
+                    eventStart = dataEvento.toISOString();
+                    
+                    // Adicionar duração se tiver
+                    if (sessao.quantidade_horas) {
+                        const dataFim = new Date(dataEvento);
+                        dataFim.setHours(dataFim.getHours() + parseFloat(sessao.quantidade_horas));
+                        eventEnd = dataFim.toISOString();
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Erro ao processar horário:', e);
+                    allDay = true; // Fallback para dia inteiro se houver erro
+                }
+            } else {
+                // Sem horário = evento de dia inteiro
+                allDay = true;
+            }
+            
+            
+            const eventObj = {
                 id: sessao.id,
-                title: `📷 ${sessao.cliente_nome || 'Sessão'}`,
-                start: sessao.data,
+                title: title,
+                start: eventStart,
+                allDay: allDay,
                 backgroundColor: color,
                 borderColor: color,
+                textColor: '#ffffff',
                 extendedProps: {
                     sessao: sessao,
-                    tooltip: tooltip
+                    sessao_id: sessao.id,
+                    cliente_nome: sessao.cliente_nome,
+                    horario: sessao.horario,
+                    duracao: sessao.quantidade_horas ? `${sessao.quantidade_horas}h` : null,
+                    endereco: sessao.endereco,
+                    prazo_entrega: sessao.prazo_entrega ? new Date(sessao.prazo_entrega).toLocaleDateString('pt-BR') : null,
+                    valor: sessao.valor,
+                    tipo_foto: sessao.tipo_foto,
+                    tipo_video: sessao.tipo_video,
+                    tipo_mobile: sessao.tipo_mobile,
+                    tooltip: `${sessao.cliente_nome} - ${tipos}`,
+                    detailedTooltip: detailedTooltip,
+                    statusText: statusText
                 }
             };
+            
+            // Adicionar eventEnd apenas se tiver
+            if (eventEnd) {
+                eventObj.end = eventEnd;
+            }
+            
+            return eventObj;
         });
         
-        console.log(`✅ ${events.length} eventos carregados`);
-        successCallback(events);
+        console.log(`✅ ${events.length} eventos carregados para o calendário`);
+        
+        // Atualizar contador no UI
+        updateAgendaSummary(events.length);
+        
+        if (successCallback) {
+            successCallback(events);
+        }
+        return events;
     } catch (error) {
         console.error('❌ Erro ao carregar eventos:', error);
-        failureCallback(error);
+        if (failureCallback) {
+            failureCallback(error);
+        }
+        return [];
     }
 }
 
@@ -454,7 +593,54 @@ async function loadEmailSettings() {
     }
 }
 
-// Expor funções globalmente
+/**
+ * Atualizar resumo da agenda
+ */
+function updateAgendaSummary(totalSessoes) {
+    const summaryEl = document.getElementById('agenda-total-sessoes');
+    if (summaryEl) {
+        summaryEl.innerHTML = `
+            <strong>${totalSessoes}</strong> ${totalSessoes === 1 ? 'sessão agendada' : 'sessões agendadas'}
+        `;
+    }
+}
+
+/**
+ * Editar sessão a partir da agenda
+ */
+function editarSessaoAgenda(sessaoId) {
+    console.log('Editando sessão:', sessaoId);
+    // Redirecionar para a seção de contratos/sessões com o ID
+    showSection('contratos');
+    setTimeout(() => {
+        // Procurar o botão de edição da sessão
+        const editBtn = document.querySelector(`[onclick*="editarSessao(${sessaoId})"]`);
+        if (editBtn) {
+            editBtn.click();
+        } else {
+            // Se não encontrar, mostrar detalhes da sessão
+            showNotification('📋 Carregando detalhes da sessão...', 'info');
+            // Aqui você pode adicionar lógica adicional para abrir modal de edição
+        }
+    }, 500);
+}
+
+/**
+ * Funções auxiliares de API
+ */
+async function apiGet(endpoint) {
+    const response = await fetch(`/api${endpoint}`);
+    if (!response.ok) {
+        throw new Error(`Erro ao buscar ${endpoint}`);
+    }
+    return await response.json();
+}
+
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+}
+
+console.log('✅ Módulo agenda_calendar.js carregado');// Expor funções globalmente
 window.initAgendaCalendar = initAgendaCalendar;
 window.toggleCalendarView = toggleCalendarView;
 window.syncGoogleCalendar = syncGoogleCalendar;
