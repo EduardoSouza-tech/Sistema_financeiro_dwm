@@ -3059,6 +3059,7 @@ def conciliacao_geral_extrato():
                 if isinstance(data_transacao, str):
                     data_transacao = datetime.fromisoformat(data_transacao.replace('Z', '+00:00')).date()
                 
+                # Transação do extrato já foi paga/recebida (já passou pelo banco)
                 lancamento = Lancamento(
                     descricao=f"[EXTRATO] {descricao}",
                     valor=abs(float(transacao['valor'])),
@@ -3066,11 +3067,11 @@ def conciliacao_geral_extrato():
                     categoria=categoria,
                     subcategoria=subcategoria,
                     data_vencimento=data_transacao,
-                    data_pagamento=None,  # PENDENTE - precisa ser pago manualmente
+                    data_pagamento=data_transacao,  # PAGO - transação já aconteceu no banco
                     conta_bancaria=transacao['conta_bancaria'],
                     pessoa=razao_social,
                     observacoes=f"Conciliado do extrato bancário. ID Extrato: {transacao_id}",
-                    status=StatusLancamento.PENDENTE  # PENDENTE para aparecer em Contas a Pagar/Receber
+                    status=StatusLancamento.PAGO  # PAGO porque já passou pelo banco
                 )
                 
                 lancamento_id = db.adicionar_lancamento(lancamento, empresa_id=empresa_id)
