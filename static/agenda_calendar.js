@@ -26,42 +26,44 @@ function initAgendaCalendar() {
         return;
     }
 
-    // Inicializar FullCalendar
+    // Inicializar FullCalendar com layout compacto estilo Windows
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         locale: 'pt-br',
         headerToolbar: {
-            left: 'prev,next today',
+            left: 'prev,next',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
+            right: 'today dayGridMonth,timeGridWeek,listMonth'
         },
         buttonText: {
             today: 'Hoje',
             month: 'Mês',
             week: 'Semana',
-            day: 'Dia',
             list: 'Lista'
         },
         firstDay: 0, // Domingo
         weekNumbers: false,
-        navLinks: true,
+        navLinks: false,
         editable: false,
-        dayMaxEvents: 3,
-        displayEventTime: true,
+        selectable: false,
+        dayMaxEvents: 2,
+        displayEventTime: false,
         displayEventEnd: false,
         eventTimeFormat: {
             hour: '2-digit',
             minute: '2-digit',
             meridiem: false
         },
+        fixedWeekCount: false,
+        showNonCurrentDates: true,
         height: 'auto',
-        contentHeight: 650,
-        aspectRatio: 2,
-        // IMPORTANTE: Configurações para evitar eventos multi-dia incorretos
-        nextDayThreshold: '00:00:00', // Eventos não se estendem para o próximo dia
-        defaultAllDay: false,
-        forceEventDuration: true,
-        defaultTimedEventDuration: '01:00', // 1 hora por padrão
+        contentHeight: 500,
+        aspectRatio: 1.8,
+        // Configurações para evitar eventos multi-dia
+        nextDayThreshold: '09:00:00',
+        defaultAllDay: true,
+        forceEventDuration: false,
+        eventDisplay: 'block'
         eventClick: function(info) {
             handleEventClick(info.event);
         },
@@ -77,37 +79,19 @@ function initAgendaCalendar() {
             info.el.style.padding = '4px 6px';
         },
         eventContent: function(arg) {
-            // Renderização customizada do evento com informações mais claras
+            // Renderização compacta estilo Windows
             const props = arg.event.extendedProps;
-            const horario = props.horario || '';
             
             // Ícone baseado no tipo
             let icon = '📷';
             if (props.tipo_video) icon = '🎥';
             else if (props.tipo_mobile) icon = '📱';
             
-            // HTML compacto mas informativo
-            let html = '<div class="agenda-event-content">';
+            const clienteNome = (props.cliente_nome || 'Sessão').substring(0, 25);
             
-            if (horario && !arg.event.allDay) {
-                html += `<div class="agenda-event-time">${horario}</div>`;
-            }
-            
-            html += `<div class="agenda-event-title">${icon} ${props.cliente_nome || 'Cliente'}</div>`;
-            
-            if (props.endereco && arg.view.type === 'timeGridDay') {
-                html += `<div class="agenda-event-location">📍 ${props.endereco.substring(0, 30)}...</div>`;
-            }
-            
-            html += '</div>';
-            
-            return { html: html };
-        },
-        dayCellDidMount: function(info) {
-            // Adicionar estilo aos dias
-            if (info.isToday) {
-                info.el.style.backgroundColor = '#fff9e6';
-            }
+            return {
+                html: `<div class="fc-event-main-frame"><div class="fc-event-title-container"><div class="fc-event-title">${icon} ${clienteNome}</div></div></div>`
+            };
         }
     });
 
@@ -176,41 +160,13 @@ async function loadCalendarEvents() {
 💡 Clique para ver detalhes ou editar
             `.trim();
             
-            // Criar data/hora do evento - FIXO para aparecer apenas no dia correto
-            let eventStart, eventEnd = null;
-            let allDay = true; // Padrão: dia inteiro
+            // Criar data do evento - SEMPRE allDay para não se espalhar
+            let eventStart = sessao.data;
+            let allDay = true;
             
-            // Se tiver horário específico, criar evento com hora
-            if (sessao.horario && sessao.horario !== 'None' && sessao.horario !== '') {
-                try {
-                    const [hora, minuto] = sessao.horario.split(':').map(n => parseInt(n) || 0);
-                    const dataEvento = new Date(sessao.data + 'T00:00:00');
-                    dataEvento.setHours(hora, minuto, 0, 0);
-                    eventStart = dataEvento.toISOString();
-                    allDay = false;
-                    
-                    // Adicionar duração se tiver (para mostrar bloco de tempo)
-                    if (sessao.quantidade_horas && parseFloat(sessao.quantidade_horas) > 0) {
-                        const dataFim = new Date(dataEvento);
-                        dataFim.setHours(dataFim.getHours() + parseFloat(sessao.quantidade_horas));
-                        eventEnd = dataFim.toISOString();
-                    } else {
-                        // Se não tiver duração, adicionar 1 hora por padrão
-                        const dataFim = new Date(dataEvento);
-                        dataFim.setHours(dataFim.getHours() + 1);
-                        eventEnd = dataFim.toISOString();
-                    }
-                } catch (e) {
-                    console.warn('⚠️ Erro ao processar horário:', e, sessao);
-                    // Fallback: evento de dia inteiro
-                    eventStart = sessao.data;
-                    allDay = true;
-                }
-            } else {
-                // Sem horário = evento de dia inteiro (apenas a data, sem hora)
-                eventStart = sessao.data;
-                allDay = true;
-                // NÃO definir eventEnd para eventos allDay - isso causa o espalhamento!
+            // Garantir formato correto da data (YYYY-MM-DD)
+            if (sessao.data && sessao.data.includes('T')) {
+                eventStart = sessao.data.split('T')[0];
             }
             
             
@@ -218,7 +174,8 @@ async function loadCalendarEvents() {
                 id: sessao.id,
                 title: title,
                 start: eventStart,
-                allDay: allDay,
+                allDay: true,
+                display: 'block',
                 backgroundColor: color,
                 borderColor: color,
                 textColor: '#ffffff',
@@ -229,20 +186,14 @@ async function loadCalendarEvents() {
                     horario: sessao.horario,
                     duracao: sessao.quantidade_horas ? `${sessao.quantidade_horas}h` : null,
                     endereco: sessao.endereco,
-                    prazo_entrega: sessao.prazo_entrega ? new Date(sessao.prazo_entrega).toLocaleDateString('pt-BR') : null,
+                    prazo_entrega: sessao.prazo_entrega,
                     valor: sessao.valor,
                     tipo_foto: sessao.tipo_foto,
                     tipo_video: sessao.tipo_video,
                     tipo_mobile: sessao.tipo_mobile,
-                    tooltip: `${sessao.cliente_nome} - ${tipos}`,
                     detailedTooltip: detailedTooltip,
                     statusText: statusText
                 }
-            };
-            
-            // Adicionar eventEnd apenas se tiver
-            if (eventEnd) {
-                eventObj.end = eventEnd;
             }
             
             // Log de debug para verificar datas
