@@ -3010,7 +3010,8 @@ def conciliacao_geral_extrato():
                 
                 # Buscar transação do extrato
                 with db.get_connection() as conn:
-                    cursor = conn.cursor(dictionary=True)
+                    import psycopg2.extras
+                    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                     cursor.execute(
                         "SELECT * FROM transacoes_extrato WHERE id = %s AND empresa_id = %s",
                         (transacao_id, empresa_id)
