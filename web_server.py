@@ -3184,8 +3184,17 @@ def conciliacao_geral_extrato():
                 
                 # Validar se a conta bancária está ativa
                 conta_bancaria = transacao['conta_bancaria']
+                print(f"🔍 Validando conta bancária: {conta_bancaria}")
                 contas = db.listar_contas()
+                print(f"📊 Total de contas encontradas: {len(contas)}")
                 conta = next((c for c in contas if c.nome == conta_bancaria), None)
+                
+                if conta:
+                    print(f"✅ Conta encontrada: {conta.nome}")
+                    print(f"📊 Campo ativa existe? {hasattr(conta, 'ativa')}")
+                    print(f"📊 Valor do campo ativa: {conta.ativa if hasattr(conta, 'ativa') else 'N/A'}")
+                else:
+                    print(f"⚠️ Conta não encontrada na lista")
                 
                 if conta and hasattr(conta, 'ativa') and not conta.ativa:
                     erros.append(f"Transação {transacao_id}: A conta bancária '{conta_bancaria}' está inativa. Reative a conta antes de conciliar.")
