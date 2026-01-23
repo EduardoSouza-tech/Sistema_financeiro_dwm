@@ -339,6 +339,7 @@
             font-weight: 600;
             margin-right: 10px;
             margin-bottom: 10px;
+            user-select: none; /* Não permite selecionar texto dos botões */
         }
 
         .btn-primary {
@@ -587,7 +588,7 @@
         }
 
         td, th {
-            user-select: none;
+            user-select: text; /* Permite copiar valores e texto das células */
         }
 
         td:first-child,
