@@ -29,11 +29,18 @@ def sessoes():
             import json
             sessoes = db.listar_sessoes()
             
+            print(f"\n🔍 [GET /api/sessoes] Total de sessões retornadas: {len(sessoes)}")
+            
             # 🔧 Mapear campos do backend para o frontend
-            # Backend: data_sessao, duracao, dados_json → Frontend: data, horario, quantidade_horas, tipos
-            for sessao in sessoes:
-                # Mapear data_sessao → data (se data não existir)
-                if 'data_sessao' in sessao and not sessao.get('data'):
+            for i, sessao in enumerate(sessoes):
+                if i == 0:
+                    print(f"\n📊 [SESSÃO 0] Campos disponíveis: {list(sessao.keys())}")
+                    print(f"   - data: {sessao.get('data')}")
+                    print(f"   - horario: {sessao.get('horario')}")
+                    print(f"   - tipo_foto: {sessao.get('tipo_foto')}")
+                
+                # Mapear data_sessao → data (se data não existir ou for None)
+                if not sessao.get('data') and sessao.get('data_sessao'):
                     sessao['data'] = sessao['data_sessao']
                 
                 # Converter duracao (minutos) → quantidade_horas
@@ -44,29 +51,50 @@ def sessoes():
                 if 'dados_json' in sessao and sessao['dados_json']:
                     try:
                         dados_json = json.loads(sessao['dados_json']) if isinstance(sessao['dados_json'], str) else sessao['dados_json']
-                        sessao['horario'] = dados_json.get('horario')
-                        sessao['tipo_foto'] = dados_json.get('tipo_foto', False)
-                        sessao['tipo_video'] = dados_json.get('tipo_video', False)
-                        sessao['tipo_mobile'] = dados_json.get('tipo_mobile', False)
-                        sessao['tags'] = dados_json.get('tags', '')
-                        sessao['equipe'] = dados_json.get('equipe', [])
-                        sessao['responsaveis'] = dados_json.get('responsaveis', [])
-                        sessao['equipamentos'] = dados_json.get('equipamentos', [])
-                    except:
-                        pass
-                
-                # Adicionar cliente_id
-                sessao['cliente_id'] = sessao.get('cliente_id')
+                        if not sessao.get('horario'):
+                            sessao['horario'] = dados_json.get('horario')
+                        if 'tipo_foto' not in sessao or sessao.get('tipo_foto') is None:
+                            sessao['tipo_foto'] = dados_json.get('tipo_foto', False)
+                        if 'tipo_video' not in sessao or sessao.get('tipo_video') is None:
+                            sessao['tipo_video'] = dados_json.get('tipo_video', False)
+                        if 'tipo_mobile' not in sessao or sessao.get('tipo_mobile') is None:
+                            sessao['tipo_mobile'] = dados_json.get('tipo_mobile', False)
+                        if not sessao.get('tags'):
+                            sessao['tags'] = dados_json.get('tags', '')
+                        if not sessao.get('equipe'):
+                            sessao['equipe'] = dados_json.get('equipe', [])
+                        if not sessao.get('responsaveis'):
+                            sessao['responsaveis'] = dados_json.get('responsaveis', [])
+                        if not sessao.get('equipamentos'):
+                            sessao['equipamentos'] = dados_json.get('equipamentos', [])
+                        if not sessao.get('equipamentos_alugados'):
+                            sessao['equipamentos_alugados'] = dados_json.get('equipamentos_alugados', [])
+                        if not sessao.get('custos_adicionais'):
+                            sessao['custos_adicionais'] = dados_json.get('custos_adicionais', [])
+                    except Exception as e:
+                        print(f"⚠️ Erro ao extrair dados_json: {e}")
                 
                 # Adicionar contrato_nome se não existir
                 if 'contrato_numero' in sessao and not sessao.get('contrato_nome'):
                     sessao['contrato_nome'] = sessao['contrato_numero']
+                
+                if i == 0:
+                    print(f"\n✅ [SESSÃO 0 APÓS MAPEAMENTO]")
+                    print(f"   - data: {sessao.get('data')}")
+                    print(f"   - horario: {sessao.get('horario')}")
+                    print(f"   - tipo_foto: {sessao.get('tipo_foto')}")
+                    print(f"   - endereco: {sessao.get('endereco')}")
             
             # Aplicar filtro por cliente
             sessoes_filtradas = filtrar_por_cliente(sessoes, request.usuario)
             
+            print(f"✅ [GET /api/sessoes] Retornando {len(sessoes_filtradas)} sessões após filtro\n")
+            
             return jsonify(sessoes_filtradas)
         except Exception as e:
+            print(f"❌ Erro em GET /api/sessoes: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'error': str(e)}), 500
     else:  # POST
         print("=" * 80)
@@ -196,10 +224,29 @@ def sessao_detalhes(sessao_id):
     """Buscar, atualizar ou excluir sessão específica"""
     if request.method == 'GET':
         try:
-            print(f"🔍 Buscando sessão {sessao_id}")
+            import json
+            print(f"\n🔍 [GET /api/sessoes/{sessao_id}] Buscando sessão...")
             sessao = db.buscar_sessao(sessao_id)
             if sessao:
-                print(f"✅ Sessão {sessao_id} encontrada")
+                print(f"📊 Campos disponíveis: {list(sessao.keys())}")
+                print(f"   - data: {sessao.get('data')}")
+                print(f"   - horario: {sessao.get('horario')}")
+                print(f"   - tipo_foto: {sessao.get('tipo_foto')}")
+                print(f"   - tipo_video: {sessao.get('tipo_video')}")
+                print(f"   - tipo_mobile: {sessao.get('tipo_mobile')}")
+                
+                # Garantir dados_json extras
+                if 'dados_json' in sessao and sessao['dados_json']:
+                    try:
+                        dados_json = json.loads(sessao['dados_json']) if isinstance(sessao['dados_json'], str) else sessao['dados_json']
+                        if not sessao.get('equipamentos_alugados'):
+                            sessao['equipamentos_alugados'] = dados_json.get('equipamentos_alugados', [])
+                        if not sessao.get('custos_adicionais'):
+                            sessao['custos_adicionais'] = dados_json.get('custos_adicionais', [])
+                    except:
+                        pass
+                
+                print(f"✅ Sessão {sessao_id} encontrada e retornada\n")
                 return jsonify({'success': True, 'data': sessao})
             print(f"❌ Sessão {sessao_id} não encontrada")
             return jsonify({'success': False, 'error': 'Sessão não encontrada'}), 404
