@@ -70,6 +70,28 @@ def sessoes():
                 if not data_sessao_str:
                     titulo = f"Sessão - Cliente {cliente_id}"
             
+            # 🔧 Mapear equipe: Frontend envia IDs, backend espera nomes
+            equipe_original = data.get('equipe', [])
+            equipe_mapeada = []
+            
+            print(f"🔍 Estrutura da equipe recebida: {equipe_original}")
+            
+            # Converter IDs de funcionários em objetos com nome
+            if equipe_original:
+                for item in equipe_original:
+                    if isinstance(item, dict):
+                        # Se já é dict com 'nome', manter
+                        equipe_mapeada.append(item)
+                    elif isinstance(item, (int, str)):
+                        # Se é ID, buscar o nome do funcionário
+                        funcionario_id = int(item)
+                        funcionario = db.obter_funcionario_por_id(funcionario_id)
+                        if funcionario:
+                            equipe_mapeada.append({
+                                'nome': funcionario.get('nome', f'Funcionário {funcionario_id}'),
+                                'funcao': funcionario.get('funcao', 'Membro da Equipe')
+                            })
+            
             dados_mapeados = {
                 'titulo': titulo,
                 'data_sessao': data.get('data'),  # Frontend: 'data' → Backend: 'data_sessao'
@@ -78,7 +100,7 @@ def sessoes():
                 'cliente_id': data.get('cliente_id'),
                 'valor': data.get('valor'),
                 'observacoes': data.get('observacoes'),
-                'equipe': data.get('equipe', []),
+                'equipe': equipe_mapeada,
                 'responsaveis': data.get('responsaveis', []),
                 'equipamentos': data.get('equipamentos', [])
             }
@@ -87,6 +109,7 @@ def sessoes():
             print(f"   - titulo: {dados_mapeados.get('titulo')}")
             print(f"   - data_sessao: {dados_mapeados.get('data_sessao')}")
             print(f"   - duracao: {dados_mapeados.get('duracao')} minutos")
+            print(f"   - equipe mapeada: {equipe_mapeada}")
             print(f"📡 Chamando db.adicionar_sessao...")
             
             sessao_id = db.adicionar_sessao(dados_mapeados)
