@@ -3062,32 +3062,39 @@ def conciliacao_geral_extrato():
                 lancamento_id = db.adicionar_lancamento(lancamento, empresa_id=empresa_id)
                 logger.info(f"✅ Lançamento criado: ID={lancamento_id} para transação {transacao_id}")
                 
-                # Marcar transação como conciliada
-                logger.info(f"🔄 Tentando UPDATE em transacoes_extrato: transacao_id={transacao_id}, lancamento_id={lancamento_id}")
-                with db.get_connection() as conn:
-                    cursor = conn.cursor()
-                    
-                    # Verificar se transação existe ANTES do UPDATE
-                    cursor.execute("SELECT id, conciliado, empresa_id FROM transacoes_extrato WHERE id = %s", (transacao_id,))
-                    trans_antes = cursor.fetchone()
-                    logger.info(f"📊 Transação ANTES do UPDATE: {trans_antes}")
-                    
-                    cursor.execute(
-                        "UPDATE transacoes_extrato SET conciliado = TRUE, lancamento_id = %s WHERE id = %s",
-                        (lancamento_id, transacao_id)
-                    )
-                    affected_rows = cursor.rowcount
-                    logger.info(f"📝 UPDATE executado: {affected_rows} linha(s) afetada(s)")
-                    
-                    conn.commit()
+                # 🔥 FIX CRÍTICO: Usar conexão direta sem context manager
+                # porque adicionar_lancamento já fez commit e devolveu ao pool
+                logger.info(f"🔄 Executando UPDATE em transacoes_extrato: transacao_id={transacao_id}, lancamento_id={lancamento_id}")
+                conn_update = db.get_connection()
+                cursor_update = conn_update.cursor()
+                
+                # Verificar se transação existe ANTES do UPDATE
+                cursor_update.execute("SELECT id, conciliado, empresa_id FROM transacoes_extrato WHERE id = %s", (transacao_id,))
+                trans_antes = cursor_update.fetchone()
+                logger.info(f"📊 Transação ANTES do UPDATE: {trans_antes}")
+                
+                cursor_update.execute(
+                    "UPDATE transacoes_extrato SET conciliado = TRUE, lancamento_id = %s WHERE id = %s",
+                    (lancamento_id, transacao_id)
+                )
+                affected_rows = cursor_update.rowcount
+                logger.info(f"📝 UPDATE executado: {affected_rows} linha(s) afetada(s)")
+                
+                # Forçar commit explícito (mesmo com autocommit=True, garantir)
+                try:
+                    conn_update.commit()
                     logger.info(f"✅ COMMIT executado com sucesso")
-                    
-                    # Verificar se transação foi atualizada DEPOIS do UPDATE
-                    cursor.execute("SELECT id, conciliado, lancamento_id, empresa_id FROM transacoes_extrato WHERE id = %s", (transacao_id,))
-                    trans_depois = cursor.fetchone()
-                    logger.info(f"📊 Transação DEPOIS do UPDATE: {trans_depois}")
-                    
-                    cursor.close()
+                except Exception as commit_err:
+                    logger.warning(f"⚠️ Erro no commit (pode ser normal com autocommit): {commit_err}")
+                
+                # Verificar se transação foi atualizada DEPOIS do UPDATE
+                cursor_update.execute("SELECT id, conciliado, lancamento_id, empresa_id FROM transacoes_extrato WHERE id = %s", (transacao_id,))
+                trans_depois = cursor_update.fetchone()
+                logger.info(f"📊 Transação DEPOIS do UPDATE: {trans_depois}")
+                
+                cursor_update.close()
+                from database_postgresql import return_to_pool
+                return_to_pool(conn_update)
                 
                 criados += 1
                 
