@@ -152,6 +152,39 @@ body {
     margin-top: 5px;
 }
 
+/* Toggle Sidebar Button */
+.toggle-sidebar-btn {
+    position: fixed;
+    top: 15px;
+    left: 290px;
+    z-index: 1000;
+    background: #2c3e50;
+    color: white;
+    border: 2px solid #3498db;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.toggle-sidebar-btn:hover {
+    background: #3498db;
+    transform: rotate(180deg);
+}
+
+.sidebar.hidden + .toggle-sidebar-btn {
+    left: 15px;
+    background: #3498db;
+}
+
 /* Main Content */
 .main-content {
     flex: 1;
@@ -356,6 +389,7 @@ body {
 .table {
     width: 100%;
     border-collapse: collapse;
+    background: white;
 }
 
 .table thead {
@@ -372,9 +406,14 @@ body {
     letter-spacing: 0.5px;
 }
 
+.table tbody {
+    background: white;
+}
+
 .table tbody tr {
     border-bottom: 1px solid #f0f0f0;
     transition: background-color 0.2s;
+    background: white;
 }
 
 .table tbody tr:hover {
@@ -384,6 +423,7 @@ body {
 .table td {
     padding: 15px;
     color: #2c3e50;
+    background: white;
 }
 
 .badge {
@@ -1536,4 +1576,229 @@ body {
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
     }
+}
+
+/* ========================================
+   DARK MODE THEME
+   ======================================== */
+
+/* Dark mode - corpo e fundo principal */
+body.dark-mode {
+    background: #1a1a1a;
+    color: #e0e0e0;
+}
+
+/* Dark mode - sidebar */
+body.dark-mode .sidebar {
+    background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+    border-right: 1px solid #444;
+}
+
+body.dark-mode .sidebar nav ul li a {
+    color: #ecf0f1;
+}
+
+body.dark-mode .sidebar nav ul li a:hover {
+    background: rgba(52, 152, 219, 0.3);
+}
+
+body.dark-mode .sidebar nav ul li a.active {
+    background: rgba(52, 152, 219, 0.4);
+    border-left: 4px solid #3498db;
+}
+
+/* Dark mode - main content */
+body.dark-mode .main-content {
+    background: #1a1a1a;
+}
+
+/* Dark mode - cards e containers */
+body.dark-mode .content-card,
+body.dark-mode .card {
+    background: #2d2d2d;
+    border: 1px solid #444;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Dark mode - tabelas */
+body.dark-mode .table-container {
+    background: #2d2d2d;
+    border: 1px solid #444;
+}
+
+body.dark-mode .table {
+    background: #2d2d2d;
+}
+
+body.dark-mode .table thead {
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+}
+
+body.dark-mode .table tbody {
+    background: #2d2d2d;
+}
+
+body.dark-mode .table tbody tr {
+    border-bottom: 1px solid #444;
+    background: #2d2d2d;
+}
+
+body.dark-mode .table tbody tr:hover {
+    background-color: #383838;
+}
+
+body.dark-mode .table td {
+    color: #e0e0e0;
+    background: #2d2d2d;
+}
+
+/* Dark mode - inputs e formulários */
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+    background: #383838;
+    border: 1px solid #555;
+    color: #e0e0e0;
+}
+
+body.dark-mode input:focus,
+body.dark-mode select:focus,
+body.dark-mode textarea:focus {
+    border-color: #3498db;
+    background: #404040;
+}
+
+/* Dark mode - botões */
+body.dark-mode button:not([style*="background"]) {
+    background: #3498db;
+    color: white;
+}
+
+body.dark-mode button:not([style*="background"]):hover {
+    background: #2980b9;
+}
+
+/* Dark mode - modais */
+body.dark-mode .modal-content {
+    background: #2d2d2d;
+    border: 1px solid #444;
+}
+
+body.dark-mode .modal-header {
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+    border-bottom: 1px solid #444;
+}
+
+body.dark-mode .modal-body {
+    background: #2d2d2d;
+}
+
+/* Dark mode - badges e status */
+body.dark-mode .badge-success {
+    background: #27ae60;
+}
+
+body.dark-mode .badge-warning {
+    background: #f39c12;
+    color: #1a1a1a;
+}
+
+body.dark-mode .badge-danger {
+    background: #e74c3c;
+}
+
+body.dark-mode .badge-info {
+    background: #3498db;
+}
+
+/* Dark mode - textos */
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode label {
+    color: #f0f0f0;
+}
+
+/* Dark mode - links */
+body.dark-mode a {
+    color: #5dade2;
+}
+
+body.dark-mode a:hover {
+    color: #3498db;
+}
+
+/* Dark mode - alertas */
+body.dark-mode .alert {
+    background: #383838;
+    border: 1px solid #555;
+    color: #e0e0e0;
+}
+
+body.dark-mode .alert-success {
+    background: #1e4d2b;
+    border-color: #27ae60;
+}
+
+body.dark-mode .alert-danger {
+    background: #5c1e1e;
+    border-color: #e74c3c;
+}
+
+body.dark-mode .alert-warning {
+    background: #5c4a1e;
+    border-color: #f39c12;
+}
+
+/* Dark mode - scrollbar personalizada */
+body.dark-mode ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+    background: #2d2d2d;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 5px;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+
+/* Dark mode - divisores */
+body.dark-mode hr {
+    border-color: #444;
+}
+
+/* Dark mode - toggle sidebar button */
+body.dark-mode .toggle-sidebar-btn {
+    background: #2d2d2d;
+    border-color: #3498db;
+    color: #e0e0e0;
+}
+
+body.dark-mode .toggle-sidebar-btn:hover {
+    background: #3498db;
+}
+
+/* Transições suaves para mudança de tema */
+body,
+.sidebar,
+.main-content,
+.content-card,
+.card,
+.table,
+.table tbody tr,
+.table td,
+input,
+select,
+textarea,
+button,
+.modal-content {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
