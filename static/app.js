@@ -1143,20 +1143,25 @@ async function excluirConta(nome) {
     
     try {
         const response = await fetch(`${API_URL}/contas/${encodeURIComponent(nome)}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
         });
         
         const result = await response.json();
         
         if (result.success) {
-            alert('Conta excluída com sucesso!');
-            loadContas();
+            showToast('Conta excluída com sucesso!', 'success');
+            loadContasBancarias();
         } else {
-            alert('Erro: ' + result.error);
+            showToast('Erro: ' + result.error, 'error');
         }
     } catch (error) {
         console.error('Erro ao excluir conta:', error);
-        alert('Erro ao excluir conta');
+        showToast('Erro ao excluir conta', 'error');
     }
 }
 
@@ -4212,11 +4217,11 @@ window.loadContasBancarias = async function() {
                     ${(conta.saldo || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </td>
                 <td>
-                    <button class="btn btn-sm btn-info" onclick='editarConta(${JSON.stringify(conta).replace(/'/g, "\\'")})'
+                    <button class="btn btn-sm btn-info" onclick="editarConta('${conta.nome.replace(/'/g, "\\'")}')"
                             style="background: #3498db; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">
                         ✏️ Editar
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="excluirConta('${conta.nome}')"
+                    <button class="btn btn-sm btn-danger" onclick="excluirConta('${conta.nome.replace(/'/g, "\\'")}')"
                             style="background: #e74c3c; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer;">
                         🗑️ Excluir
                     </button>
