@@ -2050,11 +2050,20 @@ def listar_categorias():
 def adicionar_categoria():
     """Adiciona uma nova categoria"""
     try:
+        print('\n' + '='*80)
+        print('🆕 POST /api/categorias - NOVA CATEGORIA')
+        print(f'   📍 Headers: {dict(request.headers)}')
+        print(f'   🔑 CSRF Token no header: {request.headers.get("X-CSRFToken", "AUSENTE")}')
+        print(f'   🏢 Empresa na sessão: {session.get("empresa_id")}')
+        print(f'   👤 Usuário na sessão: {session.get("usuario_id")}')
+        
         data = request.json
+        print(f'   📦 Dados recebidos: {data}')
         
         # Extrair empresa_id da sessão
         empresa_id = session.get('empresa_id')
         if not empresa_id:
+            print('   ❌ ERRO: Empresa não identificada na sessão!')
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
         
         # Converter tipo para minúscula para compatibilidade com o enum
@@ -2063,6 +2072,10 @@ def adicionar_categoria():
         # Normalizar nome: uppercase e trim
         nome_normalizado = data['nome'].strip().upper() if data and data.get('nome') else ''  # type: ignore
         
+        print(f'   📝 Nome normalizado: {nome_normalizado}')
+        print(f'   📊 Tipo: {tipo_str}')
+        print(f'   🏢 Empresa ID: {empresa_id}')
+        
         categoria = Categoria(
             nome=nome_normalizado,  # type: ignore
             tipo=TipoLancamento(tipo_str),  # type: ignore
@@ -2070,10 +2083,17 @@ def adicionar_categoria():
             empresa_id=empresa_id  # type: ignore
         )
         categoria_id = db.adicionar_categoria(categoria)
+        
+        print(f'   ✅ Categoria criada com ID: {categoria_id}')
+        print('='*80 + '\n')
+        
         return jsonify({'success': True, 'id': categoria_id})
     except Exception as e:
         import traceback
+        print('   ❌ ERRO ao adicionar categoria:')
         traceback.print_exc()
+        print('='*80 + '\n')
+        
         error_msg = str(e)
         if 'UNIQUE constraint' in error_msg:
             error_msg = 'Já existe uma categoria com este nome'
@@ -2089,10 +2109,12 @@ def modificar_categoria(nome):
             data = request.json
             
             print('\n' + '='*80)
-            print('✏️ PUT /api/categorias - Atualizando categoria')
+            print('✏️ PUT /api/categorias - ATUALIZAR CATEGORIA')
             print(f'   📍 Nome original (URL): {nome}')
+            print(f'   🔑 CSRF Token no header: {request.headers.get("X-CSRFToken", "AUSENTE")}')
             print(f'   📦 Dados recebidos: {data}')
             print(f'   🏢 Empresa na sessão: {session.get("empresa_id")}')
+            print(f'   👤 Usuário na sessão: {session.get("usuario_id")}')
             
             # Extrair empresa_id do request ou sessão
             empresa_id = data.get('empresa_id') if data else None
@@ -2134,18 +2156,21 @@ def modificar_categoria(nome):
             return jsonify({'success': success})
         except Exception as e:
             import traceback
+            print('   ❌ ERRO ao atualizar categoria:')
             traceback.print_exc()
+            print('='*80 + '\n')
+            
             error_msg = str(e)
             if 'UNIQUE constraint' in error_msg:
                 error_msg = 'Já existe uma categoria com este nome'
-            print(f'   ❌ Erro ao atualizar: {error_msg}')
             return jsonify({'success': False, 'error': error_msg}), 400
     
     elif request.method == 'DELETE':
         try:
             print('\n' + '='*80)
-            print('🗑️ DELETE /api/categorias - Excluindo categoria')
+            print('🗑️ DELETE /api/categorias - EXCLUIR CATEGORIA')
             print(f'   📍 Nome (URL): {nome}')
+            print(f'   🔑 CSRF Token no header: {request.headers.get("X-CSRFToken", "AUSENTE")}')
             print(f'   👤 Usuário: {session.get("usuario_id")}')
             print(f'   🏢 Empresa: {session.get("empresa_id")}')
             
@@ -2160,9 +2185,12 @@ def modificar_categoria(nome):
             
             return jsonify({'success': success})
         except Exception as e:
-            print(f'   ❌ Erro ao excluir: {str(e)}')
+            print('   ❌ ERRO ao excluir categoria:')
+            print(f'   Mensagem: {str(e)}')
             import traceback
             traceback.print_exc()
+            print('='*80 + '\n')
+            
             return jsonify({'success': False, 'error': str(e)}), 400
 
 

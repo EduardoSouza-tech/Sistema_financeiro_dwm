@@ -843,6 +843,10 @@ function openModalCategoria(categoriaEdit = null) {
 async function salvarCategoria(event) {
     event.preventDefault();
     
+    console.log('\n' + '='.repeat(80));
+    console.log('🔵 INICIANDO salvarCategoria()');
+    console.log('='.repeat(80));
+    
     const isEdit = document.getElementById('categoria-edit-mode').value === 'true';
     const nomeOriginal = document.getElementById('categoria-nome-original').value;
     
@@ -871,31 +875,51 @@ async function salvarCategoria(event) {
         empresa_id: window.currentEmpresaId
     };
     
-    console.log('=== Salvando Categoria ===');
-    console.log('Modo de edição:', isEdit);
-    console.log('Nome original:', nomeOriginal);
-    console.log('Dados a enviar:', data);
-    console.log('📦 JSON.stringify(data):', JSON.stringify(data, null, 2));
+    console.log('📋 DADOS DA CATEGORIA:');
+    console.log('   Modo edição:', isEdit);
+    console.log('   Nome original:', nomeOriginal);
+    console.log('   Nome novo:', data.nome);
+    console.log('   Tipo:', data.tipo);
+    console.log('   Subcategorias:', data.subcategorias);
+    console.log('   Empresa ID:', data.empresa_id);
+    
+    // Obter CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    console.log('🔑 CSRF Token:', csrfToken ? 'PRESENTE ✓' : '⚠️ AUSENTE');
+    if (!csrfToken) {
+        console.error('❌ CSRF TOKEN NÃO ENCONTRADO! Requisição será bloqueada!');
+        showToast('Erro: Token de segurança não encontrado. Recarregue a página.', 'error');
+        return;
+    }
     
     try {
         const url = isEdit ? `/api/categorias/${encodeURIComponent(nomeOriginal)}` : '/api/categorias';
         const method = isEdit ? 'PUT' : 'POST';
         
-        console.log('🌐 Fazendo requisição:', method, url);
-        console.log('📨 Body:', JSON.stringify(data));
+        console.log('🌐 REQUISIÇÃO HTTP:');
+        console.log('   Method:', method);
+        console.log('   URL:', url);
+        console.log('   Headers:', {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken ? '***PRESENTE***' : 'AUSENTE'
+        });
+        console.log('   Body:', JSON.stringify(data, null, 2));
         
         const response = await fetch(url, {
             method: method,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
             body: JSON.stringify(data)
         });
         
-        const result = await response.json();
+        console.log('📡 RESPOSTA HTTP:');
+        console.log('   Status:', response.status, response.statusText);
+        console.log('   OK?:', response.ok);
         
-        console.log('📡 Resposta recebida:', result);
-        console.log('   Status HTTP:', response.status);
-        console.log('   response.ok:', response.ok);
-        console.log('   result.success:', result.success);
+        const result = await response.json();
+        console.log('   Body:', result);
         
         if (response.ok && result.success) {
             showToast(isEdit ? '✓ Categoria atualizada com sucesso!' : '✓ Categoria adicionada com sucesso!', 'success');
@@ -920,8 +944,13 @@ async function salvarCategoria(event) {
         }
     } catch (error) {
         showToast('Erro ao salvar categoria', 'error');
-        console.error('Erro completo:', error);
+        console.error('❌ EXCEPTION:', error);
+        console.error('   Stack:', error.stack);
     }
+    
+    console.log('='.repeat(80));
+    console.log('🔵 FIM salvarCategoria()');
+    console.log('='.repeat(80) + '\n');
 }
 
 // === MODAL CLIENTE ===
