@@ -4163,18 +4163,93 @@ window.loadFornecedoresTable = async function() {
 };
 
 window.loadContasBancarias = async function() {
-    console.log('🏦 loadContasBancarias - Stub temporário');
-    showToast('Seção de Contas Bancárias em desenvolvimento', 'info');
+    try {
+        console.log('🏦 loadContasBancarias - Carregando contas bancárias...');
+        
+        const response = await fetch(`${API_URL}/contas`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const contas = await response.json();
+        console.log(`✅ ${contas.length} conta(s) bancária(s) carregada(s)`);
+        
+        const tbody = document.getElementById('tbody-contas');
+        if (!tbody) {
+            console.warn('⚠️ Elemento tbody-contas não encontrado');
+            return;
+        }
+        
+        if (contas.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #95a5a6;">Nenhuma conta bancária cadastrada</td></tr>';
+            document.getElementById('saldo-total-display').textContent = 'R$ 0,00';
+            return;
+        }
+        
+        // Calcular saldo total
+        let saldoTotal = 0;
+        contas.forEach(c => {
+            saldoTotal += c.saldo || 0;
+        });
+        
+        // Atualizar display de saldo total
+        document.getElementById('saldo-total-display').textContent = 
+            saldoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        
+        // Preencher tabela
+        tbody.innerHTML = contas.map(conta => `
+            <tr>
+                <td>${conta.banco || 'N/A'}</td>
+                <td>${conta.agencia || 'N/A'}</td>
+                <td>${conta.conta || 'N/A'}</td>
+                <td>${(conta.saldo_inicial || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                <td style="font-weight: bold; color: ${(conta.saldo || 0) >= 0 ? '#27ae60' : '#e74c3c'};">
+                    ${(conta.saldo || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick='editarConta(${JSON.stringify(conta).replace(/'/g, "\\'")})'
+                            style="background: #3498db; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">
+                        ✏️ Editar
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="excluirConta('${conta.nome}')"
+                            style="background: #e74c3c; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer;">
+                        🗑️ Excluir
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+        
+        // Preencher filtro de bancos
+        const filtroBanco = document.getElementById('filtro-banco');
+        if (filtroBanco) {
+            const bancosUnicos = [...new Set(contas.map(c => c.banco).filter(b => b))];
+            filtroBanco.innerHTML = '<option value="">Todos os Bancos</option>' +
+                bancosUnicos.map(banco => `<option value="${banco}">${banco}</option>`).join('');
+        }
+        
+        console.log('✅ Contas bancárias carregadas com sucesso');
+    } catch (error) {
+        console.error('❌ Erro ao carregar contas bancárias:', error);
+        const tbody = document.getElementById('tbody-contas');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #e74c3c;">❌ Erro ao carregar contas bancárias</td></tr>';
+        }
+    }
 };
 
 window.loadTiposSessao = async function() {
-    console.log('📸 loadTiposSessao - Stub temporário');
-    showToast('Seção de Tipos de Sessão em desenvolvimento', 'info');
+    console.log('📸 loadTiposSessao - Funcionalidade não implementada');
+    // Seção de Tipos de Sessão (funcionalidade futura)
 };
 
 window.loadAgenda = async function() {
-    console.log('📅 loadAgenda - Stub temporário');
-    showToast('Agenda de Fotografia em desenvolvimento', 'info');
+    console.log('📅 loadAgenda - Funcionalidade não implementada');
+    // Agenda de Fotografia (funcionalidade futura)
 };
 
 window.loadProdutos = async function() {
