@@ -1032,28 +1032,38 @@
             border-color: #e0e0e0;
         }
         
-        /* Cabeçalho dos dias compacto */
+        /* Cabeçalho dos dias compacto e alinhado */
         .fc-col-header-cell {
             background: #fafafa;
             font-weight: 600;
             color: #666;
-            padding: 6px 2px;
+            padding: 8px 4px;
             font-size: 11px;
             text-transform: uppercase;
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        .fc-col-header-cell-cushion {
+            display: inline-block;
+            padding: 2px 4px;
         }
         
         /* Células dos dias */
         .fc-daygrid-day {
             padding: 2px;
+            text-align: center;
         }
         
         .fc-daygrid-day-frame {
             min-height: 65px;
+            text-align: center;
         }
         
         .fc-daygrid-day-top {
             flex-direction: row;
             justify-content: center;
+            padding: 4px 0;
         }
         
         .fc-daygrid-day-number {

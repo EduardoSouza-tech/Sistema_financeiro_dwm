@@ -202,9 +202,7 @@ async function loadCalendarEvents() {
                 cliente: sessao.cliente_nome,
                 data_original: sessao.data,
                 start: eventStart,
-                end: eventEnd,
-                allDay: allDay,
-                horario: sessao.horario
+                allDay: allDay
             });
             
             return eventObj;
