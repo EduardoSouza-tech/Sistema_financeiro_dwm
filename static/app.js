@@ -904,7 +904,10 @@ async function loadContas() {
         if (selectConta) {
             selectConta.innerHTML = '<option value="">Selecione...</option>';
             
-            data.forEach(conta => {
+            // Filtrar apenas contas ativas para seleção em formulários
+            const contasAtivas = data.filter(c => c.ativa !== false);
+            
+            contasAtivas.forEach(conta => {
                 const option = document.createElement('option');
                 option.value = conta.nome;
                 option.textContent = conta.nome;
@@ -2796,21 +2799,26 @@ async function loadContasForExtrato() {
         
         contas = await response.json();
         
+        // Filtrar apenas contas ativas
+        const contasAtivas = contas.filter(c => c.ativa !== false);
+        
         // Preencher selects
         const selectImportar = document.getElementById('extrato-conta-importar');
         const selectFiltro = document.getElementById('extrato-filter-conta');
         
         if (selectImportar) {
             selectImportar.innerHTML = '<option value="">Selecione a conta</option>';
-            contas.forEach(conta => {
+            contasAtivas.forEach(conta => {
                 selectImportar.innerHTML += `<option value="${conta.nome}">${conta.nome}</option>`;
             });
         }
         
         if (selectFiltro) {
+            // Filtro pode mostrar todas (incluindo inativas) para visualização
             selectFiltro.innerHTML = '<option value="">Todas as contas</option>';
             contas.forEach(conta => {
-                selectFiltro.innerHTML += `<option value="${conta.nome}">${conta.nome}</option>`;
+                const statusLabel = conta.ativa === false ? ' (INATIVA)' : '';
+                selectFiltro.innerHTML += `<option value="${conta.nome}">${conta.nome}${statusLabel}</option>`;
             });
         }
         

@@ -4706,23 +4706,29 @@
                 
                 const contas = await response.json();
                 
-                // Preencher select de upload
+                // Filtrar apenas contas ativas para upload
+                const contasAtivas = contas.filter(c => c.ativa !== false);
+                
+                // Preencher select de upload (apenas contas ativas)
                 const selectUpload = document.getElementById('conta-bancaria-extrato');
                 selectUpload.innerHTML = '<option value="">Selecione a conta...</option>';
                 
-                // Preencher select de filtro
+                // Preencher select de filtro (todas as contas, mas indicar inativas)
                 const selectFiltro = document.getElementById('filtro-conta-extrato');
                 selectFiltro.innerHTML = '<option value="">Todas as contas</option>';
                 
-                contas.forEach(conta => {
+                contasAtivas.forEach(conta => {
                     const optionUpload = document.createElement('option');
                     optionUpload.value = conta.nome;
                     optionUpload.textContent = `${conta.banco} - ${conta.nome}`;
                     selectUpload.appendChild(optionUpload);
-                    
+                });
+                
+                contas.forEach(conta => {
                     const optionFiltro = document.createElement('option');
                     optionFiltro.value = conta.nome;
-                    optionFiltro.textContent = `${conta.banco} - ${conta.nome}`;
+                    const statusLabel = conta.ativa === false ? ' (INATIVA)' : '';
+                    optionFiltro.textContent = `${conta.banco} - ${conta.nome}${statusLabel}`;
                     selectFiltro.appendChild(optionFiltro);
                 });
             } catch (error) {

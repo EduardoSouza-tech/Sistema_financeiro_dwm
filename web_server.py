@@ -1949,6 +1949,26 @@ def criar_transferencia():
         if not conta_destino:
             return jsonify({'success': False, 'error': 'Conta de destino não encontrada'}), 404
         
+        # Validar se as contas estão ativas
+        if hasattr(conta_origem, 'ativa') and not conta_origem.ativa:
+            print(f"❌ Tentativa de criar transferência com conta origem inativa: {conta_origem.nome}")
+            return jsonify({
+                'success': False,
+                'error': f'Não é possível criar transferência. A conta de origem "{conta_origem.nome}" está inativa. Reative a conta antes de criar transferências.'
+            }), 400
+        
+        if hasattr(conta_destino, 'ativa') and not conta_destino.ativa:
+            print(f"❌ Tentativa de criar transferência com conta destino inativa: {conta_destino.nome}")
+            return jsonify({
+                'success': False,
+                'error': f'Não é possível criar transferência. A conta de destino "{conta_destino.nome}" está inativa. Reative a conta antes de criar transferências.'
+            }), 400
+        
+        if not conta_origem:
+            return jsonify({'success': False, 'error': 'Conta de origem não encontrada'}), 404
+        if not conta_destino:
+            return jsonify({'success': False, 'error': 'Conta de destino não encontrada'}), 404
+        
         # Criar data da transferência
         data_transferencia = datetime.fromisoformat(data['data']) if data.get('data') else datetime.now()
         
@@ -2503,6 +2523,21 @@ def adicionar_lancamento():
         proprietario_id = getattr(request, 'filtro_cliente_id', None)
         empresa_id = data.get('empresa_id') if data else None
         
+        # Validar se a conta bancária está ativa
+        if data and data.get('conta_bancaria'):
+            conta_nome = data['conta_bancaria']
+            contas = db.listar_contas_bancarias()
+            conta = next((c for c in contas if c.nome == conta_nome), None)
+            
+            if conta:
+                # Verificar se a conta está inativa
+                if hasattr(conta, 'ativa') and not conta.ativa:
+                    print(f"❌ Tentativa de criar lançamento em conta inativa: {conta_nome}")
+                    return jsonify({
+                        'success': False,
+                        'error': f'Não é possível criar lançamento. A conta bancária "{conta_nome}" está inativa. Reative a conta antes de criar novos lançamentos.'
+                    }), 400
+        
         parcelas = int(data.get('parcelas', 1)) if data else 1
         
         if parcelas > 1:
@@ -2759,6 +2794,14 @@ def upload_extrato_ofx():
         
         if not conta_info:
             return jsonify({'success': False, 'error': f'Conta bancária "{conta_bancaria}" não encontrada'}), 400
+        
+        # Validar se a conta está ativa
+        if hasattr(conta_info, 'ativa') and not conta_info.ativa:
+            print(f"❌ Tentativa de importar extrato para conta inativa: {conta_bancaria}")
+            return jsonify({
+                'success': False,
+                'error': f'Não é possível importar extrato. A conta bancária "{conta_bancaria}" está inativa. Reative a conta antes de importar extratos.'
+            }), 400
         
         # Parse OFX
         try:

@@ -1,103 +1,141 @@
-# 🏦 Documentação - Conciliação Automática de Extrato Bancário
+# 🏦 Documentação Completa - Extrato Bancário e Conciliação
 
 ## 📋 Índice
 1. [Visão Geral](#visão-geral)
-2. [Como Funciona](#como-funciona)
-3. [Matching Inteligente](#matching-inteligente)
-4. [Guia de Uso Passo a Passo](#guia-de-uso-passo-a-passo)
-5. [Campos Automáticos vs Manuais](#campos-automáticos-vs-manuais)
-6. [Regras de Negócio](#regras-de-negócio)
-7. [Exemplos Práticos](#exemplos-práticos)
-8. [Troubleshooting](#troubleshooting)
+2. [Estrutura do Sistema](#estrutura-do-sistema)
+3. [Funcionalidades](#funcionalidades)
+4. [Processo de Conciliação](#processo-de-conciliação)
+5. [Matching Inteligente](#matching-inteligente)
+6. [Conciliação Individual](#conciliação-individual)
+7. [Desconciliação](#desconciliação)
+8. [Regras de Negócio](#regras-de-negócio)
+9. [API Endpoints](#api-endpoints)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## 🎯 Visão Geral
 
-A **Conciliação Automática de Extrato Bancário** é uma funcionalidade que permite transformar transações importadas do extrato bancário (arquivo OFX) em lançamentos de **Contas a Pagar** ou **Contas a Receber** de forma automática e inteligente.
+O **Sistema de Extrato Bancário** é uma solução completa para importar, visualizar e conciliar transações bancárias com o sistema de contas a pagar e receber.
 
-### Benefícios:
-- ✅ **Economia de tempo**: Processa múltiplas transações simultaneamente
-- 🧠 **Inteligência artificial**: Detecta CPF/CNPJ e sugere cliente/fornecedor automaticamente
-- 📊 **Organização**: Mantém rastreabilidade entre extrato e lançamento
-- 🎯 **Precisão**: Valida dados antes de criar lançamentos
-- 💰 **Controle financeiro**: Transforma dados bancários em informação gerencial
-
----
-
-## ⚙️ Como Funciona
-
-### 1. **Importação do Extrato**
-```
-📤 Usuário importa arquivo OFX
-    ↓
-💾 Sistema salva transações na tabela transacoes_extrato
-    ↓
-🔍 Transações ficam disponíveis para conciliação
-```
-
-### 2. **Processo de Conciliação**
-```
-🔄 Clique em "Conciliação Geral"
-    ↓
-📋 Sistema busca transações não conciliadas
-    ↓
-🧠 Matching inteligente de CPF/CNPJ
-    ↓
-👤 Usuário configura categoria/subcategoria
-    ↓
-✅ Sistema cria lançamentos em Contas a Pagar/Receber
-    ↓
-✔️ Marca transações como conciliadas
-```
-
-### 3. **Resultado Final**
-- Lançamento criado com status **PAGO**
-- Transação marcada como **CONCILIADA**
-- Rastreabilidade mantida (ID do extrato no num_documento)
+### Principais Recursos:
+- 📤 **Importação de OFX**: Carrega extratos bancários diretamente do banco
+- 🔍 **Visualização Completa**: Lista todas as transações com filtros e busca
+- 🔗 **Conciliação Inteligente**: Transforma transações em lançamentos automaticamente
+- 🎯 **Matching de CPF/CNPJ**: Detecta e vincula clientes/fornecedores automaticamente
+- 🔙 **Desconciliação**: Desfaz conciliações erradas
+- 📊 **Rastreabilidade Total**: Mantém vínculo entre extrato e lançamentos
 
 ---
 
-## 🧠 Matching Inteligente
+## 🏗️ Estrutura do Sistema
 
-### Como o Sistema Detecta CPF/CNPJ
+### Banco de Dados
 
-O sistema analisa a **descrição** de cada transação do extrato e:
-
-1. **Extrai números** da descrição
-2. **Identifica padrões**:
-   - 11 dígitos consecutivos = **CPF**
-   - 14 dígitos consecutivos = **CNPJ**
-3. **Busca no cadastro**:
-   - **Crédito (dinheiro entrando)** → Busca em **Clientes**
-   - **Débito (dinheiro saindo)** → Busca em **Fornecedores**
-4. **Preenche automaticamente** se encontrar match
-
-### Exemplos de Detecção
-
-#### ✅ Detecta CPF:
-```
-Descrição: "PIX RECEBIDO CPF 123.456.789-00 JOAO SILVA"
-       ↓
-Sistema extrai: 12345678900
-       ↓
-Busca em clientes com CPF 123.456.789-00
-       ↓
-Preenche: "João Silva Ltda"
+#### Tabela: `transacoes_extrato`
+```sql
+CREATE TABLE transacoes_extrato (
+    id SERIAL PRIMARY KEY,
+    conta_bancaria VARCHAR(200) NOT NULL,
+    data TIMESTAMP NOT NULL,
+    tipo VARCHAR(20) NOT NULL,           -- CREDITO ou DEBITO
+    valor DECIMAL(15, 2) NOT NULL,
+    descricao TEXT,
+    saldo DECIMAL(15, 2),
+    conciliado BOOLEAN DEFAULT FALSE,
+    lancamento_id INTEGER,               -- FK para lancamentos
+    empresa_id INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
 ```
 
-#### ✅ Detecta CNPJ:
+### Fluxo de Dados
+
 ```
-Descrição: "PGTO FORN 12345678000199 ACME CORP"
-       ↓
-Sistema extrai: 12345678000199
-       ↓
-Busca em fornecedores com CNPJ 12.345.678/0001-99
-       ↓
-Preenche: "ACME Corporation"
+┌─────────────────────────┐
+│   Arquivo OFX (Banco)   │
+└───────────┬─────────────┘
+            │
+            ↓ Importação
+┌─────────────────────────┐
+│  transacoes_extrato     │
+│  (conciliado = FALSE)   │
+└───────────┬─────────────┘
+            │
+            ↓ Conciliação
+┌─────────────────────────┐
+│      lancamentos        │
+│    (status = PAGO)      │
+└───────────┬─────────────┘
+            │
+            ↓ Atualização
+┌─────────────────────────┐
+│  transacoes_extrato     │
+│  (conciliado = TRUE)    │
+│  (lancamento_id = X)    │
+└─────────────────────────┘
 ```
 
-#### ⚠️ Não Detecta (sem CPF/CNPJ):
+---
+
+## ✨ Funcionalidades
+
+### 1. **Visualização de Transações**
+- 📋 Lista todas as transações importadas
+- 🔍 Filtros por:
+  - Conta bancária
+  - Período (data início/fim)
+  - Status (conciliado/pendente)
+  - Tipo (crédito/débito)
+- 🎯 Busca em tempo real
+- 💰 Saldo total e por conta
+
+### 2. **Conciliação Individual**
+- 🔗 Botão "Conciliar" em cada transação pendente
+- 📝 Modal com formulário completo:
+  - Categoria (automática por tipo)
+  - Subcategoria
+  - Razão Social (com matching inteligente)
+- ✅ Cria lançamento automaticamente
+- 🔒 Marca transação como conciliada
+
+### 3. **Conciliação em Massa**
+- ☑️ Seleção múltipla com checkboxes
+- ✅ Botão "Conciliar Selecionados"
+- 📋 Modal com tabela de configuração:
+  - Uma linha por transação
+  - Categoria/subcategoria individuais
+  - Razão social por transação
+- 🚀 Processa todas simultaneamente
+
+### 4. **Desconciliação**
+- 🔙 Botão "Desconciliar" em transações conciliadas
+- ⚠️ Modal de confirmação com aviso claro
+- 🗑️ Exclui lançamento automaticamente
+- ♻️ Marca transação como não conciliada
+- ✅ Permite corrigir erros
+
+### 5. **Indicadores Visuais**
+- ✅ Badge verde "Conciliado" quando já conciliado
+- ⏳ Badge laranja "Pendente" quando não conciliado
+- 💵 Valores verdes para créditos
+- 💸 Valores vermelhos para débitos
+- 📊 Saldo da transação exibido
+
+---
+
+## 🔄 Processo de Conciliação
+
+### Passo 1: Importação
+```
+1. Usuário acessa "Extrato Bancário"
+2. Clica em "📤 Importar OFX"
+3. Seleciona arquivo do banco
+4. Sistema processa e salva transações
+5. Transações aparecem na lista como "⏳ Pendente"
+```
+
+### Passo 2: Conciliação Individual
 ```
 Descrição: "COMPRA SUPERMERCADO XYZ"
        ↓

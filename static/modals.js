@@ -1522,6 +1522,9 @@ async function openModalTransferencia() {
         const response = await fetch('/api/contas');
         const contas = await response.json();
         
+        // Filtrar apenas contas ativas
+        const contasAtivas = contas.filter(c => c.ativa !== false);
+        
         const selectOrigem = document.getElementById('transferencia-origem');
         const selectDestino = document.getElementById('transferencia-destino');
         
@@ -1530,7 +1533,7 @@ async function openModalTransferencia() {
             selectOrigem.innerHTML = '<option value="">Selecione a conta de origem</option>';
             selectDestino.innerHTML = '<option value="">Selecione a conta de destino</option>';
             
-            contas.forEach(conta => {
+            contasAtivas.forEach(conta => {
                 const optionOrigem = document.createElement('option');
                 optionOrigem.value = conta.nome;
                 optionOrigem.textContent = `${conta.banco} - ${conta.agencia}/${conta.conta}`;
