@@ -8,9 +8,10 @@
 5. [Matching Inteligente](#matching-inteligente)
 6. [Conciliação Individual](#conciliação-individual)
 7. [Desconciliação](#desconciliação)
-8. [Regras de Negócio](#regras-de-negócio)
-9. [API Endpoints](#api-endpoints)
-10. [Troubleshooting](#troubleshooting)
+8. [Sistema de Contas Ativas/Inativas](#sistema-de-contas-ativasinativas)
+9. [Regras de Negócio](#regras-de-negócio)
+10. [API Endpoints](#api-endpoints)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -612,6 +613,281 @@ Conta: Santander - CC 54321-0
    - Faça backup do banco
    - Teste com poucos registros primeiro
 
+5. **⚠️ ATENÇÃO: Contas Inativas**
+   - Não é possível conciliar transações de contas inativas
+   - Reative a conta antes de conciliar
+   - Sistema bloqueia automaticamente para proteção de dados
+
+---
+
+## 🔒 Sistema de Contas Ativas/Inativas
+
+### Visão Geral
+
+O sistema possui controle de ativação/inativação de contas bancárias para proteger contra movimentações acidentais em contas que não devem mais ser utilizadas.
+
+### Funcionalidades
+
+#### 1. **Ativar/Inativar Contas**
+- 🔒 Botão "Inativar" para contas ativas
+- 🔓 Botão "Reativar" para contas inativas
+- 🎯 Indicador visual claro do status
+- ✅ Alteração instantânea
+
+#### 2. **Validações Automáticas**
+
+**Contas INATIVAS não podem:**
+- ❌ Receber novos lançamentos
+- ❌ Ser usadas em transferências (origem ou destino)
+- ❌ Receber importação de extrato OFX
+- ❌ Ter transações conciliadas
+
+**Contas ATIVAS podem:**
+- ✅ Receber todos os tipos de movimentação
+- ✅ Aparecer em dropdowns de seleção
+- ✅ Ser usadas normalmente
+
+#### 3. **Interface de Usuário**
+
+**Status Visual:**
+```
+● ATIVA   (badge verde)
+● INATIVA (badge cinza)
+```
+
+**Botões Dinâmicos:**
+- Conta ativa: 🔒 Inativar (laranja)
+- Conta inativa: 🔓 Reativar (verde)
+
+**Estilo da Linha:**
+- Conta inativa: opacidade reduzida + fundo cinza
+
+#### 4. **Filtros de Seleção**
+
+**Em formulários (criar lançamento, transferência, etc):**
+- Mostra apenas contas ATIVAS
+- Usuário não pode selecionar conta inativa
+
+**Em filtros de visualização (extrato, relatórios):**
+- Mostra todas as contas
+- Contas inativas com indicador "(INATIVA)"
+
+### Proteção de Dados
+
+#### Exclusão de Contas
+
+**Regra:** Não é possível excluir contas com movimentação
+
+**Validações:**
+1. Verifica se há lançamentos vinculados
+2. Verifica se há transações de extrato vinculadas
+3. Se houver qualquer movimentação → Bloqueia exclusão
+
+**Mensagem ao usuário:**
+```
+❌ Não é possível excluir esta conta. 
+Ela possui X lançamento(s) vinculado(s). 
+Use "Inativar" em vez de excluir.
+```
+
+#### Conciliação Bloqueada
+
+Ao tentar conciliar transação de conta inativa:
+
+**Backend:**
+```
+🔍 Validando conta bancária: INTER- UNIAO...
+📊 Total de contas encontradas: 4
+   - Conta cadastrada: 'INTER...' (ativa=False)
+✅ Conta encontrada: INTER...
+📊 Campo ativa existe? True
+📊 Valor do campo ativa: False
+❌ Conciliação bloqueada: conta está inativa
+```
+
+**Retorno API:**
+```json
+{
+  "success": false,
+  "criados": 0,
+  "erros": [
+    "Transação 3529: A conta bancária 'INTER...' está inativa. 
+     Reative a conta antes de conciliar."
+  ],
+  "message": "Erro ao conciliar transação"
+}
+```
+
+**Mensagem ao Usuário:**
+```
+❌ Não é possível conciliar. 
+A conta bancária "INTER..." está inativa. 
+Reative a conta antes de conciliar.
+```
+
+### Casos de Uso
+
+#### 1. **Conta Antiga que não é mais usada**
+```
+Situação: Banco X foi substituído por Banco Y
+Ação: Inativar conta do Banco X
+Resultado: 
+- ✅ Movimentações antigas permanecem visíveis
+- ❌ Novos lançamentos são bloqueados
+- ❌ Não aparece em formulários
+```
+
+#### 2. **Encerramento de Conta Corrente**
+```
+Situação: Empresa encerrou conta bancária
+Ação: Inativar conta
+Resultado:
+- ✅ Histórico preservado
+- ❌ Novas movimentações bloqueadas
+- ✅ Relatórios incluem histórico
+```
+
+#### 3. **Conta em Manutenção Temporária**
+```
+Situação: Problemas com banco, aguardando regularização
+Ação: Inativar temporariamente
+Resultado:
+- ❌ Movimentações bloqueadas enquanto inativa
+- ✅ Facilmente reativável quando regularizar
+```
+
+### API Endpoints
+
+#### Toggle Status
+```http
+POST /api/contas/{nome}/toggle-ativo
+Headers: 
+  X-CSRFToken: {token}
+  Authorization: Bearer {token}
+
+Response 200:
+{
+  "success": true,
+  "ativa": false,
+  "message": "Conta inativada com sucesso"
+}
+```
+
+#### Listar Contas (inclui status)
+```http
+GET /api/contas
+Headers:
+  Authorization: Bearer {token}
+
+Response 200:
+[
+  {
+    "nome": "INTER- UNIAO...",
+    "banco": "INTER",
+    "agencia": "0001",
+    "conta": "23421321",
+    "saldo_inicial": 15000.00,
+    "ativa": false  ← Campo de status
+  }
+]
+```
+
+### Validações Implementadas
+
+#### 1. **Criar Lançamento** (POST /api/lancamentos)
+```python
+# Valida se conta está ativa
+contas = db.listar_contas()
+conta = next((c for c in contas if c.nome == conta_bancaria), None)
+
+if conta and hasattr(conta, 'ativa') and not conta.ativa:
+    return jsonify({
+        'success': False,
+        'error': 'Conta bancária inativa. Reative antes de criar lançamentos.'
+    }), 400
+```
+
+#### 2. **Criar Transferência** (POST /api/transferencias)
+```python
+# Valida origem e destino
+if hasattr(conta_origem, 'ativa') and not conta_origem.ativa:
+    return jsonify({
+        'success': False,
+        'error': 'Conta de origem está inativa.'
+    }), 400
+
+if hasattr(conta_destino, 'ativa') and not conta_destino.ativa:
+    return jsonify({
+        'success': False,
+        'error': 'Conta de destino está inativa.'
+    }), 400
+```
+
+#### 3. **Importar OFX** (POST /api/extratos/upload)
+```python
+# Valida antes de processar arquivo
+if hasattr(conta_info, 'ativa') and not conta_info.ativa:
+    return jsonify({
+        'success': False,
+        'error': 'Conta bancária está inativa. Reative antes de importar.'
+    }), 400
+```
+
+#### 4. **Conciliar Transações** (POST /api/extratos/conciliacao-geral)
+```python
+# Valida cada transação
+for transacao in transacoes:
+    conta = buscar_conta(transacao['conta_bancaria'])
+    
+    if not conta:
+        erros.append('Conta não cadastrada')
+        continue
+    
+    if not conta.ativa:
+        erros.append('Conta está inativa. Reative antes de conciliar.')
+        continue
+    
+    # Prossegue com conciliação...
+```
+
+### Fluxo de Trabalho
+
+```
+┌────────────────────┐
+│  Conta Cadastrada  │
+│   (ativa = true)   │
+└──────────┬─────────┘
+           │
+           ↓
+┌────────────────────┐
+│  Recebe            │
+│  Movimentações     │
+│  Normalmente       │
+└──────────┬─────────┘
+           │
+           ↓ Usuário clica "Inativar"
+┌────────────────────┐
+│  Conta Inativa     │
+│  (ativa = false)   │
+└──────────┬─────────┘
+           │
+           ↓
+┌────────────────────┐
+│  BLOQUEIOS:        │
+│  - Lançamentos     │
+│  - Transferências  │
+│  - Importação OFX  │
+│  - Conciliação     │
+└──────────┬─────────┘
+           │
+           ↓ Se necessário reativar
+┌────────────────────┐
+│  Conta Ativa       │
+│  (ativa = true)    │
+│  Volta ao normal   │
+└────────────────────┘
+```
+
 ---
 
 ## 🔐 Segurança e Rastreabilidade
@@ -667,6 +943,15 @@ Em caso de dúvidas ou problemas:
 
 ## 📝 Changelog
 
+### Versão 1.1.0 (23/01/2026)
+- 🔒 Sistema de ativação/inativação de contas bancárias
+- ✅ Validação em lançamentos, transferências e importação OFX
+- 🛡️ Proteção contra exclusão de contas com movimentação
+- 🎨 Interface visual com badges de status
+- 📊 Filtros inteligentes (ativos em formulários, todos em relatórios)
+- ❌ Bloqueio de conciliação em contas inativas
+- 🔍 Mensagens de erro claras e orientativas
+
 ### Versão 1.0.0 (22/01/2026)
 - ✨ Lançamento inicial da funcionalidade
 - 🧠 Matching inteligente de CPF/CNPJ
@@ -677,6 +962,6 @@ Em caso de dúvidas ou problemas:
 
 ---
 
-**Última atualização**: 22 de Janeiro de 2026  
-**Versão**: 1.0.0  
+**Última atualização**: 23 de Janeiro de 2026  
+**Versão**: 1.1.0  
 **Autor**: Sistema Financeiro DWM
