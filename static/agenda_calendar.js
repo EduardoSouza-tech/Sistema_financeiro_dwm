@@ -62,7 +62,6 @@ function initAgendaCalendar() {
         defaultAllDay: false,
         forceEventDuration: true,
         defaultTimedEventDuration: '01:00', // 1 hora por padrão
-        events: loadCalendarEvents,
         eventClick: function(info) {
             handleEventClick(info.event);
         },
@@ -113,19 +112,34 @@ function initAgendaCalendar() {
     });
 
     calendar.render();
-    console.log('✅ Calendário inicializado');
+    console.log('✅ Calendário renderizado');
+    
+    // Carregar eventos imediatamente após renderizar
+    loadCalendarEvents();
     
     // Carregar configurações de e-mail
     loadEmailSettings();
+    
+    console.log('✅ Calendário totalmente inicializado');
 }
 
 /**
  * Carregar eventos do calendário (sessões)
  */
-async function loadCalendarEvents(fetchInfo, successCallback, failureCallback) {
+async function loadCalendarEvents() {
+    if (!calendar) {
+        console.error('❌ Calendário não inicializado!');
+        return;
+    }
+    
     try {
         console.log('📡 Carregando sessões para o calendário...');
-        const sessoes = await apiGet('/sessoes');
+        const response = await fetch('/api/sessoes');
+        if (!response.ok) {
+            throw new Error('Erro ao buscar sessões: ' + response.status);
+        }
+        const sessoes = await response.json();
+        console.log('📦 Sessões recebidas:', sessoes.length);
         
         const events = sessoes.map(sessao => {
             // Determinar cor baseado no status
@@ -256,15 +270,16 @@ async function loadCalendarEvents(fetchInfo, successCallback, failureCallback) {
         // Atualizar contador no UI
         updateAgendaSummary(events.length);
         
-        if (successCallback) {
-            successCallback(events);
-        }
+        // Adicionar eventos ao calendário
+        calendar.removeAllEvents();
+        calendar.addEventSource(events);
+        
+        console.log('✅ Eventos adicionados ao calendário');
+        
         return events;
     } catch (error) {
         console.error('❌ Erro ao carregar eventos:', error);
-        if (failureCallback) {
-            failureCallback(error);
-        }
+        showNotification('❌ Erro ao carregar eventos da agenda', 'error');
         return [];
     }
 }
