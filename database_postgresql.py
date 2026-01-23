@@ -1506,10 +1506,10 @@ class DatabaseManager:
         
         cursor.execute("""
             UPDATE contas_bancarias
-            SET nome = %s, banco = %s, agencia = %s, conta = %s, saldo_inicial = %s, tipo_saldo_inicial = %s, data_inicio = %s
+            SET nome = %s, banco = %s, agencia = %s, conta = %s, saldo_inicial = %s, tipo_saldo_inicial = %s, data_inicio = %s, ativa = %s
             WHERE nome = %s
         """, (conta.nome, conta.banco, conta.agencia, conta.conta,
-              float(conta.saldo_inicial), conta.tipo_saldo_inicial, conta.data_inicio, nome_antigo))
+              float(conta.saldo_inicial), conta.tipo_saldo_inicial, conta.data_inicio, conta.ativa, nome_antigo))
         
         success = cursor.rowcount > 0
         conn.commit()
