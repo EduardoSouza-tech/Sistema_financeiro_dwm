@@ -4262,10 +4262,270 @@ console.log('✅ Todas as funções críticas expostas globalmente');
  * As funções que JÁ EXISTEM no código são expostas globalmente após suas declarações.
  */
 
-window.loadFornecedoresTable = async function() {
-    console.log('📋 loadFornecedoresTable - Stub temporário');
-    showToast('Seção de Fornecedores em desenvolvimento', 'info');
-};
+// === FORNECEDORES ===
+async function loadFornecedores(ativos = true) {
+    try {
+        console.log('🏭 Carregando fornecedores... (Ativos:', ativos, ')');
+        
+        const response = await fetch(`${API_URL}/fornecedores?ativos=${ativos}`);
+        if (!response.ok) throw new Error('Erro ao carregar fornecedores');
+        
+        const fornecedores = await response.json();
+        console.log(`📦 ${fornecedores.length} fornecedores recebidos`);
+        
+        const tbody = document.getElementById('tbody-fornecedores');
+        if (!tbody) {
+            console.error('❌ tbody-fornecedores não encontrado!');
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        
+        // Mostrar/ocultar coluna de data de inativação
+        const thDataInativacao = document.getElementById('th-data-inativacao-fornecedor');
+        if (thDataInativacao) {
+            thDataInativacao.style.display = ativos ? 'none' : 'table-cell';
+        }
+        
+        if (fornecedores.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #999;">Nenhum fornecedor encontrado</td></tr>';
+            return;
+        }
+        
+        fornecedores.forEach(forn => {
+            const tr = document.createElement('tr');
+            
+            const dataInativacaoCell = ativos ? '' : `<td>${forn.data_inativacao || '-'}</td>`;
+            
+            const botoesAcao = ativos ? `
+                <button class="btn-edit" onclick="editarFornecedor('${forn.nome.replace(/'/g, "\\'")}')">✏️ Editar</button>
+                <button class="btn-delete" onclick="inativarFornecedor('${forn.nome.replace(/'/g, "\\'")}')">⏸️ Inativar</button>
+            ` : `
+                <button class="btn-edit" onclick="editarFornecedor('${forn.nome.replace(/'/g, "\\'")}')">✏️ Editar</button>
+                <button class="btn-success" onclick="reativarFornecedor('${forn.nome.replace(/'/g, "\\'")}')">▶️ Reativar</button>
+                <button class="btn-delete" onclick="excluirFornecedor('${forn.nome.replace(/'/g, "\\'")}')">🗑️ Excluir</button>
+            `;
+            
+            tr.innerHTML = `
+                <td>${forn.nome || '-'}</td>
+                <td>${forn.nome_fantasia || '-'}</td>
+                <td>${forn.cnpj || '-'}</td>
+                <td>${forn.cidade || '-'}</td>
+                <td>${forn.telefone || '-'}</td>
+                ${dataInativacaoCell}
+                <td>${botoesAcao}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+        console.log('✅ Tabela de fornecedores atualizada');
+    } catch (error) {
+        console.error('❌ Erro ao carregar fornecedores:', error);
+        showToast('Erro ao carregar fornecedores', 'error');
+    }
+}
+
+async function editarFornecedor(nome) {
+    try {
+        console.log('✏️ Editando fornecedor:', nome);
+        
+        const response = await fetch(`${API_URL}/fornecedores/${encodeURIComponent(nome)}`);
+        const fornecedor = await response.json();
+        
+        if (!fornecedor) {
+            showToast('Erro: Fornecedor não encontrado', 'error');
+            return;
+        }
+        
+        if (typeof openModalFornecedor === 'function') {
+            openModalFornecedor(fornecedor);
+        } else {
+            showToast('Erro: Função de edição não disponível', 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao editar fornecedor:', error);
+        showToast('Erro ao abrir edição: ' + error.message, 'error');
+    }
+}
+
+async function inativarFornecedor(nome) {
+    console.log('⏸️ inativarFornecedor chamada com:', nome);
+    
+    if (!confirm(`Deseja realmente desativar o fornecedor "${nome}"?`)) {
+        return;
+    }
+    
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        const url = `${API_URL}/fornecedores/${encodeURIComponent(nome)}/inativar`;
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({})
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showToast('✓ Fornecedor desativado com sucesso!', 'success');
+            await loadFornecedores(true);
+        } else {
+            showToast('Erro ao desativar: ' + (result.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        console.error('❌ Exception:', error);
+        showToast('Erro ao desativar fornecedor', 'error');
+    }
+}
+
+async function reativarFornecedor(nome) {
+    console.log('▶️ reativarFornecedor chamada com:', nome);
+    
+    if (!confirm(`Deseja realmente reativar o fornecedor "${nome}"?`)) {
+        return;
+    }
+    
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        const url = `${API_URL}/fornecedores/${encodeURIComponent(nome)}/reativar`;
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({})
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showToast('✓ Fornecedor reativado com sucesso!', 'success');
+            await loadFornecedores(false);
+        } else {
+            showToast('Erro ao reativar: ' + (result.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        console.error('❌ Exception:', error);
+        showToast('Erro ao reativar fornecedor', 'error');
+    }
+}
+
+async function excluirFornecedor(nome) {
+    console.log('🗑️ excluirFornecedor chamada com:', nome);
+    
+    if (!confirm(`ATENÇÃO: Deseja realmente EXCLUIR permanentemente o fornecedor "${nome}"?\n\nEsta ação não pode ser desfeita!`)) {
+        return;
+    }
+    
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        const url = `${API_URL}/fornecedores/${encodeURIComponent(nome)}`;
+        
+        const response = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showToast('✓ Fornecedor excluído permanentemente!', 'success');
+            await loadFornecedores(false);
+        } else {
+            showToast('Erro ao excluir: ' + (result.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        console.error('❌ Exception:', error);
+        showToast('Erro ao excluir fornecedor', 'error');
+    }
+}
+
+function showFornecedorTab(tab) {
+    console.log('🔄 Alternando aba de fornecedores:', tab);
+    
+    // Atualizar botões das abas
+    const abaAtivos = document.getElementById('tab-fornecedores-ativos');
+    const abaInativos = document.getElementById('tab-fornecedores-inativos');
+    
+    if (tab === 'ativos') {
+        abaAtivos?.classList.add('active');
+        abaAtivos?.setAttribute('style', 'padding: 10px 20px; border: none; background: #9b59b6; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;');
+        abaInativos?.classList.remove('active');
+        abaInativos?.setAttribute('style', 'padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;');
+        loadFornecedores(true);
+    } else {
+        abaInativos?.classList.add('active');
+        abaInativos?.setAttribute('style', 'padding: 10px 20px; border: none; background: #9b59b6; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;');
+        abaAtivos?.classList.remove('active');
+        abaAtivos?.setAttribute('style', 'padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;');
+        loadFornecedores(false);
+    }
+}
+
+// Exportações PDF e Excel
+async function exportarFornecedoresPDF() {
+    try {
+        const response = await fetch(`${API_URL}/fornecedores/exportar/pdf`);
+        if (!response.ok) throw new Error('Erro ao gerar PDF');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `fornecedores_${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        
+        showToast('✓ PDF gerado com sucesso!', 'success');
+    } catch (error) {
+        console.error('❌ Erro ao exportar PDF:', error);
+        showToast('Erro ao gerar PDF', 'error');
+    }
+}
+
+async function exportarFornecedoresExcel() {
+    try {
+        const response = await fetch(`${API_URL}/fornecedores/exportar/excel`);
+        if (!response.ok) throw new Error('Erro ao gerar Excel');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `fornecedores_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        
+        showToast('✓ Excel gerado com sucesso!', 'success');
+    } catch (error) {
+        console.error('❌ Erro ao exportar Excel:', error);
+        showToast('Erro ao gerar Excel', 'error');
+    }
+}
+
+// Expor globalmente
+window.loadFornecedores = loadFornecedores;
+window.loadFornecedoresTable = loadFornecedores; // Alias para compatibilidade
+window.editarFornecedor = editarFornecedor;
+window.inativarFornecedor = inativarFornecedor;
+window.reativarFornecedor = reativarFornecedor;
+window.excluirFornecedor = excluirFornecedor;
+window.showFornecedorTab = showFornecedorTab;
+window.exportarFornecedoresPDF = exportarFornecedoresPDF;
+window.exportarFornecedoresExcel = exportarFornecedoresExcel;
 
 window.loadContasBancarias = async function() {
     try {
