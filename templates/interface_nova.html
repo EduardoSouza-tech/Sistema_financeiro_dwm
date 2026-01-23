@@ -4831,12 +4831,20 @@
                 // 🔍 DEBUG: Verificar se transação 3529 está conciliada
                 const trans3529 = transacoes.find(t => t.id === 3529);
                 if (trans3529) {
-                    console.log('🔍 Transação 3529 na resposta da API:', {
-                        id: trans3529.id,
-                        conciliado: trans3529.conciliado,
-                        lancamento_id: trans3529.lancamento_id,
-                        valor: trans3529.valor
-                    });
+                    console.log('🔍 Transação 3529 na resposta da API:');
+                    console.log('   📌 ID:', trans3529.id);
+                    console.log('   📌 CONCILIADO:', trans3529.conciliado, typeof trans3529.conciliado);
+                    console.log('   📌 LANCAMENTO_ID:', trans3529.lancamento_id);
+                    console.log('   📌 VALOR:', trans3529.valor);
+                    console.log('   📌 OBJETO COMPLETO:', trans3529);
+                    
+                    if (trans3529.conciliado === true) {
+                        console.log('   ✅ TRANSAÇÃO ESTÁ CONCILIADA!');
+                    } else if (trans3529.conciliado === false) {
+                        console.log('   ❌ TRANSAÇÃO NÃO ESTÁ CONCILIADA!');
+                    } else {
+                        console.log('   ⚠️ CAMPO CONCILIADO É:', trans3529.conciliado);
+                    }
                 }
                 
                 if (transacoes.length === 0) {
