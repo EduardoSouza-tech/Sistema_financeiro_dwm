@@ -3187,16 +3187,24 @@ def conciliacao_geral_extrato():
                 print(f"🔍 Validando conta bancária: {conta_bancaria}")
                 contas = db.listar_contas()
                 print(f"📊 Total de contas encontradas: {len(contas)}")
+                
+                # Debug: listar todas as contas
+                for c in contas:
+                    print(f"   - Conta cadastrada: '{c.nome}' (ativa={c.ativa if hasattr(c, 'ativa') else 'N/A'})")
+                
                 conta = next((c for c in contas if c.nome == conta_bancaria), None)
                 
-                if conta:
-                    print(f"✅ Conta encontrada: {conta.nome}")
-                    print(f"📊 Campo ativa existe? {hasattr(conta, 'ativa')}")
-                    print(f"📊 Valor do campo ativa: {conta.ativa if hasattr(conta, 'ativa') else 'N/A'}")
-                else:
-                    print(f"⚠️ Conta não encontrada na lista")
+                if not conta:
+                    erros.append(f"Transação {transacao_id}: A conta bancária '{conta_bancaria}' não está cadastrada no sistema ou o nome não corresponde exatamente. Verifique o cadastro de contas.")
+                    print(f"❌ Conciliação bloqueada: conta '{conta_bancaria}' não encontrada")
+                    logger.warning(f"❌ Tentativa de conciliar com conta não cadastrada: {conta_bancaria}")
+                    continue
                 
-                if conta and hasattr(conta, 'ativa') and not conta.ativa:
+                print(f"✅ Conta encontrada: {conta.nome}")
+                print(f"📊 Campo ativa existe? {hasattr(conta, 'ativa')}")
+                print(f"📊 Valor do campo ativa: {conta.ativa if hasattr(conta, 'ativa') else 'N/A'}")
+                
+                if hasattr(conta, 'ativa') and not conta.ativa:
                     erros.append(f"Transação {transacao_id}: A conta bancária '{conta_bancaria}' está inativa. Reative a conta antes de conciliar.")
                     print(f"❌ Conciliação bloqueada: conta {conta_bancaria} está inativa")
                     logger.warning(f"❌ Tentativa de conciliar com conta inativa: {conta_bancaria}")
