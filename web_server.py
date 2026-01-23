@@ -3749,17 +3749,23 @@ def deletar_evento(evento_id):
 # - analise-contas, resumo-parceiros, analise-categorias  
 # - comparativo-periodos, indicadores, inadimplencia
 
-# FIXME: Dashboard route com erro de sintaxe - código comentado temporariamente
-# Esta seção precisa ser revisada/removida já que relatórios estão nos blueprints
-def __broken_dashboard_code():
-    """Dados para o dashboard"""
+@app.route('/api/relatorios/dashboard', methods=['GET'])
+@require_permission('lancamentos_view')
+def dashboard():
+    """Dados para o dashboard - versão simplificada"""
     try:
+        print("=" * 80)
+        print("📊 DASHBOARD - Iniciando carregamento...")
+        
         # Pegar filtros opcionais
         ano = request.args.get('ano', type=int)
         mes = request.args.get('mes', type=int)
+        print(f"📅 Filtros: ano={ano}, mes={mes}")
         
         lancamentos = db.listar_lancamentos()
         contas = db.listar_contas()
+        print(f"📋 Total de lançamentos: {len(lancamentos)}")
+        print(f"🏦 Total de contas: {len(contas)}")
         
         # Filtrar lançamentos por cliente se necessário
         usuario = request.usuario
@@ -3880,6 +3886,17 @@ def __broken_dashboard_code():
                 meses_labels.append(data_inicio.strftime('%b/%Y'))
                 receitas_dados.append(float(receitas_mes))
                 despesas_dados.append(float(despesas_mes))
+        
+        print(f"📊 DADOS DO GRÁFICO:")
+        print(f"   Meses: {meses_labels}")
+        print(f"   Receitas: {receitas_dados}")
+        print(f"   Despesas: {despesas_dados}")
+        print(f"💰 CARDS:")
+        print(f"   Contas a Receber: R$ {float(contas_receber):,.2f}")
+        print(f"   Contas a Pagar: R$ {float(contas_pagar):,.2f}")
+        print(f"   Contas Vencidas: R$ {float(contas_vencidas):,.2f}")
+        print(f"   Saldo Total: R$ {float(saldo_total):,.2f}")
+        print("=" * 80)
         
         return jsonify({
             'saldo_total': float(saldo_total),
