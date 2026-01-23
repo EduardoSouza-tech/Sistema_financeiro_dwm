@@ -162,12 +162,23 @@ async function loadCalendarEvents() {
             
             // Criar data do evento - SEMPRE allDay para não se espalhar
             let eventStart = sessao.data;
-            let allDay = true;
             
-            // Garantir formato correto da data (YYYY-MM-DD)
-            if (sessao.data && sessao.data.includes('T')) {
-                eventStart = sessao.data.split('T')[0];
+            // Garantir formato correto da data (YYYY-MM-DD) - SEM timezone
+            if (sessao.data) {
+                if (sessao.data.includes('T')) {
+                    // Remove hora e timezone se existir
+                    eventStart = sessao.data.split('T')[0];
+                } else {
+                    // Já está no formato correto
+                    eventStart = sessao.data;
+                }
             }
+            
+            console.log('📅 Data processada:', {
+                original: sessao.data,
+                processada: eventStart,
+                cliente: sessao.cliente_nome
+            });
             
             
             const eventObj = {
