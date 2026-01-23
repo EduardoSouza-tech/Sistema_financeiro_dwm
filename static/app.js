@@ -3263,13 +3263,37 @@ window.conciliarTransacaoIndividual = async function() {
         console.log('📡 Response status:', response.status);
         console.log('📡 Response ok:', response.ok);
         
-        if (!response.ok) {
-            const error = await response.json();
-            console.error('❌ Erro do servidor:', error);
-            throw new Error(error.erro || 'Erro ao conciliar');
+        const result = await response.json();
+        console.log('📦 Resposta do servidor:', result);
+        
+        // Se houve erro (success = false), fechar modal e mostrar erro
+        if (!result.success || (result.erros && result.erros.length > 0)) {
+            console.error('❌ Erro na conciliação:', result);
+            
+            // Fechar modal ANTES de mostrar o erro
+            console.log('🚪 Fechando modal antes de mostrar erro...');
+            const modal = document.getElementById('modal-conciliacao');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.remove('active');
+            }
+            
+            // Mostrar erro
+            const mensagemErro = result.erros && result.erros.length > 0 
+                ? result.erros[0] 
+                : result.message || 'Erro ao conciliar transação';
+            
+            showToast(mensagemErro, 'error');
+            
+            // Recarregar lista mesmo com erro (para atualizar status)
+            if (typeof window.loadExtratoTransacoes === 'function') {
+                window.loadExtratoTransacoes();
+            }
+            
+            return; // Sair da função
         }
         
-        const result = await response.json();
+        // Sucesso - prosseguir normalmente
         console.log('✅ Conciliação bem-sucedida:', result);
         
         showToast('✅ Transação conciliada com sucesso!', 'success');
@@ -3313,6 +3337,15 @@ window.conciliarTransacaoIndividual = async function() {
     } catch (error) {
         console.error('❌ ERRO CAPTURADO em conciliarTransacaoIndividual:', error);
         console.error('   Stack:', error.stack);
+        
+        // Fechar modal ANTES de mostrar o erro
+        console.log('🚪 Fechando modal antes de mostrar erro...');
+        const modal = document.getElementById('modal-conciliacao');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+        }
+        
         showToast(error.message || 'Erro ao conciliar transação', 'error');
     }
     
@@ -5021,8 +5054,20 @@ window.processarConciliacaoGeral = async function() {
         
         const result = await response.json();
         
-        if (!response.ok) {
-            throw new Error(result.error || 'Erro ao processar conciliação');
+        // Verificar se houve falha total (nenhuma conciliação bem-sucedida)
+        if (!result.success || result.criados === 0) {
+            // Fechar modal ANTES de mostrar erro
+            fecharConciliacaoGeral();
+            
+            let mensagemErro = result.message || 'Erro ao processar conciliação';
+            
+            if (result.erros && result.erros.length > 0) {
+                mensagemErro = result.erros.join('\n\n');
+            }
+            
+            showToast(mensagemErro, 'error');
+            await loadExtratos();
+            return;
         }
         
         let mensagem = `✅ Conciliação concluída!\n${result.criados} lançamento(s) criado(s)`;
@@ -5034,7 +5079,7 @@ window.processarConciliacaoGeral = async function() {
             }
         }
         
-        showToast(mensagem, 'success');
+        showToast(mensagem, result.erros && result.erros.length > 0 ? 'warning' : 'success');
         
         // Fechar modal e recarregar
         fecharConciliacaoGeral();
@@ -5042,7 +5087,14 @@ window.processarConciliacaoGeral = async function() {
         
     } catch (error) {
         console.error('Erro ao processar conciliação:', error);
+        
+        // Fechar modal ANTES de mostrar erro
+        fecharConciliacaoGeral();
+        
         showToast(error.message || 'Erro ao processar conciliação', 'error');
+        
+        // Recarregar lista mesmo com erro
+        await loadExtratos();
     }
 };
 
