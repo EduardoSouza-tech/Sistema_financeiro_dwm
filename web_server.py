@@ -2965,14 +2965,19 @@ def deletar_extrato_filtrado():
 def conciliacao_geral_extrato():
     """Conciliação automática em massa de transações do extrato para contas a pagar/receber"""
     try:
+        print("\n" + "="*80)
+        print("🚀 ========== CONCILIAÇÃO GERAL INICIADA ==========")
         logger.info("🚀 ========== CONCILIAÇÃO GERAL INICIADA ==========")
         usuario = get_usuario_logado()
         empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        print(f"👤 Usuário: {usuario.get('username')} | Empresa ID: {empresa_id}")
         logger.info(f"👤 Usuário: {usuario.get('username')} | Empresa ID: {empresa_id}")
         
         dados = request.json
         transacoes = dados.get('transacoes', [])
+        print(f"📦 Recebidas {len(transacoes)} transação(ões) para conciliar")
         logger.info(f"📦 Recebidas {len(transacoes)} transação(ões) para conciliar")
+        print(f"📋 Dados: {dados}")
         logger.info(f"📋 Dados recebidos: {dados}")
         
         if not transacoes:
@@ -3065,10 +3070,12 @@ def conciliacao_geral_extrato():
                 )
                 
                 lancamento_id = db.adicionar_lancamento(lancamento, empresa_id=empresa_id)
+                print(f"✅ Lançamento criado: ID={lancamento_id} para transação {transacao_id}")
                 logger.info(f"✅ Lançamento criado: ID={lancamento_id} para transação {transacao_id}")
                 
                 # 🔥 FIX CRÍTICO: Usar conexão direta sem context manager
                 # porque adicionar_lancamento já fez commit e devolveu ao pool
+                print(f"🔄 Executando UPDATE: transacao_id={transacao_id}, lancamento_id={lancamento_id}")
                 logger.info(f"🔄 Executando UPDATE em transacoes_extrato: transacao_id={transacao_id}, lancamento_id={lancamento_id}")
                 conn_update = db.get_connection()
                 cursor_update = conn_update.cursor()
@@ -3076,6 +3083,7 @@ def conciliacao_geral_extrato():
                 # Verificar se transação existe ANTES do UPDATE
                 cursor_update.execute("SELECT id, conciliado, empresa_id FROM transacoes_extrato WHERE id = %s", (transacao_id,))
                 trans_antes = cursor_update.fetchone()
+                print(f"📊 ANTES UPDATE: {trans_antes}")
                 logger.info(f"📊 Transação ANTES do UPDATE: {trans_antes}")
                 
                 cursor_update.execute(
@@ -3083,18 +3091,23 @@ def conciliacao_geral_extrato():
                     (lancamento_id, transacao_id)
                 )
                 affected_rows = cursor_update.rowcount
+                print(f"📝 UPDATE: {affected_rows} linha(s) afetada(s)")
                 logger.info(f"📝 UPDATE executado: {affected_rows} linha(s) afetada(s)")
                 
                 # Forçar commit explícito (mesmo com autocommit=True, garantir)
                 try:
                     conn_update.commit()
+                    print(f"✅ COMMIT OK")
                     logger.info(f"✅ COMMIT executado com sucesso")
                 except Exception as commit_err:
+                    print(f"⚠️ Erro no commit: {commit_err}")
                     logger.warning(f"⚠️ Erro no commit (pode ser normal com autocommit): {commit_err}")
                 
                 # Verificar se transação foi atualizada DEPOIS do UPDATE
                 cursor_update.execute("SELECT id, conciliado, lancamento_id, empresa_id FROM transacoes_extrato WHERE id = %s", (transacao_id,))
                 trans_depois = cursor_update.fetchone()
+                print(f"📊 DEPOIS UPDATE: {trans_depois}")
+                print("="*80 + "\n")
                 logger.info(f"📊 Transação DEPOIS do UPDATE: {trans_depois}")
                 
                 cursor_update.close()
@@ -3104,8 +3117,13 @@ def conciliacao_geral_extrato():
                 criados += 1
                 
             except Exception as e:
-                erros.append(f"Erro na transação {item.get('transacao_id')}: {str(e)}")
+                erro_msg = f"Erro na transação {item.get('transacao_id')}: {str(e)}"
+                print(f"❌ {erro_msg}")
+                erros.append(erro_msg)
                 logger.error(f"Erro ao conciliar transação {item.get('transacao_id')}: {e}")
+                import traceback
+                print(traceback.format_exc())
+                traceback.print_exc()
         
         return jsonify({
             'success': True,
