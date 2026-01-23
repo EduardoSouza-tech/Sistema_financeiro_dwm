@@ -194,24 +194,24 @@ else:
 
 @app.before_request
 def log_request_info():
-    """Log de todas as requisições para debug"""
-    if request.path.startswith('/api/'):
-        print(f"\n{'🔵'*40}")
-        print(f"📥 REQUISIÇÃO: {request.method} {request.path}")
-        print(f"   Session token: {'Presente' if session.get('session_token') else 'AUSENTE'}")
-        print(f"   Cookies: {list(request.cookies.keys())}")
-        print(f"   Headers Authorization: {request.headers.get('Authorization', 'Não presente')}")
-        print(f"   CSRF Token no header: {request.headers.get('X-CSRFToken', 'AUSENTE')}")
+    """Log de todas as requisições para debug - DESABILITADO para reduzir poluição"""
+    # Logs comentados - descomentar apenas para debug profundo
+    # if request.path.startswith('/api/'):
+    #     print(f"\n{'🔵'*40}")
+    #     print(f"📥 REQUISIÇÃO: {request.method} {request.path}")
+    #     print(f"   Session token: {'Presente' if session.get('session_token') else 'AUSENTE'}")
+    #     print(f"   Cookies: {list(request.cookies.keys())}")
+    #     print(f"   Headers Authorization: {request.headers.get('Authorization', 'Não presente')}")
+    #     print(f"   CSRF Token no header: {request.headers.get('X-CSRFToken', 'AUSENTE')}")
         
-        # Gerar CSRF token automaticamente se não existir na sessão
-        from flask_wtf.csrf import generate_csrf
-        if '_csrf_token' not in session:
-            token = generate_csrf()
-            print(f"   🔑 CSRF Token gerado automaticamente: {token[:20]}...")
-        else:
-            print(f"   🔑 CSRF Token já existe na sessão")
-        
-        print(f"{'🔵'*40}")
+    # Gerar CSRF token automaticamente se não existir na sessão
+    from flask_wtf.csrf import generate_csrf
+    if '_csrf_token' not in session and request.path.startswith('/api/'):
+        generate_csrf()
+        # print(f"   🔑 CSRF Token gerado automaticamente: {token[:20]}...")
+    # else:
+    #     print(f"   🔑 CSRF Token já existe na sessão")
+    # print(f"{'🔵'*40}")
 
 @app.after_request
 def add_no_cache_headers(response):
@@ -3134,16 +3134,11 @@ print("🔧 Registrando rota: /api/extratos/conciliacao-geral")
 @require_permission('lancamentos_create')
 def conciliacao_geral_extrato():
     """Conciliação automática em massa de transações do extrato para contas a pagar/receber"""
-    print("🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵")
-    print("📥 ROTA /api/extratos/conciliacao-geral CHAMADA!")
-    print("🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵")
+    # Logs reduzidos para evitar poluição
     try:
-        print("\n" + "="*80)
-        print("🚀 ========== CONCILIAÇÃO GERAL INICIADA ==========")
-        logger.info("🚀 ========== CONCILIAÇÃO GERAL INICIADA ==========")
+        logger.info("🚀 CONCILIAÇÃO GERAL INICIADA")
         usuario = get_usuario_logado()
         empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
-        print(f"👤 Usuário: {usuario.get('username')} | Empresa ID: {empresa_id}")
         logger.info(f"👤 Usuário: {usuario.get('username')} | Empresa ID: {empresa_id}")
         
         dados = request.json

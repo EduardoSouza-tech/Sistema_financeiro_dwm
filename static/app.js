@@ -4687,11 +4687,6 @@ window.limparFiltrosFluxo = function() {
     window.carregarFluxoCaixa();
 };
 
-window.carregarComparativoPeriodos = async function() {
-    console.log('📉 carregarComparativoPeriodos - Stub temporário');
-    showToast('Comparativo de Períodos em desenvolvimento', 'info');
-};
-
 // === TRANSFERÊNCIA ENTRE CONTAS ===
 window.openModalTransferencia = async function() {
     try {
