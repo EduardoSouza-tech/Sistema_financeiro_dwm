@@ -213,7 +213,7 @@ async function loadCalendarEvents() {
                 cliente: sessao.cliente_nome,
                 data_original: sessao.data,
                 start: eventStart,
-                allDay: allDay
+                allDay: true
             });
             
             return eventObj;
