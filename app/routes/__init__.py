@@ -48,6 +48,13 @@ def register_blueprints(app):
     except ImportError as e:
         print(f"⚠️  Blueprint 'performance' não encontrado: {e}")
     
+    try:
+        from .agenda import agenda_bp
+        app.register_blueprint(agenda_bp)
+        print("✅ Blueprint 'agenda' registrado")
+    except ImportError as e:
+        print(f"⚠️  Blueprint 'agenda' não encontrado: {e}")
+    
     # Adicionar outros blueprints aqui conforme forem criados
     # from .clientes import clientes_bp
     # app.register_blueprint(clientes_bp, url_prefix='/api')
