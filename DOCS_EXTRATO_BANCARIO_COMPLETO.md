@@ -617,6 +617,12 @@ O sistema rastreia:
 
 ## 📝 Changelog
 
+### Versão 2.1 (23/01/2026)
+- 🐛 **FIX**: Agora é possível **copiar texto e valores** das tabelas
+  - Antes: `user-select: none` bloqueava toda seleção de texto
+  - Depois: Células permitem cópia (CPF/CNPJ, valores, descrições)
+  - Botões ainda não permitem seleção (comportamento correto)
+
 ### Versão 2.0 (23/01/2026)
 - ✨ **NOVO**: Botão "Desconciliar" para desfazer conciliações
 - ✨ **NOVO**: Modal de confirmação ao desconciliar
