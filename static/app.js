@@ -867,17 +867,28 @@ async function loadContas() {
                     bancosUnicos.add(conta.banco);
                 }
                 
+                // Determinar status da conta
+                const isAtiva = conta.ativa !== false;
+                const badgeStatus = isAtiva 
+                    ? '<span class="badge badge-success" style="background: #27ae60; color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold;">✓ ATIVA</span>'
+                    : '<span class="badge badge-secondary" style="background: #95a5a6; color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold;">● INATIVA</span>';
+                
+                const botaoToggle = isAtiva
+                    ? `<button class="btn" onclick="toggleAtivoConta('${conta.nome}')" style="background: #f39c12; color: white; padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;" title="Inativar conta">⏸️ Inativar</button>`
+                    : `<button class="btn" onclick="toggleAtivoConta('${conta.nome}')" style="background: #27ae60; color: white; padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;" title="Reativar conta">🔄 Reativar</button>`;
+                
                 // Tabela
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${conta.banco}</td>
+                    <td>${conta.banco} ${badgeStatus}</td>
                     <td>${conta.agencia}</td>
                     <td>${conta.conta}</td>
                     <td>${formatarMoeda(conta.saldo_inicial)}</td>
                     <td>${formatarMoeda(conta.saldo_real !== undefined ? conta.saldo_real : conta.saldo_inicial)}</td>
-                    <td>
-                        <button class="btn btn-primary" onclick="editarConta('${conta.nome}')" title="Editar conta">✏️ Editar</button>
-                        <button class="btn btn-danger" onclick="excluirConta('${conta.nome}')" title="Excluir conta">🗑️ Excluir</button>
+                    <td style="white-space: nowrap;">
+                        <button class="btn btn-primary" onclick="editarConta('${conta.nome}')" title="Editar conta" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;">✏️ Editar</button>
+                        ${botaoToggle}
+                        <button class="btn btn-danger" onclick="excluirConta('${conta.nome}')" title="Excluir conta" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;">🗑️ Excluir</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -950,16 +961,28 @@ function filtrarPorBanco() {
         const saldoConta = conta.saldo_real !== undefined ? conta.saldo_real : conta.saldo_inicial || 0;
         saldoTotal += parseFloat(saldoConta) || 0;
         
+        // Determinar status da conta
+        const isAtiva = conta.ativa !== false;
+        const badgeStatus = isAtiva 
+            ? '<span class="badge badge-success" style="background: #27ae60; color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold;">✓ ATIVA</span>'
+            : '<span class="badge badge-secondary" style="background: #95a5a6; color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold;">● INATIVA</span>';
+        
+        const botaoToggle = isAtiva
+            ? `<button class="btn" onclick="toggleAtivoConta('${conta.nome}')" style="background: #f39c12; color: white; padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;" title="Inativar conta">⏸️ Inativar</button>`
+            : `<button class="btn" onclick="toggleAtivoConta('${conta.nome}')" style="background: #27ae60; color: white; padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;" title="Reativar conta">🔄 Reativar</button>`;
+        
         // Adicionar linha na tabela
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${conta.banco}</td>
+            <td>${conta.banco} ${badgeStatus}</td>
             <td>${conta.agencia}</td>
             <td>${conta.conta}</td>
             <td>${formatarMoeda(conta.saldo_inicial)}</td>
             <td>${formatarMoeda(conta.saldo_real !== undefined ? conta.saldo_real : conta.saldo_inicial)}</td>
-            <td>
-                <button class="btn btn-danger" onclick="excluirConta('${conta.nome}')">🗑️</button>
+            <td style="white-space: nowrap;">
+                <button class="btn btn-primary" onclick="editarConta('${conta.nome}')" title="Editar conta" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;">✏️ Editar</button>
+                ${botaoToggle}
+                <button class="btn btn-danger" onclick="excluirConta('${conta.nome}')" title="Excluir conta" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;">🗑️ Excluir</button>
             </td>
         `;
         tbody.appendChild(tr);
