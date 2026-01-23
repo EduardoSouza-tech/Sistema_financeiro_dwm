@@ -698,6 +698,85 @@ body {
 }
 
 /* ============================================================================
+   TABELAS RESPONSIVAS - REDIMENSIONAMENTO AUTOMÁTICO
+   ============================================================================ */
+
+/* Força tabelas a usarem largura total disponível */
+table {
+    width: 100% !important;
+    table-layout: auto !important;
+}
+
+/* Remove larguras fixas dos cabeçalhos e células */
+.table th[style*="width"],
+.table td[style*="width"] {
+    width: auto !important;
+    min-width: 80px;
+}
+
+/* Larguras relativas responsivas para colunas comuns */
+.table th:nth-child(1),
+.table td:nth-child(1) {
+    min-width: 100px;
+}
+
+.table th:nth-child(2),
+.table td:nth-child(2) {
+    min-width: 120px;
+}
+
+/* Colunas de ações sempre compactas */
+.table th:last-child,
+.table td:last-child {
+    width: auto;
+    white-space: nowrap;
+    text-align: center;
+}
+
+/* Colunas de valores monetários */
+.table th:has(text) {
+    min-width: 100px;
+}
+
+/* Garante quebra de texto em descrições longas */
+.table td {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Checkbox sempre pequeno */
+.table th:has(input[type="checkbox"]),
+.table td:has(input[type="checkbox"]) {
+    width: 40px !important;
+    min-width: 40px !important;
+}
+
+/* Container de tabela com scroll horizontal quando necessário */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Melhora visual do scroll horizontal */
+.table-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* ============================================================================
    SISTEMA DE RESPONSIVIDADE COMPLETO - v2.0
    ============================================================================ */
 
@@ -747,10 +826,21 @@ body {
         font-size: 13px;
     }
     
+    /* Ajustes de tabela para tablets */
     .table th,
     .table td {
-        padding: 12px 10px;
-        font-size: 13px;
+        padding: 10px 8px;
+        font-size: 12px;
+    }
+    
+    .table th {
+        font-size: 11px;
+    }
+    
+    /* Força scroll horizontal se necessário */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
     
     .btn {
@@ -1559,6 +1649,21 @@ textarea {
     .main-content {
         max-width: 1800px;
         margin: 0 auto;
+    }
+    
+    /* Tabelas em telas grandes aproveitam todo o espaço */
+    .table-container {
+        max-width: 100%;
+    }
+    
+    .table th,
+    .table td {
+        padding: 16px 20px;
+        font-size: 14px;
+    }
+    
+    .table th {
+        font-size: 13px;
     }
 }
 
