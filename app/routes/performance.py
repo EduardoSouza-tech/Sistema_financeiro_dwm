@@ -11,7 +11,7 @@ Endpoints:
 from flask import Blueprint, jsonify, request
 from app.utils.cache_manager import get_cache_stats, invalidate_cache, cleanup_expired
 from app.utils.query_optimizer import profiler
-from app.decorators import require_permission
+from auth_middleware import require_permission
 
 performance_bp = Blueprint('performance', __name__, url_prefix='/api/performance')
 

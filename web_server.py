@@ -327,29 +327,7 @@ try:
     print("DatabaseManager inicializado com sucesso!")
     print(f"   Pool de conexoes: 2-20 conexoes simultaneas")
     
-    # Executar migracoes
-    try:
-        from migration_user_preferences import executar_migracao as migrar_user_preferences
-        migrar_user_preferences()
-    except Exception as e:
-        print(f"⚠️ Aviso: Não foi possível executar migração user_preferences: {e}")
-    
-    try:
-        from migration_add_proprietario_id import executar_migracao as migrar_proprietario_id
-        migrar_proprietario_id()
-    except Exception as e:
-        print(f"⚠️ Aviso: Não foi possível executar migração proprietario_id: {e}")
-    
-    try:
-        print("\n🏢 Executando migração Multi-Tenant SaaS...")
-        from migration_multi_tenant_saas import executar_migracao_completa
-        if executar_migracao_completa():
-            print("✅ Sistema Multi-Tenant configurado com sucesso!\n")
-        else:
-            print("⚠️ Migração Multi-Tenant falhou (pode já estar aplicada)\n")
-    except Exception as e:
-        print(f"⚠️ Aviso: Não foi possível executar migração multi-tenant: {e}")
-    
+    # Executar migrações necessárias
     try:
         print("\n👥 Executando migração Usuário Multi-Empresa...")
         from migration_usuario_multi_empresa import executar_migracao as migrar_usuario_multi_empresa
