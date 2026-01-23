@@ -3578,16 +3578,22 @@ def listar_sessoes() -> List[Dict]:
     """Lista todas as sessi?es"""
     import datetime
     import decimal
+    import json
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT s.*, c.nome as cliente_nome, ct.numero as contrato_numero
+        SELECT 
+            s.id, s.titulo, s.data, s.data_sessao, s.duracao, s.contrato_id, s.cliente_id,
+            s.valor, s.observacoes, s.endereco, s.descricao, s.prazo_entrega, s.dados_json,
+            s.created_at, s.updated_at,
+            c.nome as cliente_nome, 
+            ct.numero as contrato_numero, ct.descricao as contrato_nome
         FROM sessoes s
         LEFT JOIN clientes c ON s.cliente_id = c.id
         LEFT JOIN contratos ct ON s.contrato_id = ct.id
-        ORDER BY s.data_sessao DESC
+        ORDER BY COALESCE(s.data, s.data_sessao, s.created_at) DESC
     """)
     sessoes = []
     for row in cursor.fetchall():
@@ -3600,6 +3606,23 @@ def listar_sessoes() -> List[Dict]:
                 sessao[key] = float(value)
             else:
                 sessao[key] = value
+        
+        # Extrair dados do dados_json para facilitar acesso no frontend
+        if sessao.get('dados_json'):
+            try:
+                dados_json = json.loads(sessao['dados_json']) if isinstance(sessao['dados_json'], str) else sessao['dados_json']
+                # Não sobrescrever se já existem no nível raiz
+                if not sessao.get('horario'):
+                    sessao['horario'] = dados_json.get('horario')
+                if not sessao.get('tipo_foto'):
+                    sessao['tipo_foto'] = dados_json.get('tipo_foto', False)
+                if not sessao.get('tipo_video'):
+                    sessao['tipo_video'] = dados_json.get('tipo_video', False)
+                if not sessao.get('tipo_mobile'):
+                    sessao['tipo_mobile'] = dados_json.get('tipo_mobile', False)
+            except:
+                pass
+        
         sessoes.append(sessao)
     
     # Buscar equipe de cada sessi?o
