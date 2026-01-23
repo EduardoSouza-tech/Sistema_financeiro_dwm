@@ -58,8 +58,20 @@ def sessoes():
             # 🔧 CORREÇÃO P0: Mapear campos do frontend para o backend
             # Frontend envia: data, horario, quantidade_horas
             # Backend espera: data_sessao, duracao
+            
+            # Gerar título automático se não fornecido
+            titulo = data.get('titulo', '').strip()
+            if not titulo:
+                from datetime import datetime
+                data_sessao_str = data.get('data', '')
+                cliente_id = data.get('cliente_id', '')
+                # Gerar título mais descritivo
+                titulo = f"Sessão - Cliente {cliente_id} - {data_sessao_str}"
+                if not data_sessao_str:
+                    titulo = f"Sessão - Cliente {cliente_id}"
+            
             dados_mapeados = {
-                'titulo': data.get('titulo'),
+                'titulo': titulo,
                 'data_sessao': data.get('data'),  # Frontend: 'data' → Backend: 'data_sessao'
                 'duracao': int(data.get('quantidade_horas', 0)) * 60 if data.get('quantidade_horas') else None,  # Converter horas → minutos
                 'contrato_id': data.get('contrato_id'),
@@ -72,6 +84,7 @@ def sessoes():
             }
             
             print(f"📡 Dados mapeados para o banco:")
+            print(f"   - titulo: {dados_mapeados.get('titulo')}")
             print(f"   - data_sessao: {dados_mapeados.get('data_sessao')}")
             print(f"   - duracao: {dados_mapeados.get('duracao')} minutos")
             print(f"📡 Chamando db.adicionar_sessao...")
