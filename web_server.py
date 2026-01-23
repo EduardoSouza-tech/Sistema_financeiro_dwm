@@ -3070,7 +3070,6 @@ def conciliacao_geral_extrato():
                     conta_bancaria=transacao['conta_bancaria'],
                     pessoa=razao_social,
                     observacoes=f"Conciliado do extrato bancário. ID Extrato: {transacao_id}",
-                    num_documento=str(transacao_id),
                     status=StatusLancamento.PENDENTE  # PENDENTE para aparecer em Contas a Pagar/Receber
                 )
                 
