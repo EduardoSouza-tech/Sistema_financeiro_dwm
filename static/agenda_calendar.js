@@ -88,10 +88,16 @@ function initAgendaCalendar() {
             if (props.tipo_video) icon = '🎥';
             else if (props.tipo_mobile) icon = '📱';
             
-            const clienteNome = (props.cliente_nome || 'Sessão').substring(0, 25);
+            // Usar número do contrato ou título da sessão
+            let displayText = props.contrato_numero || props.titulo || 'Sessão';
+            
+            // Truncar se for muito longo (max 12 caracteres + ...)
+            if (displayText.length > 12) {
+                displayText = displayText.substring(0, 12) + '...';
+            }
             
             return {
-                html: `<div class="fc-event-main-frame"><div class="fc-event-title-container"><div class="fc-event-title">${icon} ${clienteNome}</div></div></div>`
+                html: `<div class="fc-event-main-frame"><div class="fc-event-title-container"><div class="fc-event-title">${icon} ${displayText}</div></div></div>`
             };
         }
     });
@@ -194,6 +200,8 @@ async function loadCalendarEvents() {
                 extendedProps: {
                     sessao: sessao,
                     sessao_id: sessao.id,
+                    contrato_numero: sessao.contrato_numero,
+                    titulo: sessao.titulo,
                     cliente_nome: sessao.cliente_nome,
                     horario: sessao.horario,
                     duracao: sessao.quantidade_horas ? `${sessao.quantidade_horas}h` : null,
