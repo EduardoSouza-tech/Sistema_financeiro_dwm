@@ -1074,19 +1074,40 @@
             width: 100% !important;
         }
         
+        /* Cabeçalho dos dias - deve ficar acima dos eventos */
+        .fc-col-header {
+            position: relative;
+            z-index: 100 !important;
+            background: white !important;
+        }
+        
         /* Células dos dias com largura exata */
         .fc-daygrid-day {
             padding: 2px;
             width: 14.285% !important; /* 100% / 7 dias */
+            position: relative;
+            z-index: 1;
         }
         
         .fc-daygrid-day-frame {
             min-height: 65px;
+            position: relative;
+            z-index: 1;
         }
         
         .fc-daygrid-day-top {
             flex-direction: row;
             justify-content: center;
+        }
+        
+        .fc-daygrid-day-events {
+            position: relative;
+            z-index: 2;
+            margin-top: 4px;
+        }
+        
+        .fc-daygrid-day-bg {
+            z-index: 0;
         }
         
         .fc-daygrid-day-number {
@@ -1126,11 +1147,23 @@
         .fc-event {
             border-radius: 2px;
             padding: 2px 5px;
-            margin: 1px;
+            margin: 1px 2px;
             font-size: 11px;
             font-weight: 500;
             border-left-width: 3px;
             box-shadow: none;
+            position: relative;
+            z-index: 5 !important;
+            display: block !important;
+        }
+        
+        .fc-daygrid-event {
+            position: relative !important;
+            z-index: 5 !important;
+        }
+        
+        .fc-daygrid-block-event {
+            position: relative !important;
         }
         
         .fc-event:hover {
