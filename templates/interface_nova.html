@@ -1032,12 +1032,26 @@
             border-color: #e0e0e0;
         }
         
+        /* Remove qualquer padding/margin que cause desalinhamento */
+        .fc-scrollgrid-section-header > * {
+            border: 0 !important;
+        }
+        
+        .fc-col-header-cell {
+            border-left: 1px solid #e0e0e0 !important;
+            border-right: 0 !important;
+        }
+        
+        .fc-col-header-cell:first-child {
+            border-left: 0 !important;
+        }
+        
         /* Cabeçalho dos dias compacto e alinhado */
         .fc-col-header-cell {
             background: #fafafa;
             font-weight: 600;
             color: #666;
-            padding: 8px 4px !important;
+            padding: 8px 0 !important;
             font-size: 11px;
             text-transform: uppercase;
             text-align: center !important;
