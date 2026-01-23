@@ -1833,10 +1833,9 @@ def modificar_conta(nome):
                 }), 400
             
             # Verificar se há transações de extrato vinculadas
-            from database_postgresql import get_db_connection
             import psycopg2.extras
             
-            conn = get_db_connection()
+            conn = db.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
             # Contar transações de extrato vinculadas à conta
