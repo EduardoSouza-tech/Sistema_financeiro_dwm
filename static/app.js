@@ -3057,13 +3057,15 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">
                         ${isCredito ? 'Cliente' : 'Fornecedor'} (Razão Social):
                     </label>
-                    <input type="text" 
-                           id="razao-individual" 
-                           value="${razaoSugerida}"
-                           placeholder="${isCredito ? 'Nome do cliente' : 'Nome do fornecedor'}"
-                           list="lista-${isCredito ? 'clientes' : 'fornecedores'}-individual"
-                           style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px;">
-                    <small style="color: #7f8c8d;">Digite o nome ou selecione da lista</small>
+                    <select id="razao-individual" 
+                            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px;">
+                        <option value="">Selecione ${isCredito ? 'o cliente' : 'o fornecedor'}...</option>
+                        ${isCredito ? 
+                            clientes.map(c => `<option value="${c.nome}" ${c.nome === razaoSugerida ? 'selected' : ''}>${c.nome}</option>`).join('') :
+                            fornecedores.map(f => `<option value="${f.nome}" ${f.nome === razaoSugerida ? 'selected' : ''}>${f.nome}</option>`).join('')
+                        }
+                    </select>
+                    <small style="color: #7f8c8d;">Selecione ${isCredito ? 'o cliente' : 'o fornecedor'} da lista</small>
                 </div>
                 
                 <div class="form-group" style="margin-bottom: 15px;">
@@ -3084,15 +3086,7 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                         <option value="">Primeiro selecione uma categoria</option>
                     </select>
                 </div>
-            </div>
-            
-            <!-- Datalists para autocomplete -->
-            <datalist id="lista-clientes-individual">
-                ${clientes.map(c => `<option value="${c.nome}">`).join('')}
-            </datalist>
-            <datalist id="lista-fornecedores-individual">
-                ${fornecedores.map(f => `<option value="${f.nome}">`).join('')}
-            </datalist>`;
+            </div>`;
         
         console.log('📝 HTML do formulário montado');
         console.log('   Tamanho do HTML:', formHtml.length, 'caracteres');
