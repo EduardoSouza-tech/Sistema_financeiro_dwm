@@ -4,11 +4,13 @@
     box-sizing: border-box;
 }
 
-/* TEMA CLARO PADRÃO - FORÇADO */
+/* ============================================================================
+   TEMA CLARO PADRÃO - OTIMIZADO PARA LEGIBILIDADE
+   ============================================================================ */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f5f7fa !important;
-    color: #2c3e50 !important;
+    background-color: #f8f9fa !important;
+    color: #1a1a1a !important; /* Texto PRETO para máximo contraste */
     display: flex;
     height: 100vh;
     overflow: hidden;
@@ -19,7 +21,7 @@ body {
     display: flex;
     width: 100%;
     min-height: 100vh;
-    background: #f5f7fa;
+    background: #f8f9fa;
 }
 
 /* Sidebar */
@@ -423,13 +425,19 @@ body {
 }
 
 .table tbody tr:hover {
-    background-color: #f8f9fa !important;
+    background-color: #f0f2f5 !important;
 }
 
 .table td {
     padding: 15px;
-    color: #2c3e50 !important; /* Texto PRETO para boa legibilidade em fundo claro */
+    color: #000000 !important; /* Texto PRETO para máxima legibilidade */
     background: white !important;
+    font-weight: 500; /* Texto levemente bold para melhor leitura */
+}
+
+.table th {
+    color: white !important;
+    font-weight: 600 !important;
 }
 
 .badge {
@@ -438,6 +446,68 @@ body {
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
+}
+
+/* Tema Claro - Badges com alto contraste */
+.badge-receita,
+.badge-success {
+    background: #28a745 !important;
+    color: white !important;
+    font-weight: 700 !important;
+}
+
+.badge-despesa,
+.badge-danger {
+    background: #dc3545 !important;
+    color: white !important;
+    font-weight: 700 !important;
+}
+
+.badge-vencido {
+    background: #e74c3c !important;
+    color: white !important;
+}
+
+.badge-pendente,
+.badge-warning {
+    background: #ffc107 !important;
+    color: #000000 !important; /* Texto preto em fundo amarelo para contraste */
+    font-weight: 700 !important;
+}
+
+.badge-pago {
+    background: #28a745 !important;
+    color: white !important;
+}
+
+.badge-info {
+    background: #17a2b8 !important;
+    color: white !important;
+}
+
+/* Labels e textos do tema claro */
+label {
+    color: #1a1a1a !important;
+    font-weight: 600 !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #1a1a1a !important;
+}
+
+p, span {
+    color: #1a1a1a !important;
+}
+
+/* Links tema claro */
+a {
+    color: #0366d6 !important;
+    text-decoration: none;
+}
+
+a:hover {
+    color: #0056b3 !important;
+    text-decoration: underline;
 }
 
 .badge-receita {
@@ -1689,182 +1759,300 @@ body {
     }
 }
 
-/* ========================================
-   DARK MODE THEME
-   ======================================== */
+/* ============================================================================
+   TEMA ESCURO - OTIMIZADO PARA LEGIBILIDADE E CONFORTO VISUAL
+   ============================================================================ */
 
 /* Dark mode - corpo e fundo principal */
 body.dark-mode {
-    background: #1a1a1a;
-    color: #e0e0e0;
+    background: #0d1117 !important; /* Fundo escuro GitHub-like */
+    color: #e6edf3 !important; /* Texto claro com bom contraste */
+}
+
+/* Dark mode - container principal */
+body.dark-mode .container {
+    background: #0d1117 !important;
 }
 
 /* Dark mode - sidebar */
 body.dark-mode .sidebar {
-    background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
-    border-right: 1px solid #444;
+    background: linear-gradient(180deg, #161b22 0%, #1c2128 100%) !important;
+    border-right: 1px solid #30363d;
 }
 
-body.dark-mode .sidebar nav ul li a {
-    color: #ecf0f1;
+body.dark-mode .sidebar nav ul li a,
+body.dark-mode .nav-button {
+    color: #c9d1d9 !important;
 }
 
-body.dark-mode .sidebar nav ul li a:hover {
-    background: rgba(52, 152, 219, 0.3);
+body.dark-mode .sidebar nav ul li a:hover,
+body.dark-mode .nav-button:hover {
+    background: rgba(56, 139, 253, 0.15) !important;
+    color: #58a6ff !important;
 }
 
-body.dark-mode .sidebar nav ul li a.active {
-    background: rgba(52, 152, 219, 0.4);
-    border-left: 4px solid #3498db;
+body.dark-mode .sidebar nav ul li a.active,
+body.dark-mode .nav-button.active {
+    background: rgba(56, 139, 253, 0.2) !important;
+    border-left: 4px solid #58a6ff !important;
+    color: #ffffff !important;
 }
 
 /* Dark mode - main content */
 body.dark-mode .main-content {
-    background: #1a1a1a;
+    background: #0d1117 !important;
+    color: #e6edf3 !important;
 }
 
 /* Dark mode - cards e containers */
 body.dark-mode .content-card,
 body.dark-mode .card {
-    background: #2d2d2d;
-    border: 1px solid #444;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+    color: #e6edf3 !important;
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6 {
+    color: #f0f6fc !important;
 }
 
 /* Dark mode - tabelas */
 body.dark-mode .table-container {
-    background: #2d2d2d;
-    border: 1px solid #444;
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
 }
 
 body.dark-mode .table {
-    background: #2d2d2d;
+    background: #161b22 !important;
 }
 
 body.dark-mode .table thead {
-    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+    background: linear-gradient(135deg, #21262d 0%, #2d333b 100%) !important;
+}
+
+body.dark-mode .table thead th {
+    color: #ffffff !important;
+    border-bottom: 2px solid #30363d !important;
 }
 
 body.dark-mode .table tbody {
-    background: #2d2d2d;
+    background: #0d1117 !important;
 }
 
 body.dark-mode .table tbody tr {
-    border-bottom: 1px solid #444;
-    background: #2d2d2d;
+    border-bottom: 1px solid #21262d !important;
+    background: #0d1117 !important;
 }
 
 body.dark-mode .table tbody tr:hover {
-    background-color: #383838;
+    background: #161b22 !important;
 }
 
 body.dark-mode .table td {
-    color: #e0e0e0;
-    background: #2d2d2d;
+    color: #e6edf3 !important; /* Texto BRANCO para máximo contraste em fundo escuro */
+    background: #0d1117 !important;
+    font-weight: 500 !important;
 }
 
 /* Dark mode - inputs e formulários */
 body.dark-mode input,
 body.dark-mode select,
 body.dark-mode textarea {
-    background: #383838;
-    border: 1px solid #555;
-    color: #e0e0e0;
+    background: #0d1117 !important;
+    border: 1px solid #30363d !important;
+    color: #e6edf3 !important;
 }
 
 body.dark-mode input:focus,
 body.dark-mode select:focus,
 body.dark-mode textarea:focus {
-    border-color: #3498db;
-    background: #404040;
+    border-color: #58a6ff !important;
+    background: #161b22 !important;
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2) !important;
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+    color: #7d8590 !important;
 }
 
 /* Dark mode - botões */
 body.dark-mode button:not([style*="background"]) {
-    background: #3498db;
-    color: white;
+    background: #238636 !important;
+    color: white !important;
+    border: 1px solid #2ea043 !important;
 }
 
 body.dark-mode button:not([style*="background"]):hover {
-    background: #2980b9;
+    background: #2ea043 !important;
 }
 
 /* Dark mode - modais */
 body.dark-mode .modal-content {
-    background: #2d2d2d;
-    border: 1px solid #444;
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
 }
 
 body.dark-mode .modal-header {
-    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
-    border-bottom: 1px solid #444;
+    background: linear-gradient(135deg, #21262d 0%, #2d333b 100%) !important;
+    border-bottom: 1px solid #30363d !important;
+    color: #f0f6fc !important;
 }
 
 body.dark-mode .modal-body {
-    background: #2d2d2d;
+    background: #0d1117 !important;
+    color: #e6edf3 !important;
 }
 
-/* Dark mode - badges e status */
-body.dark-mode .badge-success {
-    background: #27ae60;
+body.dark-mode .modal-body {
+    background: #0d1117 !important;
+    color: #e6edf3 !important;
 }
 
-body.dark-mode .badge-warning {
-    background: #f39c12;
-    color: #1a1a1a;
+/* Dark mode - labels e textos auxiliares */
+body.dark-mode label {
+    color: #c9d1d9 !important;
+    font-weight: 500 !important;
 }
 
-body.dark-mode .badge-danger {
-    background: #e74c3c;
+body.dark-mode .form-label,
+body.dark-mode .control-label {
+    color: #e6edf3 !important;
 }
 
-body.dark-mode .badge-info {
-    background: #3498db;
+/* Dark mode - badges e status (cores vibrantes para contraste) */
+body.dark-mode .badge-success,
+body.dark-mode .badge.badge-success {
+    background: #238636 !important;
+    color: #ffffff !important;
 }
 
-/* Dark mode - textos */
+body.dark-mode .badge-warning,
+body.dark-mode .badge.badge-warning {
+    background: #9e6a03 !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .badge-danger,
+body.dark-mode .badge.badge-danger {
+    background: #da3633 !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .badge-info,
+body.dark-mode .badge.badge-info {
+    background: #1f6feb !important;
+    color: #ffffff !important;
+}
+
+/* Dark mode - status badges especiais */
+body.dark-mode .status-pago {
+    background: #238636 !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .status-pendente {
+    background: #9e6a03 !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .status-vencido {
+    background: #da3633 !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .status-cancelado {
+    background: #6e7681 !important;
+    color: #ffffff !important;
+}
+
+/* Dark mode - textos gerais */
 body.dark-mode h1,
 body.dark-mode h2,
 body.dark-mode h3,
 body.dark-mode h4,
-body.dark-mode label {
-    color: #f0f0f0;
+body.dark-mode h5,
+body.dark-mode h6,
+body.dark-mode p,
+body.dark-mode span:not(.badge) {
+    color: #e6edf3 !important;
 }
 
 /* Dark mode - links */
 body.dark-mode a {
-    color: #5dade2;
+    color: #58a6ff !important;
 }
 
 body.dark-mode a:hover {
-    color: #3498db;
+    color: #79c0ff !important;
+    text-decoration: underline;
 }
 
-/* Dark mode - alertas */
+/* Dark mode - alertas e notificações */
 body.dark-mode .alert {
-    background: #383838;
-    border: 1px solid #555;
-    color: #e0e0e0;
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+    color: #e6edf3 !important;
 }
 
 body.dark-mode .alert-success {
-    background: #1e4d2b;
-    border-color: #27ae60;
+    background: #0d3818 !important;
+    border-color: #238636 !important;
+    color: #7ee787 !important;
 }
 
 body.dark-mode .alert-danger {
-    background: #5c1e1e;
-    border-color: #e74c3c;
+    background: #3d1319 !important;
+    border-color: #da3633 !important;
+    color: #ff7b72 !important;
 }
 
 body.dark-mode .alert-warning {
-    background: #5c4a1e;
-    border-color: #f39c12;
+    background: #3d2e00 !important;
+    border-color: #9e6a03 !important;
+    color: #f0b72f !important;
+}
+
+body.dark-mode .alert-info {
+    background: #0c2d6b !important;
+    border-color: #1f6feb !important;
+    color: #79c0ff !important;
+}
+
+/* Dark mode - filters e controles */
+body.dark-mode .filters {
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+}
+
+body.dark-mode .filters label {
+    color: #c9d1d9 !important;
 }
 
 /* Dark mode - scrollbar personalizada */
 body.dark-mode ::-webkit-scrollbar {
     width: 10px;
+    height: 10px;
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+    background: #0d1117;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 5px;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+}
     height: 10px;
 }
 
