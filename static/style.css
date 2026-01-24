@@ -5,6 +5,32 @@
 }
 
 /* ============================================================================
+   CONTROLE GLOBAL DE CORES - MÁXIMA PRIORIDADE
+   ============================================================================ */
+/* TEMA CLARO: TEXTO PRETO EM TUDO */
+body:not(.dark-mode) {
+    color: #000000 !important;
+}
+
+body:not(.dark-mode) h1,
+body:not(.dark-mode) h2, 
+body:not(.dark-mode) h3,
+body:not(.dark-mode) h4,
+body:not(.dark-mode) h5,
+body:not(.dark-mode) h6 {
+    color: #000000 !important;
+    font-weight: 700 !important;
+}
+
+body:not(.dark-mode) p,
+body:not(.dark-mode) div,
+body:not(.dark-mode) span:not(.badge),
+body:not(.dark-mode) label,
+body:not(.dark-mode) td {
+    color: #000000 !important;
+}
+
+/* ============================================================================
    TEMA CLARO PADRÃO - OTIMIZADO PARA LEGIBILIDADE
    ============================================================================ */
 body {
@@ -202,6 +228,7 @@ body {
 /* ============================================================================
    FORÇA TEXTO PRETO EM TODO O SISTEMA - TEMA CLARO
    ============================================================================ */
+/* CÉLULAS DE TABELA */
 body:not(.dark-mode) td,
 body:not(.dark-mode) .table td,
 body:not(.dark-mode) table tbody td {
@@ -209,16 +236,40 @@ body:not(.dark-mode) table tbody td {
     font-weight: 500 !important;
 }
 
+/* CABEÇALHOS DE TABELA */
 body:not(.dark-mode) th,
 body:not(.dark-mode) .table th,
 body:not(.dark-mode) table thead th {
     color: white !important;
 }
 
+/* TÍTULOS E HEADERS */
+body:not(.dark-mode) h1,
+body:not(.dark-mode) h2,
+body:not(.dark-mode) h3,
+body:not(.dark-mode) h4,
+body:not(.dark-mode) h5,
+body:not(.dark-mode) h6,
+body:not(.dark-mode) .page-title,
+body:not(.dark-mode) .modal-header h2,
+body:not(.dark-mode) .modal-header h3,
+body:not(.dark-mode) .content-card h2,
+body:not(.dark-mode) .content-card h3 {
+    color: #000000 !important;
+    font-weight: 700 !important;
+}
+
+/* PARÁGRAFOS E TEXTOS */
 body:not(.dark-mode) p,
 body:not(.dark-mode) span:not(.badge),
 body:not(.dark-mode) div:not([class*="badge"]):not([class*="btn"]) {
     color: #1a1a1a !important;
+}
+
+/* LABELS */
+body:not(.dark-mode) label {
+    color: #000000 !important;
+    font-weight: 600 !important;
 }
 
 .content-card {
@@ -517,17 +568,26 @@ thead th {
 }
 
 /* Labels e textos do tema claro */
-label {
-    color: #1a1a1a !important;
+body:not(.dark-mode) label {
+    color: #000000 !important;
     font-weight: 600 !important;
 }
 
-h1, h2, h3, h4, h5, h6 {
-    color: #1a1a1a !important;
+/* Força títulos pretos no tema claro */
+body:not(.dark-mode) h1,
+body:not(.dark-mode) h2,
+body:not(.dark-mode) h3,
+body:not(.dark-mode) h4,
+body:not(.dark-mode) h5,
+body:not(.dark-mode) h6 {
+    color: #000000 !important;
+    font-weight: 700 !important;
 }
 
-p, span {
-    color: #1a1a1a !important;
+/* Textos gerais tema claro */
+body:not(.dark-mode) p,
+body:not(.dark-mode) span:not(.badge) {
+    color: #000000 !important;
 }
 
 /* Links tema claro */
