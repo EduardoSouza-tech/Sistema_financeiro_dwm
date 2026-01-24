@@ -10,53 +10,69 @@
    ============================================================================ */
 
 /* VALORES POSITIVOS - VERDE */
-.valor-positivo,
-.positivo,
-.receita,
-td[style*="color: #27ae60"],
-td[style*="color: #28a745"],
-td[style*="color:#27ae60"],
-td[style*="color: rgb(39, 174, 96)"],
-td[style*="rgb(39, 174, 96)"],
-div[style*="color: #27ae60"],
-div[style*="rgb(39, 174, 96)"],
-span[style*="color: #27ae60"],
-span[style*="rgb(39, 174, 96)"] {
+body:not(.dark-mode) .valor-positivo,
+body:not(.dark-mode) .positivo,
+body:not(.dark-mode) .receita,
+body:not(.dark-mode) td[style*="color: #27ae60"],
+body:not(.dark-mode) td[style*="color: #28a745"],
+body:not(.dark-mode) td[style*="color:#27ae60"],
+body:not(.dark-mode) td[style*="color: rgb(39, 174, 96)"],
+body:not(.dark-mode) td[style*="color: rgb(39,174,96)"],
+body:not(.dark-mode) td[style*="color:rgb(39, 174, 96)"],
+body:not(.dark-mode) td[style*="color:rgb(39,174,96)"],
+body:not(.dark-mode) td[style*="rgb(39, 174, 96)"],
+body:not(.dark-mode) td[style*="rgb(39,174,96)"],
+body:not(.dark-mode) div[style*="color: #27ae60"],
+body:not(.dark-mode) div[style*="rgb(39, 174, 96)"],
+body:not(.dark-mode) span[style*="color: #27ae60"],
+body:not(.dark-mode) span[style*="rgb(39, 174, 96)"] {
     color: #27ae60 !important;
 }
 
 /* VALORES NEGATIVOS - VERMELHO */
-.valor-negativo,
-.negativo,
-.despesa,
-td[style*="color: #e74c3c"],
-td[style*="color: #c0392b"],
-td[style*="color:#e74c3c"],
-td[style*="color:#c0392b"],
-td[style*="color: rgb(192, 57, 43)"],
-td[style*="color: rgb(231, 76, 60)"],
-td[style*="rgb(192, 57, 43)"],
-td[style*="rgb(231, 76, 60)"],
-div[style*="color: #e74c3c"],
-div[style*="color: #c0392b"],
-div[style*="rgb(231, 76, 60)"],
-span[style*="color: #e74c3c"],
-span[style*="color: #c0392b"],
-span[style*="rgb(231, 76, 60)"] {
+body:not(.dark-mode) .valor-negativo,
+body:not(.dark-mode) .negativo,
+body:not(.dark-mode) .despesa,
+body:not(.dark-mode) td[style*="color: #e74c3c"],
+body:not(.dark-mode) td[style*="color: #c0392b"],
+body:not(.dark-mode) td[style*="color:#e74c3c"],
+body:not(.dark-mode) td[style*="color:#c0392b"],
+body:not(.dark-mode) td[style*="color: rgb(192, 57, 43)"],
+body:not(.dark-mode) td[style*="color: rgb(192,57,43)"],
+body:not(.dark-mode) td[style*="color:rgb(192, 57, 43)"],
+body:not(.dark-mode) td[style*="color:rgb(192,57,43)"],
+body:not(.dark-mode) td[style*="color: rgb(231, 76, 60)"],
+body:not(.dark-mode) td[style*="color: rgb(231,76,60)"],
+body:not(.dark-mode) td[style*="color:rgb(231, 76, 60)"],
+body:not(.dark-mode) td[style*="color:rgb(231,76,60)"],
+body:not(.dark-mode) td[style*="rgb(192, 57, 43)"],
+body:not(.dark-mode) td[style*="rgb(192,57,43)"],
+body:not(.dark-mode) td[style*="rgb(231, 76, 60)"],
+body:not(.dark-mode) td[style*="rgb(231,76,60)"],
+body:not(.dark-mode) div[style*="color: #e74c3c"],
+body:not(.dark-mode) div[style*="color: #c0392b"],
+body:not(.dark-mode) div[style*="rgb(231, 76, 60)"],
+body:not(.dark-mode) span[style*="color: #e74c3c"],
+body:not(.dark-mode) span[style*="color: #c0392b"],
+body:not(.dark-mode) span[style*="rgb(231, 76, 60)"] {
     color: #e74c3c !important;
 }
 
 /* ALERTAS E AVISOS - LARANJA/AMARELO */
-.valor-alerta,
-.alerta,
-td[style*="color: #f39c12"],
-td[style*="color:#f39c12"],
-td[style*="color: rgb(243, 156, 18)"],
-td[style*="rgb(243, 156, 18)"],
-div[style*="color: #f39c12"],
-div[style*="rgb(243, 156, 18)"],
-span[style*="color: #f39c12"],
-span[style*="rgb(243, 156, 18)"] {
+body:not(.dark-mode) .valor-alerta,
+body:not(.dark-mode) .alerta,
+body:not(.dark-mode) td[style*="color: #f39c12"],
+body:not(.dark-mode) td[style*="color:#f39c12"],
+body:not(.dark-mode) td[style*="color: rgb(243, 156, 18)"],
+body:not(.dark-mode) td[style*="color: rgb(243,156,18)"],
+body:not(.dark-mode) td[style*="color:rgb(243, 156, 18)"],
+body:not(.dark-mode) td[style*="color:rgb(243,156,18)"],
+body:not(.dark-mode) td[style*="rgb(243, 156, 18)"],
+body:not(.dark-mode) td[style*="rgb(243,156,18)"],
+body:not(.dark-mode) div[style*="color: #f39c12"],
+body:not(.dark-mode) div[style*="rgb(243, 156, 18)"],
+body:not(.dark-mode) span[style*="color: #f39c12"],
+body:not(.dark-mode) span[style*="rgb(243, 156, 18)"] {
     color: #f39c12 !important;
 }
 
