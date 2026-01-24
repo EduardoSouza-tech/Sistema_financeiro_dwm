@@ -428,7 +428,7 @@ body {
 
 .table td {
     padding: 15px;
-    color: #2c3e50; /* Removido !important para permitir cores customizadas (verde/vermelho) */
+    color: #2c3e50 !important; /* Texto PRETO para boa legibilidade em fundo claro */
     background: white !important;
 }
 
