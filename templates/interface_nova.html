@@ -1821,15 +1821,15 @@
                 <!-- Tabela de Funcionários -->
                 <div class="table-container">
                     <table>
-                        <thead>
+                        <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                             <tr>
-                                <th style="width: 250px;">Nome</th>
-                                <th style="width: 130px;">CPF</th>
-                                <th style="width: 250px;">Endereço</th>
-                                <th style="width: 120px;">Tipo Chave PIX</th>
-                                <th style="width: 200px;">Chave PIX</th>
-                                <th style="width: 100px;">Status</th>
-                                <th style="width: 150px;">Ações</th>
+                                <th style="width: 250px; color: white !important;">Nome</th>
+                                <th style="width: 130px; color: white !important;">CPF</th>
+                                <th style="width: 250px; color: white !important;">Endereço</th>
+                                <th style="width: 120px; color: white !important;">Tipo Chave PIX</th>
+                                <th style="width: 200px; color: white !important;">Chave PIX</th>
+                                <th style="width: 100px; color: white !important;">Status</th>
+                                <th style="width: 150px; color: white !important;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="tbody-funcionarios">
@@ -5086,11 +5086,11 @@
                         
                         return `
                         <tr>
-                            <td>${func.nome}</td>
-                            <td>${formatarCPF(func.cpf)}</td>
-                            <td>${func.endereco || '-'}</td>
-                            <td>${func.tipo_chave_pix}</td>
-                            <td>${func.chave_pix || '-'}</td>
+                            <td style="color: #000000 !important; font-weight: 500;">${func.nome}</td>
+                            <td style="color: #000000 !important; font-weight: 500;">${formatarCPF(func.cpf)}</td>
+                            <td style="color: #000000 !important; font-weight: 500;">${func.endereco || '-'}</td>
+                            <td style="color: #000000 !important; font-weight: 500;">${func.tipo_chave_pix}</td>
+                            <td style="color: #000000 !important; font-weight: 500;">${func.chave_pix || '-'}</td>
                             <td><span class="badge badge-${ativoStatus ? 'success' : 'danger'}">${ativoStatus ? 'Ativo' : 'Inativo'}</span></td>
                             <td>
                                 <button onclick='abrirModalFuncionario(${funcEscaped})' class="btn btn-sm btn-primary" title="Editar">✏️</button>

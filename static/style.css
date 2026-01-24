@@ -199,6 +199,28 @@ body {
     color: #2c3e50 !important;
 }
 
+/* ============================================================================
+   FORÇA TEXTO PRETO EM TODO O SISTEMA - TEMA CLARO
+   ============================================================================ */
+body:not(.dark-mode) td,
+body:not(.dark-mode) .table td,
+body:not(.dark-mode) table tbody td {
+    color: #000000 !important;
+    font-weight: 500 !important;
+}
+
+body:not(.dark-mode) th,
+body:not(.dark-mode) .table th,
+body:not(.dark-mode) table thead th {
+    color: white !important;
+}
+
+body:not(.dark-mode) p,
+body:not(.dark-mode) span:not(.badge),
+body:not(.dark-mode) div:not([class*="badge"]):not([class*="btn"]) {
+    color: #1a1a1a !important;
+}
+
 .content-card {
     background: white !important;
     color: #2c3e50 !important;
@@ -428,16 +450,25 @@ body {
     background-color: #f0f2f5 !important;
 }
 
-.table td {
+/* FORÇA TEXTO PRETO EM TODAS AS CÉLULAS TD */
+.table td,
+table td,
+tbody td,
+#tbody-funcionarios td,
+#folha-pagamento-section table td,
+.content-card table td {
     padding: 15px;
     color: #000000 !important; /* Texto PRETO para máxima legibilidade */
     background: white !important;
-    font-weight: 500; /* Texto levemente bold para melhor leitura */
+    font-weight: 500 !important; /* Texto levemente bold para melhor leitura */
 }
 
-.table th {
+.table th,
+table th,
+thead th {
     color: white !important;
     font-weight: 600 !important;
+}
 }
 
 .badge {
