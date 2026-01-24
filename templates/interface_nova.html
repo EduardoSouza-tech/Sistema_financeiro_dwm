@@ -1025,6 +1025,13 @@
         .fc-theme-standard .fc-scrollgrid {
             border-color: #e0e0e0;
             border-width: 1px;
+            table-layout: fixed !important;
+            width: 100% !important;
+        }
+        
+        .fc-scrollgrid-sync-table {
+            table-layout: fixed !important;
+            width: 100% !important;
         }
         
         .fc-theme-standard td,
@@ -1044,6 +1051,19 @@
         
         .fc-col-header-cell:first-child {
             border-left: 0 !important;
+        }
+        
+        /* Força largura igual para todas as colunas */
+        .fc-scrollgrid col {
+            width: 14.285% !important;
+        }
+        
+        .fc-col-header col {
+            width: 14.285% !important;
+        }
+        
+        .fc-daygrid-body col {
+            width: 14.285% !important;
         }
         
         /* Cabeçalho dos dias compacto e alinhado */
