@@ -2933,7 +2933,14 @@ def listar_sessoes(empresa_id: int = None) -> List[Dict]:
     
     sessoes = []
     for row in rows:
-        dados_json = json.loads(row['dados_json']) if row['dados_json'] else {}
+        # Trata dados_json que pode vir como dict ou string
+        if row['dados_json']:
+            if isinstance(row['dados_json'], dict):
+                dados_json = row['dados_json']  # Já é dict
+            else:
+                dados_json = json.loads(row['dados_json'])  # Parse string
+        else:
+            dados_json = {}
         
         sessao = {
             'id': row['id'],
@@ -2994,7 +3001,14 @@ def buscar_sessao(sessao_id: int) -> Dict:
     if not row:
         return None
     
-    dados_json = json.loads(row['dados_json']) if row['dados_json'] else {}
+    # Trata dados_json que pode vir como dict ou string
+    if row['dados_json']:
+        if isinstance(row['dados_json'], dict):
+            dados_json = row['dados_json']  # Já é dict
+        else:
+            dados_json = json.loads(row['dados_json'])  # Parse string
+    else:
+        dados_json = {}
     
     return {
         'id': row['id'],
