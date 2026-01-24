@@ -17,8 +17,11 @@ td[style*="color: #27ae60"],
 td[style*="color: #28a745"],
 td[style*="color:#27ae60"],
 td[style*="color: rgb(39, 174, 96)"],
+td[style*="rgb(39, 174, 96)"],
 div[style*="color: #27ae60"],
-span[style*="color: #27ae60"] {
+div[style*="rgb(39, 174, 96)"],
+span[style*="color: #27ae60"],
+span[style*="rgb(39, 174, 96)"] {
     color: #27ae60 !important;
 }
 
@@ -32,11 +35,15 @@ td[style*="color:#e74c3c"],
 td[style*="color:#c0392b"],
 td[style*="color: rgb(192, 57, 43)"],
 td[style*="color: rgb(231, 76, 60)"],
+td[style*="rgb(192, 57, 43)"],
+td[style*="rgb(231, 76, 60)"],
 div[style*="color: #e74c3c"],
 div[style*="color: #c0392b"],
+div[style*="rgb(231, 76, 60)"],
 span[style*="color: #e74c3c"],
-span[style*="color: #c0392b"] {
-    color: #c0392b !important;
+span[style*="color: #c0392b"],
+span[style*="rgb(231, 76, 60)"] {
+    color: #e74c3c !important;
 }
 
 /* ALERTAS E AVISOS - LARANJA/AMARELO */
@@ -45,9 +52,17 @@ span[style*="color: #c0392b"] {
 td[style*="color: #f39c12"],
 td[style*="color:#f39c12"],
 td[style*="color: rgb(243, 156, 18)"],
+td[style*="rgb(243, 156, 18)"],
 div[style*="color: #f39c12"],
-span[style*="color: #f39c12"] {
+div[style*="rgb(243, 156, 18)"],
+span[style*="color: #f39c12"],
+span[style*="rgb(243, 156, 18)"] {
     color: #f39c12 !important;
+}
+
+/* CINZA PADRÃO PARA SALDOS POSITIVOS (RGB 85,85,85) */
+td[style*="rgb(85, 85, 85)"] {
+    color: #555555 !important;
 }
 
 /* ============================================================================
@@ -69,7 +84,7 @@ body:not(.dark-mode) h6 {
 }
 
 body:not(.dark-mode) p,
-body:not(.dark-mode) div:not([style*="color: #27ae60"]):not([style*="color: #e74c3c"]):not([style*="color: #f39c12"]):not([style*="color: #c0392b"]),
+body:not(.dark-mode) div:not([style*="color: #27ae60"]):not([style*="color: #e74c3c"]):not([style*="color: #f39c12"]):not([style*="color: #c0392b"]):not([style*="rgb(39, 174, 96)"]):not([style*="rgb(231, 76, 60)"]):not([style*="rgb(192, 57, 43)"]):not([style*="rgb(243, 156, 18)"]):not([style*="rgb(85, 85, 85)"]),
 body:not(.dark-mode) span:not(.badge):not([style*="color:"]),
 body:not(.dark-mode) label,
 body:not(.dark-mode) td:not([style*="color:"]) {
