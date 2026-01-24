@@ -2303,3 +2303,179 @@ button,
 .modal-content {
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
+
+/* ============================================================================
+   RESPONSIVIDADE - CONTAS BANCÁRIAS
+   ============================================================================ */
+
+/* Container da tabela com scroll horizontal */
+#contas-bancarias-section .table-scroll-container {
+    overflow-x: auto;
+    margin-top: 20px;
+}
+
+/* Header da seção - responsivo */
+#contas-bancarias-section > div:first-child {
+    flex-wrap: wrap;
+    gap: 15px !important;
+}
+
+/* Tablets e telas médias */
+@media (max-width: 992px) {
+    #contas-bancarias-section > div:first-child {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    #contas-bancarias-section > div:first-child > div:last-child {
+        width: 100%;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    #contas-bancarias-section > div:first-child > div:last-child > div {
+        width: 100%;
+        min-width: auto !important;
+    }
+    
+    #contas-bancarias-section h2 {
+        font-size: 22px;
+    }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    /* Header compacto */
+    #contas-bancarias-section > div:first-child {
+        margin-bottom: 15px !important;
+    }
+    
+    #contas-bancarias-section h2 {
+        font-size: 20px;
+        margin-bottom: 10px !important;
+    }
+    
+    /* Filtro e saldo empilhados */
+    #contas-bancarias-section > div:first-child > div:last-child {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    /* Filtro */
+    #contas-bancarias-section select {
+        width: 100%;
+        padding: 10px 12px !important;
+        font-size: 14px !important;
+    }
+    
+    /* Card de saldo total */
+    #contas-bancarias-section > div:first-child > div:last-child > div:last-child {
+        padding: 12px 20px !important;
+        width: 100%;
+    }
+    
+    #saldo-total-display {
+        font-size: 20px !important;
+    }
+    
+    /* Botão Nova Conta */
+    #contas-bancarias-section .btn-primary {
+        width: 100%;
+        margin-bottom: 15px;
+        padding: 12px;
+    }
+    
+    /* Tabela responsiva */
+    #table-contas {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    #table-contas thead,
+    #table-contas tbody,
+    #table-contas tr {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+    }
+    
+    #table-contas th,
+    #table-contas td {
+        font-size: 12px;
+        padding: 10px 8px;
+    }
+    
+    /* Colunas ajustadas */
+    #table-contas th:nth-child(1),
+    #table-contas td:nth-child(1) {
+        min-width: 180px;
+    }
+    
+    #table-contas th:nth-child(2),
+    #table-contas td:nth-child(2) {
+        min-width: 80px;
+    }
+    
+    #table-contas th:nth-child(3),
+    #table-contas td:nth-child(3) {
+        min-width: 100px;
+    }
+    
+    #table-contas th:nth-child(4),
+    #table-contas td:nth-child(4) {
+        min-width: 120px;
+    }
+    
+    #table-contas th:nth-child(5),
+    #table-contas td:nth-child(5) {
+        min-width: 120px;
+    }
+    
+    #table-contas th:nth-child(6),
+    #table-contas td:nth-child(6) {
+        min-width: 240px;
+    }
+    
+    /* Badges de status menores */
+    #table-contas .badge {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+    
+    /* Botões de ação menores */
+    #table-contas .btn-sm {
+        padding: 6px 10px;
+        font-size: 11px;
+        margin: 2px;
+    }
+}
+
+/* Mobile pequeno */
+@media (max-width: 480px) {
+    #contas-bancarias-section h2 {
+        font-size: 18px;
+    }
+    
+    #saldo-total-display {
+        font-size: 18px !important;
+    }
+    
+    #table-contas th,
+    #table-contas td {
+        font-size: 11px;
+        padding: 8px 6px;
+    }
+    
+    #table-contas .btn-sm {
+        padding: 5px 8px;
+        font-size: 10px;
+    }
+    
+    /* Ícones dos botões ficam empilhados em telas muito pequenas */
+    #table-contas td:nth-child(6) {
+        min-width: 200px;
+    }
+}

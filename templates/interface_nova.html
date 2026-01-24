@@ -1348,7 +1348,7 @@
 
             <!-- Dashboard -->
             <div id="dashboard-section" class="content-card">
-                <h2>📊 Dashboard Financeiro</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">📊 Dashboard Financeiro</h2>
                 
                 <!-- Filtros -->
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">
@@ -2033,7 +2033,7 @@
 
             <!-- Relatórios (mantido para compatibilidade, mas não usado) -->
             <div id="relatorios-section" class="content-card hidden">
-                <h2>Relatórios</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">Relatórios</h2>
                 <p>Use o menu lateral para acessar os relatórios disponíveis.</p>
             </div>
 
@@ -2378,26 +2378,28 @@
                     </div>
                 </div>
                 <button class="btn btn-primary" onclick="openModalConta()">➕ Nova Conta</button>
-                <table id="table-contas">
-                    <thead>
-                        <tr>
-                            <th>Banco</th>
-                            <th>Agência</th>
-                            <th>Conta</th>
-                            <th>Saldo Inicial</th>
-                            <th>Saldo Atual</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-contas">
-                        <tr><td colspan="6" class="loading">Carregando...</td></tr>
-                    </tbody>
-                </table>
+                <div class="table-scroll-container">
+                    <table id="table-contas">
+                        <thead>
+                            <tr>
+                                <th>Banco</th>
+                                <th>Agência</th>
+                                <th>Conta</th>
+                                <th>Saldo Inicial</th>
+                                <th>Saldo Atual</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-contas">
+                            <tr><td colspan="6" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Categorias -->
             <div id="categorias-section" class="content-card hidden">
-                <h2>Categorias</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">Categorias</h2>
                 <button class="btn btn-primary" onclick="openModalCategoria()">➕ Nova Categoria</button>
                 
                 <!-- Abas de Categorias -->
@@ -2447,7 +2449,7 @@
 
             <!-- Clientes -->
             <div id="clientes-section" class="content-card hidden">
-                <h2>Clientes</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">Clientes</h2>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="openModalCliente()">➕ Novo Cliente</button>
                     <button class="btn" onclick="exportarClientesPDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
@@ -2486,7 +2488,7 @@
 
             <!-- Fornecedores -->
             <div id="fornecedores-section" class="content-card hidden">
-                <h2>Fornecedores</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">Fornecedores</h2>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="openModalFornecedor()">➕ Novo Fornecedor</button>
                     <button class="btn" onclick="exportarFornecedoresPDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
@@ -2525,7 +2527,7 @@
 
             <!-- Gerenciamento de Usuários (Admin) -->
             <div id="usuarios-section" class="content-card hidden">
-                <h2>🔐 Gerenciamento de Usuários</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">🔐 Gerenciamento de Usuários</h2>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <button class="btn btn-primary" onclick="openModalUsuario()">➕ Novo Usuário</button>
                     <button class="btn" onclick="refreshUsuarios()" style="background: #3498db; color: white;">🔄 Atualizar</button>
@@ -2568,7 +2570,7 @@
 
             <!-- Permissões (Admin) -->
             <div id="permissoes-section" class="content-card hidden">
-                <h2>🔐 Gerenciamento de Permissões</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">🔐 Gerenciamento de Permissões</h2>
                 <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #3498db; border-radius: 5px;">
                     <p style="margin: 0; color: #555;">
                         <strong>ℹ️ Informação:</strong> Selecione um usuário para visualizar e editar suas permissões.
@@ -2598,7 +2600,7 @@
 
             <!-- Logs de Acesso (Admin) -->
             <div id="logs-section" class="content-card hidden">
-                <h2>📋 Logs de Acesso</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">📋 Logs de Acesso</h2>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <button class="btn" onclick="refreshLogs()" style="background: #3498db; color: white;">🔄 Atualizar</button>
                     <input type="date" id="filter-log-data-inicio" onchange="filterLogs()" style="padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
@@ -2630,7 +2632,7 @@
 
             <!-- Contratos e Sessões -->
             <div id="contratos-section" class="content-card hidden">
-                <h2>Contratos e Sessões</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">Contratos e Sessões</h2>
                 
                 <!-- Tabs -->
                 <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd;">
@@ -2703,7 +2705,7 @@
 
             <!-- Agenda de Fotografia -->
             <div id="agenda-fotografia-section" class="content-card hidden">
-                <h2>📷 Agenda de Fotografia</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">📷 Agenda de Fotografia</h2>
                 
                 <!-- Botões de Ação -->
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
@@ -2778,7 +2780,7 @@
 
             <!-- Gestão de Estoque -->
             <div id="gestao-estoque-section" class="content-card hidden">
-                <h2>Gestão de Estoque</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">Gestão de Estoque</h2>
                 
                 <!-- Tabs -->
                 <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd;">
@@ -2842,7 +2844,7 @@
 
             <!-- Kits de Equipamentos -->
             <div id="kits-equipamentos-section" class="content-card hidden">
-                <h2>Kits de Equipamentos</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">Kits de Equipamentos</h2>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <button class="btn btn-primary" onclick="openModalKit()">➕ Novo Kit</button>
                 </div>
@@ -2866,7 +2868,7 @@
 
             <!-- Tags de Trabalho -->
             <div id="tags-trabalho-section" class="content-card hidden">
-                <h2>Tags de Trabalho</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">Tags de Trabalho</h2>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <button class="btn btn-primary" onclick="openModalTag()">➕ Nova Tag</button>
                 </div>
@@ -2888,7 +2890,7 @@
 
             <!-- Templates de Equipe -->
             <div id="templates-equipe-section" class="content-card hidden">
-                <h2>Templates de Equipe</h2>
+                <h2 style="color: #000000 !important; font-weight: 700;">Templates de Equipe</h2>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <button class="btn btn-primary" onclick="openModalTemplate()">➕ Novo Template</button>
                 </div>
