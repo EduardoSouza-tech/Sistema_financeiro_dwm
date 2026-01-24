@@ -4701,10 +4701,18 @@ window.carregarFluxoCaixa = async function() {
         
         const [responseRealizado, responseProjetado] = await Promise.all([
             fetch(url, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': window.csrfToken || ''
+                }
             }),
             fetch(`${API_URL}/relatorios/analise-contas`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': window.csrfToken || ''
+                }
             })
         ]);
         
@@ -4914,8 +4922,10 @@ window.mostrarAbaFluxo = function(aba) {
 window.carregarBancosFluxo = async function() {
     try {
         const response = await fetch(`${API_URL}/contas`, {
+            credentials: 'include',
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken || ''
             }
         });
         
