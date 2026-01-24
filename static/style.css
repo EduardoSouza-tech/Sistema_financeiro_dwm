@@ -289,8 +289,8 @@ body {
 /* ============================================================================
    FORÇA TEXTO PRETO EM TODO O SISTEMA - TEMA CLARO
    ============================================================================ */
-/* CÉLULAS DE TABELA - EXCETO AS COM CORES CONTEXTUAIS */
-body:not(.dark-mode) td:not([style*="color: #27ae60"]):not([style*="color: #c0392b"]):not([style*="color: #e74c3c"]):not([style*="color: #f39c12"]),
+/* CÉLULAS DE TABELA - EXCETO AS COM CORES CONTEXTUAIS (HEX E RGB) */
+body:not(.dark-mode) td:not([style*="color: #27ae60"]):not([style*="rgb(39, 174, 96)"]):not([style*="color: #c0392b"]):not([style*="rgb(192, 57, 43)"]):not([style*="color: #e74c3c"]):not([style*="rgb(231, 76, 60)"]):not([style*="color: #f39c12"]):not([style*="rgb(243, 156, 18)"]),
 body:not(.dark-mode) .table td:not([style*="color:"]),
 body:not(.dark-mode) table tbody td:not([style*="color:"]) {
     color: #000000 !important;
