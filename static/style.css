@@ -236,11 +236,13 @@ body:not(.dark-mode) table tbody td {
     font-weight: 500 !important;
 }
 
-/* CABEÇALHOS DE TABELA */
+/* CABEÇALHOS DE TABELA - PRETO NO TEMA CLARO */
 body:not(.dark-mode) th,
 body:not(.dark-mode) .table th,
 body:not(.dark-mode) table thead th {
-    color: white !important;
+    color: #000000 !important;
+    background: #e9ecef !important;
+    font-weight: 700 !important;
 }
 
 /* TÍTULOS E HEADERS */
@@ -472,19 +474,21 @@ body:not(.dark-mode) label {
     background: white !important;
 }
 
+/* TEMA CLARO: Headers de tabela com fundo CINZA CLARO e texto PRETO */
 .table thead {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-    color: white !important;
+    background: #e9ecef !important; /* Fundo cinza claro */
+    color: #000000 !important;
+    border-bottom: 2px solid #dee2e6 !important;
 }
 
 .table th {
     padding: 15px;
     text-align: left;
-    font-weight: 600;
+    font-weight: 700 !important; /* Bold forte */
     font-size: 13px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: white !important;
+    color: #000000 !important; /* Texto PRETO */
 }
 
 .table tbody {
@@ -514,11 +518,13 @@ tbody td,
     font-weight: 500 !important; /* Texto levemente bold para melhor leitura */
 }
 
+/* FORÇA TEXTO PRETO EM TODOS OS TH - TEMA CLARO */
 .table th,
 table th,
 thead th {
-    color: white !important;
-    font-weight: 600 !important;
+    color: #000000 !important; /* Texto PRETO nos headers */
+    background: #e9ecef !important; /* Fundo cinza claro */
+    font-weight: 700 !important; /* Bold forte */
 }
 }
 
