@@ -3985,6 +3985,13 @@ async function editarSessao(id) {
             }
         });
         
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Erro do servidor:', response.status, errorText);
+            showToast(`❌ Erro ao carregar sessão (${response.status})`, 'error');
+            return;
+        }
+        
         const result = await response.json();
         console.log('📋 Dados da sessão:', result);
         
