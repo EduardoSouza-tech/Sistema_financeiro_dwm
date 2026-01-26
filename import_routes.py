@@ -321,11 +321,15 @@ def create_import():
     try:
         data = request.json
         usuario_id = session.get('usuario_id')
-        empresa_id = session.get('empresa_id')
+        
+        # Aceitar empresa_id do body ou da sessão
+        empresa_id = data.get('empresa_id') or session.get('empresa_id')
         
         logger.info(f"📝 Criar importação - Dados recebidos:")
         logger.info(f"   nome: {data.get('nome')}")
-        logger.info(f"   empresa_id: {empresa_id}")
+        logger.info(f"   empresa_id (body): {data.get('empresa_id')}")
+        logger.info(f"   empresa_id (session): {session.get('empresa_id')}")
+        logger.info(f"   empresa_id (final): {empresa_id}")
         logger.info(f"   usuario_id: {usuario_id}")
         logger.info(f"   mapeamentos: {len(data.get('mapeamentos', []))} items")
         
@@ -334,7 +338,7 @@ def create_import():
             logger.error("❌ Nome da importação não fornecido")
             return jsonify({'error': 'Nome da importação é obrigatório'}), 400
         if not empresa_id:
-            logger.error("❌ Empresa não selecionada na sessão")
+            logger.error("❌ Empresa não selecionada")
             return jsonify({'error': 'Empresa não selecionada'}), 400
         
         manager = DatabaseImportManager()
