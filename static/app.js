@@ -1519,7 +1519,9 @@ async function loadClientes(ativos = true) {
         
         clientes.forEach(cliente => {
             const tr = document.createElement('tr');
-            const nomeEscaped = escapeHtml(cliente.nome);
+            // Usar razao_social como identificador se existir, senão usar nome
+            const identificador = cliente.razao_social || cliente.nome || '';
+            const nomeEscaped = escapeHtml(identificador);
             
             // Botões diferentes para ativos e inativos
             const botoesAcao = ativos ? `
