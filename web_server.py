@@ -7533,6 +7533,83 @@ def criar_admin_inicial():
 
 
 # ============================================================================
+# ENDPOINT TEMPORÁRIO PARA FIX SUBCATEGORIAS (RAILWAY)
+# ============================================================================
+@app.route('/api/debug/fix-subcategorias-type', methods=['POST'])
+@csrf.exempt
+def fix_subcategorias_type():
+    """
+    Endpoint temporário para corrigir tipo da coluna subcategorias
+    Altera de TEXT para VARCHAR(255)
+    """
+    try:
+        db_instance = DatabaseManager()
+        conn = db_instance.get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Verificar tipo atual
+        cursor.execute("""
+            SELECT data_type, character_maximum_length
+            FROM information_schema.columns
+            WHERE table_name = 'categorias'
+            AND column_name = 'subcategorias'
+        """)
+        
+        result = cursor.fetchone()
+        tipo_antes = result['data_type'] if result else 'não encontrado'
+        tamanho_antes = result['character_maximum_length'] if result else None
+        
+        if tipo_antes == 'character varying':
+            return jsonify({
+                'success': True,
+                'message': 'Coluna já está correta (character varying)',
+                'tipo_atual': tipo_antes,
+                'tamanho': tamanho_antes
+            })
+        
+        # Alterar tipo
+        cursor.execute("""
+            ALTER TABLE categorias
+            ALTER COLUMN subcategorias TYPE VARCHAR(255)
+            USING subcategorias::VARCHAR(255)
+        """)
+        
+        conn.commit()
+        
+        # Verificar resultado
+        cursor.execute("""
+            SELECT data_type, character_maximum_length
+            FROM information_schema.columns
+            WHERE table_name = 'categorias'
+            AND column_name = 'subcategorias'
+        """)
+        
+        result = cursor.fetchone()
+        tipo_depois = result['data_type']
+        tamanho_depois = result['character_maximum_length']
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Coluna subcategorias alterada com sucesso!',
+            'tipo_antes': tipo_antes,
+            'tamanho_antes': tamanho_antes,
+            'tipo_depois': tipo_depois,
+            'tamanho_depois': tamanho_depois
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+# ============================================================================
 # ENDPOINT DE STATUS DA MIGRAÇÃO DE SENHAS
 # ============================================================================
 @app.route('/api/admin/passwords/migration-status', methods=['GET'])
