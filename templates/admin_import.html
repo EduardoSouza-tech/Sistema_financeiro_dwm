@@ -376,9 +376,17 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-title">3️⃣ Sugestões de Mapeamento Automático</div>
-                    <button class="btn btn-primary" onclick="generateMapping()">🤖 Gerar Mapeamento Automático</button>
+                    <div class="card-title">3️⃣ Configurar Mapeamento de Tabelas</div>
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="generateMapping()" style="flex: 1;">
+                            🤖 Gerar Mapeamento Automático
+                        </button>
+                        <button class="btn" onclick="showManualMapping()" style="flex: 1; background: #667eea; color: white;">
+                            ✏️ Seleção Manual
+                        </button>
+                    </div>
                     <div id="mapping-suggestions"></div>
+                    <div id="manual-mapping-container" style="display: none;"></div>
                 </div>
 
                 <div class="card">
@@ -778,8 +786,17 @@
                 return;
             }
 
-            if (currentMappings.length === 0) {
-                alert('Gere os mapeamentos primeiro!');
+            // Verificar se tem mapeamentos manuais ou automáticos
+            let mappingsToUse = currentMappings;
+            const manualMappings = collectManualMappings();
+            
+            if (manualMappings.length > 0) {
+                mappingsToUse = manualMappings;
+                console.log('📋 Usando mapeamentos manuais:', manualMappings);
+            } else if (currentMappings.length > 0) {
+                console.log('🤖 Usando mapeamentos automáticos:', currentMappings);
+            } else {
+                alert('⚠️ Configure os mapeamentos primeiro!\n\nUse a opção "Seleção Manual" ou "Gerar Mapeamento Automático".');
                 return;
             }
 
@@ -788,7 +805,7 @@
                 return;
             }
 
-            if (!confirm(`Confirma a importação para ${empresaNome}?\n\n${currentMappings.length} tabelas serão importadas.\nEsta ação pode ser revertida posteriormente.`)) {
+            if (!confirm(`Confirma a importação para ${empresaNome}?\n\n${mappingsToUse.length} tabelas serão importadas.\nEsta ação pode ser revertida posteriormente.`)) {
                 return;
             }
 
@@ -798,12 +815,9 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        nome: name,
-                        descricao: description,
-                        banco_origem: dbConfig.database,
                         empresa_id: empresaId,
-                        mapeamentos: currentMappings,
-                        db_config: dbConfig
+                        mapeamentos: mappingsToUse,
+                        schema_externo: externalSchema
                     }),
                     credentials: 'include'
                 });
@@ -821,14 +835,16 @@
                 const executeResponse = await fetch(`/api/admin/import/executar/${importId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ db_config: dbConfig }),
+                    body: JSON.stringify({ 
+                        arquivo_path: selectedFile ? `/tmp/import_${session.usuario_id}_${selectedFile.name}` : null
+                    }),
                     credentials: 'include'
                 });
 
                 const executeData = await executeResponse.json();
 
                 if (executeData.success) {
-                    alert(`✅ Importação concluída para ${empresaNome}!\n\n${executeData.registros_importados} registros importados\n${executeData.registros_erro} erros`);
+                    alert(`✅ Importação concluída para ${empresaNome}!\n\nID da Importação: ${importId}`);
                     switchTab('historico');
                     loadHistory();
                 } else {
@@ -889,6 +905,263 @@
             } catch (error) {
                 alert('Erro: ' + error.message);
             }
+        }
+
+        // Mostrar interface de seleção manual
+        function showManualMapping() {
+            if (!externalSchema || !internalSchema) {
+                alert('⚠️ Carregue os schemas primeiro!');
+                return;
+            }
+
+            document.getElementById('mapping-suggestions').style.display = 'none';
+            const container = document.getElementById('manual-mapping-container');
+            container.style.display = 'block';
+
+            let html = `
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                    <h3 style="margin-bottom: 20px;">🔗 Seleção Manual de Mapeamento</h3>
+                    <div id="manual-mappings"></div>
+                    <button class="btn btn-success" onclick="addManualMapping()" style="margin-top: 15px;">
+                        ➕ Adicionar Mapeamento
+                    </button>
+                </div>
+            `;
+
+            container.innerHTML = html;
+            
+            // Adicionar um mapeamento vazio inicial
+            addManualMapping();
+        }
+
+        let manualMappingCounter = 0;
+
+        // Adicionar um novo mapeamento manual
+        function addManualMapping() {
+            const mappingsDiv = document.getElementById('manual-mappings');
+            const id = ++manualMappingCounter;
+
+            // Criar opções de tabelas externas
+            let externalTablesOptions = '<option value="">-- Selecione tabela origem --</option>';
+            Object.keys(externalSchema).forEach(table => {
+                externalTablesOptions += `<option value="${table}">${table} (${externalSchema[table].total_registros || 0} registros)</option>`;
+            });
+
+            // Criar opções de tabelas internas
+            let internalTablesOptions = '<option value="">-- Selecione tabela destino --</option>';
+            Object.keys(internalSchema).forEach(table => {
+                internalTablesOptions += `<option value="${table}">${table}</option>`;
+            });
+
+            const html = `
+                <div id="mapping-${id}" style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 2px solid #ddd;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h4 style="margin: 0;">Mapeamento #${id}</h4>
+                        <button class="btn btn-danger" onclick="removeManualMapping(${id})" style="padding: 5px 15px;">
+                            🗑️ Remover
+                        </button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 50px 1fr; gap: 15px; align-items: center;">
+                        <div>
+                            <label style="display: block; font-weight: 600; margin-bottom: 5px;">📤 Tabela Origem (Arquivo Importado)</label>
+                            <select id="ext-table-${id}" onchange="loadExternalColumns(${id})" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                                ${externalTablesOptions}
+                            </select>
+                            <div id="ext-columns-${id}" style="margin-top: 10px; max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 5px; display: none;">
+                                <strong>Colunas:</strong><br>
+                            </div>
+                        </div>
+
+                        <div style="text-align: center; font-size: 24px; color: #667eea;">
+                            ➡️
+                        </div>
+
+                        <div>
+                            <label style="display: block; font-weight: 600; margin-bottom: 5px;">📥 Tabela Destino (Sistema)</label>
+                            <select id="int-table-${id}" onchange="loadInternalColumns(${id})" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                                ${internalTablesOptions}
+                            </select>
+                            <div id="int-columns-${id}" style="margin-top: 10px; max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 5px; display: none;">
+                                <strong>Colunas:</strong><br>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="column-mapping-${id}" style="margin-top: 15px; display: none;">
+                        <h5>🔗 Mapeamento de Colunas</h5>
+                        <div id="column-pairs-${id}"></div>
+                    </div>
+                </div>
+            `;
+
+            mappingsDiv.insertAdjacentHTML('beforeend', html);
+        }
+
+        // Carregar colunas da tabela externa selecionada
+        function loadExternalColumns(mappingId) {
+            const select = document.getElementById(`ext-table-${mappingId}`);
+            const tableName = select.value;
+            const columnsDiv = document.getElementById(`ext-columns-${mappingId}`);
+
+            if (!tableName) {
+                columnsDiv.style.display = 'none';
+                return;
+            }
+
+            const columns = externalSchema[tableName].columns;
+            let html = '<strong>Colunas:</strong><br>';
+            
+            columns.forEach(col => {
+                html += `<span style="display: inline-block; margin: 3px; padding: 5px 10px; background: #e3f2fd; border-radius: 5px; font-size: 12px;">
+                    ${col.name} <span style="color: #666;">(${col.type})</span>
+                </span>`;
+            });
+
+            columnsDiv.innerHTML = html;
+            columnsDiv.style.display = 'block';
+            
+            // Verificar se ambas tabelas estão selecionadas para mostrar mapeamento de colunas
+            checkShowColumnMapping(mappingId);
+        }
+
+        // Carregar colunas da tabela interna selecionada
+        function loadInternalColumns(mappingId) {
+            const select = document.getElementById(`int-table-${mappingId}`);
+            const tableName = select.value;
+            const columnsDiv = document.getElementById(`int-columns-${mappingId}`);
+
+            if (!tableName) {
+                columnsDiv.style.display = 'none';
+                return;
+            }
+
+            const columns = internalSchema[tableName].columns;
+            let html = '<strong>Colunas:</strong><br>';
+            
+            columns.forEach(col => {
+                html += `<span style="display: inline-block; margin: 3px; padding: 5px 10px; background: #fff3cd; border-radius: 5px; font-size: 12px;">
+                    ${col.name} <span style="color: #666;">(${col.type})</span>
+                </span>`;
+            });
+
+            columnsDiv.innerHTML = html;
+            columnsDiv.style.display = 'block';
+            
+            // Verificar se ambas tabelas estão selecionadas para mostrar mapeamento de colunas
+            checkShowColumnMapping(mappingId);
+        }
+
+        // Verificar e mostrar mapeamento de colunas se ambas tabelas estiverem selecionadas
+        function checkShowColumnMapping(mappingId) {
+            const extTable = document.getElementById(`ext-table-${mappingId}`).value;
+            const intTable = document.getElementById(`int-table-${mappingId}`).value;
+            const columnMappingDiv = document.getElementById(`column-mapping-${mappingId}`);
+
+            if (extTable && intTable) {
+                columnMappingDiv.style.display = 'block';
+                generateColumnPairs(mappingId, extTable, intTable);
+            } else {
+                columnMappingDiv.style.display = 'none';
+            }
+        }
+
+        // Gerar pares de mapeamento de colunas
+        function generateColumnPairs(mappingId, extTable, intTable) {
+            const extColumns = externalSchema[extTable].columns;
+            const intColumns = internalSchema[intTable].columns;
+            const pairsDiv = document.getElementById(`column-pairs-${mappingId}`);
+
+            let html = `
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8f9fa;">
+                            <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Coluna Origem</th>
+                            <th style="padding: 10px; text-align: center; border: 1px solid #ddd; width: 50px;">➡️</th>
+                            <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Coluna Destino</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            extColumns.forEach((extCol, index) => {
+                let internalOptions = '<option value="">-- Não mapear --</option>';
+                intColumns.forEach(intCol => {
+                    const selected = intCol.name.toLowerCase() === extCol.name.toLowerCase() ? 'selected' : '';
+                    internalOptions += `<option value="${intCol.name}" ${selected}>${intCol.name} (${intCol.type})</option>`;
+                });
+
+                html += `
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;">
+                            <strong>${extCol.name}</strong><br>
+                            <span style="font-size: 11px; color: #666;">${extCol.type}</span>
+                        </td>
+                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">➡️</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">
+                            <select id="col-map-${mappingId}-${index}" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 3px;">
+                                ${internalOptions}
+                            </select>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            pairsDiv.innerHTML = html;
+        }
+
+        // Remover mapeamento manual
+        function removeManualMapping(id) {
+            const element = document.getElementById(`mapping-${id}`);
+            if (element) {
+                element.remove();
+            }
+        }
+
+        // Coletar mapeamentos manuais
+        function collectManualMappings() {
+            const mappings = [];
+            const mappingsDiv = document.getElementById('manual-mappings');
+            
+            if (!mappingsDiv) return [];
+
+            for (let i = 1; i <= manualMappingCounter; i++) {
+                const extTableSelect = document.getElementById(`ext-table-${i}`);
+                const intTableSelect = document.getElementById(`int-table-${i}`);
+                
+                if (!extTableSelect || !intTableSelect) continue;
+
+                const extTable = extTableSelect.value;
+                const intTable = intTableSelect.value;
+
+                if (!extTable || !intTable) continue;
+
+                // Coletar mapeamentos de colunas
+                const columns = [];
+                const extColumns = externalSchema[extTable].columns;
+                
+                extColumns.forEach((extCol, index) => {
+                    const colSelect = document.getElementById(`col-map-${i}-${index}`);
+                    if (colSelect && colSelect.value) {
+                        columns.push({
+                            origem: extCol.name,
+                            destino: colSelect.value,
+                            transformacao: null
+                        });
+                    }
+                });
+
+                if (columns.length > 0) {
+                    mappings.push({
+                        tabela_origem: extTable,
+                        tabela_destino: intTable,
+                        colunas: columns
+                    });
+                }
+            }
+
+            return mappings;
         }
 
         // Reverter importação
