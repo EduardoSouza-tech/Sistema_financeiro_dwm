@@ -193,10 +193,11 @@ def get_internal_schema():
     GET /api/admin/import/schema/interno
     """
     try:
-        from database_postgresql import get_db_connection
+        from database_postgresql import DatabaseManager
         import psycopg2.extras
         
-        conn = get_db_connection()
+        db = DatabaseManager()
+        conn = db.get_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         # Buscar todas as tabelas do schema public

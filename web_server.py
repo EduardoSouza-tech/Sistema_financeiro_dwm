@@ -4893,9 +4893,8 @@ def upload_import_file():
 def get_internal_schema():
     """Obtém schema do banco interno usando a mesma conexão do sistema"""
     try:
-        from database_postgresql import get_db_connection
-        
-        conn = get_db_connection()
+        db_instance = DatabaseManager()
+        conn = db_instance.get_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         # Buscar todas as tabelas do schema public
