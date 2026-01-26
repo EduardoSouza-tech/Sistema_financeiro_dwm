@@ -394,6 +394,47 @@ body:not(.dark-mode) h2 {
 </div>
 ```
 
+### 5. Folha de Pagamento - Funcionários
+
+```html
+<div id="folha-pagamento-section" class="content-card hidden">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="color: #000000 !important; font-weight: 700;">👥 Folha de Pagamento - Funcionários</h2>
+        <button onclick="abrirModalFuncionario()" class="btn btn-primary" style="padding: 10px 20px; background: #3498db;">
+            ➕ Novo Funcionário
+        </button>
+    </div>
+
+    <!-- Tabela de Funcionários -->
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr style="background-color: #f5f5f5 !important;">
+                    <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left; width: 250px;">Nome</th>
+                    <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left; width: 130px;">CPF</th>
+                    <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left; width: 250px;">Endereço</th>
+                    <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left; width: 120px;">Tipo Chave PIX</th>
+                    <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left; width: 200px;">Chave PIX</th>
+                    <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left; width: 100px;">Status</th>
+                    <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: center; width: 150px;">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-funcionarios">
+                <tr><td colspan="7" class="loading">Carregando...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+```
+
+**Características desta seção:**
+- ✅ Título com padrão preto e negrito
+- ✅ Botão de ação alinhado à direita
+- ✅ Cabeçalhos da tabela com `background-color: #f5f5f5`
+- ✅ Cada `<th>` com `color: #000000 !important; font-weight: 700`
+- ✅ Larguras fixas para manter consistência visual
+- ✅ Text-align apropriado (left para dados, center para ações)
+
 ---
 
 ## 🎨 CSS Aplicado
