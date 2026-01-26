@@ -9,7 +9,6 @@ import json
 import hashlib
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
-from config import POSTGRESQL_CONFIG
 import logging
 import sqlite3
 
@@ -24,11 +23,13 @@ class DatabaseImportManager:
         self.cursor = None
         
     def connect(self):
-        """Conecta ao banco de dados"""
+        """Conecta ao banco de dados usando DatabaseManager"""
         try:
-            self.conn = psycopg2.connect(**POSTGRESQL_CONFIG)
+            from database_postgresql import DatabaseManager
+            db_manager = DatabaseManager()
+            self.conn = db_manager.get_connection()
             self.cursor = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            logger.info("✅ Conexão estabelecida com banco de dados")
+            logger.info("✅ Conexão estabelecida com banco de dados (DatabaseManager)")
         except Exception as e:
             logger.error(f"❌ Erro ao conectar: {e}")
             raise
