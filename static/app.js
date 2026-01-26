@@ -1531,11 +1531,15 @@ async function loadClientes(ativos = true) {
                 <button class="btn btn-sm btn-danger" onclick="excluirCliente('${nomeEscaped}')" title="Excluir cliente">🗑️</button>
             `;
             
+            const dataInativacaoCell = ativos ? '' : `<td>${cliente.data_inativacao || '-'}</td>`;
+            
             tr.innerHTML = `
-                <td>${cliente.nome}</td>
-                <td>${cliente.documento || cliente.cpf_cnpj || '-'}</td>
+                <td>${cliente.razao_social || cliente.nome || '-'}</td>
+                <td>${cliente.nome_fantasia || '-'}</td>
+                <td>${cliente.cnpj || cliente.documento || cliente.cpf_cnpj || '-'}</td>
+                <td>${cliente.cidade || '-'}</td>
                 <td>${cliente.telefone || '-'}</td>
-                <td>${cliente.email || '-'}</td>
+                ${dataInativacaoCell}
                 <td>${botoesAcao}</td>
             `;
             tbody.appendChild(tr);
@@ -1616,20 +1620,29 @@ function showClienteTab(tab) {
     console.log('🔄 Alternando aba de clientes:', tab);
     
     // Atualizar botões das abas
-    document.querySelectorAll('.cliente-tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
+    const abaAtivos = document.getElementById('tab-clientes-ativos');
+    const abaInativos = document.getElementById('tab-clientes-inativos');
     
-    const activeBtn = document.querySelector(`.cliente-tab-btn[onclick="showClienteTab('${tab}')"]`);
-    if (activeBtn) {
-        activeBtn.classList.add('active');
+    // Mostrar/ocultar coluna de data de inativação
+    const thDataInativacao = document.getElementById('th-data-inativacao-cliente');
+    
+    if (tab === 'ativos') {
+        abaAtivos?.classList.add('active');
+        abaAtivos?.setAttribute('style', 'padding: 10px 20px; border: none; background: #9b59b6; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;');
+        abaInativos?.classList.remove('active');
+        abaInativos?.setAttribute('style', 'padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;');
+        if (thDataInativacao) thDataInativacao.style.display = 'none';
+        loadClientes(true);
+    } else {
+        abaInativos?.classList.add('active');
+        abaInativos?.setAttribute('style', 'padding: 10px 20px; border: none; background: #9b59b6; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;');
+        abaAtivos?.classList.remove('active');
+        abaAtivos?.setAttribute('style', 'padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;');
+        if (thDataInativacao) thDataInativacao.style.display = 'table-cell';
+        loadClientes(false);
     }
     
-    // Carregar clientes filtrados por status
-    const ativos = (tab === 'ativos');
-    loadClientes(ativos);
-    
-    console.log('✅ Aba alternada:', tab, '- Ativos:', ativos);
+    console.log('✅ Aba alternada:', tab);
 }
 // Expor globalmente para uso em onclick do HTML
 window.showClienteTab = showClienteTab;

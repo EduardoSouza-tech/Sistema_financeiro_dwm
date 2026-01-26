@@ -1096,17 +1096,34 @@ function openModalCliente(clienteEdit = null) {
     // Preencher campos se for edição
     if (isEdit && clienteEdit) {
         setTimeout(() => {
-            document.getElementById('cliente-ie').value = clienteEdit.ie || '';
-            document.getElementById('cliente-im').value = clienteEdit.im || '';
-            document.getElementById('cliente-cep').value = clienteEdit.cep || '';
-            document.getElementById('cliente-rua').value = clienteEdit.rua || '';
-            document.getElementById('cliente-numero').value = clienteEdit.numero || '';
-            document.getElementById('cliente-complemento').value = clienteEdit.complemento || '';
-            document.getElementById('cliente-bairro').value = clienteEdit.bairro || '';
-            document.getElementById('cliente-cidade').value = clienteEdit.cidade || '';
-            document.getElementById('cliente-estado').value = clienteEdit.estado || '';
-            document.getElementById('cliente-telefone').value = clienteEdit.telefone || clienteEdit.contato || '';
-            document.getElementById('cliente-email').value = clienteEdit.email || '';
+            console.log('📝 Preenchendo campos de edição com:', clienteEdit);
+            
+            // Preencher campos adicionais que não estavam no HTML inicial
+            const campoIE = document.getElementById('cliente-ie');
+            const campoIM = document.getElementById('cliente-im');
+            const campoCEP = document.getElementById('cliente-cep');
+            const campoRua = document.getElementById('cliente-rua');
+            const campoNumero = document.getElementById('cliente-numero');
+            const campoComplemento = document.getElementById('cliente-complemento');
+            const campoBairro = document.getElementById('cliente-bairro');
+            const campoCidade = document.getElementById('cliente-cidade');
+            const campoEstado = document.getElementById('cliente-estado');
+            const campoTelefone = document.getElementById('cliente-telefone');
+            const campoEmail = document.getElementById('cliente-email');
+            
+            if (campoIE) campoIE.value = clienteEdit.ie || '';
+            if (campoIM) campoIM.value = clienteEdit.im || '';
+            if (campoCEP) campoCEP.value = clienteEdit.cep || '';
+            if (campoRua) campoRua.value = clienteEdit.rua || clienteEdit.endereco || '';
+            if (campoNumero) campoNumero.value = clienteEdit.numero || '';
+            if (campoComplemento) campoComplemento.value = clienteEdit.complemento || '';
+            if (campoBairro) campoBairro.value = clienteEdit.bairro || '';
+            if (campoCidade) campoCidade.value = clienteEdit.cidade || '';
+            if (campoEstado) campoEstado.value = clienteEdit.estado || clienteEdit.uf || '';
+            if (campoTelefone) campoTelefone.value = clienteEdit.telefone || clienteEdit.contato || '';
+            if (campoEmail) campoEmail.value = clienteEdit.email || '';
+            
+            console.log('✅ Campos preenchidos com sucesso');
         }, 100);
     }
 }
