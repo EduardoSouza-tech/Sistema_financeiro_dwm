@@ -2208,8 +2208,8 @@ function atualizarCalculoContrato() {
         return;
     }
     
-    // Usar parseValorBR para lidar com formatação pt-BR
-    const valorMensal = parseValorBR(campoValorMensal.value);
+    // Campo é type="number", então .value já é string numérica
+    const valorMensal = parseFloat(campoValorMensal.value) || 0;
     const meses = parseInt(campoMeses.value) || 0;
     const valorTotal = valorMensal * meses;
     
@@ -2218,6 +2218,7 @@ function atualizarCalculoContrato() {
     console.log('   💰 Valor Mensal (parseado):', valorMensal);
     console.log('   📝 Meses (.value):', campoMeses.value);
     console.log('   🔢 Meses (parseado):', meses);
+    console.log('   💵 Valor Total:', valorTotal);
     console.log('   💵 Valor Total:', valorTotal);
     
     // Formatar e exibir
@@ -2278,7 +2279,7 @@ async function salvarContrato(event) {
         }
     });
     
-    const valorMensal = parseValorBR(document.getElementById('contrato-valor-mensal').value);
+    const valorMensal = parseFloat(document.getElementById('contrato-valor-mensal').value) || 0;
     const quantidadeMeses = parseInt(document.getElementById('contrato-meses').value) || 1;
     const valorTotal = valorMensal * quantidadeMeses;
     
