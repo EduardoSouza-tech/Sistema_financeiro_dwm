@@ -4475,8 +4475,8 @@
                 console.log('  ➡️ loadTiposSessao:', typeof loadTiposSessao);
                 if (typeof loadTiposSessao === 'function') loadTiposSessao();
             } else if (sectionId === 'contratos') {
-                console.log('  ➡️ loadContratos:', typeof loadContratos);
-                if (typeof loadContratos === 'function') loadContratos();
+                console.log('  ➡️ showContratoTab(resumo):', typeof showContratoTab);
+                if (typeof showContratoTab === 'function') showContratoTab('resumo');
             } else if (sectionId === 'agenda-fotografia') {
                 console.log('  ➡️ initAgendaCalendar:', typeof initAgendaCalendar);
                 // Inicializar calendário apenas uma vez
