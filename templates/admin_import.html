@@ -1011,7 +1011,7 @@
 
                         <div>
                             <label style="display: block; font-weight: 600; margin-bottom: 5px;">📥 Tabela Destino (Sistema)</label>
-                            <select id="int-table-${id}" onchange="loadInternalColumns(${id})" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+                            <select id="int-table-${id}" onchange="console.log('🔥 ONCHANGE DISPARADO! ID:', ${id}, 'Valor:', this.value); loadInternalColumns(${id})" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
                                 ${internalTablesOptions}
                             </select>
                             <div id="int-columns-${id}" style="margin-top: 10px; max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 5px; display: none;">
