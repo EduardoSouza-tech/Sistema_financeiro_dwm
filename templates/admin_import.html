@@ -866,7 +866,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        arquivo_path: selectedFile ? `/tmp/import_${session.usuario_id}_${selectedFile.name}` : null
+                        arquivo_path: selectedFile ? selectedFile.name : null
                     }),
                     credentials: 'include'
                 });
