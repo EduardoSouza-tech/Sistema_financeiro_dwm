@@ -526,9 +526,12 @@ class DatabaseImportManager:
                         pg_type = 'boolean'
                     
                     columns.append({
+                        'name': col_name,
+                        'type': pg_type,
+                        'is_nullable': 'NO' if not_null else 'YES',
+                        # Compatibilidade com código antigo
                         'column_name': col_name,
-                        'data_type': pg_type,
-                        'is_nullable': 'NO' if not_null else 'YES'
+                        'data_type': pg_type
                     })
                 
                 # Contar registros
