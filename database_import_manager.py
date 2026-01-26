@@ -1100,17 +1100,25 @@ class DatabaseImportManager:
                             # Tentar match exato
                             if col_lower in colunas_destino:
                                 mapeamento_auto[col_origem] = col_lower
-                            # Tentar mapeamentos comuns
+                            # Tentar mapeamentos comuns - Contas Bancárias
                             elif col_lower == 'company_id' and 'empresa_id' in colunas_destino:
                                 mapeamento_auto[col_origem] = 'empresa_id'
-                            elif col_lower == 'bank_name' and 'nome_banco' in colunas_destino:
-                                mapeamento_auto[col_origem] = 'nome_banco'
-                            elif col_lower == 'account_number' and 'numero_conta' in colunas_destino:
-                                mapeamento_auto[col_origem] = 'numero_conta'
+                            elif col_lower == 'bank_name' and 'nome' in colunas_destino:
+                                mapeamento_auto[col_origem] = 'nome'
+                            elif col_lower == 'bank_name' and 'banco' in colunas_destino:
+                                mapeamento_auto[col_origem] = 'banco'
+                            elif col_lower == 'account_number' and 'conta' in colunas_destino:
+                                mapeamento_auto[col_origem] = 'conta'
+                            elif col_lower == 'agency' and 'agencia' in colunas_destino:
+                                mapeamento_auto[col_origem] = 'agencia'
                             elif col_lower == 'initial_balance' and 'saldo_inicial' in colunas_destino:
                                 mapeamento_auto[col_origem] = 'saldo_inicial'
                             elif col_lower == 'current_balance' and 'saldo_atual' in colunas_destino:
                                 mapeamento_auto[col_origem] = 'saldo_atual'
+                            elif col_lower == 'start_date' and 'data_inicio' in colunas_destino:
+                                mapeamento_auto[col_origem] = 'data_inicio'
+                            elif col_lower == 'creation_date' and 'data_criacao' in colunas_destino:
+                                mapeamento_auto[col_origem] = 'data_criacao'
                         
                         mapeamento_colunas = mapeamento_auto
                         logger.info(f"   📝 Mapeamento automático: {mapeamento_colunas}")
@@ -1134,6 +1142,19 @@ class DatabaseImportManager:
                             # Se não tem dados mapeados, pular
                             if not dados:
                                 continue
+                            
+                            # Adicionar valores padrão para campos obrigatórios de contas_bancarias
+                            if tabela_destino == 'contas_bancarias':
+                                if 'banco' not in dados:
+                                    dados['banco'] = 'Não informado'
+                                if 'agencia' not in dados:
+                                    dados['agencia'] = '0000'
+                                if 'conta' not in dados:
+                                    dados['conta'] = '0000'
+                                if 'data_inicio' not in dados:
+                                    dados['data_inicio'] = '2025-01-01'
+                                if 'data_criacao' not in dados:
+                                    dados['data_criacao'] = 'NOW()'
                             
                             # Construir INSERT
                             colunas = ', '.join(dados.keys())
