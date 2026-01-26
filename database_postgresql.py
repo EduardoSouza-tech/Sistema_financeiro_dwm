@@ -2000,6 +2000,23 @@ class DatabaseManager:
         return_to_pool(conn)  # Devolver ao pool
         return fornecedores
     
+    def obter_fornecedor_por_nome(self, nome: str) -> Dict | None:
+        """Busca um fornecedor pelo nome"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        nome_normalizado = nome.upper().strip()
+        cursor.execute("""
+            SELECT * FROM fornecedores 
+            WHERE UPPER(TRIM(nome)) = %s
+        """, (nome_normalizado,))
+        
+        row = cursor.fetchone()
+        cursor.close()
+        return_to_pool(conn)
+        
+        return dict(row) if row else None
+    
     def atualizar_fornecedor(self, nome_antigo: str, dados: Dict) -> bool:
         """Atualiza os dados de um fornecedor pelo nome"""
         conn = self.get_connection()

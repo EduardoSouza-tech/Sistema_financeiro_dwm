@@ -964,11 +964,18 @@ function openModalCliente(clienteEdit = null) {
         console.log('Cliente recebido:', clienteEdit);
         console.log('razao_social:', clienteEdit.razao_social);
         console.log('nome:', clienteEdit.nome);
+        console.log('nome_fantasia:', clienteEdit.nome_fantasia);
     }
     
     // Escapar HTML para valores de atributos
+    // Backend pode retornar só 'nome' ou 'razao_social'
     const nomeOriginal = isEdit ? (clienteEdit.razao_social || clienteEdit.nome || '') : '';
     const nomeOriginalEscaped = nomeOriginal.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    
+    // Usar nome como razao_social se razao_social não existir
+    const razaoSocial = isEdit ? (clienteEdit.razao_social || clienteEdit.nome || '') : '';
+    const nomeFantasia = isEdit ? (clienteEdit.nome_fantasia || clienteEdit.nome || '') : '';
+    const cnpj = isEdit ? (clienteEdit.cnpj || clienteEdit.cpf_cnpj || clienteEdit.documento || '') : '';
     
     const modal = createModal(titulo, `
         <form id="form-cliente" onsubmit="salvarCliente(event)">
@@ -977,18 +984,18 @@ function openModalCliente(clienteEdit = null) {
             
             <div class="form-group">
                 <label>*CNPJ:</label>
-                <input type="text" id="cliente-cnpj" value="${isEdit ? (clienteEdit.cnpj || '') : ''}" required placeholder="00.000.000/0000-00" onblur="buscarDadosCNPJ()">
+                <input type="text" id="cliente-cnpj" value="${cnpj}" required placeholder="00.000.000/0000-00" onblur="buscarDadosCNPJ()">
                 <small style="color: #7f8c8d; font-size: 11px;">Digite o CNPJ para buscar dados automaticamente</small>
             </div>
             
             <div class="form-group">
                 <label>*Razão Social:</label>
-                <input type="text" id="cliente-razao" value="${isEdit ? (clienteEdit.razao_social || '') : ''}" required>
+                <input type="text" id="cliente-razao" value="${razaoSocial}" required>
             </div>
             
             <div class="form-group">
                 <label>*Nome Fantasia:</label>
-                <input type="text" id="cliente-fantasia" value="${isEdit ? (clienteEdit.nome_fantasia || '') : ''}" required>
+                <input type="text" id="cliente-fantasia" value="${nomeFantasia}" required>
             </div>
             
             <div class="form-row">
@@ -1230,11 +1237,24 @@ function openModalFornecedor(fornecedorEdit = null) {
         console.log('Fornecedor recebido:', fornecedorEdit);
         console.log('razao_social:', fornecedorEdit.razao_social);
         console.log('nome:', fornecedorEdit.nome);
+        console.log('cnpj:', fornecedorEdit.cnpj);
+        console.log('telefone:', fornecedorEdit.telefone);
+        console.log('email:', fornecedorEdit.email);
+        console.log('endereco:', fornecedorEdit.endereco);
     }
     
     // Escapar HTML para valores de atributos
+    // Backend pode retornar só 'nome' ou 'razao_social'
     const nomeOriginal = isEdit ? (fornecedorEdit.razao_social || fornecedorEdit.nome || '') : '';
     const nomeOriginalEscaped = nomeOriginal.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    
+    // Usar nome como fallback para razao_social
+    const razaoSocial = isEdit ? (fornecedorEdit.razao_social || fornecedorEdit.nome || '') : '';
+    const nomeFantasia = isEdit ? (fornecedorEdit.nome_fantasia || fornecedorEdit.nome || '') : '';
+    const cnpj = isEdit ? (fornecedorEdit.cnpj || fornecedorEdit.cpf_cnpj || fornecedorEdit.documento || '') : '';
+    const telefone = isEdit ? (fornecedorEdit.telefone || fornecedorEdit.contato || '') : '';
+    const email = isEdit ? (fornecedorEdit.email || '') : '';
+    const endereco = isEdit ? (fornecedorEdit.endereco || fornecedorEdit.rua || '') : '';
     
     const modal = createModal(titulo, `
         <form id="form-fornecedor" onsubmit="salvarFornecedor(event)">
@@ -1243,18 +1263,18 @@ function openModalFornecedor(fornecedorEdit = null) {
             
             <div class="form-group">
                 <label>*CNPJ:</label>
-                <input type="text" id="fornecedor-cnpj" value="${isEdit ? (fornecedorEdit.cnpj || '') : ''}" required placeholder="00.000.000/0000-00" onblur="buscarDadosCNPJFornecedor()">
+                <input type="text" id="fornecedor-cnpj" value="${cnpj}" required placeholder="00.000.000/0000-00" onblur="buscarDadosCNPJFornecedor()">
                 <small style="color: #7f8c8d; font-size: 11px;">Digite o CNPJ para buscar dados automaticamente</small>
             </div>
             
             <div class="form-group">
                 <label>*Razão Social:</label>
-                <input type="text" id="fornecedor-razao" value="${isEdit ? (fornecedorEdit.razao_social || '') : ''}" required>
+                <input type="text" id="fornecedor-razao" value="${razaoSocial}" required>
             </div>
             
             <div class="form-group">
                 <label>*Nome Fantasia:</label>
-                <input type="text" id="fornecedor-fantasia" value="${isEdit ? (fornecedorEdit.nome_fantasia || '') : ''}" required>
+                <input type="text" id="fornecedor-fantasia" value="${nomeFantasia}" required>
             </div>
             
             <div class="form-row">
@@ -1362,17 +1382,33 @@ function openModalFornecedor(fornecedorEdit = null) {
     // Preencher campos se for edição
     if (isEdit && fornecedorEdit) {
         setTimeout(() => {
-            document.getElementById('fornecedor-ie').value = fornecedorEdit.ie || '';
-            document.getElementById('fornecedor-im').value = fornecedorEdit.im || '';
-            document.getElementById('fornecedor-cep').value = fornecedorEdit.cep || '';
-            document.getElementById('fornecedor-rua').value = fornecedorEdit.rua || '';
-            document.getElementById('fornecedor-numero').value = fornecedorEdit.numero || '';
-            document.getElementById('fornecedor-complemento').value = fornecedorEdit.complemento || '';
-            document.getElementById('fornecedor-bairro').value = fornecedorEdit.bairro || '';
-            document.getElementById('fornecedor-cidade').value = fornecedorEdit.cidade || '';
-            document.getElementById('fornecedor-estado').value = fornecedorEdit.estado || '';
-            document.getElementById('fornecedor-telefone').value = fornecedorEdit.telefone || fornecedorEdit.contato || '';
-            document.getElementById('fornecedor-email').value = fornecedorEdit.email || '';
+            console.log('📝 Preenchendo campos de fornecedor com:', fornecedorEdit);
+            
+            const campoIE = document.getElementById('fornecedor-ie');
+            const campoIM = document.getElementById('fornecedor-im');
+            const campoCEP = document.getElementById('fornecedor-cep');
+            const campoRua = document.getElementById('fornecedor-rua');
+            const campoNumero = document.getElementById('fornecedor-numero');
+            const campoComplemento = document.getElementById('fornecedor-complemento');
+            const campoBairro = document.getElementById('fornecedor-bairro');
+            const campoCidade = document.getElementById('fornecedor-cidade');
+            const campoEstado = document.getElementById('fornecedor-estado');
+            const campoTelefone = document.getElementById('fornecedor-telefone');
+            const campoEmail = document.getElementById('fornecedor-email');
+            
+            if (campoIE) campoIE.value = fornecedorEdit.ie || '';
+            if (campoIM) campoIM.value = fornecedorEdit.im || '';
+            if (campoCEP) campoCEP.value = fornecedorEdit.cep || '';
+            if (campoRua) campoRua.value = fornecedorEdit.rua || fornecedorEdit.endereco || '';
+            if (campoNumero) campoNumero.value = fornecedorEdit.numero || '';
+            if (campoComplemento) campoComplemento.value = fornecedorEdit.complemento || '';
+            if (campoBairro) campoBairro.value = fornecedorEdit.bairro || '';
+            if (campoCidade) campoCidade.value = fornecedorEdit.cidade || '';
+            if (campoEstado) campoEstado.value = fornecedorEdit.estado || fornecedorEdit.uf || '';
+            if (campoTelefone) campoTelefone.value = fornecedorEdit.telefone || fornecedorEdit.contato || '';
+            if (campoEmail) campoEmail.value = fornecedorEdit.email || '';
+            
+            console.log('✅ Campos de fornecedor preenchidos');
         }, 100);
     }
 }
