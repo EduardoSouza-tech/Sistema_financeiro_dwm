@@ -1135,17 +1135,29 @@
             `;
 
             extColumns.forEach((extCol, index) => {
+                // Validar se a coluna tem name
+                if (!extCol || !extCol.name) {
+                    console.warn('⚠️ Coluna externa inválida:', extCol);
+                    return;
+                }
+                
                 let internalOptions = '<option value="">-- Não mapear --</option>';
                 intColumns.forEach(intCol => {
+                    // Validar se a coluna interna tem name
+                    if (!intCol || !intCol.name) {
+                        console.warn('⚠️ Coluna interna inválida:', intCol);
+                        return;
+                    }
+                    
                     const selected = intCol.name.toLowerCase() === extCol.name.toLowerCase() ? 'selected' : '';
-                    internalOptions += `<option value="${intCol.name}" ${selected}>${intCol.name} (${intCol.type})</option>`;
+                    internalOptions += `<option value="${intCol.name}" ${selected}>${intCol.name} (${intCol.type || 'unknown'})</option>`;
                 });
 
                 html += `
                     <tr>
                         <td style="padding: 10px; border: 1px solid #ddd;">
                             <strong>${extCol.name}</strong><br>
-                            <span style="font-size: 11px; color: #666;">${extCol.type}</span>
+                            <span style="font-size: 11px; color: #666;">${extCol.type || 'unknown'}</span>
                         </td>
                         <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">➡️</td>
                         <td style="padding: 10px; border: 1px solid #ddd;">
