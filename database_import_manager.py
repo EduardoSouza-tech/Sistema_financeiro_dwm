@@ -1065,13 +1065,75 @@ class DatabaseImportManager:
                     
                     logger.info(f"   {len(registros)} registros encontrados")
                     
+                    # Buscar mapeamento de colunas
+                    self.cursor.execute("""
+                        SELECT coluna_origem, coluna_destino
+                        FROM import_mapeamento_colunas imc
+                        JOIN import_mapeamento_tabelas imt ON imc.mapeamento_tabela_id = imt.id
+                        WHERE imt.id = %s
+                    """, (mapeamento['id'],))
+                    
+                    mapeamento_colunas = {row['coluna_origem']: row['coluna_destino'] for row in self.cursor.fetchall()}
+                    
+                    # Se não tem mapeamento manual, tentar mapear automaticamente
+                    if not mapeamento_colunas and len(registros) > 0:
+                        # Buscar estrutura da tabela destino
+                        self.cursor.execute("""
+                            SELECT column_name
+                            FROM information_schema.columns
+                            WHERE table_name = %s
+                            AND table_schema = 'public'
+                        """, (tabela_destino,))
+                        
+                        colunas_destino = {row['column_name'].lower() for row in self.cursor.fetchall()}
+                        colunas_origem = registros[0].keys()
+                        
+                        # Mapeamento inteligente
+                        mapeamento_auto = {}
+                        for col_origem in colunas_origem:
+                            col_lower = col_origem.lower()
+                            
+                            # Ignorar id (auto-increment)
+                            if col_lower == 'id':
+                                continue
+                            
+                            # Tentar match exato
+                            if col_lower in colunas_destino:
+                                mapeamento_auto[col_origem] = col_lower
+                            # Tentar mapeamentos comuns
+                            elif col_lower == 'company_id' and 'empresa_id' in colunas_destino:
+                                mapeamento_auto[col_origem] = 'empresa_id'
+                            elif col_lower == 'bank_name' and 'nome_banco' in colunas_destino:
+                                mapeamento_auto[col_origem] = 'nome_banco'
+                            elif col_lower == 'account_number' and 'numero_conta' in colunas_destino:
+                                mapeamento_auto[col_origem] = 'numero_conta'
+                            elif col_lower == 'initial_balance' and 'saldo_inicial' in colunas_destino:
+                                mapeamento_auto[col_origem] = 'saldo_inicial'
+                            elif col_lower == 'current_balance' and 'saldo_atual' in colunas_destino:
+                                mapeamento_auto[col_origem] = 'saldo_atual'
+                        
+                        mapeamento_colunas = mapeamento_auto
+                        logger.info(f"   📝 Mapeamento automático: {mapeamento_colunas}")
+                    
                     for registro in registros:
                         try:
                             # Converter Row para dict
-                            dados = dict(registro)
+                            dados_origem = dict(registro)
                             
-                            # Remover id para auto-increment
-                            dados.pop('id', None)
+                            # Aplicar mapeamento de colunas
+                            if mapeamento_colunas:
+                                dados = {}
+                                for col_origem, col_destino in mapeamento_colunas.items():
+                                    if col_origem in dados_origem:
+                                        dados[col_destino] = dados_origem[col_origem]
+                            else:
+                                # Sem mapeamento, usar dados como estão (remover apenas id)
+                                dados = dados_origem.copy()
+                                dados.pop('id', None)
+                            
+                            # Se não tem dados mapeados, pular
+                            if not dados:
+                                continue
                             
                             # Construir INSERT
                             colunas = ', '.join(dados.keys())

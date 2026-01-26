@@ -444,12 +444,12 @@ def list_imports():
         manager.cursor.execute("""
             SELECT 
                 ih.*,
-                u.nome as usuario_nome,
+                u.nome_completo as usuario_nome,
                 COUNT(imt.id) as total_tabelas
             FROM import_historico ih
             LEFT JOIN usuarios u ON ih.usuario_id = u.id
             LEFT JOIN import_mapeamento_tabelas imt ON ih.id = imt.import_id
-            GROUP BY ih.id, u.nome
+            GROUP BY ih.id, u.nome_completo
             ORDER BY ih.data_importacao DESC
         """)
         
@@ -480,7 +480,7 @@ def get_import_details(import_id):
         
         # Buscar importação
         manager.cursor.execute("""
-            SELECT ih.*, u.nome as usuario_nome
+            SELECT ih.*, u.nome_completo as usuario_nome
             FROM import_historico ih
             LEFT JOIN usuarios u ON ih.usuario_id = u.id
             WHERE ih.id = %s
