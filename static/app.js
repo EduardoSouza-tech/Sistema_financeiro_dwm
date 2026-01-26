@@ -3814,6 +3814,15 @@ async function loadContratos() {
             const dataInicio = contrato.data_inicio || contrato.data_contrato;
             const dataFormatada = dataInicio ? new Date(dataInicio).toLocaleDateString('pt-BR') : '-';
             
+            // DEBUG: Verificar valor_total
+            const valorTotal = contrato.valor_total || contrato.valor || 0;
+            console.log(`📊 Contrato ${contrato.numero}:`, {
+                valor_total: contrato.valor_total,
+                valor: contrato.valor,
+                valorFinal: valorTotal,
+                tipo: typeof valorTotal
+            });
+            
             tr.innerHTML = `
                 <td>${escapeHtml(contrato.numero || '-')}</td>
                 <td>${escapeHtml(contrato.cliente_nome || '-')}</td>
@@ -3821,7 +3830,7 @@ async function loadContratos() {
                 <td>${escapeHtml(contrato.nome || contrato.descricao || '-')}</td>
                 <td>${formatarMoeda(contrato.valor_mensal || 0)}</td>
                 <td style="text-align: center;">${contrato.quantidade_meses || '-'}</td>
-                <td style="font-weight: bold; color: #27ae60;">${formatarMoeda(contrato.valor_total || contrato.valor || 0)}</td>
+                <td style="font-weight: bold; color: #27ae60;">${formatarMoeda(valorTotal)}</td>
                 <td>${dataFormatada}</td>
                 <td><span style="font-size: 11px;">${escapeHtml(contrato.forma_pagamento || '-')}</span></td>
                 <td><span class="status-badge status-${contrato.status || 'ativo'}">${contrato.status || 'Ativo'}</span></td>

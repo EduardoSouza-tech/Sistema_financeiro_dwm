@@ -2165,10 +2165,14 @@ async function openModalContrato(contratoEdit = null) {
     // Preencher comissões existentes se estiver editando
     if (isEdit && contratoEdit.comissoes) {
         setTimeout(() => {
-            if (Array.isArray(contratoEdit.comissoes)) {
-                contratoEdit.comissoes.forEach(com => {
-                    adicionarComissaoContrato(com);
-                });
+            const container = document.getElementById('contrato-comissoes-list');
+            if (container) {
+                container.innerHTML = ''; // Limpar antes de preencher
+                if (Array.isArray(contratoEdit.comissoes)) {
+                    contratoEdit.comissoes.forEach(com => {
+                        adicionarComissaoContrato(com);
+                    });
+                }
             }
         }, 150);
     }
