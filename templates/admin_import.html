@@ -968,6 +968,11 @@
             const mappingsDiv = document.getElementById('manual-mappings');
             const id = ++manualMappingCounter;
 
+            console.log('🆕 addManualMapping() - ID:', id);
+            console.log('   internalSchema disponível?', !!internalSchema);
+            console.log('   Tabelas internas:', Object.keys(internalSchema));
+            console.log('   categorias existe?', 'categorias' in internalSchema);
+
             // Criar opções de tabelas externas
             let externalTablesOptions = '<option value="">-- Selecione tabela origem --</option>';
             Object.keys(externalSchema).forEach(table => {
@@ -1054,7 +1059,11 @@
 
         // Carregar colunas da tabela interna selecionada
         function loadInternalColumns(mappingId) {
+            console.log('🎯 loadInternalColumns() CHAMADA! mappingId:', mappingId);
+            
             const select = document.getElementById(`int-table-${mappingId}`);
+            console.log('   Select element:', select);
+            
             const tableName = select.value;
             const columnsDiv = document.getElementById(`int-columns-${mappingId}`);
 
