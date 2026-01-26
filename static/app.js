@@ -4208,77 +4208,142 @@ let chartContratosLucro = null; // Armazena instância do gráfico
 
 async function loadResumoContratos() {
     try {
-        console.log('📊 Carregando resumo de contratos...');
+        console.log('='.repeat(80));
+        console.log('📊 INICIANDO loadResumoContratos()');
+        console.log('='.repeat(80));
+        
+        console.log('🔍 API_URL:', API_URL);
+        console.log('🔍 Empresa atual:', window.currentEmpresaId);
         
         // Carregar contratos e sessões
+        console.log('📡 Fazendo requisições para contratos e sessões...');
         const [contratosRes, sessoesRes] = await Promise.all([
             fetch(`${API_URL}/contratos`),
             fetch(`${API_URL}/sessoes`)
         ]);
         
+        console.log('📦 Response Contratos:', contratosRes.status, contratosRes.statusText);
+        console.log('📦 Response Sessões:', sessoesRes.status, sessoesRes.statusText);
+        
+        if (!contratosRes.ok) {
+            throw new Error(`Erro ao carregar contratos: ${contratosRes.status}`);
+        }
+        
+        if (!sessoesRes.ok) {
+            throw new Error(`Erro ao carregar sessões: ${sessoesRes.status}`);
+        }
+        
         const contratos = await contratosRes.json();
         const sessoes = await sessoesRes.json();
         
-        console.log('📦 Contratos:', contratos.length);
-        console.log('📦 Sessões:', sessoes.length);
+        console.log('📦 Total de Contratos recebidos:', contratos.length);
+        console.log('📦 Total de Sessões recebidas:', sessoes.length);
+        
+        if (contratos.length > 0) {
+            console.log('📋 Primeiro contrato:', contratos[0]);
+        }
+        
+        if (sessoes.length > 0) {
+            console.log('📋 Primeira sessão:', sessoes[0]);
+        }
         
         // Calcular análise
+        console.log('🧮 Calculando análise...');
         const analise = calcularAnaliseContratos(contratos, sessoes);
         
+        console.log('📊 Análise calculada:');
+        console.log('   - Contratos analisados:', analise.contratos.length);
+        console.log('   - Receita Total:', analise.totais.receitaTotal);
+        console.log('   - Custos Totais:', analise.totais.custosTotal);
+        console.log('   - Lucro Líquido:', analise.totais.lucroLiquido);
+        console.log('   - Margem:', analise.totais.margemLucro.toFixed(2) + '%');
+        
         // Atualizar KPIs
+        console.log('📈 Atualizando KPIs...');
         atualizarKPIs(analise);
         
         // Renderizar tabela
+        console.log('📋 Renderizando tabela...');
         renderizarTabelaResumo(analise.contratos);
         
         // Renderizar gráfico
+        console.log('📊 Renderizando gráfico...');
         renderizarGraficoLucro(analise.contratos);
         
-        console.log('✅ Resumo carregado com sucesso');
+        console.log('='.repeat(80));
+        console.log('✅ Resumo carregado com sucesso!');
+        console.log('='.repeat(80));
         
     } catch (error) {
-        console.error('❌ Erro ao carregar resumo:', error);
-        showToast('Erro ao carregar análise de contratos', 'error');
+        console.log('='.repeat(80));
+        console.error('❌ ERRO ao carregar resumo:', error);
+        console.error('Stack trace:', error.stack);
+        console.log('='.repeat(80));
+        showToast('Erro ao carregar análise de contratos: ' + error.message, 'error');
     }
 }
 
 function calcularAnaliseContratos(contratos, sessoes) {
+    console.log('🧮 calcularAnaliseContratos - INÍCIO');
+    console.log('   Contratos recebidos:', contratos.length);
+    console.log('   Sessões recebidas:', sessoes.length);
+    
     let receitaTotal = 0;
     let custosTotal = 0;
     let impostosTotal = 0;
     let comissoesTotal = 0;
     let custosSessoesTotal = 0;
     
-    const contratosAnalise = contratos.map(contrato => {
+    const contratosAnalise = contratos.map((contrato, index) => {
+        console.log(`   📋 Analisando contrato ${index + 1}/${contratos.length}:`, contrato.numero || contrato.nome);
+        
         // Receita bruta do contrato
         const receitaBruta = parseFloat(contrato.valor_total) || 0;
+        console.log(`      💰 Receita Bruta: R$ ${receitaBruta}`);
         
         // Impostos
         const percentualImposto = parseFloat(contrato.imposto) || 0;
         const valorImpostos = receitaBruta * (percentualImposto / 100);
+        console.log(`      📊 Imposto ${percentualImposto}%: R$ ${valorImpostos}`);
         
         // Comissões
         const valorComissoes = parseFloat(contrato.comissoes) || 0;
+        console.log(`      💸 Comissões: R$ ${valorComissoes}`);
         
         // Buscar sessões do contrato
-        const sessoesContrato = sessoes.filter(s => s.contrato_id === contrato.id || s.contrato_numero === contrato.numero);
+        const sessoesContrato = sessoes.filter(s => 
+            s.contrato_id === contrato.id || 
+            s.contrato_numero === contrato.numero ||
+            s.contrato_id === contrato.numero
+        );
+        console.log(`      📸 Sessões encontradas: ${sessoesContrato.length}`);
         
         // Calcular custos das sessões
         let custosSessoes = 0;
-        sessoesContrato.forEach(sessao => {
-            custosSessoes += parseFloat(sessao.custo_equipe) || 0;
-            custosSessoes += parseFloat(sessao.custo_equipamentos) || 0;
-            custosSessoes += parseFloat(sessao.custos_adicionais) || 0;
+        sessoesContrato.forEach((sessao, idx) => {
+            const custoEquipe = parseFloat(sessao.custo_equipe) || 0;
+            const custoEquip = parseFloat(sessao.custo_equipamentos) || 0;
+            const custoAd = parseFloat(sessao.custos_adicionais) || 0;
+            const totalSessao = custoEquipe + custoEquip + custoAd;
+            
+            console.log(`         Sessão ${idx + 1}: Equipe=${custoEquipe}, Equipamentos=${custoEquip}, Adicionais=${custoAd}, Total=${totalSessao}`);
+            
+            custosSessoes += totalSessao;
         });
+        console.log(`      🎬 Total custos sessões: R$ ${custosSessoes}`);
         
         // Receita líquida
         const receitaLiquida = receitaBruta - valorImpostos - valorComissoes;
+        console.log(`      💵 Receita Líquida: R$ ${receitaLiquida}`);
         
         // Resultado (lucro ou prejuízo)
         const resultado = receitaLiquida - custosSessoes;
+        const statusEmoji = resultado >= 0 ? '✅' : '❌';
+        console.log(`      ${statusEmoji} RESULTADO: R$ ${resultado}`);
         
         // Margem
         const margem = receitaBruta > 0 ? (resultado / receitaBruta) * 100 : 0;
+        console.log(`      📊 Margem: ${margem.toFixed(2)}%`);
         
         // Acumular totais
         receitaTotal += receitaBruta;
@@ -4302,6 +4367,12 @@ function calcularAnaliseContratos(contratos, sessoes) {
     
     const lucroLiquido = receitaTotal - custosTotal;
     const margemLucro = receitaTotal > 0 ? (lucroLiquido / receitaTotal) * 100 : 0;
+    
+    console.log('🧮 calcularAnaliseContratos - TOTAIS:');
+    console.log('   💰 Receita Total: R$', receitaTotal);
+    console.log('   💸 Custos Total: R$', custosTotal);
+    console.log('   📈 Lucro Líquido: R$', lucroLiquido);
+    console.log('   📊 Margem: ', margemLucro.toFixed(2) + '%');
     
     return {
         contratos: contratosAnalise,

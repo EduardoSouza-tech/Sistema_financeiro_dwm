@@ -2636,10 +2636,10 @@
                 
                 <!-- Tabs -->
                 <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd;">
-                    <button class="tab-button" onclick="showContratoTab('resumo')" id="tab-resumo" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
+                    <button class="tab-button active" onclick="showContratoTab('resumo')" id="tab-resumo" style="padding: 10px 20px; border: none; background: #9b59b6; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;">
                         📊 Resumo
                     </button>
-                    <button class="tab-button active" onclick="showContratoTab('contratos')" id="tab-contratos" style="padding: 10px 20px; border: none; background: #9b59b6; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;">
+                    <button class="tab-button" onclick="showContratoTab('contratos')" id="tab-contratos" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
                         Contratos
                     </button>
                     <button class="tab-button" onclick="showContratoTab('sessoes')" id="tab-sessoes" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
@@ -2648,7 +2648,7 @@
                 </div>
 
                 <!-- Tab Resumo -->
-                <div id="tab-content-resumo" style="display: none;">
+                <div id="tab-content-resumo">
                     <!-- KPIs Cards -->
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
                         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); color: white;">
@@ -2714,7 +2714,7 @@
                 </div>
 
                 <!-- Tab Contratos -->
-                <div id="tab-content-contratos">
+                <div id="tab-content-contratos" style="display: none;">
                     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                         <button class="btn btn-primary" onclick="openModalContrato()">➕ Novo Contrato</button>
                         <button class="btn" onclick="exportarContratosPDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
