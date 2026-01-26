@@ -126,36 +126,9 @@ CORS(app,
 csrf_instance = init_csrf(app)
 register_csrf_error_handlers(app)
 
-# Lista de endpoints isentos de CSRF
-# ENDPOINTS DE DEBUG SÃO REMOVIDOS EM PRODUÇÃO
-CSRF_EXEMPT_ROUTES = [
-    '/api/auth/login',
-    '/api/auth/logout',
-    '/api/auth/register',
-    '/api/admin/import/upload',  # Upload de arquivos (FormData)
-    '/api/admin/import/schema/interno'  # GET schema interno
-]
-
-# Adicionar endpoints de debug APENAS em desenvolvimento
-if not IS_PRODUCTION:
-    CSRF_EXEMPT_ROUTES.extend([
-        '/api/debug/fix-kits-table',
-        '/api/debug/fix-p1-issues',
-        '/api/debug/extrair-schema',
-        '/api/debug/criar-admin'
-    ])
-    logger.warning("⚠️ Endpoints de DEBUG habilitados (ambiente de desenvolvimento)")
-else:
-    logger.info("🔒 Endpoints de DEBUG desabilitados (ambiente de produção)")
-
-@csrf_instance.exempt
-def is_csrf_exempt():
-    """Verifica se a rota atual está isenta de CSRF"""
-    return request.path in CSRF_EXEMPT_ROUTES
-
-# Aplicar isenção para cada rota
-for route in CSRF_EXEMPT_ROUTES:
-    csrf_instance.exempt(route)
+# NOTA: Isenções CSRF são aplicadas via decorador @csrf_instance.exempt
+# diretamente nas view functions (não na lista de rotas)
+# Ver exemplos: /api/auth/login, /api/admin/import/upload
 
 # Injetar CSRF token em todos os templates
 @app.context_processor
@@ -4811,6 +4784,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/api/admin/import/upload', methods=['POST'])
+@csrf_instance.exempt
 @require_permission('admin')
 def upload_import_file():
     """Upload e processamento de arquivo para importação"""
@@ -4909,6 +4883,7 @@ def upload_import_file():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/import/schema/interno', methods=['GET'])
+@csrf_instance.exempt
 @require_permission('admin')
 def get_internal_schema():
     """Obtém schema do banco interno"""
