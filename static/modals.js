@@ -2178,6 +2178,22 @@ async function openModalContrato(contratoEdit = null) {
         </form>
     `);
     
+    // Verificar se o ID foi corretamente setado
+    setTimeout(() => {
+        const contratoIdField = document.getElementById('contrato-id');
+        console.log('🔍 Verificação após criar modal:');
+        console.log('   📝 Campo contrato-id existe?', !!contratoIdField);
+        console.log('   📝 Valor do campo:', contratoIdField ? contratoIdField.value : 'CAMPO NÃO ENCONTRADO');
+        console.log('   📝 isEdit:', isEdit);
+        console.log('   📝 contratoEdit.id:', contratoEdit ? contratoEdit.id : 'N/A');
+        
+        // Se estiver editando, forçar o valor novamente
+        if (isEdit && contratoIdField && contratoEdit && contratoEdit.id) {
+            contratoIdField.value = contratoEdit.id;
+            console.log('   ✅ ID forçado novamente para:', contratoEdit.id);
+        }
+    }, 50);
+    
     // Preencher comissões existentes se estiver editando
     if (isEdit && contratoEdit.comissoes) {
         setTimeout(() => {
