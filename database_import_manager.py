@@ -1002,6 +1002,156 @@ class DatabaseImportManager:
             return False
         finally:
             self.disconnect()
+    
+    def execute_import_from_file(self, import_id: int, file_path: str) -> Dict:
+        """
+        Executa importação de arquivo SQLite
+        
+        Args:
+            import_id: ID da importação
+            file_path: Caminho do arquivo SQLite
+            
+        Returns:
+            Dict com resultado da importação
+        """
+        try:
+            self.connect()
+            
+            # Buscar mapeamentos
+            self.cursor.execute("""
+                SELECT * FROM import_mapeamento_tabelas
+                WHERE import_id = %s AND ativo = true
+                ORDER BY ordem_execucao
+            """, (import_id,))
+            
+            mapeamentos = self.cursor.fetchall()
+            
+            if not mapeamentos:
+                return {
+                    'sucesso': False,
+                    'registros_importados': 0,
+                    'registros_erro': 0,
+                    'erros': ['Nenhum mapeamento encontrado']
+                }
+            
+            # Conectar ao SQLite
+            sqlite_conn = sqlite3.connect(file_path)
+            sqlite_conn.row_factory = sqlite3.Row
+            sqlite_cursor = sqlite_conn.cursor()
+            
+            registros_importados = 0
+            registros_erro = 0
+            erros = []
+            
+            # Atualizar status
+            self.cursor.execute("""
+                UPDATE import_historico
+                SET status = 'em_andamento'
+                WHERE id = %s
+            """, (import_id,))
+            self.conn.commit()
+            
+            # Processar cada mapeamento
+            for mapeamento in mapeamentos:
+                tabela_origem = mapeamento['tabela_origem']
+                tabela_destino = mapeamento['tabela_destino']
+                
+                logger.info(f"📦 Importando {tabela_origem} → {tabela_destino}")
+                
+                try:
+                    # Buscar todos os registros da tabela de origem
+                    sqlite_cursor.execute(f"SELECT * FROM {tabela_origem}")
+                    registros = sqlite_cursor.fetchall()
+                    
+                    logger.info(f"   {len(registros)} registros encontrados")
+                    
+                    for registro in registros:
+                        try:
+                            # Converter Row para dict
+                            dados = dict(registro)
+                            
+                            # Remover id para auto-increment
+                            dados.pop('id', None)
+                            
+                            # Construir INSERT
+                            colunas = ', '.join(dados.keys())
+                            placeholders = ', '.join(['%s'] * len(dados))
+                            valores = tuple(dados.values())
+                            
+                            query = f"INSERT INTO {tabela_destino} ({colunas}) VALUES ({placeholders}) RETURNING id"
+                            
+                            self.cursor.execute(query, valores)
+                            novo_id = self.cursor.fetchone()['id']
+                            
+                            # Salvar backup para rollback
+                            self.cursor.execute("""
+                                INSERT INTO import_backup
+                                (import_id, tabela, registro_id, operacao)
+                                VALUES (%s, %s, %s, 'INSERT')
+                            """, (import_id, tabela_destino, novo_id))
+                            
+                            registros_importados += 1
+                            
+                        except Exception as e:
+                            registros_erro += 1
+                            erro_msg = f"Erro em {tabela_origem}: {str(e)}"
+                            erros.append(erro_msg)
+                            logger.warning(f"   ⚠️ {erro_msg}")
+                            continue
+                    
+                    self.conn.commit()
+                    
+                except Exception as e:
+                    erro_msg = f"Erro na tabela {tabela_origem}: {str(e)}"
+                    erros.append(erro_msg)
+                    logger.error(f"   ❌ {erro_msg}")
+                    continue
+            
+            sqlite_conn.close()
+            
+            # Atualizar histórico
+            status = 'concluido' if registros_erro == 0 else 'concluido_com_erros'
+            self.cursor.execute("""
+                UPDATE import_historico
+                SET status = %s,
+                    registros_importados = %s,
+                    registros_erro = %s
+                WHERE id = %s
+            """, (status, registros_importados, registros_erro, import_id))
+            
+            self.conn.commit()
+            
+            logger.info(f"✅ Importação concluída: {registros_importados} registros, {registros_erro} erros")
+            
+            return {
+                'sucesso': True,
+                'registros_importados': registros_importados,
+                'registros_erro': registros_erro,
+                'erros': erros
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Erro fatal na importação: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            
+            if self.conn:
+                self.conn.rollback()
+                self.cursor.execute("""
+                    UPDATE import_historico
+                    SET status = 'erro'
+                    WHERE id = %s
+                """, (import_id,))
+                self.conn.commit()
+            
+            return {
+                'sucesso': False,
+                'registros_importados': 0,
+                'registros_erro': 0,
+                'erros': [str(e)]
+            }
+        finally:
+            self.disconnect()
 
 
 if __name__ == "__main__":

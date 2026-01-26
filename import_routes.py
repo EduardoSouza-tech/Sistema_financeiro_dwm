@@ -392,28 +392,40 @@ def execute_import(import_id):
     
     POST /api/admin/import/executar/<import_id>
     Body: {
-        "db_config": {...}
+        "arquivo_path": "path/to/file.db" (opcional, para SQLite),
+        "db_config": {...} (opcional, para conexão direta)
     }
     """
     try:
-        data = request.json
-        db_config = data.get('db_config', {})
+        data = request.json or {}
+        arquivo_path = data.get('arquivo_path')
         
-        if not db_config:
-            return jsonify({'error': 'Configuração do banco é obrigatória'}), 400
+        logger.info(f"🚀 Executar importação {import_id}")
+        logger.info(f"   arquivo_path: {arquivo_path}")
         
-        manager = DatabaseImportManager()
-        result = manager.execute_import(import_id, db_config)
+        # Se tem arquivo_path, usar o arquivo já upado
+        if arquivo_path:
+            # Construir caminho completo do arquivo
+            file_path = f"/tmp/import_None_{arquivo_path}"
+            logger.info(f"   Usando arquivo: {file_path}")
+            
+            manager = DatabaseImportManager()
+            result = manager.execute_import_from_file(import_id, file_path)
+        else:
+            # Conexão direta (não implementado ainda)
+            return jsonify({'error': 'Importação via conexão direta não implementada ainda'}), 400
         
         return jsonify({
-            'success': result['sucesso'],
-            'registros_importados': result['registros_importados'],
-            'registros_erro': result['registros_erro'],
-            'erros': result['erros'][:10]  # Limitar primeiros 10 erros
+            'success': result.get('sucesso', False),
+            'registros_importados': result.get('registros_importados', 0),
+            'registros_erro': result.get('registros_erro', 0),
+            'erros': result.get('erros', [])[:10]  # Limitar primeiros 10 erros
         })
         
     except Exception as e:
         logger.error(f"❌ Erro ao executar importação: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 
