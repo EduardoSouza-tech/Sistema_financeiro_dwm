@@ -1058,12 +1058,24 @@
             const tableName = select.value;
             const columnsDiv = document.getElementById(`int-columns-${mappingId}`);
 
+            console.log('🔍 loadInternalColumns() chamado para mappingId:', mappingId);
+            console.log('   Tabela selecionada:', tableName);
+
             if (!tableName) {
                 columnsDiv.style.display = 'none';
                 return;
             }
 
             const columns = internalSchema[tableName].columns;
+            console.log(`   Colunas de ${tableName}:`, columns);
+            console.log(`   Total: ${columns.length}`);
+            
+            // Debug específico para categorias
+            if (tableName === 'categorias') {
+                const subcategorias = columns.find(col => col.name === 'subcategorias');
+                console.log('   🔎 subcategorias na lista:', subcategorias ? '✅ ENCONTRADA' : '❌ NÃO ENCONTRADA', subcategorias);
+            }
+            
             let html = '<strong>Colunas:</strong><br>';
             
             columns.forEach(col => {
@@ -1074,6 +1086,8 @@
 
             columnsDiv.innerHTML = html;
             columnsDiv.style.display = 'block';
+            
+            console.log('   ✅ HTML renderizado:', html.substring(0, 200) + '...');
             
             // Verificar se ambas tabelas estão selecionadas para mostrar mapeamento de colunas
             checkShowColumnMapping(mappingId);
