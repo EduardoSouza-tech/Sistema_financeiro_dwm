@@ -730,6 +730,68 @@ class DatabaseImportManager:
             return False
         finally:
             self.disconnect()
+    
+    def create_import_record(self, empresa_id: int, usuario_id: int, fonte_tipo: str, 
+                            mapeamentos: List[Dict], schema_externo: Dict) -> int:
+        """
+        Cria registro de importação no histórico
+        
+        Args:
+            empresa_id: ID da empresa
+            usuario_id: ID do usuário
+            fonte_tipo: Tipo da fonte (sqlite, mysql, postgresql)
+            mapeamentos: Lista de mapeamentos de tabelas
+            schema_externo: Schema do banco externo
+            
+        Returns:
+            int: ID da importação criada
+        """
+        try:
+            # Inserir histórico
+            self.cursor.execute("""
+                INSERT INTO import_historico 
+                (empresa_id, usuario_id, data_importacao, fonte_tipo, fonte_host, status)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (empresa_id, usuario_id, datetime.now(), fonte_tipo, 'arquivo', 'pendente'))
+            
+            import_id = self.cursor.fetchone()['id']
+            
+            # Inserir mapeamentos de tabelas
+            for mapa in mapeamentos:
+                tabela_origem = mapa.get('tabela_origem')
+                tabela_destino = mapa.get('tabela_destino')
+                colunas_mapeamento = mapa.get('colunas', [])
+                
+                self.cursor.execute("""
+                    INSERT INTO import_mapeamento_tabelas
+                    (import_id, tabela_origem, tabela_destino, ativo)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id
+                """, (import_id, tabela_origem, tabela_destino, True))
+                
+                mapeamento_tabela_id = self.cursor.fetchone()['id']
+                
+                # Inserir mapeamentos de colunas
+                for col_map in colunas_mapeamento:
+                    coluna_origem = col_map.get('origem')
+                    coluna_destino = col_map.get('destino')
+                    transformacao = col_map.get('transformacao')
+                    
+                    self.cursor.execute("""
+                        INSERT INTO import_mapeamento_colunas
+                        (mapeamento_tabela_id, coluna_origem, coluna_destino, transformacao)
+                        VALUES (%s, %s, %s, %s)
+                    """, (mapeamento_tabela_id, coluna_origem, coluna_destino, transformacao))
+            
+            self.conn.commit()
+            logger.info(f"✅ Importação {import_id} criada com sucesso")
+            return import_id
+            
+        except Exception as e:
+            self.conn.rollback()
+            logger.error(f"❌ Erro ao criar registro de importação: {e}")
+            raise
             
     def execute_import(self, import_id: int, external_db_config: Dict) -> Dict:
         """

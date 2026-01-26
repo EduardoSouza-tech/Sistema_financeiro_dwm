@@ -4902,6 +4902,122 @@ def get_internal_schema():
         logger.error(f"❌ Erro ao obter schema interno: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/admin/import/sugestao-mapeamento', methods=['POST'])
+@csrf.exempt
+@require_permission('admin')
+def suggest_mapping():
+    """Gera sugestões de mapeamento entre tabelas"""
+    try:
+        data = request.json
+        schema_externo = data.get('schema_externo')
+        schema_interno = data.get('schema_interno')
+        
+        if not schema_externo or not schema_interno:
+            return jsonify({'error': 'Schemas externo e interno são obrigatórios'}), 400
+        
+        manager = DatabaseImportManager()
+        sugestoes = manager.suggest_table_mapping(schema_externo, schema_interno)
+        
+        return jsonify({
+            'success': True,
+            'sugestoes': sugestoes,
+            'total_mapeamentos': len(sugestoes)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao gerar sugestões: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/import/criar', methods=['POST'])
+@csrf.exempt
+@require_permission('admin')
+def create_import():
+    """Cria registro de importação com mapeamentos"""
+    try:
+        data = request.json
+        empresa_id = data.get('empresa_id')
+        mapeamentos = data.get('mapeamentos')
+        schema_externo = data.get('schema_externo')
+        
+        if not empresa_id or not mapeamentos:
+            return jsonify({'error': 'empresa_id e mapeamentos são obrigatórios'}), 400
+        
+        manager = DatabaseImportManager()
+        manager.connect()
+        
+        # Criar registro na tabela import_historico
+        import_id = manager.create_import_record(
+            empresa_id=empresa_id,
+            usuario_id=session.get('usuario_id'),
+            fonte_tipo='sqlite',
+            mapeamentos=mapeamentos,
+            schema_externo=schema_externo
+        )
+        
+        manager.close()
+        
+        return jsonify({
+            'success': True,
+            'import_id': import_id,
+            'message': 'Importação criada com sucesso'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao criar importação: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/import/executar/<int:import_id>', methods=['POST'])
+@csrf.exempt
+@require_permission('admin')
+def execute_import(import_id):
+    """Executa a importação de dados"""
+    try:
+        data = request.json
+        arquivo_path = data.get('arquivo_path')
+        
+        if not arquivo_path:
+            return jsonify({'error': 'arquivo_path é obrigatório'}), 400
+        
+        manager = DatabaseImportManager()
+        manager.connect()
+        
+        resultado = manager.execute_import(import_id, arquivo_path)
+        
+        manager.close()
+        
+        return jsonify({
+            'success': True,
+            'resultado': resultado,
+            'message': 'Importação executada com sucesso'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao executar importação: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/import/reverter/<int:import_id>', methods=['POST'])
+@csrf.exempt
+@require_permission('admin')
+def rollback_import(import_id):
+    """Reverte uma importação (rollback)"""
+    try:
+        manager = DatabaseImportManager()
+        manager.connect()
+        
+        resultado = manager.rollback_import(import_id)
+        
+        manager.close()
+        
+        return jsonify({
+            'success': True,
+            'resultado': resultado,
+            'message': 'Importação revertida com sucesso'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao reverter importação: {e}")
+        return jsonify({'error': str(e)}), 500
+
 # ============================================================================
 
 @app.route('/old')
