@@ -3596,6 +3596,49 @@ async function loadFuncionariosRH() {
 }
 
 /**
+ * Carrega lista de funcionários para uso em modais (endpoint simplificado)
+ */
+async function loadFuncionarios() {
+    try {
+        console.log('👥 Carregando funcionários...');
+        
+        const response = await fetch(`${API_URL}/funcionarios`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Erro ao buscar funcionários');
+        }
+        
+        const data = await response.json();
+        console.log('📦 Resposta /api/funcionarios:', data);
+        
+        // API pode retornar { success: true, data: [...] } ou array direto
+        if (Array.isArray(data)) {
+            window.funcionarios = data;
+        } else if (data.success && Array.isArray(data.data)) {
+            window.funcionarios = data.data;
+        } else if (data.funcionarios && Array.isArray(data.funcionarios)) {
+            window.funcionarios = data.funcionarios;
+        } else {
+            window.funcionarios = [];
+        }
+        
+        console.log('✅ Funcionários carregados:', window.funcionarios.length);
+        if (window.funcionarios.length > 0) {
+            console.log('   📋 Primeiro funcionário:', window.funcionarios[0]);
+        }
+        
+        return window.funcionarios;
+    } catch (error) {
+        console.error('❌ Erro ao carregar funcionários:', error);
+        window.funcionarios = [];
+        return [];
+    }
+}
+
+/**
  * Carrega lista de kits de equipamentos para uso em modais
  */
 async function loadKits() {
