@@ -2018,12 +2018,14 @@ async function openModalContrato(contratoEdit = null) {
     console.log('📋 openModalContrato chamada', contratoEdit ? 'MODO EDIÇÃO' : 'MODO CRIAÇÃO');
     
     if (contratoEdit) {
-        console.log('📦 Dados do contrato recebidos:', {
-            id: contratoEdit.id,
-            valor_mensal: contratoEdit.valor_mensal,
-            quantidade_meses: contratoEdit.quantidade_meses,
-            valor_total: contratoEdit.valor_total
-        });
+        console.log('📦 Dados COMPLETOS do contrato recebidos:', contratoEdit);
+        console.log('📝 Campos específicos:');
+        console.log('   - descricao:', contratoEdit.descricao);
+        console.log('   - data_inicio:', contratoEdit.data_inicio);
+        console.log('   - data_contrato:', contratoEdit.data_contrato);
+        console.log('   - imposto:', contratoEdit.imposto);
+        console.log('   - imposto_percentual:', contratoEdit.imposto_percentual);
+        console.log('   - comissoes:', contratoEdit.comissoes);
     }
     
     // Carregar clientes se necessário
@@ -2127,7 +2129,7 @@ async function openModalContrato(contratoEdit = null) {
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
                 <div class="form-group">
                     <label>*Data Contrato:</label>
-                    <input type="date" id="contrato-data" required value="${isEdit && contratoEdit.data_contrato ? contratoEdit.data_contrato.split('T')[0] : ''}">
+                    <input type="date" id="contrato-data" required value="${isEdit && (contratoEdit.data_inicio || contratoEdit.data_contrato) ? (contratoEdit.data_inicio || contratoEdit.data_contrato).split('T')[0] : ''}">
                 </div>
                 
                 <div class="form-group">
@@ -2142,7 +2144,7 @@ async function openModalContrato(contratoEdit = null) {
                 
                 <div class="form-group">
                     <label>Imposto (%):</label>
-                    <input type="number" id="contrato-imposto" step="0.01" min="0" max="100" placeholder="10.00" value="${isEdit ? contratoEdit.imposto_percentual || '' : ''}">
+                    <input type="number" id="contrato-imposto" step="0.01" min="0" max="100" placeholder="10.00" value="${isEdit ? contratoEdit.imposto || contratoEdit.imposto_percentual || '' : ''}">
                 </div>
             </div>
             
