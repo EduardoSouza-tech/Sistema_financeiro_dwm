@@ -293,36 +293,77 @@
         <!-- Tab: Nova Importação -->
         <div id="tab-nova" class="tab-content active">
             <div class="card">
-                <div class="card-title">1️⃣ Configuração do Banco de Dados Externo</div>
+                <div class="card-title">1️⃣ Origem dos Dados</div>
                 
-                <div class="grid-2">
-                    <div class="form-group">
-                        <label>Host</label>
-                        <input type="text" id="ext-host" value="localhost" placeholder="localhost">
-                    </div>
-                    <div class="form-group">
-                        <label>Porta</label>
-                        <input type="number" id="ext-port" value="5432" placeholder="5432">
-                    </div>
-                </div>
-
-                <div class="grid-2">
-                    <div class="form-group">
-                        <label>Banco de Dados</label>
-                        <input type="text" id="ext-database" placeholder="nome_do_banco">
-                    </div>
-                    <div class="form-group">
-                        <label>Usuário</label>
-                        <input type="text" id="ext-user" placeholder="postgres">
+                <!-- Seletor de Método -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600;">Escolha o método de importação:</label>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn" id="btn-method-file" onclick="selectMethod('file')" style="flex: 1; background: #667eea; color: white;">
+                            📁 Enviar Arquivo
+                        </button>
+                        <button class="btn" id="btn-method-db" onclick="selectMethod('db')" style="flex: 1; background: #95a5a6; color: white;">
+                            🔌 Conectar Banco Externo
+                        </button>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Senha</label>
-                    <input type="password" id="ext-password" placeholder="••••••••">
+                <!-- Opção 1: Upload de Arquivo -->
+                <div id="method-file" style="display: block;">
+                    <div style="padding: 20px; background: #f0f4ff; border-radius: 8px; border: 2px dashed #667eea; text-align: center;">
+                        <p style="margin-bottom: 15px; color: #2c3e50;">
+                            <strong>📤 Envie um arquivo de backup do banco de dados</strong><br>
+                            <span style="font-size: 13px; color: #7f8c8d;">Formatos suportados: .sql, .dump, .backup, .csv, .json (até 100MB)</span>
+                        </p>
+                        <input type="file" id="file-input" accept=".sql,.dump,.backup,.csv,.json" 
+                               style="display: none;" onchange="handleFileSelect(event)">
+                        <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+                            📎 Selecionar Arquivo
+                        </button>
+                        <div id="file-info" style="margin-top: 15px; display: none;">
+                            <div style="background: white; padding: 15px; border-radius: 8px; text-align: left;">
+                                <p style="margin: 0;"><strong>Arquivo selecionado:</strong></p>
+                                <p style="margin: 5px 0; color: #667eea;" id="file-name"></p>
+                                <p style="margin: 5px 0; font-size: 13px; color: #7f8c8d;" id="file-size"></p>
+                                <button class="btn btn-success" onclick="processFile()" style="margin-top: 10px;">
+                                    🔍 Analisar Arquivo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <button class="btn btn-primary" onclick="testConnection()">🔌 Testar Conexão e Obter Schema</button>
+                <!-- Opção 2: Conexão Direta -->
+                <div id="method-db" style="display: none;">
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Host</label>
+                            <input type="text" id="ext-host" value="localhost" placeholder="localhost">
+                        </div>
+                        <div class="form-group">
+                            <label>Porta</label>
+                            <input type="number" id="ext-port" value="5432" placeholder="5432">
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Banco de Dados</label>
+                            <input type="text" id="ext-database" placeholder="nome_do_banco">
+                        </div>
+                        <div class="form-group">
+                            <label>Usuário</label>
+                            <input type="text" id="ext-user" placeholder="postgres">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Senha</label>
+                        <input type="password" id="ext-password" placeholder="••••••••">
+                    </div>
+
+                    <button class="btn btn-primary" onclick="testConnection()">🔌 Testar Conexão e Obter Schema</button>
+                </div>
             </div>
 
             <div id="schema-result" style="display: none;">
@@ -378,6 +419,8 @@
         let dbConfig = {};
         let empresaId = null;
         let empresaNome = '';
+        let selectedFile = null;
+        let importMethod = 'file'; // 'file' ou 'db'
 
         // Obter parâmetros da URL
         window.addEventListener('DOMContentLoaded', function() {
@@ -402,6 +445,122 @@
             
             event.target.classList.add('active');
             document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        // Selecionar método de importação
+        function selectMethod(method) {
+            importMethod = method;
+            
+            // Atualizar botões
+            document.getElementById('btn-method-file').style.background = method === 'file' ? '#667eea' : '#95a5a6';
+            document.getElementById('btn-method-db').style.background = method === 'db' ? '#667eea' : '#95a5a6';
+            
+            // Mostrar/ocultar seções
+            document.getElementById('method-file').style.display = method === 'file' ? 'block' : 'none';
+            document.getElementById('method-db').style.display = method === 'db' ? 'block' : 'none';
+            
+            // Resetar
+            document.getElementById('schema-result').style.display = 'none';
+        }
+
+        // Manipular seleção de arquivo
+        function handleFileSelect(event) {
+            selectedFile = event.target.files[0];
+            
+            if (!selectedFile) return;
+            
+            // Validar tamanho (100MB)
+            const maxSize = 100 * 1024 * 1024;
+            if (selectedFile.size > maxSize) {
+                alert('⚠️ Arquivo muito grande! Tamanho máximo: 100MB');
+                selectedFile = null;
+                return;
+            }
+            
+            // Exibir informações do arquivo
+            document.getElementById('file-name').textContent = selectedFile.name;
+            document.getElementById('file-size').textContent = `Tamanho: ${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`;
+            document.getElementById('file-info').style.display = 'block';
+        }
+
+        // Processar arquivo
+        async function processFile() {
+            if (!selectedFile) {
+                alert('Selecione um arquivo primeiro!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('empresa_id', empresaId);
+
+            try {
+                const response = await fetch('/api/admin/import/upload', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    externalSchema = data.schema;
+                    
+                    // Mostrar resultado
+                    document.getElementById('schema-result').style.display = 'block';
+                    
+                    let schemaHtml = `
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px;">
+                            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: 700; color: #1976d2;">${Object.keys(externalSchema).length}</div>
+                                <div style="color: #555; margin-top: 5px;">Tabelas Detectadas</div>
+                            </div>
+                            <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: 700; color: #7b1fa2;">${Object.values(externalSchema).reduce((sum, t) => sum + t.columns.length, 0)}</div>
+                                <div style="color: #555; margin-top: 5px;">Colunas Totais</div>
+                            </div>
+                            <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: 700; color: #388e3c;">${Object.values(externalSchema).reduce((sum, t) => sum + (t.total_registros || 0), 0).toLocaleString()}</div>
+                                <div style="color: #555; margin-top: 5px;">Registros Totais</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 20px; max-height: 300px; overflow-y: auto;">
+                            <strong>Tabelas encontradas:</strong>
+                            <ul style="margin-top: 10px;">
+                                ${Object.entries(externalSchema).map(([table, info]) => 
+                                    `<li style="padding: 8px; border-bottom: 1px solid #eee;">
+                                        <strong>${table}</strong> - ${info.columns.length} colunas, ${info.total_registros || 0} registros
+                                    </li>`
+                                ).join('')}
+                            </ul>
+                        </div>
+                    `;
+                    document.getElementById('schema-info').innerHTML = schemaHtml;
+                    
+                    // Obter schema interno
+                    await loadInternalSchema();
+                    
+                    alert('✅ Arquivo processado com sucesso!');
+                } else {
+                    alert('❌ Erro ao processar arquivo: ' + data.error);
+                }
+
+            } catch (error) {
+                alert('Erro: ' + error.message);
+            }
+        }
+
+        // Carregar schema interno
+        async function loadInternalSchema() {
+            try {
+                const response = await fetch('/api/admin/import/schema/interno', {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                internalSchema = data.schema;
+            } catch (error) {
+                console.error('Erro ao carregar schema interno:', error);
+            }
         }
 
         // Testar conexão e obter schema

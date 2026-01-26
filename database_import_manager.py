@@ -245,6 +245,223 @@ class DatabaseImportManager:
             raise
         finally:
             self.disconnect()
+    
+    def parse_sql_dump(self, file_path: str) -> Dict:
+        """
+        Analisa um arquivo SQL dump e extrai estrutura das tabelas
+        
+        Args:
+            file_path: Caminho do arquivo SQL
+            
+        Returns:
+            Dict com schema das tabelas
+        """
+        import re
+        
+        schema = {}
+        current_table = None
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            
+            # Encontrar CREATE TABLE statements
+            create_table_pattern = r'CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?(\w+)["`]?\s*\((.*?)\);'
+            matches = re.finditer(create_table_pattern, content, re.IGNORECASE | re.DOTALL)
+            
+            for match in matches:
+                table_name = match.group(1)
+                columns_def = match.group(2)
+                
+                # Extrair colunas
+                columns = []
+                for line in columns_def.split(','):
+                    line = line.strip()
+                    if not line or line.upper().startswith(('PRIMARY', 'FOREIGN', 'UNIQUE', 'KEY', 'CONSTRAINT', 'INDEX')):
+                        continue
+                    
+                    # Parse: nome_coluna tipo [NULL|NOT NULL] [DEFAULT ...]
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        col_name = parts[0].strip('`"')
+                        col_type = parts[1].upper()
+                        
+                        # Normalizar tipos
+                        if 'INT' in col_type:
+                            col_type = 'integer'
+                        elif 'VARCHAR' in col_type or 'TEXT' in col_type or 'CHAR' in col_type:
+                            col_type = 'character varying'
+                        elif 'DECIMAL' in col_type or 'NUMERIC' in col_type:
+                            col_type = 'numeric'
+                        elif 'TIMESTAMP' in col_type or 'DATETIME' in col_type:
+                            col_type = 'timestamp without time zone'
+                        elif 'DATE' in col_type:
+                            col_type = 'date'
+                        elif 'BOOL' in col_type:
+                            col_type = 'boolean'
+                        
+                        columns.append({
+                            'column_name': col_name,
+                            'data_type': col_type,
+                            'is_nullable': 'NO' if 'NOT NULL' in line.upper() else 'YES'
+                        })
+                
+                if columns:
+                    schema[table_name] = {
+                        'columns': columns,
+                        'total_registros': 0  # Não temos como contar sem importar
+                    }
+            
+            logger.info(f"✅ SQL Dump parseado: {len(schema)} tabelas encontradas")
+            return schema
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao parsear SQL dump: {e}")
+            raise
+    
+    def parse_csv_file(self, file_path: str) -> Dict:
+        """
+        Analisa um arquivo CSV e cria schema baseado nas colunas
+        
+        Args:
+            file_path: Caminho do arquivo CSV
+            
+        Returns:
+            Dict com schema inferido
+        """
+        import csv
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                reader = csv.DictReader(f)
+                fieldnames = reader.fieldnames
+                
+                # Contar registros
+                rows = list(reader)
+                total_rows = len(rows)
+                
+                # Inferir tipos baseado nos valores
+                columns = []
+                for field in fieldnames:
+                    # Tentar detectar tipo
+                    sample_values = [row[field] for row in rows[:100] if row.get(field)]
+                    
+                    col_type = 'character varying'  # Default
+                    
+                    if sample_values:
+                        # Tentar detectar número
+                        if all(v.replace('.', '').replace('-', '').isdigit() for v in sample_values if v):
+                            col_type = 'numeric'
+                        # Tentar detectar inteiro
+                        elif all(v.replace('-', '').isdigit() for v in sample_values if v):
+                            col_type = 'integer'
+                        # Tentar detectar data
+                        elif any(v.count('-') == 2 or v.count('/') == 2 for v in sample_values if v):
+                            col_type = 'date'
+                    
+                    columns.append({
+                        'column_name': field,
+                        'data_type': col_type,
+                        'is_nullable': 'YES'
+                    })
+                
+                # Nome da tabela baseado no arquivo
+                table_name = file_path.split('/')[-1].split('\\')[-1].replace('.csv', '').replace(' ', '_').lower()
+                
+                schema = {
+                    table_name: {
+                        'columns': columns,
+                        'total_registros': total_rows
+                    }
+                }
+                
+                logger.info(f"✅ CSV parseado: {total_rows} registros")
+                return schema
+                
+        except Exception as e:
+            logger.error(f"❌ Erro ao parsear CSV: {e}")
+            raise
+    
+    def parse_json_file(self, file_path: str) -> Dict:
+        """
+        Analisa um arquivo JSON e cria schema baseado na estrutura
+        
+        Args:
+            file_path: Caminho do arquivo JSON
+            
+        Returns:
+            Dict com schema inferido
+        """
+        import json
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # Assumir que JSON é um dict de tabelas ou array de objetos
+            schema = {}
+            
+            if isinstance(data, dict):
+                # Formato: { "tabela1": [{...}, {...}], "tabela2": [...] }
+                for table_name, records in data.items():
+                    if isinstance(records, list) and records:
+                        columns = []
+                        first_record = records[0]
+                        
+                        for key, value in first_record.items():
+                            col_type = 'character varying'
+                            
+                            if isinstance(value, int):
+                                col_type = 'integer'
+                            elif isinstance(value, float):
+                                col_type = 'numeric'
+                            elif isinstance(value, bool):
+                                col_type = 'boolean'
+                            
+                            columns.append({
+                                'column_name': key,
+                                'data_type': col_type,
+                                'is_nullable': 'YES'
+                            })
+                        
+                        schema[table_name] = {
+                            'columns': columns,
+                            'total_registros': len(records)
+                        }
+            
+            elif isinstance(data, list) and data:
+                # Formato: [{...}, {...}] - Uma única tabela
+                table_name = file_path.split('/')[-1].split('\\')[-1].replace('.json', '').replace(' ', '_').lower()
+                columns = []
+                first_record = data[0]
+                
+                for key, value in first_record.items():
+                    col_type = 'character varying'
+                    
+                    if isinstance(value, int):
+                        col_type = 'integer'
+                    elif isinstance(value, float):
+                        col_type = 'numeric'
+                    elif isinstance(value, bool):
+                        col_type = 'boolean'
+                    
+                    columns.append({
+                        'column_name': key,
+                        'data_type': col_type,
+                        'is_nullable': 'YES'
+                    })
+                
+                schema[table_name] = {
+                    'columns': columns,
+                    'total_registros': len(data)
+                }
+            
+            logger.info(f"✅ JSON parseado: {len(schema)} tabela(s)")
+            return schema
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao parsear JSON: {e}")
+            raise
             
     def suggest_table_mapping(self, external_schema: Dict, internal_schema: Dict) -> List[Dict]:
         """

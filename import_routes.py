@@ -6,12 +6,97 @@ from flask import Blueprint, request, jsonify, session
 from database_import_manager import DatabaseImportManager
 from auth_middleware import require_permission
 from datetime import datetime
+from werkzeug.utils import secure_filename
 import logging
+import os
+import tempfile
+import json
+import csv
+import re
 
 logger = logging.getLogger(__name__)
 
 # Criar blueprint
 import_bp = Blueprint('import_db', __name__, url_prefix='/api/admin/import')
+
+# Configurações de upload
+ALLOWED_EXTENSIONS = {'sql', 'dump', 'backup', 'csv', 'json'}
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+
+def allowed_file(filename):
+    """Verifica se a extensão do arquivo é permitida"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@import_bp.route('/upload', methods=['POST'])
+@require_permission('admin')
+def upload_file():
+    """
+    Recebe arquivo de backup/dump e processa
+    
+    POST /api/admin/import/upload
+    Form-data: file, empresa_id
+    """
+    try:
+        # Validar arquivo
+        if 'file' not in request.files:
+            return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': f'Formato não suportado. Use: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
+        
+        # Validar tamanho
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({'error': 'Arquivo muito grande (máx: 100MB)'}), 400
+        
+        # Salvar arquivo temporariamente
+        filename = secure_filename(file.filename)
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, f"import_{session.get('usuario_id')}_{filename}")
+        file.save(temp_path)
+        
+        logger.info(f"Arquivo salvo temporariamente: {temp_path}")
+        
+        # Processar baseado na extensão
+        file_ext = filename.rsplit('.', 1)[1].lower()
+        
+        manager = DatabaseImportManager()
+        
+        if file_ext == 'sql' or file_ext == 'dump' or file_ext == 'backup':
+            # Processar dump SQL
+            schema = manager.parse_sql_dump(temp_path)
+        elif file_ext == 'csv':
+            # Processar CSV
+            schema = manager.parse_csv_file(temp_path)
+        elif file_ext == 'json':
+            # Processar JSON
+            schema = manager.parse_json_file(temp_path)
+        else:
+            return jsonify({'error': 'Formato não reconhecido'}), 400
+        
+        # Manter arquivo temporário para importação posterior
+        # Será deletado após a importação
+        
+        return jsonify({
+            'success': True,
+            'schema': schema,
+            'temp_file': temp_path,
+            'total_tabelas': len(schema),
+            'total_registros': sum(t.get('total_registros', 0) for t in schema.values())
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao processar arquivo: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @import_bp.route('/schema/externo', methods=['POST'])
