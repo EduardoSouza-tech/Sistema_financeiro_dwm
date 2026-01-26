@@ -3569,9 +3569,9 @@ function limparFiltrosExtrato() {
  */
 async function loadFuncionariosRH() {
     try {
-        console.log('👥 Carregando funcionários para dropdown...');
+        console.log('👥 Carregando funcionários RH...');
         
-        const response = await fetch('/api/rh/funcionarios', {
+        const response = await fetch('/api/funcionarios', {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' }
         });
@@ -3582,16 +3582,58 @@ async function loadFuncionariosRH() {
         
         const result = await response.json();
         
-        if (result.success && result.data) {
-            window.funcionarios = result.data;
-            console.log('✅ Funcionários RH carregados:', window.funcionarios.length);
-        } else {
-            window.funcionarios = [];
-            console.warn('⚠️ Nenhum funcionário encontrado');
+        // Normalizar resposta (pode vir como array, {success, data} ou {funcionarios})
+        let funcionarios = [];
+        if (Array.isArray(result)) {
+            funcionarios = result;
+        } else if (result.success && result.data) {
+            funcionarios = result.data;
+        } else if (result.funcionarios) {
+            funcionarios = result.funcionarios;
         }
+        
+        window.funcionarios = funcionarios;
+        console.log('✅ Funcionários carregados:', funcionarios.length);
+        
+        // Renderizar na tabela
+        const tbody = document.getElementById('tbody-funcionarios');
+        if (!tbody) {
+            console.warn('⚠️ Elemento tbody-funcionarios não encontrado');
+            return;
+        }
+        
+        if (funcionarios.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Nenhum funcionário cadastrado</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = funcionarios.map(func => `
+            <tr>
+                <td style="padding: 12px 15px;">${func.nome || ''}</td>
+                <td style="padding: 12px 15px;">${func.cpf || ''}</td>
+                <td style="padding: 12px 15px;">${func.endereco || ''}</td>
+                <td style="padding: 12px 15px;">${func.tipo_chave_pix || ''}</td>
+                <td style="padding: 12px 15px;">${func.chave_pix || ''}</td>
+                <td style="padding: 12px 15px;">
+                    <span class="badge ${func.ativo ? 'badge-success' : 'badge-danger'}">
+                        ${func.ativo ? 'Ativo' : 'Inativo'}
+                    </span>
+                </td>
+                <td style="padding: 12px 15px; text-align: center;">
+                    <button onclick="editarFuncionario(${func.id})" class="btn-icon" title="Editar">✏️</button>
+                    <button onclick="deletarFuncionario(${func.id})" class="btn-icon" title="Excluir">🗑️</button>
+                </td>
+            </tr>
+        `).join('');
+        
+        console.log('✅ Tabela de funcionários renderizada');
+        
     } catch (error) {
         console.error('❌ Erro ao carregar funcionários RH:', error);
-        window.funcionarios = [];
+        const tbody = document.getElementById('tbody-funcionarios');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: red;">Erro ao carregar funcionários</td></tr>';
+        }
     }
 }
 
