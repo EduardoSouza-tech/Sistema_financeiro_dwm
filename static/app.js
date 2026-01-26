@@ -3814,13 +3814,19 @@ async function loadContratos() {
             const dataInicio = contrato.data_inicio || contrato.data_contrato;
             const dataFormatada = dataInicio ? new Date(dataInicio).toLocaleDateString('pt-BR') : '-';
             
-            // DEBUG: Verificar valor_total
-            const valorTotal = contrato.valor_total || contrato.valor || 0;
+            // FORÇAR conversão para número antes de formatar
+            // valor vem como string "21000.00" do banco, precisa converter primeiro
+            const valorTotal = parseFloat(contrato.valor_total || contrato.valor || 0);
+            const valorMensal = parseFloat(contrato.valor_mensal || 0);
+            
             console.log(`📊 Contrato ${contrato.numero}:`, {
-                valor_total: contrato.valor_total,
-                valor: contrato.valor,
-                valorFinal: valorTotal,
-                tipo: typeof valorTotal
+                valor_total_raw: contrato.valor_total,
+                valor_raw: contrato.valor,
+                valor_mensal_raw: contrato.valor_mensal,
+                valorTotal_parsed: valorTotal,
+                valorMensal_parsed: valorMensal,
+                tipo_valorTotal: typeof valorTotal,
+                tipo_valor: typeof contrato.valor
             });
             
             tr.innerHTML = `
@@ -3828,7 +3834,7 @@ async function loadContratos() {
                 <td>${escapeHtml(contrato.cliente_nome || '-')}</td>
                 <td><span class="badge" style="background: #3498db; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${escapeHtml(contrato.tipo || '-')}</span></td>
                 <td>${escapeHtml(contrato.nome || contrato.descricao || '-')}</td>
-                <td>${formatarMoeda(contrato.valor_mensal || 0)}</td>
+                <td>${formatarMoeda(valorMensal)}</td>
                 <td style="text-align: center;">${contrato.quantidade_meses || '-'}</td>
                 <td style="font-weight: bold; color: #27ae60;">${formatarMoeda(valorTotal)}</td>
                 <td>${dataFormatada}</td>
