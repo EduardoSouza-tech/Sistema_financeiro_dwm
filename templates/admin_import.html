@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importação de Banco de Dados - Sistema Financeiro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #7f8c8d;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .mapping-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .mapping-table th,
+        .mapping-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .mapping-table th {
+            background: #2c3e50;
+            color: white;
+            font-weight: 600;
+        }
+
+        .mapping-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .score-high {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .score-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .score-low {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .status-concluido {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-erro {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-preparando {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #ecf0f1;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            <span>🔄</span>
+            Importação de Banco de Dados
+        </h1>
+        <p class="subtitle">Sistema inteligente de importação com mapeamento automático e rollback</p>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('nova')">➕ Nova Importação</button>
+            <button class="tab" onclick="switchTab('historico')">📊 Histórico</button>
+            <button class="tab" onclick="switchTab('mapeamentos')">🔗 Mapeamentos</button>
+        </div>
+
+        <!-- Tab: Nova Importação -->
+        <div id="tab-nova" class="tab-content active">
+            <div class="card">
+                <div class="card-title">1️⃣ Configuração do Banco de Dados Externo</div>
+                
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Host</label>
+                        <input type="text" id="ext-host" value="localhost" placeholder="localhost">
+                    </div>
+                    <div class="form-group">
+                        <label>Porta</label>
+                        <input type="number" id="ext-port" value="5432" placeholder="5432">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Banco de Dados</label>
+                        <input type="text" id="ext-database" placeholder="nome_do_banco">
+                    </div>
+                    <div class="form-group">
+                        <label>Usuário</label>
+                        <input type="text" id="ext-user" placeholder="postgres">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Senha</label>
+                    <input type="password" id="ext-password" placeholder="••••••••">
+                </div>
+
+                <button class="btn btn-primary" onclick="testConnection()">🔌 Testar Conexão e Obter Schema</button>
+            </div>
+
+            <div id="schema-result" style="display: none;">
+                <div class="card">
+                    <div class="card-title">2️⃣ Análise do Schema Externo</div>
+                    <div id="schema-info"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">3️⃣ Sugestões de Mapeamento Automático</div>
+                    <button class="btn btn-primary" onclick="generateMapping()">🤖 Gerar Mapeamento Automático</button>
+                    <div id="mapping-suggestions"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">4️⃣ Configuração da Importação</div>
+                    <div class="form-group">
+                        <label>Nome da Importação</label>
+                        <input type="text" id="import-name" placeholder="Ex: Importação Cliente XYZ - Janeiro 2026">
+                    </div>
+                    <div class="form-group">
+                        <label>Descrição</label>
+                        <textarea id="import-description" rows="3" placeholder="Descreva o objetivo desta importação"></textarea>
+                    </div>
+                    <button class="btn btn-success" onclick="executeImport()">▶️ Executar Importação</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Histórico -->
+        <div id="tab-historico" class="tab-content">
+            <div class="card">
+                <div class="card-title">Histórico de Importações</div>
+                <button class="btn btn-primary" onclick="loadHistory()">🔄 Atualizar</button>
+                <div id="history-list"></div>
+            </div>
+        </div>
+
+        <!-- Tab: Mapeamentos -->
+        <div id="tab-mapeamentos" class="tab-content">
+            <div class="card">
+                <div class="card-title">Gerenciar Mapeamentos</div>
+                <p>Visualize e edite mapeamentos salvos</p>
+                <div id="mappings-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let externalSchema = null;
+        let internalSchema = null;
+        let currentMappings = [];
+        let dbConfig = {};
+
+        // Alternar tabs
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        // Testar conexão e obter schema
+        async function testConnection() {
+            const host = document.getElementById('ext-host').value;
+            const port = document.getElementById('ext-port').value;
+            const database = document.getElementById('ext-database').value;
+            const user = document.getElementById('ext-user').value;
+            const password = document.getElementById('ext-password').value;
+
+            if (!host || !database || !user || !password) {
+                alert('Preencha todos os campos!');
+                return;
+            }
+
+            dbConfig = { host, port: parseInt(port), database, user, password };
+
+            try {
+                // Obter schema externo
+                const extResponse = await fetch('/api/admin/import/schema/externo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dbConfig),
+                    credentials: 'include'
+                });
+
+                if (!extResponse.ok) throw new Error('Erro ao conectar no banco externo');
+                const extData = await extResponse.json();
+                externalSchema = extData.schema;
+
+                // Obter schema interno
+                const intResponse = await fetch('/api/admin/import/schema/interno', {
+                    credentials: 'include'
+                });
+                const intData = await intResponse.json();
+                internalSchema = intData.schema;
+
+                // Mostrar resultado
+                document.getElementById('schema-result').style.display = 'block';
+                document.getElementById('schema-info').innerHTML = `
+                    <div class="alert alert-success">
+                        ✅ Conexão estabelecida com sucesso!<br>
+                        📊 Banco Externo: <strong>${extData.total_tabelas} tabelas</strong> com <strong>${extData.total_registros.toLocaleString('pt-BR')} registros</strong><br>
+                        🏠 Banco Interno: <strong>${intData.total_tabelas} tabelas</strong>
+                    </div>
+                `;
+
+            } catch (error) {
+                alert('Erro: ' + error.message);
+            }
+        }
+
+        // Gerar mapeamento automático
+        async function generateMapping() {
+            try {
+                const response = await fetch('/api/admin/import/sugestao-mapeamento', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        schema_externo: externalSchema,
+                        schema_interno: internalSchema
+                    }),
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                currentMappings = data.sugestoes;
+
+                // Renderizar sugestões
+                let html = `
+                    <table class="mapping-table">
+                        <thead>
+                            <tr>
+                                <th>Tabela Origem</th>
+                                <th>Tabela Destino</th>
+                                <th>Similaridade</th>
+                                <th>Registros</th>
+                                <th>Colunas</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                currentMappings.forEach((map, index) => {
+                    const scoreClass = map.score_similaridade >= 80 ? 'score-high' : 
+                                     map.score_similaridade >= 50 ? 'score-medium' : 'score-low';
+                    
+                    html += `
+                        <tr>
+                            <td><strong>${map.tabela_origem}</strong></td>
+                            <td><strong>${map.tabela_destino}</strong></td>
+                            <td><span class="score-badge ${scoreClass}">${map.score_similaridade}%</span></td>
+                            <td>${map.total_registros.toLocaleString('pt-BR')}</td>
+                            <td>${map.colunas_origem} → ${map.colunas_destino}</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="viewColumnMapping(${index})">Ver Colunas</button>
+                                <button class="btn btn-danger" onclick="removeMapping(${index})">Remover</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table>';
+                document.getElementById('mapping-suggestions').innerHTML = html;
+
+            } catch (error) {
+                alert('Erro ao gerar mapeamento: ' + error.message);
+            }
+        }
+
+        // Ver mapeamento de colunas
+        function viewColumnMapping(index) {
+            const mapping = currentMappings[index];
+            let html = `
+                <div style="margin-top: 20px;">
+                    <h3>Mapeamento de Colunas: ${mapping.tabela_origem} → ${mapping.tabela_destino}</h3>
+                    <table class="mapping-table">
+                        <thead>
+                            <tr>
+                                <th>Coluna Origem</th>
+                                <th>Coluna Destino</th>
+                                <th>Tipo Origem</th>
+                                <th>Tipo Destino</th>
+                                <th>Compatível</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            mapping.mapeamento_colunas.forEach(col => {
+                html += `
+                    <tr>
+                        <td>${col.coluna_origem}</td>
+                        <td>${col.coluna_destino}</td>
+                        <td><code>${col.tipo_origem}</code></td>
+                        <td><code>${col.tipo_destino}</code></td>
+                        <td>${col.compativel ? '✅' : '⚠️'}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table></div>';
+            
+            const modalDiv = document.createElement('div');
+            modalDiv.innerHTML = html;
+            modalDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); max-width: 90%; max-height: 80%; overflow: auto; z-index: 1000;';
+            
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999;';
+            overlay.onclick = () => {
+                document.body.removeChild(modalDiv);
+                document.body.removeChild(overlay);
+            };
+            
+            document.body.appendChild(overlay);
+            document.body.appendChild(modalDiv);
+        }
+
+        // Remover mapeamento
+        function removeMapping(index) {
+            if (confirm('Deseja remover este mapeamento?')) {
+                currentMappings.splice(index, 1);
+                generateMapping();
+            }
+        }
+
+        // Executar importação
+        async function executeImport() {
+            const name = document.getElementById('import-name').value;
+            const description = document.getElementById('import-description').value;
+
+            if (!name) {
+                alert('Digite um nome para a importação!');
+                return;
+            }
+
+            if (currentMappings.length === 0) {
+                alert('Gere os mapeamentos primeiro!');
+                return;
+            }
+
+            if (!confirm(`Confirma a importação?\n\n${currentMappings.length} tabelas serão importadas.\nEsta ação pode ser revertida posteriormente.`)) {
+                return;
+            }
+
+            try {
+                // Criar importação
+                const createResponse = await fetch('/api/admin/import/criar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nome: name,
+                        descricao: description,
+                        banco_origem: dbConfig.database,
+                        mapeamentos: currentMappings,
+                        db_config: dbConfig
+                    }),
+                    credentials: 'include'
+                });
+
+                const createData = await createResponse.json();
+                const importId = createData.import_id;
+
+                // Executar importação
+                const executeResponse = await fetch(`/api/admin/import/executar/${importId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ db_config: dbConfig }),
+                    credentials: 'include'
+                });
+
+                const executeData = await executeResponse.json();
+
+                if (executeData.success) {
+                    alert(`✅ Importação concluída!\n\n${executeData.registros_importados} registros importados\n${executeData.registros_erro} erros`);
+                    switchTab('historico');
+                    loadHistory();
+                } else {
+                    alert('❌ Erro na importação!');
+                }
+
+            } catch (error) {
+                alert('Erro: ' + error.message);
+            }
+        }
+
+        // Carregar histórico
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/admin/import/listar', {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                let html = '<table class="mapping-table"><thead><tr><th>Nome</th><th>Data</th><th>Status</th><th>Registros</th><th>Tempo</th><th>Ações</th></tr></thead><tbody>';
+
+                data.imports.forEach(imp => {
+                    const statusClass = imp.status.includes('concluido') ? 'status-concluido' : 
+                                      imp.status.includes('erro') ? 'status-erro' : 'status-preparando';
+                    
+                    html += `
+                        <tr>
+                            <td><strong>${imp.nome}</strong><br><small>${imp.descricao || ''}</small></td>
+                            <td>${new Date(imp.data_importacao).toLocaleString('pt-BR')}</td>
+                            <td><span class="status-badge ${statusClass}">${imp.status}</span></td>
+                            <td>${imp.registros_importados || 0} / ${imp.registros_erro || 0} erros</td>
+                            <td>${imp.tempo_execucao || 0}s</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="viewDetails(${imp.id})">Ver</button>
+                                ${imp.status === 'concluido' ? `<button class="btn btn-warning" onclick="rollbackImport(${imp.id})">Reverter</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table>';
+                document.getElementById('history-list').innerHTML = html;
+
+            } catch (error) {
+                alert('Erro ao carregar histórico: ' + error.message);
+            }
+        }
+
+        // Ver detalhes
+        async function viewDetails(importId) {
+            try {
+                const response = await fetch(`/api/admin/import/detalhes/${importId}`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                
+                alert(JSON.stringify(data, null, 2));
+            } catch (error) {
+                alert('Erro: ' + error.message);
+            }
+        }
+
+        // Reverter importação
+        async function rollbackImport(importId) {
+            if (!confirm('⚠️ ATENÇÃO!\n\nIsto irá reverter TODOS os dados importados!\n\nConfirma?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/import/reverter/${importId}`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ Importação revertida com sucesso!');
+                    loadHistory();
+                } else {
+                    alert('❌ Erro ao reverter importação!');
+                }
+            } catch (error) {
+                alert('Erro: ' + error.message);
+            }
+        }
+
+        // Carregar histórico ao abrir a tab
+        window.addEventListener('load', () => {
+            // Pode adicionar carregamento inicial aqui
+        });
+    </script>
+</body>
+</html>

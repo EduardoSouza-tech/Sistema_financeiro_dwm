@@ -4788,6 +4788,12 @@ def index():
     # Passa o timestamp de build para o template
     return render_template('interface_nova.html', build_timestamp=BUILD_TIMESTAMP)
 
+@app.route('/admin/import')
+@require_permission('admin')
+def admin_import_page():
+    """Página de importação de banco de dados"""
+    return render_template('admin_import.html')
+
 @app.route('/old')
 @require_auth
 def old_index():
@@ -7390,6 +7396,15 @@ def get_lazy_loading_summary():
 
 
 if __name__ == '__main__':
+    # Inicializar tabelas de importação
+    try:
+        from database_import_manager import DatabaseImportManager
+        import_manager = DatabaseImportManager()
+        import_manager.create_import_tables()
+        print("✅ Tabelas de importação inicializadas")
+    except Exception as e:
+        print(f"⚠️ Erro ao inicializar tabelas de importação: {e}")
+    
     # Ativar logging do Flask/Werkzeug
     import logging
     logging.basicConfig(level=logging.DEBUG)
