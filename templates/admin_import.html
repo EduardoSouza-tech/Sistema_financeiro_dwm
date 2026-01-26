@@ -606,6 +606,21 @@
                 });
                 const data = await response.json();
                 internalSchema = data.schema;
+                
+                // Debug: Log das colunas da tabela categorias
+                console.log('🔄 loadInternalSchema() executado');
+                if (internalSchema.categorias) {
+                    console.log('📋 Tabela CATEGORIAS - Colunas recebidas:', internalSchema.categorias.columns);
+                    console.log(`   Total de colunas: ${internalSchema.categorias.columns.length}`);
+                    const subcategorias = internalSchema.categorias.columns.find(col => col.name === 'subcategorias');
+                    if (subcategorias) {
+                        console.log('   ✅ Coluna subcategorias encontrada:', subcategorias);
+                    } else {
+                        console.warn('   ⚠️ Coluna subcategorias NÃO encontrada!');
+                    }
+                } else {
+                    console.error('   ❌ Tabela categorias NÃO encontrada no internalSchema!');
+                }
             } catch (error) {
                 console.error('Erro ao carregar schema interno:', error);
             }
