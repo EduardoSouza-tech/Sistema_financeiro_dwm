@@ -602,8 +602,8 @@ class DatabaseImportManager:
         score += name_similarity * 0.4
         
         # Similaridade de colunas (60% do score)
-        ext_cols = {col['column_name'].lower() for col in ext_info['columns']}
-        int_cols = {col['column_name'].lower() for col in int_info['columns']}
+        ext_cols = {col.get('name', col.get('column_name', '')).lower() for col in ext_info['columns'] if col.get('name') or col.get('column_name')}
+        int_cols = {col.get('name', col.get('column_name', '')).lower() for col in int_info['columns'] if col.get('name') or col.get('column_name')}
         
         if ext_cols and int_cols:
             common_cols = len(ext_cols & int_cols)
@@ -641,8 +641,8 @@ class DatabaseImportManager:
         """Sugere mapeamento de colunas"""
         mappings = []
         
-        ext_col_names = {col['column_name'].lower(): col for col in ext_cols}
-        int_col_names = {col['column_name'].lower(): col for col in int_cols}
+        ext_col_names = {col.get('name', col.get('column_name', '')).lower(): col for col in ext_cols if col.get('name') or col.get('column_name')}
+        int_col_names = {col.get('name', col.get('column_name', '')).lower(): col for col in int_cols if col.get('name') or col.get('column_name')}
         
         for ext_name, ext_col in ext_col_names.items():
             if ext_name in int_col_names:
@@ -667,13 +667,18 @@ class DatabaseImportManager:
                         best_match = int_col
                 
                 if best_match:
+                    ext_col_name = ext_col.get('name', ext_col.get('column_name', 'unknown'))
+                    int_col_name = best_match.get('name', best_match.get('column_name', 'unknown'))
+                    ext_col_type = ext_col.get('type', ext_col.get('data_type', 'unknown'))
+                    int_col_type = best_match.get('type', best_match.get('data_type', 'unknown'))
+                    
                     mappings.append({
-                        'coluna_origem': ext_col['column_name'],
-                        'coluna_destino': best_match['column_name'],
+                        'coluna_origem': ext_col_name,
+                        'coluna_destino': int_col_name,
                         'score': round(best_score * 100, 2),
-                        'tipo_origem': ext_col['data_type'],
-                        'tipo_destino': best_match['data_type'],
-                        'compativel': ext_col['data_type'] == best_match['data_type']
+                        'tipo_origem': ext_col_type,
+                        'tipo_destino': int_col_type,
+                        'compativel': ext_col_type == int_col_type
                     })
         
         return mappings
