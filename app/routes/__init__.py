@@ -56,11 +56,29 @@ def register_blueprints(app):
         print(f"⚠️  Blueprint 'agenda' não encontrado: {e}")
     
     try:
+        import sys
+        import os
+        # Adicionar o diretório raiz ao path se necessário
+        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        if root_dir not in sys.path:
+            sys.path.insert(0, root_dir)
+        
         from import_routes import import_bp
         app.register_blueprint(import_bp)
-        print("✅ Blueprint 'import' registrado")
+        print("✅ Blueprint 'import' registrado em /api/admin/import")
+        
+        # Listar rotas do blueprint
+        for rule in app.url_map.iter_rules():
+            if 'import' in rule.rule:
+                print(f"   📍 {rule.rule} - {list(rule.methods - {'HEAD', 'OPTIONS'})}")
     except ImportError as e:
         print(f"⚠️  Blueprint 'import' não encontrado: {e}")
+        import traceback
+        print(f"   Traceback: {traceback.format_exc()}")
+    except Exception as e:
+        print(f"❌ Erro ao registrar blueprint 'import': {e}")
+        import traceback
+        print(f"   Traceback: {traceback.format_exc()}")
     
     # Adicionar outros blueprints aqui conforme forem criados
     # from .clientes import clientes_bp
