@@ -647,13 +647,19 @@ class DatabaseImportManager:
         for ext_name, ext_col in ext_col_names.items():
             if ext_name in int_col_names:
                 # Match exato
+                ext_col_name = ext_col.get('name', ext_col.get('column_name', 'unknown'))
+                int_col = int_col_names[ext_name]
+                int_col_name = int_col.get('name', int_col.get('column_name', 'unknown'))
+                ext_col_type = ext_col.get('type', ext_col.get('data_type', 'unknown'))
+                int_col_type = int_col.get('type', int_col.get('data_type', 'unknown'))
+                
                 mappings.append({
-                    'coluna_origem': ext_col['column_name'],
-                    'coluna_destino': int_col_names[ext_name]['column_name'],
+                    'coluna_origem': ext_col_name,
+                    'coluna_destino': int_col_name,
                     'score': 100,
-                    'tipo_origem': ext_col['data_type'],
-                    'tipo_destino': int_col_names[ext_name]['data_type'],
-                    'compativel': ext_col['data_type'] == int_col_names[ext_name]['data_type']
+                    'tipo_origem': ext_col_type,
+                    'tipo_destino': int_col_type,
+                    'compativel': ext_col_type == int_col_type
                 })
             else:
                 # Procurar similar
