@@ -131,7 +131,9 @@ register_csrf_error_handlers(app)
 CSRF_EXEMPT_ROUTES = [
     '/api/auth/login',
     '/api/auth/logout',
-    '/api/auth/register'
+    '/api/auth/register',
+    '/api/admin/import/upload',  # Upload de arquivos (FormData)
+    '/api/admin/import/schema/interno'  # GET schema interno
 ]
 
 # Adicionar endpoints de debug APENAS em desenvolvimento
