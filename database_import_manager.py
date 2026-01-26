@@ -51,6 +51,7 @@ class DatabaseImportManager:
                     nome VARCHAR(255) NOT NULL,
                     descricao TEXT,
                     banco_origem VARCHAR(255),
+                    empresa_id INTEGER NOT NULL,
                     data_importacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     usuario_id INTEGER,
                     status VARCHAR(50) DEFAULT 'em_andamento',
@@ -59,7 +60,8 @@ class DatabaseImportManager:
                     registros_erro INTEGER DEFAULT 0,
                     tempo_execucao INTEGER,
                     hash_dados VARCHAR(64),
-                    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+                    FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+                    FOREIGN KEY (empresa_id) REFERENCES empresas(id)
                 )
             """)
             

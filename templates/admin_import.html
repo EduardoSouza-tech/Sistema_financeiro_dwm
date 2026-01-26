@@ -376,6 +376,24 @@
         let internalSchema = null;
         let currentMappings = [];
         let dbConfig = {};
+        let empresaId = null;
+        let empresaNome = '';
+
+        // Obter parâmetros da URL
+        window.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            empresaId = urlParams.get('empresa_id');
+            empresaNome = urlParams.get('empresa_nome');
+            
+            if (empresaId && empresaNome) {
+                // Atualizar título
+                const subtitle = document.querySelector('.subtitle');
+                subtitle.innerHTML = `🏢 Importando dados para: <strong style="color: #667eea;">${empresaNome}</strong> (ID: ${empresaId})`;
+            } else {
+                alert('⚠️ Nenhuma empresa selecionada! Retorne ao painel e selecione uma empresa.');
+                window.close();
+            }
+        });
 
         // Alternar tabs
         function switchTab(tab) {
@@ -566,7 +584,12 @@
                 return;
             }
 
-            if (!confirm(`Confirma a importação?\n\n${currentMappings.length} tabelas serão importadas.\nEsta ação pode ser revertida posteriormente.`)) {
+            if (!empresaId) {
+                alert('⚠️ Empresa não selecionada!');
+                return;
+            }
+
+            if (!confirm(`Confirma a importação para ${empresaNome}?\n\n${currentMappings.length} tabelas serão importadas.\nEsta ação pode ser revertida posteriormente.`)) {
                 return;
             }
 
@@ -579,6 +602,7 @@
                         nome: name,
                         descricao: description,
                         banco_origem: dbConfig.database,
+                        empresa_id: empresaId,
                         mapeamentos: currentMappings,
                         db_config: dbConfig
                     }),
@@ -586,6 +610,12 @@
                 });
 
                 const createData = await createResponse.json();
+                
+                if (!createData.success) {
+                    alert('❌ Erro ao criar importação: ' + (createData.error || 'Erro desconhecido'));
+                    return;
+                }
+                
                 const importId = createData.import_id;
 
                 // Executar importação
@@ -599,11 +629,11 @@
                 const executeData = await executeResponse.json();
 
                 if (executeData.success) {
-                    alert(`✅ Importação concluída!\n\n${executeData.registros_importados} registros importados\n${executeData.registros_erro} erros`);
+                    alert(`✅ Importação concluída para ${empresaNome}!\n\n${executeData.registros_importados} registros importados\n${executeData.registros_erro} erros`);
                     switchTab('historico');
                     loadHistory();
                 } else {
-                    alert('❌ Erro na importação!');
+                    alert('❌ Erro na importação: ' + (executeData.error || 'Erro desconhecido'));
                 }
 
             } catch (error) {

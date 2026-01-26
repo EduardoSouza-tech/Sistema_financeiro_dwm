@@ -1155,6 +1155,7 @@
                     <td><span class="badge ${statusBadge}">${company.ativo ? 'Ativo' : 'Inativo'}</span></td>
                     <td>
                         <button onclick="editCompany(${company.id})" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;">✏️ Editar</button>
+                        <button onclick="openImportForCompany(${company.id}, '${company.razao_social}')" class="btn" style="padding: 5px 10px; font-size: 12px; background: #9b59b6; color: white;">📥 Importar BD</button>
                         <button onclick="deleteCompany(${company.id})" class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;">🗑️ Excluir</button>
                     </td>
                 `;
@@ -1287,6 +1288,12 @@
                 console.error('==========================================');
                 showAlert('Erro ao carregar dados da empresa', 'error');
             }
+        }
+
+        // Abrir importação de BD para uma empresa
+        function openImportForCompany(empresaId, razaoSocial) {
+            // Abrir em nova aba passando o ID da empresa via URL
+            window.open(`/admin/import?empresa_id=${empresaId}&empresa_nome=${encodeURIComponent(razaoSocial)}`, '_blank');
         }
 
         // Excluir empresa

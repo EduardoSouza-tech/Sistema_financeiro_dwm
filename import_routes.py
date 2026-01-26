@@ -128,10 +128,13 @@ def create_import():
     try:
         data = request.json
         usuario_id = session.get('usuario_id')
+        empresa_id = session.get('empresa_id')
         
         # Validar campos obrigatórios
         if not data.get('nome'):
             return jsonify({'error': 'Nome da importação é obrigatório'}), 400
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não selecionada'}), 400
         
         manager = DatabaseImportManager()
         manager.connect()
@@ -139,13 +142,14 @@ def create_import():
         # Criar registro de importação
         manager.cursor.execute("""
             INSERT INTO import_historico 
-            (nome, descricao, banco_origem, usuario_id, status)
-            VALUES (%s, %s, %s, %s, %s)
+            (nome, descricao, banco_origem, empresa_id, usuario_id, status)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             data['nome'],
             data.get('descricao', ''),
             data.get('banco_origem', ''),
+            empresa_id,
             usuario_id,
             'preparando'
         ))
