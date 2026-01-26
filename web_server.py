@@ -4794,6 +4794,136 @@ def admin_import_page():
     """Página de importação de banco de dados"""
     return render_template('admin_import.html')
 
+# ============================================================================
+# ROTAS DE IMPORTAÇÃO DE BANCO DE DADOS
+# ============================================================================
+from werkzeug.utils import secure_filename
+from database_import_manager import DatabaseImportManager
+import tempfile
+import csv
+
+ALLOWED_EXTENSIONS = {'sql', 'dump', 'backup', 'csv', 'json', 'db', 'db-shm', 'db-wal', 'sqlite', 'sqlite3'}
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/api/admin/import/upload', methods=['POST'])
+@require_permission('admin')
+def upload_import_file():
+    """Upload e processamento de arquivo para importação"""
+    try:
+        logger.info("📥 Upload de arquivo iniciado")
+        
+        # Verificar se é upload múltiplo
+        multiple_files = request.files.getlist('files[]')
+        
+        if multiple_files:
+            logger.info(f"📁 Upload múltiplo: {len(multiple_files)} arquivos")
+            temp_dir = tempfile.gettempdir()
+            db_file_path = None
+            
+            for file in multiple_files:
+                if file.filename == '':
+                    continue
+                
+                if not allowed_file(file.filename):
+                    return jsonify({'error': f'Formato não suportado: {file.filename}'}), 400
+                
+                filename = secure_filename(file.filename)
+                temp_path = os.path.join(temp_dir, f"import_{session.get('usuario_id')}_{filename}")
+                file.save(temp_path)
+                
+                if filename.endswith('.db') or filename.endswith('.sqlite') or filename.endswith('.sqlite3'):
+                    db_file_path = temp_path
+                
+                logger.info(f"✅ Arquivo salvo: {temp_path}")
+            
+            if not db_file_path:
+                return jsonify({'error': 'Arquivo .db principal não encontrado'}), 400
+            
+            manager = DatabaseImportManager()
+            schema = manager.parse_sqlite_database(db_file_path)
+            
+            return jsonify({
+                'success': True,
+                'schema': schema,
+                'temp_file': db_file_path,
+                'total_tabelas': len(schema),
+                'total_registros': sum(t.get('total_registros', 0) for t in schema.values())
+            })
+        
+        # Upload único
+        if 'file' not in request.files:
+            return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': f'Formato não suportado. Use: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
+        
+        # Validar tamanho
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({'error': 'Arquivo muito grande (máx: 100MB)'}), 400
+        
+        filename = secure_filename(file.filename)
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, f"import_{session.get('usuario_id')}_{filename}")
+        file.save(temp_path)
+        
+        logger.info(f"✅ Arquivo salvo: {temp_path}")
+        
+        file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+        manager = DatabaseImportManager()
+        
+        if file_ext in ['sql', 'dump', 'backup']:
+            schema = manager.parse_sql_dump(temp_path)
+        elif file_ext == 'csv':
+            schema = manager.parse_csv_file(temp_path)
+        elif file_ext == 'json':
+            schema = manager.parse_json_file(temp_path)
+        elif file_ext in ['db', 'db-shm', 'db-wal', 'sqlite', 'sqlite3']:
+            schema = manager.parse_sqlite_database(temp_path)
+        else:
+            return jsonify({'error': 'Formato não reconhecido'}), 400
+        
+        return jsonify({
+            'success': True,
+            'schema': schema,
+            'temp_file': temp_path,
+            'total_tabelas': len(schema),
+            'total_registros': sum(t.get('total_registros', 0) for t in schema.values())
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Erro no upload: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/import/schema/interno', methods=['GET'])
+@require_permission('admin')
+def get_internal_schema():
+    """Obtém schema do banco interno"""
+    try:
+        manager = DatabaseImportManager()
+        schema = manager.get_internal_database_schema()
+        return jsonify({
+            'success': True,
+            'schema': schema,
+            'total_tabelas': len(schema)
+        })
+    except Exception as e:
+        logger.error(f"❌ Erro ao obter schema interno: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# ============================================================================
+
 @app.route('/old')
 @require_auth
 def old_index():
