@@ -188,13 +188,66 @@ def get_external_schema():
 @require_permission('admin')
 def get_internal_schema():
     """
-    Obtém schema do banco de dados interno
+    Obtém schema do banco de dados interno usando a mesma conexão do sistema
     
     GET /api/admin/import/schema/interno
     """
     try:
-        manager = DatabaseImportManager()
-        schema = manager.get_internal_database_schema()
+        from database_postgresql import get_db_connection
+        import psycopg2.extras
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Buscar todas as tabelas do schema public
+        cursor.execute("""
+            SELECT 
+                table_name,
+                (SELECT COUNT(*) FROM information_schema.columns 
+                 WHERE table_schema = 'public' AND table_name = t.table_name) as column_count
+            FROM information_schema.tables t
+            WHERE table_schema = 'public'
+            AND table_type = 'BASE TABLE'
+            ORDER BY table_name
+        """)
+        
+        tables = cursor.fetchall()
+        schema = {}
+        
+        for table in tables:
+            table_name = table['table_name']
+            
+            # Buscar colunas da tabela
+            cursor.execute("""
+                SELECT 
+                    column_name as name,
+                    data_type as type,
+                    is_nullable,
+                    column_default as default_value
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                AND table_name = %s
+                ORDER BY ordinal_position
+            """, (table_name,))
+            
+            columns = cursor.fetchall()
+            
+            # Contar registros (com timeout)
+            try:
+                cursor.execute(f"SELECT COUNT(*) as total FROM {table_name}")
+                count_result = cursor.fetchone()
+                total_registros = count_result['total'] if count_result else 0
+            except:
+                total_registros = 0
+            
+            schema[table_name] = {
+                'columns': [dict(col) for col in columns],
+                'total_registros': total_registros
+            }
+        
+        conn.close()
+        
+        logger.info(f"✅ Schema interno carregado: {len(schema)} tabelas")
         
         return jsonify({
             'success': True,
@@ -204,6 +257,8 @@ def get_internal_schema():
         
     except Exception as e:
         logger.error(f"❌ Erro ao obter schema interno: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
