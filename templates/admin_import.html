@@ -645,6 +645,18 @@
                 });
                 const intData = await intResponse.json();
                 internalSchema = intData.schema;
+                
+                // Debug: Log das colunas da tabela categorias
+                if (internalSchema.categorias) {
+                    console.log('📋 Tabela CATEGORIAS - Colunas recebidas:', internalSchema.categorias.columns);
+                    console.log(`   Total de colunas: ${internalSchema.categorias.columns.length}`);
+                    const subcategorias = internalSchema.categorias.columns.find(col => col.name === 'subcategorias');
+                    if (subcategorias) {
+                        console.log('   ✅ Coluna subcategorias encontrada:', subcategorias);
+                    } else {
+                        console.warn('   ⚠️ Coluna subcategorias NÃO encontrada!');
+                    }
+                }
 
                 // Mostrar resultado
                 document.getElementById('schema-result').style.display = 'block';

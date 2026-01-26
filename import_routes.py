@@ -233,6 +233,12 @@ def get_internal_schema():
             
             columns = cursor.fetchall()
             
+            # Debug: Log especial para tabela categorias
+            if table_name == 'categorias':
+                logger.info(f"📋 Tabela CATEGORIAS - Total de colunas: {len(columns)}")
+                for col in columns:
+                    logger.info(f"   - {col['name']}: {col['type']}")
+            
             # Contar registros (com timeout)
             try:
                 cursor.execute(f"SELECT COUNT(*) as total FROM {table_name}")
