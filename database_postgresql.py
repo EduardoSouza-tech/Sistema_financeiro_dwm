@@ -463,7 +463,7 @@ class DatabaseManager:
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(255) UNIQUE NOT NULL,
                 tipo VARCHAR(50) NOT NULL,
-                subcategorias TEXT,
+                subcategorias VARCHAR(255),
                 cor VARCHAR(7),
                 icone VARCHAR(50),
                 descricao TEXT,
