@@ -344,35 +344,40 @@ def create_import():
         manager = DatabaseImportManager()
         manager.connect()
         
-        # Criar registro de importação
-        manager.cursor.execute("""
-            INSERT INTO import_historico 
-            (nome, descricao, banco_origem, empresa_id, usuario_id, status)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (
-            data['nome'],
-            data.get('descricao', ''),
-            data.get('banco_origem', ''),
-            empresa_id,
-            usuario_id,
-            'preparando'
-        ))
-        
-        import_id = manager.cursor.fetchone()['id']
-        
-        # Salvar mapeamentos
-        if data.get('mapeamentos'):
-            manager.save_import_mapping(import_id, data['mapeamentos'])
-        
-        manager.conn.commit()
-        manager.disconnect()
-        
-        return jsonify({
-            'success': True,
-            'import_id': import_id,
-            'message': 'Importação criada com sucesso'
-        })
+        try:
+            # Criar registro de importação
+            manager.cursor.execute("""
+                INSERT INTO import_historico 
+                (nome, descricao, banco_origem, empresa_id, usuario_id, status)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                data['nome'],
+                data.get('descricao', ''),
+                data.get('banco_origem', ''),
+                empresa_id,
+                usuario_id,
+                'preparando'
+            ))
+            
+            import_id = manager.cursor.fetchone()['id']
+            
+            # Salvar mapeamentos (já faz commit internamente)
+            if data.get('mapeamentos'):
+                manager.save_import_mapping(import_id, data['mapeamentos'])
+            else:
+                # Se não tem mapeamentos, fazer commit aqui
+                manager.conn.commit()
+            
+            logger.info(f"✅ Importação criada: ID {import_id}")
+            
+            return jsonify({
+                'success': True,
+                'import_id': import_id,
+                'message': 'Importação criada com sucesso'
+            })
+        finally:
+            manager.disconnect()
         
     except Exception as e:
         logger.error(f"❌ Erro ao criar importação: {e}")

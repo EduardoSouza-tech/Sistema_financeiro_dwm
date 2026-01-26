@@ -702,7 +702,12 @@ class DatabaseImportManager:
             bool: Sucesso da operação
         """
         try:
-            self.connect()
+            # Não conectar se já estiver conectado
+            if not self.conn or self.conn.closed:
+                self.connect()
+                auto_disconnect = True
+            else:
+                auto_disconnect = False
             
             for idx, mapping in enumerate(mappings):
                 # Inserir mapeamento de tabela
@@ -737,11 +742,14 @@ class DatabaseImportManager:
             return True
             
         except Exception as e:
-            self.conn.rollback()
+            if self.conn:
+                self.conn.rollback()
             logger.error(f"❌ Erro ao salvar mapeamento: {e}")
             return False
         finally:
-            self.disconnect()
+            # Só desconectar se foi auto-conectado
+            if auto_disconnect:
+                self.disconnect()
     
     def create_import_record(self, empresa_id: int, usuario_id: int, fonte_tipo: str, 
                             mapeamentos: List[Dict], schema_externo: Dict) -> int:
