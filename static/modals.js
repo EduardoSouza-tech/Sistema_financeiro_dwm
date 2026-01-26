@@ -2041,6 +2041,20 @@ async function openModalContrato(contratoEdit = null) {
     const isEdit = contratoEdit !== null;
     const titulo = isEdit ? 'Editar Contrato' : 'Novo Contrato';
     
+    // Converter data para formato yyyy-MM-dd se necessário
+    let dataContratoFormatada = '';
+    if (isEdit && (contratoEdit.data_inicio || contratoEdit.data_contrato)) {
+        const dataRaw = contratoEdit.data_inicio || contratoEdit.data_contrato;
+        try {
+            const dataObj = new Date(dataRaw);
+            dataContratoFormatada = dataObj.toISOString().split('T')[0]; // yyyy-MM-dd
+            console.log('📅 Data convertida:', dataRaw, '→', dataContratoFormatada);
+        } catch (e) {
+            console.error('❌ Erro ao converter data:', e);
+            dataContratoFormatada = '';
+        }
+    }
+    
     // Opções de clientes
     const opcoesClientes = window.clientes && window.clientes.length > 0
         ? window.clientes.map(c => {
@@ -2129,22 +2143,22 @@ async function openModalContrato(contratoEdit = null) {
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
                 <div class="form-group">
                     <label>*Data Contrato:</label>
-                    <input type="date" id="contrato-data" required value="${isEdit && (contratoEdit.data_inicio || contratoEdit.data_contrato) ? (contratoEdit.data_inicio || contratoEdit.data_contrato).split('T')[0] : ''}">
+                    <input type="date" id="contrato-data" required value="${dataContratoFormatada}">
                 </div>
                 
                 <div class="form-group">
                     <label>Dia Pagamento:</label>
-                    <input type="number" id="contrato-dia-pagamento" min="1" max="31" placeholder="10" value="${isEdit ? contratoEdit.dia_pagamento || '' : ''}">
+                    <input type="number" id="contrato-dia-pagamento" min="1" max="31" placeholder="10" value="${isEdit && contratoEdit.dia_pagamento ? contratoEdit.dia_pagamento : ''}">
                 </div>
                 
                 <div class="form-group">
                     <label>Dia Emissão NF:</label>
-                    <input type="number" id="contrato-dia-nf" min="1" max="31" placeholder="3" value="${isEdit ? contratoEdit.dia_emissao_nf || '' : ''}">
+                    <input type="number" id="contrato-dia-nf" min="1" max="31" placeholder="3" value="${isEdit && contratoEdit.dia_emissao_nf ? contratoEdit.dia_emissao_nf : ''}">
                 </div>
                 
                 <div class="form-group">
                     <label>Imposto (%):</label>
-                    <input type="number" id="contrato-imposto" step="0.01" min="0" max="100" placeholder="10.00" value="${isEdit ? contratoEdit.imposto || contratoEdit.imposto_percentual || '' : ''}">
+                    <input type="number" id="contrato-imposto" step="0.01" min="0" max="100" placeholder="10.00" value="${isEdit && contratoEdit.imposto !== null && contratoEdit.imposto !== undefined ? contratoEdit.imposto : (isEdit && contratoEdit.imposto_percentual !== null && contratoEdit.imposto_percentual !== undefined ? contratoEdit.imposto_percentual : '')}">
                 </div>
             </div>
             
