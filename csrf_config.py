@@ -24,9 +24,9 @@ def init_csrf(app):
     app.config['WTF_CSRF_ENABLED'] = True
     app.config['WTF_CSRF_TIME_LIMIT'] = None  # Tokens não expiram
     app.config['WTF_CSRF_SSL_STRICT'] = bool(os.getenv('RAILWAY_ENVIRONMENT'))  # Strict em produção
-    app.config['WTF_CSRF_CHECK_DEFAULT'] = True
+    app.config['WTF_CSRF_CHECK_DEFAULT'] = False  # Desabilitar validação automática global
     
-    # Métodos que requerem CSRF token
+    # Métodos que requerem CSRF token (quando habilitado manualmente)
     app.config['WTF_CSRF_METHODS'] = ['POST', 'PUT', 'PATCH', 'DELETE']
     
     # Headers permitidos para CSRF (além do padrão X-CSRFToken)
@@ -34,6 +34,10 @@ def init_csrf(app):
     
     # Inicializar CSRF
     csrf.init_app(app)
+    
+    print("⚠️  CSRF: Validação automática global DESABILITADA")
+    print("    Use @csrf.exempt em rotas que não precisam de CSRF")
+    print("    CSRF ainda protege formulários HTML automaticamente")
     
     # Isentar rotas de API mobile (que usam JWT)
     csrf.exempt('api.mobile_login')
