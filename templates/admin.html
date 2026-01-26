@@ -592,9 +592,17 @@
                 <h2>🔧 Debug - Schema do Banco de Dados</h2>
                 <p style="color: #666; margin-bottom: 20px;">Visualize todas as tabelas e colunas do PostgreSQL</p>
                 
-                <button onclick="carregarSchema()" class="btn btn-primary" style="margin-bottom: 20px;">
-                    🔍 Carregar Schema Completo
-                </button>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button onclick="carregarSchema()" class="btn btn-primary">
+                        🔍 Carregar Schema Completo
+                    </button>
+                    
+                    <button onclick="fixSubcategoriasType()" class="btn" style="background: #ff9800; color: white;">
+                        🔧 Corrigir Tipo "subcategorias"
+                    </button>
+                </div>
+                
+                <div id="migrationResult" style="display: none; padding: 15px; border-radius: 5px; margin-bottom: 20px;"></div>
                 
                 <div id="schemaLoading" style="display: none; text-align: center; padding: 40px;">
                     <div class="spinner"></div>
@@ -2334,6 +2342,87 @@
                 console.error('Erro ao carregar schema:', error);
                 loading.style.display = 'none';
                 showAlert('Erro ao carregar schema do banco de dados', 'error');
+            }
+        }
+
+        // Corrigir tipo da coluna subcategorias
+        async function fixSubcategoriasType() {
+            const resultDiv = document.getElementById('migrationResult');
+            
+            // Confirmar ação
+            if (!confirm('🔧 Executar Migration?\n\nIsto irá alterar a coluna "subcategorias" de TEXT para VARCHAR(255) na tabela categorias.\n\nContinuar?')) {
+                return;
+            }
+            
+            // Mostrar loading
+            resultDiv.innerHTML = `
+                <div style="text-align: center;">
+                    <div class="spinner" style="margin: 0 auto 10px;"></div>
+                    <p>Executando migration...</p>
+                </div>
+            `;
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = '#fff3cd';
+            resultDiv.style.border = '2px solid #ffc107';
+            
+            try {
+                const response = await fetch('/api/debug/fix-subcategorias-type', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div style="color: #155724;">
+                            <h4 style="margin: 0 0 10px 0;">✅ ${data.message}</h4>
+                            <div style="font-family: monospace; font-size: 13px; background: white; padding: 10px; border-radius: 5px;">
+                                <strong>Tipo Antes:</strong> ${data.tipo_antes || 'N/A'} ${data.tamanho_antes ? `(${data.tamanho_antes})` : ''}<br>
+                                <strong>Tipo Depois:</strong> ${data.tipo_depois} (${data.tamanho_depois})
+                            </div>
+                            <p style="margin: 10px 0 0 0; font-size: 14px;">
+                                💡 <strong>Dica:</strong> Clique em "Carregar Schema Completo" para ver a atualização na tabela CATEGORIAS.
+                            </p>
+                        </div>
+                    `;
+                    resultDiv.style.background = '#d4edda';
+                    resultDiv.style.border = '2px solid #28a745';
+                    
+                    showAlert('Migration executada com sucesso!', 'success');
+                    
+                    // Auto-recarregar schema após 2 segundos
+                    setTimeout(() => {
+                        carregarSchema();
+                    }, 2000);
+                    
+                } else {
+                    resultDiv.innerHTML = `
+                        <div style="color: #721c24;">
+                            <h4 style="margin: 0 0 10px 0;">❌ Erro na Migration</h4>
+                            <p style="margin: 0; font-family: monospace; font-size: 13px; background: white; padding: 10px; border-radius: 5px;">
+                                ${data.error}
+                            </p>
+                        </div>
+                    `;
+                    resultDiv.style.background = '#f8d7da';
+                    resultDiv.style.border = '2px solid #dc3545';
+                    
+                    showAlert('Erro ao executar migration', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Erro ao executar migration:', error);
+                resultDiv.innerHTML = `
+                    <div style="color: #721c24;">
+                        <h4 style="margin: 0 0 10px 0;">❌ Erro de Conexão</h4>
+                        <p style="margin: 0;">${error.message}</p>
+                    </div>
+                `;
+                resultDiv.style.background = '#f8d7da';
+                resultDiv.style.border = '2px solid #dc3545';
+                
+                showAlert('Erro ao executar migration', 'error');
             }
         }
 
