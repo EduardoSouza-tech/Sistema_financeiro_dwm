@@ -2031,6 +2031,11 @@ async function openModalContrato(contratoEdit = null) {
         await loadClientes();
     }
     
+    // Carregar funcionários se necessário
+    if (!window.funcionarios || window.funcionarios.length === 0) {
+        await loadFuncionarios();
+    }
+    
     const isEdit = contratoEdit !== null;
     const titulo = isEdit ? 'Editar Contrato' : 'Novo Contrato';
     
@@ -2157,6 +2162,17 @@ async function openModalContrato(contratoEdit = null) {
         </form>
     `);
     
+    // Preencher comissões existentes se estiver editando
+    if (isEdit && contratoEdit.comissoes) {
+        setTimeout(() => {
+            if (Array.isArray(contratoEdit.comissoes)) {
+                contratoEdit.comissoes.forEach(com => {
+                    adicionarComissaoContrato(com);
+                });
+            }
+        }, 150);
+    }
+    
     // Calcular valor total inicial
     setTimeout(() => {
         atualizarCalculoContrato();
@@ -2213,17 +2229,26 @@ function atualizarCalculoContrato() {
     console.log('   ✅ Campo atualizado para:', campoTotal.value);
 }
 
-function adicionarComissaoContrato() {
+function adicionarComissaoContrato(dadosIniciais = null) {
     const container = document.getElementById('contrato-comissoes-list');
     if (!container) return;
     
-    const index = container.children.length;
+    const opcoesFuncionarios = window.funcionarios && window.funcionarios.length > 0
+        ? window.funcionarios.map(f => {
+            const selected = dadosIniciais && dadosIniciais.funcionario_id === f.id ? 'selected' : '';
+            return `<option value="${f.id}" ${selected}>${f.nome}</option>`;
+        }).join('')
+        : '<option value="">Nenhum funcionário</option>';
+    
     const div = document.createElement('div');
     div.className = 'comissao-item';
     div.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
     div.innerHTML = `
-        <input type="text" class="comissao-nome" placeholder="Nome do colaborador" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-        <input type="number" class="comissao-percentual" step="0.01" min="0" max="100" placeholder="4.25" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <select class="comissao-funcionario" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <option value="">Selecione...</option>
+            ${opcoesFuncionarios}
+        </select>
+        <input type="number" class="comissao-percentual" step="0.01" min="0" max="100" placeholder="4.25" value="${dadosIniciais ? dadosIniciais.percentual || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
         <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm btn-danger" style="padding: 8px 12px;">🗑️</button>
     `;
     container.appendChild(div);
@@ -2243,11 +2268,11 @@ async function salvarContrato(event) {
     // Coletar comissões
     const comissoes = [];
     document.querySelectorAll('.comissao-item').forEach(item => {
-        const nome = item.querySelector('.comissao-nome').value;
+        const funcionario_id = item.querySelector('.comissao-funcionario').value;
         const percentual = item.querySelector('.comissao-percentual').value;
-        if (nome && percentual) {
+        if (funcionario_id && percentual) {
             comissoes.push({
-                nome: nome,
+                funcionario_id: parseInt(funcionario_id),
                 percentual: parseFloat(percentual)
             });
         }
