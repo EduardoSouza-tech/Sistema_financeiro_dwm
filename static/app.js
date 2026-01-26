@@ -4135,7 +4135,7 @@ function showContratoTab(tabName) {
     console.log('📑 Alternando para tab:', tabName);
     
     // Ocultar todos os conteúdos
-    const contents = ['contratos', 'sessoes', 'comissoes', 'equipe'];
+    const contents = ['resumo', 'contratos', 'sessoes', 'comissoes', 'equipe'];
     contents.forEach(name => {
         const content = document.getElementById(`tab-content-${name}`);
         if (content) content.style.display = 'none';
@@ -4165,6 +4165,9 @@ function showContratoTab(tabName) {
     
     // Carregar dados da tab
     switch(tabName) {
+        case 'resumo':
+            loadResumoContratos();
+            break;
         case 'contratos':
             loadContratos();
             break;
@@ -4196,6 +4199,314 @@ function openModalSessaoEquipe() {
 function exportarContratosPDF() {
     showToast('Exportação de contratos para PDF em desenvolvimento', 'info');
 }
+
+// ============================================================================
+// RESUMO E ANÁLISE DE CONTRATOS
+// ============================================================================
+
+let chartContratosLucro = null; // Armazena instância do gráfico
+
+async function loadResumoContratos() {
+    try {
+        console.log('📊 Carregando resumo de contratos...');
+        
+        // Carregar contratos e sessões
+        const [contratosRes, sessoesRes] = await Promise.all([
+            fetch(`${API_URL}/contratos`),
+            fetch(`${API_URL}/sessoes`)
+        ]);
+        
+        const contratos = await contratosRes.json();
+        const sessoes = await sessoesRes.json();
+        
+        console.log('📦 Contratos:', contratos.length);
+        console.log('📦 Sessões:', sessoes.length);
+        
+        // Calcular análise
+        const analise = calcularAnaliseContratos(contratos, sessoes);
+        
+        // Atualizar KPIs
+        atualizarKPIs(analise);
+        
+        // Renderizar tabela
+        renderizarTabelaResumo(analise.contratos);
+        
+        // Renderizar gráfico
+        renderizarGraficoLucro(analise.contratos);
+        
+        console.log('✅ Resumo carregado com sucesso');
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar resumo:', error);
+        showToast('Erro ao carregar análise de contratos', 'error');
+    }
+}
+
+function calcularAnaliseContratos(contratos, sessoes) {
+    let receitaTotal = 0;
+    let custosTotal = 0;
+    let impostosTotal = 0;
+    let comissoesTotal = 0;
+    let custosSessoesTotal = 0;
+    
+    const contratosAnalise = contratos.map(contrato => {
+        // Receita bruta do contrato
+        const receitaBruta = parseFloat(contrato.valor_total) || 0;
+        
+        // Impostos
+        const percentualImposto = parseFloat(contrato.imposto) || 0;
+        const valorImpostos = receitaBruta * (percentualImposto / 100);
+        
+        // Comissões
+        const valorComissoes = parseFloat(contrato.comissoes) || 0;
+        
+        // Buscar sessões do contrato
+        const sessoesContrato = sessoes.filter(s => s.contrato_id === contrato.id || s.contrato_numero === contrato.numero);
+        
+        // Calcular custos das sessões
+        let custosSessoes = 0;
+        sessoesContrato.forEach(sessao => {
+            custosSessoes += parseFloat(sessao.custo_equipe) || 0;
+            custosSessoes += parseFloat(sessao.custo_equipamentos) || 0;
+            custosSessoes += parseFloat(sessao.custos_adicionais) || 0;
+        });
+        
+        // Receita líquida
+        const receitaLiquida = receitaBruta - valorImpostos - valorComissoes;
+        
+        // Resultado (lucro ou prejuízo)
+        const resultado = receitaLiquida - custosSessoes;
+        
+        // Margem
+        const margem = receitaBruta > 0 ? (resultado / receitaBruta) * 100 : 0;
+        
+        // Acumular totais
+        receitaTotal += receitaBruta;
+        impostosTotal += valorImpostos;
+        comissoesTotal += valorComissoes;
+        custosSessoesTotal += custosSessoes;
+        custosTotal += (valorImpostos + valorComissoes + custosSessoes);
+        
+        return {
+            ...contrato,
+            receitaBruta,
+            valorImpostos,
+            valorComissoes,
+            custosSessoes,
+            receitaLiquida,
+            resultado,
+            margem,
+            numSessoes: sessoesContrato.length
+        };
+    });
+    
+    const lucroLiquido = receitaTotal - custosTotal;
+    const margemLucro = receitaTotal > 0 ? (lucroLiquido / receitaTotal) * 100 : 0;
+    
+    return {
+        contratos: contratosAnalise,
+        totais: {
+            receitaTotal,
+            custosTotal,
+            impostosTotal,
+            comissoesTotal,
+            custosSessoesTotal,
+            receitaLiquidaTotal: receitaTotal - impostosTotal - comissoesTotal,
+            lucroLiquido,
+            margemLucro
+        }
+    };
+}
+
+function atualizarKPIs(analise) {
+    const { totais } = analise;
+    
+    document.getElementById('kpi-receita-total').textContent = 
+        `R$ ${totais.receitaTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    
+    document.getElementById('kpi-custos-totais').textContent = 
+        `R$ ${totais.custosTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    
+    const lucroElement = document.getElementById('kpi-lucro-liquido');
+    lucroElement.textContent = 
+        `R$ ${totais.lucroLiquido.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    lucroElement.parentElement.style.background = totais.lucroLiquido >= 0 
+        ? 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+        : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
+    
+    const margemElement = document.getElementById('kpi-margem-lucro');
+    margemElement.textContent = `${totais.margemLucro.toFixed(1)}%`;
+    margemElement.parentElement.style.background = totais.margemLucro >= 20 
+        ? 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+        : totais.margemLucro >= 0
+        ? 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+        : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
+}
+
+function renderizarTabelaResumo(contratos) {
+    const tbody = document.getElementById('tbody-resumo-contratos');
+    tbody.innerHTML = '';
+    
+    let totais = {
+        receitaBruta: 0,
+        impostos: 0,
+        comissoes: 0,
+        custosSessoes: 0,
+        receitaLiquida: 0,
+        resultado: 0
+    };
+    
+    contratos.forEach(contrato => {
+        const tr = document.createElement('tr');
+        
+        const statusClass = contrato.resultado >= 0 ? 'success' : 'danger';
+        const statusIcon = contrato.resultado >= 0 ? '📈' : '📉';
+        const statusText = contrato.resultado >= 0 ? 'LUCRO' : 'PREJUÍZO';
+        const statusColor = contrato.resultado >= 0 ? '#27ae60' : '#e74c3c';
+        
+        tr.innerHTML = `
+            <td style="padding: 12px 15px;">${contrato.numero || '-'}</td>
+            <td style="padding: 12px 15px;">${contrato.cliente_nome || '-'}</td>
+            <td style="padding: 12px 15px; text-align: right; font-weight: 600;">
+                R$ ${contrato.receitaBruta.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+            </td>
+            <td style="padding: 12px 15px; text-align: right; color: #e74c3c;">
+                R$ ${contrato.valorImpostos.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+            </td>
+            <td style="padding: 12px 15px; text-align: right; color: #e74c3c;">
+                R$ ${contrato.valorComissoes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+            </td>
+            <td style="padding: 12px 15px; text-align: right; color: #e74c3c;">
+                R$ ${contrato.custosSessoes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+            </td>
+            <td style="padding: 12px 15px; text-align: right; font-weight: 600; color: #3498db;">
+                R$ ${contrato.receitaLiquida.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+            </td>
+            <td style="padding: 12px 15px; text-align: right; font-weight: 700; font-size: 15px; color: ${statusColor};">
+                R$ ${contrato.resultado.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+            </td>
+            <td style="padding: 12px 15px; text-align: center;">
+                <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700;">
+                    ${statusIcon} ${statusText}
+                </span>
+            </td>
+        `;
+        
+        tbody.appendChild(tr);
+        
+        // Acumular totais
+        totais.receitaBruta += contrato.receitaBruta;
+        totais.impostos += contrato.valorImpostos;
+        totais.comissoes += contrato.valorComissoes;
+        totais.custosSessoes += contrato.custosSessoes;
+        totais.receitaLiquida += contrato.receitaLiquida;
+        totais.resultado += contrato.resultado;
+    });
+    
+    // Atualizar rodapé com totais
+    document.getElementById('total-receita-bruta').textContent = 
+        `R$ ${totais.receitaBruta.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+    document.getElementById('total-impostos').textContent = 
+        `R$ ${totais.impostos.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+    document.getElementById('total-comissoes').textContent = 
+        `R$ ${totais.comissoes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+    document.getElementById('total-custos-sessoes').textContent = 
+        `R$ ${totais.custosSessoes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+    document.getElementById('total-receita-liquida').textContent = 
+        `R$ ${totais.receitaLiquida.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+    
+    const totalResultadoEl = document.getElementById('total-resultado');
+    totalResultadoEl.textContent = 
+        `R$ ${totais.resultado.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+    totalResultadoEl.style.color = totais.resultado >= 0 ? '#27ae60' : '#e74c3c';
+}
+
+function renderizarGraficoLucro(contratos) {
+    const ctx = document.getElementById('chart-contratos-lucro');
+    if (!ctx) return;
+    
+    // Destruir gráfico anterior se existir
+    if (chartContratosLucro) {
+        chartContratosLucro.destroy();
+    }
+    
+    // Preparar dados
+    const labels = contratos.map(c => c.numero || c.nome || 'Sem nome');
+    const receitas = contratos.map(c => c.receitaBruta);
+    const custos = contratos.map(c => c.valorImpostos + c.valorComissoes + c.custosSessoes);
+    const lucros = contratos.map(c => c.resultado);
+    
+    // Criar gráfico
+    chartContratosLucro = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Receita Bruta',
+                    data: receitas,
+                    backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    borderWidth: 2
+                },
+                {
+                    label: 'Custos Totais',
+                    data: custos,
+                    backgroundColor: 'rgba(231, 76, 60, 0.8)',
+                    borderColor: 'rgba(231, 76, 60, 1)',
+                    borderWidth: 2
+                },
+                {
+                    label: 'Resultado',
+                    data: lucros,
+                    backgroundColor: lucros.map(v => v >= 0 ? 'rgba(39, 174, 96, 0.8)' : 'rgba(231, 76, 60, 0.8)'),
+                    borderColor: lucros.map(v => v >= 0 ? 'rgba(39, 174, 96, 1)' : 'rgba(231, 76, 60, 1)'),
+                    borderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: {
+                            size: 12,
+                            weight: 'bold'
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += 'R$ ' + context.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'R$ ' + value.toLocaleString('pt-BR', {minimumFractionDigits: 0});
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Expor função globalmente
+window.loadResumoContratos = loadResumoContratos;
 
 // ============================================================================
 // EXPOSIÇÃO GLOBAL DE FUNÇÕES CRÍTICAS
