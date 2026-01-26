@@ -4303,8 +4303,8 @@ function calcularAnaliseContratos(contratos, sessoes) {
     const contratosAnalise = contratos.map((contrato, index) => {
         console.log(`   📋 Analisando contrato ${index + 1}/${contratos.length}:`, contrato.numero || contrato.nome);
         
-        // Receita bruta do contrato
-        const receitaBruta = parseFloat(contrato.valor_total) || 0;
+        // Receita bruta do contrato - USAR 'valor' em vez de 'valor_total'
+        const receitaBruta = parseFloat(contrato.valor) || 0;
         console.log(`      💰 Receita Bruta: R$ ${receitaBruta}`);
         
         // Impostos
@@ -4312,8 +4312,13 @@ function calcularAnaliseContratos(contratos, sessoes) {
         const valorImpostos = receitaBruta * (percentualImposto / 100);
         console.log(`      📊 Imposto ${percentualImposto}%: R$ ${valorImpostos}`);
         
-        // Comissões
-        const valorComissoes = parseFloat(contrato.comissoes) || 0;
+        // Comissões - pode ser array ou valor direto
+        let valorComissoes = 0;
+        if (Array.isArray(contrato.comissoes)) {
+            valorComissoes = contrato.comissoes.reduce((sum, com) => sum + (parseFloat(com.valor) || 0), 0);
+        } else {
+            valorComissoes = parseFloat(contrato.comissoes) || 0;
+        }
         console.log(`      💸 Comissões: R$ ${valorComissoes}`);
         
         // Buscar sessões do contrato
@@ -4327,9 +4332,31 @@ function calcularAnaliseContratos(contratos, sessoes) {
         // Calcular custos das sessões
         let custosSessoes = 0;
         sessoesContrato.forEach((sessao, idx) => {
-            const custoEquipe = parseFloat(sessao.custo_equipe) || 0;
-            const custoEquip = parseFloat(sessao.custo_equipamentos) || 0;
-            const custoAd = parseFloat(sessao.custos_adicionais) || 0;
+            let custoEquipe = 0;
+            let custoEquip = 0;
+            let custoAd = 0;
+            
+            // Custo da equipe - VERIFICAR dados_json.equipe[].pagamento
+            if (sessao.dados_json && sessao.dados_json.equipe) {
+                custoEquipe = sessao.dados_json.equipe.reduce((sum, membro) => 
+                    sum + (parseFloat(membro.pagamento) || 0), 0);
+            } else if (sessao.equipe && Array.isArray(sessao.equipe)) {
+                custoEquipe = sessao.equipe.reduce((sum, membro) => 
+                    sum + (parseFloat(membro.pagamento) || 0), 0);
+            }
+            
+            // Equipamentos alugados
+            if (sessao.equipamentos_alugados && Array.isArray(sessao.equipamentos_alugados)) {
+                custoEquip = sessao.equipamentos_alugados.reduce((sum, equip) => 
+                    sum + (parseFloat(equip.valor) || 0), 0);
+            }
+            
+            // Custos adicionais
+            if (sessao.custos_adicionais && Array.isArray(sessao.custos_adicionais)) {
+                custoAd = sessao.custos_adicionais.reduce((sum, custo) => 
+                    sum + (parseFloat(custo.valor) || 0), 0);
+            }
+            
             const totalSessao = custoEquipe + custoEquip + custoAd;
             
             console.log(`         Sessão ${idx + 1}: Equipe=${custoEquipe}, Equipamentos=${custoEquip}, Adicionais=${custoAd}, Total=${totalSessao}`);
