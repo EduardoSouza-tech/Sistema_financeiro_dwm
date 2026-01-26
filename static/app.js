@@ -4241,10 +4241,16 @@ async function loadResumoContratos() {
         
         if (contratos.length > 0) {
             console.log('📋 Primeiro contrato:', contratos[0]);
+            console.log('📋 ESTRUTURA COMPLETA DO CONTRATO:');
+            console.log('   🔑 Campos disponíveis:', Object.keys(contratos[0]));
+            console.log('   📝 Valores:', JSON.stringify(contratos[0], null, 2));
         }
         
         if (sessoes.length > 0) {
             console.log('📋 Primeira sessão:', sessoes[0]);
+            console.log('📋 ESTRUTURA COMPLETA DA SESSÃO:');
+            console.log('   🔑 Campos disponíveis:', Object.keys(sessoes[0]));
+            console.log('   📝 Valores:', JSON.stringify(sessoes[0], null, 2));
         }
         
         // Calcular análise
