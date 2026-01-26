@@ -1189,22 +1189,37 @@
             const mappings = [];
             const mappingsDiv = document.getElementById('manual-mappings');
             
-            if (!mappingsDiv) return [];
+            console.log('📋 collectManualMappings() iniciado');
+            if (!mappingsDiv) {
+                console.log('   ❌ mappingsDiv não encontrado');
+                return [];
+            }
 
             for (let i = 1; i <= manualMappingCounter; i++) {
                 const extTableSelect = document.getElementById(`ext-table-${i}`);
                 const intTableSelect = document.getElementById(`int-table-${i}`);
                 
-                if (!extTableSelect || !intTableSelect) continue;
+                console.log(`   Mapeamento #${i}:`);
+                if (!extTableSelect || !intTableSelect) {
+                    console.log(`      ⚠️ Selects não encontrados`);
+                    continue;
+                }
 
                 const extTable = extTableSelect.value;
                 const intTable = intTableSelect.value;
+                
+                console.log(`      ext: ${extTable}, int: ${intTable}`);
 
-                if (!extTable || !intTable) continue;
+                if (!extTable || !intTable) {
+                    console.log(`      ⚠️ Tabelas não selecionadas`);
+                    continue;
+                }
 
                 // Coletar mapeamentos de colunas
                 const columns = [];
-                const extColumns = externalSchema[extTable].columns;
+                const extColumns = externalSchema[extTable]?.columns || [];
+                
+                console.log(`      Colunas externas: ${extColumns.length}`);
                 
                 extColumns.forEach((extCol, index) => {
                     const colSelect = document.getElementById(`col-map-${i}-${index}`);
@@ -1217,15 +1232,18 @@
                     }
                 });
 
-                if (columns.length > 0) {
-                    mappings.push({
-                        tabela_origem: extTable,
-                        tabela_destino: intTable,
-                        colunas: columns
-                    });
-                }
+                console.log(`      Colunas mapeadas: ${columns.length}`);
+
+                // Adicionar mesmo se não tiver mapeamento de colunas (importa tudo)
+                mappings.push({
+                    tabela_origem: extTable,
+                    tabela_destino: intTable,
+                    colunas: columns,
+                    importar_todas: columns.length === 0  // Flag para importar todas as colunas
+                });
             }
 
+            console.log(`✅ Total de mapeamentos coletados: ${mappings.length}`);
             return mappings;
         }
 
