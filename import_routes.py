@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 import_bp = Blueprint('import_db', __name__, url_prefix='/api/admin/import')
 
 # Configurações de upload
-ALLOWED_EXTENSIONS = {'sql', 'dump', 'backup', 'csv', 'json'}
+ALLOWED_EXTENSIONS = {'sql', 'dump', 'backup', 'csv', 'json', 'db', 'db-shm', 'db-wal', 'sqlite', 'sqlite3'}
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 
 def allowed_file(filename):
@@ -32,13 +32,56 @@ def allowed_file(filename):
 @require_permission('admin')
 def upload_file():
     """
-    Recebe arquivo de backup/dump e processa
+    Recebe arquivo(s) de backup/dump e processa
     
     POST /api/admin/import/upload
-    Form-data: file, empresa_id
+    Form-data: file ou files[], empresa_id
     """
     try:
-        # Validar arquivo
+        # Verificar se é upload múltiplo (SQLite com .db-shm e .db-wal)
+        multiple_files = request.files.getlist('files[]')
+        
+        if multiple_files:
+            # Upload múltiplo (SQLite completo)
+            logger.info(f"Upload múltiplo: {len(multiple_files)} arquivos")
+            
+            # Salvar todos os arquivos
+            temp_dir = tempfile.gettempdir()
+            db_file_path = None
+            
+            for file in multiple_files:
+                if file.filename == '':
+                    continue
+                
+                if not allowed_file(file.filename):
+                    return jsonify({'error': f'Formato não suportado: {file.filename}'}), 400
+                
+                filename = secure_filename(file.filename)
+                temp_path = os.path.join(temp_dir, f"import_{session.get('usuario_id')}_{filename}")
+                file.save(temp_path)
+                
+                # Identificar o arquivo .db principal
+                if filename.endswith('.db') or filename.endswith('.sqlite') or filename.endswith('.sqlite3'):
+                    db_file_path = temp_path
+                
+                logger.info(f"Arquivo salvo: {temp_path}")
+            
+            if not db_file_path:
+                return jsonify({'error': 'Arquivo .db principal não encontrado'}), 400
+            
+            # Processar o banco SQLite
+            manager = DatabaseImportManager()
+            schema = manager.parse_sqlite_database(db_file_path)
+            
+            return jsonify({
+                'success': True,
+                'schema': schema,
+                'temp_file': db_file_path,
+                'total_tabelas': len(schema),
+                'total_registros': sum(t.get('total_registros', 0) for t in schema.values())
+            })
+        
+        # Upload único (padrão)
         if 'file' not in request.files:
             return jsonify({'error': 'Nenhum arquivo enviado'}), 400
         
@@ -67,7 +110,7 @@ def upload_file():
         logger.info(f"Arquivo salvo temporariamente: {temp_path}")
         
         # Processar baseado na extensão
-        file_ext = filename.rsplit('.', 1)[1].lower()
+        file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
         
         manager = DatabaseImportManager()
         
@@ -80,6 +123,9 @@ def upload_file():
         elif file_ext == 'json':
             # Processar JSON
             schema = manager.parse_json_file(temp_path)
+        elif file_ext in ['db', 'db-shm', 'db-wal', 'sqlite', 'sqlite3']:
+            # Processar SQLite
+            schema = manager.parse_sqlite_database(temp_path)
         else:
             return jsonify({'error': 'Formato não reconhecido'}), 400
         

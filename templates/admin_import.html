@@ -313,10 +313,13 @@
                     <div style="padding: 20px; background: #f0f4ff; border-radius: 8px; border: 2px dashed #667eea; text-align: center;">
                         <p style="margin-bottom: 15px; color: #2c3e50;">
                             <strong>📤 Envie um arquivo de backup do banco de dados</strong><br>
-                            <span style="font-size: 13px; color: #7f8c8d;">Formatos suportados: .sql, .dump, .backup, .csv, .json (até 100MB)</span>
+                            <span style="font-size: 13px; color: #7f8c8d;">Formatos suportados: .sql, .dump, .backup, .csv, .json, .db, .sqlite (até 100MB)</span>
                         </p>
-                        <input type="file" id="file-input" accept=".sql,.dump,.backup,.csv,.json" 
-                               style="display: none;" onchange="handleFileSelect(event)">
+                        <div style="background: #fff3cd; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px; color: #856404;">
+                            💡 <strong>Dica SQLite:</strong> Se você tem arquivos .db-shm e .db-wal, envie-os também para garantir consistência dos dados.
+                        </div>
+                        <input type="file" id="file-input" accept=".sql,.dump,.backup,.csv,.json,.db,.sqlite,.sqlite3,.db-shm,.db-wal"
+                               style="display: none;" onchange="handleFileSelect(event)" multiple>
                         <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
                             📎 Selecionar Arquivo
                         </button>
@@ -465,22 +468,48 @@
 
         // Manipular seleção de arquivo
         function handleFileSelect(event) {
-            selectedFile = event.target.files[0];
+            const files = event.target.files;
             
-            if (!selectedFile) return;
+            if (!files || files.length === 0) return;
             
-            // Validar tamanho (100MB)
-            const maxSize = 100 * 1024 * 1024;
-            if (selectedFile.size > maxSize) {
-                alert('⚠️ Arquivo muito grande! Tamanho máximo: 100MB');
-                selectedFile = null;
-                return;
+            // Se múltiplos arquivos (SQLite com .db-shm e .db-wal)
+            if (files.length > 1) {
+                // Verificar se tem .db principal
+                const hasDbFile = Array.from(files).some(f => 
+                    f.name.endsWith('.db') || f.name.endsWith('.sqlite') || f.name.endsWith('.sqlite3')
+                );
+                
+                if (!hasDbFile) {
+                    alert('⚠️ Ao enviar múltiplos arquivos, é necessário incluir o arquivo .db principal!');
+                    return;
+                }
+                
+                // Usar o .db como principal
+                selectedFile = Array.from(files).find(f => 
+                    f.name.endsWith('.db') || f.name.endsWith('.sqlite') || f.name.endsWith('.sqlite3')
+                );
+                
+                const totalSize = Array.from(files).reduce((sum, f) => sum + f.size, 0);
+                
+                document.getElementById('file-name').textContent = `${files.length} arquivos: ${Array.from(files).map(f => f.name).join(', ')}`;
+                document.getElementById('file-size').textContent = `Tamanho total: ${(totalSize / 1024 / 1024).toFixed(2)} MB`;
+                document.getElementById('file-info').style.display = 'block';
+            } else {
+                selectedFile = files[0];
+                
+                // Validar tamanho (100MB)
+                const maxSize = 100 * 1024 * 1024;
+                if (selectedFile.size > maxSize) {
+                    alert('⚠️ Arquivo muito grande! Tamanho máximo: 100MB');
+                    selectedFile = null;
+                    return;
+                }
+                
+                // Exibir informações do arquivo
+                document.getElementById('file-name').textContent = selectedFile.name;
+                document.getElementById('file-size').textContent = `Tamanho: ${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`;
+                document.getElementById('file-info').style.display = 'block';
             }
-            
-            // Exibir informações do arquivo
-            document.getElementById('file-name').textContent = selectedFile.name;
-            document.getElementById('file-size').textContent = `Tamanho: ${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`;
-            document.getElementById('file-info').style.display = 'block';
         }
 
         // Processar arquivo
@@ -491,7 +520,18 @@
             }
 
             const formData = new FormData();
-            formData.append('file', selectedFile);
+            
+            // Se múltiplos arquivos foram selecionados
+            const fileInput = document.getElementById('file-input');
+            if (fileInput.files.length > 1) {
+                // Adicionar todos os arquivos
+                Array.from(fileInput.files).forEach(file => {
+                    formData.append('files[]', file);
+                });
+            } else {
+                formData.append('file', selectedFile);
+            }
+            
             formData.append('empresa_id', empresaId);
 
             try {

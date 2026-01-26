@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from config import DATABASE_CONFIG
 import logging
+import sqlite3
 
 logger = logging.getLogger(__name__)
 
@@ -461,6 +462,89 @@ class DatabaseImportManager:
             
         except Exception as e:
             logger.error(f"❌ Erro ao parsear JSON: {e}")
+            raise
+    
+    def parse_sqlite_database(self, file_path: str) -> Dict:
+        """
+        Analisa um banco de dados SQLite e extrai estrutura completa
+        
+        Args:
+            file_path: Caminho do arquivo .db
+            
+        Returns:
+            Dict com schema das tabelas
+        """
+        try:
+            # Conectar ao SQLite
+            conn = sqlite3.connect(file_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # Buscar todas as tabelas (exceto sqlite_*)
+            cursor.execute("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' 
+                AND name NOT LIKE 'sqlite_%'
+                ORDER BY name
+            """)
+            
+            tables = cursor.fetchall()
+            schema = {}
+            
+            for table_row in tables:
+                table_name = table_row[0]
+                
+                # Obter informações das colunas
+                cursor.execute(f"PRAGMA table_info({table_name})")
+                columns_info = cursor.fetchall()
+                
+                columns = []
+                for col in columns_info:
+                    col_name = col[1]
+                    col_type = col[2].upper()
+                    not_null = col[3]
+                    
+                    # Mapear tipos SQLite para PostgreSQL
+                    pg_type = 'character varying'  # Default
+                    
+                    if 'INT' in col_type:
+                        pg_type = 'integer'
+                    elif 'REAL' in col_type or 'FLOAT' in col_type or 'DOUBLE' in col_type:
+                        pg_type = 'numeric'
+                    elif 'TEXT' in col_type or 'CHAR' in col_type or 'CLOB' in col_type:
+                        pg_type = 'character varying'
+                    elif 'BLOB' in col_type:
+                        pg_type = 'bytea'
+                    elif 'NUMERIC' in col_type or 'DECIMAL' in col_type:
+                        pg_type = 'numeric'
+                    elif 'DATE' in col_type:
+                        pg_type = 'date'
+                    elif 'TIME' in col_type:
+                        pg_type = 'timestamp without time zone'
+                    elif 'BOOL' in col_type:
+                        pg_type = 'boolean'
+                    
+                    columns.append({
+                        'column_name': col_name,
+                        'data_type': pg_type,
+                        'is_nullable': 'NO' if not_null else 'YES'
+                    })
+                
+                # Contar registros
+                cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+                total_registros = cursor.fetchone()[0]
+                
+                schema[table_name] = {
+                    'columns': columns,
+                    'total_registros': total_registros
+                }
+            
+            conn.close()
+            logger.info(f"✅ SQLite parseado: {len(schema)} tabelas, {sum(t['total_registros'] for t in schema.values())} registros")
+            return schema
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao parsear SQLite: {e}")
             raise
             
     def suggest_table_mapping(self, external_schema: Dict, internal_schema: Dict) -> List[Dict]:
