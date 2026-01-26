@@ -4784,10 +4784,13 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/api/admin/import/upload', methods=['POST'])
-@csrf_instance.exempt
+@csrf.exempt
 @require_permission('admin')
 def upload_import_file():
     """Upload e processamento de arquivo para importação"""
+    logger.info("🚀 [IMPORT] Função upload_import_file() chamada")
+    logger.info(f"🚀 [IMPORT] Request method: {request.method}")
+    logger.info(f"🚀 [IMPORT] Content-Type: {request.content_type}")
     try:
         logger.info("📥 Upload de arquivo iniciado")
         
@@ -4883,7 +4886,7 @@ def upload_import_file():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/import/schema/interno', methods=['GET'])
-@csrf_instance.exempt
+@csrf.exempt
 @require_permission('admin')
 def get_internal_schema():
     """Obtém schema do banco interno"""
