@@ -2850,6 +2850,7 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
         contrato_id
     ))
     
+    conn.commit()  # Confirmar transação
     sucesso = cursor.rowcount > 0
     cursor.close()
     return_to_pool(conn)  # Devolver ao pool
