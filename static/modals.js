@@ -2082,6 +2082,7 @@ async function openModalContrato(contratoEdit = null) {
     const modal = createModal(titulo, `
         <form id="form-contrato" onsubmit="salvarContrato(event)" style="max-height: 80vh; overflow-y: auto;">
             <input type="hidden" id="contrato-id" value="${isEdit ? contratoEdit.id : ''}">
+            <input type="hidden" id="contrato-numero" value="${isEdit && contratoEdit.numero ? contratoEdit.numero : ''}">
             
             <!-- Linha 1: Cliente e Tipo -->
             <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
@@ -2363,8 +2364,12 @@ async function salvarContrato(event) {
     console.log('   🔢 Qtd Meses (parseado):', quantidadeMeses);
     console.log('   💵 Valor Total calculado:', valorTotal);
     
+    // Recuperar numero do campo hidden (preservado do edit)
+    const numero = document.getElementById('contrato-numero')?.value || undefined;
+    console.log('   🔢 Numero (campo hidden):', numero);
+    
     const data = {
-        numero: isEdit && contratoEdit ? contratoEdit.numero : undefined,  // Preservar número no edit
+        numero: numero,  // Preservar número no edit via campo hidden
         cliente_id: parseInt(document.getElementById('contrato-cliente').value),
         tipo: document.getElementById('contrato-tipo').value,
         nome: document.getElementById('contrato-nome').value,
