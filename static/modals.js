@@ -2195,19 +2195,30 @@ async function openModalContrato(contratoEdit = null) {
         </form>
     `);
     
-    // Verificar se o ID foi corretamente setado
+    // Verificar se o ID e NUMERO foram corretamente setados
     setTimeout(() => {
         const contratoIdField = document.getElementById('contrato-id');
+        const contratoNumeroField = document.getElementById('contrato-numero');
+        
         console.log('🔍 Verificação após criar modal:');
         console.log('   📝 Campo contrato-id existe?', !!contratoIdField);
-        console.log('   📝 Valor do campo:', contratoIdField ? contratoIdField.value : 'CAMPO NÃO ENCONTRADO');
+        console.log('   📝 Valor do campo ID:', contratoIdField ? contratoIdField.value : 'CAMPO NÃO ENCONTRADO');
+        console.log('   📝 Campo contrato-numero existe?', !!contratoNumeroField);
+        console.log('   📝 Valor do campo NUMERO:', contratoNumeroField ? contratoNumeroField.value : 'CAMPO NÃO ENCONTRADO');
         console.log('   📝 isEdit:', isEdit);
         console.log('   📝 contratoEdit.id:', contratoEdit ? contratoEdit.id : 'N/A');
+        console.log('   📝 contratoEdit.numero:', contratoEdit ? contratoEdit.numero : 'N/A');
         
-        // Se estiver editando, forçar o valor novamente
-        if (isEdit && contratoIdField && contratoEdit && contratoEdit.id) {
-            contratoIdField.value = contratoEdit.id;
-            console.log('   ✅ ID forçado novamente para:', contratoEdit.id);
+        // Se estiver editando, forçar os valores novamente
+        if (isEdit && contratoEdit) {
+            if (contratoIdField && contratoEdit.id) {
+                contratoIdField.value = contratoEdit.id;
+                console.log('   ✅ ID forçado novamente para:', contratoEdit.id);
+            }
+            if (contratoNumeroField && contratoEdit.numero) {
+                contratoNumeroField.value = contratoEdit.numero;
+                console.log('   ✅ NUMERO forçado novamente para:', contratoEdit.numero);
+            }
         }
     }, 50);
     
