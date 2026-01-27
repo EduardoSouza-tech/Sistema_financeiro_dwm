@@ -2793,10 +2793,6 @@ def listar_contratos() -> List[Dict]:
     for row in cursor.fetchall():
         contrato = dict(row)
         
-        # Debug: Ver valor da descrição da tabela
-        if contrato.get('id') == 23:  # ID do contrato de teste
-            print(f"🔍 DEBUG Contrato 23 - descricao da tabela: '{contrato.get('descricao')}'")
-        
         # Preservar campos importantes da tabela ANTES de mesclar com JSON
         campos_preservar = {
             'descricao': contrato.get('descricao'),
