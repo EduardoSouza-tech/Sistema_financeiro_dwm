@@ -1320,10 +1320,7 @@
             <div class="submenu" id="submenu-operacional" style="display: none;">
                 <button class="submenu-button" onclick="showSection('contratos')" data-permission="contratos_view">📋 Contratos e Sessões</button>
                 <button class="submenu-button" onclick="showSection('agenda-fotografia')" data-permission="agenda_view">📷 Agenda de Fotografia</button>
-                <button class="submenu-button" onclick="showSection('gestao-estoque')" data-permission="estoque_view">📦 Gestão de Estoque</button>
                 <button class="submenu-button" onclick="showSection('kits-equipamentos')" data-permission="estoque_view">🎒 Kits de Equipamentos</button>
-                <button class="submenu-button" onclick="showSection('tags-trabalho')" data-permission="contratos_view">🏷️ Tags de Trabalho</button>
-                <button class="submenu-button" onclick="showSection('templates-equipe')" data-permission="contratos_view">👥 Templates de Equipe</button>
                 <button class="submenu-button" onclick="showSection('eventos')" data-permission="eventos_view">🎉 Eventos</button>
             </div>
             
@@ -2847,70 +2844,6 @@
                 </div>
             </div>
 
-            <!-- Gestão de Estoque -->
-            <div id="gestao-estoque-section" class="content-card hidden">
-                <h2 style="color: #000000 !important; font-weight: 700;">Gestão de Estoque</h2>
-                
-                <!-- Tabs -->
-                <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd;">
-                    <button class="tab-button active" onclick="showEstoqueTab('produtos')" id="tab-produtos" style="padding: 10px 20px; border: none; background: #9b59b6; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;">
-                        Produtos
-                    </button>
-                    <button class="tab-button" onclick="showEstoqueTab('movimentacoes')" id="tab-movimentacoes" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
-                        Movimentações
-                    </button>
-                </div>
-
-                <!-- Tab Produtos -->
-                <div id="tab-content-produtos">
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <button class="btn btn-primary" onclick="openModalProduto()">➕ Novo Produto</button>
-                        <button class="btn" onclick="exportarEstoquePDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
-                    </div>
-                    <div class="table-scroll-container">
-                        <table id="table-produtos">
-                            <thead>
-                                <tr>
-                                    <th>Nome</th>
-                                    <th>Código</th>
-                                    <th>Quantidade</th>
-                                    <th>Unidade</th>
-                                    <th>Valor Unitário</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-produtos">
-                                <tr><td colspan="6" class="loading">Carregando...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Tab Movimentações -->
-                <div id="tab-content-movimentacoes" style="display: none;">
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <button class="btn btn-primary" onclick="openModalMovimentacao()">➕ Nova Movimentação</button>
-                    </div>
-                    <div class="table-scroll-container">
-                        <table id="table-movimentacoes">
-                            <thead>
-                                <tr>
-                                    <th>Data</th>
-                                    <th>Produto</th>
-                                    <th>Tipo</th>
-                                    <th>Quantidade</th>
-                                    <th>Observações</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-movimentacoes">
-                                <tr><td colspan="6" class="loading">Carregando...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
             <!-- Kits de Equipamentos -->
             <div id="kits-equipamentos-section" class="content-card hidden">
                 <h2 style="color: #000000 !important; font-weight: 700;">Kits de Equipamentos</h2>
@@ -2935,50 +2868,6 @@
                 </div>
             </div>
 
-            <!-- Tags de Trabalho -->
-            <div id="tags-trabalho-section" class="content-card hidden">
-                <h2 style="color: #000000 !important; font-weight: 700;">Tags de Trabalho</h2>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <button class="btn btn-primary" onclick="openModalTag()">➕ Nova Tag</button>
-                </div>
-                <div class="table-scroll-container">
-                    <table id="table-tags">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Cor</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-tags">
-                            <tr><td colspan="3" class="loading">Carregando...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Templates de Equipe -->
-            <div id="templates-equipe-section" class="content-card hidden">
-                <h2 style="color: #000000 !important; font-weight: 700;">Templates de Equipe</h2>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <button class="btn btn-primary" onclick="openModalTemplate()">➕ Novo Template</button>
-                </div>
-                <div class="table-scroll-container">
-                    <table id="table-templates">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Descrição</th>
-                                <th>Membros</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-templates">
-                            <tr><td colspan="4" class="loading">Carregando...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
     </div>
 
