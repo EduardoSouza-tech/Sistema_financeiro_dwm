@@ -4412,14 +4412,21 @@ function calcularAnaliseContratos(contratos, sessoes) {
         const valorImpostos = receitaBruta * (percentualImposto / 100);
         console.log(`      📊 Imposto ${percentualImposto}%: R$ ${valorImpostos}`);
         
-        // Comissões - pode ser array ou valor direto
+        // Comissões - pode ser array com percentual ou valor direto
         let valorComissoes = 0;
         if (Array.isArray(contrato.comissoes)) {
-            valorComissoes = contrato.comissoes.reduce((sum, com) => sum + (parseFloat(com.valor) || 0), 0);
+            valorComissoes = contrato.comissoes.reduce((sum, com) => {
+                // Se tem percentual, calcular sobre receita bruta
+                if (com.percentual) {
+                    return sum + (receitaBruta * (parseFloat(com.percentual) || 0) / 100);
+                }
+                // Caso contrário, usar valor direto
+                return sum + (parseFloat(com.valor) || 0);
+            }, 0);
         } else {
             valorComissoes = parseFloat(contrato.comissoes) || 0;
         }
-        console.log(`      💸 Comissões: R$ ${valorComissoes}`);
+        console.log(`      💸 Comissões (${contrato.comissoes?.length || 0} item(s)): R$ ${valorComissoes}`);
         
         // Buscar sessões do contrato
         const sessoesContrato = sessoes.filter(s => 
