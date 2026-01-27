@@ -3095,6 +3095,7 @@ def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
         sessao_id
     ))
     
+    conn.commit()  # Commit da transação
     sucesso = cursor.rowcount > 0
     cursor.close()
     return_to_pool(conn)
@@ -3668,41 +3669,8 @@ def listar_sessoes() -> List[Dict]:
     return_to_pool(conn)  # Devolver ao pool
     return sessoes
 
-def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
-    """Atualiza uma sessi?o"""
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        UPDATE sessoes
-        SET titulo = %s, data_sessao = %s, duracao = %s, contrato_id = %s, cliente_id = %s,
-            valor = %s, observacoes = %s, updated_at = CURRENT_TIMESTAMP
-        WHERE id = %s
-    """, (
-        dados.get('titulo'),
-        dados.get('data_sessao'),
-        dados.get('duracao'),
-        dados.get('contrato_id'),
-        dados.get('cliente_id'),
-        dados.get('valor'),
-        dados.get('observacoes'),
-        sessao_id
-    ))
-    
-    # Atualizar equipe se fornecida
-    if 'equipe' in dados:
-        cursor.execute("DELETE FROM sessao_equipe WHERE sessao_id = %s", (sessao_id,))
-        for membro in dados['equipe']:
-            cursor.execute("""
-                INSERT INTO sessao_equipe (sessao_id, membro_nome, funcao)
-                VALUES (%s, %s, %s)
-            """, (sessao_id, membro['nome'], membro.get('funcao')))
-    
-    sucesso = cursor.rowcount > 0
-    cursor.close()
-    return_to_pool(conn)  # Devolver ao pool
-    return sucesso
+# Função atualizar_sessao já definida na linha 3057 (versão correta)
+# Removida duplicata antiga que causava erro de data_sessao NULL
 
 def deletar_sessao(sessao_id: int) -> bool:
     """Deleta uma sessi?o"""
