@@ -2379,12 +2379,16 @@ async function salvarContrato(event) {
     const numero = document.getElementById('contrato-numero')?.value || undefined;
     console.log('   🔢 Numero (campo hidden):', numero);
     
+    // Capturar descrição
+    const descricao = document.getElementById('contrato-descricao')?.value || '';
+    console.log('   📝 Descrição (campo textarea):', descricao);
+    
     const data = {
         numero: numero,  // Preservar número no edit via campo hidden
         cliente_id: parseInt(document.getElementById('contrato-cliente').value),
         tipo: document.getElementById('contrato-tipo').value,
         nome: document.getElementById('contrato-nome').value,
-        descricao: document.getElementById('contrato-descricao').value,
+        descricao: descricao,
         valor_mensal: valorMensal,
         quantidade_meses: quantidadeMeses,
         valor_total: valorTotal,
