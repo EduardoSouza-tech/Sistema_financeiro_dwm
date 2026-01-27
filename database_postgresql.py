@@ -2793,6 +2793,10 @@ def listar_contratos() -> List[Dict]:
     for row in cursor.fetchall():
         contrato = dict(row)
         
+        # Debug: Ver valor da descrição da tabela
+        if contrato.get('id') == 23:  # ID do contrato de teste
+            print(f"🔍 DEBUG Contrato 23 - descricao da tabela: '{contrato.get('descricao')}'")
+        
         # Preservar campos importantes da tabela ANTES de mesclar com JSON
         campos_preservar = {
             'descricao': contrato.get('descricao'),
@@ -2811,10 +2815,12 @@ def listar_contratos() -> List[Dict]:
             except:
                 pass
         
-        # Restaurar campos da tabela que não devem ser sobrescritos por JSON vazio
-        for campo, valor in campos_preservar.items():
-            if valor is not None and not contrato.get(campo):
-                contrato[campo] = valor
+        # Restaurar campos da tabela se JSON não tem valor ou tem valor vazio
+        for campo, valor_tabela in campos_preservar.items():
+            valor_json = contrato.get(campo)
+            # Se JSON não tem valor OU tem string vazia, mas tabela tem valor preenchido
+            if valor_tabela and (valor_json is None or (isinstance(valor_json, str) and valor_json.strip() == '')):
+                contrato[campo] = valor_tabela
         
         contratos.append(contrato)
     
