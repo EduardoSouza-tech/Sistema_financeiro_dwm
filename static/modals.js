@@ -2350,18 +2350,21 @@ async function salvarContrato(event) {
         }
     });
     
-    const valorMensal = parseFloat(document.getElementById('contrato-valor-mensal').value) || 0;
+    // Pegar valor sem formatação (campo type="number" retorna string numérica pura)
+    const valorMensalRaw = document.getElementById('contrato-valor-mensal').value;
+    const valorMensal = parseFloat(valorMensalRaw.replace(/[^\d.-]/g, '')) || 0;
     const quantidadeMeses = parseInt(document.getElementById('contrato-meses').value) || 1;
     const valorTotal = valorMensal * quantidadeMeses;
     
     console.log('💰 Valores coletados no salvar:');
-    console.log('   📝 Valor Mensal (campo .value):', document.getElementById('contrato-valor-mensal').value);
+    console.log('   📝 Valor Mensal (campo .value RAW):', valorMensalRaw);
     console.log('   💰 Valor Mensal (parseado):', valorMensal);
     console.log('   🔢 Qtd Meses (campo .value):', document.getElementById('contrato-meses').value);
     console.log('   🔢 Qtd Meses (parseado):', quantidadeMeses);
     console.log('   💵 Valor Total calculado:', valorTotal);
     
     const data = {
+        numero: isEdit && contratoEdit ? contratoEdit.numero : undefined,  // Preservar número no edit
         cliente_id: parseInt(document.getElementById('contrato-cliente').value),
         tipo: document.getElementById('contrato-tipo').value,
         nome: document.getElementById('contrato-nome').value,
