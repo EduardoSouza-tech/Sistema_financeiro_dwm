@@ -1558,13 +1558,21 @@ function closeModal(modalId) {
         console.log('   📊 Display ANTES:', modal.style.display);
         console.log('   📊 Classes ANTES:', modal.className);
         
-        modal.classList.remove('active');
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-        
-        console.log('   📊 Display DEPOIS:', modal.style.display);
-        console.log('   📊 Classes DEPOIS:', modal.className);
-        console.log('   ✅ Modal fechado com sucesso!');
+        // Se o modal tem classe modal-overlay, remover do DOM (modais criados dinamicamente)
+        if (modal.classList.contains('modal-overlay')) {
+            console.log('   🗑️ Modal dinâmico - removendo do DOM');
+            modal.remove();
+            document.body.style.overflow = '';
+            console.log('   ✅ Modal removido!');
+        } else {
+            // Modal estático - apenas ocultar
+            modal.classList.remove('active');
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+            console.log('   📊 Display DEPOIS:', modal.style.display);
+            console.log('   📊 Classes DEPOIS:', modal.className);
+            console.log('   ✅ Modal fechado com sucesso!');
+        }
     } else {
         console.warn('   ⚠️ Modal não encontrado:', modalId);
     }

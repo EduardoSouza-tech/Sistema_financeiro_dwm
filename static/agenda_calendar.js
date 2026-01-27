@@ -430,6 +430,10 @@ async function syncGoogleCalendar() {
  * Abrir configurações de e-mail
  */
 function openEmailSettings() {
+    // Remove modal antigo se existir
+    const oldModal = document.getElementById('email-settings-modal');
+    if (oldModal) oldModal.remove();
+    
     const modal = document.createElement('div');
     modal.id = 'email-settings-modal';
     modal.className = 'modal-overlay';
