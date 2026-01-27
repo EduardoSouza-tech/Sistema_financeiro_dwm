@@ -2023,6 +2023,10 @@ async function openModalContrato(contratoEdit = null) {
         console.log('   - descricao:', contratoEdit.descricao);
         console.log('   - data_inicio:', contratoEdit.data_inicio);
         console.log('   - data_contrato:', contratoEdit.data_contrato);
+        console.log('   - valor:', contratoEdit.valor, '(tipo:', typeof contratoEdit.valor + ')');
+        console.log('   - valor_total:', contratoEdit.valor_total);
+        console.log('   - valor_mensal:', contratoEdit.valor_mensal);
+        console.log('   - quantidade_meses:', contratoEdit.quantidade_meses);
         console.log('   - imposto:', contratoEdit.imposto);
         console.log('   - imposto_percentual:', contratoEdit.imposto_percentual);
         console.log('   - comissoes:', contratoEdit.comissoes);
@@ -2112,7 +2116,7 @@ async function openModalContrato(contratoEdit = null) {
                 
                 <div class="form-group">
                     <label>Valor Total:</label>
-                    <input type="text" id="contrato-valor-total" readonly style="background: #f0f0f0; font-weight: bold; color: #27ae60; font-size: 16px;" value="${isEdit ? 'R$ ' + (contratoEdit.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2}) : 'R$ 0,00'}">
+                    <input type="text" id="contrato-valor-total" readonly style="background: #f0f0f0; font-weight: bold; color: #27ae60; font-size: 16px;" value="${isEdit ? 'R$ ' + parseFloat(contratoEdit.valor || contratoEdit.valor_total || contratoEdit.valor_mensal * contratoEdit.quantidade_meses || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'R$ 0,00'}">
                 </div>
             </div>
             
