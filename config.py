@@ -29,3 +29,16 @@ MYSQL_CONFIG = {
 
 # Configurações do SQLite (padrão para desenvolvimento local)
 SQLITE_DB_PATH = 'sistema_financeiro.db'
+
+# =========================================
+# GOOGLE CALENDAR API CONFIGURATION
+# =========================================
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
+GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'https://sistemafinanceirodwm-production.up.railway.app/api/google-calendar/callback')
+
+# Scopes necessários para Google Calendar
+GOOGLE_SCOPES = [
+    'https://www.googleapis.com/auth/calendar.events',
+    'https://www.googleapis.com/auth/calendar.readonly'
+]
