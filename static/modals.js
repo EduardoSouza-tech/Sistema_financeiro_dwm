@@ -2128,7 +2128,7 @@ async function openModalContrato(contratoEdit = null) {
                 
                 <div class="form-group">
                     <label>Valor Total:</label>
-                    <input type="text" id="contrato-valor-total" readonly style="background: #f0f0f0; font-weight: bold; color: #27ae60; font-size: 16px;" value="${valorTotalFormatado}">
+                    <input type="text" id="contrato-valor-total" readonly="readonly" disabled style="background: #f0f0f0; font-weight: bold; color: #27ae60; font-size: 16px;" value="${valorTotalFormatado}">
                 </div>
             </div>
             
@@ -2225,10 +2225,13 @@ async function openModalContrato(contratoEdit = null) {
         }, 150);
     }
     
-    // Calcular valor total inicial
-    setTimeout(() => {
-        atualizarCalculoContrato();
-    }, 100);
+    // Calcular valor total inicial apenas em modo de criação
+    // Em modo de edição, o valor já foi pré-calculado
+    if (!isEdit) {
+        setTimeout(() => {
+            atualizarCalculoContrato();
+        }, 100);
+    }
 }
 
 // Helper para converter valor formatado pt-BR para número
