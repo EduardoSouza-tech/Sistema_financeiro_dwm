@@ -2380,8 +2380,23 @@ async function salvarContrato(event) {
     console.log('   🔢 Numero (campo hidden):', numero);
     
     // Capturar descrição
-    const descricao = document.getElementById('contrato-descricao')?.value || '';
+    const campoDescricao = document.getElementById('contrato-descricao');
+    console.log('   🔍 Campo descricao encontrado?', !!campoDescricao);
+    console.log('   🔍 Campo descricao element:', campoDescricao);
+    
+    const descricao = campoDescricao?.value || '';
     console.log('   📝 Descrição (campo textarea):', descricao);
+    console.log('   📝 Descrição length:', descricao.length);
+    
+    // Verificar se há múltiplos elementos com mesmo ID (BUG)
+    const todosDescricao = document.querySelectorAll('#contrato-descricao');
+    console.log('   ⚠️ Total de campos com ID contrato-descricao:', todosDescricao.length);
+    if (todosDescricao.length > 1) {
+        console.log('   🚨 ERRO: Múltiplos campos com mesmo ID!');
+        todosDescricao.forEach((el, idx) => {
+            console.log(`      [${idx}] value: "${el.value}"`);
+        });
+    }
     
     const data = {
         numero: numero,  // Preservar número no edit via campo hidden
