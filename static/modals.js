@@ -2059,6 +2059,18 @@ async function openModalContrato(contratoEdit = null) {
         }
     }
     
+    // Calcular valor total para exibição
+    let valorTotalFormatado = 'R$ 0,00';
+    if (isEdit) {
+        const valor = parseFloat(contratoEdit.valor || contratoEdit.valor_total || 0) || 
+                     (contratoEdit.valor_mensal * contratoEdit.quantidade_meses) || 0;
+        valorTotalFormatado = 'R$ ' + valor.toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        console.log('💰 Valor Total calculado para modal:', valor, '→', valorTotalFormatado);
+    }
+    
     // Opções de clientes
     const opcoesClientes = window.clientes && window.clientes.length > 0
         ? window.clientes.map(c => {
@@ -2116,7 +2128,7 @@ async function openModalContrato(contratoEdit = null) {
                 
                 <div class="form-group">
                     <label>Valor Total:</label>
-                    <input type="text" id="contrato-valor-total" readonly style="background: #f0f0f0; font-weight: bold; color: #27ae60; font-size: 16px;" value="${isEdit ? 'R$ ' + parseFloat(contratoEdit.valor || contratoEdit.valor_total || contratoEdit.valor_mensal * contratoEdit.quantidade_meses || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'R$ 0,00'}">
+                    <input type="text" id="contrato-valor-total" readonly style="background: #f0f0f0; font-weight: bold; color: #27ae60; font-size: 16px;" value="${valorTotalFormatado}">
                 </div>
             </div>
             
@@ -2259,15 +2271,20 @@ function atualizarCalculoContrato() {
     console.log('   📝 Meses (.value):', campoMeses.value);
     console.log('   🔢 Meses (parseado):', meses);
     console.log('   💵 Valor Total:', valorTotal);
-    console.log('   💵 Valor Total:', valorTotal);
     
     // Formatar e exibir
-    campoTotal.value = 'R$ ' + valorTotal.toLocaleString('pt-BR', {
+    const valorFormatado = 'R$ ' + valorTotal.toLocaleString('pt-BR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
     
-    console.log('   ✅ Campo atualizado para:', campoTotal.value);
+    console.log('   🎨 Valor formatado:', valorFormatado);
+    console.log('   📍 Campo existe?', !!campoTotal);
+    console.log('   📍 Campo ID:', campoTotal ? campoTotal.id : 'N/A');
+    
+    campoTotal.value = valorFormatado;
+    
+    console.log('   ✅ Campo atualizado. Valor final:', campoTotal.value);
 }
 
 function adicionarComissaoContrato(dadosIniciais = null) {
