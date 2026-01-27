@@ -2255,8 +2255,13 @@ function atualizarCalculoContrato() {
     const campoMeses = document.getElementById('contrato-meses');
     const campoTotal = document.getElementById('contrato-valor-total');
     
+    console.log('🧮 Calculando:');
+    console.log('   📍 campoValorMensal existe?', !!campoValorMensal);
+    console.log('   📍 campoMeses existe?', !!campoMeses);
+    console.log('   📍 campoTotal existe?', !!campoTotal);
+    
     if (!campoValorMensal || !campoMeses || !campoTotal) {
-        console.warn('⚠️ Campos de cálculo não encontrados');
+        console.warn('⚠️ Campos de cálculo não encontrados - abortando atualização');
         return;
     }
     
@@ -2281,10 +2286,16 @@ function atualizarCalculoContrato() {
     console.log('   🎨 Valor formatado:', valorFormatado);
     console.log('   📍 Campo existe?', !!campoTotal);
     console.log('   📍 Campo ID:', campoTotal ? campoTotal.id : 'N/A');
+    console.log('   📍 Campo readonly?', campoTotal ? campoTotal.readOnly : 'N/A');
+    console.log('   📍 Valor ANTES:', campoTotal.value);
     
+    // Tentar ambos os métodos
     campoTotal.value = valorFormatado;
+    campoTotal.setAttribute('value', valorFormatado);
     
-    console.log('   ✅ Campo atualizado. Valor final:', campoTotal.value);
+    console.log('   📍 Valor DEPOIS (.value):', campoTotal.value);
+    console.log('   📍 Valor DEPOIS (getAttribute):', campoTotal.getAttribute('value'));
+    console.log('   ✅ Campo atualizado');
 }
 
 function adicionarComissaoContrato(dadosIniciais = null) {
