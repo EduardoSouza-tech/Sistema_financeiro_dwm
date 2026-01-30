@@ -1841,38 +1841,41 @@
                     .resizable-table th {
                         position: relative;
                         user-select: none;
-                        padding-right: 8px !important;
+                        padding-right: 12px !important;
+                        border-right: 2px solid rgba(0, 0, 0, 0.4) !important;
                     }
                     
                     .resizable-table .resizer {
                         position: absolute;
                         top: 0;
-                        right: -3px;
-                        width: 8px;
+                        right: -6px;
+                        width: 12px;
                         height: 100%;
                         cursor: col-resize;
                         z-index: 100;
                         background: transparent;
-                        transition: background 0.2s;
+                        transition: all 0.2s;
                     }
                     
                     .resizable-table .resizer::after {
                         content: '';
                         position: absolute;
-                        right: 3px;
+                        right: 5px;
                         top: 0;
                         bottom: 0;
-                        width: 2px;
-                        background: rgba(0, 0, 0, 0.3);
+                        width: 3px;
+                        background: #000;
+                        opacity: 0.6;
                     }
                     
                     .resizable-table .resizer:hover {
-                        background: rgba(0, 0, 0, 0.15);
+                        background: rgba(0, 0, 0, 0.1);
                     }
                     
                     .resizable-table .resizer:hover::after {
                         background: #000;
-                        width: 3px;
+                        width: 4px;
+                        opacity: 1;
                     }
                     
                     .resizable-table .resizer.resizing {
@@ -1881,8 +1884,9 @@
                     
                     .resizable-table .resizer.resizing::after {
                         background: #000;
-                        width: 3px;
-                        box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+                        width: 5px;
+                        opacity: 1;
+                        box-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
                     }
                     
                     .resizable-table th.resizing {
