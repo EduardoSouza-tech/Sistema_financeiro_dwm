@@ -4603,7 +4603,12 @@
                 });
                 if (!response.ok) throw new Error('Erro ao carregar contas');
                 
-                const contas = await response.json();
+                let contas = await response.json();
+                
+                // Suporte ao novo formato de resposta { success, data, total, message }
+                if (contas && typeof contas === 'object' && 'success' in contas && 'data' in contas) {
+                    contas = contas.data;
+                }
                 
                 // Filtrar apenas contas ativas para upload
                 const contasAtivas = contas.filter(c => c.ativa !== false);
