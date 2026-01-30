@@ -1987,10 +1987,25 @@
                         if (savedWidths) {
                             try {
                                 const widths = JSON.parse(savedWidths);
-                                table.querySelectorAll('th[data-column]').forEach(th => {
+                                table.querySelectorAll('th[data-column]').forEach((th, colIndex) => {
                                     const column = th.getAttribute('data-column');
                                     if (widths[column]) {
-                                        th.style.width = widths[column] + 'px';
+                                        const width = widths[column] + 'px';
+                                        th.style.width = width;
+                                        th.style.minWidth = width;
+                                        th.style.maxWidth = width;
+                                        
+                                        // Aplicar também aos TDs correspondentes
+                                        const rows = table.querySelectorAll('tbody tr');
+                                        rows.forEach(row => {
+                                            const td = row.cells[colIndex];
+                                            if (td) {
+                                                td.style.width = width;
+                                                td.style.minWidth = width;
+                                                td.style.maxWidth = width;
+                                            }
+                                        });
+                                        
                                         console.log('Restaurada largura de ' + column + ': ' + widths[column] + 'px');
                                     }
                                 });
@@ -2029,7 +2044,22 @@
                             const minWidth = parseInt(currentTh.style.minWidth) || 60;
                             
                             if (newWidth >= minWidth) {
-                                currentTh.style.width = newWidth + 'px';
+                                const width = newWidth + 'px';
+                                currentTh.style.width = width;
+                                currentTh.style.minWidth = width;
+                                currentTh.style.maxWidth = width;
+                                
+                                // Aplicar a mesma largura aos TDs da mesma coluna
+                                const colIndex = Array.from(currentTh.parentElement.children).indexOf(currentTh);
+                                const rows = table.querySelectorAll('tbody tr');
+                                rows.forEach(row => {
+                                    const td = row.cells[colIndex];
+                                    if (td) {
+                                        td.style.width = width;
+                                        td.style.minWidth = width;
+                                        td.style.maxWidth = width;
+                                    }
+                                });
                             }
                             
                             e.preventDefault();
