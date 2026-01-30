@@ -2364,10 +2364,12 @@ class DatabaseManager:
         query = f"SELECT {columns} FROM lancamentos WHERE 1=1"
         params = []
         
-        # Filtro de multi-tenancy
-        if filtro_cliente_id is not None:
-            query += " AND proprietario_id = %s"
-            params.append(filtro_cliente_id)
+        # NOTA: Tabela lancamentos ainda não tem coluna proprietario_id ou empresa_id
+        # Filtro de multi-tenancy temporariamente desabilitado até migração
+        # TODO: Adicionar coluna empresa_id à tabela lancamentos
+        # if filtro_cliente_id is not None:
+        #     query += " AND empresa_id = %s"
+        #     params.append(filtro_cliente_id)
         
         if filtros:
             if 'tipo' in filtros:
