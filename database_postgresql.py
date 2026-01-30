@@ -2597,8 +2597,20 @@ class DatabaseManager:
         return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
-    def migrar_dados_json(self, json_path: str):
-        """Migra dados de um arquivo JSON para o banco"""
+    def migrar_dados_json(self, json_path: str, empresa_id: int = None):
+        """
+        Migra dados de um arquivo JSON para o banco
+        
+        Args:
+            json_path (str): Caminho do arquivo JSON
+            empresa_id (int): ID da empresa para vincular os dados [RECOMENDADO]
+            
+        Warning:
+            Se empresa_id não fornecido, dados serão criados sem vínculo de empresa
+            
+        Security:
+            🔒 Recomendado passar empresa_id para garantir isolamento
+        """
         if not os.path.exists(json_path):
             print(f"Arquivo {json_path} ni?o encontrado")
             return
@@ -2610,7 +2622,12 @@ class DatabaseManager:
         for conta_data in dados.get('contas', []):
             conta = ContaBancaria(**conta_data)
             try:
-                self.adicionar_conta(conta)
+                if empresa_id:
+                    # Se tiver empresa_id, usar wrapper que exige empresa_id
+                    # TODO: Implementar adicionar_conta com empresa_id no wrapper
+                    self.adicionar_conta(conta)
+                else:
+                    self.adicionar_conta(conta)
             except Exception as e:
                 print(f"Erro ao migrar conta {conta.nome}: {e}")
         
@@ -2618,7 +2635,12 @@ class DatabaseManager:
         for cat_data in dados.get('categorias', []):
             categoria = Categoria(**cat_data)
             try:
-                self.adicionar_categoria(categoria)
+                if empresa_id:
+                    # Se tiver empresa_id, usar wrapper que exige empresa_id
+                    # TODO: Implementar adicionar_categoria com empresa_id no wrapper
+                    self.adicionar_categoria(categoria)
+                else:
+                    self.adicionar_categoria(categoria)
             except Exception as e:
                 print(f"Erro ao migrar categoria {categoria.nome}: {e}")
         
@@ -2626,7 +2648,12 @@ class DatabaseManager:
         for lanc_data in dados.get('lancamentos', []):
             lancamento = Lancamento(**lanc_data)
             try:
-                self.adicionar_lancamento(lancamento)
+                if empresa_id:
+                    # Usar método interno com empresa_id
+                    self.adicionar_lancamento(lancamento, proprietario_id=empresa_id, empresa_id=empresa_id)
+                else:
+                    print(f"⚠️  AVISO: Lançamento sem empresa_id - não recomendado!")
+                    self.adicionar_lancamento(lancamento)
             except Exception as e:
                 print(f"Erro ao migrar lani?amento: {e}")
         

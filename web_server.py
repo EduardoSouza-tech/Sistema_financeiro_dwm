@@ -1715,6 +1715,11 @@ def adicionar_conta():
 def modificar_conta(nome):
     """Busca, atualiza ou remove uma conta bancária"""
     
+    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     # Decode do nome que vem URL-encoded
     from urllib.parse import unquote
     nome = unquote(nome)
@@ -1725,7 +1730,7 @@ def modificar_conta(nome):
     
     if request.method == 'GET':
         try:
-            contas = db.listar_contas()
+            contas = db.listar_contas(empresa_id=empresa_id)
             for conta in contas:
                 if conta.nome == nome:
                     return jsonify({
@@ -1793,7 +1798,7 @@ def modificar_conta(nome):
             print(f"{'='*80}")
             
             # Verificar se há lançamentos vinculados
-            lancamentos = db.listar_lancamentos()
+            lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
             lancamentos_conta = [l for l in lancamentos if l.conta_bancaria == nome]
             
             print(f"📊 Lançamentos vinculados à conta: {len(lancamentos_conta)}")
@@ -1852,6 +1857,11 @@ def modificar_conta(nome):
 @require_permission('contas_edit')
 def toggle_ativo_conta(nome):
     """Ativa ou inativa uma conta bancária"""
+    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
         from urllib.parse import unquote
         nome = unquote(nome)
@@ -1861,7 +1871,7 @@ def toggle_ativo_conta(nome):
         print(f"{'='*80}")
         
         # Buscar conta atual
-        contas = db.listar_contas()
+        contas = db.listar_contas(empresa_id=empresa_id)
         conta_atual = None
         for c in contas:
             if c.nome == nome:
@@ -2613,12 +2623,17 @@ def adicionar_lancamento():
 @require_permission('lancamentos_view')
 def obter_lancamento_route(lancamento_id):
     """Retorna os dados de um lançamento específico"""
+    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
         print(f"\n{'='*80}")
         print(f"🔍 GET /api/lancamentos/{lancamento_id}")
         print(f"{'='*80}")
         
-        lancamento = db_obter_lancamento(lancamento_id)
+        lancamento = db_obter_lancamento(empresa_id=empresa_id, lancamento_id=lancamento_id)
         print(f"Resultado db_obter_lancamento: {lancamento}")
         print(f"Tipo: {type(lancamento)}")
         
@@ -2678,8 +2693,13 @@ def gerenciar_lancamento(lancamento_id):
             data = request.get_json()
             print(f"📥 Dados recebidos: {data}")
             
+            # 🔒 VALIDAÇÃO DE SEGURANÇA
+            empresa_id = session.get('empresa_id')
+            if not empresa_id:
+                return jsonify({'erro': 'Empresa não selecionada'}), 403
+            
             # Verificar se lançamento existe
-            lancamento_atual = db_obter_lancamento(lancamento_id)
+            lancamento_atual = db_obter_lancamento(empresa_id=empresa_id, lancamento_id=lancamento_id)
             if not lancamento_atual:
                 print("❌ Lançamento não encontrado")
                 return jsonify({'success': False, 'error': 'Lançamento não encontrado'}), 404
@@ -2794,7 +2814,7 @@ def upload_extrato_ofx():
         usuario = get_usuario_logado()
         empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         
-        contas_cadastradas = database.listar_contas()
+        contas_cadastradas = database.listar_contas(empresa_id=empresa_id)
         conta_info = next((c for c in contas_cadastradas if c.nome == conta_bancaria), None)
         
         if not conta_info:
@@ -3185,7 +3205,7 @@ def conciliacao_geral_extrato():
                 # Validar se a conta bancária está ativa
                 conta_bancaria = transacao['conta_bancaria']
                 print(f"🔍 Validando conta bancária: {conta_bancaria}")
-                contas = db.listar_contas()
+                contas = db.listar_contas(empresa_id=empresa_id)
                 print(f"📊 Total de contas encontradas: {len(contas)}")
                 
                 # Debug: listar todas as contas
@@ -3943,6 +3963,11 @@ def deletar_evento(evento_id):
 @require_permission('lancamentos_view')
 def dashboard():
     """Dados para o dashboard - versão simplificada"""
+    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
         print("=" * 80)
         print("📊 DASHBOARD - Iniciando carregamento...")
@@ -3952,8 +3977,8 @@ def dashboard():
         mes = request.args.get('mes', type=int)
         print(f"📅 Filtros: ano={ano}, mes={mes}")
         
-        lancamentos = db.listar_lancamentos()
-        contas = db.listar_contas()
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
+        contas = db.listar_contas(empresa_id=empresa_id)
         print(f"📋 Total de lançamentos: {len(lancamentos)}")
         print(f"🏦 Total de contas: {len(contas)}")
         
@@ -4110,6 +4135,11 @@ def dashboard():
 @require_permission('relatorios_view')
 def dashboard_completo():
     """Dashboard completo com análises detalhadas - apenas lançamentos liquidados"""
+    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
@@ -4120,7 +4150,7 @@ def dashboard_completo():
         data_inicio_obj = parse_date(data_inicio)
         data_fim_obj = parse_date(data_fim)
         
-        lancamentos = db.listar_lancamentos()
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
         
         # Filtrar lançamentos por cliente se necessário
         usuario = request.usuario
@@ -4293,6 +4323,11 @@ def dashboard_completo():
 @require_permission('relatorios_view')
 def relatorio_fluxo_projetado():
     """Relatório de fluxo de caixa PROJETADO (incluindo lançamentos pendentes futuros)"""
+    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
         # Receber filtros - padrão é projetar próximos X dias
         dias = request.args.get('dias')
@@ -4303,8 +4338,8 @@ def relatorio_fluxo_projetado():
         data_final = hoje + timedelta(days=dias)
         periodo_texto = f"PROJEÇÃO - PRÓXIMOS {dias} DIAS"
         
-        lancamentos = db.listar_lancamentos()
-        contas = db.listar_contas()
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
+        contas = db.listar_contas(empresa_id=empresa_id)
         
         # Filtrar lançamentos por cliente se necessário
         usuario = request.usuario
@@ -4452,7 +4487,12 @@ def relatorio_fluxo_projetado():
 @require_permission('relatorios_view')
 def relatorio_analise_contas():
     """Relatório de análise de contas a pagar e receber"""
-    lancamentos = db.listar_lancamentos()
+    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
+    lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
     hoje = date.today()
     
     # Filtrar lançamentos por cliente se necessário
@@ -5108,6 +5148,11 @@ def teste_api():
 @require_permission('relatorios_view')
 def relatorio_resumo_parceiros():
     """Relatório de resumo por cliente/fornecedor"""
+    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
         data_inicio = request.args.get('data_inicio', (date.today() - timedelta(days=30)).isoformat())
         data_fim = request.args.get('data_fim', date.today().isoformat())
@@ -5115,7 +5160,7 @@ def relatorio_resumo_parceiros():
         data_inicio = datetime.fromisoformat(data_inicio).date()
         data_fim = datetime.fromisoformat(data_fim).date()
         
-        lancamentos = db.listar_lancamentos()
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
         
         # Agrupar por pessoa
         resumo_clientes = {}
@@ -5177,6 +5222,11 @@ def relatorio_resumo_parceiros():
 @require_permission('relatorios_view')
 def relatorio_analise_categorias():
     """Relatório de análise por categorias"""
+    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
         data_inicio = request.args.get('data_inicio', (date.today() - timedelta(days=30)).isoformat())
         data_fim = request.args.get('data_fim', date.today().isoformat())
@@ -5184,7 +5234,7 @@ def relatorio_analise_categorias():
         data_inicio = datetime.fromisoformat(data_inicio).date()
         data_fim = datetime.fromisoformat(data_fim).date()
         
-        lancamentos = db.listar_lancamentos()
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
         
         # Agrupar por categoria e subcategoria
         receitas = {}
@@ -5240,12 +5290,17 @@ def relatorio_comparativo_periodos():
         if not all([data_inicio1, data_fim1, data_inicio2, data_fim2]):
             return jsonify({'error': 'Parâmetros de datas obrigatórios'}), 400
         
+        # 🔒 VALIDAÇÃO DE SEGURANÇA
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+        
         data_inicio1 = datetime.fromisoformat(data_inicio1).date()
         data_fim1 = datetime.fromisoformat(data_fim1).date()
         data_inicio2 = datetime.fromisoformat(data_inicio2).date()
         data_fim2 = datetime.fromisoformat(data_fim2).date()
         
-        lancamentos = db.listar_lancamentos()
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
         
         def calcular_periodo(data_ini, data_fim):
             receitas = Decimal('0')
@@ -5329,9 +5384,14 @@ def relatorio_comparativo_periodos():
 @require_permission('relatorios_view')
 def relatorio_indicadores():
     """Relatório de indicadores financeiros"""
+    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
-        lancamentos = db.listar_lancamentos()
-        contas = db.listar_contas()
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
+        contas = db.listar_contas(empresa_id=empresa_id)
         
         # Obter filtros de data
         data_inicio_str = request.args.get('data_inicio')
@@ -5418,8 +5478,13 @@ def relatorio_indicadores():
 @require_permission('relatorios_view')
 def relatorio_inadimplencia():
     """Relatório de inadimplência"""
+    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
-        lancamentos = db.listar_lancamentos()
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
         hoje = date.today()
         
         inadimplentes = []
@@ -5476,6 +5541,11 @@ def favicon():
 @require_permission('clientes_view')
 def exportar_clientes_pdf():
     """Exporta clientes para PDF"""
+    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
         from reportlab.lib import colors  # type: ignore
         from reportlab.lib.pagesizes import A4, landscape  # type: ignore
@@ -5485,7 +5555,7 @@ def exportar_clientes_pdf():
         from reportlab.pdfgen import canvas  # type: ignore
         from io import BytesIO
         
-        clientes = db.listar_clientes()
+        clientes = db.listar_clientes(empresa_id=empresa_id)
         
         # Criar PDF em memória
         buffer = BytesIO()
@@ -5570,13 +5640,18 @@ def exportar_clientes_pdf():
 @require_permission('clientes_view')
 def exportar_clientes_excel():
     """Exporta clientes para Excel"""
+    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
         import openpyxl  # type: ignore
         from openpyxl.styles import Font, Alignment, PatternFill  # type: ignore
         from openpyxl.worksheet.worksheet import Worksheet  # type: ignore
         from io import BytesIO
         
-        clientes = db.listar_clientes()
+        clientes = db.listar_clientes(empresa_id=empresa_id)
         
         wb = openpyxl.Workbook()
         ws: Worksheet = wb.active  # type: ignore

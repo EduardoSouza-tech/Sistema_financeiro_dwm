@@ -39,6 +39,9 @@ def client(test_app):
 def authenticated_client(client):
     """
     Cliente autenticado como usuário admin
+    
+    Security:
+        🔒 Configura empresa_id=1 na sessão para testes de isolamento
     """
     # Login
     response = client.post('/api/auth/login', json={
@@ -48,7 +51,7 @@ def authenticated_client(client):
     
     if response.status_code != 200:
         # Se não conseguir logar, criar usuário admin de teste
-        with db.get_db_connection() as conn:
+        with db.get_db_connection(allow_global=True) as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO usuarios (nome, email, senha_hash, nivel_acesso, ativo, proprietario_id)
@@ -64,6 +67,12 @@ def authenticated_client(client):
             'email': 'admin@sistema.com',
             'senha': 'admin123'
         })
+    
+    # 🔒 Garantir que empresa_id está na sessão para testes
+    with client.session_transaction() as sess:
+        if 'empresa_id' not in sess:
+            sess['empresa_id'] = 1  # Empresa padrão para testes
+            print("⚠️  [TESTE] Configurado empresa_id=1 na sessão")
     
     yield client
 
