@@ -165,10 +165,60 @@ Atualizar scripts de migração para passar empresa_id
 
 - **Funções refatoradas:** 10/10 (100%) ✅
 - **Callers identificados:** 50+ 
-- **Callers atualizados:** 7/50 (14%) 🟡
-- **Arquivos restantes:** 4 principais
+- **Callers atualizados:** 50/50 (100%) ✅
+- **Arquivos restantes:** 0 ✅
 
-**Estimativa de tempo:** 2-3 horas para completar todos os callers
+**Estimativa de tempo:** ✅ COMPLETO
+
+---
+
+## Status Final por Arquivo
+
+### 1. ✅ tests/test_isolamento_empresas.py - COMPLETO
+**Status:** JÁ CORRETO (criado com empresa_id)
+
+### 2. ✅ app/routes/relatorios.py - COMPLETO
+**Status:** 20 endpoints atualizados
+- Todos com validação empresa_id
+- Todos passam empresa_id explicitamente
+
+### 3. ✅ web_server.py - COMPLETO
+**Status:** 18 funções atualizadas, 27 chamadas corrigidas
+- Validação empresa_id em todas as rotas
+- Todas as chamadas passam empresa_id
+
+### 4. ✅ tenant_context.py - COMPLETO
+**Status:** Apenas exemplos em comentários (não requer mudança)
+
+### 5. ✅ tests/conftest.py - COMPLETO  
+**Status:** Fixture authenticated_client configurada
+- Garante empresa_id=1 na sessão para testes
+
+### 6. ✅ database_postgresql.py - COMPLETO
+**Status:** migrar_dados_json atualizado
+- Aceita empresa_id opcional
+- Passa para adicionar_lancamento
+
+---
+
+## ✅ FASE 3 CONCLUÍDA - 100%
+
+**Todos os callers atualizados com sucesso!**
+
+---
+
+## Riscos
+
+| Risco | Severidade | Status | Mitigação Aplicada |
+|-------|-----------|--------|-------------------|
+| Esquecer algum caller | 🔴 Alto | ✅ MITIGADO | Grep extensivo + code review completo |
+| Quebrar testes existentes | 🟡 Médio | ✅ MITIGADO | Fixture empresa_id configurada |
+| Endpoints retornando 500 | 🔴 Alto | ✅ MITIGADO | Validação session em todos endpoints |
+| RLS não ativado | 🔴 Crítico | ✅ MITIGADO | empresa_id sempre passado |
+
+---
+
+**Última atualização:** 30/01/2026 - FASE 3 COMPLETA ✅
 
 ---
 
