@@ -56,7 +56,31 @@ python verificar_dados.py "postgresql://postgres:SENHA@host:porta/railway"
 
 ---
 
-## 🗄️ COMANDOS SQL DIRETOS
+## � APLICAR ÍNDICES RLS DE PERFORMANCE (FASE 5)
+
+### Via Script Python (RECOMENDADO)
+
+```powershell
+# Navegar até a pasta
+cd "C:\Users\Nasci\OneDrive\Documents\Programas VS Code\DWM\sistema_financeiro\Sistema_financeiro_dwm"
+
+# Executar script (substitua pela sua URL do Railway)
+python aplicar_indices_railway.py "postgresql://postgres:SENHA@host.railway.app:PORTA/railway"
+
+# Exemplo real:
+python aplicar_indices_railway.py "postgresql://postgres:JhsyBdqwhkOJORFyZRtVgshWGZWQAIQT@centerbeam.proxy.rlwy.net:12659/railway"
+```
+
+**O que o script faz:**
+- ✅ Cria 40 índices RLS-específicos
+- ✅ Verifica extensão pg_trgm
+- ✅ Executa ANALYZE em todas as tabelas
+- ✅ Valida índices criados
+- ⚡ Duração: 1-2 minutos
+
+---
+
+## �🗄️ COMANDOS SQL DIRETOS
 
 ### Via psql (PostgreSQL CLI)
 

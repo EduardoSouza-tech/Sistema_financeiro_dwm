@@ -48,6 +48,23 @@ def log(msg):
     print(msg, file=sys.stderr, flush=True)
 
 
+# 🚀 FASE 5: Sistema de cache com isolamento por empresa
+try:
+    from cache_manager import cached, invalidate_cache
+    CACHE_ENABLED = True
+    log("✅ Cache Manager carregado - Cache inteligente ATIVO")
+except ImportError:
+    CACHE_ENABLED = False
+    log("ℹ️  Cache Manager não encontrado - Funcionando SEM cache")
+    # Fallback decorators se cache não disponível
+    def cached(ttl=300, cache_instance=None):
+        def decorator(func):
+            return func
+        return decorator
+    def invalidate_cache(empresa_id):
+        pass
+
+
 # ============================================================================
 # MODELOS DE DADOS
 # ============================================================================
@@ -2808,8 +2825,12 @@ def adicionar_conta(empresa_id: int, conta: ContaBancaria) -> int:
     if not empresa_id:
         raise ValueError("empresa_id é obrigatório para adicionar_conta")
     db = DatabaseManager()
-    return db.adicionar_conta(conta)
+    result = db.adicionar_conta(conta)
+    # 🔥 Invalidar cache da empresa
+    invalidate_cache(empresa_id)
+    return result
 
+@cached(ttl=600)  # Cache por 10 minutos
 def listar_contas(empresa_id: int) -> List[ContaBancaria]:
     """
     Lista contas bancárias da empresa
@@ -2856,8 +2877,12 @@ def adicionar_categoria(empresa_id: int, categoria: Categoria) -> int:
     if not empresa_id:
         raise ValueError("empresa_id é obrigatório para adicionar_categoria")
     db = DatabaseManager()
-    return db.adicionar_categoria(categoria)
+    result = db.adicionar_categoria(categoria)
+    # 🔥 Invalidar cache da empresa
+    invalidate_cache(empresa_id)
+    return result
 
+@cached(ttl=600)  # Cache por 10 minutos
 def listar_categorias(empresa_id: int, tipo: Optional[TipoLancamento] = None) -> List[Categoria]:
     """
     Lista categorias da empresa
@@ -2914,8 +2939,12 @@ def adicionar_cliente(empresa_id: int, cliente_data, cpf_cnpj: str = None, email
     if not empresa_id:
         raise ValueError("empresa_id é obrigatório para adicionar_cliente")
     db = DatabaseManager()
-    return db.adicionar_cliente(cliente_data, cpf_cnpj, email, telefone, endereco)
+    result = db.adicionar_cliente(cliente_data, cpf_cnpj, email, telefone, endereco)
+    # 🔥 Invalidar cache da empresa
+    invalidate_cache(empresa_id)
+    return result
 
+@cached(ttl=300)  # Cache por 5 minutos
 def listar_clientes(empresa_id: int, ativos: bool = True) -> List[Dict]:
     """
     Lista clientes da empresa
