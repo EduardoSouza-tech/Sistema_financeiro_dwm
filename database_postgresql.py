@@ -15,6 +15,15 @@ import os
 import sys
 from contextlib import contextmanager
 
+# Importar session do Flask para obter empresa_id automaticamente
+try:
+    from flask import session, has_request_context
+    FLASK_AVAILABLE = True
+except ImportError:
+    FLASK_AVAILABLE = False
+    has_request_context = lambda: False
+    session = {}
+
 # IMPORTAR SECURITY WRAPPER PARA ISOLAMENTO DE EMPRESAS
 try:
     from security_wrapper import secure_connection, require_empresa, EmpresaNotSetError
@@ -307,15 +316,76 @@ def _get_connection_pool():
     
     return _connection_pool
 
+def _get_empresa_id_from_session():
+    """
+    Obtém empresa_id da sessão Flask automaticamente
+    
+    Returns:
+        int ou None: ID da empresa da sessão ou None
+    """
+    if not FLASK_AVAILABLE or not has_request_context():
+        return None
+    
+    try:
+        return session.get('empresa_id')
+    except:
+        return None
+
 @contextmanager
-def get_db_connection():
-    """Context manager para obter conexi?o do pool"""
+def get_db_connection(empresa_id=None):
+    """
+    Context manager para obter conexão do pool
+    
+    Args:
+        empresa_id: ID da empresa para ativar Row Level Security
+                   Se None, tenta obter automaticamente da sessão Flask
+                   Se ainda None, não configura RLS (use apenas para operações globais)
+    
+    Example:
+        # Opção 1: Passar empresa_id explicitamente
+        with get_db_connection(empresa_id=18) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM lancamentos")  # Apenas empresa 18
+        
+        # Opção 2: Obter automaticamente da sessão Flask
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM lancamentos")  # Usa session['empresa_id']
+    """
     pool_obj = _get_connection_pool()
     conn = pool_obj.getconn()
+    
+    # Se empresa_id não fornecido, tentar obter da sessão Flask
+    if empresa_id is None:
+        empresa_id = _get_empresa_id_from_session()
+    
     try:
         conn.autocommit = True
+        
+        # ✅ ATIVAR RLS SE EMPRESA_ID DISPONÍVEL
+        if empresa_id is not None and SECURITY_ENABLED:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SELECT set_current_empresa(%s)", (empresa_id,))
+                log(f"🔒 RLS ativado para empresa {empresa_id}")
+            except Exception as e:
+                log(f"⚠️ Erro ao configurar RLS: {e}")
+            finally:
+                cursor.close()
+        elif empresa_id is None:
+            log(f"⚠️ AVISO: Conexão sem empresa_id - RLS não ativado!")
+        
         yield conn
     finally:
+        # Limpar configuração RLS
+        if empresa_id is not None and SECURITY_ENABLED:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("RESET app.current_empresa_id")
+                cursor.close()
+            except:
+                pass
+        
         pool_obj.putconn(conn)
 
 
