@@ -1050,7 +1050,13 @@ window.atualizarSaldoTotalBancos = async function atualizarSaldoTotalBancos(tipo
             return;
         }
         
-        const contas = await response.json();
+        let contas = await response.json();
+        
+        // Suporte ao novo formato de resposta { success, data, total, message }
+        if (contas && typeof contas === 'object' && 'success' in contas && 'data' in contas) {
+            contas = contas.data;
+        }
+        
         console.log('📦 Contas recebidas:', contas);
         console.log('📊 Primeira conta:', contas[0]);
         
@@ -1087,7 +1093,13 @@ window.carregarSelectBancos = async function carregarSelectBancos(tipo) {
             return;
         }
         
-        const contas = await response.json();
+        let contas = await response.json();
+        
+        // Suporte ao novo formato de resposta { success, data, total, message }
+        if (contas && typeof contas === 'object' && 'success' in contas && 'data' in contas) {
+            contas = contas.data;
+        }
+        
         console.log('📦 Contas recebidas para select:', contas);
         
         const selectId = tipo === 'receber' ? 'select-banco-receber' : 'select-banco-pagar';
@@ -4843,7 +4855,16 @@ async function loadFornecedores(ativos = true) {
         const response = await fetch(`${API_URL}/fornecedores?ativos=${ativos}`);
         if (!response.ok) throw new Error('Erro ao carregar fornecedores');
         
-        const fornecedores = await response.json();
+        let fornecedores = await response.json();
+        
+        // Suporte ao novo formato de resposta { success, data, total, message }
+        if (fornecedores && typeof fornecedores === 'object' && 'success' in fornecedores && 'data' in fornecedores) {
+            if (fornecedores.data.length === 0 && fornecedores.message) {
+                console.info(`ℹ️ ${fornecedores.message}`);
+            }
+            fornecedores = fornecedores.data;
+        }
+        
         console.log(`📦 ${fornecedores.length} fornecedores recebidos`);
         
         const tbody = document.getElementById('tbody-fornecedores');
