@@ -1981,6 +1981,15 @@
                         let currentTh = null;
                         let startX = 0;
                         let startWidth = 0;
+                        let originalMinWidth = 0;
+                        
+                        // Guardar os minWidths originais de cada coluna
+                        const originalMinWidths = {};
+                        table.querySelectorAll('th[data-column]').forEach(th => {
+                            const column = th.getAttribute('data-column');
+                            const minWidth = parseInt(th.style.minWidth) || 60;
+                            originalMinWidths[column] = minWidth;
+                        });
                         
                         // Carregar larguras salvas do localStorage
                         const savedWidths = localStorage.getItem('extrato-column-widths');
@@ -1992,8 +2001,6 @@
                                     if (widths[column]) {
                                         const width = widths[column] + 'px';
                                         th.style.width = width;
-                                        th.style.minWidth = width;
-                                        th.style.maxWidth = width;
                                         
                                         // Aplicar também aos TDs correspondentes
                                         const rows = table.querySelectorAll('tbody tr');
@@ -2001,7 +2008,6 @@
                                             const td = row.cells[colIndex];
                                             if (td) {
                                                 td.style.width = width;
-                                                td.style.minWidth = width;
                                                 td.style.maxWidth = width;
                                             }
                                         });
@@ -2022,6 +2028,10 @@
                                 startX = e.pageX;
                                 startWidth = currentTh.offsetWidth;
                                 
+                                // Pegar o minWidth ORIGINAL da coluna (não o atual)
+                                const column = currentTh.getAttribute('data-column');
+                                originalMinWidth = originalMinWidths[column] || 60;
+                                
                                 currentTh.classList.add('resizing');
                                 currentResizer.classList.add('resizing');
                                 
@@ -2041,13 +2051,11 @@
                             
                             const diff = e.pageX - startX;
                             const newWidth = startWidth + diff;
-                            const minWidth = parseInt(currentTh.style.minWidth) || 60;
                             
-                            if (newWidth >= minWidth) {
+                            // Usar o minWidth ORIGINAL, não o atual
+                            if (newWidth >= originalMinWidth) {
                                 const width = newWidth + 'px';
                                 currentTh.style.width = width;
-                                currentTh.style.minWidth = width;
-                                currentTh.style.maxWidth = width;
                                 
                                 // Aplicar a mesma largura aos TDs da mesma coluna
                                 const colIndex = Array.from(currentTh.parentElement.children).indexOf(currentTh);
@@ -2056,7 +2064,6 @@
                                     const td = row.cells[colIndex];
                                     if (td) {
                                         td.style.width = width;
-                                        td.style.minWidth = width;
                                         td.style.maxWidth = width;
                                     }
                                 });
