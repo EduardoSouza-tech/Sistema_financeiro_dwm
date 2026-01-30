@@ -100,6 +100,12 @@ DROP POLICY IF EXISTS movimentacoes_empresa_isolation ON movimentacoes_estoque;
 CREATE POLICY movimentacoes_empresa_isolation ON movimentacoes_estoque
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
 
+-- Transações de Extrato Bancário (importação OFX)
+ALTER TABLE IF EXISTS transacoes_extrato ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS transacoes_extrato_empresa_isolation ON transacoes_extrato;
+CREATE POLICY transacoes_extrato_empresa_isolation ON transacoes_extrato
+    USING (empresa_id = current_setting('app.current_empresa_id')::integer);
+
 -- =====================================================
 -- 2. TABELAS GLOBAIS (SEM RLS)
 -- =====================================================
