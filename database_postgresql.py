@@ -5278,35 +5278,3 @@ def obter_estatisticas_empresa(empresa_id):
             return_to_pool(conn)
 
 
-def obter_empresa(empresa_id):
-    """
-    Obti?m dados de uma empresa especi?fica
-    
-    Args:
-        empresa_id: ID da empresa
-    
-    Returns:
-        dict: Dados da empresa ou None
-    """
-    conn = None
-    cursor = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        cursor.execute("SELECT * FROM empresas WHERE id = %s", (empresa_id,))
-        empresa = cursor.fetchone()
-        
-        if empresa:
-            return dict(empresa)
-        return None
-        
-    except Exception as e:
-        print(f"? Erro ao obter empresa: {e}")
-        return None
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            return_to_pool(conn)
-
