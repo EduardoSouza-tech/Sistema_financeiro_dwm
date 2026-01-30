@@ -322,6 +322,10 @@ def _get_empresa_id_from_session():
     
     Returns:
         int ou None: ID da empresa da sessão ou None
+        
+    Warning:
+        ⚠️ Este método existe apenas para compatibilidade temporária.
+        SEMPRE passe empresa_id explicitamente quando possível.
     """
     if not FLASK_AVAILABLE or not has_request_context():
         return None
@@ -332,32 +336,61 @@ def _get_empresa_id_from_session():
         return None
 
 @contextmanager
-def get_db_connection(empresa_id=None):
+def get_db_connection(empresa_id=None, allow_global=False):
     """
-    Context manager para obter conexão do pool
+    Context manager para obter conexão do pool com Row Level Security
+    
+    ⚠️ REGRA DE SEGURANÇA OBRIGATÓRIA:
+    - Para acessar dados de empresa: empresa_id é OBRIGATÓRIO
+    - Para acessar tabelas globais: use allow_global=True
     
     Args:
-        empresa_id: ID da empresa para ativar Row Level Security
-                   Se None, tenta obter automaticamente da sessão Flask
-                   Se ainda None, não configura RLS (use apenas para operações globais)
+        empresa_id (int): ID da empresa para ativar Row Level Security
+                         Se None, tenta obter automaticamente da sessão Flask
+                         ⚠️ SEMPRE passe explicitamente quando possível!
+        allow_global (bool): Se True, permite conexão sem empresa_id
+                            Use APENAS para tabelas globais (usuarios, empresas)
+                            
+    Raises:
+        ValueError: Se empresa_id não fornecido e not allow_global
     
     Example:
-        # Opção 1: Passar empresa_id explicitamente
+        # ✅ CORRETO - Acesso a dados de empresa
         with get_db_connection(empresa_id=18) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM lancamentos")  # Apenas empresa 18
+            cursor.execute("SELECT * FROM lancamentos")
         
-        # Opção 2: Obter automaticamente da sessão Flask
+        # ✅ CORRETO - Acesso a tabelas globais
+        with get_db_connection(allow_global=True) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM usuarios")
+        
+        # ❌ ERRADO - Vai dar erro
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM lancamentos")  # Usa session['empresa_id']
+            cursor.execute("SELECT * FROM lancamentos")
+    
+    Security:
+        🔒 Row Level Security é aplicado automaticamente quando empresa_id fornecido
+        🔒 Conexões sem empresa_id são bloqueadas por padrão (segurança)
     """
     pool_obj = _get_connection_pool()
     conn = pool_obj.getconn()
     
     # Se empresa_id não fornecido, tentar obter da sessão Flask
-    if empresa_id is None:
+    if empresa_id is None and not allow_global:
         empresa_id = _get_empresa_id_from_session()
+        
+        # ⚠️ VALIDAÇÃO DE SEGURANÇA CRÍTICA
+        if empresa_id is None:
+            pool_obj.putconn(conn)
+            raise ValueError(
+                "❌ SEGURANÇA: empresa_id é obrigatório para acessar dados de empresa!\n"
+                "   Soluções:\n"
+                "   1. Passar empresa_id explicitamente: get_db_connection(empresa_id=18)\n"
+                "   2. Para tabelas globais: get_db_connection(allow_global=True)\n"
+                "   3. Ver: REGRAS_SEGURANCA_OBRIGATORIAS.md"
+            )
     
     try:
         conn.autocommit = True
@@ -372,8 +405,8 @@ def get_db_connection(empresa_id=None):
                 log(f"⚠️ Erro ao configurar RLS: {e}")
             finally:
                 cursor.close()
-        elif empresa_id is None:
-            log(f"⚠️ AVISO: Conexão sem empresa_id - RLS não ativado!")
+        elif allow_global:
+            log(f"⚪ Conexão global (sem RLS) - Tabelas: usuarios, empresas, permissoes")
         
         yield conn
     finally:
