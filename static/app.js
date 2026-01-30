@@ -857,10 +857,25 @@ async function loadContas() {
     try {
         console.log('🏦 Carregando contas bancárias...');
         
-        const data = await apiGet('/contas');
+        let data = await apiGet('/contas');
+        
+        console.log('   📦 Resposta RAW:', data);
+        console.log('   📊 Tipo:', typeof data, '| É array?', Array.isArray(data));
+        
+        // CORREÇÃO DIRETA: Se vier no novo formato {success, data, total, message}, extrair
+        if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+            console.log('   ✅ Detectado formato novo! Extraindo campo data...');
+            if (data.data.length === 0 && data.message) {
+                console.info(`   ℹ️ ${data.message}`);
+            }
+            data = data.data;
+        }
+        
+        console.log('   📊 Total de contas:', data.length);
         
         // Valida se é um array
         if (!Array.isArray(data)) {
+            console.error('   ❌ ERRO: data não é array após extração!', data);
             throw new Error('Formato de resposta inválido');
         }
         
@@ -1270,12 +1285,24 @@ async function loadCategorias() {
         console.log('📂 Carregando categorias...');
         console.log('   🏢 window.currentEmpresaId:', window.currentEmpresaId);
         
-        const data = await apiGet('/categorias');
+        let data = await apiGet('/categorias');
         
-        console.log('   📦 Resposta recebida:', data);
+        console.log('   📦 Resposta RAW:', data);
+        console.log('   📊 Tipo:', typeof data, '| É array?', Array.isArray(data));
+        
+        // CORREÇÃO DIRETA: Se vier no novo formato {success, data, total, message}, extrair
+        if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+            console.log('   ✅ Detectado formato novo! Extraindo campo data...');
+            if (data.data.length === 0 && data.message) {
+                console.info(`   ℹ️ ${data.message}`);
+            }
+            data = data.data;
+        }
+        
         console.log('   📊 Total de categorias:', data.length);
         
         if (!Array.isArray(data)) {
+            console.error('   ❌ ERRO: data não é array após extração!', data);
             throw new Error('Formato de resposta inválido');
         }
         
