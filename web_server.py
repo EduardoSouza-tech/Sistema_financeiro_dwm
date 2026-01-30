@@ -2509,18 +2509,30 @@ def reativar_fornecedor(nome):
 @require_permission('lancamentos_view')
 @aplicar_filtro_cliente
 def listar_lancamentos():
-    """Lista todos os lançamentos com filtro de multi-tenancy"""
+    """Lista todos os lançamentos com filtro de multi-tenancy e paginação"""
     try:
+        # Parâmetros de filtro
         tipo_filtro = request.args.get('tipo')
         filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
         
-        lancamentos = database.listar_lancamentos(filtro_cliente_id=filtro_cliente_id)
+        # Parâmetros de paginação
+        page = request.args.get('page', type=int)
+        per_page = request.args.get('per_page', default=50, type=int)
         
-        # Filtrar por tipo se especificado (case-insensitive)
+        # Criar dicionário de filtros
+        filtros = {}
         if tipo_filtro:
-            lancamentos = [l for l in lancamentos if l.tipo.value.upper() == tipo_filtro.upper()]
+            filtros['tipo'] = tipo_filtro.upper()
         
-        # Converter para lista de dicts e aplicar filtro por cliente
+        # Chamar método com todos os parâmetros
+        lancamentos = database.listar_lancamentos(
+            filtros=filtros,
+            filtro_cliente_id=filtro_cliente_id,
+            page=page,
+            per_page=per_page
+        )
+        
+        # Converter para lista de dicts
         lancamentos_list = [{
             'id': l.id if hasattr(l, 'id') else None,
             'tipo': l.tipo.value,
