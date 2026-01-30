@@ -3017,13 +3017,25 @@ def listar_extratos():
 @app.route('/api/extratos/<int:transacao_id>/conciliar', methods=['POST'])
 @require_permission('lancamentos_edit')
 def conciliar_extrato(transacao_id):
-    """Concilia uma transacao do extrato com um lancamento"""
+    """
+    Concilia uma transacao do extrato com um lancamento
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
     try:
+        # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+        
         dados = request.json
         lancamento_id = dados.get('lancamento_id')
         
+        # 🔒 Passar empresa_id explicitamente
         resultado = extrato_functions.conciliar_transacao(
             database,
+            empresa_id,
             transacao_id,
             lancamento_id
         )
@@ -3060,10 +3072,22 @@ def sugerir_conciliacoes_extrato(transacao_id):
 @app.route('/api/extratos/importacao/<importacao_id>', methods=['DELETE'])
 @require_permission('lancamentos_delete')
 def deletar_importacao_extrato(importacao_id):
-    """Deleta todas as transacoes de uma importacao"""
+    """
+    Deleta todas as transacoes de uma importacao
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
     try:
+        # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+        
+        # 🔒 Passar empresa_id explicitamente
         resultado = extrato_functions.deletar_transacoes_extrato(
             database,
+            empresa_id,
             importacao_id
         )
         

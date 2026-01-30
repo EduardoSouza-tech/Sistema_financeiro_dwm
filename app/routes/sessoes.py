@@ -23,11 +23,23 @@ sessoes_bp = Blueprint('sessoes', __name__, url_prefix='/api/sessoes')
 @sessoes_bp.route('', methods=['GET', 'POST'])
 @require_permission('sessoes_view')
 def sessoes():
-    """Gerenciar sessões - Listar todas ou criar nova"""
+    """
+    Gerenciar sessões - Listar todas ou criar nova
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
     if request.method == 'GET':
         try:
+            # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+            from flask import session
+            empresa_id = session.get('empresa_id')
+            if not empresa_id:
+                return jsonify({'erro': 'Empresa não selecionada'}), 403
+            
             import json
-            sessoes = db.listar_sessoes()
+            # 🔒 Passar empresa_id explicitamente
+            sessoes = db.listar_sessoes(empresa_id=empresa_id)
             
             print(f"\n🔍 [GET /api/sessoes] Total de sessões retornadas: {len(sessoes)}")
             

@@ -3107,11 +3107,29 @@ def gerar_proximo_numero_contrato() -> str:
         ano_atual = datetime.now().year
         return f'CONT-{ano_atual}-0001'
 
-def adicionar_contrato(dados: Dict) -> int:
-    """Adiciona um novo contrato"""
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
+def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
+    """
+    Adiciona um novo contrato
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        dados (Dict): Dados do contrato
+    
+    Returns:
+        int: ID do contrato criado
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - contrato vinculado à empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para adicionar_contrato")
+    
+    # 🔒 Usar get_db_connection com empresa_id
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
     
     # Mapear dados do frontend para os campos do banco
     # Frontend: nome, tipo, valor_mensal, quantidade_meses, valor_total, data_contrato, etc
@@ -3155,18 +3173,35 @@ def adicionar_contrato(dados: Dict) -> int:
     return_to_pool(conn)  # Devolver ao pool
     return contrato_id
 
-def listar_contratos() -> List[Dict]:
-    """Lista todos os contratos"""
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
+def listar_contratos(empresa_id: int) -> List[Dict]:
+    """
+    Lista todos os contratos da empresa
     
-    cursor.execute("""
-        SELECT c.*, cl.nome as cliente_nome
-        FROM contratos c
-        LEFT JOIN clientes cl ON c.cliente_id = cl.id
-        ORDER BY c.created_at DESC
-    """)
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+    
+    Returns:
+        List[Dict]: Lista de contratos
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - retorna apenas contratos da empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para listar_contratos")
+    
+    # 🔒 Usar get_db_connection com empresa_id
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT c.*, cl.nome as cliente_nome
+            FROM contratos c
+            LEFT JOIN clientes cl ON c.cliente_id = cl.id
+            ORDER BY c.created_at DESC
+        """)
     
     contratos = []
     for row in cursor.fetchall():
@@ -3314,30 +3349,45 @@ def adicionar_sessao(dados: Dict) -> int:
     return sessao_id
 
 
-def listar_sessoes(empresa_id: int = None) -> List[Dict]:
-    """Lista todas as sessões"""
+def listar_sessoes(empresa_id: int) -> List[Dict]:
+    """
+    Lista todas as sessões da empresa
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+    
+    Returns:
+        List[Dict]: Lista de sessões
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - retorna apenas sessões da empresa
+    """
     import json
     
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para listar_sessoes")
     
-    query = """
-        SELECT 
-            s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
-            s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
-            s.created_at, s.updated_at,
-            c.nome AS cliente_nome, c.razao_social AS cliente_razao_social,
-            ct.numero AS contrato_numero, ct.descricao AS contrato_nome
-        FROM sessoes s
-        LEFT JOIN clientes c ON s.cliente_id = c.id
-        LEFT JOIN contratos ct ON s.contrato_id = ct.id
-    """
-    
-    params = []
-    if empresa_id:
-        query += " WHERE s.empresa_id = %s"
-        params.append(empresa_id)
+    # 🔒 Usar get_db_connection com empresa_id
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT 
+                s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
+                s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
+                s.created_at, s.updated_at,
+                c.nome AS cliente_nome, c.razao_social AS cliente_razao_social,
+                ct.numero AS contrato_numero, ct.descricao AS contrato_nome
+            FROM sessoes s
+            LEFT JOIN clientes c ON s.cliente_id = c.id
+            LEFT JOIN contratos ct ON s.contrato_id = ct.id
+            ORDER BY s.data DESC
+        """
+        
+        cursor.execute(query)
     
     query += " ORDER BY s.data DESC, s.id DESC"
     

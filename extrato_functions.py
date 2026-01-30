@@ -33,7 +33,8 @@ def salvar_transacoes_extrato(database, empresa_id, conta_bancaria, transacoes, 
         inseridas = 0
         duplicadas = 0
         
-        with database.get_db_connection() as conn:
+        # 🔒 Passar empresa_id para RLS
+        with database.get_db_connection(empresa_id=empresa_id) as conn:
             conn.autocommit = False
             cursor = conn.cursor()
             
@@ -103,7 +104,8 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
         list: lista de transacoes
     """
     try:
-        with database.get_db_connection() as conn:
+        # 🔒 Passar empresa_id para RLS
+        with database.get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=database.RealDictCursor)
             
             query = """
@@ -145,20 +147,25 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
         return []
 
 
-def conciliar_transacao(database, transacao_id, lancamento_id):
+def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):
     """
     Concilia uma transacao do extrato com um lancamento
     
     Args:
         database: instancia do DatabaseManager
+        empresa_id: ID da empresa [OBRIGATÓRIO]
         transacao_id: ID da transacao do extrato
         lancamento_id: ID do lancamento (ou None para desconciliar)
     
     Returns:
         dict: {'success': bool}
+        
+    Security:
+        🔒 RLS aplicado via empresa_id
     """
     try:
-        with database.get_db_connection() as conn:
+        # 🔒 Passar empresa_id para RLS
+        with database.get_db_connection(empresa_id=empresa_id) as conn:
             conn.autocommit = False
             cursor = conn.cursor()
             
@@ -191,7 +198,8 @@ def sugerir_conciliacoes(database, empresa_id, transacao_id):
         list: lista de lancamentos sugeridos
     """
     try:
-        with database.get_db_connection() as conn:
+        # 🔒 Passar empresa_id para RLS
+        with database.get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=database.RealDictCursor)
             
             # Buscar transacao
@@ -236,19 +244,24 @@ def sugerir_conciliacoes(database, empresa_id, transacao_id):
         return []
 
 
-def deletar_transacoes_extrato(database, importacao_id):
+def deletar_transacoes_extrato(database, empresa_id, importacao_id):
     """
     Deleta todas as transacoes de uma importacao
     
     Args:
         database: instancia do DatabaseManager
+        empresa_id: ID da empresa [OBRIGATÓRIO]
         importacao_id: ID da importacao
     
     Returns:
         dict: {'success': bool, 'deletadas': int}
+        
+    Security:
+        🔒 RLS aplicado via empresa_id
     """
     try:
-        with database.get_db_connection() as conn:
+        # 🔒 Passar empresa_id para RLS
+        with database.get_db_connection(empresa_id=empresa_id) as conn:
             conn.autocommit = False
             cursor = conn.cursor()
             

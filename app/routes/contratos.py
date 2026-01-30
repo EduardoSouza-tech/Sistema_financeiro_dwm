@@ -20,10 +20,22 @@ contratos_bp = Blueprint('contratos', __name__, url_prefix='/api/contratos')
 @contratos_bp.route('', methods=['GET', 'POST'])
 @require_permission('contratos_view')
 def contratos():
-    """Gerenciar contratos - Listar todos ou criar novo"""
+    """
+    Gerenciar contratos - Listar todos ou criar novo
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
     if request.method == 'GET':
         try:
-            contratos = db.listar_contratos()
+            # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+            from flask import session
+            empresa_id = session.get('empresa_id')
+            if not empresa_id:
+                return jsonify({'erro': 'Empresa não selecionada'}), 403
+            
+            # 🔒 Passar empresa_id explicitamente
+            contratos = db.listar_contratos(empresa_id=empresa_id)
             
             # Adicionar cliente_id para cada contrato
             for contrato in contratos:
@@ -37,6 +49,12 @@ def contratos():
             return jsonify({'error': str(e)}), 500
     else:  # POST
         try:
+            # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+            from flask import session
+            empresa_id = session.get('empresa_id')
+            if not empresa_id:
+                return jsonify({'erro': 'Empresa não selecionada'}), 403
+            
             data = request.json
             print(f"🔍 Criando contrato com dados: {data}")
             
@@ -44,7 +62,8 @@ def contratos():
             if not data.get('numero'):
                 data['numero'] = db.gerar_proximo_numero_contrato()
             
-            contrato_id = db.adicionar_contrato(data)
+            # 🔒 Passar empresa_id explicitamente
+            contrato_id = db.adicionar_contrato(empresa_id=empresa_id, dados=data)
             print(f"✅ Contrato criado com ID: {contrato_id}")
             return jsonify({
                 'success': True,
@@ -80,8 +99,15 @@ def contrato_detalhes(contrato_id):
     """Buscar, atualizar ou excluir contrato específico"""
     if request.method == 'GET':
         try:
+            # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+            from flask import session
+            empresa_id = session.get('empresa_id')
+            if not empresa_id:
+                return jsonify({'erro': 'Empresa não selecionada'}), 403
+            
             print(f"🔍 Buscando contrato {contrato_id}")
-            contratos = db.listar_contratos()
+            # 🔒 Passar empresa_id explicitamente
+            contratos = db.listar_contratos(empresa_id=empresa_id)
             contrato = next((c for c in contratos if c.get('id') == contrato_id), None)
             
             if contrato:
