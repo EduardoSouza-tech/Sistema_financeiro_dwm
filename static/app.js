@@ -1507,7 +1507,15 @@ async function loadClientes(ativos = true) {
     
     try {
         const response = await fetch(`${API_URL}/clientes?ativos=${ativos}`);
-        const clientes = await response.json();
+        let clientes = await response.json();
+        
+        // Suporte ao novo formato de resposta { success, data, total, message }
+        if (clientes && typeof clientes === 'object' && 'success' in clientes && 'data' in clientes) {
+            if (clientes.data.length === 0 && clientes.message) {
+                console.info(`ℹ️ ${clientes.message}`);
+            }
+            clientes = clientes.data;
+        }
         
         console.log(`✅ ${clientes.length} clientes carregados`);
         
@@ -1800,7 +1808,15 @@ async function loadFornecedores() {
     try {
         console.log('🏭 loadFornecedores - Buscando fornecedores...');
         const response = await fetch(`${API_URL}/fornecedores`);
-        const fornecedores = await response.json();
+        let fornecedores = await response.json();
+        
+        // Suporte ao novo formato de resposta { success, data, total, message }
+        if (fornecedores && typeof fornecedores === 'object' && 'success' in fornecedores && 'data' in fornecedores) {
+            if (fornecedores.data.length === 0 && fornecedores.message) {
+                console.info(`ℹ️ ${fornecedores.message}`);
+            }
+            fornecedores = fornecedores.data;
+        }
         
         console.log('📦 Fornecedores recebidos:', fornecedores);
         console.log('📊 Total de fornecedores:', fornecedores.length);
@@ -5098,7 +5114,16 @@ window.loadContasBancarias = async function() {
             throw new Error(`HTTP ${response.status}`);
         }
         
-        const contas = await response.json();
+        let contas = await response.json();
+        
+        // Suporte ao novo formato de resposta { success, data, total, message }
+        if (contas && typeof contas === 'object' && 'success' in contas && 'data' in contas) {
+            if (contas.data.length === 0 && contas.message) {
+                console.info(`ℹ️ ${contas.message}`);
+            }
+            contas = contas.data;
+        }
+        
         console.log(`✅ ${contas.length} conta(s) bancária(s) carregada(s)`);
         
         const tbody = document.getElementById('tbody-contas');
