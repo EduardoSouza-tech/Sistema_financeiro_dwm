@@ -1658,12 +1658,17 @@ def listar_contas():
                 'ativa': c.ativa if hasattr(c, 'ativa') else True
             })
         
-        return jsonify(contas_com_saldo)
+        return jsonify({
+            'success': True,
+            'data': contas_com_saldo,
+            'total': len(contas_com_saldo),
+            'message': 'Nenhuma conta cadastrada' if len(contas_com_saldo) == 0 else None
+        })
     except Exception as e:
         print(f"❌ Erro em /api/contas: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 
@@ -2021,12 +2026,17 @@ def listar_categorias():
         
         print(f'   ✅ Retornando {len(resultado)} categorias')
         print('='*80 + '\n')
-        return jsonify(resultado)
+        return jsonify({
+            'success': True,
+            'data': resultado,
+            'total': len(resultado),
+            'message': 'Nenhuma categoria cadastrada. Adicione categorias para organizar suas transações.' if len(resultado) == 0 else None
+        })
     except Exception as e:
         print(f'   ❌ Erro ao listar categorias: {str(e)}')
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/categorias', methods=['POST'])
@@ -2194,7 +2204,12 @@ def listar_clientes():
     for cliente in clientes:
         cliente['cliente_id'] = cliente.get('nome')
     
-    return jsonify(clientes)
+    return jsonify({
+        'success': True,
+        'data': clientes,
+        'total': len(clientes),
+        'message': 'Nenhum cliente cadastrado' if len(clientes) == 0 else None
+    })
 
 
 @app.route('/api/clientes', methods=['POST'])
@@ -2312,7 +2327,12 @@ def listar_fornecedores():
     
     fornecedores = db.listar_fornecedores(ativos=ativos, filtro_cliente_id=filtro_cliente_id)
     
-    return jsonify(fornecedores)
+    return jsonify({
+        'success': True,
+        'data': fornecedores,
+        'total': len(fornecedores),
+        'message': 'Nenhum fornecedor cadastrado' if len(fornecedores) == 0 else None
+    })
 
 
 @app.route('/api/fornecedores', methods=['POST'])
@@ -2520,7 +2540,12 @@ def listar_lancamentos():
             'cliente_id': getattr(l, 'pessoa', None)  # Usar pessoa como referência ao cliente
         } for l in lancamentos]
         
-        return jsonify(lancamentos_list)
+        return jsonify({
+            'success': True,
+            'data': lancamentos_list,
+            'total': len(lancamentos_list),
+            'message': 'Nenhum lançamento encontrado' if len(lancamentos_list) == 0 else None
+        })
     except Exception as e:
         print(f"❌ Erro ao listar lançamentos: {e}")
         import traceback
