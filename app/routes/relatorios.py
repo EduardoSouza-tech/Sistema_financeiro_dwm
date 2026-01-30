@@ -37,7 +37,18 @@ relatorios_bp = Blueprint('relatorios', __name__, url_prefix='/api/relatorios')
 @relatorios_bp.route('/fluxo-caixa', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_fluxo_caixa():
-    """Relatório de fluxo de caixa"""
+    """
+    Relatório de fluxo de caixa
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+    from flask import session
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     data_inicio_str = request.args.get('data_inicio', (date.today() - timedelta(days=30)).isoformat())
     data_fim_str = request.args.get('data_fim', date.today().isoformat())
     
@@ -52,7 +63,8 @@ def relatorio_fluxo_caixa():
     else:
         data_fim = data_fim_str
     
-    lancamentos = db.listar_lancamentos()
+    # 🔒 Passar empresa_id explicitamente
+    lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
     
     # Filtrar lançamentos por cliente se necessário
     usuario = request.usuario
@@ -125,14 +137,26 @@ def relatorio_fluxo_caixa():
 @relatorios_bp.route('/dashboard', methods=['GET'])
 @require_permission('relatorios_view')
 def dashboard():
-    """Dados para o dashboard"""
+    """
+    Dados para o dashboard
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
     try:
+        # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+        from flask import session
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+        
         # Pegar filtros opcionais
         ano = request.args.get('ano', type=int)
         mes = request.args.get('mes', type=int)
         
-        lancamentos = db.listar_lancamentos()
-        contas = db.listar_contas()
+        # 🔒 Passar empresa_id explicitamente
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
+        contas = db.listar_contas(empresa_id=empresa_id)
         
         # Filtrar lançamentos por cliente se necessário
         usuario = request.usuario
@@ -279,8 +303,17 @@ def dashboard_completo():
     Dashboard completo com análises detalhadas - apenas lançamentos liquidados
     
     ⚡ OTIMIZADO COM CACHE (TTL: 5 minutos)
+    
+    Security:
+        🔒 Validado empresa_id da sessão
     """
     try:
+        # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+        from flask import session
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+        
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
         
@@ -296,7 +329,7 @@ def dashboard_completo():
             'data_inicio': data_inicio_obj,
             'data_fim': data_fim_obj
         }
-        lancamentos = db.listar_lancamentos(filtros=filtros)
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id, filtros=filtros)
         
         # Filtrar lançamentos por cliente se necessário
         usuario = request.usuario
@@ -362,8 +395,19 @@ def dashboard_completo():
 @relatorios_bp.route('/fluxo-projetado', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_fluxo_projetado():
-    """Relatório de fluxo de caixa PROJETADO (incluindo lançamentos pendentes futuros)"""
+    """
+    Relatório de fluxo de caixa PROJETADO (incluindo lançamentos pendentes futuros)
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
     try:
+        # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+        from flask import session
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+        
         # Receber filtros - padrão é projetar próximos X dias
         dias = request.args.get('dias')
         dias = int(dias) if dias else 30
@@ -373,8 +417,9 @@ def relatorio_fluxo_projetado():
         data_final = hoje + timedelta(days=dias)
         periodo_texto = f"PROJEÇÃO - PRÓXIMOS {dias} DIAS"
         
-        lancamentos = db.listar_lancamentos()
-        contas = db.listar_contas()
+        # 🔒 Passar empresa_id explicitamente
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
+        contas = db.listar_contas(empresa_id=empresa_id)
         
         # Filtrar lançamentos por cliente se necessário
         usuario = request.usuario
@@ -521,8 +566,19 @@ def relatorio_fluxo_projetado():
 @relatorios_bp.route('/analise-contas', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_analise_contas():
-    """Relatório de análise de contas a pagar e receber"""
-    lancamentos = db.listar_lancamentos()
+    """
+    Relatório de análise de contas a pagar e receber
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+    from flask import session
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
+    lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
     hoje = date.today()
     
     # Filtrar lançamentos por cliente se necessário
@@ -580,7 +636,18 @@ def relatorio_analise_contas():
 @relatorios_bp.route('/resumo-parceiros', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_resumo_parceiros():
-    """Relatório de resumo por cliente/fornecedor"""
+    """
+    Relatório de resumo por cliente/fornecedor
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+    from flask import session
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
         data_inicio = request.args.get('data_inicio', (date.today() - timedelta(days=30)).isoformat())
         data_fim = request.args.get('data_fim', date.today().isoformat())
@@ -588,7 +655,7 @@ def relatorio_resumo_parceiros():
         data_inicio = datetime.fromisoformat(data_inicio).date()
         data_fim = datetime.fromisoformat(data_fim).date()
         
-        lancamentos = db.listar_lancamentos()
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
         
         # Agrupar por pessoa
         resumo_clientes = {}
@@ -650,7 +717,18 @@ def relatorio_resumo_parceiros():
 @relatorios_bp.route('/analise-categorias', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_analise_categorias():
-    """Relatório de análise por categorias"""
+    """
+    Relatório de análise por categorias
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+    from flask import session
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
         data_inicio = request.args.get('data_inicio', (date.today() - timedelta(days=30)).isoformat())
         data_fim = request.args.get('data_fim', date.today().isoformat())
@@ -658,7 +736,7 @@ def relatorio_analise_categorias():
         data_inicio = datetime.fromisoformat(data_inicio).date()
         data_fim = datetime.fromisoformat(data_fim).date()
         
-        lancamentos = db.listar_lancamentos()
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
         
         # Agrupar por categoria e subcategoria
         receitas = {}
@@ -702,7 +780,18 @@ def relatorio_analise_categorias():
 @relatorios_bp.route('/comparativo-periodos', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_comparativo_periodos():
-    """Relatório comparativo entre períodos"""
+    """
+    Relatório comparativo entre períodos
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+    from flask import session
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
         # Período 1
         data_inicio1 = request.args.get('data_inicio1')
@@ -720,7 +809,7 @@ def relatorio_comparativo_periodos():
         data_inicio2 = datetime.fromisoformat(data_inicio2).date()
         data_fim2 = datetime.fromisoformat(data_fim2).date()
         
-        lancamentos = db.listar_lancamentos()
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
         
         def calcular_periodo(data_ini, data_fim):
             receitas = Decimal('0')
@@ -804,10 +893,21 @@ def relatorio_comparativo_periodos():
 @relatorios_bp.route('/indicadores', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_indicadores():
-    """Relatório de indicadores financeiros"""
+    """
+    Relatório de indicadores financeiros
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+    from flask import session
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
-        lancamentos = db.listar_lancamentos()
-        contas = db.listar_contas()
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
+        contas = db.listar_contas(empresa_id=empresa_id)
         
         # Obter filtros de data
         data_inicio_str = request.args.get('data_inicio')
@@ -894,9 +994,20 @@ def relatorio_indicadores():
 @relatorios_bp.route('/inadimplencia', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_inadimplencia():
-    """Relatório de inadimplência"""
+    """
+    Relatório de inadimplência
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+    from flask import session
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+    
     try:
-        lancamentos = db.listar_lancamentos()
+        lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
         hoje = date.today()
         
         inadimplentes = []
