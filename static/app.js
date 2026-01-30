@@ -197,7 +197,20 @@ async function fetchWithTimeout(url, options = {}) {
  */
 async function apiGet(endpoint) {
     try {
-        return await fetchWithTimeout(`${CONFIG.API_URL}${endpoint}`);
+        const response = await fetchWithTimeout(`${CONFIG.API_URL}${endpoint}`);
+        
+        // Suporte ao novo formato de resposta { success, data, total, message }
+        // Se a resposta tiver os campos do novo formato, extrai os dados
+        if (response && typeof response === 'object' && 'success' in response && 'data' in response) {
+            // Se não houver dados, mostrar mensagem informativa ao invés de erro
+            if (response.data.length === 0 && response.message) {
+                console.info(`ℹ️ ${response.message}`);
+            }
+            return response.data;
+        }
+        
+        // Retrocompatibilidade: retorna resposta original se não for o novo formato
+        return response;
     } catch (error) {
         logError('apiGet', error, { endpoint });
         throw error;
