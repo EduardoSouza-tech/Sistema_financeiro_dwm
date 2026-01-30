@@ -199,17 +199,27 @@ async function apiGet(endpoint) {
     try {
         const response = await fetchWithTimeout(`${CONFIG.API_URL}${endpoint}`);
         
+        console.log(`🔍 apiGet(${endpoint}):`, {
+            tipo: typeof response,
+            temSuccess: 'success' in (response || {}),
+            temData: 'data' in (response || {}),
+            isArray: Array.isArray(response),
+            keys: response ? Object.keys(response).slice(0, 5) : []
+        });
+        
         // Suporte ao novo formato de resposta { success, data, total, message }
         // Se a resposta tiver os campos do novo formato, extrai os dados
         if (response && typeof response === 'object' && 'success' in response && 'data' in response) {
+            console.log(`   ✅ Novo formato detectado! Extraindo campo 'data'`);
             // Se não houver dados, mostrar mensagem informativa ao invés de erro
             if (response.data.length === 0 && response.message) {
-                console.info(`ℹ️ ${response.message}`);
+                console.info(`   ℹ️ ${response.message}`);
             }
             return response.data;
         }
         
         // Retrocompatibilidade: retorna resposta original se não for o novo formato
+        console.log(`   ⚠️ Formato antigo detectado, retornando resposta original`);
         return response;
     } catch (error) {
         logError('apiGet', error, { endpoint });
