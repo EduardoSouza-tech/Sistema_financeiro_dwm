@@ -1863,25 +1863,26 @@
                         top: 0;
                         bottom: 0;
                         width: 2px;
-                        background: rgba(255, 255, 255, 0.3);
+                        background: rgba(0, 0, 0, 0.3);
                     }
                     
                     .resizable-table .resizer:hover {
-                        background: rgba(255, 255, 255, 0.2);
+                        background: rgba(0, 0, 0, 0.15);
                     }
                     
                     .resizable-table .resizer:hover::after {
-                        background: rgba(255, 255, 255, 0.9);
+                        background: #000;
                         width: 3px;
                     }
                     
                     .resizable-table .resizer.resizing {
-                        background: rgba(255, 255, 255, 0.3);
+                        background: rgba(0, 0, 0, 0.2);
                     }
                     
                     .resizable-table .resizer.resizing::after {
-                        background: #fff;
+                        background: #000;
                         width: 3px;
+                        box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
                     }
                     
                     .resizable-table th.resizing {
