@@ -435,20 +435,50 @@ def return_to_pool(conn):
 # FUNi?i?ES AUXILIARES OTIMIZADAS
 # ============================================================================
 
-def execute_query(query: str, params: tuple = None, fetch_one: bool = False, fetch_all: bool = True):
+def execute_query(query: str, params: tuple = None, fetch_one: bool = False, fetch_all: bool = True, empresa_id: int = None, allow_global: bool = False):
     """
-    Executa query otimizada usando pool de conexi?es
+    Executa query otimizada usando pool de conexões
+    
+    ⚠️ SEGURANÇA: empresa_id obrigatório para tabelas isoladas
     
     Args:
-        query: Query SQL
-        params: Pari?metros da query
-        fetch_one: Retornar apenas um resultado
-        fetch_all: Retornar todos os resultados
+        query (str): Query SQL
+        params (tuple): Parâmetros da query
+        fetch_one (bool): Retornar apenas um resultado
+        fetch_all (bool): Retornar todos os resultados
+        empresa_id (int): ID da empresa [OBRIGATÓRIO para tabelas isoladas]
+        allow_global (bool): Se True, permite query em tabelas globais sem empresa_id
     
     Returns:
         Resultado da query ou None
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido e not allow_global
+        
+    Example:
+        # ✅ Query em tabela isolada
+        result = execute_query(
+            "SELECT * FROM clientes WHERE id = %s",
+            params=(1,),
+            empresa_id=18,
+            fetch_one=True
+        )
+        
+        # ✅ Query em tabela global
+        result = execute_query(
+            "SELECT * FROM usuarios WHERE id = %s",
+            params=(1,),
+            allow_global=True,
+            fetch_one=True
+        )
     """
-    with get_db_connection() as conn:
+    if not allow_global and not empresa_id:
+        raise ValueError(
+            "empresa_id é obrigatório para execute_query em tabelas isoladas. "
+            "Use allow_global=True apenas para tabelas globais (usuarios, empresas)."
+        )
+    
+    with get_db_connection(empresa_id=empresa_id, allow_global=allow_global) as conn:
         with conn.cursor() as cursor:
             cursor.execute(query, params or ())
             
@@ -460,9 +490,39 @@ def execute_query(query: str, params: tuple = None, fetch_one: bool = False, fet
                 return cursor.rowcount
 
 
-def execute_many(query: str, params_list: list):
-    """Executa mi?ltiplas queries em batch para performance"""
-    with get_db_connection() as conn:
+def execute_many(query: str, params_list: list, empresa_id=None, allow_global=False):
+    """
+    Executa múltiplas queries em batch para performance
+    
+    ⚠️ SEGURANÇA: empresa_id obrigatório para tabelas isoladas
+    
+    Args:
+        query (str): Query SQL
+        params_list (list): Lista de tuplas com parâmetros
+        empresa_id (int): ID da empresa [OBRIGATÓRIO para tabelas isoladas]
+        allow_global (bool): Se True, permite query em tabelas globais sem empresa_id
+        
+    Returns:
+        int: Número de registros afetados
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido e not allow_global
+        
+    Example:
+        # ✅ Inserir múltiplos clientes
+        execute_many(
+            "INSERT INTO clientes (nome, empresa_id) VALUES (%s, %s)",
+            [("Cliente 1", 18), ("Cliente 2", 18)],
+            empresa_id=18
+        )
+    """
+    if not allow_global and not empresa_id:
+        raise ValueError(
+            "empresa_id é obrigatório para execute_many em tabelas isoladas. "
+            "Use allow_global=True apenas para tabelas globais (usuarios, empresas)."
+        )
+    
+    with get_db_connection(empresa_id=empresa_id, allow_global=allow_global) as conn:
         with conn.cursor() as cursor:
             cursor.executemany(query, params_list)
             return cursor.rowcount
