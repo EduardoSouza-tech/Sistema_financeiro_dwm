@@ -1841,26 +1841,51 @@
                     .resizable-table th {
                         position: relative;
                         user-select: none;
+                        padding-right: 8px !important;
                     }
                     
                     .resizable-table .resizer {
                         position: absolute;
                         top: 0;
-                        right: 0;
-                        width: 5px;
+                        right: -3px;
+                        width: 8px;
                         height: 100%;
                         cursor: col-resize;
-                        z-index: 10;
+                        z-index: 100;
+                        background: transparent;
+                        transition: background 0.2s;
                     }
                     
-                    .resizable-table .resizer:hover,
+                    .resizable-table .resizer::after {
+                        content: '';
+                        position: absolute;
+                        right: 3px;
+                        top: 0;
+                        bottom: 0;
+                        width: 2px;
+                        background: rgba(255, 255, 255, 0.3);
+                    }
+                    
+                    .resizable-table .resizer:hover {
+                        background: rgba(255, 255, 255, 0.2);
+                    }
+                    
+                    .resizable-table .resizer:hover::after {
+                        background: rgba(255, 255, 255, 0.9);
+                        width: 3px;
+                    }
+                    
                     .resizable-table .resizer.resizing {
                         background: rgba(255, 255, 255, 0.3);
-                        border-right: 2px solid #fff;
+                    }
+                    
+                    .resizable-table .resizer.resizing::after {
+                        background: #fff;
+                        width: 3px;
                     }
                     
                     .resizable-table th.resizing {
-                        background: rgba(255, 255, 255, 0.1);
+                        background: rgba(255, 255, 255, 0.15);
                     }
                     
                     #tbody-extrato td {
@@ -1930,11 +1955,23 @@
                 
                 <script>
                     // Sistema de redimensionamento de colunas para tabela de extrato
-                    (function() {
+                    function initializeColumnResizer() {
                         const table = document.getElementById('table-extrato');
-                        if (!table) return;
+                        if (!table) {
+                            console.log('Tabela de extrato não encontrada, tentando novamente...');
+                            setTimeout(initializeColumnResizer, 500);
+                            return;
+                        }
                         
                         const resizers = table.querySelectorAll('.resizer');
+                        if (resizers.length === 0) {
+                            console.log('Resizers não encontrados, tentando novamente...');
+                            setTimeout(initializeColumnResizer, 500);
+                            return;
+                        }
+                        
+                        console.log('✅ Inicializando redimensionamento de colunas - ' + resizers.length + ' colunas');
+                        
                         let currentResizer = null;
                         let currentTh = null;
                         let startX = 0;
@@ -1949,6 +1986,7 @@
                                     const column = th.getAttribute('data-column');
                                     if (widths[column]) {
                                         th.style.width = widths[column] + 'px';
+                                        console.log('Restaurada largura de ' + column + ': ' + widths[column] + 'px');
                                     }
                                 });
                             } catch (e) {
@@ -1956,8 +1994,9 @@
                             }
                         }
                         
-                        resizers.forEach(resizer => {
+                        resizers.forEach((resizer, index) => {
                             resizer.addEventListener('mousedown', function(e) {
+                                console.log('🖱️ Iniciando resize da coluna ' + (index + 1));
                                 currentResizer = resizer;
                                 currentTh = resizer.parentElement;
                                 startX = e.pageX;
@@ -1966,10 +2005,14 @@
                                 currentTh.classList.add('resizing');
                                 currentResizer.classList.add('resizing');
                                 
+                                document.body.style.cursor = 'col-resize';
+                                document.body.style.userSelect = 'none';
+                                
                                 document.addEventListener('mousemove', onMouseMove);
                                 document.addEventListener('mouseup', onMouseUp);
                                 
                                 e.preventDefault();
+                                e.stopPropagation();
                             });
                         });
                         
@@ -1983,12 +2026,17 @@
                             if (newWidth >= minWidth) {
                                 currentTh.style.width = newWidth + 'px';
                             }
+                            
+                            e.preventDefault();
                         }
                         
-                        function onMouseUp() {
+                        function onMouseUp(e) {
                             if (currentTh) {
                                 currentTh.classList.remove('resizing');
                                 currentResizer.classList.remove('resizing');
+                                
+                                const finalWidth = currentTh.offsetWidth;
+                                console.log('✅ Coluna redimensionada para: ' + finalWidth + 'px');
                                 
                                 // Salvar larguras no localStorage
                                 const widths = {};
@@ -1997,15 +2045,35 @@
                                     widths[column] = th.offsetWidth;
                                 });
                                 localStorage.setItem('extrato-column-widths', JSON.stringify(widths));
+                                console.log('💾 Larguras salvas:', widths);
                             }
+                            
+                            document.body.style.cursor = '';
+                            document.body.style.userSelect = '';
                             
                             currentResizer = null;
                             currentTh = null;
                             
                             document.removeEventListener('mousemove', onMouseMove);
                             document.removeEventListener('mouseup', onMouseUp);
+                            
+                            if (e) e.preventDefault();
                         }
-                    })();
+                    }
+                    
+                    // Inicializar quando o DOM estiver pronto
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', initializeColumnResizer);
+                    } else {
+                        initializeColumnResizer();
+                    }
+                    
+                    // Também reinicializar quando mudar de aba (caso a tabela seja recarregada)
+                    window.addEventListener('hashchange', function() {
+                        if (window.location.hash === '#extrato-bancario') {
+                            setTimeout(initializeColumnResizer, 300);
+                        }
+                    });
                 </script>
             </div>
 
