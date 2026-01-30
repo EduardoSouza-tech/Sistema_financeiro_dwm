@@ -11,79 +11,79 @@
 -- =====================================================
 
 -- Categorias
-ALTER TABLE categorias ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS categorias ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS categorias_empresa_isolation ON categorias;
 CREATE POLICY categorias_empresa_isolation ON categorias
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
 
 -- Subcategorias
-ALTER TABLE subcategorias ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS subcategorias ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS subcategorias_empresa_isolation ON subcategorias;
 CREATE POLICY subcategorias_empresa_isolation ON subcategorias
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
 
 -- Lançamentos
-ALTER TABLE lancamentos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS lancamentos ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS lancamentos_empresa_isolation ON lancamentos;
 CREATE POLICY lancamentos_empresa_isolation ON lancamentos
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
 
 -- Contas
-ALTER TABLE contas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS contas ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS contas_empresa_isolation ON contas;
 CREATE POLICY contas_empresa_isolation ON contas
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
 
 -- Clientes
-ALTER TABLE clientes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS clientes ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS clientes_empresa_isolation ON clientes;
 CREATE POLICY clientes_empresa_isolation ON clientes
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
 
 -- Fornecedores
-ALTER TABLE fornecedores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS fornecedores ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS fornecedores_empresa_isolation ON fornecedores;
 CREATE POLICY fornecedores_empresa_isolation ON fornecedores
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
 
 -- Contratos
-ALTER TABLE contratos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS contratos ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS contratos_empresa_isolation ON contratos;
 CREATE POLICY contratos_empresa_isolation ON contratos
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
 
 -- Sessões de Fotografia
-ALTER TABLE sessoes_fotografia ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS sessoes_fotografia ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS sessoes_empresa_isolation ON sessoes_fotografia;
 CREATE POLICY sessoes_empresa_isolation ON sessoes_fotografia
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
 
 -- Equipamentos
-ALTER TABLE equipamentos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS equipamentos ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS equipamentos_empresa_isolation ON equipamentos;
 CREATE POLICY equipamentos_empresa_isolation ON equipamentos
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
 
 -- Kits de Equipamentos
-ALTER TABLE kits_equipamentos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS kits_equipamentos ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS kits_empresa_isolation ON kits_equipamentos;
 CREATE POLICY kits_empresa_isolation ON kits_equipamentos
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
 
 -- Funcionários
-ALTER TABLE funcionarios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS funcionarios ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS funcionarios_empresa_isolation ON funcionarios;
 CREATE POLICY funcionarios_empresa_isolation ON funcionarios
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
 
 -- Folha de Pagamento
-ALTER TABLE folha_pagamento ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS folha_pagamento ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS folha_empresa_isolation ON folha_pagamento;
 CREATE POLICY folha_empresa_isolation ON folha_pagamento
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
 
 -- Eventos
-ALTER TABLE eventos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS eventos ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS eventos_empresa_isolation ON eventos;
 CREATE POLICY eventos_empresa_isolation ON eventos
     USING (empresa_id = current_setting('app.current_empresa_id')::integer);
