@@ -1786,40 +1786,65 @@
 
                 <!-- Tabela de Transações -->
                 <div class="table-container" style="background: white; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                    <table class="table resizable-table" id="table-extrato" style="background: white; min-width: 1000px; table-layout: fixed;">
-                        <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <table class="table resizable-table" id="table-extrato" style="background: white; min-width: 1000px;">
+                        <colgroup id="colgroup-extrato">
+                            <col data-column="data" style="width: 100px; min-width: 70px;">
+                            <col data-column="descricao" style="width: 350px; min-width: 150px;">
+                            <col data-column="valor" style="width: 130px; min-width: 90px;">
+                            <col data-column="tipo" style="width: 100px; min-width: 80px;">
+                            <col data-column="saldo" style="width: 130px; min-width: 90px;">
+                            <col data-column="conta" style="width: 180px; min-width: 120px;">
+                            <col data-column="status" style="width: 120px; min-width: 90px;">
+                            <col data-column="acoes" style="width: auto; min-width: 140px;">
+                        </colgroup>
+                        <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                             <tr>
-                                <th style="width: 90px; min-width: 60px; position: relative;" data-column="data">
-                                    Data
-                                    <div class="resizer"></div>
+                                <th data-column="data" style="position: relative; user-select: none;">
+                                    <div class="th-content">
+                                        📅 Data
+                                        <div class="resizer"></div>
+                                    </div>
                                 </th>
-                                <th style="width: 300px; min-width: 150px; position: relative;" data-column="descricao">
-                                    Descrição
-                                    <div class="resizer"></div>
+                                <th data-column="descricao" style="position: relative; user-select: none;">
+                                    <div class="th-content">
+                                        📝 Descrição
+                                        <div class="resizer"></div>
+                                    </div>
                                 </th>
-                                <th style="width: 110px; min-width: 80px; text-align: right; position: relative;" data-column="valor">
-                                    Valor
-                                    <div class="resizer"></div>
+                                <th data-column="valor" style="position: relative; user-select: none; text-align: right;">
+                                    <div class="th-content">
+                                        💰 Valor
+                                        <div class="resizer"></div>
+                                    </div>
                                 </th>
-                                <th style="width: 70px; min-width: 60px; text-align: center; position: relative;" data-column="tipo">
-                                    Tipo
-                                    <div class="resizer"></div>
+                                <th data-column="tipo" style="position: relative; user-select: none; text-align: center;">
+                                    <div class="th-content">
+                                        📊 Tipo
+                                        <div class="resizer"></div>
+                                    </div>
                                 </th>
-                                <th style="width: 110px; min-width: 80px; text-align: right; position: relative;" data-column="saldo">
-                                    Saldo
-                                    <div class="resizer"></div>
+                                <th data-column="saldo" style="position: relative; user-select: none; text-align: right;">
+                                    <div class="th-content">
+                                        💵 Saldo
+                                        <div class="resizer"></div>
+                                    </div>
                                 </th>
-                                <th style="width: 130px; min-width: 100px; position: relative;" data-column="conta">
-                                    Conta
-                                    <div class="resizer"></div>
+                                <th data-column="conta" style="position: relative; user-select: none;">
+                                    <div class="th-content">
+                                        🏦 Conta
+                                        <div class="resizer"></div>
+                                    </div>
                                 </th>
-                                <th style="width: 90px; min-width: 80px; text-align: center; position: relative;" data-column="status">
-                                    Status
-                                    <div class="resizer"></div>
+                                <th data-column="status" style="position: relative; user-select: none; text-align: center;">
+                                    <div class="th-content">
+                                        ⚡ Status
+                                        <div class="resizer"></div>
+                                    </div>
                                 </th>
-                                <th style="width: 140px; min-width: 120px; text-align: center; position: relative;" data-column="acoes">
-                                    Ações
-                                    <div class="resizer"></div>
+                                <th data-column="acoes" style="position: relative; user-select: none; text-align: center;">
+                                    <div class="th-content">
+                                        ⚙️ Ações
+                                    </div>
                                 </th>
                             </tr>
                         </thead>
@@ -1837,56 +1862,68 @@
                         margin-bottom: 20px;
                     }
                     
-                    /* Resizer para redimensionar colunas */
-                    .resizable-table th {
-                        position: relative;
-                        user-select: none;
-                        padding-right: 12px !important;
-                        border-right: 2px solid rgba(0, 0, 0, 0.4) !important;
+                    /* Tabela com colunas redimensionáveis */
+                    .resizable-table {
+                        border-collapse: collapse;
+                        width: 100%;
                     }
                     
+                    .resizable-table th {
+                        position: relative;
+                        padding: 14px 12px;
+                        font-weight: 600;
+                        font-size: 13px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        border-right: 2px solid rgba(255, 255, 255, 0.2);
+                    }
+                    
+                    .resizable-table th:last-child {
+                        border-right: none;
+                    }
+                    
+                    .resizable-table .th-content {
+                        position: relative;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                    }
+                    
+                    /* Resizer - barra de redimensionamento */
                     .resizable-table .resizer {
                         position: absolute;
                         top: 0;
-                        right: -6px;
-                        width: 12px;
+                        right: -10px;
+                        width: 20px;
                         height: 100%;
                         cursor: col-resize;
                         z-index: 100;
-                        background: transparent;
-                        transition: all 0.2s;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
                     }
                     
-                    .resizable-table .resizer::after {
+                    .resizable-table .resizer::before {
                         content: '';
-                        position: absolute;
-                        right: 5px;
-                        top: 0;
-                        bottom: 0;
-                        width: 3px;
-                        background: #000;
-                        opacity: 0.6;
-                    }
-                    
-                    .resizable-table .resizer:hover {
-                        background: rgba(0, 0, 0, 0.1);
-                    }
-                    
-                    .resizable-table .resizer:hover::after {
-                        background: #000;
                         width: 4px;
-                        opacity: 1;
+                        height: 70%;
+                        background: rgba(255, 255, 255, 0.4);
+                        border-radius: 2px;
+                        transition: all 0.2s ease;
                     }
                     
-                    .resizable-table .resizer.resizing {
-                        background: rgba(0, 0, 0, 0.2);
-                    }
-                    
-                    .resizable-table .resizer.resizing::after {
-                        background: #000;
+                    .resizable-table .resizer:hover::before {
+                        background: rgba(255, 255, 255, 0.9);
                         width: 5px;
-                        opacity: 1;
-                        box-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+                        height: 85%;
+                        box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+                    }
+                    
+                    .resizable-table .resizer.resizing::before {
+                        background: #fff;
+                        width: 6px;
+                        height: 100%;
+                        box-shadow: 0 0 12px rgba(255, 255, 255, 0.9);
                     }
                     
                     .resizable-table th.resizing {
@@ -1894,10 +1931,13 @@
                     }
                     
                     #tbody-extrato td {
-                        white-space: nowrap;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        padding: 10px 8px;
+                        padding: 12px 12px;
+                        border-bottom: 1px solid #f0f0f0;
+                        vertical-align: middle;
+                    }
+                    
+                    #tbody-extrato tr:hover {
+                        background: #f8f9fa;
                     }
                     
                     /* Coluna de descrição com quebra de texto */
@@ -1905,7 +1945,15 @@
                         white-space: normal;
                         word-wrap: break-word;
                         word-break: break-word;
-                        line-height: 1.4;
+                        line-height: 1.5;
+                        max-width: 400px;
+                    }
+                    
+                    /* Outras colunas sem quebra */
+                    #tbody-extrato td:not(:nth-child(2)) {
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
                     }
                     
                     /* Alinhamento de valores */
@@ -1913,6 +1961,7 @@
                     #tbody-extrato td:nth-child(5) {
                         text-align: right;
                         font-weight: 600;
+                        font-family: 'Courier New', monospace;
                     }
                     
                     /* Centralizar tipo e status */
@@ -1959,85 +2008,83 @@
                 </style>
                 
                 <script>
-                    // Sistema de redimensionamento de colunas para tabela de extrato
+                    // Sistema de redimensionamento de colunas OTIMIZADO
                     function initializeColumnResizer() {
                         const table = document.getElementById('table-extrato');
                         if (!table) {
-                            console.log('Tabela de extrato não encontrada, tentando novamente...');
                             setTimeout(initializeColumnResizer, 500);
                             return;
                         }
                         
+                        const colgroup = document.getElementById('colgroup-extrato');
                         const resizers = table.querySelectorAll('.resizer');
-                        if (resizers.length === 0) {
-                            console.log('Resizers não encontrados, tentando novamente...');
+                        if (!colgroup || resizers.length === 0) {
                             setTimeout(initializeColumnResizer, 500);
                             return;
                         }
                         
-                        console.log('✅ Inicializando redimensionamento de colunas - ' + resizers.length + ' colunas');
+                        console.log('✅ Sistema de redimensionamento iniciado - ' + resizers.length + ' colunas');
                         
-                        let currentResizer = null;
-                        let currentTh = null;
-                        let startX = 0;
-                        let startWidth = 0;
-                        let originalMinWidth = 0;
-                        
-                        // Guardar os minWidths originais de cada coluna
+                        // Guardar minWidths originais de cada coluna
                         const originalMinWidths = {};
-                        table.querySelectorAll('th[data-column]').forEach(th => {
-                            const column = th.getAttribute('data-column');
-                            const minWidth = parseInt(th.style.minWidth) || 60;
+                        colgroup.querySelectorAll('col[data-column]').forEach(col => {
+                            const column = col.getAttribute('data-column');
+                            const minWidth = parseInt(col.style.minWidth) || 70;
                             originalMinWidths[column] = minWidth;
                         });
                         
-                        // Carregar larguras salvas do localStorage
+                        // Restaurar larguras salvas
                         const savedWidths = localStorage.getItem('extrato-column-widths');
                         if (savedWidths) {
                             try {
                                 const widths = JSON.parse(savedWidths);
-                                table.querySelectorAll('th[data-column]').forEach((th, colIndex) => {
-                                    const column = th.getAttribute('data-column');
-                                    if (widths[column]) {
-                                        const width = widths[column] + 'px';
-                                        th.style.width = width;
-                                        
-                                        // Aplicar também aos TDs correspondentes
-                                        const rows = table.querySelectorAll('tbody tr');
-                                        rows.forEach(row => {
-                                            const td = row.cells[colIndex];
-                                            if (td) {
-                                                td.style.width = width;
-                                                td.style.maxWidth = width;
-                                            }
-                                        });
-                                        
-                                        console.log('Restaurada largura de ' + column + ': ' + widths[column] + 'px');
+                                colgroup.querySelectorAll('col[data-column]').forEach(col => {
+                                    const column = col.getAttribute('data-column');
+                                    if (widths[column] && widths[column] >= originalMinWidths[column]) {
+                                        col.style.width = widths[column] + 'px';
+                                        console.log('📏 Restaurada: ' + column + ' = ' + widths[column] + 'px');
                                     }
                                 });
                             } catch (e) {
-                                console.error('Erro ao carregar larguras das colunas:', e);
+                                console.error('Erro ao restaurar larguras:', e);
                             }
                         }
                         
-                        resizers.forEach((resizer, index) => {
+                        // Variáveis de controle do drag
+                        let currentResizer = null;
+                        let currentCol = null;
+                        let currentTh = null;
+                        let startX = 0;
+                        let startWidth = 0;
+                        let minWidth = 70;
+                        
+                        // Adicionar event listeners em cada resizer
+                        resizers.forEach((resizer) => {
                             resizer.addEventListener('mousedown', function(e) {
-                                console.log('🖱️ Iniciando resize da coluna ' + (index + 1));
-                                currentResizer = resizer;
-                                currentTh = resizer.parentElement;
-                                startX = e.pageX;
-                                startWidth = currentTh.offsetWidth;
+                                // Encontrar o TH pai e o COL correspondente
+                                currentTh = resizer.closest('th');
+                                if (!currentTh) return;
                                 
-                                // Pegar o minWidth ORIGINAL da coluna (não o atual)
                                 const column = currentTh.getAttribute('data-column');
-                                originalMinWidth = originalMinWidths[column] || 60;
+                                if (!column) return;
                                 
+                                currentCol = colgroup.querySelector('col[data-column="' + column + '"]');
+                                if (!currentCol) return;
+                                
+                                currentResizer = resizer;
+                                startX = e.pageX;
+                                startWidth = currentCol.offsetWidth || parseInt(currentCol.style.width) || 100;
+                                minWidth = originalMinWidths[column] || 70;
+                                
+                                console.log('🖱️ Redimensionando: ' + column + ' (largura atual: ' + startWidth + 'px, min: ' + minWidth + 'px)');
+                                
+                                // Visual feedback
                                 currentTh.classList.add('resizing');
                                 currentResizer.classList.add('resizing');
-                                
                                 document.body.style.cursor = 'col-resize';
                                 document.body.style.userSelect = 'none';
                                 
+                                // Attach event listeners
                                 document.addEventListener('mousemove', onMouseMove);
                                 document.addEventListener('mouseup', onMouseUp);
                                 
@@ -2047,57 +2094,47 @@
                         });
                         
                         function onMouseMove(e) {
-                            if (!currentResizer) return;
+                            if (!currentCol || !currentResizer) return;
                             
                             const diff = e.pageX - startX;
-                            const newWidth = startWidth + diff;
+                            const newWidth = Math.max(minWidth, startWidth + diff);
                             
-                            // Usar o minWidth ORIGINAL, não o atual
-                            if (newWidth >= originalMinWidth) {
-                                const width = newWidth + 'px';
-                                currentTh.style.width = width;
-                                
-                                // Aplicar a mesma largura aos TDs da mesma coluna
-                                const colIndex = Array.from(currentTh.parentElement.children).indexOf(currentTh);
-                                const rows = table.querySelectorAll('tbody tr');
-                                rows.forEach(row => {
-                                    const td = row.cells[colIndex];
-                                    if (td) {
-                                        td.style.width = width;
-                                        td.style.maxWidth = width;
-                                    }
-                                });
-                            }
+                            // Aplicar nova largura no COL (afeta TH e todos os TDs automaticamente)
+                            currentCol.style.width = newWidth + 'px';
                             
                             e.preventDefault();
                         }
                         
                         function onMouseUp(e) {
-                            if (currentTh) {
+                            if (currentTh && currentCol) {
                                 currentTh.classList.remove('resizing');
                                 currentResizer.classList.remove('resizing');
                                 
-                                const finalWidth = currentTh.offsetWidth;
-                                console.log('✅ Coluna redimensionada para: ' + finalWidth + 'px');
+                                const finalWidth = parseInt(currentCol.style.width) || startWidth;
+                                const column = currentCol.getAttribute('data-column');
                                 
-                                // Salvar larguras no localStorage
+                                console.log('✅ Coluna ' + column + ' redimensionada para: ' + finalWidth + 'px');
+                                
+                                // Salvar todas as larguras
                                 const widths = {};
-                                table.querySelectorAll('th[data-column]').forEach(th => {
-                                    const column = th.getAttribute('data-column');
-                                    widths[column] = th.offsetWidth;
+                                colgroup.querySelectorAll('col[data-column]').forEach(col => {
+                                    const colName = col.getAttribute('data-column');
+                                    const width = parseInt(col.style.width) || 100;
+                                    widths[colName] = width;
                                 });
                                 localStorage.setItem('extrato-column-widths', JSON.stringify(widths));
-                                console.log('💾 Larguras salvas:', widths);
+                                console.log('💾 Larguras salvas');
                             }
                             
+                            // Cleanup
                             document.body.style.cursor = '';
                             document.body.style.userSelect = '';
-                            
-                            currentResizer = null;
-                            currentTh = null;
-                            
                             document.removeEventListener('mousemove', onMouseMove);
                             document.removeEventListener('mouseup', onMouseUp);
+                            
+                            currentResizer = null;
+                            currentCol = null;
+                            currentTh = null;
                             
                             if (e) e.preventDefault();
                         }
@@ -2110,7 +2147,7 @@
                         initializeColumnResizer();
                     }
                     
-                    // Também reinicializar quando mudar de aba (caso a tabela seja recarregada)
+                    // Também reinicializar quando mudar de aba
                     window.addEventListener('hashchange', function() {
                         if (window.location.hash === '#extrato-bancario') {
                             setTimeout(initializeColumnResizer, 300);
