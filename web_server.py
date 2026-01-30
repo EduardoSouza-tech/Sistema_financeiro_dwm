@@ -933,11 +933,20 @@ def switch_empresa():
         
         print(f"✅ Empresa encontrada: {empresa.get('razao_social')}")
         
-        # Atualizar sessão
+        # Atualizar sessão - PRESERVANDO TODOS OS DADOS EXISTENTES
         print(f"💾 Atualizando sessão com empresa_id={empresa_id}")
+        print(f"🔍 Sessão ANTES do switch: {dict(session)}")
+        
+        # Verificar se o token ainda está na sessão
+        if 'token' not in session:
+            print(f"⚠️ AVISO: Token não encontrado na sessão durante switch!")
+            print(f"⚠️ Dados disponíveis: {list(session.keys())}")
+        
         session['empresa_id'] = empresa_id
         session.modified = True
-        print(f"✅ Sessão atualizada")
+        
+        print(f"🔍 Sessão DEPOIS do switch: {dict(session)}")
+        print(f"✅ Sessão atualizada (empresa_id={session.get('empresa_id')})")
         
         # Registrar troca de empresa
         print(f"📝 Registrando log de troca de empresa...")

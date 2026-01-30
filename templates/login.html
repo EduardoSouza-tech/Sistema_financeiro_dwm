@@ -596,6 +596,18 @@
                 const result = await response.json();
 
                 if (result.success) {
+                    // Atualizar localStorage com novas permissões
+                    if (result.permissoes) {
+                        localStorage.setItem('permissoes', JSON.stringify(result.permissoes));
+                    }
+                    
+                    // Atualizar dados da empresa no localStorage
+                    const usuarioData = JSON.parse(localStorage.getItem('usuario') || '{}');
+                    if (result.empresa) {
+                        usuarioData.empresa_atual = result.empresa;
+                    }
+                    localStorage.setItem('usuario', JSON.stringify(usuarioData));
+                    
                     showAlert('Empresa selecionada com sucesso! Redirecionando...', 'success');
                     document.getElementById('empresaModalOverlay').style.display = 'none';
                     
