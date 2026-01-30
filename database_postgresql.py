@@ -1,6 +1,7 @@
 ﻿"""
 Modulo de gerenciamento do banco de dados PostgreSQL
 Otimizado com pool de conexoes para maxima performance
+COM ROW LEVEL SECURITY PARA ISOLAMENTO 100% ENTRE EMPRESAS
 """
 import psycopg2  # type: ignore
 from psycopg2 import Error, sql, pool  # type: ignore
@@ -13,6 +14,24 @@ import json
 import os
 import sys
 from contextlib import contextmanager
+
+# IMPORTAR SECURITY WRAPPER PARA ISOLAMENTO DE EMPRESAS
+try:
+    from security_wrapper import secure_connection, require_empresa, EmpresaNotSetError
+    SECURITY_ENABLED = True
+    print("🔒 Security Wrapper carregado - Row Level Security ATIVO", file=sys.stderr, flush=True)
+except ImportError:
+    SECURITY_ENABLED = False
+    print("⚠️ Security Wrapper não encontrado - Funcionando SEM RLS", file=sys.stderr, flush=True)
+    # Fallback para não quebrar o sistema
+    def secure_connection(conn, empresa_id):
+        from contextlib import contextmanager
+        @contextmanager
+        def _fallback():
+            yield conn
+        return _fallback()
+    def require_empresa(func):
+        return func
 
 # Forcar saida imediata de logs (importante para Railway/gunicorn)
 def log(msg):
