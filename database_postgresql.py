@@ -478,9 +478,29 @@ def execute_query(query: str, params: tuple = None, fetch_one: bool = False, fet
             "Use allow_global=True apenas para tabelas globais (usuarios, empresas)."
         )
     
+    # ⚡ PERFORMANCE: Log de queries lentas (>500ms)
+    import time
+    start_time = time.time()
+    
     with get_db_connection(empresa_id=empresa_id, allow_global=allow_global) as conn:
         with conn.cursor() as cursor:
             cursor.execute(query, params or ())
+            
+            # Medir tempo de execução
+            execution_time = (time.time() - start_time) * 1000  # em milliseconds
+            
+            # Log queries lentas
+            if execution_time > 500:  # > 500ms
+                logger.warning(
+                    f"⚠️  QUERY LENTA ({execution_time:.0f}ms): "
+                    f"empresa_id={empresa_id}, "
+                    f"query={query[:100]}..."  # Primeiros 100 caracteres
+                )
+            elif execution_time > 200:  # > 200ms
+                logger.info(
+                    f"⏱️  Query moderada ({execution_time:.0f}ms): "
+                    f"empresa_id={empresa_id}"
+                )
             
             if fetch_one:
                 return cursor.fetchone()
