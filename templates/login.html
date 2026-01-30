@@ -543,7 +543,7 @@
                 div.innerHTML = `
                     <div class="empresa-icon">🏢</div>
                     <div class="empresa-info">
-                        <div class="empresa-nome">${empresa.nome}</div>
+                        <div class="empresa-nome">${empresa.razao_social || empresa.nome || 'Empresa sem nome'}</div>
                         <div class="empresa-papel">${papelBadge}${empresa.is_padrao ? ' • ⭐ Padrão' : ''}</div>
                     </div>
                 `;
