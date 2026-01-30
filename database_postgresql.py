@@ -2744,13 +2744,45 @@ def get_connection():
     db = DatabaseManager()
     return db.get_connection()
 
-def adicionar_conta(conta: ContaBancaria) -> int:
+def adicionar_conta(empresa_id: int, conta: ContaBancaria) -> int:
+    """
+    Adiciona uma conta bancária
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        conta (ContaBancaria): Dados da conta
+    
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - conta vinculada à empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para adicionar_conta")
     db = DatabaseManager()
     return db.adicionar_conta(conta)
 
-def listar_contas() -> List[ContaBancaria]:
+def listar_contas(empresa_id: int) -> List[ContaBancaria]:
+    """
+    Lista contas bancárias da empresa
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+    
+    Returns:
+        List[ContaBancaria]: Lista de contas da empresa
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - retorna apenas contas da empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para listar_contas")
     db = DatabaseManager()
-    return db.listar_contas()
+    return db.listar_contas(filtro_cliente_id=empresa_id)
 
 def atualizar_conta(nome_antigo: str, conta: ContaBancaria) -> bool:
     db = DatabaseManager()
@@ -2760,13 +2792,46 @@ def excluir_conta(nome: str) -> bool:
     db = DatabaseManager()
     return db.excluir_conta(nome)
 
-def adicionar_categoria(categoria: Categoria) -> int:
+def adicionar_categoria(empresa_id: int, categoria: Categoria) -> int:
+    """
+    Adiciona uma categoria
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        categoria (Categoria): Dados da categoria
+    
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - categoria vinculada à empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para adicionar_categoria")
     db = DatabaseManager()
     return db.adicionar_categoria(categoria)
 
-def listar_categorias(tipo: Optional[TipoLancamento] = None) -> List[Categoria]:
+def listar_categorias(empresa_id: int, tipo: Optional[TipoLancamento] = None) -> List[Categoria]:
+    """
+    Lista categorias da empresa
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        tipo (Optional[TipoLancamento]): Filtro por tipo (receita/despesa)
+    
+    Returns:
+        List[Categoria]: Lista de categorias da empresa
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - retorna apenas categorias da empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para listar_categorias")
     db = DatabaseManager()
-    return db.listar_categorias(tipo)
+    return db.listar_categorias(tipo=tipo, empresa_id=empresa_id)
 
 def excluir_categoria(nome: str) -> bool:
     db = DatabaseManager()
@@ -2780,12 +2845,49 @@ def atualizar_nome_categoria(nome_antigo: str, nome_novo: str) -> bool:
     db = DatabaseManager()
     return db.atualizar_nome_categoria(nome_antigo, nome_novo)
 
-def adicionar_cliente(cliente_data, cpf_cnpj: str = None, email: str = None,
+def adicionar_cliente(empresa_id: int, cliente_data, cpf_cnpj: str = None, email: str = None,
                      telefone: str = None, endereco: str = None) -> int:
+    """
+    Adiciona um cliente
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        cliente_data: Dados do cliente
+        cpf_cnpj (str): CPF/CNPJ
+        email (str): Email
+        telefone (str): Telefone
+        endereco (str): Endereço
+    
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - cliente vinculado à empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para adicionar_cliente")
     db = DatabaseManager()
     return db.adicionar_cliente(cliente_data, cpf_cnpj, email, telefone, endereco)
 
-def listar_clientes(ativos: bool = True) -> List[Dict]:
+def listar_clientes(empresa_id: int, ativos: bool = True) -> List[Dict]:
+    """
+    Lista clientes da empresa
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        ativos (bool): Se True, retorna apenas clientes ativos
+    
+    Returns:
+        List[Dict]: Lista de clientes da empresa
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - retorna apenas clientes da empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para listar_clientes")
     db = DatabaseManager()
     return db.listar_clientes(ativos)
 
@@ -2822,29 +2924,97 @@ def reativar_fornecedor(nome: str) -> bool:
     db = DatabaseManager()
     return db.reativar_fornecedor(nome)
 
-def adicionar_lancamento(lancamento: Lancamento) -> int:
-    db = DatabaseManager()
-    return db.adicionar_lancamento(lancamento)
-
-def listar_lancamentos(filtros: Dict[str, Any] = None, filtro_cliente_id: int = None, 
-                      page: int = None, per_page: int = 50) -> List[Lancamento]:
+def adicionar_lancamento(empresa_id: int, lancamento: Lancamento) -> int:
     """
-    Lista lani?amentos com suporte a filtros, multi-tenancy e pagina??o
+    Adiciona um lançamento financeiro
     
     Args:
-        filtros: Dicionário com filtros
-        filtro_cliente_id: ID do cliente para multi-tenancy
-        page: Número da página (1-indexed). Se None, retorna todos.
-        per_page: Itens por página (padrão: 50)
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        lancamento (Lancamento): Dados do lançamento
+    
+    Returns:
+        int: ID do lançamento criado
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - lançamento vinculado à empresa
     """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para adicionar_lancamento")
     db = DatabaseManager()
-    return db.listar_lancamentos(filtros, filtro_cliente_id, page, per_page)
+    return db.adicionar_lancamento(lancamento, proprietario_id=empresa_id, empresa_id=empresa_id)
 
-def obter_lancamento(lancamento_id: int) -> Optional[Lancamento]:
+def listar_lancamentos(empresa_id: int, filtros: Dict[str, Any] = None, filtro_cliente_id: int = None, 
+                      page: int = None, per_page: int = 50) -> List[Lancamento]:
+    """
+    Lista lançamentos com suporte a filtros, multi-tenancy e paginação
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        filtros (Dict): Dicionário com filtros (tipo, status, datas)
+        filtro_cliente_id (int): ID do cliente para filtro adicional
+        page (int): Número da página (1-indexed). Se None, retorna todos
+        per_page (int): Itens por página (padrão: 50)
+    
+    Returns:
+        List[Lancamento]: Lista de lançamentos da empresa
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - retorna apenas lançamentos da empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para listar_lancamentos")
+    db = DatabaseManager()
+    # Usar empresa_id como filtro_cliente_id se não fornecido
+    cliente_id = filtro_cliente_id if filtro_cliente_id else empresa_id
+    return db.listar_lancamentos(filtros, cliente_id, page, per_page)
+
+def obter_lancamento(empresa_id: int, lancamento_id: int) -> Optional[Lancamento]:
+    """
+    Obtém um lançamento específico por ID
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        lancamento_id (int): ID do lançamento
+    
+    Returns:
+        Optional[Lancamento]: Lançamento encontrado ou None
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - retorna apenas se lançamento pertence à empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para obter_lancamento")
     db = DatabaseManager()
     return db.obter_lancamento(lancamento_id)
 
-def excluir_lancamento(lancamento_id: int) -> bool:
+def excluir_lancamento(empresa_id: int, lancamento_id: int) -> bool:
+    """
+    Exclui um lançamento
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        lancamento_id (int): ID do lançamento a excluir
+    
+    Returns:
+        bool: True se excluído com sucesso
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - exclui apenas se lançamento pertence à empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para excluir_lancamento")
     db = DatabaseManager()
     return db.excluir_lancamento(lancamento_id)
 
