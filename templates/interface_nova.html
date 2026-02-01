@@ -2397,8 +2397,14 @@
                             </div>
                         </div>
 
-                        <!-- Formulário de Adicionar Funcionário -->
-                        <div style="background: #fff; padding: 20px; border: 2px dashed #ddd; border-radius: 8px; margin-bottom: 20px;">
+                        <!-- Abas: Individual / Em Massa -->
+                        <div style="margin-bottom: 20px; display: flex; gap: 10px; border-bottom: 2px solid #ddd;">
+                            <button id="tab-individual" onclick="trocarAbaEquipe('individual')" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-bottom: 3px solid #3498db; cursor: pointer; font-weight: bold;">👤 Individual</button>
+                            <button id="tab-massa" onclick="trocarAbaEquipe('massa')" style="padding: 10px 20px; background: #ecf0f1; color: #555; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-weight: bold;">👥 Em Massa</button>
+                        </div>
+
+                        <!-- Formulário Individual -->
+                        <div id="form-container-individual" style="background: #fff; padding: 20px; border: 2px dashed #ddd; border-radius: 8px; margin-bottom: 20px;">
                             <h4 style="margin: 0 0 15px 0; color: #2c3e50;">➕ Adicionar Funcionário à Equipe</h4>
                             <form id="form-adicionar-funcionario-evento" onsubmit="adicionarFuncionarioEvento(event); return false;">
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
@@ -2423,6 +2429,49 @@
                                     </div>
                                     <div>
                                         <button type="submit" class="btn btn-primary" style="padding: 9px 20px; background: #27ae60; white-space: nowrap;">➕ Adicionar</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Formulário Em Massa -->
+                        <div id="form-container-massa" style="display: none; background: #fff; padding: 20px; border: 2px dashed #9b59b6; border-radius: 8px; margin-bottom: 20px;">
+                            <h4 style="margin: 0 0 15px 0; color: #2c3e50;">👥 Cadastrar Múltiplos Funcionários</h4>
+                            <form id="form-adicionar-massa-evento" onsubmit="adicionarFuncionariosMassa(event); return false;">
+                                <div style="display: grid; gap: 15px;">
+                                    <!-- Selecionar Função -->
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Função (aplicada a todos): <span style="color: red;">*</span></label>
+                                        <div style="display: flex; gap: 5px;">
+                                            <select id="equipe-select-funcao-massa" required style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                <option value="">Selecione...</option>
+                                            </select>
+                                            <button type="button" onclick="abrirModalNovaFuncao()" class="btn btn-sm btn-secondary" title="Cadastrar nova função" style="padding: 8px 12px; background: #95a5a6;">➕</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Selecionar Múltiplos Funcionários -->
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Funcionários (selecione múltiplos): <span style="color: red;">*</span></label>
+                                        <select id="equipe-select-funcionarios-massa" multiple required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 150px;">
+                                            <!-- Preenchido via JS -->
+                                        </select>
+                                        <small style="color: #777; display: block; margin-top: 5px;">💡 Segure Ctrl (Windows) ou Cmd (Mac) para selecionar múltiplos</small>
+                                    </div>
+
+                                    <!-- Valor Único (Opcional) -->
+                                    <div>
+                                        <label style="display: flex; align-items: center; gap: 10px; font-weight: bold; color: #555; margin-bottom: 5px;">
+                                            <input type="checkbox" id="equipe-aplicar-valor-massa" onchange="toggleValorMassa()" style="width: 18px; height: 18px; cursor: pointer;">
+                                            <span>Aplicar o mesmo valor para todos</span>
+                                        </label>
+                                        <input type="number" id="equipe-valor-massa" step="0.01" min="0" disabled style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="R$ 0,00">
+                                        <small style="color: #777; display: block; margin-top: 5px;">⚠️ Se desmarcado, o valor será R$ 0,00 para todos (editar depois individualmente)</small>
+                                    </div>
+
+                                    <!-- Botão Adicionar -->
+                                    <div style="display: flex; gap: 10px;">
+                                        <button type="submit" class="btn btn-primary" style="flex: 1; padding: 12px; background: #9b59b6; font-size: 16px; font-weight: bold;">👥 Adicionar Todos</button>
                                     </div>
                                 </div>
                             </form>
@@ -5780,15 +5829,27 @@
                 });
                 const result = await response.json();
 
+                // Select individual
                 const select = document.getElementById('equipe-select-funcionario');
                 select.innerHTML = '<option value="">Selecione...</option>';
 
+                // Select múltiplo (em massa)
+                const selectMassa = document.getElementById('equipe-select-funcionarios-massa');
+                selectMassa.innerHTML = '';
+
                 if (result.funcionarios && result.funcionarios.length > 0) {
                     result.funcionarios.forEach(func => {
+                        // Individual
                         const option = document.createElement('option');
                         option.value = func.id;
                         option.textContent = func.nome;
                         select.appendChild(option);
+
+                        // Em massa
+                        const optionMassa = document.createElement('option');
+                        optionMassa.value = func.id;
+                        optionMassa.textContent = func.nome;
+                        selectMassa.appendChild(optionMassa);
                     });
                 }
             } catch (error) {
@@ -5804,15 +5865,27 @@
                 });
                 const result = await response.json();
 
+                // Select individual
                 const select = document.getElementById('equipe-select-funcao');
                 select.innerHTML = '<option value="">Selecione...</option>';
 
+                // Select em massa
+                const selectMassa = document.getElementById('equipe-select-funcao-massa');
+                selectMassa.innerHTML = '<option value="">Selecione...</option>';
+
                 if (result.funcoes && result.funcoes.length > 0) {
                     result.funcoes.forEach(funcao => {
+                        // Individual
                         const option = document.createElement('option');
                         option.value = funcao.id;
                         option.textContent = funcao.nome;
                         select.appendChild(option);
+
+                        // Em massa
+                        const optionMassa = document.createElement('option');
+                        optionMassa.value = funcao.id;
+                        optionMassa.textContent = funcao.nome;
+                        selectMassa.appendChild(optionMassa);
                     });
                 }
             } catch (error) {
@@ -5923,6 +5996,134 @@
             } catch (error) {
                 console.error('Erro ao remover funcionário:', error);
                 showToast('❌ Erro ao remover funcionário', 'error');
+            }
+        }
+
+        // ==========================================
+        // CADASTRO EM MASSA
+        // ==========================================
+
+        function trocarAbaEquipe(aba) {
+            const tabIndividual = document.getElementById('tab-individual');
+            const tabMassa = document.getElementById('tab-massa');
+            const formIndividual = document.getElementById('form-container-individual');
+            const formMassa = document.getElementById('form-container-massa');
+
+            if (aba === 'individual') {
+                tabIndividual.style.background = '#3498db';
+                tabIndividual.style.color = 'white';
+                tabIndividual.style.borderBottom = '3px solid #3498db';
+                
+                tabMassa.style.background = '#ecf0f1';
+                tabMassa.style.color = '#555';
+                tabMassa.style.borderBottom = '3px solid transparent';
+                
+                formIndividual.style.display = 'block';
+                formMassa.style.display = 'none';
+            } else {
+                tabMassa.style.background = '#9b59b6';
+                tabMassa.style.color = 'white';
+                tabMassa.style.borderBottom = '3px solid #9b59b6';
+                
+                tabIndividual.style.background = '#ecf0f1';
+                tabIndividual.style.color = '#555';
+                tabIndividual.style.borderBottom = '3px solid transparent';
+                
+                formIndividual.style.display = 'none';
+                formMassa.style.display = 'block';
+            }
+        }
+
+        function toggleValorMassa() {
+            const checkbox = document.getElementById('equipe-aplicar-valor-massa');
+            const input = document.getElementById('equipe-valor-massa');
+            
+            if (checkbox.checked) {
+                input.disabled = false;
+                input.required = true;
+                input.focus();
+            } else {
+                input.disabled = true;
+                input.required = false;
+                input.value = '';
+            }
+        }
+
+        async function adicionarFuncionariosMassa(event) {
+            event.preventDefault();
+
+            const eventoId = document.getElementById('equipe-evento-id').value;
+            const funcaoId = document.getElementById('equipe-select-funcao-massa').value;
+            const selectFuncionarios = document.getElementById('equipe-select-funcionarios-massa');
+            const aplicarValor = document.getElementById('equipe-aplicar-valor-massa').checked;
+            const valor = aplicarValor ? parseFloat(document.getElementById('equipe-valor-massa').value) : 0;
+
+            // Pegar funcionários selecionados
+            const funcionariosSelecionados = Array.from(selectFuncionarios.selectedOptions).map(opt => parseInt(opt.value));
+
+            if (!funcaoId) {
+                showToast('⚠️ Selecione uma função', 'warning');
+                return;
+            }
+
+            if (funcionariosSelecionados.length === 0) {
+                showToast('⚠️ Selecione pelo menos um funcionário', 'warning');
+                return;
+            }
+
+            if (aplicarValor && (!valor || valor < 0)) {
+                showToast('⚠️ Valor inválido', 'warning');
+                return;
+            }
+
+            // Confirmar
+            const nomeFuncao = selectFuncionarios.options[selectFuncionarios.selectedIndex].parentElement.label || 'funcionários';
+            if (!confirm(`Adicionar ${funcionariosSelecionados.length} funcionário(s) na função selecionada?`)) {
+                return;
+            }
+
+            // Enviar em lote
+            let sucessos = 0;
+            let erros = 0;
+
+            showToast(`⏳ Adicionando ${funcionariosSelecionados.length} funcionário(s)...`, 'info');
+
+            for (const funcId of funcionariosSelecionados) {
+                try {
+                    const response = await fetch(`/api/eventos/${eventoId}/equipe`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            funcionario_id: funcId,
+                            funcao_id: parseInt(funcaoId),
+                            valor: valor
+                        })
+                    });
+
+                    if (response.ok) {
+                        sucessos++;
+                    } else {
+                        erros++;
+                    }
+                } catch (error) {
+                    console.error('Erro ao adicionar funcionário:', error);
+                    erros++;
+                }
+            }
+
+            // Resultado
+            if (sucessos > 0) {
+                showToast(`✅ ${sucessos} funcionário(s) adicionado(s) com sucesso!`, 'success');
+                document.getElementById('form-adicionar-massa-evento').reset();
+                await carregarEquipeEvento(eventoId);
+                await loadEventos();
+            }
+
+            if (erros > 0) {
+                showToast(`⚠️ ${erros} erro(s) ao adicionar funcionário(s)`, 'warning');
             }
         }
 
