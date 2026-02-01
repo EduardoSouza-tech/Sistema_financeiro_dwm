@@ -2397,10 +2397,11 @@
                             </div>
                         </div>
 
-                        <!-- Abas: Individual / Em Massa -->
+                        <!-- Abas: Individual / Em Massa / Assinatura -->
                         <div style="margin-bottom: 20px; display: flex; gap: 10px; border-bottom: 2px solid #ddd;">
                             <button id="tab-individual" onclick="trocarAbaEquipe('individual')" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-bottom: 3px solid #3498db; cursor: pointer; font-weight: bold;">👤 Individual</button>
                             <button id="tab-massa" onclick="trocarAbaEquipe('massa')" style="padding: 10px 20px; background: #ecf0f1; color: #555; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-weight: bold;">👥 Em Massa</button>
+                            <button id="tab-assinatura" onclick="trocarAbaEquipe('assinatura')" style="padding: 10px 20px; background: #ecf0f1; color: #555; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-weight: bold;">✍️ Assinatura</button>
                         </div>
 
                         <!-- Formulário Individual -->
@@ -2477,6 +2478,47 @@
                                     </div>
                                 </div>
                             </form>
+                        </div>
+
+                        <!-- Aba Assinatura -->
+                        <div id="form-container-assinatura" style="display: none; background: #fff; padding: 20px; border: 2px dashed #e67e22; border-radius: 8px; margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <h4 style="margin: 0; color: #2c3e50;">✍️ Lista de Assinaturas</h4>
+                                <div style="display: flex; gap: 10px;">
+                                    <button onclick="exportarAssinaturaPDF()" class="btn btn-danger" style="padding: 8px 16px; background: #e74c3c;">📄 Exportar PDF</button>
+                                    <button onclick="exportarAssinaturaExcel()" class="btn btn-success" style="padding: 8px 16px; background: #27ae60;">📊 Exportar Excel</button>
+                                </div>
+                            </div>
+
+                            <!-- Preview da Lista -->
+                            <div id="assinatura-preview" style="background: white; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                                <!-- Cabeçalho -->
+                                <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #333;">
+                                    <h2 style="margin: 0 0 10px 0; color: #2c3e50;">📋 Lista de Presença - Evento</h2>
+                                    <h3 id="assinatura-evento-nome" style="margin: 0 0 5px 0; color: #555;">Nome do Evento</h3>
+                                    <p id="assinatura-evento-data" style="margin: 0; color: #777; font-size: 14px;">Data: -</p>
+                                </div>
+
+                                <!-- Tabela de Assinaturas -->
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="background: #f8f9fa; border-bottom: 2px solid #333;">
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 5%;">#</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 35%;">Funcionário</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 25%;">Função</th>
+                                            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 35%;">Assinatura</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-assinatura-evento">
+                                        <tr><td colspan="4" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>
+                                    </tbody>
+                                </table>
+
+                                <!-- Rodapé -->
+                                <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #777; font-size: 12px;">
+                                    <p style="margin: 0;">Documento gerado em <span id="assinatura-data-geracao"></span></p>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Lista da Equipe Alocada -->
@@ -6002,38 +6044,92 @@
         }
 
         // ==========================================
-        // CADASTRO EM MASSA
+        // CADASTRO EM MASSA E ASSINATURA
         // ==========================================
 
         function trocarAbaEquipe(aba) {
             const tabIndividual = document.getElementById('tab-individual');
             const tabMassa = document.getElementById('tab-massa');
+            const tabAssinatura = document.getElementById('tab-assinatura');
             const formIndividual = document.getElementById('form-container-individual');
             const formMassa = document.getElementById('form-container-massa');
+            const formAssinatura = document.getElementById('form-container-assinatura');
 
+            // Reset todos
+            [tabIndividual, tabMassa, tabAssinatura].forEach(tab => {
+                tab.style.background = '#ecf0f1';
+                tab.style.color = '#555';
+                tab.style.borderBottom = '3px solid transparent';
+            });
+
+            [formIndividual, formMassa, formAssinatura].forEach(form => {
+                form.style.display = 'none';
+            });
+
+            // Ativar aba selecionada
             if (aba === 'individual') {
                 tabIndividual.style.background = '#3498db';
                 tabIndividual.style.color = 'white';
                 tabIndividual.style.borderBottom = '3px solid #3498db';
-                
-                tabMassa.style.background = '#ecf0f1';
-                tabMassa.style.color = '#555';
-                tabMassa.style.borderBottom = '3px solid transparent';
-                
                 formIndividual.style.display = 'block';
-                formMassa.style.display = 'none';
-            } else {
+            } else if (aba === 'massa') {
                 tabMassa.style.background = '#9b59b6';
                 tabMassa.style.color = 'white';
                 tabMassa.style.borderBottom = '3px solid #9b59b6';
-                
-                tabIndividual.style.background = '#ecf0f1';
-                tabIndividual.style.color = '#555';
-                tabIndividual.style.borderBottom = '3px solid transparent';
-                
-                formIndividual.style.display = 'none';
                 formMassa.style.display = 'block';
+            } else if (aba === 'assinatura') {
+                tabAssinatura.style.background = '#e67e22';
+                tabAssinatura.style.color = 'white';
+                tabAssinatura.style.borderBottom = '3px solid #e67e22';
+                formAssinatura.style.display = 'block';
+                carregarListaAssinatura(); // Carregar dados ao abrir
             }
+        }
+
+        function carregarListaAssinatura() {
+            const eventoNome = document.getElementById('equipe-evento-nome').textContent;
+            const eventoData = document.getElementById('equipe-evento-data').textContent;
+            
+            // Atualizar cabeçalho
+            document.getElementById('assinatura-evento-nome').textContent = eventoNome;
+            document.getElementById('assinatura-evento-data').textContent = `Data: ${eventoData}`;
+            
+            // Data de geração
+            const agora = new Date();
+            const dataFormatada = agora.toLocaleString('pt-BR');
+            document.getElementById('assinatura-data-geracao').textContent = dataFormatada;
+            
+            // Carregar equipe
+            const tbody = document.getElementById('tbody-assinatura-evento');
+            const tbodyEquipe = document.getElementById('tbody-equipe-evento');
+            
+            // Clonar dados da tabela principal
+            const linhasEquipe = tbodyEquipe.querySelectorAll('tr');
+            
+            if (linhasEquipe.length === 1 && linhasEquipe[0].cells.length === 1) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            linhasEquipe.forEach((linha, index) => {
+                const cells = linha.cells;
+                if (cells.length >= 3) {
+                    const funcionario = cells[0].textContent;
+                    const funcao = cells[1].textContent;
+                    
+                    html += `
+                        <tr style="page-break-inside: avoid;">
+                            <td style="padding: 15px 12px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${index + 1}</td>
+                            <td style="padding: 15px 12px; border: 1px solid #ddd;">${funcionario}</td>
+                            <td style="padding: 15px 12px; border: 1px solid #ddd;">${funcao}</td>
+                            <td style="padding: 15px 12px; border: 1px solid #ddd; text-align: center;">_______________________</td>
+                        </tr>
+                    `;
+                }
+            });
+            
+            tbody.innerHTML = html || '<tr><td colspan="4" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
         }
 
         function toggleValorMassa() {
@@ -6111,6 +6207,145 @@
                     noResultOption.style.display = 'none';
                 }
             }
+        }
+
+        // ==========================================
+        // EXPORTAÇÃO DE ASSINATURA
+        // ==========================================
+
+        function exportarAssinaturaPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Obter dados
+            const eventoNome = document.getElementById('assinatura-evento-nome').textContent;
+            const eventoData = document.getElementById('assinatura-evento-data').textContent;
+            const tbody = document.getElementById('tbody-assinatura-evento');
+            const linhas = tbody.querySelectorAll('tr');
+            
+            // Verificar se há dados
+            if (linhas.length === 1 && linhas[0].cells.length === 1) {
+                showToast('⚠️ Nenhum funcionário para exportar', 'warning');
+                return;
+            }
+            
+            // Cabeçalho
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('Lista de Presença - Evento', 105, 20, { align: 'center' });
+            
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'normal');
+            doc.text(eventoNome, 105, 30, { align: 'center' });
+            
+            doc.setFontSize(12);
+            doc.text(eventoData, 105, 38, { align: 'center' });
+            
+            // Preparar dados da tabela
+            const tableData = [];
+            linhas.forEach((linha, index) => {
+                const cells = linha.cells;
+                if (cells.length >= 4) {
+                    tableData.push([
+                        cells[0].textContent,
+                        cells[1].textContent,
+                        cells[2].textContent,
+                        '_______________________'
+                    ]);
+                }
+            });
+            
+            // Gerar tabela
+            doc.autoTable({
+                startY: 45,
+                head: [['#', 'Funcionário', 'Função', 'Assinatura']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [52, 152, 219], fontSize: 11, fontStyle: 'bold' },
+                bodyStyles: { fontSize: 10 },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 15 },
+                    1: { cellWidth: 60 },
+                    2: { cellWidth: 50 },
+                    3: { halign: 'center', cellWidth: 65 }
+                },
+                margin: { top: 45, bottom: 20 }
+            });
+            
+            // Rodapé
+            const pageCount = doc.internal.getNumberOfPages();
+            const agora = new Date().toLocaleString('pt-BR');
+            doc.setFontSize(9);
+            doc.setTextColor(150);
+            doc.text(`Documento gerado em ${agora}`, 105, doc.internal.pageSize.height - 10, { align: 'center' });
+            
+            // Salvar
+            const nomeArquivo = `Lista_Assinatura_${eventoNome.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+            doc.save(nomeArquivo);
+            
+            showToast('✅ PDF exportado com sucesso!', 'success');
+        }
+
+        function exportarAssinaturaExcel() {
+            // Obter dados
+            const eventoNome = document.getElementById('assinatura-evento-nome').textContent;
+            const eventoData = document.getElementById('assinatura-evento-data').textContent;
+            const tbody = document.getElementById('tbody-equipe-evento'); // Pegar da tabela principal para ter o valor
+            const linhas = tbody.querySelectorAll('tr');
+            
+            // Verificar se há dados
+            if (linhas.length === 1 && linhas[0].cells.length === 1) {
+                showToast('⚠️ Nenhum funcionário para exportar', 'warning');
+                return;
+            }
+            
+            // Preparar dados
+            const dados = [];
+            
+            // Cabeçalho
+            dados.push(['Lista de Equipe - Evento']);
+            dados.push([eventoNome]);
+            dados.push([eventoData]);
+            dados.push([]); // Linha vazia
+            dados.push(['#', 'Funcionário', 'Função', 'Valor (R$)']);
+            
+            // Dados
+            linhas.forEach((linha, index) => {
+                const cells = linha.cells;
+                if (cells.length >= 3) {
+                    const funcionario = cells[0].textContent;
+                    const funcao = cells[1].textContent;
+                    const valor = cells[2].textContent.replace('R$', '').replace('.', '').replace(',', '.').trim();
+                    
+                    dados.push([
+                        index + 1,
+                        funcionario,
+                        funcao,
+                        parseFloat(valor) || 0
+                    ]);
+                }
+            });
+            
+            // Criar workbook
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(dados);
+            
+            // Estilizar (largura das colunas)
+            ws['!cols'] = [
+                { wch: 5 },  // #
+                { wch: 30 }, // Funcionário
+                { wch: 25 }, // Função
+                { wch: 15 }  // Valor
+            ];
+            
+            // Adicionar worksheet
+            XLSX.utils.book_append_sheet(wb, ws, 'Equipe');
+            
+            // Salvar
+            const nomeArquivo = `Lista_Equipe_${eventoNome.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
+            XLSX.writeFile(wb, nomeArquivo);
+            
+            showToast('✅ Excel exportado com sucesso!', 'success');
         }
 
         async function adicionarFuncionariosMassa(event) {
@@ -7192,6 +7427,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <script src="/static/utils.js?v={{ build_timestamp }}"></script>
     <script src="/static/lazy-loader.js?v={{ build_timestamp }}"></script>
     <script src="/static/app.js?v={{ build_timestamp }}"></script>
