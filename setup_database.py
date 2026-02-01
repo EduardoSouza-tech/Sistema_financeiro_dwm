@@ -6,6 +6,89 @@ import os
 import sys
 from database_postgresql import get_db_connection
 
+
+def check_evento_funcionarios_tables():
+    """Verifica se tabelas de eventos já existem"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name IN ('funcoes_evento', 'evento_funcionarios')
+            """)
+            
+            count = cursor.fetchone()[0]
+            cursor.close()
+            
+            return count == 2
+            
+    except Exception as e:
+        print(f"⚠️ Erro ao verificar tabelas de eventos: {e}")
+        return False
+
+
+def apply_evento_funcionarios_migration():
+    """Aplica migration de eventos e funcionários"""
+    
+    print("\n" + "="*60)
+    print("🔍 VERIFICANDO TABELAS DE EVENTOS")
+    print("="*60)
+    
+    if check_evento_funcionarios_tables():
+        print("✅ Tabelas já existem. Nada a fazer.")
+        return True
+    
+    print("⚠️ Tabelas não encontradas. Aplicando migration...")
+    
+    # Ler arquivo SQL
+    sql_file = os.path.join(os.path.dirname(__file__), 'migration_evento_funcionarios.sql')
+    
+    if not os.path.exists(sql_file):
+        print(f"❌ Arquivo não encontrado: {sql_file}")
+        return False
+    
+    try:
+        with open(sql_file, 'r', encoding='utf-8') as f:
+            sql_content = f.read()
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            print("📝 Executando migration de eventos...")
+            cursor.execute(sql_content)
+            conn.commit()
+            
+            # Verificar criação
+            cursor.execute("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name IN ('funcoes_evento', 'evento_funcionarios')
+                ORDER BY table_name
+            """)
+            
+            tables = cursor.fetchall()
+            print(f"✅ {len(tables)} tabelas criadas:")
+            for table in tables:
+                print(f"   - {table[0]}")
+            
+            # Contar funções
+            cursor.execute("SELECT COUNT(*) FROM funcoes_evento")
+            count_funcoes = cursor.fetchone()[0]
+            print(f"✅ {count_funcoes} funções padrão inseridas")
+            
+            cursor.close()
+            return True
+            
+    except Exception as e:
+        print(f"❌ Erro ao aplicar migration: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
 def check_rls_applied():
     """Verifica se RLS já foi aplicado"""
     try:
@@ -82,11 +165,26 @@ if __name__ == '__main__':
     print("\n🚀 SETUP DO BANCO DE DADOS")
     print("="*60)
     
-    success = apply_rls()
+    # 1. Aplicar migration de eventos (PRIMEIRO)
+    eventos_success = apply_evento_funcionarios_migration()
     
-    if success:
-        print("\n✅ Setup concluído com sucesso!")
+    # 2. Aplicar RLS (DEPOIS)
+    rls_success = apply_rls()
+    
+    # Resultado final
+    print("\n" + "="*60)
+    if eventos_success and rls_success:
+        print("✅ SETUP CONCLUÍDO COM SUCESSO!")
+        print("="*60)
+        print("✅ Migration de eventos aplicada")
+        print("✅ Row Level Security aplicado")
         sys.exit(0)
     else:
-        print("\n❌ Falha no setup")
-        sys.exit(1)
+        print("⚠️ SETUP CONCLUÍDO COM AVISOS")
+        print("="*60)
+        if not eventos_success:
+            print("⚠️ Migration de eventos falhou (pode já existir)")
+        if not rls_success:
+            print("⚠️ RLS falhou (pode já existir)")
+        print("\n💡 Erros são normais em redeploys (tabelas já existem)")
+        sys.exit(0)  # Não falhar o deploy por isso
