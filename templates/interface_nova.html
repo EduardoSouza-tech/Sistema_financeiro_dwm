@@ -2410,7 +2410,8 @@
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
                                     <div>
                                         <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Funcionário:</label>
-                                        <select id="equipe-select-funcionario" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                        <input type="text" id="equipe-search-funcionario" placeholder="🔍 Pesquisar funcionário..." oninput="filtrarFuncionarios('individual')" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px;">
+                                        <select id="equipe-select-funcionario" required size="5" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                             <option value="">Selecione...</option>
                                         </select>
                                     </div>
@@ -2453,7 +2454,8 @@
                                     <!-- Selecionar Múltiplos Funcionários -->
                                     <div>
                                         <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Funcionários (selecione múltiplos): <span style="color: red;">*</span></label>
-                                        <select id="equipe-select-funcionarios-massa" multiple required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 150px;">
+                                        <input type="text" id="equipe-search-funcionarios-massa" placeholder="🔍 Pesquisar funcionários..." oninput="filtrarFuncionarios('massa')" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px;">
+                                        <select id="equipe-select-funcionarios-massa" multiple required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 200px;">
                                             <!-- Preenchido via JS -->
                                         </select>
                                         <small style="color: #777; display: block; margin-top: 5px;">💡 Segure Ctrl (Windows) ou Cmd (Mac) para selecionar múltiplos</small>
@@ -6046,6 +6048,68 @@
                 input.disabled = true;
                 input.required = false;
                 input.value = '';
+            }
+        }
+
+        function filtrarFuncionarios(tipo) {
+            let searchInput, select;
+            
+            if (tipo === 'individual') {
+                searchInput = document.getElementById('equipe-search-funcionario');
+                select = document.getElementById('equipe-select-funcionario');
+            } else {
+                searchInput = document.getElementById('equipe-search-funcionarios-massa');
+                select = document.getElementById('equipe-select-funcionarios-massa');
+            }
+            
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            const options = select.querySelectorAll('option');
+            
+            let visibleCount = 0;
+            
+            options.forEach(option => {
+                if (option.value === '') {
+                    // Opção "Selecione..." sempre visível (apenas no individual)
+                    if (tipo === 'individual') {
+                        option.style.display = '';
+                    }
+                    return;
+                }
+                
+                const text = option.textContent.toLowerCase();
+                
+                if (searchTerm === '' || text.includes(searchTerm)) {
+                    option.style.display = '';
+                    visibleCount++;
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+            
+            // Feedback visual se nenhum resultado
+            if (visibleCount === 0 && searchTerm !== '') {
+                if (tipo === 'individual') {
+                    // Criar opção temporária com mensagem
+                    let noResultOption = select.querySelector('.no-result-message');
+                    if (!noResultOption) {
+                        noResultOption = document.createElement('option');
+                        noResultOption.className = 'no-result-message';
+                        noResultOption.disabled = true;
+                        noResultOption.style.fontStyle = 'italic';
+                        noResultOption.style.color = '#999';
+                        select.appendChild(noResultOption);
+                    }
+                    noResultOption.textContent = '❌ Nenhum funcionário encontrado';
+                    noResultOption.style.display = '';
+                } else {
+                    // Para massa, apenas deixar vazio (já está filtrado)
+                }
+            } else {
+                // Remover mensagem de "não encontrado"
+                const noResultOption = select.querySelector('.no-result-message');
+                if (noResultOption) {
+                    noResultOption.style.display = 'none';
+                }
             }
         }
 
