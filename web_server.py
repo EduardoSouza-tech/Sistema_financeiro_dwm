@@ -2976,18 +2976,23 @@ def upload_extrato_ofx():
         print(f"👤 Cliente ID: {usuario.get('cliente_id')}")
         print(f"🏢 Empresa ID: {usuario.get('empresa_id')}")
         
-        # Buscar todas as empresas do usuário
+        # Buscar contas acessíveis ao usuário usando o mesmo método do endpoint /api/contas
+        # O DatabaseManager já aplica o filtro correto baseado no proprietario_id
+        from database_postgresql import DatabaseManager
+        db_manager = DatabaseManager()
+        
+        # Buscar todas as empresas do usuário para determinar proprietario_id
         from auth_functions import listar_empresas_usuario
         empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
         print(f"🏢 Empresas do usuário: {[e.get('empresa_id') for e in empresas_usuario]}")
         
-        # Buscar contas de todas as empresas do usuário
+        # Buscar contas de cada empresa (proprietario_id = empresa_id)
         contas_cadastradas = []
         for empresa in empresas_usuario:
-            empresa_id = empresa.get('empresa_id')
-            contas_empresa = database.listar_contas(empresa_id=empresa_id)
+            proprietario_id = empresa.get('empresa_id')
+            contas_empresa = db_manager.listar_contas(filtro_cliente_id=proprietario_id)
             contas_cadastradas.extend(contas_empresa)
-            print(f"   📊 Empresa {empresa_id}: {len(contas_empresa)} conta(s)")
+            print(f"   📊 Empresa {proprietario_id}: {len(contas_empresa)} conta(s)")
         
         print(f"📊 Total de contas cadastradas (todas empresas): {len(contas_cadastradas)}")
         print(f"📋 Nomes das contas: {[c.nome for c in contas_cadastradas]}")
