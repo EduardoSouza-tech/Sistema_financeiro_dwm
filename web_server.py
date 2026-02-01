@@ -4201,6 +4201,114 @@ def criar_funcao_evento():
     
     except Exception as e:
         logger.error(f"Erro ao criar função: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# ========================================
+# ENDPOINTS: SETORES
+# ========================================
+
+@app.route('/api/setores', methods=['GET'])
+@require_permission('eventos_view')
+def listar_setores():
+    """Listar setores cadastrados"""
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id, nome, ativo, created_at
+            FROM setores
+            ORDER BY nome
+        """)
+        
+        setores = cursor.fetchall()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'setores': setores
+        })
+    
+    except Exception as e:
+        logger.error(f"Erro ao listar setores: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/setores', methods=['POST'])
+@require_permission('eventos_create')
+def criar_setor():
+    """Cadastrar novo setor"""
+    try:
+        dados = request.get_json()
+        nome = dados.get('nome', '').strip()
+        
+        if not nome:
+            return jsonify({'error': 'Nome do setor é obrigatório'}), 400
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se já existe
+        cursor.execute("SELECT id FROM setores WHERE UPPER(nome) = UPPER(%s)", (nome,))
+        if cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'Já existe um setor com este nome'}), 400
+        
+        # Inserir novo setor
+        cursor.execute("""
+            INSERT INTO setores (nome, ativo, created_at)
+            VALUES (%s, TRUE, NOW())
+            RETURNING id
+        """, (nome,))
+        
+        setor_id = cursor.fetchone()['id']
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Setor cadastrado com sucesso',
+            'setor_id': setor_id
+        }), 201
+    
+    except Exception as e:
+        logger.error(f"Erro ao criar setor: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/setores/<int:setor_id>', methods=['PATCH'])
+@require_permission('eventos_edit')
+def atualizar_setor(setor_id):
+    """Atualizar status do setor (ativar/desativar)"""
+    try:
+        dados = request.get_json()
+        ativo = dados.get('ativo')
+        
+        if ativo is None:
+            return jsonify({'error': 'Status ativo é obrigatório'}), 400
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE setores
+            SET ativo = %s
+            WHERE id = %s
+            RETURNING id
+        """, (ativo, setor_id))
+        
+        if not cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'Setor não encontrado'}), 404
+        
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Setor {"ativado" if ativo else "desativado"} com sucesso'
+        })
+    
+    except Exception as e:
+        logger.error(f"Erro ao criar função: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500

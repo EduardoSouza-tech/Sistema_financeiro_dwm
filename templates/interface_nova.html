@@ -2252,9 +2252,14 @@
             <div id="eventos-section" class="content-card hidden">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2 style="margin: 0;">🎉 Eventos Operacionais</h2>
-                    <button onclick="abrirModalEvento()" class="btn btn-primary" style="padding: 10px 20px; background: #3498db;">
-                        ➕ Novo Evento
-                    </button>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="abrirModalSetores()" class="btn btn-secondary" style="padding: 10px 20px; background: #95a5a6;">
+                            🏢 Setores
+                        </button>
+                        <button onclick="abrirModalEvento()" class="btn btn-primary" style="padding: 10px 20px; background: #3498db;">
+                            ➕ Novo Evento
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Filtros -->
@@ -2580,6 +2585,56 @@
                                 <button type="button" onclick="fecharModalNovaFuncao()" class="btn btn-secondary" style="flex: 1; padding: 10px; background: #95a5a6;">❌ Cancelar</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Setores -->
+            <div id="modal-setores" class="modal" style="display: none;">
+                <div class="modal-content" style="max-width: 700px;">
+                    <div class="modal-header">
+                        <h3>🏢 Gerenciar Setores</h3>
+                        <span class="close" onclick="fecharModalSetores()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Formulário de Novo Setor -->
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <h4 style="margin: 0 0 15px 0;">➕ Cadastrar Novo Setor</h4>
+                            <form id="form-novo-setor" onsubmit="salvarNovoSetor(event); return false;">
+                                <div style="display: flex; gap: 10px; align-items: end;">
+                                    <div style="flex: 1;">
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nome do Setor: <span style="color: red;">*</span></label>
+                                        <input type="text" id="novo-setor-nome" required placeholder="Ex: Fotografia, Filmagem, Produção..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <button type="submit" class="btn btn-primary" style="padding: 9px 20px; background: #27ae60;">💾 Salvar</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Lista de Setores -->
+                        <div>
+                            <h4 style="margin: 0 0 15px 0;">📋 Setores Cadastrados</h4>
+                            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                                <table style="width: 100%;">
+                                    <thead>
+                                        <tr style="background: #f8f9fa;">
+                                            <th style="padding: 10px; text-align: left;">Setor</th>
+                                            <th style="padding: 10px; text-align: center; width: 100px;">Status</th>
+                                            <th style="padding: 10px; text-align: center; width: 100px;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-setores">
+                                        <tr><td colspan="3" style="text-align: center; padding: 30px; color: #999;">Carregando...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="button" onclick="fecharModalSetores()" class="btn btn-secondary" style="flex: 1; padding: 10px; background: #95a5a6;">❌ Fechar</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -6470,6 +6525,111 @@
             } catch (error) {
                 console.error('Erro ao salvar função:', error);
                 showToast('❌ Erro ao salvar função', 'error');
+            }
+        }
+
+        // ==========================================
+        // GERENCIAMENTO DE SETORES
+        // ==========================================
+
+        function abrirModalSetores() {
+            document.getElementById('modal-setores').style.display = 'flex';
+            carregarSetores();
+        }
+
+        function fecharModalSetores() {
+            document.getElementById('modal-setores').style.display = 'none';
+            document.getElementById('form-novo-setor').reset();
+        }
+
+        async function carregarSetores() {
+            try {
+                const response = await fetch('/api/setores', {
+                    credentials: 'include'
+                });
+                const result = await response.json();
+
+                const tbody = document.getElementById('tbody-setores');
+
+                if (result.setores && result.setores.length > 0) {
+                    tbody.innerHTML = result.setores.map(setor => `
+                        <tr>
+                            <td style="padding: 10px;">${setor.nome}</td>
+                            <td style="padding: 10px; text-align: center;">
+                                ${setor.ativo ? '<span style="color: #27ae60; font-weight: bold;">✓ Ativo</span>' : '<span style="color: #95a5a6;">Inativo</span>'}
+                            </td>
+                            <td style="padding: 10px; text-align: center;">
+                                <button onclick="toggleStatusSetor(${setor.id}, ${!setor.ativo})" class="btn btn-sm" style="background: ${setor.ativo ? '#e74c3c' : '#27ae60'}; padding: 5px 10px; color: white;" title="${setor.ativo ? 'Desativar' : 'Ativar'}">
+                                    ${setor.ativo ? '🚫' : '✓'}
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 30px; color: #999;">Nenhum setor cadastrado</td></tr>';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar setores:', error);
+                showToast('❌ Erro ao carregar setores', 'error');
+            }
+        }
+
+        async function salvarNovoSetor(event) {
+            event.preventDefault();
+
+            const nome = document.getElementById('novo-setor-nome').value;
+
+            try {
+                const response = await fetch('/api/setores', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        nome: nome
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast('✅ Setor cadastrado com sucesso!', 'success');
+                    document.getElementById('form-novo-setor').reset();
+                    await carregarSetores();
+                } else {
+                    showToast(`❌ ${result.error || 'Erro ao cadastrar setor'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar setor:', error);
+                showToast('❌ Erro ao salvar setor', 'error');
+            }
+        }
+
+        async function toggleStatusSetor(setorId, novoStatus) {
+            try {
+                const response = await fetch(`/api/setores/${setorId}`, {
+                    method: 'PATCH',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ativo: novoStatus
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(`✅ Setor ${novoStatus ? 'ativado' : 'desativado'} com sucesso!`, 'success');
+                    await carregarSetores();
+                } else {
+                    showToast(`❌ ${result.error || 'Erro ao atualizar setor'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar status do setor:', error);
+                showToast('❌ Erro ao atualizar setor', 'error');
             }
         }
 
