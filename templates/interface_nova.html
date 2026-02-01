@@ -2413,7 +2413,7 @@
                         <div id="form-container-individual" style="background: #fff; padding: 20px; border: 2px dashed #ddd; border-radius: 8px; margin-bottom: 20px;">
                             <h4 style="margin: 0 0 15px 0; color: #2c3e50;">➕ Adicionar Funcionário à Equipe</h4>
                             <form id="form-adicionar-funcionario-evento" onsubmit="adicionarFuncionarioEvento(event); return false;">
-                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
                                     <div>
                                         <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Funcionário:</label>
                                         <input type="text" id="equipe-search-funcionario" placeholder="🔍 Pesquisar funcionário..." oninput="filtrarFuncionarios('individual')" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px;">
@@ -2428,6 +2428,15 @@
                                                 <option value="">Selecione...</option>
                                             </select>
                                             <button type="button" onclick="abrirModalNovaFuncao()" class="btn btn-sm btn-secondary" title="Cadastrar nova função" style="padding: 8px 12px; background: #95a5a6;">➕</button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Setor:</label>
+                                        <div style="display: flex; gap: 5px;">
+                                            <select id="equipe-select-setor" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                <option value="">Nenhum</option>
+                                            </select>
+                                            <button type="button" onclick="abrirModalSetores()" class="btn btn-sm btn-secondary" title="Gerenciar setores" style="padding: 8px 12px; background: #95a5a6;">➕</button>
                                         </div>
                                     </div>
                                     <div>
@@ -2454,6 +2463,17 @@
                                                 <option value="">Selecione...</option>
                                             </select>
                                             <button type="button" onclick="abrirModalNovaFuncao()" class="btn btn-sm btn-secondary" title="Cadastrar nova função" style="padding: 8px 12px; background: #95a5a6;">➕</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Selecionar Setor -->
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Setor (aplicado a todos):</label>
+                                        <div style="display: flex; gap: 5px;">
+                                            <select id="equipe-select-setor-massa" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                <option value="">Nenhum</option>
+                                            </select>
+                                            <button type="button" onclick="abrirModalSetores()" class="btn btn-sm btn-secondary" title="Gerenciar setores" style="padding: 8px 12px; background: #95a5a6;">➕</button>
                                         </div>
                                     </div>
 
@@ -2534,12 +2554,13 @@
                                         <tr style="background: #f8f9fa;">
                                             <th style="padding: 10px; text-align: left;">Funcionário</th>
                                             <th style="padding: 10px; text-align: left;">Função</th>
+                                            <th style="padding: 10px; text-align: left;">Setor</th>
                                             <th style="padding: 10px; text-align: right;">Valor</th>
                                             <th style="padding: 10px; text-align: center; width: 80px;">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody id="tbody-equipe-evento">
-                                        <tr><td colspan="4" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>
+                                        <tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -5909,6 +5930,9 @@
             // Carregar funções disponíveis
             await carregarFuncoesDisponiveis();
             
+            // Carregar setores disponíveis
+            await carregarSetoresDisponiveis();
+            
             // Carregar equipe já alocada
             await carregarEquipeEvento(eventoId);
             
@@ -5992,6 +6016,45 @@
             }
         }
 
+        async function carregarSetoresDisponiveis() {
+            try {
+                const response = await fetch('/api/setores', {
+                    credentials: 'include'
+                });
+                const result = await response.json();
+
+                // Select individual
+                const select = document.getElementById('equipe-select-setor');
+                select.innerHTML = '<option value="">Nenhum</option>';
+
+                // Select em massa
+                const selectMassa = document.getElementById('equipe-select-setor-massa');
+                selectMassa.innerHTML = '<option value="">Nenhum</option>';
+
+                if (result.setores && result.setores.length > 0) {
+                    // Filtrar apenas setores ativos
+                    const setoresAtivos = result.setores.filter(setor => setor.ativo);
+                    
+                    setoresAtivos.forEach(setor => {
+                        // Individual
+                        const option = document.createElement('option');
+                        option.value = setor.id;
+                        option.textContent = setor.nome;
+                        select.appendChild(option);
+
+                        // Em massa
+                        const optionMassa = document.createElement('option');
+                        optionMassa.value = setor.id;
+                        optionMassa.textContent = setor.nome;
+                        selectMassa.appendChild(optionMassa);
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar setores:', error);
+                showToast('❌ Erro ao carregar setores', 'error');
+            }
+        }
+
         async function carregarEquipeEvento(eventoId) {
             try {
                 const response = await fetch(`/api/eventos/${eventoId}/equipe`, {
@@ -6006,6 +6069,7 @@
                         <tr>
                             <td style="padding: 10px;">${membro.funcionario_nome}</td>
                             <td style="padding: 10px;">${membro.funcao_nome}</td>
+                            <td style="padding: 10px; color: #555;">${membro.setor_nome || '-'}</td>
                             <td style="padding: 10px; text-align: right; font-weight: bold; color: #27ae60;">${formatarMoeda(membro.valor)}</td>
                             <td style="padding: 10px; text-align: center;">
                                 <button onclick="removerFuncionarioEvento(${membro.id})" class="btn btn-sm btn-danger" title="Remover">🗑️</button>
@@ -6017,7 +6081,7 @@
                     const total = result.equipe.reduce((sum, m) => sum + parseFloat(m.valor || 0), 0);
                     document.getElementById('equipe-custo-total').textContent = formatarMoeda(total);
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
                     document.getElementById('equipe-custo-total').textContent = 'R$ 0,00';
                 }
             } catch (error) {
@@ -6032,6 +6096,7 @@
             const eventoId = document.getElementById('equipe-evento-id').value;
             const funcionarioId = document.getElementById('equipe-select-funcionario').value;
             const funcaoId = document.getElementById('equipe-select-funcao').value;
+            const setorId = document.getElementById('equipe-select-setor').value;
             const valor = parseFloat(document.getElementById('equipe-valor').value);
 
             if (!funcionarioId || !funcaoId || !valor) {
@@ -6040,17 +6105,23 @@
             }
 
             try {
+                const dados = {
+                    funcionario_id: parseInt(funcionarioId),
+                    funcao_id: parseInt(funcaoId),
+                    valor: valor
+                };
+                
+                if (setorId) {
+                    dados.setor_id = parseInt(setorId);
+                }
+                
                 const response = await fetch(`/api/eventos/${eventoId}/equipe`, {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        funcionario_id: parseInt(funcionarioId),
-                        funcao_id: parseInt(funcaoId),
-                        valor: valor
-                    })
+                    body: JSON.stringify(dados)
                 });
 
                 const result = await response.json();
@@ -6404,6 +6475,7 @@
 
             const eventoId = document.getElementById('equipe-evento-id').value;
             const funcaoId = document.getElementById('equipe-select-funcao-massa').value;
+            const setorId = document.getElementById('equipe-select-setor-massa').value;
             const selectFuncionarios = document.getElementById('equipe-select-funcionarios-massa');
             const aplicarValor = document.getElementById('equipe-aplicar-valor-massa').checked;
             const valor = aplicarValor ? parseFloat(document.getElementById('equipe-valor-massa').value) : 0;
@@ -6440,17 +6512,23 @@
 
             for (const funcId of funcionariosSelecionados) {
                 try {
+                    const dados = {
+                        funcionario_id: funcId,
+                        funcao_id: parseInt(funcaoId),
+                        valor: valor
+                    };
+                    
+                    if (setorId) {
+                        dados.setor_id = parseInt(setorId);
+                    }
+                    
                     const response = await fetch(`/api/eventos/${eventoId}/equipe`, {
                         method: 'POST',
                         credentials: 'include',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({
-                            funcionario_id: funcId,
-                            funcao_id: parseInt(funcaoId),
-                            valor: valor
-                        })
+                        body: JSON.stringify(dados)
                     });
 
                     if (response.ok) {

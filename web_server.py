@@ -4361,10 +4361,13 @@ def listar_equipe_evento(evento_id):
                 f.nome as funcionario_nome,
                 ef.funcao_id,
                 ef.funcao_nome,
+                ef.setor_id,
+                s.nome as setor_nome,
                 ef.valor,
                 ef.observacoes
             FROM evento_funcionarios ef
             INNER JOIN funcionarios f ON f.id = ef.funcionario_id
+            LEFT JOIN setores s ON s.id = ef.setor_id
             WHERE ef.evento_id = %s
             ORDER BY f.nome
         """, (evento_id,))
@@ -4377,6 +4380,8 @@ def listar_equipe_evento(evento_id):
                 'funcionario_nome': row['funcionario_nome'],
                 'funcao_id': row['funcao_id'],
                 'funcao_nome': row['funcao_nome'],
+                'setor_id': row['setor_id'],
+                'setor_nome': row['setor_nome'],
                 'valor': float(row['valor']) if row['valor'] else 0.0,
                 'observacoes': row['observacoes']
             })
@@ -4403,6 +4408,7 @@ def adicionar_funcionario_evento(evento_id):
         dados = request.get_json()
         funcionario_id = dados.get('funcionario_id')
         funcao_id = dados.get('funcao_id')
+        setor_id = dados.get('setor_id')  # Opcional
         valor = dados.get('valor', 0)
         
         if not funcionario_id or not funcao_id:
@@ -4430,12 +4436,12 @@ def adicionar_funcionario_evento(evento_id):
             cursor.close()
             return jsonify({'error': 'Este funcionário já está alocado com esta função neste evento'}), 400
         
-        # Inserir alocação
+        # Inserir alocação (com setor_id se fornecido)
         cursor.execute("""
-            INSERT INTO evento_funcionarios (evento_id, funcionario_id, funcao_id, funcao_nome, valor)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO evento_funcionarios (evento_id, funcionario_id, funcao_id, funcao_nome, setor_id, valor)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (evento_id, funcionario_id, funcao_id, funcao_nome, valor))
+        """, (evento_id, funcionario_id, funcao_id, funcao_nome, setor_id, valor))
         
         alocacao_id = cursor.fetchone()['id']
         
