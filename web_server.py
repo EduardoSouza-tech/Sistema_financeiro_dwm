@@ -2971,10 +2971,14 @@ def upload_extrato_ofx():
         
         # Buscar informações da conta bancária cadastrada
         usuario = get_usuario_logado()
+        import sys
         
         print(f"👤 Usuário: {usuario.get('nome')} (ID: {usuario.get('id')})")
+        sys.stdout.flush()
         print(f"👤 Cliente ID: {usuario.get('cliente_id')}")
+        sys.stdout.flush()
         print(f"🏢 Empresa ID: {usuario.get('empresa_id')}")
+        sys.stdout.flush()
         
         # Buscar contas acessíveis ao usuário usando o mesmo método do endpoint /api/contas
         # O DatabaseManager já aplica o filtro correto baseado no proprietario_id
@@ -2985,24 +2989,36 @@ def upload_extrato_ofx():
         from auth_functions import listar_empresas_usuario
         empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
         print(f"🏢 Empresas do usuário: {[e.get('empresa_id') for e in empresas_usuario]}")
+        sys.stdout.flush()
+        print(f"🏢 Total de empresas: {len(empresas_usuario)}")
+        sys.stdout.flush()
         
         # Buscar contas de cada empresa (proprietario_id = empresa_id)
         contas_cadastradas = []
-        for empresa in empresas_usuario:
+        print(f"🔄 Iniciando loop pelas empresas...")
+        sys.stdout.flush()
+        
+        for i, empresa in enumerate(empresas_usuario):
             proprietario_id = empresa.get('empresa_id')
-            print(f"   🔍 Buscando contas da empresa {proprietario_id}...")
+            print(f"   🔍 [{i+1}/{len(empresas_usuario)}] Buscando contas da empresa {proprietario_id}...")
+            sys.stdout.flush()
             try:
                 contas_empresa = db_manager.listar_contas(filtro_cliente_id=proprietario_id)
                 print(f"   📊 Empresa {proprietario_id}: {len(contas_empresa)} conta(s)")
+                sys.stdout.flush()
                 if contas_empresa:
                     for conta in contas_empresa:
                         print(f"      - {conta.nome} ({conta.banco})")
+                        sys.stdout.flush()
                 contas_cadastradas.extend(contas_empresa)
             except Exception as e:
                 print(f"   ❌ Erro ao buscar contas da empresa {proprietario_id}: {e}")
+                sys.stdout.flush()
                 import traceback
                 traceback.print_exc()
         
+        print(f"🔄 Loop finalizado!")
+        sys.stdout.flush()
         print(f"📊 Total de contas cadastradas (todas empresas): {len(contas_cadastradas)}")
         print(f"📋 Nomes das contas: {[c.nome for c in contas_cadastradas]}")
         
