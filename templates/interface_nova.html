@@ -2528,14 +2528,15 @@
                                 <table style="width: 100%; border-collapse: collapse;">
                                     <thead>
                                         <tr style="background: #f8f9fa; border-bottom: 2px solid #333;">
-                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 10%;">#</th>
-                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 40%;">Funcionário</th>
-                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 25%;">Função</th>
-                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 25%;">Setor</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 5%;">#</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 30%;">Funcionário</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 20%;">Função</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 15%;">Setor</th>
+                                            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 30%;">Assinatura</th>
                                         </tr>
                                     </thead>
                                     <tbody id="tbody-assinatura-evento">
-                                        <tr><td colspan="4" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>
+                                        <tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>
                                     </tbody>
                                 </table>
 
@@ -6233,7 +6234,7 @@
             const linhasEquipe = tbodyEquipe.querySelectorAll('tr');
             
             if (linhasEquipe.length === 1 && linhasEquipe[0].cells.length === 1) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
                 return;
             }
             
@@ -6251,12 +6252,13 @@
                             <td style="padding: 15px 12px; border: 1px solid #ddd;">${funcionario}</td>
                             <td style="padding: 15px 12px; border: 1px solid #ddd;">${funcao}</td>
                             <td style="padding: 15px 12px; border: 1px solid #ddd;">${setor}</td>
+                            <td style="padding: 15px 12px; border: 1px solid #ddd; text-align: center;"></td>
                         </tr>
                     `;
                 }
             });
             
-            tbody.innerHTML = html || '<tr><td colspan="4" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
+            tbody.innerHTML = html || '<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
         }
 
         function toggleValorMassa() {
@@ -6377,7 +6379,8 @@
                         cells[0].textContent,
                         cells[1].textContent,
                         cells[2].textContent,
-                        cells[3].textContent
+                        cells[3].textContent,
+                        ''
                     ]);
                 }
             });
@@ -6385,16 +6388,17 @@
             // Gerar tabela
             doc.autoTable({
                 startY: 45,
-                head: [['#', 'Funcionário', 'Função', 'Setor']],
+                head: [['#', 'Funcionário', 'Função', 'Setor', 'Assinatura']],
                 body: tableData,
                 theme: 'grid',
                 headStyles: { fillColor: [52, 152, 219], fontSize: 11, fontStyle: 'bold' },
                 bodyStyles: { fontSize: 10 },
                 columnStyles: {
-                    0: { halign: 'center', cellWidth: 15 },
-                    1: { cellWidth: 70 },
-                    2: { cellWidth: 55 },
-                    3: { cellWidth: 50 }
+                    0: { halign: 'center', cellWidth: 10 },
+                    1: { cellWidth: 50 },
+                    2: { cellWidth: 40 },
+                    3: { cellWidth: 35 },
+                    4: { halign: 'center', cellWidth: 55 }
                 },
                 margin: { top: 45, bottom: 20 }
             });
