@@ -2514,6 +2514,9 @@ def listar_lancamentos():
         print("\n" + "="*80)
         print("🚀 ROTA /api/lancamentos chamada")
         
+        # Obter empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        
         # Parâmetros de filtro
         tipo_filtro = request.args.get('tipo')
         filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
@@ -2523,6 +2526,7 @@ def listar_lancamentos():
         per_page = request.args.get('per_page', default=50, type=int)
         
         print(f"📋 Parâmetros recebidos:")
+        print(f"   - empresa_id: {empresa_id}")
         print(f"   - tipo_filtro: {tipo_filtro}")
         print(f"   - filtro_cliente_id: {filtro_cliente_id}")
         print(f"   - page: {page}")
@@ -2538,6 +2542,7 @@ def listar_lancamentos():
         # Chamar método com todos os parâmetros
         print(f"📞 Chamando database.listar_lancamentos()...")
         lancamentos = database.listar_lancamentos(
+            empresa_id=empresa_id,
             filtros=filtros,
             filtro_cliente_id=filtro_cliente_id,
             page=page,

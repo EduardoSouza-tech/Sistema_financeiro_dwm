@@ -2336,12 +2336,13 @@ class DatabaseManager:
         return_to_pool(conn)  # Devolver ao pool
         return lancamento_id
     
-    def listar_lancamentos(self, filtros: Dict[str, Any] = None, filtro_cliente_id: int = None, 
-                          page: int = None, per_page: int = 50) -> List[Lancamento]:
+    def listar_lancamentos(self, empresa_id: int = None, filtros: Dict[str, Any] = None, 
+                          filtro_cliente_id: int = None, page: int = None, per_page: int = 50) -> List[Lancamento]:
         """
         Lista lani?amentos com filtros opcionais, multi-tenancy e pagina??o
         
         Args:
+            empresa_id: ID da empresa para filtro (opcional)
             filtros: Dicionário com filtros (tipo, status, datas, etc)
             filtro_cliente_id: ID do cliente para multi-tenancy
             page: Número da página (1-indexed). Se None, retorna todos.
@@ -2367,6 +2368,9 @@ class DatabaseManager:
         # NOTA: Tabela lancamentos ainda não tem coluna proprietario_id ou empresa_id
         # Filtro de multi-tenancy temporariamente desabilitado até migração
         # TODO: Adicionar coluna empresa_id à tabela lancamentos
+        # if empresa_id is not None:
+        #     query += " AND empresa_id = %s"
+        #     params.append(empresa_id)
         # if filtro_cliente_id is not None:
         #     query += " AND empresa_id = %s"
         #     params.append(filtro_cliente_id)
