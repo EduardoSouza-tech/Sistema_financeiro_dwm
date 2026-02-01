@@ -2344,16 +2344,27 @@ def listar_empresas_com_categorias():
 @require_permission('categorias_create')
 def importar_categorias_de_empresa():
     """Importa categorias de outra empresa do usuário"""
+    print("\n" + "="*80)
+    print("📥 IMPORTAR CATEGORIAS - INÍCIO")
+    print("="*80)
+    
     try:
         data = request.json
         empresa_origem_id = data.get('empresa_origem_id')
         categorias_ids = data.get('categorias')  # Lista de nomes de categorias para importar
+        
+        print(f"📋 Request data: {data}")
+        print(f"🏢 Empresa origem: {empresa_origem_id}")
+        print(f"📂 Categorias específicas: {categorias_ids}")
         
         if not empresa_origem_id:
             return jsonify({'success': False, 'error': 'empresa_origem_id é obrigatório'}), 400
         
         usuario = get_usuario_logado()
         empresa_destino_id = session.get('empresa_id')
+        
+        print(f"👤 Usuário: {usuario.get('nome')}")
+        print(f"🎯 Empresa destino: {empresa_destino_id}")
         
         if not empresa_destino_id:
             return jsonify({'success': False, 'error': 'Empresa destino não identificada'}), 400
@@ -2363,30 +2374,43 @@ def importar_categorias_de_empresa():
         empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
         tem_acesso = any(e.get('empresa_id') == empresa_origem_id for e in empresas_usuario)
         
+        print(f"✅ Tem acesso à empresa origem? {tem_acesso}")
+        
         if not tem_acesso:
             return jsonify({'success': False, 'error': 'Sem permissão para acessar empresa origem'}), 403
         
         # Buscar categorias da empresa origem
         categorias_origem = db.listar_categorias(empresa_id=empresa_origem_id)
+        print(f"📦 Categorias da origem: {len(categorias_origem)}")
+        for cat in categorias_origem:
+            print(f"   - {cat.nome} ({cat.tipo.value if hasattr(cat.tipo, 'value') else cat.tipo})")
         
         # Filtrar categorias selecionadas (se especificado)
         if categorias_ids:
             categorias_origem = [c for c in categorias_origem if c.nome in categorias_ids]
+            print(f"🔍 Após filtro: {len(categorias_origem)} categorias")
         
         # Buscar categorias já existentes na empresa destino
         categorias_destino = db.listar_categorias(empresa_id=empresa_destino_id)
         nomes_existentes = {c.nome.upper() for c in categorias_destino}
+        print(f"📋 Categorias no destino: {len(categorias_destino)} ({nomes_existentes})")
         
         importadas = 0
         duplicadas = 0
         erros = []
         
+        print(f"\n🔄 Iniciando loop de importação...")
         for cat_origem in categorias_origem:
             try:
+                print(f"\n   📌 Processando: {cat_origem.nome}")
+                
                 # Verificar se já existe (case insensitive)
                 if cat_origem.nome.upper() in nomes_existentes:
+                    print(f"      ⏭️ Duplicada")
                     duplicadas += 1
                     continue
+                
+                print(f"      ✅ Nova categoria - criando...")
                 
                 # Criar nova categoria na empresa destino
                 nova_categoria = Categoria(
@@ -2399,11 +2423,29 @@ def importar_categorias_de_empresa():
                     empresa_id=empresa_destino_id
                 )
                 
-                db.adicionar_categoria(nova_categoria)
+                print(f"      📝 Objeto Categoria criado: nome={nova_categoria.nome}, tipo={nova_categoria.tipo}, empresa_id={nova_categoria.empresa_id}")
+                
+                categoria_id = db.adicionar_categoria(nova_categoria)
+                print(f"      ✅ Categoria adicionada com ID: {categoria_id}")
                 importadas += 1
                 
             except Exception as e:
+                print(f"      ❌ ERRO ao processar {cat_origem.nome}: {e}")
+                import traceback
+                traceback.print_exc()
                 erros.append(f"{cat_origem.nome}: {str(e)}")
+        
+        print(f"\n📊 RESULTADO:")
+        print(f"   ✅ Importadas: {importadas}")
+        print(f"   ⏭️ Duplicadas: {duplicadas}")
+        print(f"   ❌ Erros: {len(erros)}")
+        if erros:
+            for erro in erros:
+                print(f"      - {erro}")
+        
+        print("="*80)
+        print("📥 IMPORTAR CATEGORIAS - FIM")
+        print("="*80 + "\n")
         
         return jsonify({
             'success': True,
@@ -2414,7 +2456,7 @@ def importar_categorias_de_empresa():
         })
         
     except Exception as e:
-        print(f"❌ Erro ao importar categorias: {e}")
+        print(f"❌ ERRO FATAL ao importar categorias: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
