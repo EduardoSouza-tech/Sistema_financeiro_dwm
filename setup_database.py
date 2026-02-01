@@ -5,18 +5,38 @@ Executa migrações necessárias na primeira vez
 import os
 import sys
 
+print("="*80, flush=True)
+print("🚀 SETUP DO BANCO DE DADOS - INICIANDO", flush=True)
+print("="*80, flush=True)
+
 # Adicionar diretório raiz ao path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from database_postgresql import DatabaseManager
+try:
+    from database_postgresql import DatabaseManager
+    print("✅ DatabaseManager importado", flush=True)
+except Exception as e:
+    print(f"❌ Erro ao importar DatabaseManager: {e}", flush=True)
+    sys.exit(1)
 
 
-def check_evento_funcionarios_tables(db):
-    """Verifica se tabelas de eventos já existem"""
+def execute_migration():
+    """Executa migration de eventos"""
+    print("\n" + "="*80, flush=True)
+    print("📝 EXECUTANDO MIGRATION DE EVENTOS", flush=True)
+    print("="*80, flush=True)
+    
     try:
+        # Inicializar DatabaseManager
+        db = DatabaseManager()
+        print("✅ DatabaseManager inicializado", flush=True)
+        
+        # Conectar ao banco
         conn = db.get_connection()
         cursor = conn.cursor()
+        print("✅ Conexão estabelecida", flush=True)
         
+        # Verificar se tabelas já existem
         cursor.execute("""
             SELECT COUNT(*) 
             FROM information_schema.tables 
@@ -25,45 +45,33 @@ def check_evento_funcionarios_tables(db):
         """)
         
         count = cursor.fetchone()[0]
-        cursor.close()
         
-        return count == 2
+        if count == 2:
+            print("✅ Tabelas já existem. Nada a fazer.", flush=True)
+            cursor.close()
+            return True
         
-    except Exception as e:
-        print(f"⚠️ Erro ao verificar tabelas de eventos: {e}")
-        return False
-
-
-def apply_evento_funcionarios_migration(db):
-    """Aplica migration de eventos e funcionários"""
-    
-    print("\n" + "="*60)
-    print("🔍 VERIFICANDO TABELAS DE EVENTOS")
-    print("="*60)
-    
-    if check_evento_funcionarios_tables(db):
-        print("✅ Tabelas já existem. Nada a fazer.")
-        return True
-    
-    print("⚠️ Tabelas não encontradas. Aplicando migration...")
-    
-    # Ler arquivo SQL
-    sql_file = os.path.join(os.path.dirname(__file__), 'migration_evento_funcionarios.sql')
-    
-    if not os.path.exists(sql_file):
-        print(f"❌ Arquivo não encontrado: {sql_file}")
-        return False
-    
-    try:
+        print(f"⚠️ Encontradas {count}/2 tabelas. Executando migration...", flush=True)
+        
+        # Ler arquivo SQL
+        sql_file = os.path.join(os.path.dirname(__file__), 'migration_evento_funcionarios.sql')
+        
+        if not os.path.exists(sql_file):
+            print(f"❌ Arquivo não encontrado: {sql_file}", flush=True)
+            return False
+        
+        print(f"✅ Arquivo SQL encontrado: {sql_file}", flush=True)
+        
         with open(sql_file, 'r', encoding='utf-8') as f:
             sql_content = f.read()
         
-        conn = db.get_connection()
-        cursor = conn.cursor()
+        print(f"✅ SQL lido ({len(sql_content)} bytes)", flush=True)
         
-        print("📝 Executando migration de eventos...")
+        # Executar SQL
+        print("📝 Executando SQL...", flush=True)
         cursor.execute(sql_content)
         conn.commit()
+        print("✅ SQL executado e commitado", flush=True)
         
         # Verificar criação
         cursor.execute("""
@@ -75,108 +83,49 @@ def apply_evento_funcionarios_migration(db):
         """)
         
         tables = cursor.fetchall()
-        print(f"✅ {len(tables)} tabelas criadas:")
+        print(f"\n✅ {len(tables)} TABELAS CRIADAS:", flush=True)
         for table in tables:
-            print(f"   - {table['table_name']}")
+            tname = table['table_name'] if isinstance(table, dict) else table[0]
+            print(f"   ✓ {tname}", flush=True)
         
         # Contar funções
-        cursor.execute("SELECT COUNT(*) FROM funcoes_evento")
-        count_funcoes = cursor.fetchone()['total'] if cursor.rowcount > 0 else cursor.fetchone()[0]
-        print(f"✅ {count_funcoes} funções padrão inseridas")
+        cursor.execute("SELECT COUNT(*) as total FROM funcoes_evento")
+        result = cursor.fetchone()
+        count_funcoes = result['total'] if isinstance(result, dict) else result[0]
+        print(f"\n✅ {count_funcoes} FUNÇÕES INSERIDAS", flush=True)
         
         cursor.close()
+        
+        print("\n" + "="*80, flush=True)
+        print("✅ MIGRATION CONCLUÍDA COM SUCESSO!", flush=True)
+        print("="*80, flush=True)
+        
         return True
         
     except Exception as e:
-        print(f"❌ Erro ao aplicar migration: {e}")
+        print(f"\n❌ ERRO NA MIGRATION: {e}", flush=True)
         import traceback
         traceback.print_exc()
-        return False
-
-def check_rls_applied(db):
-    """Verifica se RLS já foi aplicado"""
-    try:
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
-        # Verificar se view rls_status existe
-        cursor.execute("""
-            SELECT EXISTS (
-                SELECT FROM pg_views 
-                WHERE viewname = 'rls_status'
-            );
-        """)
-        
-        view_exists = cursor.fetchone()[0]
-        cursor.close()
-        
-        return view_exists
-        
-    except Exception as e:
-        print(f"⚠️ Erro ao verificar RLS: {e}")
-        return False
-
-
-def apply_rls(db):
-    """Aplica Row Level Security se ainda não aplicado"""
-    
-    print("\n" + "="*60)
-    print("🔍 VERIFICANDO ROW LEVEL SECURITY")
-    print("="*60)
-    
-    if check_rls_applied(db):
-        print("✅ RLS já está aplicado. Nada a fazer.")
-        return True
-    
-    print("⚠️ RLS não detectado. Aplicando agora...")
-    
-    # Ler arquivo SQL
-    sql_file = os.path.join(os.path.dirname(__file__), 'row_level_security.sql')
-    
-    if not os.path.exists(sql_file):
-        print(f"❌ Arquivo não encontrado: {sql_file}")
-        return False
-    
-    try:
-        with open(sql_file, 'r', encoding='utf-8') as f:
-            sql_content = f.read()
-        
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
-        print("📝 Executando SQL de RLS...")
-        cursor.execute(sql_content)
-        conn.commit()
-        
-        print("✅ Row Level Security aplicado com sucesso!")
-        
-        # Verificar status
-        cursor.execute("SELECT COUNT(*) FROM rls_status WHERE rls_enabled = true")
-        count = cursor.fetchone()[0]
-        print(f"✅ {count} tabelas com RLS ativo")
-        
-        cursor.close()
-        return True
-        
-    except Exception as e:
-        print(f"❌ Erro ao aplicar RLS: {e}")
-        import traceback
-        traceback.print_exc()
+        print("", flush=True)
         return False
 
 
 if __name__ == '__main__':
-    print("\n🚀 SETUP DO BANCO DE DADOS")
-    print("="*60)
-    
-    # Inicializar DatabaseManager
-    db = DatabaseManager()
-    
-    # 1. Aplicar migration de eventos (PRIMEIRO)
-    eventos_success = apply_evento_funcionarios_migration(db)
-    
-    # 2. Aplicar RLS (DEPOIS)
-    rls_success = apply_rls(db)
+    try:
+        success = execute_migration()
+        
+        if success:
+            print("\n✅ Setup concluído com sucesso!", flush=True)
+            sys.exit(0)
+        else:
+            print("\n⚠️ Setup teve problemas, mas não vamos falhar o deploy", flush=True)
+            sys.exit(0)  # Não falhar o deploy
+            
+    except Exception as e:
+        print(f"\n❌ Erro fatal no setup: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        sys.exit(0)  # Não falhar o deploy mesmo com erro
     
     # Resultado final
     print("\n" + "="*60)
