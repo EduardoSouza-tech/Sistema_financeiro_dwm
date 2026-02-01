@@ -4044,6 +4044,269 @@ def deletar_evento(evento_id):
         return jsonify({'error': str(e)}), 500
 
 
+# === ROTAS DE ALOCAÇÃO DE EQUIPE EM EVENTOS ===
+
+@app.route('/api/funcoes-evento', methods=['GET'])
+@require_permission('eventos_view')
+def listar_funcoes_evento():
+    """Listar funções disponíveis para eventos"""
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id, nome, descricao, ativo
+            FROM funcoes_evento
+            WHERE ativo = TRUE
+            ORDER BY nome
+        """)
+        
+        funcoes = []
+        for row in cursor.fetchall():
+            funcoes.append({
+                'id': row['id'],
+                'nome': row['nome'],
+                'descricao': row['descricao'],
+                'ativo': row['ativo']
+            })
+        
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'funcoes': funcoes
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao listar funções: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/funcoes-evento', methods=['POST'])
+@require_permission('eventos_create')
+def criar_funcao_evento():
+    """Cadastrar nova função para eventos"""
+    try:
+        dados = request.get_json()
+        nome = dados.get('nome', '').strip()
+        descricao = dados.get('descricao', '').strip()
+        
+        if not nome:
+            return jsonify({'error': 'Nome da função é obrigatório'}), 400
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se já existe
+        cursor.execute("SELECT id FROM funcoes_evento WHERE UPPER(nome) = UPPER(%s)", (nome,))
+        if cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'Já existe uma função com este nome'}), 400
+        
+        # Inserir nova função
+        cursor.execute("""
+            INSERT INTO funcoes_evento (nome, descricao, ativo)
+            VALUES (%s, %s, TRUE)
+            RETURNING id
+        """, (nome, descricao))
+        
+        funcao_id = cursor.fetchone()['id']
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Função cadastrada com sucesso',
+            'funcao_id': funcao_id
+        }), 201
+    
+    except Exception as e:
+        logger.error(f"Erro ao criar função: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/eventos/<int:evento_id>/equipe', methods=['GET'])
+@require_permission('eventos_view')
+def listar_equipe_evento(evento_id):
+    """Listar equipe alocada em um evento"""
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                ef.id,
+                ef.funcionario_id,
+                f.nome as funcionario_nome,
+                ef.funcao_id,
+                ef.funcao_nome,
+                ef.valor,
+                ef.observacoes
+            FROM evento_funcionarios ef
+            INNER JOIN funcionarios f ON f.id = ef.funcionario_id
+            WHERE ef.evento_id = %s
+            ORDER BY f.nome
+        """, (evento_id,))
+        
+        equipe = []
+        for row in cursor.fetchall():
+            equipe.append({
+                'id': row['id'],
+                'funcionario_id': row['funcionario_id'],
+                'funcionario_nome': row['funcionario_nome'],
+                'funcao_id': row['funcao_id'],
+                'funcao_nome': row['funcao_nome'],
+                'valor': float(row['valor']) if row['valor'] else 0.0,
+                'observacoes': row['observacoes']
+            })
+        
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'equipe': equipe
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao listar equipe: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/eventos/<int:evento_id>/equipe', methods=['POST'])
+@require_permission('eventos_create')
+def adicionar_funcionario_evento(evento_id):
+    """Adicionar funcionário à equipe do evento"""
+    try:
+        dados = request.get_json()
+        funcionario_id = dados.get('funcionario_id')
+        funcao_id = dados.get('funcao_id')
+        valor = dados.get('valor', 0)
+        
+        if not funcionario_id or not funcao_id:
+            return jsonify({'error': 'Funcionário e função são obrigatórios'}), 400
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Buscar nome da função para histórico
+        cursor.execute("SELECT nome FROM funcoes_evento WHERE id = %s", (funcao_id,))
+        funcao_row = cursor.fetchone()
+        if not funcao_row:
+            cursor.close()
+            return jsonify({'error': 'Função não encontrada'}), 404
+        
+        funcao_nome = funcao_row['nome']
+        
+        # Verificar se já existe alocação
+        cursor.execute("""
+            SELECT id FROM evento_funcionarios 
+            WHERE evento_id = %s AND funcionario_id = %s AND funcao_id = %s
+        """, (evento_id, funcionario_id, funcao_id))
+        
+        if cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'Este funcionário já está alocado com esta função neste evento'}), 400
+        
+        # Inserir alocação
+        cursor.execute("""
+            INSERT INTO evento_funcionarios (evento_id, funcionario_id, funcao_id, funcao_nome, valor)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
+        """, (evento_id, funcionario_id, funcao_id, funcao_nome, valor))
+        
+        alocacao_id = cursor.fetchone()['id']
+        
+        # Calcular novo custo total do evento
+        cursor.execute("""
+            SELECT COALESCE(SUM(valor), 0) as total
+            FROM evento_funcionarios
+            WHERE evento_id = %s
+        """, (evento_id,))
+        
+        custo_total = cursor.fetchone()['total']
+        
+        # Atualizar custo do evento
+        cursor.execute("""
+            UPDATE eventos
+            SET custo_evento = %s
+            WHERE id = %s
+        """, (custo_total, evento_id))
+        
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Funcionário adicionado à equipe',
+            'alocacao_id': alocacao_id,
+            'custo_total': float(custo_total)
+        }), 201
+    
+    except Exception as e:
+        logger.error(f"Erro ao adicionar funcionário: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/eventos/equipe/<int:alocacao_id>', methods=['DELETE'])
+@require_permission('eventos_delete')
+def remover_funcionario_evento(alocacao_id):
+    """Remover funcionário da equipe do evento"""
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Buscar evento_id antes de deletar
+        cursor.execute("SELECT evento_id FROM evento_funcionarios WHERE id = %s", (alocacao_id,))
+        row = cursor.fetchone()
+        if not row:
+            cursor.close()
+            return jsonify({'error': 'Alocação não encontrada'}), 404
+        
+        evento_id = row['evento_id']
+        
+        # Deletar alocação
+        cursor.execute("DELETE FROM evento_funcionarios WHERE id = %s", (alocacao_id,))
+        
+        # Recalcular custo total do evento
+        cursor.execute("""
+            SELECT COALESCE(SUM(valor), 0) as total
+            FROM evento_funcionarios
+            WHERE evento_id = %s
+        """, (evento_id,))
+        
+        custo_total = cursor.fetchone()['total']
+        
+        # Atualizar custo do evento
+        cursor.execute("""
+            UPDATE eventos
+            SET custo_evento = %s
+            WHERE id = %s
+        """, (custo_total, evento_id))
+        
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Funcionário removido da equipe',
+            'custo_total': float(custo_total)
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao remover funcionário: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
 # === ROTAS DE RELATÓRIOS ===
 # Todos os relatórios movidos para app/routes/relatorios.py
 # - dashboard, dashboard-completo, fluxo-projetado
