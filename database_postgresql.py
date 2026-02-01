@@ -3067,7 +3067,7 @@ def listar_lancamentos(empresa_id: int, filtros: Dict[str, Any] = None, filtro_c
     db = DatabaseManager()
     # Usar empresa_id como filtro_cliente_id se não fornecido
     cliente_id = filtro_cliente_id if filtro_cliente_id else empresa_id
-    return db.listar_lancamentos(filtros, cliente_id, page, per_page)
+    return db.listar_lancamentos(empresa_id=empresa_id, filtros=filtros, filtro_cliente_id=cliente_id, page=page, per_page=per_page)
 
 def obter_lancamento(empresa_id: int, lancamento_id: int) -> Optional[Lancamento]:
     """
