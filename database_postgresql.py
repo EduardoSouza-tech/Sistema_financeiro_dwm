@@ -2373,10 +2373,10 @@ class DatabaseManager:
         
         if filtros:
             if 'tipo' in filtros:
-                query += " AND tipo = %s"
+                query += " AND UPPER(tipo) = UPPER(%s)"
                 params.append(filtros['tipo'])
             if 'status' in filtros:
-                query += " AND status = %s"
+                query += " AND UPPER(status) = UPPER(%s)"
                 params.append(filtros['status'])
             if 'data_inicio' in filtros:
                 query += " AND data_vencimento >= %s"
@@ -2399,8 +2399,21 @@ class DatabaseManager:
             offset = (page - 1) * per_page
             query += f" LIMIT {per_page} OFFSET {offset}"
         
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
+        print(f"🔍 SQL Query: {query}")
+        print(f"📋 Params: {params}")
+        print(f"📄 Page: {page}, Per Page: {per_page}")
+        
+        try:
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            print(f"✅ Query executada com sucesso! Rows: {len(rows)}")
+        except Exception as e:
+            print(f"❌ Erro ao executar query: {e}")
+            import traceback
+            traceback.print_exc()
+            cursor.close()
+            return_to_pool(conn)
+            raise
         
         lancamentos = []
         for row in rows:
