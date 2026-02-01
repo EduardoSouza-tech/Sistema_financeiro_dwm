@@ -2990,9 +2990,18 @@ def upload_extrato_ofx():
         contas_cadastradas = []
         for empresa in empresas_usuario:
             proprietario_id = empresa.get('empresa_id')
-            contas_empresa = db_manager.listar_contas(filtro_cliente_id=proprietario_id)
-            contas_cadastradas.extend(contas_empresa)
-            print(f"   📊 Empresa {proprietario_id}: {len(contas_empresa)} conta(s)")
+            print(f"   🔍 Buscando contas da empresa {proprietario_id}...")
+            try:
+                contas_empresa = db_manager.listar_contas(filtro_cliente_id=proprietario_id)
+                print(f"   📊 Empresa {proprietario_id}: {len(contas_empresa)} conta(s)")
+                if contas_empresa:
+                    for conta in contas_empresa:
+                        print(f"      - {conta.nome} ({conta.banco})")
+                contas_cadastradas.extend(contas_empresa)
+            except Exception as e:
+                print(f"   ❌ Erro ao buscar contas da empresa {proprietario_id}: {e}")
+                import traceback
+                traceback.print_exc()
         
         print(f"📊 Total de contas cadastradas (todas empresas): {len(contas_cadastradas)}")
         print(f"📋 Nomes das contas: {[c.nome for c in contas_cadastradas]}")
