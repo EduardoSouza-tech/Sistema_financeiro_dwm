@@ -2998,6 +2998,21 @@ def upload_extrato_ofx():
         print(f"🔄 Iniciando loop pelas empresas...")
         sys.stdout.flush()
         
+        # DEBUG: Ver TODAS as contas do banco sem filtro para diagnosticar
+        print(f"🔍 DEBUG: Buscando TODAS as contas do banco (sem filtro)...")
+        sys.stdout.flush()
+        try:
+            todas_contas = db_manager.listar_contas(filtro_cliente_id=None)
+            print(f"📊 DEBUG: Total de contas no banco: {len(todas_contas)}")
+            sys.stdout.flush()
+            if todas_contas:
+                for conta in todas_contas:
+                    print(f"   📋 DEBUG: {conta.nome} (Banco: {conta.banco})")
+                    sys.stdout.flush()
+        except Exception as e:
+            print(f"❌ DEBUG: Erro ao buscar todas as contas: {e}")
+            sys.stdout.flush()
+        
         for i, empresa in enumerate(empresas_usuario):
             proprietario_id = empresa.get('empresa_id')
             print(f"   🔍 [{i+1}/{len(empresas_usuario)}] Buscando contas da empresa {proprietario_id}...")
@@ -3019,6 +3034,18 @@ def upload_extrato_ofx():
         
         print(f"🔄 Loop finalizado!")
         sys.stdout.flush()
+        
+        # Se não encontrou contas pelo filtro, usar TODAS as contas como fallback
+        if not contas_cadastradas:
+            print(f"⚠️ Nenhuma conta encontrada com filtro. Usando todas as contas como fallback...")
+            sys.stdout.flush()
+            try:
+                contas_cadastradas = db_manager.listar_contas(filtro_cliente_id=None)
+                print(f"✅ Fallback: {len(contas_cadastradas)} conta(s) encontrada(s)")
+                sys.stdout.flush()
+            except Exception as e:
+                print(f"❌ Erro no fallback: {e}")
+                sys.stdout.flush()
         print(f"📊 Total de contas cadastradas (todas empresas): {len(contas_cadastradas)}")
         print(f"📋 Nomes das contas: {[c.nome for c in contas_cadastradas]}")
         
