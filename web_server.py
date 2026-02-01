@@ -7536,7 +7536,7 @@ def listar_empresas_api():
         if usuario['tipo'] == 'admin':
             logger.info("   👑 Admin: listando TODAS as empresas")
             
-            query = "SELECT id, razao_social, cnpj, plano, ativo, criado_em FROM empresas"
+            query = "SELECT id, razao_social, cnpj, plano, ativo FROM empresas"
             params = []
             
             # Filtros opcionais
@@ -7567,8 +7567,7 @@ def listar_empresas_api():
                     'razao_social': row['razao_social'],
                     'cnpj': row['cnpj'],
                     'plano': row['plano'],
-                    'ativo': row['ativo'],
-                    'criado_em': row['criado_em'].isoformat() if row['criado_em'] else None
+                    'ativo': row['ativo']
                 })
             
             cursor.close()
