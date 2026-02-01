@@ -2509,8 +2509,9 @@
                         <div id="form-container-assinatura" style="display: none; background: #fff; padding: 20px; border: 2px dashed #e67e22; border-radius: 8px; margin-bottom: 20px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                                 <h4 style="margin: 0; color: #2c3e50;">✍️ Lista de Assinaturas</h4>
-                                <div id="botoes-exportar-pdf" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                                    <!-- Botões serão gerados dinamicamente por setor -->
+                                <div style="display: flex; gap: 10px;">
+                                    <button onclick="exportarAssinaturaPDF()" class="btn btn-danger" style="padding: 8px 16px; background: #e74c3c;">📄 Exportar PDF</button>
+                                    <button onclick="exportarAssinaturaExcel()" class="btn btn-success" style="padding: 8px 16px; background: #27ae60;">📊 Exportar Excel</button>
                                 </div>
                             </div>
 
@@ -6272,7 +6273,6 @@
             
             if (linhasEquipe.length === 1 && linhasEquipe[0].cells.length === 1) {
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
-                gerarBotoesExportarPDF();
                 return;
             }
             
@@ -6298,9 +6298,6 @@
             });
             
             tbody.innerHTML = html || '<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
-            
-            // Gerar botões de exportar PDF (um por setor)
-            gerarBotoesExportarPDF();
         }
 
         function toggleValorMassa() {
@@ -6384,9 +6381,8 @@
         // EXPORTAÇÃO DE ASSINATURA
         // ==========================================
 
-        function exportarAssinaturaPDF(setorId = null, setorNome = 'Todos') {
+        function exportarAssinaturaPDF() {
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
             
             // Obter dados
             const eventoNome = document.getElementById('assinatura-evento-nome').textContent;
@@ -6400,141 +6396,93 @@
                 return;
             }
             
-            // Cabeçalho
-            doc.setFontSize(18);
-            doc.setFont(undefined, 'bold');
-            doc.text('Lista de Presença - Evento', 105, 20, { align: 'center' });
+            // Coletar setores únicos
+            const setores = new Map(); // Map<setorId, {nome, funcionarios[]}>
             
-            doc.setFontSize(14);
-            doc.setFont(undefined, 'normal');
-            doc.text(eventoNome, 105, 30, { align: 'center' });
-            
-            doc.setFontSize(12);
-            doc.text(eventoData, 105, 38, { align: 'center' });
-            
-            // Se for filtro por setor, adicionar indicação
-            if (setorId) {
-                doc.setFontSize(11);
-                doc.setFont(undefined, 'bold');
-                doc.setTextColor(52, 152, 219);
-                doc.text(`Setor: ${setorNome}`, 105, 45, { align: 'center' });
-                doc.setTextColor(0, 0, 0);
-            }
-            
-            // Preparar dados da tabela (filtrar por setor se necessário)
-            const tableData = [];
-            let contador = 0;
             linhas.forEach((linha, index) => {
                 const cells = linha.cells;
                 if (cells.length >= 4) {
-                    const setorLinhaId = linha.getAttribute('data-setor-id');
+                    const setorId = linha.getAttribute('data-setor-id') || 'sem-setor';
+                    const setorNome = cells[3].textContent.trim() || 'Sem Setor';
                     
-                    // Se setorId foi especificado, filtrar apenas esse setor
-                    if (setorId && setorLinhaId != setorId) {
-                        return; // Pular esta linha
+                    if (!setores.has(setorId)) {
+                        setores.set(setorId, { nome: setorNome, funcionarios: [] });
                     }
                     
-                    contador++;
-                    tableData.push([
-                        contador,
-                        cells[1].textContent, // Funcionário
-                        cells[2].textContent, // Função
-                        cells[3].textContent, // Setor
-                        ''                    // Assinatura
-                    ]);
+                    setores.get(setorId).funcionarios.push({
+                        funcionario: cells[1].textContent,
+                        funcao: cells[2].textContent,
+                        setor: setorNome
+                    });
                 }
             });
             
-            // Verificar se há dados após filtro
-            if (tableData.length === 0) {
-                showToast(`⚠️ Nenhum funcionário encontrado para o setor ${setorNome}`, 'warning');
-                return;
-            }
-            
-            // Gerar tabela
-            const startY = setorId ? 52 : 45;
-            doc.autoTable({
-                startY: startY,
-                head: [['#', 'Funcionário', 'Função', 'Setor', 'Assinatura']],
-                body: tableData,
-                theme: 'grid',
-                headStyles: { fillColor: [52, 152, 219], fontSize: 11, fontStyle: 'bold' },
-                bodyStyles: { fontSize: 10 },
-                columnStyles: {
-                    0: { halign: 'center', cellWidth: 10 },
-                    1: { cellWidth: 50 },
-                    2: { cellWidth: 40 },
-                    3: { cellWidth: 35 },
-                    4: { halign: 'center', cellWidth: 55 }
-                },
-                margin: { top: startY, bottom: 20 }
-            });
-            
-            // Rodapé
+            // Gerar um PDF para cada setor
+            let totalPDFs = 0;
             const agora = new Date().toLocaleString('pt-BR');
-            doc.setFontSize(9);
-            doc.setTextColor(150);
-            doc.text(`Documento gerado em ${agora} - ${tableData.length} funcionário(s)`, 105, doc.internal.pageSize.height - 10, { align: 'center' });
             
-            // Salvar
-            const sufixoSetor = setorId ? `_${setorNome.replace(/[^a-z0-9]/gi, '_')}` : '';
-            const nomeArquivo = `Lista_Assinatura_${eventoNome.replace(/[^a-z0-9]/gi, '_')}${sufixoSetor}.pdf`;
-            doc.save(nomeArquivo);
-            
-            showToast(`✅ PDF exportado com sucesso! (${tableData.length} funcionário(s))`, 'success');
-        }
-        
-        function gerarBotoesExportarPDF() {
-            const tbody = document.getElementById('tbody-assinatura-evento');
-            const linhas = tbody.querySelectorAll('tr');
-            const container = document.getElementById('botoes-exportar-pdf');
-            
-            // Verificar se há dados
-            if (linhas.length === 1 && linhas[0].cells.length === 1) {
-                container.innerHTML = '<span style="color: #999; font-size: 14px;">Nenhum funcionário alocado</span>';
-                return;
-            }
-            
-            // Coletar setores únicos
-            const setores = new Map(); // Map<setorId, {nome, count}>
-            
-            linhas.forEach(linha => {
-                const cells = linha.cells;
-                if (cells.length >= 4) {
-                    const setorId = linha.getAttribute('data-setor-id');
-                    const setorNome = cells[3].textContent.trim();
-                    
-                    if (setorId && setorNome) {
-                        if (!setores.has(setorId)) {
-                            setores.set(setorId, { nome: setorNome, count: 0 });
-                        }
-                        setores.get(setorId).count++;
-                    }
-                }
+            setores.forEach((setor, setorId) => {
+                const doc = new jsPDF();
+                
+                // Cabeçalho
+                doc.setFontSize(18);
+                doc.setFont(undefined, 'bold');
+                doc.text('Lista de Presença - Evento', 105, 20, { align: 'center' });
+                
+                doc.setFontSize(14);
+                doc.setFont(undefined, 'normal');
+                doc.text(eventoNome, 105, 30, { align: 'center' });
+                
+                doc.setFontSize(12);
+                doc.text(eventoData, 105, 38, { align: 'center' });
+                
+                // Setor
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(52, 152, 219);
+                doc.text(`Setor: ${setor.nome}`, 105, 45, { align: 'center' });
+                doc.setTextColor(0, 0, 0);
+                
+                // Preparar dados da tabela
+                const tableData = setor.funcionarios.map((func, idx) => [
+                    idx + 1,
+                    func.funcionario,
+                    func.funcao,
+                    func.setor,
+                    ''
+                ]);
+                
+                // Gerar tabela
+                doc.autoTable({
+                    startY: 52,
+                    head: [['#', 'Funcionário', 'Função', 'Setor', 'Assinatura']],
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [52, 152, 219], fontSize: 11, fontStyle: 'bold' },
+                    bodyStyles: { fontSize: 10 },
+                    columnStyles: {
+                        0: { halign: 'center', cellWidth: 10 },
+                        1: { cellWidth: 50 },
+                        2: { cellWidth: 40 },
+                        3: { cellWidth: 35 },
+                        4: { halign: 'center', cellWidth: 55 }
+                    },
+                    margin: { top: 52, bottom: 20 }
+                });
+                
+                // Rodapé
+                doc.setFontSize(9);
+                doc.setTextColor(150);
+                doc.text(`Documento gerado em ${agora} - ${tableData.length} funcionário(s)`, 105, doc.internal.pageSize.height - 10, { align: 'center' });
+                
+                // Salvar
+                const nomeArquivo = `Lista_Assinatura_${eventoNome.replace(/[^a-z0-9]/gi, '_')}_${setor.nome.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+                doc.save(nomeArquivo);
+                
+                totalPDFs++;
             });
             
-            // Limpar container
-            container.innerHTML = '';
-            
-            // Criar botão para cada setor
-            if (setores.size > 0) {
-                setores.forEach((setor, setorId) => {
-                    const btn = document.createElement('button');
-                    btn.className = 'btn btn-danger';
-                    btn.style.cssText = 'padding: 8px 16px; background: #e74c3c; font-size: 13px;';
-                    btn.innerHTML = `📄 PDF - ${setor.nome} <span style="background: rgba(255,255,255,0.3); padding: 2px 6px; border-radius: 10px; font-size: 11px;">${setor.count}</span>`;
-                    btn.onclick = () => exportarAssinaturaPDF(setorId, setor.nome);
-                    container.appendChild(btn);
-                });
-            }
-            
-            // Adicionar botão Excel (geral)
-            const btnExcel = document.createElement('button');
-            btnExcel.className = 'btn btn-success';
-            btnExcel.style.cssText = 'padding: 8px 16px; background: #27ae60; font-size: 13px;';
-            btnExcel.innerHTML = '📊 Excel (Todos)';
-            btnExcel.onclick = exportarAssinaturaExcel;
-            container.appendChild(btnExcel);
+            showToast(`✅ ${totalPDFs} PDF(s) exportado(s) com sucesso! (1 por setor)`, 'success');
         }
 
         function exportarAssinaturaExcel() {
