@@ -2976,8 +2976,18 @@ def upload_extrato_ofx():
         print(f"👤 Cliente ID: {usuario.get('cliente_id')}")
         print(f"🏢 Empresa ID: {usuario.get('empresa_id')}")
         
-        # Buscar contas de TODAS as empresas do usuário (usuários podem ter acesso a múltiplas empresas)
-        contas_cadastradas = database.listar_contas(empresa_id=None)
+        # Buscar todas as empresas do usuário
+        empresas_usuario = database.get_usuario_empresas(usuario.get('username'))
+        print(f"🏢 Empresas do usuário: {[e.get('id') for e in empresas_usuario]}")
+        
+        # Buscar contas de todas as empresas do usuário
+        contas_cadastradas = []
+        for empresa in empresas_usuario:
+            empresa_id = empresa.get('id')
+            contas_empresa = database.listar_contas(empresa_id=empresa_id)
+            contas_cadastradas.extend(contas_empresa)
+            print(f"   📊 Empresa {empresa_id}: {len(contas_empresa)} conta(s)")
+        
         print(f"📊 Total de contas cadastradas (todas empresas): {len(contas_cadastradas)}")
         print(f"📋 Nomes das contas: {[c.nome for c in contas_cadastradas]}")
         
