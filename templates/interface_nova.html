@@ -2508,14 +2508,13 @@
                                 <table style="width: 100%; border-collapse: collapse;">
                                     <thead>
                                         <tr style="background: #f8f9fa; border-bottom: 2px solid #333;">
-                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 5%;">#</th>
-                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 35%;">Funcionário</th>
-                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 25%;">Função</th>
-                                            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 35%;">Assinatura</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 10%;">#</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 50%;">Funcionário</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 40%;">Função</th>
                                         </tr>
                                     </thead>
                                     <tbody id="tbody-assinatura-evento">
-                                        <tr><td colspan="4" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>
+                                        <tr><td colspan="3" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>
                                     </tbody>
                                 </table>
 
@@ -6178,13 +6177,12 @@
                             <td style="padding: 15px 12px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${index + 1}</td>
                             <td style="padding: 15px 12px; border: 1px solid #ddd;">${funcionario}</td>
                             <td style="padding: 15px 12px; border: 1px solid #ddd;">${funcao}</td>
-                            <td style="padding: 15px 12px; border: 1px solid #ddd; text-align: center;">_______________________</td>
                         </tr>
                     `;
                 }
             });
             
-            tbody.innerHTML = html || '<tr><td colspan="4" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
+            tbody.innerHTML = html || '<tr><td colspan="3" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
         }
 
         function toggleValorMassa() {
@@ -6300,12 +6298,11 @@
             const tableData = [];
             linhas.forEach((linha, index) => {
                 const cells = linha.cells;
-                if (cells.length >= 4) {
+                if (cells.length >= 3) {
                     tableData.push([
                         cells[0].textContent,
                         cells[1].textContent,
-                        cells[2].textContent,
-                        '_______________________'
+                        cells[2].textContent
                     ]);
                 }
             });
@@ -6313,16 +6310,15 @@
             // Gerar tabela
             doc.autoTable({
                 startY: 45,
-                head: [['#', 'Funcionário', 'Função', 'Assinatura']],
+                head: [['#', 'Funcionário', 'Função']],
                 body: tableData,
                 theme: 'grid',
                 headStyles: { fillColor: [52, 152, 219], fontSize: 11, fontStyle: 'bold' },
                 bodyStyles: { fontSize: 10 },
                 columnStyles: {
                     0: { halign: 'center', cellWidth: 15 },
-                    1: { cellWidth: 60 },
-                    2: { cellWidth: 50 },
-                    3: { halign: 'center', cellWidth: 65 }
+                    1: { cellWidth: 85 },
+                    2: { cellWidth: 80 }
                 },
                 margin: { top: 45, bottom: 20 }
             });
