@@ -3185,8 +3185,9 @@ def listar_extratos():
     """Lista transacoes do extrato com filtros"""
     try:
         usuario = get_usuario_logado()
-        # Usar cliente_id como empresa_id (multi-tenancy)
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        
+        # Usar empresa_id da sessão (empresa selecionada pelo usuário)
+        empresa_id = session.get('empresa_id') or usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         
         filtros = {
             'conta_bancaria': request.args.get('conta'),
