@@ -2265,6 +2265,134 @@ def modificar_categoria(nome):
             return jsonify({'success': False, 'error': str(e)}), 400
 
 
+# === IMPORTAÇÃO DE CATEGORIAS ENTRE EMPRESAS ===
+
+@app.route('/api/categorias/empresas-disponiveis', methods=['GET'])
+@require_permission('categorias_view')
+def listar_empresas_com_categorias():
+    """Lista empresas do usuário com suas categorias para importação"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_atual_id = session.get('empresa_id')
+        
+        # Buscar empresas do usuário
+        from auth_functions import listar_empresas_usuario
+        empresas = listar_empresas_usuario(usuario.get('id'), auth_db)
+        
+        empresas_com_categorias = []
+        for empresa in empresas:
+            empresa_id = empresa.get('empresa_id')
+            
+            # Não listar a empresa atual
+            if empresa_id == empresa_atual_id:
+                continue
+            
+            # Buscar categorias desta empresa
+            categorias = db.listar_categorias(empresa_id=empresa_id)
+            
+            if categorias:  # Só incluir empresas que têm categorias
+                empresas_com_categorias.append({
+                    'empresa_id': empresa_id,
+                    'razao_social': empresa.get('razao_social'),
+                    'total_categorias': len(categorias),
+                    'categorias': [
+                        {
+                            'nome': cat.nome,
+                            'tipo': cat.tipo.value,
+                            'subcategorias': cat.subcategorias
+                        } for cat in categorias
+                    ]
+                })
+        
+        return jsonify({
+            'success': True,
+            'data': empresas_com_categorias
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao listar empresas com categorias: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/categorias/importar-de-empresa', methods=['POST'])
+@require_permission('categorias_create')
+def importar_categorias_de_empresa():
+    """Importa categorias de outra empresa do usuário"""
+    try:
+        data = request.json
+        empresa_origem_id = data.get('empresa_origem_id')
+        categorias_ids = data.get('categorias')  # Lista de nomes de categorias para importar
+        
+        if not empresa_origem_id:
+            return jsonify({'success': False, 'error': 'empresa_origem_id é obrigatório'}), 400
+        
+        usuario = get_usuario_logado()
+        empresa_destino_id = session.get('empresa_id')
+        
+        if not empresa_destino_id:
+            return jsonify({'success': False, 'error': 'Empresa destino não identificada'}), 400
+        
+        # Verificar se usuário tem acesso à empresa origem
+        from auth_functions import listar_empresas_usuario
+        empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
+        tem_acesso = any(e.get('empresa_id') == empresa_origem_id for e in empresas_usuario)
+        
+        if not tem_acesso:
+            return jsonify({'success': False, 'error': 'Sem permissão para acessar empresa origem'}), 403
+        
+        # Buscar categorias da empresa origem
+        categorias_origem = db.listar_categorias(empresa_id=empresa_origem_id)
+        
+        # Filtrar categorias selecionadas (se especificado)
+        if categorias_ids:
+            categorias_origem = [c for c in categorias_origem if c.nome in categorias_ids]
+        
+        # Buscar categorias já existentes na empresa destino
+        categorias_destino = db.listar_categorias(empresa_id=empresa_destino_id)
+        nomes_existentes = {c.nome for c in categorias_destino}
+        
+        importadas = 0
+        duplicadas = 0
+        erros = []
+        
+        for cat_origem in categorias_origem:
+            try:
+                # Verificar se já existe
+                if cat_origem.nome in nomes_existentes:
+                    duplicadas += 1
+                    continue
+                
+                # Criar nova categoria na empresa destino
+                nova_categoria = Categoria(
+                    nome=cat_origem.nome,
+                    tipo=cat_origem.tipo,
+                    subcategorias=cat_origem.subcategorias,
+                    empresa_id=empresa_destino_id
+                )
+                
+                db.adicionar_categoria(nova_categoria)
+                importadas += 1
+                
+            except Exception as e:
+                erros.append(f"{cat_origem.nome}: {str(e)}")
+        
+        return jsonify({
+            'success': True,
+            'importadas': importadas,
+            'duplicadas': duplicadas,
+            'erros': erros,
+            'message': f'{importadas} categoria(s) importada(s) com sucesso'
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao importar categorias: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # === ROTAS DE CLIENTES ===
 
 @app.route('/api/clientes', methods=['GET'])

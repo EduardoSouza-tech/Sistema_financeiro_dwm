@@ -3030,7 +3030,12 @@
             <!-- Categorias -->
             <div id="categorias-section" class="content-card hidden">
                 <h2 style="color: #000000 !important; font-weight: 700;">Categorias</h2>
-                <button class="btn btn-primary" onclick="openModalCategoria()">➕ Nova Categoria</button>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn btn-primary" onclick="openModalCategoria()">➕ Nova Categoria</button>
+                    <button class="btn btn-secondary" onclick="abrirModalImportarCategorias()" style="background: #6c757d;">
+                        📥 Importar de Outra Empresa
+                    </button>
+                </div>
                 
                 <!-- Abas de Categorias -->
                 <div style="margin: 20px 0; border-bottom: 2px solid #e0e0e0;">
@@ -7753,6 +7758,162 @@
                 .then(reg => console.log('✅ Service Worker registrado'))
                 .catch(err => console.warn('⚠️ Service Worker erro:', err));
         }
+    </script>
+    
+    <!-- Modal: Importar Categorias de Outra Empresa -->
+    <div id="modal-importar-categorias" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 10px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto;">
+            <h3 style="margin-top: 0; color: #333;">📥 Importar Categorias de Outra Empresa</h3>
+            
+            <div id="empresas-list-container">
+                <p style="color: #666;">Carregando empresas...</p>
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="fecharModalImportarCategorias()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // === IMPORTAÇÃO DE CATEGORIAS ENTRE EMPRESAS ===
+        
+        async function abrirModalImportarCategorias() {
+            const modal = document.getElementById('modal-importar-categorias');
+            const container = document.getElementById('empresas-list-container');
+            
+            modal.style.display = 'flex';
+            container.innerHTML = '<p style="color: #666;">🔄 Carregando empresas...</p>';
+            
+            try {
+                const response = await fetch('/api/categorias/empresas-disponiveis', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!data.success || !data.data || data.data.length === 0) {
+                    container.innerHTML = '<p style="color: #999;">ℹ️ Nenhuma outra empresa com categorias cadastradas.</p>';
+                    return;
+                }
+                
+                // Renderizar lista de empresas
+                let html = '';
+                for (const empresa of data.data) {
+                    html += `
+                        <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div>
+                                    <h4 style="margin: 0; color: #333;">${empresa.razao_social}</h4>
+                                    <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">
+                                        ${empresa.total_categorias} categoria(s) disponível(is)
+                                    </p>
+                                </div>
+                                <button class="btn btn-primary" onclick="importarCategoriasDeEmpresa(${empresa.empresa_id}, '${empresa.razao_social}')">
+                                    📥 Importar Todas
+                                </button>
+                            </div>
+                            
+                            <!-- Lista de categorias -->
+                            <details style="margin-top: 10px;">
+                                <summary style="cursor: pointer; color: #0066cc; font-size: 14px;">
+                                    Ver categorias
+                                </summary>
+                                <div style="margin-top: 10px; padding-left: 15px;">
+                                    ${empresa.categorias.map(cat => `
+                                        <div style="margin: 5px 0; font-size: 14px;">
+                                            <strong>${cat.nome}</strong> 
+                                            <span style="color: #666;">(${cat.tipo === 'receita' ? '💰 Receita' : '💸 Despesa'})</span>
+                                            ${cat.subcategorias && cat.subcategorias.length > 0 ? 
+                                                `<br><span style="font-size: 12px; color: #999; padding-left: 20px;">
+                                                    Subcategorias: ${cat.subcategorias.join(', ')}
+                                                </span>` : ''}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </details>
+                        </div>
+                    `;
+                }
+                
+                container.innerHTML = html;
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar empresas:', error);
+                container.innerHTML = '<p style="color: #d9534f;">❌ Erro ao carregar empresas. Tente novamente.</p>';
+            }
+        }
+        
+        async function importarCategoriasDeEmpresa(empresaId, razaoSocial) {
+            if (!confirm(`Deseja importar TODAS as categorias da empresa "${razaoSocial}"?\n\nCategorias duplicadas serão ignoradas.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/categorias/importar-de-empresa', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'X-CSRFToken': getCookie('csrf_token')
+                    },
+                    body: JSON.stringify({
+                        empresa_origem_id: empresaId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Importação Concluída!',
+                        html: `
+                            <p><strong>✅ ${data.importadas}</strong> categoria(s) importada(s)</p>
+                            ${data.duplicadas > 0 ? `<p><strong>⏭️ ${data.duplicadas}</strong> categoria(s) já existiam</p>` : ''}
+                            ${data.erros && data.erros.length > 0 ? `<p style="color: #d9534f;"><strong>❌ Erros:</strong><br>${data.erros.join('<br>')}</p>` : ''}
+                        `,
+                        confirmButtonText: 'OK'
+                    });
+                    
+                    // Recarregar categorias
+                    if (typeof carregarCategorias === 'function') {
+                        carregarCategorias();
+                    }
+                    
+                    fecharModalImportarCategorias();
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erro ao Importar',
+                        text: data.error || 'Erro desconhecido',
+                        confirmButtonText: 'OK'
+                    });
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao importar categorias:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro ao Importar',
+                    text: 'Erro ao processar a importação. Tente novamente.',
+                    confirmButtonText: 'OK'
+                });
+            }
+        }
+        
+        function fecharModalImportarCategorias() {
+            document.getElementById('modal-importar-categorias').style.display = 'none';
+        }
+        
+        // Fechar modal ao clicar fora
+        document.getElementById('modal-importar-categorias').addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModalImportarCategorias();
+            }
+        });
     </script>
     
     <script>
