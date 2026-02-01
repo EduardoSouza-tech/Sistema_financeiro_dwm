@@ -2275,34 +2275,58 @@ def listar_empresas_com_categorias():
         usuario = get_usuario_logado()
         empresa_atual_id = session.get('empresa_id')
         
+        print(f"\n🔍 [IMPORTAR CATEGORIAS] Buscando empresas disponíveis")
+        print(f"   👤 Usuário: {usuario.get('nome')}")
+        print(f"   🏢 Empresa atual: {empresa_atual_id}")
+        
         # Buscar empresas do usuário
         from auth_functions import listar_empresas_usuario
         empresas = listar_empresas_usuario(usuario.get('id'), auth_db)
+        print(f"   📊 Total de empresas do usuário: {len(empresas)}")
         
         empresas_com_categorias = []
         for empresa in empresas:
             empresa_id = empresa.get('empresa_id')
+            razao_social = empresa.get('razao_social')
+            
+            print(f"\n   🔍 Analisando empresa: {razao_social} (ID: {empresa_id})")
             
             # Não listar a empresa atual
             if empresa_id == empresa_atual_id:
+                print(f"      ⏭️ Pulando (é a empresa atual)")
                 continue
             
             # Buscar categorias desta empresa
             categorias = db.listar_categorias(empresa_id=empresa_id)
+            print(f"      📂 Categorias encontradas: {len(categorias)}")
             
             if categorias:  # Só incluir empresas que têm categorias
+                categorias_list = []
+                for cat in categorias:
+                    # Verificar se é objeto ou dicionário
+                    if hasattr(cat, 'nome'):
+                        cat_dict = {
+                            'nome': cat.nome,
+                            'tipo': cat.tipo.value if hasattr(cat.tipo, 'value') else cat.tipo,
+                            'subcategorias': cat.subcategorias if hasattr(cat, 'subcategorias') else []
+                        }
+                    else:
+                        cat_dict = {
+                            'nome': cat.get('nome', 'Sem nome'),
+                            'tipo': cat.get('tipo', 'despesa'),
+                            'subcategorias': cat.get('subcategorias', [])
+                        }
+                    categorias_list.append(cat_dict)
+                
                 empresas_com_categorias.append({
                     'empresa_id': empresa_id,
-                    'razao_social': empresa.get('razao_social'),
+                    'razao_social': razao_social,
                     'total_categorias': len(categorias),
-                    'categorias': [
-                        {
-                            'nome': cat.nome,
-                            'tipo': cat.tipo.value,
-                            'subcategorias': cat.subcategorias
-                        } for cat in categorias
-                    ]
+                    'categorias': categorias_list
                 })
+                print(f"      ✅ Empresa incluída com {len(categorias)} categoria(s)")
+        
+        print(f"\n✅ Total de empresas disponíveis para importação: {len(empresas_com_categorias)}")
         
         return jsonify({
             'success': True,
