@@ -5275,17 +5275,35 @@
 
         // Upload de arquivo OFX
         async function uploadExtratoOFX(event) {
+            console.log('📤 INICIANDO UPLOAD DE OFX');
+            
             const contaId = document.getElementById('conta-bancaria-extrato').value;
             const arquivoInput = document.getElementById('arquivo-ofx');
             const uploadButton = document.querySelector('button[onclick="uploadExtratoOFX(event)"]') || event?.target;
             
-            if (!contaId) {
-                alert('❌ Por favor, selecione uma conta bancária!');
+            console.log('📋 Dados do formulário:');
+            console.log('   🏦 Conta selecionada:', contaId);
+            console.log('   📁 Arquivo:', arquivoInput.files[0]?.name);
+            
+            if (!contaId || contaId === '') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Conta Bancária Obrigatória',
+                    text: 'Por favor, selecione uma conta bancária antes de fazer o upload do arquivo OFX.',
+                    confirmButtonText: 'OK'
+                });
+                console.error('❌ Conta não selecionada - value:', contaId);
                 return;
             }
             
             if (!arquivoInput.files || arquivoInput.files.length === 0) {
-                alert('❌ Por favor, selecione um arquivo OFX!');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Arquivo Obrigatório',
+                    text: 'Por favor, selecione um arquivo OFX para fazer o upload.',
+                    confirmButtonText: 'OK'
+                });
+                console.error('❌ Arquivo não selecionado');
                 return;
             }
             
@@ -5293,7 +5311,13 @@
             
             // Validar extensão
             if (!arquivo.name.toLowerCase().endsWith('.ofx')) {
-                alert('❌ Por favor, selecione um arquivo com extensão .ofx!');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Formato Inválido',
+                    text: 'Por favor, selecione um arquivo com extensão .ofx',
+                    confirmButtonText: 'OK'
+                });
+                console.error('❌ Extensão inválida:', arquivo.name);
                 return;
             }
             
@@ -5301,11 +5325,17 @@
             formData.append('file', arquivo);
             formData.append('conta_bancaria', contaId);
             
+            console.log('📦 FormData preparado:');
+            console.log('   file:', arquivo.name, '(' + arquivo.size + ' bytes)');
+            console.log('   conta_bancaria:', contaId);
+            
             try {
                 if (uploadButton) {
                     uploadButton.disabled = true;
                     uploadButton.textContent = '⏳ Processando...';
                 }
+                
+                console.log('📡 Enviando requisição para /api/extratos/upload...');
                 
                 const response = await fetch('/api/extratos/upload', {
                     method: 'POST',
