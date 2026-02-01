@@ -7529,23 +7529,49 @@ def listar_empresas_api():
         usuario = get_usuario_logado()
         logger.info(f"   Usuario autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
+        conn = database.get_connection()
+        cursor = conn.cursor()
+        
         # Admin pode listar todas as empresas
         if usuario['tipo'] == 'admin':
             logger.info("   👑 Admin: listando TODAS as empresas")
-            filtros = {}
+            
+            query = "SELECT id, razao_social, cnpj, plano, ativo, criado_em FROM empresas"
+            params = []
+            
+            # Filtros opcionais
+            filtros = []
             if request.args.get('ativo'):
-                filtros['ativo'] = request.args.get('ativo') == 'true'
+                filtros.append("ativo = %s")
+                params.append(request.args.get('ativo') == 'true')
             
             if request.args.get('plano'):
-                filtros['plano'] = request.args.get('plano')
+                filtros.append("plano = %s")
+                params.append(request.args.get('plano'))
             
-            logger.info(f"   🔍 Chamando database.listar_empresas(filtros={filtros})...")
-            empresas = database.listar_empresas(filtros)
-            logger.info(f"   ✅ Empresas carregadas: {len(empresas) if empresas else 0}")
+            if filtros:
+                query += " WHERE " + " AND ".join(filtros)
             
-            # Garantir que empresas não seja None
-            if empresas is None:
-                empresas = []
+            query += " ORDER BY razao_social"
+            
+            logger.info(f"   🔍 Query: {query}")
+            logger.info(f"   🔍 Params: {params}")
+            
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            empresas = []
+            for row in rows:
+                empresas.append({
+                    'id': row['id'],
+                    'razao_social': row['razao_social'],
+                    'cnpj': row['cnpj'],
+                    'plano': row['plano'],
+                    'ativo': row['ativo'],
+                    'criado_em': row['criado_em'].isoformat() if row['criado_em'] else None
+                })
+            
+            cursor.close()
             
             logger.info(f"   ✅ Retornando {len(empresas)} empresas")
             logger.info("="*80 + "\n")
@@ -7556,9 +7582,6 @@ def listar_empresas_api():
         else:
             logger.info("   👤 Usuário: listando apenas empresas vinculadas")
             usuario_id = usuario.get('id')
-            
-            conn = database.get_connection()
-            cursor = conn.cursor()
             
             cursor.execute("""
                 SELECT DISTINCT
