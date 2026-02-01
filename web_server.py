@@ -2418,23 +2418,6 @@ def importar_categorias_de_empresa():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
-                
-            except Exception as e:
-                erros.append(f"{cat_origem.nome}: {str(e)}")
-        
-        return jsonify({
-            'success': True,
-            'importadas': importadas,
-            'duplicadas': duplicadas,
-            'erros': erros,
-            'message': f'{importadas} categoria(s) importada(s) com sucesso'
-        })
-        
-    except Exception as e:
-        print(f"❌ Erro ao importar categorias: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # === ROTAS DE CLIENTES ===
