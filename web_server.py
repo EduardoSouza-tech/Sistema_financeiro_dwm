@@ -7515,7 +7515,7 @@ logger.info("="*80)
 @app.route('/api/empresas', methods=['GET'])
 @require_auth
 def listar_empresas_api():
-    """Lista todas as empresas (apenas super admin)"""
+    """Lista empresas - admin vê todas, outros usuários vêem apenas as suas"""
     logger.info("\n" + "="*80)
     logger.info("[listar_empresas_api] FUNCAO INICIADA")
     logger.info(f"   Path: {request.path}")
@@ -7529,33 +7529,71 @@ def listar_empresas_api():
         usuario = get_usuario_logado()
         logger.info(f"   Usuario autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
-        # Apenas admin do sistema pode listar todas empresas
-        if usuario['tipo'] != 'admin':
-            logger.info(f"   Acesso negado - usuario nao e admin")
-            return jsonify({'error': 'Acesso negado'}), 403
+        # Admin pode listar todas as empresas
+        if usuario['tipo'] == 'admin':
+            logger.info("   👑 Admin: listando TODAS as empresas")
+            filtros = {}
+            if request.args.get('ativo'):
+                filtros['ativo'] = request.args.get('ativo') == 'true'
+            
+            if request.args.get('plano'):
+                filtros['plano'] = request.args.get('plano')
+            
+            logger.info(f"   🔍 Chamando database.listar_empresas(filtros={filtros})...")
+            empresas = database.listar_empresas(filtros)
+            logger.info(f"   ✅ Empresas carregadas: {len(empresas) if empresas else 0}")
+            
+            # Garantir que empresas não seja None
+            if empresas is None:
+                empresas = []
+            
+            logger.info(f"   ✅ Retornando {len(empresas)} empresas")
+            logger.info("="*80 + "\n")
+            
+            return jsonify(empresas)
         
-        filtros = {}
-        if request.args.get('ativo'):
-            filtros['ativo'] = request.args.get('ativo') == 'true'
-        
-        if request.args.get('plano'):
-            filtros['plano'] = request.args.get('plano')
-        
-        logger.info(f"   🔍 Chamando database.listar_empresas(filtros={filtros})...")
-        empresas = database.listar_empresas(filtros)
-        logger.info(f"   ✅ Empresas carregadas: {len(empresas) if empresas else 0}")
-        
-        # Garantir que empresas não seja None
-        if empresas is None:
+        # Usuários não-admin veem apenas empresas às quais têm acesso
+        else:
+            logger.info("   👤 Usuário: listando apenas empresas vinculadas")
+            usuario_id = usuario.get('id')
+            
+            conn = database.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT DISTINCT
+                    e.id,
+                    e.razao_social,
+                    e.cnpj,
+                    e.plano,
+                    e.ativo,
+                    e.criado_em,
+                    ue.is_empresa_padrao
+                FROM empresas e
+                INNER JOIN usuario_empresas ue ON ue.empresa_id = e.id
+                WHERE ue.usuario_id = %s AND ue.acesso_ativo = TRUE
+                ORDER BY e.razao_social
+            """, (usuario_id,))
+            
+            rows = cursor.fetchall()
             empresas = []
-        
-        # Retornar apenas dados básicos (sem estatísticas para evitar sobrecarga)
-        # As estatísticas podem ser buscadas individualmente se necessário
-        
-        logger.info(f"   ✅ Retornando {len(empresas)} empresas")
-        logger.info("="*80 + "\n")
-        
-        return jsonify(empresas)
+            for row in rows:
+                empresas.append({
+                    'id': row['id'],
+                    'razao_social': row['razao_social'],
+                    'cnpj': row['cnpj'],
+                    'plano': row['plano'],
+                    'ativo': row['ativo'],
+                    'criado_em': row['criado_em'].isoformat() if row['criado_em'] else None,
+                    'is_empresa_padrao': row['is_empresa_padrao']
+                })
+            
+            cursor.close()
+            
+            logger.info(f"   ✅ Retornando {len(empresas)} empresas vinculadas")
+            logger.info("="*80 + "\n")
+            
+            return jsonify(empresas)
         
     except Exception as e:
         logger.info(f"❌ Erro ao listar empresas: {e}")
