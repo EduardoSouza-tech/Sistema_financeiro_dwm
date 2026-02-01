@@ -3139,14 +3139,19 @@ async function mostrarSugestoesConciliacao(transacaoId) {
             })
         ]);
         
-        const categorias = await responseCategorias.json();
-        const clientes = await responseClientes.json();
-        const fornecedores = await responseFornecedores.json();
+        const categoriasData = await responseCategorias.json();
+        const clientesData = await responseClientes.json();
+        const fornecedoresData = await responseFornecedores.json();
+        
+        // Extrair arrays dos dados (pode vir como {data: [...]} ou direto)
+        const categorias = Array.isArray(categoriasData) ? categoriasData : (categoriasData.categorias || categoriasData.data || []);
+        const clientes = Array.isArray(clientesData) ? clientesData : (clientesData.clientes || clientesData.data || []);
+        const fornecedores = Array.isArray(fornecedoresData) ? fornecedoresData : (fornecedoresData.fornecedores || fornecedoresData.data || []);
         
         console.log('📦 Dados carregados:');
-        console.log('   Categorias:', categorias.length);
-        console.log('   Clientes:', clientes.length);
-        console.log('   Fornecedores:', fornecedores.length);
+        console.log('   Categorias:', categorias);
+        console.log('   Clientes:', clientes);
+        console.log('   Fornecedores:', fornecedores);
         
         // Criar dicionário de matching CPF/CNPJ
         const clientesPorCPF = {};
