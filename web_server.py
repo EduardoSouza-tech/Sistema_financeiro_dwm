@@ -2375,7 +2375,7 @@ def importar_categorias_de_empresa():
         
         # Buscar categorias já existentes na empresa destino
         categorias_destino = db.listar_categorias(empresa_id=empresa_destino_id)
-        nomes_existentes = {c.nome for c in categorias_destino}
+        nomes_existentes = {c.nome.upper() for c in categorias_destino}
         
         importadas = 0
         duplicadas = 0
@@ -2383,8 +2383,8 @@ def importar_categorias_de_empresa():
         
         for cat_origem in categorias_origem:
             try:
-                # Verificar se já existe
-                if cat_origem.nome in nomes_existentes:
+                # Verificar se já existe (case insensitive)
+                if cat_origem.nome.upper() in nomes_existentes:
                     duplicadas += 1
                     continue
                 
@@ -2392,12 +2392,32 @@ def importar_categorias_de_empresa():
                 nova_categoria = Categoria(
                     nome=cat_origem.nome,
                     tipo=cat_origem.tipo,
-                    subcategorias=cat_origem.subcategorias,
+                    descricao=getattr(cat_origem, 'descricao', ''),
+                    subcategorias=getattr(cat_origem, 'subcategorias', []),
+                    cor=getattr(cat_origem, 'cor', '#000000'),
+                    icone=getattr(cat_origem, 'icone', 'folder'),
                     empresa_id=empresa_destino_id
                 )
                 
                 db.adicionar_categoria(nova_categoria)
                 importadas += 1
+                
+            except Exception as e:
+                erros.append(f"{cat_origem.nome}: {str(e)}")
+        
+        return jsonify({
+            'success': True,
+            'importadas': importadas,
+            'duplicadas': duplicadas,
+            'erros': erros,
+            'message': f'{importadas} categoria(s) importada(s) com sucesso'
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao importar categorias: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
                 
             except Exception as e:
                 erros.append(f"{cat_origem.nome}: {str(e)}")
