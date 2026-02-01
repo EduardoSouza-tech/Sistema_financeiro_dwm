@@ -2939,30 +2939,54 @@ import extrato_functions
 def upload_extrato_ofx():
     """Upload e processamento de arquivo OFX"""
     try:
+        print(f"\n{'='*60}")
+        print(f"📤 UPLOAD DE EXTRATO OFX INICIADO")
+        print(f"{'='*60}")
+        
+        # Log dos arquivos recebidos
+        print(f"📋 Arquivos em request.files: {list(request.files.keys())}")
+        print(f"📋 Dados em request.form: {dict(request.form)}")
+        
         if 'file' not in request.files:
+            print(f"❌ Erro: Nenhum arquivo enviado")
             return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'}), 400
         
         file = request.files['file']
         conta_bancaria = request.form.get('conta_bancaria')
         
+        print(f"📁 Arquivo: {file.filename}")
+        print(f"🏦 Conta bancária: {conta_bancaria}")
+        
         if not conta_bancaria:
+            print(f"❌ Erro: Conta bancária não informada")
             return jsonify({'success': False, 'error': 'Conta bancaria e obrigatoria'}), 400
         
         if file.filename == '':
+            print(f"❌ Erro: Nome do arquivo vazio")
             return jsonify({'success': False, 'error': 'Nenhum arquivo selecionado'}), 400
         
         if not file.filename.lower().endswith('.ofx'):
+            print(f"❌ Erro: Extensão inválida: {file.filename}")
             return jsonify({'success': False, 'error': 'Apenas arquivos .ofx sao permitidos'}), 400
         
         # Buscar informações da conta bancária cadastrada
         usuario = get_usuario_logado()
         empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         
+        print(f"👤 Usuário: {usuario.get('nome')}")
+        print(f"🏢 Empresa ID: {empresa_id}")
+        
         contas_cadastradas = database.listar_contas(empresa_id=empresa_id)
+        print(f"📊 Total de contas cadastradas: {len(contas_cadastradas)}")
+        print(f"📋 Nomes das contas: {[c.nome for c in contas_cadastradas]}")
+        
         conta_info = next((c for c in contas_cadastradas if c.nome == conta_bancaria), None)
         
         if not conta_info:
+            print(f"❌ Erro: Conta '{conta_bancaria}' não encontrada na lista")
             return jsonify({'success': False, 'error': f'Conta bancária "{conta_bancaria}" não encontrada'}), 400
+        
+        print(f"✅ Conta encontrada: {conta_info.nome}")
         
         # Validar se a conta está ativa
         if hasattr(conta_info, 'ativa') and not conta_info.ativa:
@@ -2971,6 +2995,8 @@ def upload_extrato_ofx():
                 'success': False,
                 'error': f'Não é possível importar extrato. A conta bancária "{conta_bancaria}" está inativa. Reative a conta antes de importar extratos.'
             }), 400
+        
+        print(f"✅ Conta está ativa, prosseguindo com o upload...")
         
         # Parse OFX
         try:
