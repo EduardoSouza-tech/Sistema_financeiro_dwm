@@ -2981,6 +2981,9 @@ def upload_extrato_ofx():
         empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
         contas_cadastradas = []
         
+        # Definir empresa_id para uso posterior (usar primeira empresa ou padrão)
+        empresa_id = empresas_usuario[0].get('empresa_id') if empresas_usuario else usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        
         for empresa in empresas_usuario:
             proprietario_id = empresa.get('empresa_id')
             try:
