@@ -4313,6 +4313,38 @@ def atualizar_setor(setor_id):
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/setores/<int:setor_id>', methods=['DELETE'])
+@require_permission('eventos_edit')
+def excluir_setor(setor_id):
+    """Excluir um setor"""
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se o setor existe
+        cursor.execute("SELECT nome FROM setores WHERE id = %s", (setor_id,))
+        setor = cursor.fetchone()
+        
+        if not setor:
+            cursor.close()
+            return jsonify({'error': 'Setor não encontrado'}), 404
+        
+        # Excluir o setor
+        cursor.execute("DELETE FROM setores WHERE id = %s", (setor_id,))
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Setor excluído com sucesso'
+        })
+    
+    except Exception as e:
+        logger.error(f"Erro ao excluir setor: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/eventos/<int:evento_id>/equipe', methods=['GET'])
 @require_permission('eventos_view')

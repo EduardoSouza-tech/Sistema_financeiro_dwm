@@ -6555,8 +6555,11 @@
                                 ${setor.ativo ? '<span style="color: #27ae60; font-weight: bold;">✓ Ativo</span>' : '<span style="color: #95a5a6;">Inativo</span>'}
                             </td>
                             <td style="padding: 10px; text-align: center;">
-                                <button onclick="toggleStatusSetor(${setor.id}, ${!setor.ativo})" class="btn btn-sm" style="background: ${setor.ativo ? '#e74c3c' : '#27ae60'}; padding: 5px 10px; color: white;" title="${setor.ativo ? 'Desativar' : 'Ativar'}">
+                                <button onclick="toggleStatusSetor(${setor.id}, ${!setor.ativo})" class="btn btn-sm" style="background: ${setor.ativo ? '#e74c3c' : '#27ae60'}; padding: 5px 10px; color: white; margin-right: 5px;" title="${setor.ativo ? 'Desativar' : 'Ativar'}">
                                     ${setor.ativo ? '🚫' : '✓'}
+                                </button>
+                                <button onclick="excluirSetor(${setor.id}, '${setor.nome}')" class="btn btn-sm" style="background: #c0392b; padding: 5px 10px; color: white;" title="Excluir">
+                                    🗑️
                                 </button>
                             </td>
                         </tr>
@@ -6626,6 +6629,31 @@
             } catch (error) {
                 console.error('Erro ao atualizar status do setor:', error);
                 showToast('❌ Erro ao atualizar setor', 'error');
+            }
+        }
+
+        async function excluirSetor(setorId, nomeSetor) {
+            if (!confirm(`Tem certeza que deseja excluir o setor "${nomeSetor}"?\n\nEsta ação não pode ser desfeita.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/setores/${setorId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast('✅ Setor excluído com sucesso!', 'success');
+                    await carregarSetores();
+                } else {
+                    showToast(`❌ ${result.error || 'Erro ao excluir setor'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao excluir setor:', error);
+                showToast('❌ Erro ao excluir setor', 'error');
             }
         }
 
