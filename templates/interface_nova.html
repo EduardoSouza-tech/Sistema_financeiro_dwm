@@ -7856,8 +7856,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                        'X-CSRFToken': getCookie('csrf_token')
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
                     },
                     body: JSON.stringify({
                         empresa_origem_id: empresaId
@@ -7867,40 +7866,54 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    await Swal.fire({
-                        icon: 'success',
-                        title: 'Importação Concluída!',
-                        html: `
-                            <p><strong>✅ ${data.importadas}</strong> categoria(s) importada(s)</p>
-                            ${data.duplicadas > 0 ? `<p><strong>⏭️ ${data.duplicadas}</strong> categoria(s) já existiam</p>` : ''}
-                            ${data.erros && data.erros.length > 0 ? `<p style="color: #d9534f;"><strong>❌ Erros:</strong><br>${data.erros.join('<br>')}</p>` : ''}
-                        `,
-                        confirmButtonText: 'OK'
-                    });
+                    if (typeof Swal !== 'undefined') {
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'Importação Concluída!',
+                            html: `
+                                <p><strong>✅ ${data.importadas}</strong> categoria(s) importada(s)</p>
+                                ${data.duplicadas > 0 ? `<p><strong>⏭️ ${data.duplicadas}</strong> categoria(s) já existiam</p>` : ''}
+                                ${data.erros && data.erros.length > 0 ? `<p style="color: #d9534f;"><strong>❌ Erros:</strong><br>${data.erros.join('<br>')}</p>` : ''}
+                            `,
+                            confirmButtonText: 'OK'
+                        });
+                    } else {
+                        alert(`✅ Importação Concluída!\n\n${data.importadas} categoria(s) importada(s)\n${data.duplicadas > 0 ? data.duplicadas + ' já existiam' : ''}`);
+                    }
                     
                     // Recarregar categorias
                     if (typeof carregarCategorias === 'function') {
                         carregarCategorias();
+                    } else if (typeof loadCategorias === 'function') {
+                        loadCategorias();
                     }
                     
                     fecharModalImportarCategorias();
                 } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Erro ao Importar',
-                        text: data.error || 'Erro desconhecido',
-                        confirmButtonText: 'OK'
-                    });
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Erro ao Importar',
+                            text: data.error || 'Erro desconhecido',
+                            confirmButtonText: 'OK'
+                        });
+                    } else {
+                        alert('❌ Erro ao Importar: ' + (data.error || 'Erro desconhecido'));
+                    }
                 }
                 
             } catch (error) {
                 console.error('❌ Erro ao importar categorias:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Erro ao Importar',
-                    text: 'Erro ao processar a importação. Tente novamente.',
-                    confirmButtonText: 'OK'
-                });
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erro ao Importar',
+                        text: 'Erro ao processar a importação. Tente novamente.',
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    alert('❌ Erro ao Importar: Erro ao processar a importação. Tente novamente.');
+                }
             }
         }
         
