@@ -8183,6 +8183,79 @@ def force_password_upgrade():
 
 
 # ============================================================================
+# ENDPOINT PARA EXECUTAR MIGRATIONS
+# ============================================================================
+@app.route('/api/admin/migrations/evento-funcionarios', methods=['POST'])
+@require_admin
+def execute_migration_evento_funcionarios():
+    """Executa migration para criar tabelas funcoes_evento e evento_funcionarios"""
+    try:
+        logger.info("🚀 Iniciando migration evento_funcionarios...")
+        
+        # Ler arquivo SQL
+        sql_file = os.path.join(os.path.dirname(__file__), 'migration_evento_funcionarios.sql')
+        
+        if not os.path.exists(sql_file):
+            return jsonify({
+                'success': False,
+                'error': f'Arquivo migration não encontrado: {sql_file}'
+            }), 404
+        
+        with open(sql_file, 'r', encoding='utf-8') as f:
+            sql_script = f.read()
+        
+        # Executar script
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute(sql_script)
+            conn.commit()
+            
+            # Verificar tabelas criadas
+            cursor.execute("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name IN ('funcoes_evento', 'evento_funcionarios')
+                ORDER BY table_name
+            """)
+            tabelas = cursor.fetchall()
+            
+            # Verificar funções inseridas
+            cursor.execute("SELECT COUNT(*) as total FROM funcoes_evento")
+            total_funcoes = cursor.fetchone()['total']
+            
+            logger.info(f"✅ Migration executada: {len(tabelas)} tabelas, {total_funcoes} funções")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Migration executada com sucesso',
+                'data': {
+                    'tabelas_criadas': [t['table_name'] for t in tabelas],
+                    'funcoes_inseridas': total_funcoes
+                }
+            })
+            
+        except Exception as e:
+            conn.rollback()
+            raise e
+        
+        finally:
+            cursor.close()
+            conn.close()
+    
+    except Exception as e:
+        logger.error(f"❌ Erro ao executar migration: {e}")
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+# ============================================================================
 # ENDPOINT DE ANALYTICS - PERFORMANCE MONITORING
 # ============================================================================
 @app.route('/api/analytics/lazy-loading', methods=['POST'])
