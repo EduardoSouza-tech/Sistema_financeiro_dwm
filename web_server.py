@@ -2511,6 +2511,9 @@ def reativar_fornecedor(nome):
 def listar_lancamentos():
     """Lista todos os lançamentos com filtro de multi-tenancy e paginação"""
     try:
+        print("\n" + "="*80)
+        print("🚀 ROTA /api/lancamentos chamada")
+        
         # Parâmetros de filtro
         tipo_filtro = request.args.get('tipo')
         filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
@@ -2519,12 +2522,21 @@ def listar_lancamentos():
         page = request.args.get('page', type=int)
         per_page = request.args.get('per_page', default=50, type=int)
         
+        print(f"📋 Parâmetros recebidos:")
+        print(f"   - tipo_filtro: {tipo_filtro}")
+        print(f"   - filtro_cliente_id: {filtro_cliente_id}")
+        print(f"   - page: {page}")
+        print(f"   - per_page: {per_page}")
+        
         # Criar dicionário de filtros
         filtros = {}
         if tipo_filtro:
             filtros['tipo'] = tipo_filtro.upper()
         
+        print(f"🔍 Filtros montados: {filtros}")
+        
         # Chamar método com todos os parâmetros
+        print(f"📞 Chamando database.listar_lancamentos()...")
         lancamentos = database.listar_lancamentos(
             filtros=filtros,
             filtro_cliente_id=filtro_cliente_id,
@@ -2532,25 +2544,37 @@ def listar_lancamentos():
             per_page=per_page
         )
         
+        print(f"✅ Retornaram {len(lancamentos)} lançamentos")
+        
         # Converter para lista de dicts
-        lancamentos_list = [{
-            'id': l.id if hasattr(l, 'id') else None,
-            'tipo': l.tipo.value,
-            'descricao': l.descricao,
-            'valor': float(l.valor),
-            'data_vencimento': l.data_vencimento.isoformat() if l.data_vencimento else None,
-            'data_pagamento': l.data_pagamento.isoformat() if l.data_pagamento else None,
-            'status': l.status.value,
-            'categoria': l.categoria,
-            'subcategoria': l.subcategoria,
-            'conta_bancaria': l.conta_bancaria,
-            'pessoa': l.pessoa,
-            'observacoes': l.observacoes,
-            'num_documento': getattr(l, 'num_documento', ''),
-            'recorrente': getattr(l, 'recorrente', False),
-            'frequencia_recorrencia': getattr(l, 'frequencia_recorrencia', ''),
-            'cliente_id': getattr(l, 'pessoa', None)  # Usar pessoa como referência ao cliente
-        } for l in lancamentos]
+        lancamentos_list = []
+        for idx, l in enumerate(lancamentos):
+            try:
+                item = {
+                    'id': l.id if hasattr(l, 'id') else None,
+                    'tipo': l.tipo.value if hasattr(l.tipo, 'value') else str(l.tipo),
+                    'descricao': l.descricao,
+                    'valor': float(l.valor),
+                    'data_vencimento': l.data_vencimento.isoformat() if l.data_vencimento else None,
+                    'data_pagamento': l.data_pagamento.isoformat() if l.data_pagamento else None,
+                    'status': l.status.value if hasattr(l.status, 'value') else str(l.status),
+                    'categoria': l.categoria,
+                    'subcategoria': l.subcategoria,
+                    'conta_bancaria': l.conta_bancaria,
+                    'pessoa': l.pessoa,
+                    'observacoes': l.observacoes,
+                    'num_documento': getattr(l, 'num_documento', ''),
+                    'recorrente': getattr(l, 'recorrente', False),
+                    'frequencia_recorrencia': getattr(l, 'frequencia_recorrencia', ''),
+                    'cliente_id': getattr(l, 'pessoa', None)
+                }
+                lancamentos_list.append(item)
+            except Exception as e:
+                print(f"⚠️ Erro ao converter lançamento {idx} (ID: {getattr(l, 'id', '?')}): {e}")
+                continue
+        
+        print(f"📦 Retornando {len(lancamentos_list)} lançamentos no JSON")
+        print("="*80 + "\n")
         
         return jsonify({
             'success': True,
@@ -2559,9 +2583,10 @@ def listar_lancamentos():
             'message': 'Nenhum lançamento encontrado' if len(lancamentos_list) == 0 else None
         })
     except Exception as e:
-        print(f"❌ Erro ao listar lançamentos: {e}")
+        print(f"❌ ERRO CRÍTICO em listar_lancamentos: {e}")
         import traceback
         traceback.print_exc()
+        print("="*80 + "\n")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
