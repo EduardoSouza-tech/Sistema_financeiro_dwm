@@ -5309,6 +5309,9 @@
                 
                 const response = await fetch('/api/extratos/upload', {
                     method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
                     body: formData
                 });
                 
