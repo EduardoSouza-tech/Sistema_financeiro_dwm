@@ -2971,13 +2971,14 @@ def upload_extrato_ofx():
         
         # Buscar informações da conta bancária cadastrada
         usuario = get_usuario_logado()
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         
         print(f"👤 Usuário: {usuario.get('nome')}")
-        print(f"🏢 Empresa ID: {empresa_id}")
+        print(f"👤 Cliente ID: {usuario.get('cliente_id')}")
+        print(f"🏢 Empresa ID: {usuario.get('empresa_id')}")
         
-        contas_cadastradas = database.listar_contas(empresa_id=empresa_id)
-        print(f"📊 Total de contas cadastradas: {len(contas_cadastradas)}")
+        # Buscar contas de TODAS as empresas do usuário (usuários podem ter acesso a múltiplas empresas)
+        contas_cadastradas = database.listar_contas(empresa_id=None)
+        print(f"📊 Total de contas cadastradas (todas empresas): {len(contas_cadastradas)}")
         print(f"📋 Nomes das contas: {[c.nome for c in contas_cadastradas]}")
         
         conta_info = next((c for c in contas_cadastradas if c.nome == conta_bancaria), None)
