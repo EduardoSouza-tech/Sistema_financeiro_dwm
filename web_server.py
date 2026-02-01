@@ -96,6 +96,83 @@ from app.utils import (
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
+# ============================================================================
+# AUTO-EXECUTAR MIGRATION DE EVENTOS (STARTUP)
+# ============================================================================
+def auto_execute_migrations():
+    """Executa migrations automaticamente no startup"""
+    try:
+        logger.info("="*80)
+        logger.info("🚀 AUTO-EXECUTANDO MIGRATIONS DE EVENTOS")
+        logger.info("="*80)
+        
+        # Verificar se tabelas já existem
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name IN ('funcoes_evento', 'evento_funcionarios')
+        """)
+        
+        count = cursor.fetchone()[0]
+        
+        if count == 2:
+            logger.info("✅ Tabelas já existem. Skip migration.")
+            cursor.close()
+            return
+        
+        logger.info(f"⚠️ Encontradas {count}/2 tabelas. Executando migration...")
+        
+        # Ler e executar SQL
+        sql_file = os.path.join(os.path.dirname(__file__), 'migration_evento_funcionarios.sql')
+        
+        if not os.path.exists(sql_file):
+            logger.error(f"❌ Arquivo SQL não encontrado: {sql_file}")
+            return
+        
+        with open(sql_file, 'r', encoding='utf-8') as f:
+            sql_content = f.read()
+        
+        logger.info("📝 Executando SQL...")
+        cursor.execute(sql_content)
+        conn.commit()
+        logger.info("✅ SQL executado e commitado")
+        
+        # Verificar criação
+        cursor.execute("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name IN ('funcoes_evento', 'evento_funcionarios')
+            ORDER BY table_name
+        """)
+        
+        tables = cursor.fetchall()
+        logger.info(f"✅ {len(tables)} TABELAS CRIADAS")
+        
+        # Contar funções
+        cursor.execute("SELECT COUNT(*) as total FROM funcoes_evento")
+        result = cursor.fetchone()
+        count_funcoes = result['total'] if isinstance(result, dict) else result[0]
+        logger.info(f"✅ {count_funcoes} FUNÇÕES INSERIDAS")
+        
+        cursor.close()
+        
+        logger.info("="*80)
+        logger.info("✅ MIGRATION CONCLUÍDA!")
+        logger.info("="*80)
+        
+    except Exception as e:
+        logger.error(f"❌ Erro na auto-migration: {e}")
+        import traceback
+        traceback.print_exc()
+
+# Executar migrations no startup
+auto_execute_migrations()
+
 # Detectar ambiente de produção
 IS_PRODUCTION = bool(os.getenv('RAILWAY_ENVIRONMENT'))
 
