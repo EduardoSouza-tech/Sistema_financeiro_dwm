@@ -3721,6 +3721,93 @@ async function loadFuncionariosRH() {
 }
 
 /**
+ * Edita um funcionário existente
+ */
+async function editarFuncionario(id) {
+    try {
+        console.log('✏️ Editando funcionário ID:', id);
+        
+        if (!id) {
+            showToast('Erro: ID do funcionário não informado', 'error');
+            return;
+        }
+        
+        // Buscar dados do funcionário
+        const response = await fetch(`${API_URL}/funcionarios/${id}`);
+        
+        if (!response.ok) {
+            throw new Error('Funcionário não encontrado');
+        }
+        
+        const funcionario = await response.json();
+        console.log('✅ Funcionário encontrado:', funcionario);
+        
+        // Chamar função do interface_nova.html para abrir modal de edição
+        if (typeof abrirModalFuncionario === 'function') {
+            abrirModalFuncionario(funcionario);
+            console.log('✅ Modal de edição aberto');
+        } else {
+            showToast('Erro: Função de edição não disponível', 'error');
+            console.error('❌ Função abrirModalFuncionario não encontrada!');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao editar funcionário:', error);
+        showToast('Erro ao abrir edição: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Deleta um funcionário
+ */
+async function deletarFuncionario(id) {
+    try {
+        console.log('🗑️ Deletando funcionário ID:', id);
+        
+        if (!id) {
+            showToast('Erro: ID do funcionário não informado', 'error');
+            return;
+        }
+        
+        if (!confirm('Deseja realmente excluir este funcionário?')) {
+            console.log('❌ Exclusão cancelada pelo usuário');
+            return;
+        }
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        
+        const response = await fetch(`${API_URL}/funcionarios/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Erro ao excluir funcionário');
+        }
+        
+        const result = await response.json();
+        console.log('✅ Funcionário excluído:', result);
+        
+        showToast('Funcionário excluído com sucesso!', 'success');
+        
+        // Recarregar lista
+        await loadFuncionariosRH();
+        
+    } catch (error) {
+        console.error('❌ Erro ao deletar funcionário:', error);
+        showToast('Erro ao excluir: ' + error.message, 'error');
+    }
+}
+
+// Expor funções globalmente
+window.editarFuncionario = editarFuncionario;
+window.deletarFuncionario = deletarFuncionario;
+window.loadFuncionariosRH = loadFuncionariosRH;
+
+/**
  * Carrega lista de funcionários para uso em modais (endpoint simplificado)
  */
 async function loadFuncionarios() {

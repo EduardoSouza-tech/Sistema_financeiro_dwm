@@ -5689,7 +5689,10 @@
                 if (response.ok) {
                     showToast(`✅ Funcionário ${id ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
                     fecharModalFuncionario();
-                    loadFuncionarios();
+                    // Recarregar a lista de funcionários na tabela RH
+                    if (typeof loadFuncionariosRH === 'function') {
+                        loadFuncionariosRH();
+                    }
                 } else {
                     showToast(`❌ Erro: ${result.error || 'Erro desconhecido'}`, 'error');
                 }
@@ -5766,7 +5769,10 @@
 
                 if (response.ok) {
                     showToast(`✅ Funcionário ${acao}do com sucesso!`, 'success');
-                    loadFuncionarios();
+                    // Recarregar a lista de funcionários na tabela RH
+                    if (typeof loadFuncionariosRH === 'function') {
+                        loadFuncionariosRH();
+                    }
                 } else {
                     showToast(`❌ Erro: ${result.error || 'Erro desconhecido'}`, 'error');
                 }
@@ -5781,6 +5787,14 @@
             cpf = cpf.replace(/\D/g, '');
             return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
         }
+
+        // Expor funções globalmente para uso em app.js e onclick
+        window.abrirModalFuncionario = abrirModalFuncionario;
+        window.fecharModalFuncionario = fecharModalFuncionario;
+        window.salvarFuncionario = salvarFuncionario;
+        window.loadFuncionarios = loadFuncionarios;
+        window.toggleAtivoFuncionario = toggleAtivoFuncionario;
+        window.formatarCPF = formatarCPF;
 
         // ====================================
         // EVENTOS OPERACIONAIS
