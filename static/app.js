@@ -3704,6 +3704,9 @@ async function loadFuncionariosRH() {
                 </td>
                 <td style="padding: 12px 15px; text-align: center;">
                     <button onclick="editarFuncionario(${func.id})" class="btn-icon" title="Editar">✏️</button>
+                    <button onclick="toggleAtivoFuncionario(${func.id}, ${func.ativo})" class="btn-icon" title="${func.ativo ? 'Inativar' : 'Ativar'}">
+                        ${func.ativo ? '🔴' : '🟢'}
+                    </button>
                     <button onclick="deletarFuncionario(${func.id})" class="btn-icon" title="Excluir">🗑️</button>
                 </td>
             </tr>
@@ -3802,9 +3805,61 @@ async function deletarFuncionario(id) {
     }
 }
 
+/**
+ * Ativa ou inativa um funcionário
+ */
+async function toggleAtivoFuncionario(id, ativoAtual) {
+    try {
+        console.log('🔄 Alterando status do funcionário ID:', id, 'Ativo atual:', ativoAtual);
+        
+        if (!id) {
+            showToast('Erro: ID do funcionário não informado', 'error');
+            return;
+        }
+        
+        const acao = ativoAtual ? 'inativar' : 'ativar';
+        const mensagem = ativoAtual 
+            ? 'Ao inativar, este funcionário não poderá ser usado em novos cadastros. Deseja continuar?' 
+            : 'Deseja realmente ativar este funcionário?';
+        
+        if (!confirm(mensagem)) {
+            console.log('❌ Ação cancelada pelo usuário');
+            return;
+        }
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        
+        const response = await fetch(`${API_URL}/funcionarios/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ ativo: !ativoAtual })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Erro ao alterar status do funcionário');
+        }
+        
+        const result = await response.json();
+        console.log(`✅ Funcionário ${acao}do:`, result);
+        
+        showToast(`Funcionário ${acao}do com sucesso!`, 'success');
+        
+        // Recarregar lista
+        await loadFuncionariosRH();
+        
+    } catch (error) {
+        console.error('❌ Erro ao alterar status do funcionário:', error);
+        showToast('Erro ao alterar status: ' + error.message, 'error');
+    }
+}
+
 // Expor funções globalmente
 window.editarFuncionario = editarFuncionario;
 window.deletarFuncionario = deletarFuncionario;
+window.toggleAtivoFuncionario = toggleAtivoFuncionario;
 window.loadFuncionariosRH = loadFuncionariosRH;
 
 /**
@@ -3827,17 +3882,19 @@ async function loadFuncionarios() {
         console.log('📦 Resposta /api/funcionarios:', data);
         
         // API pode retornar { success: true, data: [...] } ou array direto
+        let todosFuncionarios = [];
         if (Array.isArray(data)) {
-            window.funcionarios = data;
+            todosFuncionarios = data;
         } else if (data.success && Array.isArray(data.data)) {
-            window.funcionarios = data.data;
+            todosFuncionarios = data.data;
         } else if (data.funcionarios && Array.isArray(data.funcionarios)) {
-            window.funcionarios = data.funcionarios;
-        } else {
-            window.funcionarios = [];
+            todosFuncionarios = data.funcionarios;
         }
         
-        console.log('✅ Funcionários carregados:', window.funcionarios.length);
+        // Filtrar apenas funcionários ativos para uso em novos cadastros
+        window.funcionarios = todosFuncionarios.filter(func => func.ativo !== false);
+        
+        console.log('✅ Funcionários carregados:', window.funcionarios.length, '(apenas ativos)');
         if (window.funcionarios.length > 0) {
             console.log('   📋 Primeiro funcionário:', window.funcionarios[0]);
         }

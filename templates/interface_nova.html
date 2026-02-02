@@ -6014,7 +6014,10 @@
                 selectMassa.innerHTML = '';
 
                 if (result.funcionarios && result.funcionarios.length > 0) {
-                    result.funcionarios.forEach(func => {
+                    // Filtrar apenas funcionários ativos
+                    const funcionariosAtivos = result.funcionarios.filter(func => func.ativo !== false);
+                    
+                    funcionariosAtivos.forEach(func => {
                         // Individual
                         const option = document.createElement('option');
                         option.value = func.id;
