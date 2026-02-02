@@ -4087,6 +4087,104 @@ def atualizar_funcionario(funcionario_id):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/funcionarios/<int:funcionario_id>', methods=['GET'])
+@require_permission('folha_pagamento_view')
+def obter_funcionario(funcionario_id):
+    """Obter detalhes de um funcionário específico"""
+    try:
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'error': 'Usuário não autenticado'}), 401
+        
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 400
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Buscar funcionário da empresa
+        cursor.execute("""
+            SELECT id, empresa_id, nome, cpf, endereco, tipo_chave_pix, 
+                   chave_pix, data_admissao, observacoes, ativo,
+                   data_criacao, data_atualizacao
+            FROM funcionarios 
+            WHERE id = %s AND empresa_id = %s
+        """, (funcionario_id, empresa_id))
+        
+        row = cursor.fetchone()
+        cursor.close()
+        
+        if not row:
+            return jsonify({'error': 'Funcionário não encontrado'}), 404
+        
+        funcionario = {
+            'id': row[0],
+            'empresa_id': row[1],
+            'nome': row[2],
+            'cpf': row[3],
+            'endereco': row[4],
+            'tipo_chave_pix': row[5],
+            'chave_pix': row[6],
+            'data_admissao': row[7].isoformat() if row[7] else None,
+            'observacoes': row[8],
+            'ativo': row[9],
+            'data_criacao': row[10].isoformat() if row[10] else None,
+            'data_atualizacao': row[11].isoformat() if row[11] else None
+        }
+        
+        return jsonify(funcionario), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao obter funcionário: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/funcionarios/<int:funcionario_id>', methods=['DELETE'])
+@require_permission('folha_pagamento_edit')
+def deletar_funcionario(funcionario_id):
+    """Deletar um funcionário"""
+    try:
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'error': 'Usuário não autenticado'}), 401
+        
+        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 400
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se funcionário existe e pertence à empresa
+        cursor.execute("SELECT id FROM funcionarios WHERE id = %s AND empresa_id = %s", 
+                      (funcionario_id, empresa_id))
+        
+        if not cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'Funcionário não encontrado'}), 404
+        
+        # Deletar funcionário
+        cursor.execute("DELETE FROM funcionarios WHERE id = %s AND empresa_id = %s", 
+                      (funcionario_id, empresa_id))
+        
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Funcionário deletado com sucesso'
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao deletar funcionário: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
 # === ROTAS DE EVENTOS ===
 
 @app.route('/api/eventos', methods=['GET'])
