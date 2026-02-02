@@ -2253,6 +2253,9 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2 style="margin: 0;">🎉 Eventos Operacionais</h2>
                     <div style="display: flex; gap: 10px;">
+                        <button onclick="abrirModalFuncoes()" class="btn btn-secondary" style="padding: 10px 20px; background: #9b59b6;">
+                            👔 Funções
+                        </button>
                         <button onclick="abrirModalSetores()" class="btn btn-secondary" style="padding: 10px 20px; background: #95a5a6;">
                             🏢 Setores
                         </button>
@@ -2612,6 +2615,61 @@
             </div>
 
             <!-- Modal Setores -->
+            <!-- Modal de Funções -->
+            <div id="modal-funcoes" class="modal" style="display: none;">
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3>👔 Gerenciar Funções</h3>
+                        <span class="close" onclick="fecharModalFuncoes()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Formulário de Nova Função -->
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <h4 style="margin: 0 0 15px 0;">➕ Cadastrar Nova Função</h4>
+                            <form id="form-nova-funcao" onsubmit="salvarNovaFuncao(event); return false;">
+                                <div style="display: grid; gap: 10px; margin-bottom: 10px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nome da Função: <span style="color: red;">*</span></label>
+                                        <input type="text" id="nova-funcao-nome" required placeholder="Ex: Fotógrafo, Cinegrafista, Produtor..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Descrição:</label>
+                                        <textarea id="nova-funcao-descricao" placeholder="Descrição da função (opcional)" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <button type="submit" class="btn btn-primary" style="padding: 9px 20px; background: #27ae60;">💾 Salvar</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Lista de Funções -->
+                        <div>
+                            <h4 style="margin: 0 0 15px 0;">📋 Funções Cadastradas</h4>
+                            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                                <table style="width: 100%;">
+                                    <thead>
+                                        <tr style="background: #f8f9fa;">
+                                            <th style="padding: 10px; text-align: left;">Função</th>
+                                            <th style="padding: 10px; text-align: left;">Descrição</th>
+                                            <th style="padding: 10px; text-align: center; width: 100px;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-funcoes">
+                                        <tr><td colspan="3" style="text-align: center; padding: 30px; color: #999;">Carregando...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="button" onclick="fecharModalFuncoes()" class="btn btn-secondary" style="flex: 1; padding: 10px; background: #95a5a6;">❌ Fechar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal de Setores -->
             <div id="modal-setores" class="modal" style="display: none;">
                 <div class="modal-content" style="max-width: 700px;">
                     <div class="modal-header">
@@ -6702,6 +6760,166 @@
         // ==========================================
         // GERENCIAMENTO DE SETORES
         // ==========================================
+
+        // ====================================
+        // FUNÇÕES DE EVENTOS
+        // ====================================
+
+        function abrirModalFuncoes() {
+            document.getElementById('modal-funcoes').style.display = 'flex';
+            carregarFuncoes();
+        }
+
+        function fecharModalFuncoes() {
+            document.getElementById('modal-funcoes').style.display = 'none';
+            document.getElementById('form-nova-funcao').reset();
+        }
+
+        async function carregarFuncoes() {
+            try {
+                const response = await fetch('/api/funcoes-evento', {
+                    credentials: 'include'
+                });
+                const result = await response.json();
+
+                const tbody = document.getElementById('tbody-funcoes');
+
+                if (result.funcoes && result.funcoes.length > 0) {
+                    tbody.innerHTML = result.funcoes.map(funcao => `
+                        <tr>
+                            <td style="padding: 10px;">${funcao.nome}</td>
+                            <td style="padding: 10px;">${funcao.descricao || '-'}</td>
+                            <td style="padding: 10px; text-align: center;">
+                                <button onclick="editarFuncao(${funcao.id}, '${funcao.nome.replace(/'/g, "\\'")}', '${(funcao.descricao || '').replace(/'/g, "\\'")}', ${funcao.ativo})" class="btn btn-sm" style="background: #3498db; padding: 5px 10px; color: white; margin-right: 5px;" title="Editar">
+                                    ✏️
+                                </button>
+                                <button onclick="excluirFuncao(${funcao.id}, '${funcao.nome.replace(/'/g, "\\'")}')" class="btn btn-sm" style="background: #c0392b; padding: 5px 10px; color: white;" title="Excluir">
+                                    🗑️
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 30px; color: #999;">Nenhuma função cadastrada</td></tr>';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar funções:', error);
+                showToast('❌ Erro ao carregar funções', 'error');
+            }
+        }
+
+        async function salvarNovaFuncao(event) {
+            event.preventDefault();
+
+            const nome = document.getElementById('nova-funcao-nome').value;
+            const descricao = document.getElementById('nova-funcao-descricao').value;
+
+            try {
+                const response = await fetch('/api/funcoes-evento', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        nome: nome,
+                        descricao: descricao
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast('✅ Função cadastrada com sucesso!', 'success');
+                    document.getElementById('form-nova-funcao').reset();
+                    await carregarFuncoes();
+                } else {
+                    showToast(`❌ ${result.error || 'Erro ao cadastrar função'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar função:', error);
+                showToast('❌ Erro ao salvar função', 'error');
+            }
+        }
+
+        async function editarFuncao(funcaoId, nomeAtual, descricaoAtual, ativoAtual) {
+            const novoNome = prompt('Nome da função:', nomeAtual);
+            if (!novoNome) return;
+
+            const novaDescricao = prompt('Descrição da função:', descricaoAtual);
+
+            try {
+                const response = await fetch(`/api/funcoes-evento/${funcaoId}`, {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        nome: novoNome,
+                        descricao: novaDescricao,
+                        ativo: ativoAtual
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast('✅ Função atualizada com sucesso!', 'success');
+                    await carregarFuncoes();
+                    // Recarregar funções disponíveis em outros selects
+                    if (typeof carregarFuncoesDisponiveis === 'function') {
+                        await carregarFuncoesDisponiveis();
+                    }
+                } else {
+                    showToast(`❌ ${result.error || 'Erro ao atualizar função'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar função:', error);
+                showToast('❌ Erro ao atualizar função', 'error');
+            }
+        }
+
+        async function excluirFuncao(funcaoId, nomeFuncao) {
+            if (!confirm(`Tem certeza que deseja excluir a função "${nomeFuncao}"?\n\nEsta ação não pode ser desfeita e só será possível se a função não estiver em uso.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/funcoes-evento/${funcaoId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast('✅ Função excluída com sucesso!', 'success');
+                    await carregarFuncoes();
+                    // Recarregar funções disponíveis em outros selects
+                    if (typeof carregarFuncoesDisponiveis === 'function') {
+                        await carregarFuncoesDisponiveis();
+                    }
+                } else {
+                    showToast(`❌ ${result.error || 'Erro ao excluir função'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao excluir função:', error);
+                showToast('❌ Erro ao excluir função', 'error');
+            }
+        }
+
+        // Expor funções globalmente
+        window.abrirModalFuncoes = abrirModalFuncoes;
+        window.fecharModalFuncoes = fecharModalFuncoes;
+        window.carregarFuncoes = carregarFuncoes;
+        window.salvarNovaFuncao = salvarNovaFuncao;
+        window.editarFuncao = editarFuncao;
+        window.excluirFuncao = excluirFuncao;
+
+        // ====================================
+        // SETORES
+        // ====================================
 
         function abrirModalSetores() {
             document.getElementById('modal-setores').style.display = 'flex';

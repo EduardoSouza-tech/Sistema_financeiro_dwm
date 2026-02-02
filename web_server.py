@@ -4570,6 +4570,102 @@ def criar_funcao_evento():
         logger.error(f"Erro ao criar função: {e}")
         return jsonify({'error': str(e)}), 500
 
+
+@app.route('/api/funcoes-evento/<int:funcao_id>', methods=['PUT'])
+@require_permission('eventos_edit')
+def atualizar_funcao_evento(funcao_id):
+    """Atualizar função de evento existente"""
+    try:
+        dados = request.get_json()
+        nome = dados.get('nome', '').strip()
+        descricao = dados.get('descricao', '').strip()
+        ativo = dados.get('ativo', True)
+        
+        if not nome:
+            return jsonify({'error': 'Nome da função é obrigatório'}), 400
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se função existe
+        cursor.execute("SELECT id FROM funcoes_evento WHERE id = %s", (funcao_id,))
+        if not cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'Função não encontrada'}), 404
+        
+        # Verificar se nome já existe em outra função
+        cursor.execute(
+            "SELECT id FROM funcoes_evento WHERE UPPER(nome) = UPPER(%s) AND id != %s",
+            (nome, funcao_id)
+        )
+        if cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'Já existe outra função com este nome'}), 400
+        
+        # Atualizar função
+        cursor.execute("""
+            UPDATE funcoes_evento 
+            SET nome = %s, descricao = %s, ativo = %s
+            WHERE id = %s
+        """, (nome, descricao, ativo, funcao_id))
+        
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Função atualizada com sucesso'
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao atualizar função: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/funcoes-evento/<int:funcao_id>', methods=['DELETE'])
+@require_permission('eventos_edit')
+def deletar_funcao_evento(funcao_id):
+    """Deletar função de evento"""
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se função existe
+        cursor.execute("SELECT id FROM funcoes_evento WHERE id = %s", (funcao_id,))
+        if not cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'Função não encontrada'}), 404
+        
+        # Verificar se há funcionários usando esta função
+        cursor.execute(
+            "SELECT COUNT(*) as total FROM evento_funcionarios WHERE funcao_id = %s",
+            (funcao_id,)
+        )
+        result = cursor.fetchone()
+        total = result['total'] if isinstance(result, dict) else result[0]
+        
+        if total > 0:
+            cursor.close()
+            return jsonify({
+                'error': f'Não é possível excluir. Esta função está sendo usada por {total} alocação(ões) de funcionários.'
+            }), 400
+        
+        # Deletar função
+        cursor.execute("DELETE FROM funcoes_evento WHERE id = %s", (funcao_id,))
+        
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Função deletada com sucesso'
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao deletar função: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 # ========================================
 # ENDPOINTS: SETORES
 # ========================================
