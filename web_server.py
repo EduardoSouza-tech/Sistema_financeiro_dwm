@@ -4118,20 +4118,37 @@ def obter_funcionario(funcionario_id):
         if not row:
             return jsonify({'error': 'Funcionário não encontrado'}), 404
         
-        funcionario = {
-            'id': row[0],
-            'empresa_id': row[1],
-            'nome': row[2],
-            'cpf': row[3],
-            'endereco': row[4],
-            'tipo_chave_pix': row[5],
-            'chave_pix': row[6],
-            'data_admissao': row[7].isoformat() if row[7] else None,
-            'observacoes': row[8],
-            'ativo': row[9],
-            'data_criacao': row[10].isoformat() if row[10] else None,
-            'data_atualizacao': row[11].isoformat() if row[11] else None
-        }
+        # Verifica se row é dict ou tupla
+        if isinstance(row, dict):
+            funcionario = {
+                'id': row['id'],
+                'empresa_id': row['empresa_id'],
+                'nome': row['nome'],
+                'cpf': row['cpf'],
+                'endereco': row['endereco'],
+                'tipo_chave_pix': row['tipo_chave_pix'],
+                'chave_pix': row['chave_pix'],
+                'data_admissao': row['data_admissao'].isoformat() if row['data_admissao'] else None,
+                'observacoes': row['observacoes'],
+                'ativo': row['ativo'],
+                'data_criacao': row['data_criacao'].isoformat() if row['data_criacao'] else None,
+                'data_atualizacao': row['data_atualizacao'].isoformat() if row['data_atualizacao'] else None
+            }
+        else:
+            funcionario = {
+                'id': row[0],
+                'empresa_id': row[1],
+                'nome': row[2],
+                'cpf': row[3],
+                'endereco': row[4],
+                'tipo_chave_pix': row[5],
+                'chave_pix': row[6],
+                'data_admissao': row[7].isoformat() if row[7] else None,
+                'observacoes': row[8],
+                'ativo': row[9],
+                'data_criacao': row[10].isoformat() if row[10] else None,
+                'data_atualizacao': row[11].isoformat() if row[11] else None
+            }
         
         return jsonify(funcionario), 200
     
