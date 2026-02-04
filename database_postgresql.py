@@ -3452,7 +3452,7 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
                 s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
                 s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
                 s.created_at, s.updated_at,
-                c.nome AS cliente_nome, c.razao_social AS cliente_razao_social,
+                c.nome AS cliente_nome,
                 ct.numero AS contrato_numero, ct.descricao AS contrato_nome
             FROM sessoes s
             LEFT JOIN clientes c ON s.cliente_id = c.id
@@ -3477,7 +3477,7 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
             sessao = {
                 'id': row['id'],
                 'cliente_id': row['cliente_id'],
-                'cliente_nome': row['cliente_nome'] or row['cliente_razao_social'] or '-',
+                'cliente_nome': row['cliente_nome'] or '-',
                 'contrato_id': row['contrato_id'],
                 'contrato_numero': row['contrato_numero'],
                 'contrato_nome': row['contrato_nome'],
