@@ -6422,6 +6422,18 @@
             window.loadFuncionarios = loadFuncionarios;
             console.log('✅ window.loadFuncionarios sobrescrita com sucesso');
         }, 100);
+        
+        setTimeout(() => {
+            console.log('🔄 Segunda sobrescrita de loadFuncionarios (500ms)...');
+            window.loadFuncionarios = loadFuncionarios;
+            console.log('✅ Segunda sobrescrita concluída');
+        }, 500);
+        
+        setTimeout(() => {
+            console.log('🔄 Terceira sobrescrita de loadFuncionarios (1000ms)...');
+            window.loadFuncionarios = loadFuncionarios;
+            console.log('✅ Terceira sobrescrita concluída - Função final ativa');
+        }, 1000);
 
         // ====================================
         // EVENTOS OPERACIONAIS
