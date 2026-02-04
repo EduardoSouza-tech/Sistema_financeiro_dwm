@@ -6,6 +6,7 @@ import secrets
 import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
+from flask import session as flask_session
 
 # Importação opcional do bcrypt (para compatibilidade durante deploy)
 try:
@@ -314,17 +315,21 @@ def validar_sessao(token: str, db) -> Optional[Dict]:
     empresas_rows = cursor.fetchall()
     empresas = [row['empresa_id'] if isinstance(row, dict) else row[0] for row in empresas_rows]
     
+    print(f"🔍 [validar_sessao] Usuario {sessao['username']} tem empresas: {empresas}")
+    
     # Determinar empresa_id (da sessão ou primeira disponível)
-    from flask import session as flask_session
     empresa_id = flask_session.get('empresa_id')
+    print(f"🔍 [validar_sessao] empresa_id da sessão: {empresa_id}")
+    
     if not empresa_id and empresas:
         empresa_id = empresas[0]
         flask_session['empresa_id'] = empresa_id
+        print(f"🔍 [validar_sessao] Definindo empresa_id como: {empresa_id}")
     
     cursor.close()
     conn.close()
     
-    return {
+    resultado = {
         'id': sessao['usuario_id'],
         'username': sessao['username'],
         'tipo': sessao['tipo'],
@@ -334,6 +339,9 @@ def validar_sessao(token: str, db) -> Optional[Dict]:
         'empresa_id': empresa_id,
         'empresas': empresas
     }
+    
+    print(f"✅ [validar_sessao] Retornando: empresa_id={empresa_id}, empresas={empresas}")
+    return resultado
 
 
 def invalidar_sessao(token: str, db) -> bool:
