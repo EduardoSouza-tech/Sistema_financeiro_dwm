@@ -1,5 +1,6 @@
 """
 Funções de Autenticação e Autorização
+VERSÃO: 2026-02-04-18:25 - FORCE RELOAD
 """
 import hashlib
 import secrets
