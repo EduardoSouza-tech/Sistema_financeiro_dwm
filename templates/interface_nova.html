@@ -2191,25 +2191,25 @@
                 </div>
 
                 <!-- Tabela de Funcionários -->
-                <div class="table-container" style="overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse; min-width: 2000px;">
+                <div class="table-container" style="overflow-x: auto; width: 100%; border: 1px solid #ddd; border-radius: 4px;">
+                    <table style="width: 100%; border-collapse: collapse; min-width: 2000px; table-layout: fixed;">
                         <thead>
                             <tr style="background-color: #f5f5f5 !important;">
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 200px;">Nome</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 120px;">CPF</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 100px;">Nacionalidade</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 100px;">Estado Civil</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 100px;">Data Nasc.</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; min-width: 60px;">Idade</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 150px;">Profissão</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 250px;">Endereço</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 80px;">CEP</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 200px;">E-mail</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 120px;">Celular</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 150px;">Chave PIX</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 120px;">PIS/PASEP</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; min-width: 80px;">Status</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; min-width: 120px;">Ações</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 200px; position: sticky; left: 0; background: #f5f5f5; z-index: 10;">Nome</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 120px;">CPF</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 100px;">Nacionalidade</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 100px;">Estado Civil</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 100px;">Data Nasc.</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; width: 60px;">Idade</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 150px;">Profissão</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 250px;">Endereço</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 100px;">CEP</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 200px;">E-mail</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 120px;">Celular</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 150px;">Chave PIX</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 120px;">PIS/PASEP</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; width: 80px;">Status</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; width: 120px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="tbody-funcionarios">
@@ -6123,6 +6123,7 @@
             const tbody = document.getElementById('tbody-funcionarios');
 
             if (funcionarios && funcionarios.length > 0) {
+                console.log('📊 Primeiro funcionário:', funcionarios[0]);
                 tbody.innerHTML = funcionarios.map(func => {
                     const ativoStatus = func.ativo ? true : false;
                     
@@ -6141,7 +6142,7 @@
                     
                     return `
                     <tr>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.nome || '-'}</td>
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px; position: sticky; left: 0; background: white; z-index: 9;">${func.nome || '-'}</td>
                         <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${formatarCPF(func.cpf)}</td>
                         <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.nacionalidade || '-'}</td>
                         <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.estado_civil || '-'}</td>
@@ -6154,7 +6155,7 @@
                         <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.celular || '-'}</td>
                         <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.chave_pix || '-'}</td>
                         <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.pis_pasep || '-'}</td>
-                        <td style="text-align: center; padding: 8px;"><span class="badge badge-${ativoStatus ? 'success' : 'danger'}">${ativoStatus ? 'Ativo' : 'Inativo'}</span></td>
+                        <td style="text-align: center; padding: 8px;"><span class="badge badge-${ativoStatus ? 'success' : 'danger'}" style="padding: 4px 8px; border-radius: 12px; font-size: 11px; background: ${ativoStatus ? '#27ae60' : '#e74c3c'}; color: white;">${ativoStatus ? 'ATIVO' : 'INATIVO'}</span></td>
                         <td style="text-align: center; padding: 8px;">
                             <button onclick='editarFuncionario(${func.id})' class="btn btn-sm btn-primary" title="Editar">✏️</button>
                             <button onclick="toggleAtivoFuncionario(${func.id}, ${ativoStatus})" class="btn btn-sm btn-${ativoStatus ? 'warning' : 'success'}" title="${ativoStatus ? 'Inativar' : 'Ativar'}">
