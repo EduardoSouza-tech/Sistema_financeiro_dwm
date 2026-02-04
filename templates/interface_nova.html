@@ -6966,15 +6966,6 @@
                         const equipe = result.equipe || result;
 
                         if (equipe && equipe.length > 0) {
-                            // Adicionar cabeçalho do evento
-                            html += `
-                                <tr style="background: #3498db; color: white;">
-                                    <td colspan="8" style="padding: 12px; border: 1px solid #ddd; font-weight: bold; font-size: 14px;">
-                                        🎉 ${evento.nome} - ${evento.data_evento || 'Sem data'}
-                                    </td>
-                                </tr>
-                            `;
-
                             equipe.forEach((item) => {
                         const horaInicio = item.hora_inicio || '--:--';
                         const horaFim = item.hora_fim || '--:--';
@@ -7046,19 +7037,14 @@
             const data = [];
             
             // Adicionar cabeçalho
-            data.push(['Evento', 'Cooperado', 'CPF', 'E-mail', 'Função', 'Setor', 'Hora Início', 'Hora Fim', 'Total Trabalhado']);
+            data.push(['Cooperado', 'CPF', 'E-mail', 'Função', 'Setor', 'Hora Início', 'Hora Fim', 'Total Trabalhado']);
             
-            let eventoAtual = '';
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
                 
-                // Verificar se é linha de cabeçalho de evento (background azul)
-                if (cells.length === 1 && cells[0].colSpan === 8) {
-                    eventoAtual = cells[0].textContent.trim();
-                } else if (cells.length === 8) {
-                    // Linha de dados do cooperado
+                // Apenas processar linhas de dados (8 células)
+                if (cells.length === 8) {
                     data.push([
-                        eventoAtual,
                         cells[0].textContent.trim(),
                         cells[1].textContent.trim(),
                         cells[2].textContent.trim(),
@@ -7200,43 +7186,29 @@
                     </div>
             `;
 
-            let eventoAtual = '';
-            let tableOpen = false;
+            // Criar tabela única com todos os dados
+            html += `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cooperado</th>
+                            <th>CPF</th>
+                            <th>E-mail</th>
+                            <th>Função</th>
+                            <th>Setor</th>
+                            <th style="text-align: center;">H. Início</th>
+                            <th style="text-align: center;">H. Fim</th>
+                            <th style="text-align: center;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
             
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
                 
-                // Verificar se é linha de cabeçalho de evento
-                if (cells.length === 1 && cells[0].colSpan === 8) {
-                    // Fechar tabela anterior se existir
-                    if (tableOpen) {
-                        html += '</tbody></table>';
-                        tableOpen = false;
-                    }
-                    
-                    eventoAtual = cells[0].textContent.trim();
-                    html += `<div class="evento-header">${eventoAtual}</div>`;
-                    
-                    // Abrir nova tabela
-                    html += `
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Cooperado</th>
-                                    <th>CPF</th>
-                                    <th>E-mail</th>
-                                    <th>Função</th>
-                                    <th>Setor</th>
-                                    <th style="text-align: center;">H. Início</th>
-                                    <th style="text-align: center;">H. Fim</th>
-                                    <th style="text-align: center;">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                    `;
-                    tableOpen = true;
-                } else if (cells.length === 8 && tableOpen) {
-                    // Linha de dados do cooperado
+                // Apenas processar linhas de dados (8 células)
+                if (cells.length === 8) {
                     html += `
                         <tr>
                             <td>${cells[0].textContent.trim()}</td>
@@ -7252,10 +7224,8 @@
                 }
             });
             
-            // Fechar última tabela
-            if (tableOpen) {
-                html += '</tbody></table>';
-            }
+            // Fechar tabela
+            html += '</tbody></table>';
             
             const totalCooperados = document.getElementById('credenciamento-total-cooperados').textContent;
             html += `
