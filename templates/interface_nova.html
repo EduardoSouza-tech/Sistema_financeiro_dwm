@@ -2182,22 +2182,12 @@
                             style="padding: 10px 20px; background: #27ae60;">
                         📥 Exportar Excel
                     </button>
-                </div>
-
-                <!-- Estatísticas -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #3498db; color: white; padding: 15px; border-radius: 8px;">
-                        <div style="font-size: 14px; opacity: 0.9;">Total de Funcionários</div>
-                        <div id="total-funcionarios" style="font-size: 32px; font-weight: bold;">0</div>
-                    </div>
-                    <div style="background: #27ae60; color: white; padding: 15px; border-radius: 8px;">
-                        <div style="font-size: 14px; opacity: 0.9;">Ativos</div>
-                        <div id="total-ativos" style="font-size: 32px; font-weight: bold;">0</div>
-                    </div>
-                    <div style="background: #e74c3c; color: white; padding: 15px; border-radius: 8px;">
-                        <div style="font-size: 14px; opacity: 0.9;">Inativos</div>
-                        <div id="total-inativos" style="font-size: 32px; font-weight: bold;">0</div>
-                    </div>
+                    
+                    <span style="margin-left: 15px; font-size: 14px; color: #666;">
+                        📊 Total: <strong id="total-funcionarios">0</strong> | 
+                        ✅ Ativos: <strong id="total-ativos" style="color: #27ae60;">0</strong> | 
+                        ❌ Inativos: <strong id="total-inativos" style="color: #e74c3c;">0</strong>
+                    </span>
                 </div>
 
                 <!-- Tabela de Funcionários -->
@@ -6179,19 +6169,34 @@
         }
 
         function filtrarFuncionarios() {
-            const busca = document.getElementById('busca-funcionario').value.toLowerCase();
-            const status = document.getElementById('filtro-status-funcionario').value;
+            const busca = document.getElementById('busca-funcionario')?.value.toLowerCase() || '';
+            const status = document.getElementById('filtro-status-funcionario')?.value || '';
             
-            let filtered = funcionariosGlobal;
+            let filtered = [...funcionariosGlobal];
             
+            // Filtro de busca (nome, CPF, email, celular, profissão, endereço)
             if (busca) {
-                filtered = filtered.filter(f => 
-                    (f.nome && f.nome.toLowerCase().includes(busca)) ||
-                    (f.cpf && f.cpf.includes(busca)) ||
-                    (f.email && f.email.toLowerCase().includes(busca))
-                );
+                filtered = filtered.filter(f => {
+                    const nome = (f.nome || '').toLowerCase();
+                    const cpf = (f.cpf || '').replace(/\D/g, '');
+                    const email = (f.email || '').toLowerCase();
+                    const celular = (f.celular || '').replace(/\D/g, '');
+                    const profissao = (f.profissao || '').toLowerCase();
+                    const cidade = (f.cidade || '').toLowerCase();
+                    const estado = (f.estado || '').toLowerCase();
+                    const buscaSemFormatacao = busca.replace(/\D/g, '');
+                    
+                    return nome.includes(busca) ||
+                           cpf.includes(buscaSemFormatacao) ||
+                           email.includes(busca) ||
+                           celular.includes(buscaSemFormatacao) ||
+                           profissao.includes(busca) ||
+                           cidade.includes(busca) ||
+                           estado.includes(busca);
+                });
             }
             
+            // Filtro de status
             if (status !== '') {
                 const isAtivo = status === 'true';
                 filtered = filtered.filter(f => f.ativo === isAtivo);
