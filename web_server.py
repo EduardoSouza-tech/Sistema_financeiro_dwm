@@ -3955,7 +3955,14 @@ def listar_funcionarios():
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
+        logger.info(f"🔍 [FUNCIONARIOS] Usuario: {usuario.get('username')}")
+        logger.info(f"   cliente_id: {usuario.get('cliente_id')}")
+        logger.info(f"   empresa_id: {usuario.get('empresa_id')}")
+        logger.info(f"   empresas: {usuario.get('empresas', [])}")
+        
         empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        logger.info(f"   ➡️ empresa_id final: {empresa_id}")
+        
         if not empresa_id:
             return jsonify({'error': 'Empresa não identificada'}), 400
         
@@ -3972,8 +3979,10 @@ def listar_funcionarios():
             ORDER BY nome ASC
         """
         
+        logger.info(f"🔍 [FUNCIONARIOS] Executando query com empresa_id = {empresa_id}")
         cursor.execute(query, (empresa_id,))
         rows = cursor.fetchall()
+        logger.info(f"✅ [FUNCIONARIOS] Encontrados {len(rows)} funcionários")
         cursor.close()
         
         funcionarios = []
