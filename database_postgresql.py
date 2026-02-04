@@ -4558,10 +4558,11 @@ def criar_sessao(usuario_id: int, ip_address: str, user_agent: str) -> str:
 
 def validar_sessao(token: str) -> Optional[Dict]:
     """
-    Valida uma sessi?o e retorna os dados do usui?rio
+    Valida uma sessão e retorna os dados do usuário
+    ATUALIZADO: 2026-02-04 18:30 - Incluir empresas associadas
     
     Returns:
-        Dict com dados do usui?rio se sessi?o vi?lida, None caso contri?rio
+        Dict com dados do usuário se sessão válida, None caso contrário
     """
     db = DatabaseManager()
     conn = db.get_connection()
@@ -4581,15 +4582,38 @@ def validar_sessao(token: str) -> Optional[Dict]:
         if not sessao:
             return None
         
-        # Verificar expirai?i?o
+        # Verificar expiração
         from datetime import datetime
         if sessao['expira_em'] < datetime.now():
-            # Sessi?o expirada - desativar
+            # Sessão expirada - desativar
             cursor.execute("""
                 UPDATE sessoes_login SET ativo = FALSE WHERE session_token = %s
             """, (token,))
             conn.commit()
             return None
+        
+        # 🔥 NOVO: Buscar empresas associadas ao usuário
+        cursor.execute("""
+            SELECT empresa_id
+            FROM usuario_empresas
+            WHERE usuario_id = %s
+            ORDER BY empresa_id
+        """, (sessao['usuario_id'],))
+        
+        empresas_rows = cursor.fetchall()
+        empresas = [row['empresa_id'] if isinstance(row, dict) else row[0] for row in empresas_rows]
+        
+        print(f"🔍 [validar_sessao DB] Usuario {sessao['username']} tem empresas: {empresas}")
+        
+        # Determinar empresa_id (da sessão ou primeira disponível)
+        from flask import session as flask_session
+        empresa_id = flask_session.get('empresa_id')
+        print(f"🔍 [validar_sessao DB] empresa_id da sessão Flask: {empresa_id}")
+        
+        if not empresa_id and empresas:
+            empresa_id = empresas[0]
+            flask_session['empresa_id'] = empresa_id
+            print(f"🔍 [validar_sessao DB] Definindo empresa_id como: {empresa_id}")
         
         usuario_retorno = {
             'id': sessao['usuario_id'],
@@ -4597,9 +4621,12 @@ def validar_sessao(token: str) -> Optional[Dict]:
             'tipo': sessao['tipo'],
             'nome_completo': sessao['nome_completo'],
             'email': sessao['email'],
-            'cliente_id': sessao['cliente_id']
+            'cliente_id': sessao['cliente_id'],
+            'empresa_id': empresa_id,
+            'empresas': empresas
         }
         
+        print(f"✅ [validar_sessao DB] Retornando: empresa_id={empresa_id}, empresas={empresas}")
         return usuario_retorno
     finally:
         cursor.close()
