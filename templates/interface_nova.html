@@ -5360,8 +5360,9 @@
                 if (typeof carregarContasBancariasExtrato === 'function') carregarContasBancariasExtrato();
                 if (typeof loadExtratoTransacoes === 'function') loadExtratoTransacoes();
             } else if (sectionId === 'folha-pagamento') {
-                console.log('  ➡️ loadFuncionarios:', typeof loadFuncionarios);
-                if (typeof loadFuncionarios === 'function') loadFuncionarios();
+                console.log('  🎯 CHAMANDO FUNÇÃO LOCAL loadFuncionarios (NÃO window.loadFuncionarios)');
+                // Chama a função LOCAL definida neste arquivo, não a do app.js
+                loadFuncionariosLocal();
             } else if (sectionId === 'eventos') {
                 console.log('  ➡️ loadEventos:', typeof loadEventos);
                 if (typeof loadEventos === 'function') loadEventos();
@@ -6092,8 +6093,8 @@
 
         let funcionariosGlobal = [];
 
-        async function loadFuncionarios() {
-            console.log('🔵 loadFuncionarios do INTERFACE_NOVA.HTML sendo executada');
+        async function loadFuncionariosLocal() {
+            console.log('🔵🔵🔵 loadFuncionariosLocal() do INTERFACE_NOVA.HTML sendo executada');
             try {
                 const response = await fetch('/api/funcionarios', {
                     credentials: 'include'
@@ -6106,6 +6107,8 @@
                 
                 const result = await response.json();
                 funcionariosGlobal = result.funcionarios || [];
+                
+                console.log('🎯 Dados recebidos:', funcionariosGlobal.length, 'funcionários');
 
                 // Atualizar estatísticas
                 const total = funcionariosGlobal.length;
@@ -6119,7 +6122,7 @@
                 renderFuncionarios(funcionariosGlobal);
                 
             } catch (error) {
-                console.error('Erro ao carregar funcionários:', error);
+                console.error('❌ Erro ao carregar funcionários:', error);
                 showToast(error.message || 'Erro ao carregar funcionários', 'error');
                 document.getElementById('tbody-funcionarios').innerHTML = '<tr><td colspan="15" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>';
             }
@@ -6404,11 +6407,10 @@
             }
         }
 
-        // Expor funções globalmente
+        // Expor funções globalmente (exceto loadFuncionariosLocal - usamos diretamente no showSection)
         window.abrirModalFuncionario = abrirModalFuncionario;
         window.fecharModalFuncionario = fecharModalFuncionario;
         window.salvarFuncionario = salvarFuncionario;
-        window.loadFuncionarios = loadFuncionarios;
         window.toggleAtivoFuncionario = toggleAtivoFuncionario;
         window.formatarCPF = formatarCPF;
         window.filtrarFuncionarios = filtrarFuncionarios;
@@ -6416,24 +6418,8 @@
         window.editarFuncionario = editarFuncionario;
         window.exportarFuncionariosExcel = exportarFuncionariosExcel;
 
-        // Garantir que a função correta seja usada mesmo após app.js carregar
-        setTimeout(() => {
-            console.log('🔄 Forçando sobrescrita de loadFuncionarios...');
-            window.loadFuncionarios = loadFuncionarios;
-            console.log('✅ window.loadFuncionarios sobrescrita com sucesso');
-        }, 100);
-        
-        setTimeout(() => {
-            console.log('🔄 Segunda sobrescrita de loadFuncionarios (500ms)...');
-            window.loadFuncionarios = loadFuncionarios;
-            console.log('✅ Segunda sobrescrita concluída');
-        }, 500);
-        
-        setTimeout(() => {
-            console.log('🔄 Terceira sobrescrita de loadFuncionarios (1000ms)...');
-            window.loadFuncionarios = loadFuncionarios;
-            console.log('✅ Terceira sobrescrita concluída - Função final ativa');
-        }, 1000);
+        console.log('✅ Funções de Folha de Pagamento carregadas (loadFuncionariosLocal LOCAL, sem conflito com app.js)');
+
 
         // ====================================
         // EVENTOS OPERACIONAIS
