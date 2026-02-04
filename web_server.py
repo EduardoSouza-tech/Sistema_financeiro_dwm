@@ -2587,12 +2587,33 @@ def listar_clientes():
 def adicionar_cliente():
     """Adiciona um novo cliente"""
     try:
+        from flask import session
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
         data = request.json
+        
+        # Validar campos obrigatórios
+        if not data.get('nome'):
+            return jsonify({'success': False, 'error': 'Nome do cliente é obrigatório'}), 400
+        
+        # 🔒 Garantir que empresa_id está nos dados
+        data['empresa_id'] = empresa_id
         proprietario_id = getattr(request, 'filtro_cliente_id', None)
         
+        print(f"\n🔍 [POST /api/clientes] Adicionando cliente:")
+        print(f"   - empresa_id: {empresa_id}")
+        print(f"   - nome: {data.get('nome')}")
+        print(f"   - proprietario_id: {proprietario_id}")
+        
         cliente_id = db.adicionar_cliente(data, proprietario_id=proprietario_id)  # type: ignore
+        print(f"   ✅ Cliente criado com ID: {cliente_id}")
         return jsonify({'success': True, 'id': cliente_id})
     except Exception as e:
+        print(f"   ❌ Erro ao criar cliente: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
 
 

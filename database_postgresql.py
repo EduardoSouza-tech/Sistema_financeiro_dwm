@@ -1951,11 +1951,8 @@ class DatabaseManager:
     def adicionar_cliente(self, cliente_data, cpf_cnpj: str = None, 
                          email: str = None, telefone: str = None,
                          endereco: str = None, proprietario_id: int = None) -> int:
-        """Adiciona um novo cliente (aceita dict ou pari?metros individuais)"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        # Aceitar dict ou pari?metros individuais
+        """Adiciona um novo cliente (aceita dict ou parâmetros individuais)"""
+        # Aceitar dict ou parâmetros individuais
         if isinstance(cliente_data, dict):
             nome = cliente_data.get('nome')
             cpf_cnpj = cliente_data.get('cpf', cliente_data.get('cpf_cnpj'))
@@ -1963,19 +1960,31 @@ class DatabaseManager:
             telefone = cliente_data.get('telefone')
             endereco = cliente_data.get('endereco')
             proprietario_id = cliente_data.get('proprietario_id', proprietario_id)
+            empresa_id = cliente_data.get('empresa_id')  # 🔒 Pegar empresa_id
         else:
             nome = cliente_data
+            empresa_id = None
         
-        cursor.execute("""
-            INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco, proprietario_id)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (nome, cpf_cnpj, email, telefone, endereco, proprietario_id))
+        # 🔒 Validar empresa_id obrigatório
+        if not empresa_id:
+            from flask import session
+            empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            raise ValueError("empresa_id é obrigatório para adicionar cliente")
         
-        cliente_id = cursor.fetchone()['id']
-        conn.commit()
-        cursor.close()
-        return_to_pool(conn)  # Devolver ao pool
+        # 🔒 Usar get_db_connection com empresa_id para aplicar RLS
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco, proprietario_id, empresa_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (nome, cpf_cnpj, email, telefone, endereco, proprietario_id, empresa_id))
+            
+            cliente_id = cursor.fetchone()['id']
+            conn.commit()
+        
         return cliente_id
     
     def listar_clientes(self, ativos: bool = True, filtro_cliente_id: int = None) -> List[Dict]:
