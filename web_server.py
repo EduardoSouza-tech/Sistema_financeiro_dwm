@@ -4992,12 +4992,25 @@ def adicionar_funcionario_evento(evento_id):
         
         custo_total = cursor.fetchone()['total']
         
-        # Atualizar custo do evento
+        # Buscar valor_liquido_nf para recalcular margem
+        cursor.execute("""
+            SELECT valor_liquido_nf
+            FROM eventos
+            WHERE id = %s
+        """, (evento_id,))
+        
+        evento_row = cursor.fetchone()
+        valor_liquido = evento_row['valor_liquido_nf'] if evento_row and evento_row['valor_liquido_nf'] else 0
+        
+        # Calcular margem: Valor Líquido - Custo
+        margem = float(valor_liquido) - float(custo_total)
+        
+        # Atualizar custo do evento E margem
         cursor.execute("""
             UPDATE eventos
-            SET custo_evento = %s
+            SET custo_evento = %s, margem = %s
             WHERE id = %s
-        """, (custo_total, evento_id))
+        """, (custo_total, margem, evento_id))
         
         conn.commit()
         cursor.close()
@@ -5045,12 +5058,25 @@ def remover_funcionario_evento(alocacao_id):
         
         custo_total = cursor.fetchone()['total']
         
-        # Atualizar custo do evento
+        # Buscar valor_liquido_nf para recalcular margem
+        cursor.execute("""
+            SELECT valor_liquido_nf
+            FROM eventos
+            WHERE id = %s
+        """, (evento_id,))
+        
+        evento_row = cursor.fetchone()
+        valor_liquido = evento_row['valor_liquido_nf'] if evento_row and evento_row['valor_liquido_nf'] else 0
+        
+        # Calcular margem: Valor Líquido - Custo
+        margem = float(valor_liquido) - float(custo_total)
+        
+        # Atualizar custo do evento E margem
         cursor.execute("""
             UPDATE eventos
-            SET custo_evento = %s
+            SET custo_evento = %s, margem = %s
             WHERE id = %s
-        """, (custo_total, evento_id))
+        """, (custo_total, margem, evento_id))
         
         conn.commit()
         cursor.close()
