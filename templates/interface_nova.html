@@ -6926,9 +6926,17 @@
                 }
 
                 const eventosResult = await eventosResponse.json();
-                const eventos = eventosResult.data || eventosResult;
+                
+                // Garantir que temos um array
+                let eventos = eventosResult.data || eventosResult;
+                if (!Array.isArray(eventos)) {
+                    console.error('Eventos não é um array:', eventos);
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #e74c3c;">Formato de dados inválido</td></tr>';
+                    totalElement.textContent = '0';
+                    return;
+                }
 
-                if (!eventos || eventos.length === 0) {
+                if (eventos.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Nenhum evento cadastrado</td></tr>';
                     totalElement.textContent = '0';
                     return;
