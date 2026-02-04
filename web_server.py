@@ -120,7 +120,31 @@ def auto_execute_migrations():
         count = cursor.fetchone()[0]
         
         if count == 2:
-            logger.info("✅ Tabelas já existem. Skip migration.")
+            logger.info("✅ Tabelas já existem. Verificando colunas adicionais...")
+            
+            # Adicionar colunas de horário se não existirem
+            try:
+                cursor.execute("""
+                    ALTER TABLE evento_funcionarios 
+                    ADD COLUMN IF NOT EXISTS hora_inicio TIME
+                """)
+                conn.commit()
+                logger.info("✅ Coluna hora_inicio adicionada/verificada em evento_funcionarios")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao adicionar coluna hora_inicio: {e}")
+                conn.rollback()
+            
+            try:
+                cursor.execute("""
+                    ALTER TABLE evento_funcionarios 
+                    ADD COLUMN IF NOT EXISTS hora_fim TIME
+                """)
+                conn.commit()
+                logger.info("✅ Coluna hora_fim adicionada/verificada em evento_funcionarios")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao adicionar coluna hora_fim: {e}")
+                conn.rollback()
+            
             cursor.close()
             return
         
