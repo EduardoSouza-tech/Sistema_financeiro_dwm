@@ -3982,8 +3982,8 @@ def criar_funcionario():
         
         query = """
             INSERT INTO funcionarios 
-            (empresa_id, nome, cpf, endereco, tipo_chave_pix, chave_pix, data_admissao, observacoes, ativo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (empresa_id, nome, cpf, endereco, email, tipo_chave_pix, chave_pix, data_admissao, observacoes, ativo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """
         
@@ -3992,6 +3992,7 @@ def criar_funcionario():
             dados['nome'],
             cpf,
             dados.get('endereco'),
+            dados.get('email'),
             dados['tipo_chave_pix'],
             dados.get('chave_pix'),
             dados.get('data_admissao') if dados.get('data_admissao') else None,
@@ -4063,6 +4064,10 @@ def atualizar_funcionario(funcionario_id):
         if 'endereco' in dados:
             campos_update.append("endereco = %s")
             valores.append(dados['endereco'])
+        
+        if 'email' in dados:
+            campos_update.append("email = %s")
+            valores.append(dados['email'])
         
         if 'tipo_chave_pix' in dados:
             campos_update.append("tipo_chave_pix = %s")
@@ -4844,11 +4849,15 @@ def listar_equipe_evento(evento_id):
                 ef.id,
                 ef.funcionario_id,
                 f.nome as funcionario_nome,
+                f.cpf as funcionario_cpf,
+                f.email as funcionario_email,
                 ef.funcao_id,
                 ef.funcao_nome,
                 ef.setor_id,
                 s.nome as setor_nome,
                 ef.valor,
+                ef.hora_inicio,
+                ef.hora_fim,
                 ef.observacoes
             FROM evento_funcionarios ef
             INNER JOIN funcionarios f ON f.id = ef.funcionario_id
@@ -4863,11 +4872,15 @@ def listar_equipe_evento(evento_id):
                 'id': row['id'],
                 'funcionario_id': row['funcionario_id'],
                 'funcionario_nome': row['funcionario_nome'],
+                'funcionario_cpf': row['funcionario_cpf'],
+                'funcionario_email': row['funcionario_email'],
                 'funcao_id': row['funcao_id'],
                 'funcao_nome': row['funcao_nome'],
                 'setor_id': row['setor_id'],
                 'setor_nome': row['setor_nome'],
                 'valor': float(row['valor']) if row['valor'] else 0.0,
+                'hora_inicio': str(row['hora_inicio']) if row['hora_inicio'] else None,
+                'hora_fim': str(row['hora_fim']) if row['hora_fim'] else None,
                 'observacoes': row['observacoes']
             })
         
@@ -4895,6 +4908,8 @@ def adicionar_funcionario_evento(evento_id):
         funcao_id = dados.get('funcao_id')
         setor_id = dados.get('setor_id')  # Opcional
         valor = dados.get('valor', 0)
+        hora_inicio = dados.get('hora_inicio')  # Opcional
+        hora_fim = dados.get('hora_fim')  # Opcional
         
         if not funcionario_id or not funcao_id:
             return jsonify({'error': 'Funcionário e função são obrigatórios'}), 400
@@ -4921,12 +4936,13 @@ def adicionar_funcionario_evento(evento_id):
             cursor.close()
             return jsonify({'error': 'Este funcionário já está alocado com esta função neste evento'}), 400
         
-        # Inserir alocação (com setor_id se fornecido)
+        # Inserir alocação (com setor_id, hora_inicio e hora_fim se fornecidos)
         cursor.execute("""
-            INSERT INTO evento_funcionarios (evento_id, funcionario_id, funcao_id, funcao_nome, setor_id, valor)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO evento_funcionarios 
+            (evento_id, funcionario_id, funcao_id, funcao_nome, setor_id, valor, hora_inicio, hora_fim)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (evento_id, funcionario_id, funcao_id, funcao_nome, setor_id, valor))
+        """, (evento_id, funcionario_id, funcao_id, funcao_nome, setor_id, valor, hora_inicio, hora_fim))
         
         alocacao_id = cursor.fetchone()['id']
         

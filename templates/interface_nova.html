@@ -2452,7 +2452,7 @@
                                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px;">
                                             <div>
                                                 <label style="display: block; margin-bottom: 3px; font-size: 12px; color: #777;">Início:</label>
-                                                <input type="time" id="equipe-hora-inicio" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                                                <input type="time" id="equipe-hora-inicio" onchange="calcularSaldoHoras()" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
                                             </div>
                                             <div>
                                                 <label style="display: block; margin-bottom: 3px; font-size: 12px; color: #777;">Fim:</label>
@@ -2504,12 +2504,31 @@
 
                                     <!-- Selecionar Múltiplos Funcionários -->
                                     <div>
-                                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Funcionários (selecione múltiplos): <span style="color: red;">*</span></label>
-                                        <input type="text" id="equipe-search-funcionarios-massa" placeholder="🔍 Pesquisar funcionários..." oninput="filtrarFuncionarios('massa')" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px;">
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Cooperados (selecione múltiplos): <span style="color: red;">*</span></label>
+                                        <input type="text" id="equipe-search-funcionarios-massa" placeholder="🔍 Pesquisar cooperados..." oninput="filtrarFuncionarios('massa')" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px;">
                                         <select id="equipe-select-funcionarios-massa" multiple required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 200px;">
                                             <!-- Preenchido via JS -->
                                         </select>
                                         <small style="color: #777; display: block; margin-top: 5px;">💡 Segure Ctrl (Windows) ou Cmd (Mac) para selecionar múltiplos</small>
+                                    </div>
+
+                                    <!-- Horários (Aplicados a Todos) -->
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Horários (aplicados a todos):</label>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                                            <div>
+                                                <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #777;">Hora Início:</label>
+                                                <input type="time" id="equipe-hora-inicio-massa" onchange="calcularSaldoHorasMassa()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            </div>
+                                            <div>
+                                                <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #777;">Hora Fim:</label>
+                                                <input type="time" id="equipe-hora-fim-massa" onchange="calcularSaldoHorasMassa()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            </div>
+                                            <div>
+                                                <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #777;">Saldo de Horas:</label>
+                                                <input type="text" id="equipe-saldo-horas-massa" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-weight: bold; text-align: center;" placeholder="--:--">
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <!-- Valor Único (Opcional) -->
@@ -2598,6 +2617,48 @@
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <strong style="font-size: 16px; color: #2c3e50;">💰 Custo Total da Equipe:</strong>
                                 <strong style="font-size: 20px; color: #27ae60;" id="equipe-custo-total">R$ 0,00</strong>
+                            </div>
+                        </div>
+
+                        <!-- Aba Credenciamento -->
+                        <div id="form-container-credenciamento" style="display: none;">
+                            <div style="margin-bottom: 20px;">
+                                <label for="credenciamento-select-evento" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">📋 Selecionar Evento:</label>
+                                <select id="credenciamento-select-evento" onchange="carregarCredenciamento()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                                    <option value="">Selecione um evento...</option>
+                                </select>
+                            </div>
+
+                            <div class="table-container" style="max-height: 500px; overflow-y: auto;">
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="background: #f8f9fa; position: sticky; top: 0; z-index: 1;">
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Cooperado</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">CPF</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">E-mail</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Função</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Setor</th>
+                                            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Hora Início</th>
+                                            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Hora Fim</th>
+                                            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Total Trabalhado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-credenciamento-evento">
+                                        <tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Selecione um evento para visualizar</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div style="margin-top: 20px; padding: 15px; background: #e8f4fd; border-radius: 8px; border-left: 4px solid #3498db;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <strong style="font-size: 16px; color: #2c3e50;">👥 Total de Cooperados:</strong>
+                                    <strong style="font-size: 18px; color: #3498db;" id="credenciamento-total-cooperados">0</strong>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                                <button type="button" onclick="exportarCredenciamento()" class="btn btn-success" style="flex: 1; padding: 10px; background: #27ae60;">📥 Exportar Excel</button>
+                                <button type="button" onclick="imprimirCredenciamento()" class="btn btn-primary" style="flex: 1; padding: 10px; background: #3498db;">🖨️ Imprimir</button>
                             </div>
                         </div>
 
@@ -5719,6 +5780,7 @@
                 document.getElementById('funcionario-nome').value = funcionario.nome;
                 document.getElementById('funcionario-cpf').value = funcionario.cpf;
                 document.getElementById('funcionario-endereco').value = funcionario.endereco || '';
+                document.getElementById('funcionario-email').value = funcionario.email || '';
                 document.getElementById('funcionario-tipo-pix').value = funcionario.tipo_chave_pix;
                 document.getElementById('funcionario-chave-pix').value = funcionario.chave_pix || '';
                 document.getElementById('funcionario-data-admissao').value = funcionario.data_admissao || '';
@@ -5745,6 +5807,7 @@
                 nome: document.getElementById('funcionario-nome').value,
                 cpf: document.getElementById('funcionario-cpf').value.replace(/\D/g, ''),
                 endereco: document.getElementById('funcionario-endereco').value,
+                email: document.getElementById('funcionario-email').value,
                 tipo_chave_pix: document.getElementById('funcionario-tipo-pix').value,
                 chave_pix: document.getElementById('funcionario-chave-pix').value,
                 data_admissao: document.getElementById('funcionario-data-admissao').value || null,
@@ -6235,6 +6298,8 @@
             const funcaoId = document.getElementById('equipe-select-funcao').value;
             const setorId = document.getElementById('equipe-select-setor').value;
             const valor = parseFloat(document.getElementById('equipe-valor').value);
+            const horaInicio = document.getElementById('equipe-hora-inicio').value;
+            const horaFim = document.getElementById('equipe-hora-fim').value;
 
             if (!funcionarioId || !funcaoId || !valor) {
                 showToast('⚠️ Preencha todos os campos obrigatórios', 'warning');
@@ -6252,6 +6317,14 @@
                     dados.setor_id = parseInt(setorId);
                 }
                 
+                if (horaInicio) {
+                    dados.hora_inicio = horaInicio;
+                }
+                
+                if (horaFim) {
+                    dados.hora_fim = horaFim;
+                }
+                
                 const response = await fetch(`/api/eventos/${eventoId}/equipe`, {
                     method: 'POST',
                     credentials: 'include',
@@ -6264,16 +6337,17 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    showToast('✅ Funcionário adicionado à equipe!', 'success');
+                    showToast('✅ Cooperado adicionado à equipe!', 'success');
                     document.getElementById('form-adicionar-funcionario-evento').reset();
+                    document.getElementById('equipe-saldo-horas').value = '--:--'; // Limpar saldo
                     await carregarEquipeEvento(eventoId);
                     await loadEventos(); // Atualizar tabela principal
                 } else {
-                    showToast(`❌ ${result.error || 'Erro ao adicionar funcionário'}`, 'error');
+                    showToast(`❌ ${result.error || 'Erro ao adicionar cooperado'}`, 'error');
                 }
             } catch (error) {
-                console.error('Erro ao adicionar funcionário:', error);
-                showToast('❌ Erro ao adicionar funcionário', 'error');
+                console.error('Erro ao adicionar cooperado:', error);
+                showToast('❌ Erro ao adicionar cooperado', 'error');
             }
         }
 
@@ -6309,22 +6383,88 @@
         // CADASTRO EM MASSA E ASSINATURA
         // ==========================================
 
+        // Função para calcular o saldo de horas (individual)
+        function calcularSaldoHoras() {
+            const horaInicio = document.getElementById('equipe-hora-inicio').value;
+            const horaFim = document.getElementById('equipe-hora-fim').value;
+            const saldoField = document.getElementById('equipe-saldo-horas');
+
+            if (!horaInicio || !horaFim) {
+                saldoField.value = '--:--';
+                return;
+            }
+
+            try {
+                const [h1, m1] = horaInicio.split(':').map(Number);
+                const [h2, m2] = horaFim.split(':').map(Number);
+                
+                const inicio = h1 * 60 + m1;
+                const fim = h2 * 60 + m2;
+                
+                let diferenca = fim - inicio;
+                if (diferenca < 0) {
+                    diferenca += 24 * 60; // Adiciona 24h se passou da meia-noite
+                }
+                
+                const horas = Math.floor(diferenca / 60);
+                const minutos = diferenca % 60;
+                
+                saldoField.value = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+            } catch (error) {
+                saldoField.value = '--:--';
+            }
+        }
+
+        // Função para calcular o saldo de horas (massa)
+        function calcularSaldoHorasMassa() {
+            const horaInicio = document.getElementById('equipe-hora-inicio-massa').value;
+            const horaFim = document.getElementById('equipe-hora-fim-massa').value;
+            const saldoField = document.getElementById('equipe-saldo-horas-massa');
+
+            if (!horaInicio || !horaFim) {
+                saldoField.value = '--:--';
+                return;
+            }
+
+            try {
+                const [h1, m1] = horaInicio.split(':').map(Number);
+                const [h2, m2] = horaFim.split(':').map(Number);
+                
+                const inicio = h1 * 60 + m1;
+                const fim = h2 * 60 + m2;
+                
+                let diferenca = fim - inicio;
+                if (diferenca < 0) {
+                    diferenca += 24 * 60; // Adiciona 24h se passou da meia-noite
+                }
+                
+                const horas = Math.floor(diferenca / 60);
+                const minutos = diferenca % 60;
+                
+                saldoField.value = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+            } catch (error) {
+                saldoField.value = '--:--';
+            }
+        }
+
         function trocarAbaEquipe(aba) {
             const tabIndividual = document.getElementById('tab-individual');
             const tabMassa = document.getElementById('tab-massa');
             const tabAssinatura = document.getElementById('tab-assinatura');
+            const tabCredenciamento = document.getElementById('tab-credenciamento');
             const formIndividual = document.getElementById('form-container-individual');
             const formMassa = document.getElementById('form-container-massa');
             const formAssinatura = document.getElementById('form-container-assinatura');
+            const formCredenciamento = document.getElementById('form-container-credenciamento');
 
             // Reset todos
-            [tabIndividual, tabMassa, tabAssinatura].forEach(tab => {
+            [tabIndividual, tabMassa, tabAssinatura, tabCredenciamento].forEach(tab => {
                 tab.style.background = '#ecf0f1';
                 tab.style.color = '#555';
                 tab.style.borderBottom = '3px solid transparent';
             });
 
-            [formIndividual, formMassa, formAssinatura].forEach(form => {
+            [formIndividual, formMassa, formAssinatura, formCredenciamento].forEach(form => {
                 form.style.display = 'none';
             });
 
@@ -6345,6 +6485,12 @@
                 tabAssinatura.style.borderBottom = '3px solid #e67e22';
                 formAssinatura.style.display = 'block';
                 carregarListaAssinatura(); // Carregar dados ao abrir
+            } else if (aba === 'credenciamento') {
+                tabCredenciamento.style.background = '#16a085';
+                tabCredenciamento.style.color = 'white';
+                tabCredenciamento.style.borderBottom = '3px solid #16a085';
+                formCredenciamento.style.display = 'block';
+                carregarEventosCredenciamento(); // Carregar lista de eventos
             }
         }
 
@@ -6656,6 +6802,8 @@
             const selectFuncionarios = document.getElementById('equipe-select-funcionarios-massa');
             const aplicarValor = document.getElementById('equipe-aplicar-valor-massa').checked;
             const valor = aplicarValor ? parseFloat(document.getElementById('equipe-valor-massa').value) : 0;
+            const horaInicio = document.getElementById('equipe-hora-inicio-massa').value;
+            const horaFim = document.getElementById('equipe-hora-fim-massa').value;
 
             // Pegar funcionários selecionados
             const funcionariosSelecionados = Array.from(selectFuncionarios.selectedOptions).map(opt => parseInt(opt.value));
@@ -6666,7 +6814,7 @@
             }
 
             if (funcionariosSelecionados.length === 0) {
-                showToast('⚠️ Selecione pelo menos um funcionário', 'warning');
+                showToast('⚠️ Selecione pelo menos um cooperado', 'warning');
                 return;
             }
 
@@ -6676,8 +6824,8 @@
             }
 
             // Confirmar
-            const nomeFuncao = selectFuncionarios.options[selectFuncionarios.selectedIndex].parentElement.label || 'funcionários';
-            if (!confirm(`Adicionar ${funcionariosSelecionados.length} funcionário(s) na função selecionada?`)) {
+            const nomeFuncao = selectFuncionarios.options[selectFuncionarios.selectedIndex].parentElement.label || 'cooperados';
+            if (!confirm(`Adicionar ${funcionariosSelecionados.length} cooperado(s) na função selecionada?`)) {
                 return;
             }
 
@@ -6685,7 +6833,7 @@
             let sucessos = 0;
             let erros = 0;
 
-            showToast(`⏳ Adicionando ${funcionariosSelecionados.length} funcionário(s)...`, 'info');
+            showToast(`⏳ Adicionando ${funcionariosSelecionados.length} cooperado(s)...`, 'info');
 
             for (const funcId of funcionariosSelecionados) {
                 try {
@@ -6697,6 +6845,14 @@
                     
                     if (setorId) {
                         dados.setor_id = parseInt(setorId);
+                    }
+                    
+                    if (horaInicio) {
+                        dados.hora_inicio = horaInicio;
+                    }
+                    
+                    if (horaFim) {
+                        dados.hora_fim = horaFim;
                     }
                     
                     const response = await fetch(`/api/eventos/${eventoId}/equipe`, {
@@ -6714,22 +6870,146 @@
                         erros++;
                     }
                 } catch (error) {
-                    console.error('Erro ao adicionar funcionário:', error);
+                    console.error('Erro ao adicionar cooperado:', error);
                     erros++;
                 }
             }
 
             // Resultado
             if (sucessos > 0) {
-                showToast(`✅ ${sucessos} funcionário(s) adicionado(s) com sucesso!`, 'success');
+                showToast(`✅ ${sucessos} cooperado(s) adicionado(s) com sucesso!`, 'success');
                 document.getElementById('form-adicionar-massa-evento').reset();
+                document.getElementById('equipe-saldo-horas-massa').value = '--:--'; // Limpar saldo
                 await carregarEquipeEvento(eventoId);
                 await loadEventos();
             }
 
             if (erros > 0) {
-                showToast(`⚠️ ${erros} erro(s) ao adicionar funcionário(s)`, 'warning');
+                showToast(`⚠️ ${erros} erro(s) ao adicionar cooperado(s)`, 'warning');
             }
+        }
+
+        // ==========================================
+        // CREDENCIAMENTO
+        // ==========================================
+
+        async function carregarEventosCredenciamento() {
+            const select = document.getElementById('credenciamento-select-evento');
+            
+            try {
+                const response = await fetch('/api/eventos', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const eventos = await response.json();
+                    
+                    select.innerHTML = '<option value="">Selecione um evento...</option>';
+                    
+                    eventos.forEach(evento => {
+                        const option = document.createElement('option');
+                        option.value = evento.id;
+                        option.textContent = `${evento.nome} - ${evento.data_evento || 'Sem data'}`;
+                        select.appendChild(option);
+                    });
+                } else {
+                    showToast('⚠️ Erro ao carregar eventos', 'warning');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar eventos:', error);
+                showToast('❌ Erro ao carregar eventos', 'error');
+            }
+        }
+
+        async function carregarCredenciamento() {
+            const eventoId = document.getElementById('credenciamento-select-evento').value;
+            const tbody = document.getElementById('tbody-credenciamento-evento');
+            const totalElement = document.getElementById('credenciamento-total-cooperados');
+
+            if (!eventoId) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Selecione um evento para visualizar</td></tr>';
+                totalElement.textContent = '0';
+                return;
+            }
+
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Carregando...</td></tr>';
+
+            try {
+                const response = await fetch(`/api/eventos/${eventoId}/equipe`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const equipe = await response.json();
+
+                    if (!equipe || equipe.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Nenhum cooperado alocado neste evento</td></tr>';
+                        totalElement.textContent = '0';
+                        return;
+                    }
+
+                    let html = '';
+                    equipe.forEach((item) => {
+                        const horaInicio = item.hora_inicio || '--:--';
+                        const horaFim = item.hora_fim || '--:--';
+                        let totalTrabalhado = '--:--';
+
+                        // Calcular total trabalhado se ambos os horários existirem
+                        if (item.hora_inicio && item.hora_fim) {
+                            try {
+                                const [h1, m1] = item.hora_inicio.split(':').map(Number);
+                                const [h2, m2] = item.hora_fim.split(':').map(Number);
+                                
+                                const inicio = h1 * 60 + m1;
+                                const fim = h2 * 60 + m2;
+                                
+                                let diferenca = fim - inicio;
+                                if (diferenca < 0) diferenca += 24 * 60;
+                                
+                                const horas = Math.floor(diferenca / 60);
+                                const minutos = diferenca % 60;
+                                
+                                totalTrabalhado = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+                            } catch (error) {
+                                totalTrabalhado = '--:--';
+                            }
+                        }
+
+                        html += `
+                            <tr>
+                                <td style="padding: 12px; border: 1px solid #ddd;">${item.funcionario_nome || 'N/A'}</td>
+                                <td style="padding: 12px; border: 1px solid #ddd;">${item.funcionario_cpf || 'N/A'}</td>
+                                <td style="padding: 12px; border: 1px solid #ddd;">${item.funcionario_email || 'N/A'}</td>
+                                <td style="padding: 12px; border: 1px solid #ddd;">${item.funcao_nome || 'N/A'}</td>
+                                <td style="padding: 12px; border: 1px solid #ddd;">${item.setor_nome || 'N/A'}</td>
+                                <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${horaInicio}</td>
+                                <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${horaFim}</td>
+                                <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #27ae60;">${totalTrabalhado}</td>
+                            </tr>
+                        `;
+                    });
+
+                    tbody.innerHTML = html;
+                    totalElement.textContent = equipe.length;
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #e74c3c;">Erro ao carregar dados</td></tr>';
+                    totalElement.textContent = '0';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar credenciamento:', error);
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #e74c3c;">Erro ao carregar dados</td></tr>';
+                totalElement.textContent = '0';
+            }
+        }
+
+        function exportarCredenciamento() {
+            showToast('⏳ Funcionalidade em desenvolvimento...', 'info');
+        }
+
+        function imprimirCredenciamento() {
+            showToast('⏳ Funcionalidade em desenvolvimento...', 'info');
         }
 
         // ==========================================

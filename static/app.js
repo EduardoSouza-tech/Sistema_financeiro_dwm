@@ -3686,7 +3686,7 @@ async function loadFuncionariosRH() {
         }
         
         if (funcionarios.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Nenhum funcionário cadastrado</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">Nenhum funcionário cadastrado</td></tr>';
             return;
         }
         
@@ -3695,6 +3695,7 @@ async function loadFuncionariosRH() {
                 <td style="padding: 12px 15px;">${func.nome || ''}</td>
                 <td style="padding: 12px 15px;">${func.cpf || ''}</td>
                 <td style="padding: 12px 15px;">${func.endereco || ''}</td>
+                <td style="padding: 12px 15px;">${func.email || ''}</td>
                 <td style="padding: 12px 15px;">${func.tipo_chave_pix || ''}</td>
                 <td style="padding: 12px 15px;">${func.chave_pix || ''}</td>
                 <td style="padding: 12px 15px;">
