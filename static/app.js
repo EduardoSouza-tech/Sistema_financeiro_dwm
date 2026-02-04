@@ -3939,10 +3939,10 @@ async function loadFuncionarios() {
             todosFuncionarios = data.funcionarios;
         }
         
-        // Filtrar apenas funcionários ativos para uso em novos cadastros
-        window.funcionarios = todosFuncionarios.filter(func => func.ativo !== false);
+        // Armazenar TODOS os funcionários (sem filtrar por ativo)
+        window.funcionarios = todosFuncionarios;
         
-        console.log('✅ Funcionários carregados:', window.funcionarios.length, '(apenas ativos)');
+        console.log('✅ Funcionários carregados:', window.funcionarios.length, '(todos)');
         if (window.funcionarios.length > 0) {
             console.log('   📋 Primeiro funcionário:', window.funcionarios[0]);
         }

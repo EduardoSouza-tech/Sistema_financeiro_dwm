@@ -2202,20 +2202,28 @@
 
                 <!-- Tabela de Funcionários -->
                 <div class="table-container" style="overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse;">
+                    <table style="width: 100%; border-collapse: collapse; min-width: 2000px;">
                         <thead>
                             <tr style="background-color: #f5f5f5 !important;">
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left;">Nome</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left;">CPF</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left;">Profissão</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left;">Celular</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left;">Cidade</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: center;">Status</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: center;">Ações</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 200px;">Nome</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 120px;">CPF</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 100px;">Nacionalidade</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 100px;">Estado Civil</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 100px;">Data Nasc.</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; min-width: 60px;">Idade</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 150px;">Profissão</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 250px;">Endereço</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 80px;">CEP</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 200px;">E-mail</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 120px;">Celular</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 150px;">Chave PIX</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; min-width: 120px;">PIS/PASEP</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; min-width: 80px;">Status</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; min-width: 120px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="tbody-funcionarios">
-                            <tr><td colspan="7" class="loading" style="text-align: center; padding: 20px;">Carregando...</td></tr>
+                            <tr><td colspan="15" class="loading" style="text-align: center; padding: 20px;">Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -6122,17 +6130,37 @@
             if (funcionarios && funcionarios.length > 0) {
                 tbody.innerHTML = funcionarios.map(func => {
                     const ativoStatus = func.ativo ? true : false;
-                    const endereco = [func.cidade, func.estado].filter(Boolean).join(' - ') || '-';
+                    
+                    // Montar endereço completo
+                    const enderecoCompleto = [
+                        func.rua_av,
+                        func.numero_residencia,
+                        func.complemento,
+                        func.bairro,
+                        func.cidade,
+                        func.estado
+                    ].filter(Boolean).join(', ') || '-';
+                    
+                    // Formatar data de nascimento
+                    const dataNasc = func.data_nascimento ? new Date(func.data_nascimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
                     
                     return `
                     <tr>
-                        <td style="color: #000000 !important; font-weight: 500;">${func.nome || '-'}</td>
-                        <td style="color: #000000 !important; font-weight: 500;">${formatarCPF(func.cpf)}</td>
-                        <td style="color: #000000 !important; font-weight: 500;">${func.profissao || '-'}</td>
-                        <td style="color: #000000 !important; font-weight: 500;">${func.celular || '-'}</td>
-                        <td style="color: #000000 !important; font-weight: 500;">${endereco}</td>
-                        <td style="text-align: center;"><span class="badge badge-${ativoStatus ? 'success' : 'danger'}">${ativoStatus ? 'Ativo' : 'Inativo'}</span></td>
-                        <td style="text-align: center;">
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.nome || '-'}</td>
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${formatarCPF(func.cpf)}</td>
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.nacionalidade || '-'}</td>
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.estado_civil || '-'}</td>
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${dataNasc}</td>
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px; text-align: center;">${func.idade || '-'}</td>
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.profissao || '-'}</td>
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px; font-size: 12px;">${enderecoCompleto}</td>
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.cep || '-'}</td>
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px; font-size: 12px;">${func.email || '-'}</td>
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.celular || '-'}</td>
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.chave_pix || '-'}</td>
+                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.pis_pasep || '-'}</td>
+                        <td style="text-align: center; padding: 8px;"><span class="badge badge-${ativoStatus ? 'success' : 'danger'}">${ativoStatus ? 'Ativo' : 'Inativo'}</span></td>
+                        <td style="text-align: center; padding: 8px;">
                             <button onclick='editarFuncionario(${func.id})' class="btn btn-sm btn-primary" title="Editar">✏️</button>
                             <button onclick="toggleAtivoFuncionario(${func.id}, ${ativoStatus})" class="btn btn-sm btn-${ativoStatus ? 'warning' : 'success'}" title="${ativoStatus ? 'Inativar' : 'Ativar'}">
                                 ${ativoStatus ? '🚫' : '✅'}
@@ -6141,7 +6169,7 @@
                     </tr>`;
                 }).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário cadastrado</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="15" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário cadastrado</td></tr>';
             }
         }
 
