@@ -4203,42 +4203,42 @@ def criar_funcionario():
             if cursor.fetchone():
                 cursor.close()
                 return jsonify({'error': 'CPF já cadastrado'}), 400
-        
-        query = """
-            INSERT INTO funcionarios 
-            (empresa_id, nome, cpf, email, celular, ativo, data_admissao, data_demissao, observacoes,
-             nacionalidade, estado_civil, data_nascimento, profissao, 
-             rua_av, numero_residencia, complemento, bairro, cidade, estado, cep, 
-             chave_pix, pis_pasep)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """
-        
-        cursor.execute(query, (
-            empresa_id,
-            dados['nome'],
-            cpf,
-            dados.get('email'),
-            dados.get('celular'),
-            dados.get('ativo', True),
-            dados.get('data_admissao') if dados.get('data_admissao') else None,
-            dados.get('data_demissao') if dados.get('data_demissao') else None,
-            dados.get('observacoes'),
-            dados.get('nacionalidade'),
-            dados.get('estado_civil'),
-            dados.get('data_nascimento') if dados.get('data_nascimento') else None,
-            dados.get('profissao'),
-            dados.get('rua_av'),
-            dados.get('numero_residencia'),
-            dados.get('complemento'),
-            dados.get('bairro'),
-            dados.get('cidade'),
-            dados.get('estado'),
-            dados.get('cep'),
-            dados.get('chave_pix'),
-            dados.get('pis_pasep')
-        ))
-        
+            
+            query = """
+                INSERT INTO funcionarios 
+                (empresa_id, nome, cpf, email, celular, ativo, data_admissao, data_demissao, observacoes,
+                 nacionalidade, estado_civil, data_nascimento, profissao, 
+                 rua_av, numero_residencia, complemento, bairro, cidade, estado, cep, 
+                 chave_pix, pis_pasep)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """
+            
+            cursor.execute(query, (
+                empresa_id,
+                dados['nome'],
+                cpf,
+                dados.get('email'),
+                dados.get('celular'),
+                dados.get('ativo', True),
+                dados.get('data_admissao') if dados.get('data_admissao') else None,
+                dados.get('data_demissao') if dados.get('data_demissao') else None,
+                dados.get('observacoes'),
+                dados.get('nacionalidade'),
+                dados.get('estado_civil'),
+                dados.get('data_nascimento') if dados.get('data_nascimento') else None,
+                dados.get('profissao'),
+                dados.get('rua_av'),
+                dados.get('numero_residencia'),
+                dados.get('complemento'),
+                dados.get('bairro'),
+                dados.get('cidade'),
+                dados.get('estado'),
+                dados.get('cep'),
+                dados.get('chave_pix'),
+                dados.get('pis_pasep')
+            ))
+            
             resultado = cursor.fetchone()
             funcionario_id = resultado['id'] if isinstance(resultado, dict) else resultado[0]
             conn.commit()
