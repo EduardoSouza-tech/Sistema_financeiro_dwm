@@ -6228,6 +6228,9 @@
             }
             
             console.log('   Filtrados:', filtered.length);
+            if (filtered.length > 0 && filtered.length < 10) {
+                console.log('   📋 Funcionários filtrados:', filtered.map(f => f.nome).join(', '));
+            }
             renderFuncionarios(filtered);
         }
 
