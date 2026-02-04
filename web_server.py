@@ -2622,12 +2622,19 @@ def adicionar_cliente():
         
         # 🔒 Garantir que empresa_id está nos dados
         data['empresa_id'] = empresa_id
-        proprietario_id = getattr(request, 'filtro_cliente_id', None)
+        
+        # 🔒 Obter proprietario_id do usuário logado (ID na tabela usuarios)
+        usuario = get_usuario_logado()
+        proprietario_id = None
+        if usuario and usuario.get('tipo') == 'cliente':
+            proprietario_id = usuario.get('id')  # ID do usuário, NÃO empresa_id
         
         print(f"\n🔍 [POST /api/clientes] Adicionando cliente:")
         print(f"   - empresa_id: {empresa_id}")
-        print(f"   - nome: {data.get('nome')}")
+        print(f"   - usuario.id: {usuario.get('id') if usuario else None}")
+        print(f"   - usuario.tipo: {usuario.get('tipo') if usuario else None}")
         print(f"   - proprietario_id: {proprietario_id}")
+        print(f"   - nome: {data.get('nome')}")
         
         cliente_id = db.adicionar_cliente(data, proprietario_id=proprietario_id)  # type: ignore
         print(f"   ✅ Cliente criado com ID: {cliente_id}")
@@ -2767,16 +2774,18 @@ def adicionar_fornecedor():
         # 🔒 Adicionar empresa_id aos dados
         data['empresa_id'] = empresa_id
         
-        # 🔒 Obter proprietario_id do usuário atual (se tipo='cliente')
+        # 🔒 Obter proprietario_id do usuário logado (ID na tabela usuarios)
         usuario = get_usuario_logado()
         proprietario_id = None
         if usuario and usuario.get('tipo') == 'cliente':
-            proprietario_id = usuario.get('id')
+            proprietario_id = usuario.get('id')  # ID do usuário, NÃO empresa_id
         
         print(f"\n🔍 [POST /api/fornecedores]")
         print(f"   - empresa_id: {empresa_id}")
-        print(f"   - nome: {data.get('nome')}")
+        print(f"   - usuario.id: {usuario.get('id') if usuario else None}")
+        print(f"   - usuario.tipo: {usuario.get('tipo') if usuario else None}")
         print(f"   - proprietario_id: {proprietario_id}")
+        print(f"   - nome: {data.get('nome')}")
         
         fornecedor_id = db.adicionar_fornecedor(data, proprietario_id=proprietario_id)  # type: ignore
         print(f"   ✅ Fornecedor criado com ID: {fornecedor_id}")
@@ -3046,23 +3055,16 @@ def adicionar_lancamento():
         
         data = request.json
         
-        # 🔒 Obter proprietario_id do usuário atual (se tipo='cliente')
+        # 🔒 Obter proprietario_id do usuário logado (ID na tabela usuarios)
         usuario = get_usuario_logado()
         proprietario_id = None
         if usuario and usuario.get('tipo') == 'cliente':
-            proprietario_id = usuario.get('id')
-            # Validar que existe
-            if proprietario_id:
-                conn = db.get_connection()
-                cursor = conn.cursor()
-                cursor.execute("SELECT id FROM usuarios WHERE id = %s", (proprietario_id,))
-                if not cursor.fetchone():
-                    cursor.close()
-                    return jsonify({'success': False, 'error': 'proprietario_id inválido'}), 400
-                cursor.close()
+            proprietario_id = usuario.get('id')  # ID do usuário, NÃO empresa_id
         
         print(f"\n🔍 [POST /api/lancamentos]")
         print(f"   - empresa_id: {empresa_id}")
+        print(f"   - usuario.id: {usuario.get('id') if usuario else None}")
+        print(f"   - usuario.tipo: {usuario.get('tipo') if usuario else None}")
         print(f"   - proprietario_id: {proprietario_id}")
         
         # Validar se a conta bancária está ativa
