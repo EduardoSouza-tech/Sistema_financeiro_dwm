@@ -159,6 +159,18 @@ def auto_execute_migrations():
         count_funcoes = result['total'] if isinstance(result, dict) else result[0]
         logger.info(f"✅ {count_funcoes} FUNÇÕES INSERIDAS")
         
+        # Adicionar colunas de horário se não existirem
+        try:
+            cursor.execute("""
+                ALTER TABLE evento_funcionarios 
+                ADD COLUMN IF NOT EXISTS hora_inicio TIME,
+                ADD COLUMN IF NOT EXISTS hora_fim TIME
+            """)
+            conn.commit()
+            logger.info("✅ Colunas hora_inicio e hora_fim adicionadas/verificadas em evento_funcionarios")
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao adicionar colunas de horário: {e}")
+        
         cursor.close()
         
         logger.info("="*80)
@@ -481,6 +493,16 @@ try:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_empresa ON funcionarios(empresa_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_cpf ON funcionarios(cpf)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_ativo ON funcionarios(ativo)")
+            
+            # Adicionar coluna email se não existir
+            try:
+                cursor.execute("""
+                    ALTER TABLE funcionarios 
+                    ADD COLUMN IF NOT EXISTS email VARCHAR(255)
+                """)
+                logger.info("✅ Coluna email adicionada/verificada em funcionarios")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao adicionar coluna email: {e}")
             
             # Migração: Alterar tipo da coluna CPF se necessário
             try:
