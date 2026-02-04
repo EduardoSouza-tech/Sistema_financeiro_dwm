@@ -7034,11 +7034,251 @@
         }
 
         function exportarCredenciamento() {
-            showToast('⏳ Funcionalidade em desenvolvimento...', 'info');
+            const tbody = document.getElementById('tbody-credenciamento-evento');
+            const rows = tbody.querySelectorAll('tr');
+            
+            if (rows.length === 0 || rows[0].querySelector('td[colspan]')) {
+                showToast('⚠️ Não há dados para exportar', 'warning');
+                return;
+            }
+
+            // Preparar dados para Excel
+            const data = [];
+            
+            // Adicionar cabeçalho
+            data.push(['Evento', 'Cooperado', 'CPF', 'E-mail', 'Função', 'Setor', 'Hora Início', 'Hora Fim', 'Total Trabalhado']);
+            
+            let eventoAtual = '';
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                
+                // Verificar se é linha de cabeçalho de evento (background azul)
+                if (cells.length === 1 && cells[0].colSpan === 8) {
+                    eventoAtual = cells[0].textContent.trim();
+                } else if (cells.length === 8) {
+                    // Linha de dados do cooperado
+                    data.push([
+                        eventoAtual,
+                        cells[0].textContent.trim(),
+                        cells[1].textContent.trim(),
+                        cells[2].textContent.trim(),
+                        cells[3].textContent.trim(),
+                        cells[4].textContent.trim(),
+                        cells[5].textContent.trim(),
+                        cells[6].textContent.trim(),
+                        cells[7].textContent.trim()
+                    ]);
+                }
+            });
+
+            // Criar CSV (compatível com Excel)
+            const csv = data.map(row => row.map(cell => `"${cell}"`).join(',')).join('\\n');
+            
+            // Criar blob e download
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            const dataAtual = new Date().toISOString().split('T')[0];
+            link.setAttribute('href', url);
+            link.setAttribute('download', `credenciamento_${dataAtual}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast('✅ Arquivo Excel exportado com sucesso!', 'success');
         }
 
         function imprimirCredenciamento() {
-            showToast('⏳ Funcionalidade em desenvolvimento...', 'info');
+            const tbody = document.getElementById('tbody-credenciamento-evento');
+            const rows = tbody.querySelectorAll('tr');
+            
+            if (rows.length === 0 || rows[0].querySelector('td[colspan]')) {
+                showToast('⚠️ Não há dados para imprimir', 'warning');
+                return;
+            }
+
+            // Preparar HTML para impressão
+            let html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Credenciamento - Lista de Cooperados</title>
+                    <style>
+                        @page {
+                            size: A4;
+                            margin: 15mm;
+                        }
+                        
+                        body {
+                            font-family: Arial, sans-serif;
+                            font-size: 10pt;
+                            margin: 0;
+                            padding: 0;
+                        }
+                        
+                        h1 {
+                            text-align: center;
+                            font-size: 18pt;
+                            margin-bottom: 10px;
+                            color: #2c3e50;
+                        }
+                        
+                        .info {
+                            text-align: center;
+                            font-size: 9pt;
+                            color: #7f8c8d;
+                            margin-bottom: 20px;
+                        }
+                        
+                        .evento-header {
+                            background: #3498db;
+                            color: white;
+                            padding: 8px;
+                            font-weight: bold;
+                            font-size: 11pt;
+                            margin-top: 15px;
+                            page-break-after: avoid;
+                        }
+                        
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-bottom: 20px;
+                            page-break-inside: auto;
+                        }
+                        
+                        thead {
+                            display: table-header-group;
+                        }
+                        
+                        tr {
+                            page-break-inside: avoid;
+                            page-break-after: auto;
+                        }
+                        
+                        th {
+                            background: #ecf0f1;
+                            padding: 6px 4px;
+                            text-align: left;
+                            font-size: 9pt;
+                            border: 1px solid #bdc3c7;
+                            font-weight: bold;
+                        }
+                        
+                        td {
+                            padding: 5px 4px;
+                            border: 1px solid #ddd;
+                            font-size: 9pt;
+                        }
+                        
+                        tbody tr:nth-child(even) {
+                            background: #f9f9f9;
+                        }
+                        
+                        .footer {
+                            margin-top: 30px;
+                            text-align: center;
+                            font-size: 8pt;
+                            color: #95a5a6;
+                        }
+                        
+                        @media print {
+                            .no-print {
+                                display: none;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h1>🎫 Credenciamento - Lista de Cooperados</h1>
+                    <div class="info">
+                        Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+                    </div>
+            `;
+
+            let eventoAtual = '';
+            let tableOpen = false;
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                
+                // Verificar se é linha de cabeçalho de evento
+                if (cells.length === 1 && cells[0].colSpan === 8) {
+                    // Fechar tabela anterior se existir
+                    if (tableOpen) {
+                        html += '</tbody></table>';
+                        tableOpen = false;
+                    }
+                    
+                    eventoAtual = cells[0].textContent.trim();
+                    html += `<div class="evento-header">${eventoAtual}</div>`;
+                    
+                    // Abrir nova tabela
+                    html += `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Cooperado</th>
+                                    <th>CPF</th>
+                                    <th>E-mail</th>
+                                    <th>Função</th>
+                                    <th>Setor</th>
+                                    <th style="text-align: center;">H. Início</th>
+                                    <th style="text-align: center;">H. Fim</th>
+                                    <th style="text-align: center;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    tableOpen = true;
+                } else if (cells.length === 8 && tableOpen) {
+                    // Linha de dados do cooperado
+                    html += `
+                        <tr>
+                            <td>${cells[0].textContent.trim()}</td>
+                            <td>${cells[1].textContent.trim()}</td>
+                            <td>${cells[2].textContent.trim()}</td>
+                            <td>${cells[3].textContent.trim()}</td>
+                            <td>${cells[4].textContent.trim()}</td>
+                            <td style="text-align: center;">${cells[5].textContent.trim()}</td>
+                            <td style="text-align: center;">${cells[6].textContent.trim()}</td>
+                            <td style="text-align: center; font-weight: bold;">${cells[7].textContent.trim()}</td>
+                        </tr>
+                    `;
+                }
+            });
+            
+            // Fechar última tabela
+            if (tableOpen) {
+                html += '</tbody></table>';
+            }
+            
+            const totalCooperados = document.getElementById('credenciamento-total-cooperados').textContent;
+            html += `
+                    <div class="footer">
+                        <strong>Total de Cooperados: ${totalCooperados}</strong><br>
+                        Sistema Financeiro DWM - Credenciamento de Eventos
+                    </div>
+                </body>
+                </html>
+            `;
+
+            // Abrir nova janela e imprimir
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(html);
+            printWindow.document.close();
+            
+            // Aguardar carregamento e imprimir
+            printWindow.onload = function() {
+                printWindow.focus();
+                printWindow.print();
+            };
+            
+            showToast('✅ Abrindo visualização de impressão...', 'success');
         }
 
         // ==========================================
