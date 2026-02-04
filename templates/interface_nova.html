@@ -4981,17 +4981,24 @@
                 selectMes.value = ''; // Vazio = sem filtro de mês
             }
             
-            // Carregar contas bancárias no início
-            if (typeof loadContasBancarias === 'function') {
+            // Carregar contas bancárias no início (se tiver permissão)
+            const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+            const permissoes = usuario.permissoes || [];
+            
+            if (typeof loadContasBancarias === 'function' && (permissoes.includes('contas_view') || permissoes.includes('lancamentos_view'))) {
                 console.log('Carregando contas bancárias...');
                 loadContasBancarias();
+            } else {
+                console.log('⏭️ Contas bancárias: Usuário sem permissão, não carregando');
             }
             
-            // Carregar dashboard automaticamente
-            if (typeof carregarDashboard === 'function') {
+            // Carregar dashboard automaticamente (se tiver permissão)
+            if (typeof carregarDashboard === 'function' && (permissoes.includes('dashboard') || permissoes.includes('relatorios_view'))) {
                 setTimeout(() => {
                     carregarDashboard();
                 }, 1000);
+            } else {
+                console.log('⏭️ Dashboard: Usuário sem permissão, não carregando');
             }
         });
 
@@ -5101,10 +5108,22 @@
                 if (typeof loadFornecedoresTable === 'function') loadFornecedoresTable();
             } else if (sectionId === 'categorias') {
                 console.log('  ➡️ loadCategorias:', typeof loadCategorias);
-                if (typeof loadCategorias === 'function') loadCategorias();
+                const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+                const permissoes = usuario.permissoes || [];
+                if (typeof loadCategorias === 'function' && (permissoes.includes('categorias_view') || permissoes.includes('lancamentos_view'))) {
+                    loadCategorias();
+                } else {
+                    console.log('  ⏭️ Categorias: Sem permissão');
+                }
             } else if (sectionId === 'contas-bancarias') {
                 console.log('  ➡️ loadContasBancarias:', typeof loadContasBancarias);
-                if (typeof loadContasBancarias === 'function') loadContasBancarias();
+                const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+                const permissoes = usuario.permissoes || [];
+                if (typeof loadContasBancarias === 'function' && (permissoes.includes('contas_view') || permissoes.includes('lancamentos_view'))) {
+                    loadContasBancarias();
+                } else {
+                    console.log('  ⏭️ Contas bancárias: Sem permissão');
+                }
             } else if (sectionId === 'contas-receber') {
                 console.log('  ➡️ loadContasReceber:', typeof loadContasReceber);
                 if (typeof loadContasReceber === 'function') loadContasReceber();
@@ -5219,6 +5238,14 @@
         // ====================================
         async function carregarDashboard() {
             try {
+                // Verificar permissão antes de carregar
+                const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+                const permissoes = usuario.permissoes || [];
+                if (!permissoes.includes('dashboard') && !permissoes.includes('relatorios_view')) {
+                    console.log('⏭️ Dashboard: Usuário sem permissão');
+                    return;
+                }
+                
                 console.log('📊 Carregando Dashboard...');
                 
                 // Pegar filtros
@@ -8809,36 +8836,96 @@
     </script>
     
     <script>
-        // Garantir que contas sejam carregadas ao abrir a seção
+        // Garantir que contas sejam carregadas ao abrir a seção (se tiver permissão)
         setTimeout(() => {
-            if (typeof loadContasBancarias === 'function') {
+            const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+            const permissoes = usuario.permissoes || [];
+            if (typeof loadContasBancarias === 'function' && (permissoes.includes('contas_view') || permissoes.includes('lancamentos_view'))) {
                 loadContasBancarias();
+            } else {
+                console.log('⏭️ Contas bancárias (setTimeout): Sem permissão');
             }
         }, 500);
     </script>
 
     <!-- SISTEMA DE GERENCIAMENTO DE PERMISSÕES -->
     <script>
-        // Lista completa de permissões disponíveis com suas categorias
+        // Lista completa de permissões disponíveis organizadas por TIPO DE AÇÃO
         const PERMISSOES_DISPONIVEIS = {
-            'Dashboard': ['dashboard'],
-            'Financeiro': ['lancamentos_view', 'lancamentos_create', 'lancamentos_edit', 'lancamentos_delete'],
-            'Relatórios': ['relatorios_view', 'exportar_excel', 'exportar_pdf'],
-            'Cadastros': ['cadastros_view', 'contas_view', 'contas_create', 'contas_edit', 'contas_delete',
-                          'categorias_view', 'categorias_create', 'categorias_edit', 'categorias_delete',
-                          'clientes_view', 'clientes_create', 'clientes_edit', 'clientes_delete',
-                          'fornecedores_view', 'fornecedores_create', 'fornecedores_edit', 'fornecedores_delete'],
-            'Operacional': ['operacional_view', 'contratos_view', 'contratos_create', 'contratos_edit', 'contratos_delete',
-                           'criar_contratos', 'editar_contratos', 'excluir_contratos', 'ver_contratos',
-                           'agenda_view', 'ver_agenda',
-                           'estoque_view', 'editar_estoque', 'ver_estoque',
-                           'eventos_view', 'eventos_create', 'eventos_edit', 'eventos_delete',
-                           'criar_eventos', 'editar_eventos', 'excluir_eventos', 'ver_eventos',
-                           'criar_sessoes', 'editar_sessoes', 'excluir_sessoes',
-                           'criar_produtos', 'excluir_produtos'],
-            'Recursos Humanos': ['folha_pagamento_view', 'folha_pagamento_create', 'folha_pagamento_edit', 'folha_pagamento_delete',
-                                 'criar_folha_de_pagamento', 'editar_folha_de_pagamento', 'excluir_folha_de_pagamento', 'ver_folha_de_pagamento'],
-            'Sistema': ['configuracoes', 'gerenciar_usuarios']
+            '👁️ Ver / Visualizar': [
+                'dashboard',
+                'lancamentos_view',
+                'relatorios_view',
+                'cadastros_view',
+                'contas_view',
+                'categorias_view',
+                'clientes_view',
+                'fornecedores_view',
+                'operacional_view',
+                'contratos_view',
+                'ver_contratos',
+                'agenda_view',
+                'ver_agenda',
+                'estoque_view',
+                'ver_estoque',
+                'eventos_view',
+                'ver_eventos',
+                'folha_pagamento_view',
+                'ver_folha_de_pagamento'
+            ],
+            '➕ Criar / Cadastrar': [
+                'lancamentos_create',
+                'contas_create',
+                'categorias_create',
+                'clientes_create',
+                'fornecedores_create',
+                'contratos_create',
+                'criar_contratos',
+                'eventos_create',
+                'criar_eventos',
+                'criar_sessoes',
+                'criar_produtos',
+                'folha_pagamento_create',
+                'criar_folha_de_pagamento'
+            ],
+            '✏️ Editar / Alterar': [
+                'lancamentos_edit',
+                'contas_edit',
+                'categorias_edit',
+                'clientes_edit',
+                'fornecedores_edit',
+                'contratos_edit',
+                'editar_contratos',
+                'editar_estoque',
+                'eventos_edit',
+                'editar_eventos',
+                'editar_sessoes',
+                'folha_pagamento_edit',
+                'editar_folha_de_pagamento'
+            ],
+            '🗑️ Excluir / Deletar': [
+                'lancamentos_delete',
+                'contas_delete',
+                'categorias_delete',
+                'clientes_delete',
+                'fornecedores_delete',
+                'contratos_delete',
+                'excluir_contratos',
+                'eventos_delete',
+                'excluir_eventos',
+                'excluir_sessoes',
+                'excluir_produtos',
+                'folha_pagamento_delete',
+                'excluir_folha_de_pagamento'
+            ],
+            '📤 Exportar': [
+                'exportar_excel',
+                'exportar_pdf'
+            ],
+            '⚙️ Sistema': [
+                'configuracoes',
+                'gerenciar_usuarios'
+            ]
         };
 
         // Tradução de nomes de permissões para exibição

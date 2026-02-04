@@ -4,9 +4,14 @@ console.log('%c ✓ MODALS.JS v20260119_SEM_NUM_DOCUMENTO CARREGADO ', 'backgrou
 
 // === MODAL RECEITA ===
 async function openModalReceita() {
-    // Sempre recarregar categorias para pegar subcategorias atualizadas
-    console.log('Recarregando categorias...');
-    await loadCategorias();
+    // Sempre recarregar categorias para pegar subcategorias atualizadas (se tiver permissão)
+    const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+    const permissoes = usuario.permissoes || [];
+    
+    if (permissoes.includes('categorias_view') || permissoes.includes('lancamentos_view')) {
+        console.log('Recarregando categorias...');
+        await loadCategorias();
+    }
     
     if (!window.clientes || window.clientes.length === 0) {
         console.log('Carregando clientes...');
@@ -240,7 +245,13 @@ async function salvarReceita(event) {
             console.log('   loadDashboard existe?', typeof loadDashboard);
             console.log('   loadContasReceber existe?', typeof loadContasReceber);
             
-            if (typeof loadDashboard === 'function') loadDashboard();
+            // Verificar permissões antes de recarregar
+            const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+            const permissoes = usuario.permissoes || [];
+            
+            if (typeof loadDashboard === 'function' && (permissoes.includes('dashboard') || permissoes.includes('relatorios_view'))) {
+                loadDashboard();
+            }
             if (typeof loadContasReceber === 'function') {
                 console.log('   ✅ Chamando loadContasReceber...');
                 loadContasReceber();
@@ -303,9 +314,14 @@ async function editarReceita(id) {
 
 // === MODAL DESPESA ===
 async function openModalDespesa() {
-    // Sempre recarregar categorias para pegar subcategorias atualizadas
-    console.log('Recarregando categorias...');
-    await loadCategorias();
+    // Sempre recarregar categorias para pegar subcategorias atualizadas (se tiver permissão)
+    const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+    const permissoes = usuario.permissoes || [];
+    
+    if (permissoes.includes('categorias_view') || permissoes.includes('lancamentos_view')) {
+        console.log('Recarregando categorias...');
+        await loadCategorias();
+    }
     
     if (!window.fornecedores || window.fornecedores.length === 0) {
         console.log('Carregando fornecedores...');
@@ -521,7 +537,14 @@ async function salvarDespesa(event) {
             const mensagem = isEdicao ? '✓ Despesa atualizada com sucesso!' : '✓ Despesa adicionada com sucesso!';
             showToast(mensagem, 'success');
             closeModal();
-            if (typeof loadDashboard === 'function') loadDashboard();
+            
+            // Verificar permissões antes de recarregar
+            const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+            const permissoes = usuario.permissoes || [];
+            
+            if (typeof loadDashboard === 'function' && (permissoes.includes('dashboard') || permissoes.includes('relatorios_view'))) {
+                loadDashboard();
+            }
             if (typeof loadContasPagar === 'function') loadContasPagar();
             if (typeof atualizarBadgeInadimplencia === 'function') {
                 atualizarBadgeInadimplencia();
@@ -789,8 +812,17 @@ async function salvarConta(event) {
         if (result.success) {
             showToast(isEdit ? '✓ Conta bancária atualizada com sucesso!' : '✓ Conta bancária adicionada com sucesso!', 'success');
             closeModal();
-            if (typeof loadContasBancarias === 'function') loadContasBancarias();
-            if (typeof loadContas === 'function') loadContas();
+            
+            // Verificar permissões antes de recarregar
+            const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+            const permissoes = usuario.permissoes || [];
+            
+            if (typeof loadContasBancarias === 'function' && (permissoes.includes('contas_view') || permissoes.includes('lancamentos_view'))) {
+                loadContasBancarias();
+            }
+            if (typeof loadContas === 'function' && (permissoes.includes('contas_view') || permissoes.includes('lancamentos_view'))) {
+                loadContas();
+            }
         } else {
             console.error('Erro do servidor:', result.error);
             showToast('Erro: ' + result.error, 'error');
@@ -927,11 +959,16 @@ async function salvarCategoria(event) {
             
             // Recarregar lista de categorias
             console.log('♻️ Recarregando lista de categorias...');
-            if (typeof loadCategorias === 'function') {
+            
+            // Verificar permissões antes de recarregar
+            const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+            const permissoes = usuario.permissoes || [];
+            
+            if (typeof loadCategorias === 'function' && (permissoes.includes('categorias_view') || permissoes.includes('lancamentos_view'))) {
                 await loadCategorias();
                 console.log('✅ Lista de categorias recarregada!');
             } else {
-                console.error('❌ Função loadCategorias não encontrada!');
+                console.error('❌ Função loadCategorias não encontrada ou sem permissão!');
             }
         } else {
             // Melhorar mensagem de erro para duplicatas
@@ -1730,9 +1767,16 @@ async function salvarTransferencia() {
             showToast('✓ Transferência realizada com sucesso!', 'success');
             closeModalTransferencia();
             
-            // Recarregar listas se existirem
-            if (typeof loadContasBancarias === 'function') loadContasBancarias();
-            if (typeof loadFluxoCaixa === 'function') loadFluxoCaixa();
+            // Verificar permissões antes de recarregar
+            const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+            const permissoes = usuario.permissoes || [];
+            
+            if (typeof loadContasBancarias === 'function' && (permissoes.includes('contas_view') || permissoes.includes('lancamentos_view'))) {
+                loadContasBancarias();
+            }
+            if (typeof loadFluxoCaixa === 'function' && (permissoes.includes('relatorios_view') || permissoes.includes('lancamentos_view'))) {
+                loadFluxoCaixa();
+            }
         } else {
             showToast('Erro: ' + (result.error || 'Erro desconhecido'), 'error');
         }

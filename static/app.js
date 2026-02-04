@@ -578,12 +578,35 @@ async function loadInitialData() {
         
         AppState.isLoading = true;
         
-        // Carrega dados em paralelo para melhor performance
-        await Promise.allSettled([
-            loadDashboard(),
-            loadContas(),
-            loadCategorias()
-        ]);
+        // Verificar permissões do usuário antes de carregar dados
+        const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+        const permissoes = usuario.permissoes || [];
+        
+        // Carregar apenas dados que o usuário tem permissão
+        const promises = [];
+        
+        if (permissoes.includes('dashboard') || permissoes.includes('relatorios_view')) {
+            promises.push(loadDashboard());
+        } else {
+            console.log('⏭️ Dashboard: Usuário sem permissão, não carregando');
+        }
+        
+        if (permissoes.includes('contas_view') || permissoes.includes('lancamentos_view')) {
+            promises.push(loadContas());
+        } else {
+            console.log('⏭️ Contas: Usuário sem permissão, não carregando');
+        }
+        
+        if (permissoes.includes('categorias_view') || permissoes.includes('lancamentos_view')) {
+            promises.push(loadCategorias());
+        } else {
+            console.log('⏭️ Categorias: Usuário sem permissão, não carregando');
+        }
+        
+        // Carrega dados em paralelo apenas os permitidos
+        if (promises.length > 0) {
+            await Promise.allSettled(promises);
+        }
         
         AppState.isLoading = false;
     } catch (error) {
@@ -799,6 +822,14 @@ async function loadDashboard() {
     const context = 'loadDashboard';
     
     try {
+        // Verificar permissão antes de carregar
+        const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+        const permissoes = usuario.permissoes || [];
+        if (!permissoes.includes('dashboard') && !permissoes.includes('relatorios_view')) {
+            console.log('⏭️ Dashboard: Usuário sem permissão');
+            return;
+        }
+        
         console.log('📊 Carregando dashboard...');
         
         // Faz requisição com timeout
@@ -855,6 +886,14 @@ async function loadContas() {
     const context = 'loadContas';
     
     try {
+        // Verificar permissão antes de carregar
+        const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+        const permissoes = usuario.permissoes || [];
+        if (!permissoes.includes('contas_view') && !permissoes.includes('lancamentos_view')) {
+            console.log('⏭️ Contas: Usuário sem permissão');
+            return;
+        }
+        
         console.log('🏦 Carregando contas bancárias...');
         
         let data = await apiGet('/contas');
@@ -1282,6 +1321,14 @@ async function loadCategorias() {
     const context = 'loadCategorias';
     
     try {
+        // Verificar permissão antes de carregar
+        const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+        const permissoes = usuario.permissoes || [];
+        if (!permissoes.includes('categorias_view') && !permissoes.includes('lancamentos_view')) {
+            console.log('⏭️ Categorias: Usuário sem permissão');
+            return;
+        }
+        
         console.log('📂 Carregando categorias...');
         console.log('   🏢 window.currentEmpresaId:', window.currentEmpresaId);
         
@@ -5310,6 +5357,14 @@ window.exportarFornecedoresExcel = exportarFornecedoresExcel;
 
 window.loadContasBancarias = async function() {
     try {
+        // Verificar permissão antes de carregar
+        const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+        const permissoes = usuario.permissoes || [];
+        if (!permissoes.includes('contas_view') && !permissoes.includes('lancamentos_view')) {
+            console.log('⏭️ Contas bancárias: Usuário sem permissão');
+            return;
+        }
+        
         console.log('🏦 loadContasBancarias - Carregando contas bancárias...');
         
         const response = await fetch(`${API_URL}/contas`, {
