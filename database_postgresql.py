@@ -3443,11 +3443,10 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
     if not empresa_id:
         raise ValueError("empresa_id é obrigatório para listar_sessoes")
     
-    # 🔒 Usar get_db_connection com empresa_id
-    conn = get_db_connection(empresa_id=empresa_id)
-    cursor = conn.cursor()
-    
-    try:
+    # 🔒 Usar get_db_connection com empresa_id (retorna context manager)
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
         query = """
             SELECT 
                 s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
@@ -3501,9 +3500,6 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
             }
             
             sessoes.append(sessao)
-    finally:
-        cursor.close()
-        return_to_pool(conn)
     
     return sessoes
 
