@@ -2229,19 +2229,19 @@
                     <div class="modal-body">
                         <!-- Abas -->
                         <div style="display: flex; gap: 5px; border-bottom: 2px solid #ddd; margin-bottom: 20px;">
-                            <button type="button" class="tab-btn active" onclick="mudarAbaFuncionario('dados-pessoais')" 
-                                    style="padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid #3498db;">
+                            <button type="button" class="tab-btn active" data-aba="dados-pessoais" onclick="mudarAbaFuncionario('dados-pessoais')" 
+                                    style="padding: 10px 20px; border: none; background: rgba(52, 152, 219, 0.1); cursor: pointer; border-bottom: 3px solid #3498db;">
                                 👤 Dados Pessoais
                             </button>
-                            <button type="button" class="tab-btn" onclick="mudarAbaFuncionario('endereco')" 
+                            <button type="button" class="tab-btn" data-aba="endereco" onclick="mudarAbaFuncionario('endereco')" 
                                     style="padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent;">
                                 📍 Endereço
                             </button>
-                            <button type="button" class="tab-btn" onclick="mudarAbaFuncionario('profissional')" 
+                            <button type="button" class="tab-btn" data-aba="profissional" onclick="mudarAbaFuncionario('profissional')" 
                                     style="padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent;">
                                 💼 Profissional
                             </button>
-                            <button type="button" class="tab-btn" onclick="mudarAbaFuncionario('pagamento')" 
+                            <button type="button" class="tab-btn" data-aba="pagamento" onclick="mudarAbaFuncionario('pagamento')" 
                                     style="padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent;">
                                 💰 Pagamento
                             </button>
@@ -6259,6 +6259,8 @@
         }
 
         function mudarAbaFuncionario(aba) {
+            console.log('🔄 Mudando para aba:', aba);
+            
             // Ocultar todas as abas
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.style.display = 'none';
@@ -6267,28 +6269,66 @@
             // Remover classe active de todos os botões
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.style.borderBottom = '3px solid transparent';
+                btn.style.background = 'transparent';
             });
             
             // Mostrar aba selecionada
-            document.getElementById(`aba-${aba}`).style.display = 'block';
+            const abaElement = document.getElementById(`aba-${aba}`);
+            if (abaElement) {
+                abaElement.style.display = 'block';
+            }
             
-            // Ativar botão
-            event.target.style.borderBottom = '3px solid #3498db';
+            // Ativar botão (buscar pelo data-aba)
+            const btn = document.querySelector(`[data-aba="${aba}"]`);
+            if (btn) {
+                btn.style.borderBottom = '3px solid #3498db';
+                btn.style.background = 'rgba(52, 152, 219, 0.1)';
+            }
         }
 
         function abrirModalFuncionario(funcionarioId = null) {
+            console.log('📂 abrirModalFuncionario chamada com ID:', funcionarioId);
             const modal = document.getElementById('modal-funcionario');
             const title = document.getElementById('modal-funcionario-title');
             
-            // Resetar para primeira aba
-            mudarAbaFuncionario('dados-pessoais');
-            document.querySelector('.tab-btn').click();
+            // SEMPRE resetar para primeira aba e mostrá-la
+            setTimeout(() => {
+                mudarAbaFuncionario('dados-pessoais');
+            }, 50);
             
             if (funcionarioId) {
-                title.textContent = 'Editar Funcionário';
-                editarFuncionario(funcionarioId);
+                title.textContent = '✏️ Editar Funcionário';
+                // Preencher os campos com os dados do funcionário
+                const funcionario = funcionariosGlobal.find(f => f.id === funcionarioId);
+                if (funcionario) {
+                    document.getElementById('funcionario-id').value = funcionario.id || '';
+                    document.getElementById('funcionario-nome').value = funcionario.nome || '';
+                    document.getElementById('funcionario-cpf').value = funcionario.cpf || '';
+                    document.getElementById('funcionario-email').value = funcionario.email || '';
+                    document.getElementById('funcionario-celular').value = funcionario.celular || '';
+                    document.getElementById('funcionario-data-nascimento').value = funcionario.data_nascimento || '';
+                    document.getElementById('funcionario-nacionalidade').value = funcionario.nacionalidade || '';
+                    document.getElementById('funcionario-estado-civil').value = funcionario.estado_civil || '';
+                    
+                    document.getElementById('funcionario-rua').value = funcionario.rua_av || '';
+                    document.getElementById('funcionario-numero').value = funcionario.numero_residencia || '';
+                    document.getElementById('funcionario-complemento').value = funcionario.complemento || '';
+                    document.getElementById('funcionario-bairro').value = funcionario.bairro || '';
+                    document.getElementById('funcionario-cidade').value = funcionario.cidade || '';
+                    document.getElementById('funcionario-estado').value = funcionario.estado || '';
+                    document.getElementById('funcionario-cep').value = funcionario.cep || '';
+                    
+                    document.getElementById('funcionario-profissao').value = funcionario.profissao || '';
+                    document.getElementById('funcionario-data-admissao').value = funcionario.data_admissao || '';
+                    document.getElementById('funcionario-data-demissao').value = funcionario.data_demissao || '';
+                    document.getElementById('funcionario-observacoes').value = funcionario.observacoes || '';
+                    document.getElementById('funcionario-ativo').checked = funcionario.ativo !== false;
+                    
+                    document.getElementById('funcionario-pis').value = funcionario.pis_pasep || '';
+                    document.getElementById('funcionario-chave-pix').value = funcionario.chave_pix || '';
+                }
             } else {
-                title.textContent = 'Novo Funcionário';
+                title.textContent = '➕ Novo Funcionário';
                 document.getElementById('form-funcionario').reset();
                 document.getElementById('funcionario-id').value = '';
                 document.getElementById('funcionario-ativo').checked = true;
@@ -6298,44 +6338,9 @@
         }
 
         async function editarFuncionarioRH(id) {
-            try {
-                const funcionario = funcionariosGlobal.find(f => f.id === id);
-                if (!funcionario) {
-                    throw new Error('Funcionário não encontrado');
-                }
-                
-                document.getElementById('funcionario-id').value = funcionario.id || '';
-                document.getElementById('funcionario-nome').value = funcionario.nome || '';
-                document.getElementById('funcionario-cpf').value = funcionario.cpf || '';
-                document.getElementById('funcionario-email').value = funcionario.email || '';
-                document.getElementById('funcionario-celular').value = funcionario.celular || '';
-                document.getElementById('funcionario-data-nascimento').value = funcionario.data_nascimento || '';
-                document.getElementById('funcionario-nacionalidade').value = funcionario.nacionalidade || '';
-                document.getElementById('funcionario-estado-civil').value = funcionario.estado_civil || '';
-                
-                document.getElementById('funcionario-rua').value = funcionario.rua_av || '';
-                document.getElementById('funcionario-numero').value = funcionario.numero_residencia || '';
-                document.getElementById('funcionario-complemento').value = funcionario.complemento || '';
-                document.getElementById('funcionario-bairro').value = funcionario.bairro || '';
-                document.getElementById('funcionario-cidade').value = funcionario.cidade || '';
-                document.getElementById('funcionario-estado').value = funcionario.estado || '';
-                document.getElementById('funcionario-cep').value = funcionario.cep || '';
-                
-                document.getElementById('funcionario-profissao').value = funcionario.profissao || '';
-                document.getElementById('funcionario-data-admissao').value = funcionario.data_admissao || '';
-                document.getElementById('funcionario-data-demissao').value = funcionario.data_demissao || '';
-                document.getElementById('funcionario-observacoes').value = funcionario.observacoes || '';
-                document.getElementById('funcionario-ativo').checked = funcionario.ativo !== false;
-                
-                document.getElementById('funcionario-pis').value = funcionario.pis_pasep || '';
-                document.getElementById('funcionario-chave-pix').value = funcionario.chave_pix || '';
-                
-                document.getElementById('modal-funcionario').style.display = 'flex';
-                
-            } catch (error) {
-                console.error('Erro ao carregar funcionário:', error);
-                showToast('Erro ao carregar dados do funcionário', 'error');
-            }
+            console.log('✏️ editarFuncionarioRH chamada para ID:', id);
+            // Delega para abrirModalFuncionario que já faz tudo
+            abrirModalFuncionario(id);
         }
 
         function fecharModalFuncionario() {
