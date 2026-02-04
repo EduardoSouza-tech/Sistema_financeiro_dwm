@@ -6099,6 +6099,16 @@
                 funcionariosGlobal = result.funcionarios || [];
                 
                 console.log('🎯 Dados recebidos:', funcionariosGlobal.length, 'funcionários');
+                
+                // DEBUG: Mostrar primeiro funcionário completo
+                if (funcionariosGlobal.length > 0) {
+                    console.log('📊 Primeiro funcionário recebido:', funcionariosGlobal[0]);
+                    console.log('   Nome:', funcionariosGlobal[0].nome);
+                    console.log('   CPF:', funcionariosGlobal[0].cpf);
+                    console.log('   Nacionalidade:', funcionariosGlobal[0].nacionalidade);
+                    console.log('   Estado Civil:', funcionariosGlobal[0].estado_civil);
+                    console.log('   Email:', funcionariosGlobal[0].email);
+                }
 
                 // Atualizar estatísticas
                 const total = funcionariosGlobal.length;

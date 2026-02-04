@@ -3983,6 +3983,15 @@ def listar_funcionarios():
         cursor.execute(query, (empresa_id,))
         rows = cursor.fetchall()
         logger.info(f"✅ [FUNCIONARIOS] Encontrados {len(rows)} funcionários")
+        
+        # Debug: Log primeiro funcionário
+        if rows:
+            logger.info(f"📊 [DEBUG] Primeiro funcionário (tipo: {type(rows[0])})")
+            if isinstance(rows[0], dict):
+                logger.info(f"   Dict keys: {list(rows[0].keys())}")
+            else:
+                logger.info(f"   Tupla length: {len(rows[0])}")
+        
         cursor.close()
         
         funcionarios = []
@@ -4046,6 +4055,15 @@ def listar_funcionarios():
                     'data_criacao': row[24].isoformat() if row[24] else None,
                     'data_atualizacao': row[25].isoformat() if row[25] else None
                 })
+        
+        # Log primeiro funcionário completo para debug
+        if funcionarios:
+            logger.info(f"📤 [DEBUG] Primeiro funcionário sendo enviado:")
+            logger.info(f"   Nome: {funcionarios[0].get('nome')}")
+            logger.info(f"   CPF: {funcionarios[0].get('cpf')}")
+            logger.info(f"   Nacionalidade: {funcionarios[0].get('nacionalidade')}")
+            logger.info(f"   Estado Civil: {funcionarios[0].get('estado_civil')}")
+            logger.info(f"   Email: {funcionarios[0].get('email')}")
         
         return jsonify({'funcionarios': funcionarios}), 200
     
