@@ -1770,32 +1770,46 @@ class DatabaseManager:
         return sucesso
     
     def adicionar_categoria(self, categoria: Categoria) -> int:
-        """Adiciona uma nova categoria"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
+        """Adiciona uma nova categoria com multi-tenancy"""
+        # 🔒 Validar empresa_id obrigatório
+        if not categoria.empresa_id:
+            from flask import session
+            categoria.empresa_id = session.get('empresa_id')
+        if not categoria.empresa_id:
+            raise ValueError("empresa_id é obrigatório para adicionar categoria")
         
-        subcategorias_json = json.dumps(categoria.subcategorias) if categoria.subcategorias else None
+        print(f"\n🔍 [adicionar_categoria]")
+        print(f"   - empresa_id: {categoria.empresa_id}")
+        print(f"   - nome: {categoria.nome}")
+        print(f"   - tipo: {categoria.tipo.value}")
         
-        cursor.execute("""
-            INSERT INTO categorias 
-            (nome, tipo, subcategorias, cor, icone, descricao, empresa_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (
-            categoria.nome,
-            categoria.tipo.value,
-            subcategorias_json,
-            categoria.cor,
-            categoria.icone,
-            categoria.descricao,
-            categoria.empresa_id
-        ))
-        
-        categoria_id = cursor.fetchone()['id']
-        conn.commit()
-        cursor.close()
-        return_to_pool(conn)  # Devolver ao pool
-        return categoria_id
+        # 🔒 Usar get_db_connection com empresa_id para aplicar RLS
+        with get_db_connection(empresa_id=categoria.empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            subcategorias_json = json.dumps(categoria.subcategorias) if categoria.subcategorias else None
+            
+            cursor.execute("""
+                INSERT INTO categorias 
+                (nome, tipo, subcategorias, cor, icone, descricao, empresa_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                categoria.nome,
+                categoria.tipo.value,
+                subcategorias_json,
+                categoria.cor,
+                categoria.icone,
+                categoria.descricao,
+                categoria.empresa_id
+            ))
+            
+            categoria_id = cursor.fetchone()['id']
+            conn.commit()
+            cursor.close()
+            
+            print(f"   ✅ Categoria criada com ID: {categoria_id}")
+            return categoria_id
     
     def listar_categorias(self, tipo: Optional[TipoLancamento] = None, empresa_id: Optional[int] = None) -> List[Categoria]:
         """Lista todas as categorias, opcionalmente filtradas por tipo e empresa"""
@@ -2192,11 +2206,8 @@ class DatabaseManager:
     def adicionar_fornecedor(self, fornecedor_data, cpf_cnpj: str = None,
                            email: str = None, telefone: str = None,
                            endereco: str = None, proprietario_id: int = None) -> int:
-        """Adiciona um novo fornecedor (aceita dict ou pari?metros individuais)"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        # Aceitar dict ou pari?metros individuais
+        """Adiciona um novo fornecedor com multi-tenancy"""
+        # Aceitar dict ou parâmetros individuais
         if isinstance(fornecedor_data, dict):
             nome = fornecedor_data.get('nome')
             cpf_cnpj = fornecedor_data.get('cnpj', fornecedor_data.get('cpf_cnpj'))
@@ -2204,20 +2215,49 @@ class DatabaseManager:
             telefone = fornecedor_data.get('telefone')
             endereco = fornecedor_data.get('endereco')
             proprietario_id = fornecedor_data.get('proprietario_id', proprietario_id)
+            empresa_id = fornecedor_data.get('empresa_id')
         else:
             nome = fornecedor_data
+            empresa_id = None
         
-        cursor.execute("""
-            INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco, proprietario_id)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (nome, cpf_cnpj, email, telefone, endereco, proprietario_id))
+        # 🔒 Validar empresa_id obrigatório
+        if not empresa_id:
+            from flask import session
+            empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            raise ValueError("empresa_id é obrigatório para adicionar fornecedor")
         
-        fornecedor_id = cursor.fetchone()['id']
-        conn.commit()
-        cursor.close()
-        return_to_pool(conn)  # Devolver ao pool
-        return fornecedor_id
+        # 🔒 Validar proprietario_id se fornecido
+        if proprietario_id:
+            with get_db_connection(empresa_id=empresa_id) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id FROM usuarios WHERE id = %s", (proprietario_id,))
+                if not cursor.fetchone():
+                    cursor.close()
+                    raise ValueError(f"proprietario_id {proprietario_id} não existe na tabela usuarios")
+                cursor.close()
+        
+        print(f"\n🔍 [adicionar_fornecedor]")
+        print(f"   - empresa_id: {empresa_id}")
+        print(f"   - nome: {nome}")
+        print(f"   - proprietario_id: {proprietario_id}")
+        
+        # 🔒 Usar get_db_connection com empresa_id para aplicar RLS
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco, proprietario_id, empresa_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (nome, cpf_cnpj, email, telefone, endereco, proprietario_id, empresa_id))
+            
+            fornecedor_id = cursor.fetchone()['id']
+            conn.commit()
+            cursor.close()
+            
+            print(f"   ✅ Fornecedor criado com ID: {fornecedor_id}")
+            return fornecedor_id
     
     def listar_fornecedores(self, ativos: bool = True, filtro_cliente_id: int = None) -> List[Dict]:
         """Lista todos os fornecedores com suporte a multi-tenancy"""
@@ -2330,42 +2370,68 @@ class DatabaseManager:
         return sucesso
     
     def adicionar_lancamento(self, lancamento: Lancamento, proprietario_id: int = None, empresa_id: int = None) -> int:
-        """Adiciona um novo lani?amento"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
+        """Adiciona um novo lançamento com multi-tenancy"""
+        # 🔒 Validar empresa_id obrigatório
+        if not empresa_id:
+            from flask import session
+            empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            raise ValueError("empresa_id é obrigatório para adicionar lançamento")
         
-        cursor.execute("""
-            INSERT INTO lancamentos 
-            (tipo, descricao, valor, data_vencimento, data_pagamento,
-             categoria, subcategoria, conta_bancaria, cliente_fornecedor, pessoa,
-             status, observacoes, anexo, recorrente, frequencia_recorrencia, dia_vencimento, proprietario_id, empresa_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (
-            lancamento.tipo.value,
-            lancamento.descricao,
-            float(lancamento.valor),
-            lancamento.data_vencimento,
-            lancamento.data_pagamento,
-            lancamento.categoria,
-            lancamento.subcategoria,
-            lancamento.conta_bancaria,
-            lancamento.cliente_fornecedor,
-            lancamento.pessoa,
-            lancamento.status.value,
-            lancamento.observacoes,
-            lancamento.anexo,
-            lancamento.recorrente,
-            lancamento.frequencia_recorrencia,
-            lancamento.dia_vencimento,
-            proprietario_id,
-            empresa_id
-        ))
+        # 🔒 Validar proprietario_id se fornecido
+        if proprietario_id:
+            with get_db_connection(empresa_id=empresa_id) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id FROM usuarios WHERE id = %s", (proprietario_id,))
+                if not cursor.fetchone():
+                    cursor.close()
+                    raise ValueError(f"proprietario_id {proprietario_id} não existe na tabela usuarios")
+                cursor.close()
         
-        lancamento_id = cursor.fetchone()['id']
-        cursor.close()
-        return_to_pool(conn)  # Devolver ao pool
-        return lancamento_id
+        print(f"\n🔍 [adicionar_lancamento]")
+        print(f"   - empresa_id: {empresa_id}")
+        print(f"   - proprietario_id: {proprietario_id}")
+        print(f"   - descrição: {lancamento.descricao}")
+        print(f"   - valor: {lancamento.valor}")
+        
+        # 🔒 Usar get_db_connection com empresa_id para aplicar RLS
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO lancamentos 
+                (tipo, descricao, valor, data_vencimento, data_pagamento,
+                 categoria, subcategoria, conta_bancaria, cliente_fornecedor, pessoa,
+                 status, observacoes, anexo, recorrente, frequencia_recorrencia, dia_vencimento, proprietario_id, empresa_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                lancamento.tipo.value,
+                lancamento.descricao,
+                float(lancamento.valor),
+                lancamento.data_vencimento,
+                lancamento.data_pagamento,
+                lancamento.categoria,
+                lancamento.subcategoria,
+                lancamento.conta_bancaria,
+                lancamento.cliente_fornecedor,
+                lancamento.pessoa,
+                lancamento.status.value,
+                lancamento.observacoes,
+                lancamento.anexo,
+                lancamento.recorrente,
+                lancamento.frequencia_recorrencia,
+                lancamento.dia_vencimento,
+                proprietario_id,
+                empresa_id
+            ))
+            
+            lancamento_id = cursor.fetchone()['id']
+            conn.commit()
+            cursor.close()
+            
+            print(f"   ✅ Lançamento criado com ID: {lancamento_id}")
+            return lancamento_id
     
     def listar_lancamentos(self, empresa_id: int = None, filtros: Dict[str, Any] = None, 
                           filtro_cliente_id: int = None, page: int = None, per_page: int = 50) -> List[Lancamento]:
@@ -3406,51 +3472,65 @@ def deletar_contrato(contrato_id: int) -> bool:
 
 # ==================== FUNÇÕES CRUD - SESSÕES ====================
 def adicionar_sessao(dados: Dict) -> int:
-    """Adiciona uma nova sessão"""
+    """Adiciona uma nova sessão com multi-tenancy"""
     import json
     
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
+    # 🔒 Validar empresa_id obrigatório
+    empresa_id = dados.get('empresa_id')
+    if not empresa_id:
+        from flask import session
+        empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para adicionar sessão")
     
-    # Preparar dados JSON para campos complexos
-    dados_json = {
-        'horario': dados.get('horario'),
-        'quantidade_horas': dados.get('quantidade_horas'),
-        'tipo_foto': dados.get('tipo_foto', False),
-        'tipo_video': dados.get('tipo_video', False),
-        'tipo_mobile': dados.get('tipo_mobile', False),
-        'tags': dados.get('tags'),
-        'equipe': dados.get('equipe', []),
-        'responsaveis': dados.get('responsaveis', []),
-        'equipamentos': dados.get('equipamentos', []),
-        'equipamentos_alugados': dados.get('equipamentos_alugados', []),
-        'custos_adicionais': dados.get('custos_adicionais', [])
-    }
+    print(f"\n🔍 [adicionar_sessao]")
+    print(f"   - empresa_id: {empresa_id}")
+    print(f"   - cliente_id: {dados.get('cliente_id')}")
+    print(f"   - data: {dados.get('data')}")
     
-    cursor.execute("""
-        INSERT INTO sessoes 
-        (cliente_id, contrato_id, data, endereco, descricao, prazo_entrega, 
-         observacoes, dados_json, empresa_id, created_at, updated_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        RETURNING id
-    """, (
-        dados.get('cliente_id'),
-        dados.get('contrato_id'),
-        dados.get('data'),
-        dados.get('endereco'),
-        dados.get('descricao'),
-        dados.get('prazo_entrega'),
-        dados.get('observacoes'),
-        json.dumps(dados_json),
-        dados.get('empresa_id', 1)
-    ))
-    
-    sessao_id = cursor.fetchone()['id']
-    conn.commit()
-    cursor.close()
-    return_to_pool(conn)
-    return sessao_id
+    # 🔒 Usar get_db_connection com empresa_id para aplicar RLS
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        # Preparar dados JSON para campos complexos
+        dados_json = {
+            'horario': dados.get('horario'),
+            'quantidade_horas': dados.get('quantidade_horas'),
+            'tipo_foto': dados.get('tipo_foto', False),
+            'tipo_video': dados.get('tipo_video', False),
+            'tipo_mobile': dados.get('tipo_mobile', False),
+            'tags': dados.get('tags'),
+            'equipe': dados.get('equipe', []),
+            'responsaveis': dados.get('responsaveis', []),
+            'equipamentos': dados.get('equipamentos', []),
+            'equipamentos_alugados': dados.get('equipamentos_alugados', []),
+            'custos_adicionais': dados.get('custos_adicionais', [])
+        }
+        
+        cursor.execute("""
+            INSERT INTO sessoes 
+            (cliente_id, contrato_id, data, endereco, descricao, prazo_entrega, 
+             observacoes, dados_json, empresa_id, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            RETURNING id
+        """, (
+            dados.get('cliente_id'),
+            dados.get('contrato_id'),
+            dados.get('data'),
+            dados.get('endereco'),
+            dados.get('descricao'),
+            dados.get('prazo_entrega'),
+            dados.get('observacoes'),
+            json.dumps(dados_json),
+            empresa_id
+        ))
+        
+        sessao_id = cursor.fetchone()['id']
+        conn.commit()
+        cursor.close()
+        
+        print(f"   ✅ Sessão criada com ID: {sessao_id}")
+        return sessao_id
 
 
 def listar_sessoes(empresa_id: int) -> List[Dict]:

@@ -2753,12 +2753,38 @@ def listar_fornecedores():
 def adicionar_fornecedor():
     """Adiciona um novo fornecedor"""
     try:
+        # 🔒 VALIDAÇÃO DE SEGURANÇA
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
         data = request.json
-        proprietario_id = getattr(request, 'filtro_cliente_id', None)
+        
+        # 🔒 Validar campo obrigatório
+        if not data.get('nome'):
+            return jsonify({'success': False, 'error': 'Nome do fornecedor é obrigatório'}), 400
+        
+        # 🔒 Adicionar empresa_id aos dados
+        data['empresa_id'] = empresa_id
+        
+        # 🔒 Obter proprietario_id do usuário atual (se tipo='cliente')
+        usuario = get_usuario_logado()
+        proprietario_id = None
+        if usuario and usuario.get('tipo') == 'cliente':
+            proprietario_id = usuario.get('id')
+        
+        print(f"\n🔍 [POST /api/fornecedores]")
+        print(f"   - empresa_id: {empresa_id}")
+        print(f"   - nome: {data.get('nome')}")
+        print(f"   - proprietario_id: {proprietario_id}")
         
         fornecedor_id = db.adicionar_fornecedor(data, proprietario_id=proprietario_id)  # type: ignore
+        print(f"   ✅ Fornecedor criado com ID: {fornecedor_id}")
         return jsonify({'success': True, 'id': fornecedor_id})
     except Exception as e:
+        print(f"   ❌ Erro: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
@@ -3013,9 +3039,31 @@ def listar_lancamentos():
 def adicionar_lancamento():
     """Adiciona um novo lançamento (com suporte a parcelamento)"""
     try:
+        # 🔒 VALIDAÇÃO DE SEGURANÇA
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
         data = request.json
-        proprietario_id = getattr(request, 'filtro_cliente_id', None)
-        empresa_id = data.get('empresa_id') if data else None
+        
+        # 🔒 Obter proprietario_id do usuário atual (se tipo='cliente')
+        usuario = get_usuario_logado()
+        proprietario_id = None
+        if usuario and usuario.get('tipo') == 'cliente':
+            proprietario_id = usuario.get('id')
+            # Validar que existe
+            if proprietario_id:
+                conn = db.get_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT id FROM usuarios WHERE id = %s", (proprietario_id,))
+                if not cursor.fetchone():
+                    cursor.close()
+                    return jsonify({'success': False, 'error': 'proprietario_id inválido'}), 400
+                cursor.close()
+        
+        print(f"\n🔍 [POST /api/lancamentos]")
+        print(f"   - empresa_id: {empresa_id}")
+        print(f"   - proprietario_id: {proprietario_id}")
         
         # Validar se a conta bancária está ativa
         if data and data.get('conta_bancaria'):
@@ -4141,14 +4189,20 @@ def criar_funcionario():
         # Limpar CPF (remover pontuação)
         cpf = dados['cpf'].replace('.', '').replace('-', '').replace('/', '')
         
-        conn = db.get_connection()
-        cursor = conn.cursor()
+        print(f"\n🔍 [POST /api/funcionarios]")
+        print(f"   - empresa_id: {empresa_id}")
+        print(f"   - nome: {dados.get('nome')}")
+        print(f"   - cpf: {cpf}")
         
-        # Verificar se CPF já existe
-        cursor.execute("SELECT id FROM funcionarios WHERE cpf = %s AND empresa_id = %s", (cpf, empresa_id))
-        if cursor.fetchone():
-            cursor.close()
-            return jsonify({'error': 'CPF já cadastrado'}), 400
+        # 🔒 Usar get_db_connection com empresa_id para aplicar RLS
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            # Verificar se CPF já existe
+            cursor.execute("SELECT id FROM funcionarios WHERE cpf = %s AND empresa_id = %s", (cpf, empresa_id))
+            if cursor.fetchone():
+                cursor.close()
+                return jsonify({'error': 'CPF já cadastrado'}), 400
         
         query = """
             INSERT INTO funcionarios 
@@ -4185,16 +4239,18 @@ def criar_funcionario():
             dados.get('pis_pasep')
         ))
         
-        resultado = cursor.fetchone()
-        funcionario_id = resultado['id'] if isinstance(resultado, dict) else resultado[0]
-        conn.commit()
-        cursor.close()
-        
-        return jsonify({
-            'success': True,
-            'id': funcionario_id,
-            'message': 'Funcionário cadastrado com sucesso'
-        }), 201
+            resultado = cursor.fetchone()
+            funcionario_id = resultado['id'] if isinstance(resultado, dict) else resultado[0]
+            conn.commit()
+            cursor.close()
+            
+            print(f"   ✅ Funcionário criado com ID: {funcionario_id}")
+            
+            return jsonify({
+                'success': True,
+                'id': funcionario_id,
+                'message': 'Funcionário cadastrado com sucesso'
+            }), 201
     
     except Exception as e:
         logger.error(f"Erro ao criar funcionário: {e}")
