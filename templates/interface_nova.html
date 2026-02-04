@@ -6298,9 +6298,11 @@
                     // Calcular total
                     const total = result.equipe.reduce((sum, m) => sum + parseFloat(m.valor || 0), 0);
                     document.getElementById('equipe-custo-total').textContent = formatarMoeda(total);
+                    document.getElementById('equipe-evento-custo-atual').textContent = formatarMoeda(total);
                 } else {
                     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
                     document.getElementById('equipe-custo-total').textContent = 'R$ 0,00';
+                    document.getElementById('equipe-evento-custo-atual').textContent = 'R$ 0,00';
                 }
             } catch (error) {
                 console.error('Erro ao carregar equipe:', error);
