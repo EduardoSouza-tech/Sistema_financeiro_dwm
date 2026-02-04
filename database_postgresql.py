@@ -2741,9 +2741,14 @@ class DatabaseManager:
         """Adiciona uma nova sessi?o"""
         return adicionar_sessao(dados)
     
-    def listar_sessoes(self) -> List[Dict]:
-        """Lista todas as sessi?es"""
-        return listar_sessoes()
+    def listar_sessoes(self, empresa_id: int = None) -> List[Dict]:
+        """Lista todas as sessões da empresa"""
+        if not empresa_id:
+            from flask import session
+            empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            raise ValueError("empresa_id é obrigatório")
+        return listar_sessoes(empresa_id=empresa_id)
     
     def atualizar_sessao(self, sessao_id: int, dados: Dict) -> bool:
         """Atualiza uma sessi?o"""
@@ -3439,9 +3444,10 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
         raise ValueError("empresa_id é obrigatório para listar_sessoes")
     
     # 🔒 Usar get_db_connection com empresa_id
-    with get_db_connection(empresa_id=empresa_id) as conn:
-        cursor = conn.cursor()
-        
+    conn = get_db_connection(empresa_id=empresa_id)
+    cursor = conn.cursor()
+    
+    try:
         query = """
             SELECT 
                 s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
@@ -3452,18 +3458,14 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
             FROM sessoes s
             LEFT JOIN clientes c ON s.cliente_id = c.id
             LEFT JOIN contratos ct ON s.contrato_id = ct.id
-            ORDER BY s.data DESC
+            ORDER BY s.data DESC, s.id DESC
         """
         
         cursor.execute(query)
-    
-    query += " ORDER BY s.data DESC, s.id DESC"
-    
-    cursor.execute(query, params)
-    rows = cursor.fetchall()
-    
-    sessoes = []
-    for row in rows:
+        rows = cursor.fetchall()
+        
+        sessoes = []
+        for row in rows:
         # Trata dados_json que pode vir como dict ou string
         if row['dados_json']:
             if isinstance(row['dados_json'], dict):
@@ -3499,9 +3501,11 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
         }
         
         sessoes.append(sessao)
+        
+    finally:
+        cursor.close()
+        return_to_pool(conn)
     
-    cursor.close()
-    return_to_pool(conn)
     return sessoes
 
 
@@ -4120,8 +4124,9 @@ def adicionar_sessao(dados: Dict) -> int:
     return_to_pool(conn)  # Devolver ao pool
     return sessao_id
 
-def listar_sessoes() -> List[Dict]:
-    """Lista todas as sessi?es"""
+def listar_sessoes_OLD_DEPRECATED() -> List[Dict]:
+    """⚠️ DEPRECATED - Use listar_sessoes(empresa_id) com RLS"""
+    raise DeprecationWarning("Use listar_sessoes(empresa_id: int) instead")
     import datetime
     import decimal
     import json
