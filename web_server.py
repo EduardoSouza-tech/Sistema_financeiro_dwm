@@ -163,13 +163,24 @@ def auto_execute_migrations():
         try:
             cursor.execute("""
                 ALTER TABLE evento_funcionarios 
-                ADD COLUMN IF NOT EXISTS hora_inicio TIME,
+                ADD COLUMN IF NOT EXISTS hora_inicio TIME
+            """)
+            conn.commit()
+            logger.info("✅ Coluna hora_inicio adicionada/verificada em evento_funcionarios")
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao adicionar coluna hora_inicio: {e}")
+            conn.rollback()
+        
+        try:
+            cursor.execute("""
+                ALTER TABLE evento_funcionarios 
                 ADD COLUMN IF NOT EXISTS hora_fim TIME
             """)
             conn.commit()
-            logger.info("✅ Colunas hora_inicio e hora_fim adicionadas/verificadas em evento_funcionarios")
+            logger.info("✅ Coluna hora_fim adicionada/verificada em evento_funcionarios")
         except Exception as e:
-            logger.warning(f"⚠️ Erro ao adicionar colunas de horário: {e}")
+            logger.warning(f"⚠️ Erro ao adicionar coluna hora_fim: {e}")
+            conn.rollback()
         
         cursor.close()
         
@@ -3890,7 +3901,7 @@ def listar_funcionarios():
         cursor = conn.cursor()
         
         query = """
-            SELECT id, empresa_id, nome, cpf, endereco, tipo_chave_pix, 
+            SELECT id, empresa_id, nome, cpf, endereco, email, tipo_chave_pix, 
                    chave_pix, ativo, data_admissao, observacoes,
                    data_criacao, data_atualizacao
             FROM funcionarios
@@ -3912,6 +3923,7 @@ def listar_funcionarios():
                     'nome': row['nome'],
                     'cpf': row['cpf'],
                     'endereco': row['endereco'],
+                    'email': row.get('email'),
                     'tipo_chave_pix': row['tipo_chave_pix'],
                     'chave_pix': row['chave_pix'],
                     'ativo': row['ativo'],
@@ -3927,13 +3939,14 @@ def listar_funcionarios():
                     'nome': row[2],
                     'cpf': row[3],
                     'endereco': row[4],
-                    'tipo_chave_pix': row[5],
-                    'chave_pix': row[6],
-                    'ativo': row[7],
-                    'data_admissao': row[8].isoformat() if row[8] else None,
-                    'observacoes': row[9],
-                    'data_criacao': row[10].isoformat() if row[10] else None,
-                    'data_atualizacao': row[11].isoformat() if row[11] else None
+                    'email': row[5],
+                    'tipo_chave_pix': row[6],
+                    'chave_pix': row[7],
+                    'ativo': row[8],
+                    'data_admissao': row[9].isoformat() if row[9] else None,
+                    'observacoes': row[10],
+                    'data_criacao': row[11].isoformat() if row[11] else None,
+                    'data_atualizacao': row[12].isoformat() if row[12] else None
                 })
         
         return jsonify({'funcionarios': funcionarios}), 200
