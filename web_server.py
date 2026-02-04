@@ -1850,20 +1850,38 @@ def listar_contas():
 def adicionar_conta():
     """Adiciona uma nova conta bancária"""
     try:
-        data = request.json
-        proprietario_id = getattr(request, 'filtro_cliente_id', None)
+        from flask import session
         
-        # Obter empresa_id
+        # 🔒 Obter empresa_id da sessão (OBRIGATÓRIO)
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
+        data = request.json
+        
+        # Validar campos obrigatórios
+        if not data.get('nome'):
+            return jsonify({'success': False, 'error': 'Nome da conta é obrigatório'}), 400
+        if not data.get('banco'):
+            return jsonify({'success': False, 'error': 'Banco é obrigatório'}), 400
+        
+        # 👥 proprietario_id = ID do USUÁRIO logado (se aplicável), não empresa_id!
         usuario = get_usuario_logado()
-        empresa_id = data.get('empresa_id') or usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        proprietario_id = usuario.get('id') if usuario.get('tipo') == 'cliente' else None
+        
+        print(f"\n🔍 [POST /api/contas] Adicionando conta:")
+        print(f"   - empresa_id: {empresa_id}")
+        print(f"   - proprietario_id (usuario): {proprietario_id}")
+        print(f"   - nome: {data.get('nome')}")
+        print(f"   - banco: {data.get('banco')}")
         
         # Verificar contas existentes antes de adicionar
-        contas_existentes = db.listar_contas(filtro_cliente_id=proprietario_id)
+        contas_existentes = db.listar_contas(filtro_cliente_id=None)
         
         # Verificar se já existe
         for c in contas_existentes:
             if c.nome == data['nome']:
-                print(f"CONFLITO: Conta '{data['nome']}' já existe!")
+                print(f"   ❌ CONFLITO: Conta '{data['nome']}' já existe!")
                 return jsonify({'success': False, 'error': f'Já existe uma conta cadastrada com: Banco: {data["banco"]}, Agência: {data["agencia"]}, Conta: {data["conta"]}'}), 400
         
         conta = ContaBancaria(
@@ -1877,13 +1895,17 @@ def adicionar_conta():
         )
         
         conta_id = db.adicionar_conta(conta, proprietario_id=proprietario_id, empresa_id=empresa_id)
+        print(f"   ✅ Conta criada com ID: {conta_id}")
         return jsonify({'success': True, 'id': conta_id})
     except Exception as e:
+        print(f"   ❌ Erro ao criar conta: {str(e)}")
         import traceback
         traceback.print_exc()
         error_msg = str(e)
         if 'UNIQUE constraint' in error_msg:
             error_msg = 'Já existe uma conta com este nome'
+        elif 'foreign key constraint' in error_msg.lower():
+            error_msg = 'Erro ao vincular conta: proprietario_id inválido'
         return jsonify({'success': False, 'error': error_msg}), 400
 
 

@@ -1641,32 +1641,54 @@ class DatabaseManager:
         return_to_pool(conn)  # Devolver ao pool
     
     def adicionar_conta(self, conta: ContaBancaria, proprietario_id: int = None, empresa_id: int = None) -> int:
-        """Adiciona uma nova conta banci?ria"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
+        """Adiciona uma nova conta bancária"""
+        # 🔒 empresa_id é obrigatório
+        if not empresa_id:
+            from flask import session
+            empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            raise ValueError("empresa_id é obrigatório para adicionar conta")
         
-        # empresa_id é obrigatório, usar 1 como fallback se não fornecido
-        if empresa_id is None:
-            empresa_id = 1
+        # 👥 proprietario_id é OPCIONAL (ID do usuário, não empresa)
+        # Se fornecido, validar que existe na tabela usuarios
+        if proprietario_id:
+            conn_check = self.get_connection()
+            cursor_check = conn_check.cursor()
+            cursor_check.execute("SELECT id FROM usuarios WHERE id = %s", (proprietario_id,))
+            if not cursor_check.fetchone():
+                cursor_check.close()
+                return_to_pool(conn_check)
+                raise ValueError(f"proprietario_id={proprietario_id} não existe na tabela usuarios. Use NULL ou um ID válido de usuário.")
+            cursor_check.close()
+            return_to_pool(conn_check)
         
-        cursor.execute("""
-            INSERT INTO contas_bancarias 
-            (nome, banco, agencia, conta, saldo_inicial, tipo_saldo_inicial, data_inicio, ativa, data_criacao, proprietario_id, empresa_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, COALESCE(%s, CURRENT_TIMESTAMP), %s, %s)
-            RETURNING id
-        """, (
-            conta.nome,
-            conta.banco,
-            conta.agencia,
-            conta.conta,
-            float(conta.saldo_inicial),
-            conta.tipo_saldo_inicial,
-            conta.data_inicio,
-            conta.ativa,
-            conta.data_criacao,
-            proprietario_id,
-            empresa_id
-        ))
+        # 🔒 Usar get_db_connection com empresa_id para aplicar RLS
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO contas_bancarias 
+                (nome, banco, agencia, conta, saldo_inicial, tipo_saldo_inicial, data_inicio, ativa, data_criacao, proprietario_id, empresa_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, COALESCE(%s, CURRENT_TIMESTAMP), %s, %s)
+                RETURNING id
+            """, (
+                conta.nome,
+                conta.banco,
+                conta.agencia,
+                conta.conta,
+                float(conta.saldo_inicial),
+                conta.tipo_saldo_inicial,
+                conta.data_inicio,
+                conta.ativa,
+                conta.data_criacao,
+                proprietario_id,  # Pode ser None
+                empresa_id  # OBRIGATÓRIO
+            ))
+            
+            conta_id = cursor.fetchone()['id']
+            conn.commit()
+        
+        return conta_id
         
         conta_id = cursor.fetchone()['id']
         cursor.close()
