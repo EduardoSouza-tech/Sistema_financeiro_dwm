@@ -6193,6 +6193,7 @@
             // Filtro de busca (nome, CPF, email, celular, profissão, endereço)
             if (busca) {
                 console.log('   🔍 Aplicando filtro de busca...');
+                let primeiroMatch = true;
                 filtered = filtered.filter(f => {
                     const nome = (f.nome || '').toLowerCase();
                     const cpf = (f.cpf || '').replace(/\D/g, '');
@@ -6203,17 +6204,27 @@
                     const estado = (f.estado || '').toLowerCase();
                     const buscaSemFormatacao = busca.replace(/\D/g, '');
                     
-                    const match = nome.includes(busca) ||
-                           cpf.includes(buscaSemFormatacao) ||
-                           email.includes(busca) ||
-                           celular.includes(buscaSemFormatacao) ||
-                           profissao.includes(busca) ||
-                           cidade.includes(busca) ||
-                           estado.includes(busca);
+                    const nomeMatch = nome.includes(busca);
+                    const cpfMatch = cpf.includes(buscaSemFormatacao);
+                    const emailMatch = email.includes(busca);
+                    const celularMatch = celular.includes(buscaSemFormatacao);
+                    const profissaoMatch = profissao.includes(busca);
+                    const cidadeMatch = cidade.includes(busca);
+                    const estadoMatch = estado.includes(busca);
                     
-                    // Log do primeiro que corresponder
-                    if (match && filtered.length === funcionariosGlobal.length) {
-                        console.log('   ✅ Primeiro match:', nome, '- busca:', busca);
+                    const match = nomeMatch || cpfMatch || emailMatch || celularMatch || profissaoMatch || cidadeMatch || estadoMatch;
+                    
+                    // Debug detalhado do primeiro match
+                    if (match && primeiroMatch) {
+                        console.log('   ✅ Primeiro match:', nome);
+                        console.log('      - Nome:', nomeMatch, '(', nome, ')');
+                        console.log('      - CPF:', cpfMatch, '(', cpf, ')');
+                        console.log('      - Email:', emailMatch, '(', email, ')');
+                        console.log('      - Celular:', celularMatch, '(', celular, ')');
+                        console.log('      - Profissão:', profissaoMatch, '(', profissao, ')');
+                        console.log('      - Cidade:', cidadeMatch, '(', cidade, ')');
+                        console.log('      - Estado:', estadoMatch, '(', estado, ')');
+                        primeiroMatch = false;
                     }
                     
                     return match;
