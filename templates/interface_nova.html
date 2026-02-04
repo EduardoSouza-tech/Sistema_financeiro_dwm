@@ -6093,6 +6093,7 @@
         let funcionariosGlobal = [];
 
         async function loadFuncionarios() {
+            console.log('🔵 loadFuncionarios do INTERFACE_NOVA.HTML sendo executada');
             try {
                 const response = await fetch('/api/funcionarios', {
                     credentials: 'include'
@@ -6120,11 +6121,12 @@
             } catch (error) {
                 console.error('Erro ao carregar funcionários:', error);
                 showToast(error.message || 'Erro ao carregar funcionários', 'error');
-                document.getElementById('tbody-funcionarios').innerHTML = '<tr><td colspan="7" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>';
+                document.getElementById('tbody-funcionarios').innerHTML = '<tr><td colspan="15" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>';
             }
         }
 
         function renderFuncionarios(funcionarios) {
+            console.log('🎨 renderFuncionarios chamada com', funcionarios.length, 'funcionários');
             const tbody = document.getElementById('tbody-funcionarios');
 
             if (funcionarios && funcionarios.length > 0) {
@@ -6413,6 +6415,13 @@
         window.mudarAbaFuncionario = mudarAbaFuncionario;
         window.editarFuncionario = editarFuncionario;
         window.exportarFuncionariosExcel = exportarFuncionariosExcel;
+
+        // Garantir que a função correta seja usada mesmo após app.js carregar
+        setTimeout(() => {
+            console.log('🔄 Forçando sobrescrita de loadFuncionarios...');
+            window.loadFuncionarios = loadFuncionarios;
+            console.log('✅ window.loadFuncionarios sobrescrita com sucesso');
+        }, 100);
 
         // ====================================
         // EVENTOS OPERACIONAIS
