@@ -6903,7 +6903,10 @@
                 });
 
                 if (response.ok) {
-                    const eventos = await response.json();
+                    const result = await response.json();
+                    
+                    // Extrair array de eventos (formato pode ser { data: [...] } ou [...])
+                    const eventos = result.data || result;
                     
                     select.innerHTML = '<option value="">Selecione um evento...</option>';
                     
