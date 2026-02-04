@@ -289,17 +289,40 @@ def validar_sessao(token: str, db) -> Optional[Dict]:
     """, (token,))
     
     sessao = cursor.fetchone()
-    cursor.close()
-    conn.close()
     
     if not sessao:
+        cursor.close()
+        conn.close()
         return None
     
     # Verificar expiração
     if sessao['expira_em'] < datetime.now():
+        cursor.close()
+        conn.close()
         # Sessão expirada - desativar
         invalidar_sessao(token, db)
         return None
+    
+    # Buscar empresas associadas ao usuário
+    cursor.execute("""
+        SELECT empresa_id
+        FROM usuario_empresas
+        WHERE usuario_id = %s
+        ORDER BY empresa_id
+    """, (sessao['usuario_id'],))
+    
+    empresas_rows = cursor.fetchall()
+    empresas = [row['empresa_id'] if isinstance(row, dict) else row[0] for row in empresas_rows]
+    
+    # Determinar empresa_id (da sessão ou primeira disponível)
+    from flask import session as flask_session
+    empresa_id = flask_session.get('empresa_id')
+    if not empresa_id and empresas:
+        empresa_id = empresas[0]
+        flask_session['empresa_id'] = empresa_id
+    
+    cursor.close()
+    conn.close()
     
     return {
         'id': sessao['usuario_id'],
@@ -307,7 +330,9 @@ def validar_sessao(token: str, db) -> Optional[Dict]:
         'tipo': sessao['tipo'],
         'nome_completo': sessao['nome_completo'],
         'email': sessao['email'],
-        'cliente_id': sessao['cliente_id']
+        'cliente_id': sessao['cliente_id'],
+        'empresa_id': empresa_id,
+        'empresas': empresas
     }
 
 
