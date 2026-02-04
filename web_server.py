@@ -4498,6 +4498,28 @@ def atualizar_evento(evento_id):
         query = f"UPDATE eventos SET {', '.join(campos_update)} WHERE id = %s"
         cursor.execute(query, valores)
         
+        # RECALCULAR MARGEM se valor_liquido_nf ou custo_evento foram alterados
+        if 'valor_liquido_nf' in dados or 'custo_evento' in dados:
+            cursor.execute("""
+                SELECT valor_liquido_nf, custo_evento
+                FROM eventos
+                WHERE id = %s
+            """, (evento_id,))
+            
+            evento_row = cursor.fetchone()
+            valor_liquido = evento_row['valor_liquido_nf'] if evento_row and evento_row['valor_liquido_nf'] else 0
+            custo = evento_row['custo_evento'] if evento_row and evento_row['custo_evento'] else 0
+            
+            # Calcular margem: Valor Líquido - Custo
+            margem = float(valor_liquido) - float(custo)
+            
+            # Atualizar margem recalculada
+            cursor.execute("""
+                UPDATE eventos
+                SET margem = %s
+                WHERE id = %s
+            """, (margem, evento_id))
+        
         conn.commit()
         cursor.close()
         
