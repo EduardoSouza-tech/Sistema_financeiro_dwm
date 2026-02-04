@@ -3466,42 +3466,41 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
         
         sessoes = []
         for row in rows:
-        # Trata dados_json que pode vir como dict ou string
-        if row['dados_json']:
-            if isinstance(row['dados_json'], dict):
-                dados_json = row['dados_json']  # Já é dict
+            # Trata dados_json que pode vir como dict ou string
+            if row['dados_json']:
+                if isinstance(row['dados_json'], dict):
+                    dados_json = row['dados_json']  # Já é dict
+                else:
+                    dados_json = json.loads(row['dados_json'])  # Parse string
             else:
-                dados_json = json.loads(row['dados_json'])  # Parse string
-        else:
-            dados_json = {}
-        
-        sessao = {
-            'id': row['id'],
-            'cliente_id': row['cliente_id'],
-            'cliente_nome': row['cliente_nome'] or row['cliente_razao_social'] or '-',
-            'contrato_id': row['contrato_id'],
-            'contrato_numero': row['contrato_numero'],
-            'contrato_nome': row['contrato_nome'],
-            'data': row['data'].isoformat() if row['data'] else None,
-            'horario': dados_json.get('horario'),
-            'quantidade_horas': dados_json.get('quantidade_horas'),
-            'endereco': row['endereco'],
-            'tipo_foto': dados_json.get('tipo_foto', False),
-            'tipo_video': dados_json.get('tipo_video', False),
-            'tipo_mobile': dados_json.get('tipo_mobile', False),
-            'descricao': row['descricao'],
-            'tags': dados_json.get('tags'),
-            'prazo_entrega': row['prazo_entrega'].isoformat() if row['prazo_entrega'] else None,
-            'equipe': dados_json.get('equipe', []),
-            'responsaveis': dados_json.get('responsaveis', []),
-            'equipamentos': dados_json.get('equipamentos', []),
-            'equipamentos_alugados': dados_json.get('equipamentos_alugados', []),
-            'custos_adicionais': dados_json.get('custos_adicionais', []),
-            'observacoes': row['observacoes']
-        }
-        
-        sessoes.append(sessao)
-        
+                dados_json = {}
+            
+            sessao = {
+                'id': row['id'],
+                'cliente_id': row['cliente_id'],
+                'cliente_nome': row['cliente_nome'] or row['cliente_razao_social'] or '-',
+                'contrato_id': row['contrato_id'],
+                'contrato_numero': row['contrato_numero'],
+                'contrato_nome': row['contrato_nome'],
+                'data': row['data'].isoformat() if row['data'] else None,
+                'horario': dados_json.get('horario'),
+                'quantidade_horas': dados_json.get('quantidade_horas'),
+                'endereco': row['endereco'],
+                'tipo_foto': dados_json.get('tipo_foto', False),
+                'tipo_video': dados_json.get('tipo_video', False),
+                'tipo_mobile': dados_json.get('tipo_mobile', False),
+                'descricao': row['descricao'],
+                'tags': dados_json.get('tags'),
+                'prazo_entrega': row['prazo_entrega'].isoformat() if row['prazo_entrega'] else None,
+                'equipe': dados_json.get('equipe', []),
+                'responsaveis': dados_json.get('responsaveis', []),
+                'equipamentos': dados_json.get('equipamentos', []),
+                'equipamentos_alugados': dados_json.get('equipamentos_alugados', []),
+                'custos_adicionais': dados_json.get('custos_adicionais', []),
+                'observacoes': row['observacoes']
+            }
+            
+            sessoes.append(sessao)
     finally:
         cursor.close()
         return_to_pool(conn)
