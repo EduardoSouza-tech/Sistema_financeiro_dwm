@@ -7033,41 +7033,114 @@
                 return;
             }
 
-            // Preparar dados para Excel
-            const data = [];
+            // Criar HTML formatado para Excel (formato HTML table funciona perfeitamente no Excel)
+            const totalCooperados = document.getElementById('credenciamento-total-cooperados').textContent;
+            const dataAtual = new Date().toLocaleDateString('pt-BR');
+            const horaAtual = new Date().toLocaleTimeString('pt-BR');
             
-            // Adicionar cabeçalho
-            data.push(['Cooperado', 'CPF', 'E-mail', 'Função', 'Setor', 'Hora Início', 'Hora Fim', 'Total Trabalhado']);
+            let html = `
+                <html xmlns:x="urn:schemas-microsoft-com:office:excel">
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        table { border-collapse: collapse; width: 100%; }
+                        th { 
+                            background-color: #4472C4; 
+                            color: white; 
+                            font-weight: bold; 
+                            padding: 10px; 
+                            border: 1px solid #000;
+                            text-align: center;
+                        }
+                        td { 
+                            padding: 8px; 
+                            border: 1px solid #D0D0D0;
+                        }
+                        tr:nth-child(even) { background-color: #F2F2F2; }
+                        .header { 
+                            font-size: 18pt; 
+                            font-weight: bold; 
+                            text-align: center; 
+                            margin-bottom: 10px;
+                            color: #1F4E78;
+                        }
+                        .info { 
+                            text-align: center; 
+                            font-size: 10pt; 
+                            color: #595959;
+                            margin-bottom: 20px;
+                        }
+                        .total {
+                            font-weight: bold;
+                            background-color: #E7E6E6;
+                            text-align: right;
+                            padding: 10px;
+                            margin-top: 10px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">🎫 CREDENCIAMENTO - LISTA DE COOPERADOS</div>
+                    <div class="info">
+                        Emitido em: ${dataAtual} às ${horaAtual}<br>
+                        Sistema Financeiro DWM
+                    </div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Cooperado</th>
+                                <th>CPF</th>
+                                <th>E-mail</th>
+                                <th>Função</th>
+                                <th>Setor</th>
+                                <th>Hora Início</th>
+                                <th>Hora Fim</th>
+                                <th>Total Trabalhado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
             
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
                 
                 // Apenas processar linhas de dados (8 células)
                 if (cells.length === 8) {
-                    data.push([
-                        cells[0].textContent.trim(),
-                        cells[1].textContent.trim(),
-                        cells[2].textContent.trim(),
-                        cells[3].textContent.trim(),
-                        cells[4].textContent.trim(),
-                        cells[5].textContent.trim(),
-                        cells[6].textContent.trim(),
-                        cells[7].textContent.trim()
-                    ]);
+                    html += `
+                        <tr>
+                            <td>${cells[0].textContent.trim()}</td>
+                            <td>${cells[1].textContent.trim()}</td>
+                            <td>${cells[2].textContent.trim()}</td>
+                            <td>${cells[3].textContent.trim()}</td>
+                            <td>${cells[4].textContent.trim()}</td>
+                            <td style="text-align: center;">${cells[5].textContent.trim()}</td>
+                            <td style="text-align: center;">${cells[6].textContent.trim()}</td>
+                            <td style="text-align: center; font-weight: bold; color: #27AE60;">${cells[7].textContent.trim()}</td>
+                        </tr>
+                    `;
                 }
             });
-
-            // Criar CSV (compatível com Excel)
-            const csv = data.map(row => row.map(cell => `"${cell}"`).join(',')).join('\\n');
             
-            // Criar blob e download
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            html += `
+                        </tbody>
+                    </table>
+                    
+                    <div class="total">
+                        Total de Cooperados: ${totalCooperados}
+                    </div>
+                </body>
+                </html>
+            `;
+
+            // Criar blob com formato XLS (Excel abre nativamente arquivos HTML com extensão .xls)
+            const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
             
-            const dataAtual = new Date().toISOString().split('T')[0];
+            const dataArquivo = new Date().toISOString().split('T')[0];
             link.setAttribute('href', url);
-            link.setAttribute('download', `credenciamento_${dataAtual}.csv`);
+            link.setAttribute('download', `Credenciamento_${dataArquivo}.xls`);
             link.style.visibility = 'hidden';
             
             document.body.appendChild(link);
