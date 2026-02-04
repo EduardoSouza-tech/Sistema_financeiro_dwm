@@ -6192,6 +6192,7 @@
             
             // Filtro de busca (nome, CPF, email, celular, profissão, endereço)
             if (busca) {
+                console.log('   🔍 Aplicando filtro de busca...');
                 filtered = filtered.filter(f => {
                     const nome = (f.nome || '').toLowerCase();
                     const cpf = (f.cpf || '').replace(/\D/g, '');
@@ -6202,14 +6203,22 @@
                     const estado = (f.estado || '').toLowerCase();
                     const buscaSemFormatacao = busca.replace(/\D/g, '');
                     
-                    return nome.includes(busca) ||
+                    const match = nome.includes(busca) ||
                            cpf.includes(buscaSemFormatacao) ||
                            email.includes(busca) ||
                            celular.includes(buscaSemFormatacao) ||
                            profissao.includes(busca) ||
                            cidade.includes(busca) ||
                            estado.includes(busca);
+                    
+                    // Log do primeiro que corresponder
+                    if (match && filtered.length === funcionariosGlobal.length) {
+                        console.log('   ✅ Primeiro match:', nome, '- busca:', busca);
+                    }
+                    
+                    return match;
                 });
+                console.log('   📊 Após filtro de busca:', filtered.length);
             }
             
             // Filtro de status
