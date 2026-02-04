@@ -6927,10 +6927,19 @@
 
                 const eventosResult = await eventosResponse.json();
                 
-                // Garantir que temos um array
-                let eventos = eventosResult.data || eventosResult;
-                if (!Array.isArray(eventos)) {
-                    console.error('Eventos não é um array:', eventos);
+                // Garantir que temos um array - verificar diferentes formatos de resposta
+                let eventos;
+                if (Array.isArray(eventosResult)) {
+                    // Formato direto: [...]
+                    eventos = eventosResult;
+                } else if (eventosResult.data && Array.isArray(eventosResult.data)) {
+                    // Formato com data: { data: [...] }
+                    eventos = eventosResult.data;
+                } else if (eventosResult.eventos && Array.isArray(eventosResult.eventos)) {
+                    // Formato alternativo: { eventos: [...] }
+                    eventos = eventosResult.eventos;
+                } else {
+                    console.error('Eventos - formato não reconhecido:', eventosResult);
                     tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #e74c3c;">Formato de dados inválido</td></tr>';
                     totalElement.textContent = '0';
                     return;
