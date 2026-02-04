@@ -4770,38 +4770,73 @@
             const permissoes = usuario.permissoes || [];
             console.log('📝 Permissões disponíveis:', permissoes);
             
-            // Selecionar todos os botões com data-permission
+            // Primeiro, processar todos os botões individuais (não menus pai)
             const botoes = document.querySelectorAll('[data-permission]');
             console.log('🔍 Total de botões com permissão:', botoes.length);
             
             let ocultados = 0;
             let visiveis = 0;
             
+            // Filtrar itens individuais
             botoes.forEach(botao => {
                 const permissaoRequerida = botao.getAttribute('data-permission');
                 const temPermissao = permissoes.includes(permissaoRequerida);
+                const btnId = botao.id;
+                const isMenuPai = btnId && btnId.startsWith('btn-');
                 
                 console.log(`  📍 Botão: ${botao.textContent.trim().substring(0, 30)}...`);
                 console.log(`     - Permissão requerida: ${permissaoRequerida}`);
                 console.log(`     - Tem permissão? ${temPermissao}`);
+                console.log(`     - É menu pai? ${isMenuPai}`);
                 
-                if (!temPermissao) {
-                    // Ocultar botão
-                    botao.style.display = 'none';
-                    ocultados++;
-                    
-                    // Se for um botão de menu principal, ocultar também o submenu
-                    const btnId = botao.id;
-                    if (btnId && btnId.startsWith('btn-')) {
-                        const submenuId = btnId.replace('btn-', 'submenu-');
-                        const submenu = document.getElementById(submenuId);
-                        if (submenu) {
-                            submenu.style.display = 'none';
-                            console.log(`     ↳ Submenu ${submenuId} também ocultado`);
-                        }
+                // Para itens que não são menus pai, aplicar filtro direto
+                if (!isMenuPai) {
+                    if (!temPermissao) {
+                        botao.style.display = 'none';
+                        ocultados++;
+                    } else {
+                        botao.style.display = '';
+                        visiveis++;
                     }
-                } else {
+                }
+            });
+            
+            // Agora processar menus pai (com submenu)
+            const menusPai = document.querySelectorAll('[id^="btn-"]');
+            menusPai.forEach(menuPai => {
+                const btnId = menuPai.id;
+                const submenuId = btnId.replace('btn-', 'submenu-');
+                const submenu = document.getElementById(submenuId);
+                
+                if (!submenu) {
+                    // Não é um menu com submenu, pular
+                    return;
+                }
+                
+                // Verificar se há algum item visível dentro do submenu
+                const itensSubmenu = submenu.querySelectorAll('[data-permission]');
+                let algumItemVisivel = false;
+                
+                itensSubmenu.forEach(item => {
+                    const permissaoItem = item.getAttribute('data-permission');
+                    if (permissoes.includes(permissaoItem)) {
+                        algumItemVisivel = true;
+                        item.style.display = ''; // Mostrar item
+                    } else {
+                        item.style.display = 'none'; // Ocultar item
+                    }
+                });
+                
+                // Se há algum item visível no submenu, mostrar o menu pai
+                if (algumItemVisivel) {
+                    menuPai.style.display = '';
+                    console.log(`     ✅ Menu pai ${btnId} visível (tem itens permitidos no submenu)`);
                     visiveis++;
+                } else {
+                    menuPai.style.display = 'none';
+                    submenu.style.display = 'none';
+                    console.log(`     ❌ Menu pai ${btnId} oculto (nenhum item permitido no submenu)`);
+                    ocultados++;
                 }
             });
             
