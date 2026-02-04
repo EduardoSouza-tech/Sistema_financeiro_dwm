@@ -2623,14 +2623,7 @@
 
                         <!-- Aba Credenciamento -->
                         <div id="form-container-credenciamento" style="display: none;">
-                            <div style="margin-bottom: 20px;">
-                                <label for="credenciamento-select-evento" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">📋 Selecionar Evento:</label>
-                                <select id="credenciamento-select-evento" onchange="carregarCredenciamento()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                                    <option value="">Selecione um evento...</option>
-                                </select>
-                            </div>
-
-                            <div class="table-container" style="max-height: 500px; overflow-y: auto;">
+                            <div class="table-container" style="max-height: 600px; overflow-y: auto;">
                                 <table style="width: 100%; border-collapse: collapse;">
                                     <thead>
                                         <tr style="background: #f8f9fa; position: sticky; top: 0; z-index: 1;">
@@ -2645,7 +2638,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="tbody-credenciamento-evento">
-                                        <tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Selecione um evento para visualizar</td></tr>
+                                        <tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Carregando credenciamentos...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -6510,7 +6503,7 @@
                 tabCredenciamento.style.color = 'white';
                 tabCredenciamento.style.borderBottom = '3px solid #16a085';
                 formCredenciamento.style.display = 'block';
-                carregarEventosCredenciamento(); // Carregar lista de eventos
+                carregarCredenciamento(); // Carregar todos os credenciamentos
             }
         }
 
@@ -6913,68 +6906,59 @@
         // CREDENCIAMENTO
         // ==========================================
 
-        async function carregarEventosCredenciamento() {
-            const select = document.getElementById('credenciamento-select-evento');
-            
-            try {
-                const response = await fetch('/api/eventos', {
-                    method: 'GET',
-                    credentials: 'include'
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    
-                    // Extrair array de eventos (formato pode ser { data: [...] } ou [...])
-                    const eventos = result.data || result;
-                    
-                    select.innerHTML = '<option value="">Selecione um evento...</option>';
-                    
-                    eventos.forEach(evento => {
-                        const option = document.createElement('option');
-                        option.value = evento.id;
-                        option.textContent = `${evento.nome} - ${evento.data_evento || 'Sem data'}`;
-                        select.appendChild(option);
-                    });
-                } else {
-                    showToast('⚠️ Erro ao carregar eventos', 'warning');
-                }
-            } catch (error) {
-                console.error('Erro ao carregar eventos:', error);
-                showToast('❌ Erro ao carregar eventos', 'error');
-            }
-        }
-
         async function carregarCredenciamento() {
-            const eventoId = document.getElementById('credenciamento-select-evento').value;
             const tbody = document.getElementById('tbody-credenciamento-evento');
             const totalElement = document.getElementById('credenciamento-total-cooperados');
-
-            if (!eventoId) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Selecione um evento para visualizar</td></tr>';
-                totalElement.textContent = '0';
-                return;
-            }
 
             tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Carregando...</td></tr>';
 
             try {
-                const response = await fetch(`/api/eventos/${eventoId}/equipe`, {
+                // Buscar todos os eventos
+                const eventosResponse = await fetch('/api/eventos', {
                     method: 'GET',
                     credentials: 'include'
                 });
 
-                if (response.ok) {
-                    const equipe = await response.json();
+                if (!eventosResponse.ok) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #e74c3c;">Erro ao carregar eventos</td></tr>';
+                    totalElement.textContent = '0';
+                    return;
+                }
 
-                    if (!equipe || equipe.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Nenhum cooperado alocado neste evento</td></tr>';
-                        totalElement.textContent = '0';
-                        return;
-                    }
+                const eventosResult = await eventosResponse.json();
+                const eventos = eventosResult.data || eventosResult;
 
-                    let html = '';
-                    equipe.forEach((item) => {
+                if (!eventos || eventos.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Nenhum evento cadastrado</td></tr>';
+                    totalElement.textContent = '0';
+                    return;
+                }
+
+                let html = '';
+                let totalCooperados = 0;
+
+                // Para cada evento, buscar sua equipe
+                for (const evento of eventos) {
+                    const response = await fetch(`/api/eventos/${evento.id}/equipe`, {
+                        method: 'GET',
+                        credentials: 'include'
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        const equipe = result.equipe || result;
+
+                        if (equipe && equipe.length > 0) {
+                            // Adicionar cabeçalho do evento
+                            html += `
+                                <tr style="background: #3498db; color: white;">
+                                    <td colspan="8" style="padding: 12px; border: 1px solid #ddd; font-weight: bold; font-size: 14px;">
+                                        🎉 ${evento.nome} - ${evento.data_evento || 'Sem data'}
+                                    </td>
+                                </tr>
+                            `;
+
+                            equipe.forEach((item) => {
                         const horaInicio = item.hora_inicio || '--:--';
                         const horaFim = item.hora_fim || '--:--';
                         let totalTrabalhado = '--:--';
@@ -7012,13 +6996,18 @@
                                 <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #27ae60;">${totalTrabalhado}</td>
                             </tr>
                         `;
-                    });
+                                totalCooperados++;
+                            });
+                        }
+                    }
+                }
 
-                    tbody.innerHTML = html;
-                    totalElement.textContent = equipe.length;
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #e74c3c;">Erro ao carregar dados</td></tr>';
+                if (html === '') {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Nenhum cooperado alocado em nenhum evento</td></tr>';
                     totalElement.textContent = '0';
+                } else {
+                    tbody.innerHTML = html;
+                    totalElement.textContent = totalCooperados;
                 }
             } catch (error) {
                 console.error('Erro ao carregar credenciamento:', error);
