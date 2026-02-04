@@ -3963,9 +3963,10 @@ def listar_funcionarios():
         cursor = conn.cursor()
         
         query = """
-            SELECT id, empresa_id, nome, cpf, endereco, email, tipo_chave_pix, 
-                   chave_pix, ativo, data_admissao, observacoes,
-                   data_criacao, data_atualizacao
+            SELECT id, empresa_id, nome, cpf, email, celular, ativo, data_admissao, 
+                   data_demissao, observacoes, nacionalidade, estado_civil, data_nascimento, 
+                   idade, profissao, rua_av, numero_residencia, complemento, bairro, cidade, 
+                   estado, cep, chave_pix, pis_pasep, data_criacao, data_atualizacao
             FROM funcionarios
             WHERE empresa_id = %s
             ORDER BY nome ASC
@@ -3983,16 +3984,29 @@ def listar_funcionarios():
                     'id': row['id'],
                     'empresa_id': row['empresa_id'],
                     'nome': row['nome'],
-                    'cpf': row['cpf'],
-                    'endereco': row['endereco'],
+                    'cpf': row.get('cpf'),
                     'email': row.get('email'),
-                    'tipo_chave_pix': row['tipo_chave_pix'],
-                    'chave_pix': row['chave_pix'],
-                    'ativo': row['ativo'],
-                    'data_admissao': row['data_admissao'].isoformat() if row['data_admissao'] else None,
-                    'observacoes': row['observacoes'],
-                    'data_criacao': row['data_criacao'].isoformat() if row['data_criacao'] else None,
-                    'data_atualizacao': row['data_atualizacao'].isoformat() if row['data_atualizacao'] else None
+                    'celular': row.get('celular'),
+                    'ativo': row.get('ativo', True),
+                    'data_admissao': row['data_admissao'].isoformat() if row.get('data_admissao') else None,
+                    'data_demissao': row['data_demissao'].isoformat() if row.get('data_demissao') else None,
+                    'observacoes': row.get('observacoes'),
+                    'nacionalidade': row.get('nacionalidade'),
+                    'estado_civil': row.get('estado_civil'),
+                    'data_nascimento': row['data_nascimento'].isoformat() if row.get('data_nascimento') else None,
+                    'idade': row.get('idade'),
+                    'profissao': row.get('profissao'),
+                    'rua_av': row.get('rua_av'),
+                    'numero_residencia': row.get('numero_residencia'),
+                    'complemento': row.get('complemento'),
+                    'bairro': row.get('bairro'),
+                    'cidade': row.get('cidade'),
+                    'estado': row.get('estado'),
+                    'cep': row.get('cep'),
+                    'chave_pix': row.get('chave_pix'),
+                    'pis_pasep': row.get('pis_pasep'),
+                    'data_criacao': row['data_criacao'].isoformat() if row.get('data_criacao') else None,
+                    'data_atualizacao': row['data_atualizacao'].isoformat() if row.get('data_atualizacao') else None
                 })
             else:
                 funcionarios.append({
@@ -4000,15 +4014,28 @@ def listar_funcionarios():
                     'empresa_id': row[1],
                     'nome': row[2],
                     'cpf': row[3],
-                    'endereco': row[4],
-                    'email': row[5],
-                    'tipo_chave_pix': row[6],
-                    'chave_pix': row[7],
-                    'ativo': row[8],
-                    'data_admissao': row[9].isoformat() if row[9] else None,
-                    'observacoes': row[10],
-                    'data_criacao': row[11].isoformat() if row[11] else None,
-                    'data_atualizacao': row[12].isoformat() if row[12] else None
+                    'email': row[4],
+                    'celular': row[5],
+                    'ativo': row[6] if row[6] is not None else True,
+                    'data_admissao': row[7].isoformat() if row[7] else None,
+                    'data_demissao': row[8].isoformat() if row[8] else None,
+                    'observacoes': row[9],
+                    'nacionalidade': row[10],
+                    'estado_civil': row[11],
+                    'data_nascimento': row[12].isoformat() if row[12] else None,
+                    'idade': row[13],
+                    'profissao': row[14],
+                    'rua_av': row[15],
+                    'numero_residencia': row[16],
+                    'complemento': row[17],
+                    'bairro': row[18],
+                    'cidade': row[19],
+                    'estado': row[20],
+                    'cep': row[21],
+                    'chave_pix': row[22],
+                    'pis_pasep': row[23],
+                    'data_criacao': row[24].isoformat() if row[24] else None,
+                    'data_atualizacao': row[25].isoformat() if row[25] else None
                 })
         
         return jsonify({'funcionarios': funcionarios}), 200
@@ -4040,8 +4067,6 @@ def criar_funcionario():
             return jsonify({'error': 'Nome é obrigatório'}), 400
         if not dados.get('cpf'):
             return jsonify({'error': 'CPF é obrigatório'}), 400
-        if not dados.get('tipo_chave_pix'):
-            return jsonify({'error': 'Tipo de chave PIX é obrigatório'}), 400
         
         # Limpar CPF (remover pontuação)
         cpf = dados['cpf'].replace('.', '').replace('-', '').replace('/', '')
@@ -4057,8 +4082,11 @@ def criar_funcionario():
         
         query = """
             INSERT INTO funcionarios 
-            (empresa_id, nome, cpf, endereco, email, tipo_chave_pix, chave_pix, data_admissao, observacoes, ativo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (empresa_id, nome, cpf, email, celular, ativo, data_admissao, data_demissao, observacoes,
+             nacionalidade, estado_civil, data_nascimento, profissao, 
+             rua_av, numero_residencia, complemento, bairro, cidade, estado, cep, 
+             chave_pix, pis_pasep)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """
         
@@ -4066,13 +4094,25 @@ def criar_funcionario():
             empresa_id,
             dados['nome'],
             cpf,
-            dados.get('endereco'),
             dados.get('email'),
-            dados['tipo_chave_pix'],
-            dados.get('chave_pix'),
+            dados.get('celular'),
+            dados.get('ativo', True),
             dados.get('data_admissao') if dados.get('data_admissao') else None,
+            dados.get('data_demissao') if dados.get('data_demissao') else None,
             dados.get('observacoes'),
-            dados.get('ativo', True)
+            dados.get('nacionalidade'),
+            dados.get('estado_civil'),
+            dados.get('data_nascimento') if dados.get('data_nascimento') else None,
+            dados.get('profissao'),
+            dados.get('rua_av'),
+            dados.get('numero_residencia'),
+            dados.get('complemento'),
+            dados.get('bairro'),
+            dados.get('cidade'),
+            dados.get('estado'),
+            dados.get('cep'),
+            dados.get('chave_pix'),
+            dados.get('pis_pasep')
         ))
         
         resultado = cursor.fetchone()
@@ -4121,9 +4161,17 @@ def atualizar_funcionario(funcionario_id):
         campos_update = []
         valores = []
         
-        if 'nome' in dados:
-            campos_update.append("nome = %s")
-            valores.append(dados['nome'])
+        campos_permitidos = [
+            'nome', 'email', 'celular', 'ativo', 'data_admissao', 'data_demissao', 'observacoes',
+            'nacionalidade', 'estado_civil', 'data_nascimento', 'profissao',
+            'rua_av', 'numero_residencia', 'complemento', 'bairro', 'cidade', 'estado', 'cep',
+            'chave_pix', 'pis_pasep'
+        ]
+        
+        for campo in campos_permitidos:
+            if campo in dados:
+                campos_update.append(f"{campo} = %s")
+                valores.append(dados[campo])
         
         if 'cpf' in dados:
             cpf = dados['cpf'].replace('.', '').replace('-', '').replace('/', '')
@@ -4135,34 +4183,6 @@ def atualizar_funcionario(funcionario_id):
                 return jsonify({'error': 'CPF já cadastrado para outro funcionário'}), 400
             campos_update.append("cpf = %s")
             valores.append(cpf)
-        
-        if 'endereco' in dados:
-            campos_update.append("endereco = %s")
-            valores.append(dados['endereco'])
-        
-        if 'email' in dados:
-            campos_update.append("email = %s")
-            valores.append(dados['email'])
-        
-        if 'tipo_chave_pix' in dados:
-            campos_update.append("tipo_chave_pix = %s")
-            valores.append(dados['tipo_chave_pix'])
-        
-        if 'chave_pix' in dados:
-            campos_update.append("chave_pix = %s")
-            valores.append(dados['chave_pix'])
-        
-        if 'data_admissao' in dados:
-            campos_update.append("data_admissao = %s")
-            valores.append(dados['data_admissao'])
-        
-        if 'observacoes' in dados:
-            campos_update.append("observacoes = %s")
-            valores.append(dados['observacoes'])
-        
-        if 'ativo' in dados:
-            campos_update.append("ativo = %s")
-            valores.append(dados['ativo'])
         
         if not campos_update:
             cursor.close()

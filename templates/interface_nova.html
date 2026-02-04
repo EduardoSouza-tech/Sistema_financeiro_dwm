@@ -2165,23 +2165,57 @@
                     </button>
                 </div>
 
+                <!-- Filtros e Busca -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <input type="text" id="busca-funcionario" placeholder="🔍 Buscar por nome, CPF ou email..." 
+                           style="flex: 1; min-width: 300px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"
+                           onkeyup="filtrarFuncionarios()">
+                    
+                    <select id="filtro-status-funcionario" onchange="filtrarFuncionarios()" 
+                            style="padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">📊 Todos</option>
+                        <option value="true">✅ Ativos</option>
+                        <option value="false">❌ Inativos</option>
+                    </select>
+
+                    <button onclick="exportarFuncionariosExcel()" class="btn btn-success" 
+                            style="padding: 10px 20px; background: #27ae60;">
+                        📥 Exportar Excel
+                    </button>
+                </div>
+
+                <!-- Estatísticas -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #3498db; color: white; padding: 15px; border-radius: 8px;">
+                        <div style="font-size: 14px; opacity: 0.9;">Total de Funcionários</div>
+                        <div id="total-funcionarios" style="font-size: 32px; font-weight: bold;">0</div>
+                    </div>
+                    <div style="background: #27ae60; color: white; padding: 15px; border-radius: 8px;">
+                        <div style="font-size: 14px; opacity: 0.9;">Ativos</div>
+                        <div id="total-ativos" style="font-size: 32px; font-weight: bold;">0</div>
+                    </div>
+                    <div style="background: #e74c3c; color: white; padding: 15px; border-radius: 8px;">
+                        <div style="font-size: 14px; opacity: 0.9;">Inativos</div>
+                        <div id="total-inativos" style="font-size: 32px; font-weight: bold;">0</div>
+                    </div>
+                </div>
+
                 <!-- Tabela de Funcionários -->
-                <div class="table-container">
-                    <table>
+                <div class="table-container" style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="background-color: #f5f5f5 !important;">
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left; width: 250px;">Nome</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left; width: 130px;">CPF</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left; width: 250px;">Endereço</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left; width: 200px;">E-mail</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left; width: 120px;">Tipo Chave PIX</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left; width: 200px;">Chave PIX</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left; width: 100px;">Status</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: center; width: 150px;">Ações</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left;">Nome</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left;">CPF</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left;">Profissão</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left;">Celular</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: left;">Cidade</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: center;">Status</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 15px; text-align: center;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="tbody-funcionarios">
-                            <tr><td colspan="8" class="loading">Carregando...</td></tr>
+                            <tr><td colspan="7" class="loading" style="text-align: center; padding: 20px;">Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -2189,65 +2223,222 @@
 
             <!-- Modal Funcionário -->
             <div id="modal-funcionario" class="modal" style="display: none;">
-                <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
                     <div class="modal-header">
                         <h3 id="modal-funcionario-title">Novo Funcionário</h3>
                         <span class="close" onclick="fecharModalFuncionario()">&times;</span>
                     </div>
                     <div class="modal-body">
+                        <!-- Abas -->
+                        <div style="display: flex; gap: 5px; border-bottom: 2px solid #ddd; margin-bottom: 20px;">
+                            <button type="button" class="tab-btn active" onclick="mudarAbaFuncionario('dados-pessoais')" 
+                                    style="padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid #3498db;">
+                                👤 Dados Pessoais
+                            </button>
+                            <button type="button" class="tab-btn" onclick="mudarAbaFuncionario('endereco')" 
+                                    style="padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent;">
+                                📍 Endereço
+                            </button>
+                            <button type="button" class="tab-btn" onclick="mudarAbaFuncionario('profissional')" 
+                                    style="padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent;">
+                                💼 Profissional
+                            </button>
+                            <button type="button" class="tab-btn" onclick="mudarAbaFuncionario('pagamento')" 
+                                    style="padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent;">
+                                💰 Pagamento
+                            </button>
+                        </div>
+
                         <form id="form-funcionario" onsubmit="salvarFuncionario(event); return false;">
                             <input type="hidden" id="funcionario-id">
                             
-                            <div class="form-group">
-                                <label for="funcionario-nome">Nome Completo: <span style="color: red;">*</span></label>
-                                <input type="text" id="funcionario-nome" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <!-- Aba: Dados Pessoais -->
+                            <div id="aba-dados-pessoais" class="tab-content">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div class="form-group" style="grid-column: 1 / -1;">
+                                        <label for="funcionario-nome">Nome Completo: <span style="color: red;">*</span></label>
+                                        <input type="text" id="funcionario-nome" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-cpf">CPF: <span style="color: red;">*</span></label>
+                                        <input type="text" id="funcionario-cpf" required maxlength="14" placeholder="000.000.000-00" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-email">E-mail:</label>
+                                        <input type="email" id="funcionario-email" placeholder="exemplo@email.com" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-celular">Celular:</label>
+                                        <input type="text" id="funcionario-celular" placeholder="(00) 00000-0000" maxlength="15"
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-data-nascimento">Data de Nascimento:</label>
+                                        <input type="date" id="funcionario-data-nascimento" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-nacionalidade">Nacionalidade:</label>
+                                        <input type="text" id="funcionario-nacionalidade" placeholder="Ex: Brasileira" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-estado-civil">Estado Civil:</label>
+                                        <select id="funcionario-estado-civil" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <option value="">Selecione...</option>
+                                            <option value="Solteiro(a)">Solteiro(a)</option>
+                                            <option value="Casado(a)">Casado(a)</option>
+                                            <option value="Divorciado(a)">Divorciado(a)</option>
+                                            <option value="Viúvo(a)">Viúvo(a)</option>
+                                            <option value="União Estável">União Estável</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="form-group">
-                                <label for="funcionario-cpf">CPF: <span style="color: red;">*</span></label>
-                                <input type="text" id="funcionario-cpf" required maxlength="14" placeholder="000.000.000-00" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <!-- Aba: Endereço -->
+                            <div id="aba-endereco" class="tab-content" style="display: none;">
+                                <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 15px;">
+                                    <div class="form-group">
+                                        <label for="funcionario-rua">Rua/Avenida:</label>
+                                        <input type="text" id="funcionario-rua" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-numero">Número:</label>
+                                        <input type="text" id="funcionario-numero" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div class="form-group">
+                                        <label for="funcionario-complemento">Complemento:</label>
+                                        <input type="text" id="funcionario-complemento" placeholder="Apto, Bloco, etc." 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-bairro">Bairro:</label>
+                                        <input type="text" id="funcionario-bairro" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-cidade">Cidade:</label>
+                                        <input type="text" id="funcionario-cidade" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-estado">Estado:</label>
+                                        <select id="funcionario-estado" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <option value="">Selecione...</option>
+                                            <option value="AC">Acre</option>
+                                            <option value="AL">Alagoas</option>
+                                            <option value="AP">Amapá</option>
+                                            <option value="AM">Amazonas</option>
+                                            <option value="BA">Bahia</option>
+                                            <option value="CE">Ceará</option>
+                                            <option value="DF">Distrito Federal</option>
+                                            <option value="ES">Espírito Santo</option>
+                                            <option value="GO">Goiás</option>
+                                            <option value="MA">Maranhão</option>
+                                            <option value="MT">Mato Grosso</option>
+                                            <option value="MS">Mato Grosso do Sul</option>
+                                            <option value="MG">Minas Gerais</option>
+                                            <option value="PA">Pará</option>
+                                            <option value="PB">Paraíba</option>
+                                            <option value="PR">Paraná</option>
+                                            <option value="PE">Pernambuco</option>
+                                            <option value="PI">Piauí</option>
+                                            <option value="RJ">Rio de Janeiro</option>
+                                            <option value="RN">Rio Grande do Norte</option>
+                                            <option value="RS">Rio Grande do Sul</option>
+                                            <option value="RO">Rondônia</option>
+                                            <option value="RR">Roraima</option>
+                                            <option value="SC">Santa Catarina</option>
+                                            <option value="SP">São Paulo</option>
+                                            <option value="SE">Sergipe</option>
+                                            <option value="TO">Tocantins</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-cep">CEP:</label>
+                                        <input type="text" id="funcionario-cep" placeholder="00000-000" maxlength="9"
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="form-group">
-                                <label for="funcionario-endereco">Endereço:</label>
-                                <textarea id="funcionario-endereco" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                            <!-- Aba: Profissional -->
+                            <div id="aba-profissional" class="tab-content" style="display: none;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div class="form-group">
+                                        <label for="funcionario-profissao">Profissão/Cargo:</label>
+                                        <input type="text" id="funcionario-profissao" placeholder="Ex: Analista, Técnico..." 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-data-admissao">Data de Admissão:</label>
+                                        <input type="date" id="funcionario-data-admissao" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-data-demissao">Data de Demissão:</label>
+                                        <input type="date" id="funcionario-data-demissao" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                            <input type="checkbox" id="funcionario-ativo" checked 
+                                                   style="width: 20px; height: 20px; cursor: pointer;">
+                                            <span>Funcionário Ativo</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" style="margin-top: 15px;">
+                                    <label for="funcionario-observacoes">Observações:</label>
+                                    <textarea id="funcionario-observacoes" rows="4" placeholder="Informações adicionais sobre o funcionário..." 
+                                              style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                                </div>
                             </div>
 
-                            <div class="form-group">
-                                <label for="funcionario-email">E-mail:</label>
-                                <input type="email" id="funcionario-email" placeholder="exemplo@email.com" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <!-- Aba: Pagamento -->
+                            <div id="aba-pagamento" class="tab-content" style="display: none;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div class="form-group">
+                                        <label for="funcionario-pis">PIS/PASEP:</label>
+                                        <input type="text" id="funcionario-pis" placeholder="000.00000.00-0" maxlength="14"
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="funcionario-chave-pix">Chave PIX:</label>
+                                        <input type="text" id="funcionario-chave-pix" placeholder="CPF, email, telefone ou chave aleatória" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="form-group">
-                                <label for="funcionario-tipo-pix">Tipo de Chave PIX: <span style="color: red;">*</span></label>
-                                <select id="funcionario-tipo-pix" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                    <option value="">Selecione...</option>
-                                    <option value="CPF">CPF</option>
-                                    <option value="CNPJ">CNPJ</option>
-                                    <option value="EMAIL">E-mail</option>
-                                    <option value="TELEFONE">Telefone</option>
-                                    <option value="ALEATORIA">Chave Aleatória</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="funcionario-chave-pix">Chave PIX:</label>
-                                <input type="text" id="funcionario-chave-pix" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            </div>
-
-                            <div class="form-group">
-                                <label for="funcionario-data-admissao">Data de Admissão:</label>
-                                <input type="date" id="funcionario-data-admissao" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            </div>
-
-                            <div class="form-group">
-                                <label for="funcionario-observacoes">Observações:</label>
-                                <textarea id="funcionario-observacoes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
-                            </div>
-
-                            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                                <button type="submit" class="btn btn-primary" style="flex: 1; padding: 10px; background: #27ae60;">💾 Salvar</button>
-                                <button type="button" onclick="fecharModalFuncionario()" class="btn btn-secondary" style="flex: 1; padding: 10px; background: #95a5a6;">❌ Cancelar</button>
+                            <div style="display: flex; gap: 10px; margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd;">
+                                <button type="submit" class="btn btn-primary" style="flex: 1; padding: 12px; background: #27ae60; font-size: 16px;">
+                                    💾 Salvar
+                                </button>
+                                <button type="button" onclick="fecharModalFuncionario()" class="btn btn-secondary" 
+                                        style="flex: 1; padding: 12px; background: #95a5a6; font-size: 16px;">
+                                    ❌ Cancelar
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -5161,8 +5352,8 @@
                 if (typeof carregarContasBancariasExtrato === 'function') carregarContasBancariasExtrato();
                 if (typeof loadExtratoTransacoes === 'function') loadExtratoTransacoes();
             } else if (sectionId === 'folha-pagamento') {
-                console.log('  ➡️ loadFuncionariosRH:', typeof loadFuncionariosRH);
-                if (typeof loadFuncionariosRH === 'function') loadFuncionariosRH();
+                console.log('  ➡️ loadFuncionarios:', typeof loadFuncionarios);
+                if (typeof loadFuncionarios === 'function') loadFuncionarios();
             } else if (sectionId === 'eventos') {
                 console.log('  ➡️ loadEventos:', typeof loadEventos);
                 if (typeof loadEventos === 'function') loadEventos();
@@ -5891,6 +6082,8 @@
             }
         }
 
+        let funcionariosGlobal = [];
+
         async function loadFuncionarios() {
             try {
                 const response = await fetch('/api/funcionarios', {
@@ -5903,39 +6096,75 @@
                 }
                 
                 const result = await response.json();
+                funcionariosGlobal = result.funcionarios || [];
 
-                const tbody = document.getElementById('tbody-funcionarios');
+                // Atualizar estatísticas
+                const total = funcionariosGlobal.length;
+                const ativos = funcionariosGlobal.filter(f => f.ativo).length;
+                const inativos = total - ativos;
+                
+                document.getElementById('total-funcionarios').textContent = total;
+                document.getElementById('total-ativos').textContent = ativos;
+                document.getElementById('total-inativos').textContent = inativos;
 
-                if (result.funcionarios && result.funcionarios.length > 0) {
-                    tbody.innerHTML = result.funcionarios.map(func => {
-                        // Escapar aspas para JSON seguro
-                        const funcEscaped = JSON.stringify(func).replace(/'/g, "\\'");
-                        const ativoStatus = func.ativo ? true : false;
-                        
-                        return `
-                        <tr>
-                            <td style="color: #000000 !important; font-weight: 500;">${func.nome}</td>
-                            <td style="color: #000000 !important; font-weight: 500;">${formatarCPF(func.cpf)}</td>
-                            <td style="color: #000000 !important; font-weight: 500;">${func.endereco || '-'}</td>
-                            <td style="color: #000000 !important; font-weight: 500;">${func.tipo_chave_pix}</td>
-                            <td style="color: #000000 !important; font-weight: 500;">${func.chave_pix || '-'}</td>
-                            <td><span class="badge badge-${ativoStatus ? 'success' : 'danger'}">${ativoStatus ? 'Ativo' : 'Inativo'}</span></td>
-                            <td>
-                                <button onclick='abrirModalFuncionario(${funcEscaped})' class="btn btn-sm btn-primary" title="Editar">✏️</button>
-                                <button onclick="toggleAtivoFuncionario(${func.id}, ${ativoStatus})" class="btn btn-sm btn-${ativoStatus ? 'warning' : 'success'}" title="${ativoStatus ? 'Inativar' : 'Ativar'}">
-                                    ${ativoStatus ? '🚫' : '✅'}
-                                </button>
-                            </td>
-                        </tr>`;
-                    }).join('');
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário cadastrado</td></tr>';
-                }
+                renderFuncionarios(funcionariosGlobal);
+                
             } catch (error) {
                 console.error('Erro ao carregar funcionários:', error);
                 showToast(error.message || 'Erro ao carregar funcionários', 'error');
                 document.getElementById('tbody-funcionarios').innerHTML = '<tr><td colspan="7" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>';
             }
+        }
+
+        function renderFuncionarios(funcionarios) {
+            const tbody = document.getElementById('tbody-funcionarios');
+
+            if (funcionarios && funcionarios.length > 0) {
+                tbody.innerHTML = funcionarios.map(func => {
+                    const ativoStatus = func.ativo ? true : false;
+                    const endereco = [func.cidade, func.estado].filter(Boolean).join(' - ') || '-';
+                    
+                    return `
+                    <tr>
+                        <td style="color: #000000 !important; font-weight: 500;">${func.nome || '-'}</td>
+                        <td style="color: #000000 !important; font-weight: 500;">${formatarCPF(func.cpf)}</td>
+                        <td style="color: #000000 !important; font-weight: 500;">${func.profissao || '-'}</td>
+                        <td style="color: #000000 !important; font-weight: 500;">${func.celular || '-'}</td>
+                        <td style="color: #000000 !important; font-weight: 500;">${endereco}</td>
+                        <td style="text-align: center;"><span class="badge badge-${ativoStatus ? 'success' : 'danger'}">${ativoStatus ? 'Ativo' : 'Inativo'}</span></td>
+                        <td style="text-align: center;">
+                            <button onclick='editarFuncionario(${func.id})' class="btn btn-sm btn-primary" title="Editar">✏️</button>
+                            <button onclick="toggleAtivoFuncionario(${func.id}, ${ativoStatus})" class="btn btn-sm btn-${ativoStatus ? 'warning' : 'success'}" title="${ativoStatus ? 'Inativar' : 'Ativar'}">
+                                ${ativoStatus ? '🚫' : '✅'}
+                            </button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário cadastrado</td></tr>';
+            }
+        }
+
+        function filtrarFuncionarios() {
+            const busca = document.getElementById('busca-funcionario').value.toLowerCase();
+            const status = document.getElementById('filtro-status-funcionario').value;
+            
+            let filtered = funcionariosGlobal;
+            
+            if (busca) {
+                filtered = filtered.filter(f => 
+                    (f.nome && f.nome.toLowerCase().includes(busca)) ||
+                    (f.cpf && f.cpf.includes(busca)) ||
+                    (f.email && f.email.toLowerCase().includes(busca))
+                );
+            }
+            
+            if (status !== '') {
+                const isAtivo = status === 'true';
+                filtered = filtered.filter(f => f.ativo === isAtivo);
+            }
+            
+            renderFuncionarios(filtered);
         }
 
         async function toggleAtivoFuncionario(id, ativoAtual) {
@@ -5958,10 +6187,7 @@
 
                 if (response.ok) {
                     showToast(`✅ Funcionário ${acao}do com sucesso!`, 'success');
-                    // Recarregar a lista de funcionários na tabela RH
-                    if (typeof loadFuncionariosRH === 'function') {
-                        loadFuncionariosRH();
-                    }
+                    loadFuncionarios();
                 } else {
                     showToast(`❌ Erro: ${result.error || 'Erro desconhecido'}`, 'error');
                 }
@@ -5977,13 +6203,188 @@
             return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
         }
 
-        // Expor funções globalmente para uso em app.js e onclick
+        function mudarAbaFuncionario(aba) {
+            // Ocultar todas as abas
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            // Remover classe active de todos os botões
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.style.borderBottom = '3px solid transparent';
+            });
+            
+            // Mostrar aba selecionada
+            document.getElementById(`aba-${aba}`).style.display = 'block';
+            
+            // Ativar botão
+            event.target.style.borderBottom = '3px solid #3498db';
+        }
+
+        function abrirModalFuncionario(funcionarioId = null) {
+            const modal = document.getElementById('modal-funcionario');
+            const title = document.getElementById('modal-funcionario-title');
+            
+            // Resetar para primeira aba
+            mudarAbaFuncionario('dados-pessoais');
+            document.querySelector('.tab-btn').click();
+            
+            if (funcionarioId) {
+                title.textContent = 'Editar Funcionário';
+                editarFuncionario(funcionarioId);
+            } else {
+                title.textContent = 'Novo Funcionário';
+                document.getElementById('form-funcionario').reset();
+                document.getElementById('funcionario-id').value = '';
+                document.getElementById('funcionario-ativo').checked = true;
+            }
+            
+            modal.style.display = 'flex';
+        }
+
+        async function editarFuncionario(id) {
+            try {
+                const funcionario = funcionariosGlobal.find(f => f.id === id);
+                if (!funcionario) {
+                    throw new Error('Funcionário não encontrado');
+                }
+                
+                document.getElementById('funcionario-id').value = funcionario.id || '';
+                document.getElementById('funcionario-nome').value = funcionario.nome || '';
+                document.getElementById('funcionario-cpf').value = funcionario.cpf || '';
+                document.getElementById('funcionario-email').value = funcionario.email || '';
+                document.getElementById('funcionario-celular').value = funcionario.celular || '';
+                document.getElementById('funcionario-data-nascimento').value = funcionario.data_nascimento || '';
+                document.getElementById('funcionario-nacionalidade').value = funcionario.nacionalidade || '';
+                document.getElementById('funcionario-estado-civil').value = funcionario.estado_civil || '';
+                
+                document.getElementById('funcionario-rua').value = funcionario.rua_av || '';
+                document.getElementById('funcionario-numero').value = funcionario.numero_residencia || '';
+                document.getElementById('funcionario-complemento').value = funcionario.complemento || '';
+                document.getElementById('funcionario-bairro').value = funcionario.bairro || '';
+                document.getElementById('funcionario-cidade').value = funcionario.cidade || '';
+                document.getElementById('funcionario-estado').value = funcionario.estado || '';
+                document.getElementById('funcionario-cep').value = funcionario.cep || '';
+                
+                document.getElementById('funcionario-profissao').value = funcionario.profissao || '';
+                document.getElementById('funcionario-data-admissao').value = funcionario.data_admissao || '';
+                document.getElementById('funcionario-data-demissao').value = funcionario.data_demissao || '';
+                document.getElementById('funcionario-observacoes').value = funcionario.observacoes || '';
+                document.getElementById('funcionario-ativo').checked = funcionario.ativo !== false;
+                
+                document.getElementById('funcionario-pis').value = funcionario.pis_pasep || '';
+                document.getElementById('funcionario-chave-pix').value = funcionario.chave_pix || '';
+                
+                document.getElementById('modal-funcionario').style.display = 'flex';
+                
+            } catch (error) {
+                console.error('Erro ao carregar funcionário:', error);
+                showToast('Erro ao carregar dados do funcionário', 'error');
+            }
+        }
+
+        function fecharModalFuncionario() {
+            document.getElementById('modal-funcionario').style.display = 'none';
+            document.getElementById('form-funcionario').reset();
+        }
+
+        async function salvarFuncionario(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById('funcionario-id').value;
+            const dados = {
+                nome: document.getElementById('funcionario-nome').value,
+                cpf: document.getElementById('funcionario-cpf').value.replace(/\D/g, ''),
+                email: document.getElementById('funcionario-email').value || null,
+                celular: document.getElementById('funcionario-celular').value || null,
+                data_nascimento: document.getElementById('funcionario-data-nascimento').value || null,
+                nacionalidade: document.getElementById('funcionario-nacionalidade').value || null,
+                estado_civil: document.getElementById('funcionario-estado-civil').value || null,
+                
+                rua_av: document.getElementById('funcionario-rua').value || null,
+                numero_residencia: document.getElementById('funcionario-numero').value || null,
+                complemento: document.getElementById('funcionario-complemento').value || null,
+                bairro: document.getElementById('funcionario-bairro').value || null,
+                cidade: document.getElementById('funcionario-cidade').value || null,
+                estado: document.getElementById('funcionario-estado').value || null,
+                cep: document.getElementById('funcionario-cep').value || null,
+                
+                profissao: document.getElementById('funcionario-profissao').value || null,
+                data_admissao: document.getElementById('funcionario-data-admissao').value || null,
+                data_demissao: document.getElementById('funcionario-data-demissao').value || null,
+                observacoes: document.getElementById('funcionario-observacoes').value || null,
+                ativo: document.getElementById('funcionario-ativo').checked,
+                
+                pis_pasep: document.getElementById('funcionario-pis').value || null,
+                chave_pix: document.getElementById('funcionario-chave-pix').value || null
+            };
+
+            try {
+                const url = id ? `/api/funcionarios/${id}` : '/api/funcionarios';
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dados)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(`✅ Funcionário ${id ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
+                    fecharModalFuncionario();
+                    loadFuncionarios();
+                } else {
+                    showToast(`❌ Erro: ${result.error || 'Erro desconhecido'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar funcionário:', error);
+                showToast('❌ Erro ao salvar funcionário.', 'error');
+            }
+        }
+
+        async function exportarFuncionariosExcel() {
+            try {
+                const response = await fetch('/api/funcionarios/exportar', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao exportar');
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `funcionarios_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showToast('✅ Funcionários exportados com sucesso!', 'success');
+            } catch (error) {
+                console.error('Erro ao exportar:', error);
+                showToast('❌ Erro ao exportar funcionários', 'error');
+            }
+        }
+
+        // Expor funções globalmente
         window.abrirModalFuncionario = abrirModalFuncionario;
         window.fecharModalFuncionario = fecharModalFuncionario;
         window.salvarFuncionario = salvarFuncionario;
         window.loadFuncionarios = loadFuncionarios;
         window.toggleAtivoFuncionario = toggleAtivoFuncionario;
         window.formatarCPF = formatarCPF;
+        window.filtrarFuncionarios = filtrarFuncionarios;
+        window.mudarAbaFuncionario = mudarAbaFuncionario;
+        window.editarFuncionario = editarFuncionario;
+        window.exportarFuncionariosExcel = exportarFuncionariosExcel;
 
         // ====================================
         // EVENTOS OPERACIONAIS
