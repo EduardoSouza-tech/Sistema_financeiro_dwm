@@ -6167,8 +6167,8 @@
                         <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.pis_pasep || '-'}</td>
                         <td style="text-align: center; padding: 8px;"><span class="badge badge-${ativoStatus ? 'success' : 'danger'}" style="padding: 4px 8px; border-radius: 12px; font-size: 11px; background: ${ativoStatus ? '#27ae60' : '#e74c3c'}; color: white;">${ativoStatus ? 'ATIVO' : 'INATIVO'}</span></td>
                         <td style="text-align: center; padding: 8px;">
-                            <button onclick='editarFuncionario(${func.id})' class="btn btn-sm btn-primary" title="Editar">✏️</button>
-                            <button onclick="toggleAtivoFuncionario(${func.id}, ${ativoStatus})" class="btn btn-sm btn-${ativoStatus ? 'warning' : 'success'}" title="${ativoStatus ? 'Inativar' : 'Ativar'}">
+                            <button onclick='editarFuncionarioRH(${func.id})' class="btn btn-sm btn-primary" title="Editar">✏️</button>
+                            <button onclick="toggleAtivoFuncionarioRH(${func.id}, ${ativoStatus})" class="btn btn-sm btn-${ativoStatus ? 'warning' : 'success'}" title="${ativoStatus ? 'Inativar' : 'Ativar'}">
                                 ${ativoStatus ? '🚫' : '✅'}
                             </button>
                         </td>
@@ -6216,7 +6216,7 @@
             renderFuncionarios(filtered);
         }
 
-        async function toggleAtivoFuncionario(id, ativoAtual) {
+        async function toggleAtivoFuncionarioRH(id, ativoAtual) {
             const acao = ativoAtual ? 'inativar' : 'ativar';
             if (!confirm(`Deseja realmente ${acao} este funcionário?`)) {
                 return;
@@ -6291,7 +6291,7 @@
             modal.style.display = 'flex';
         }
 
-        async function editarFuncionario(id) {
+        async function editarFuncionarioRH(id) {
             try {
                 const funcionario = funcionariosGlobal.find(f => f.id === id);
                 if (!funcionario) {
@@ -6427,14 +6427,14 @@
         window.abrirModalFuncionario = abrirModalFuncionario;
         window.fecharModalFuncionario = fecharModalFuncionario;
         window.salvarFuncionario = salvarFuncionario;
-        window.toggleAtivoFuncionario = toggleAtivoFuncionario;
+        window.toggleAtivoFuncionarioRH = toggleAtivoFuncionarioRH;
         window.formatarCPF = formatarCPF;
         window.filtrarFuncionarios = filtrarFuncionarios;
         window.mudarAbaFuncionario = mudarAbaFuncionario;
-        window.editarFuncionario = editarFuncionario;
+        window.editarFuncionarioRH = editarFuncionarioRH;
         window.exportarFuncionariosExcel = exportarFuncionariosExcel;
 
-        console.log('✅ Funções de Folha de Pagamento carregadas (loadFuncionariosLocal LOCAL, sem conflito com app.js)');
+        console.log('✅ Funções de Folha de Pagamento carregadas (com sufixo RH - sem conflito com app.js)');
 
 
         // ====================================
