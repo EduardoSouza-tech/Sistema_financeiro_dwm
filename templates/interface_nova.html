@@ -6180,8 +6180,13 @@
         }
 
         function filtrarFuncionarios() {
+            console.log('🔍 filtrarFuncionarios chamada');
             const busca = document.getElementById('busca-funcionario')?.value.toLowerCase() || '';
             const status = document.getElementById('filtro-status-funcionario')?.value || '';
+            
+            console.log('   Busca:', busca);
+            console.log('   Status:', status);
+            console.log('   Total funcionários:', funcionariosGlobal.length);
             
             let filtered = [...funcionariosGlobal];
             
@@ -6213,6 +6218,7 @@
                 filtered = filtered.filter(f => f.ativo === isAtivo);
             }
             
+            console.log('   Filtrados:', filtered.length);
             renderFuncionarios(filtered);
         }
 
@@ -6435,6 +6441,7 @@
         window.exportarFuncionariosExcel = exportarFuncionariosExcel;
 
         console.log('✅ Funções de Folha de Pagamento carregadas (com sufixo RH - sem conflito com app.js)');
+        console.log('   filtrarFuncionarios:', typeof window.filtrarFuncionarios);
 
 
         // ====================================
