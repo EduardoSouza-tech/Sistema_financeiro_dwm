@@ -2169,9 +2169,9 @@
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                     <input type="text" id="busca-funcionario" placeholder="🔍 Buscar por nome, CPF ou email..." 
                            style="flex: 1; min-width: 300px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"
-                           onkeyup="filtrarFuncionarios()">
+                           onkeyup="filtrarFuncionariosRH()">
                     
-                    <select id="filtro-status-funcionario" onchange="filtrarFuncionarios()" 
+                    <select id="filtro-status-funcionario" onchange="filtrarFuncionariosRH()" 
                             style="padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
                         <option value="">📊 Todos</option>
                         <option value="true">✅ Ativos</option>
@@ -6179,8 +6179,8 @@
             }
         }
 
-        function filtrarFuncionarios() {
-            console.log('🔍 filtrarFuncionarios chamada');
+        function filtrarFuncionariosRH() {
+            console.log('🔍🔍 filtrarFuncionariosRH chamada');
             const busca = document.getElementById('busca-funcionario')?.value.toLowerCase() || '';
             const status = document.getElementById('filtro-status-funcionario')?.value || '';
             
@@ -6435,13 +6435,12 @@
         window.salvarFuncionario = salvarFuncionario;
         window.toggleAtivoFuncionarioRH = toggleAtivoFuncionarioRH;
         window.formatarCPF = formatarCPF;
-        window.filtrarFuncionarios = filtrarFuncionarios;
+        window.filtrarFuncionariosRH = filtrarFuncionariosRH;
         window.mudarAbaFuncionario = mudarAbaFuncionario;
         window.editarFuncionarioRH = editarFuncionarioRH;
         window.exportarFuncionariosExcel = exportarFuncionariosExcel;
 
-        console.log('✅ Funções de Folha de Pagamento carregadas (com sufixo RH - sem conflito com app.js)');
-        console.log('   filtrarFuncionarios:', typeof window.filtrarFuncionarios);
+        console.log('✅ Funções de Folha de Pagamento carregadas (TODAS com sufixo RH - sem conflito)');
 
 
         // ====================================
