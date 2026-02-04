@@ -6220,7 +6220,7 @@
 
                 if (response.ok) {
                     showToast(`✅ Funcionário ${acao}do com sucesso!`, 'success');
-                    loadFuncionarios();
+                    loadFuncionariosLocal();
                 } else {
                     showToast(`❌ Erro: ${result.error || 'Erro desconhecido'}`, 'error');
                 }
@@ -6370,7 +6370,7 @@
                 if (response.ok) {
                     showToast(`✅ Funcionário ${id ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
                     fecharModalFuncionario();
-                    loadFuncionarios();
+                    loadFuncionariosLocal();
                 } else {
                     showToast(`❌ Erro: ${result.error || 'Erro desconhecido'}`, 'error');
                 }
