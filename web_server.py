@@ -1752,6 +1752,44 @@ def gerenciar_usuario_especifico(usuario_id):
             return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/usuarios/<int:usuario_id>/permissoes', methods=['PUT'])
+@require_admin
+def atualizar_permissoes_usuario(usuario_id):
+    """Atualizar apenas as permissões de um usuário"""
+    print(f"\n🔐 [atualizar_permissoes_usuario] FUNÇÃO CHAMADA - ID: {usuario_id}")
+    try:
+        data = request.json
+        permissoes = data.get('permissoes', [])
+        
+        print(f"📋 Permissões recebidas: {permissoes}")
+        
+        # Verificar se usuário existe
+        usuario = auth_db.obter_usuario(usuario_id)
+        if not usuario:
+            print(f"❌ Usuário {usuario_id} não encontrado")
+            return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
+        
+        # Atualizar permissões
+        print(f"🔄 Atualizando permissões...")
+        success = auth_db.atualizar_permissoes_usuario(usuario_id, permissoes)
+        
+        if success:
+            print(f"✅ Permissões atualizadas com sucesso!")
+            return jsonify({
+                'success': True,
+                'message': 'Permissões atualizadas com sucesso'
+            })
+        else:
+            print(f"❌ Falha ao atualizar permissões")
+            return jsonify({'success': False, 'error': 'Falha ao atualizar permissões'}), 500
+            
+    except Exception as e:
+        print(f"❌ Erro ao atualizar permissões: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/permissoes', methods=['GET'])
 @require_admin
 def listar_permissoes():

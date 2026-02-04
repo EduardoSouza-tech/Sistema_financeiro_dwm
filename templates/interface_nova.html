@@ -5166,7 +5166,7 @@
                 if (typeof loadUsuarios === 'function') loadUsuarios();
             } else if (sectionId === 'permissoes') {
                 console.log('  ➡️ loadPermissoes:', typeof loadPermissoes);
-                // Não carrega automaticamente, apenas quando selecionar usuário
+                if (typeof loadPermissoes === 'function') loadPermissoes();
             } else if (sectionId === 'logs') {
                 console.log('  ➡️ loadLogs:', typeof loadLogs);
                 // if (typeof loadLogs === 'function') loadLogs();
@@ -8815,6 +8815,287 @@
                 loadContasBancarias();
             }
         }, 500);
+    </script>
+
+    <!-- SISTEMA DE GERENCIAMENTO DE PERMISSÕES -->
+    <script>
+        // Lista completa de permissões disponíveis com suas categorias
+        const PERMISSOES_DISPONIVEIS = {
+            'Dashboard': ['dashboard'],
+            'Financeiro': ['lancamentos_view', 'lancamentos_create', 'lancamentos_edit', 'lancamentos_delete'],
+            'Relatórios': ['relatorios_view', 'exportar_excel', 'exportar_pdf'],
+            'Cadastros': ['cadastros_view', 'contas_view', 'contas_create', 'contas_edit', 'contas_delete',
+                          'categorias_view', 'categorias_create', 'categorias_edit', 'categorias_delete',
+                          'clientes_view', 'clientes_create', 'clientes_edit', 'clientes_delete',
+                          'fornecedores_view', 'fornecedores_create', 'fornecedores_edit', 'fornecedores_delete'],
+            'Operacional': ['operacional_view', 'contratos_view', 'contratos_create', 'contratos_edit', 'contratos_delete',
+                           'criar_contratos', 'editar_contratos', 'excluir_contratos', 'ver_contratos',
+                           'agenda_view', 'ver_agenda',
+                           'estoque_view', 'editar_estoque', 'ver_estoque',
+                           'eventos_view', 'eventos_create', 'eventos_edit', 'eventos_delete',
+                           'criar_eventos', 'editar_eventos', 'excluir_eventos', 'ver_eventos',
+                           'criar_sessoes', 'editar_sessoes', 'excluir_sessoes',
+                           'criar_produtos', 'excluir_produtos'],
+            'Recursos Humanos': ['folha_pagamento_view', 'folha_pagamento_create', 'folha_pagamento_edit', 'folha_pagamento_delete',
+                                 'criar_folha_de_pagamento', 'editar_folha_de_pagamento', 'excluir_folha_de_pagamento', 'ver_folha_de_pagamento'],
+            'Sistema': ['configuracoes', 'gerenciar_usuarios']
+        };
+
+        // Tradução de nomes de permissões para exibição
+        const NOMES_PERMISSOES = {
+            'dashboard': 'Dashboard',
+            'lancamentos_view': 'Ver Lançamentos',
+            'lancamentos_create': 'Criar Lançamentos',
+            'lancamentos_edit': 'Editar Lançamentos',
+            'lancamentos_delete': 'Excluir Lançamentos',
+            'relatorios_view': 'Ver Relatórios',
+            'exportar_excel': 'Exportar Excel',
+            'exportar_pdf': 'Exportar PDF',
+            'cadastros_view': 'Ver Cadastros',
+            'contas_view': 'Ver Contas',
+            'contas_create': 'Criar Contas',
+            'contas_edit': 'Editar Contas',
+            'contas_delete': 'Excluir Contas',
+            'categorias_view': 'Ver Categorias',
+            'categorias_create': 'Criar Categorias',
+            'categorias_edit': 'Editar Categorias',
+            'categorias_delete': 'Excluir Categorias',
+            'clientes_view': 'Ver Clientes',
+            'clientes_create': 'Criar Clientes',
+            'clientes_edit': 'Editar Clientes',
+            'clientes_delete': 'Excluir Clientes',
+            'fornecedores_view': 'Ver Fornecedores',
+            'fornecedores_create': 'Criar Fornecedores',
+            'fornecedores_edit': 'Editar Fornecedores',
+            'fornecedores_delete': 'Excluir Fornecedores',
+            'operacional_view': 'Ver Operacional',
+            'contratos_view': 'Ver Contratos',
+            'contratos_create': 'Criar Contratos',
+            'contratos_edit': 'Editar Contratos',
+            'contratos_delete': 'Excluir Contratos',
+            'criar_contratos': 'Criar Contratos',
+            'editar_contratos': 'Editar Contratos',
+            'excluir_contratos': 'Excluir Contratos',
+            'ver_contratos': 'Ver Contratos',
+            'agenda_view': 'Ver Agenda',
+            'ver_agenda': 'Ver Agenda',
+            'estoque_view': 'Ver Estoque',
+            'editar_estoque': 'Editar Estoque',
+            'ver_estoque': 'Ver Estoque',
+            'eventos_view': 'Ver Eventos',
+            'eventos_create': 'Criar Eventos',
+            'eventos_edit': 'Editar Eventos',
+            'eventos_delete': 'Excluir Eventos',
+            'criar_eventos': 'Criar Eventos',
+            'editar_eventos': 'Editar Eventos',
+            'excluir_eventos': 'Excluir Eventos',
+            'ver_eventos': 'Ver Eventos',
+            'criar_sessoes': 'Criar Sessões',
+            'editar_sessoes': 'Editar Sessões',
+            'excluir_sessoes': 'Excluir Sessões',
+            'criar_produtos': 'Criar Produtos',
+            'excluir_produtos': 'Excluir Produtos',
+            'folha_pagamento_view': 'Ver Folha de Pagamento',
+            'folha_pagamento_create': 'Criar Folha de Pagamento',
+            'folha_pagamento_edit': 'Editar Folha de Pagamento',
+            'folha_pagamento_delete': 'Excluir Folha de Pagamento',
+            'criar_folha_de_pagamento': 'Criar Folha',
+            'editar_folha_de_pagamento': 'Editar Folha',
+            'excluir_folha_de_pagamento': 'Excluir Folha',
+            'ver_folha_de_pagamento': 'Ver Folha',
+            'configuracoes': 'Configurações',
+            'gerenciar_usuarios': 'Gerenciar Usuários'
+        };
+
+        let usuarioAtualPermissoes = null;
+
+        // Carregar lista de usuários no select
+        async function loadPermissoes() {
+            console.log('🔐 Carregando lista de usuários para permissões...');
+            try {
+                const response = await fetch('/api/usuarios', {
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                console.log('👥 Usuários recebidos:', data);
+                
+                const select = document.getElementById('select-usuario-permissao');
+                select.innerHTML = '<option value="">-- Selecione um usuário --</option>';
+                
+                if (data.usuarios && data.usuarios.length > 0) {
+                    data.usuarios.forEach(usuario => {
+                        const option = document.createElement('option');
+                        option.value = usuario.id;
+                        option.textContent = `${usuario.nome} (${usuario.email})`;
+                        select.appendChild(option);
+                    });
+                    console.log(`✅ ${data.usuarios.length} usuário(s) carregado(s)`);
+                } else {
+                    console.warn('⚠️ Nenhum usuário encontrado');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar usuários:', error);
+                showToast('❌ Erro ao carregar lista de usuários', 'error');
+            }
+        }
+
+        // Carregar permissões de um usuário específico
+        async function loadUsuarioPermissoes() {
+            const select = document.getElementById('select-usuario-permissao');
+            const usuarioId = select.value;
+            
+            if (!usuarioId) {
+                document.getElementById('permissoes-usuario-container').style.display = 'none';
+                return;
+            }
+            
+            console.log(`🔍 Carregando permissões do usuário ID: ${usuarioId}`);
+            
+            try {
+                const response = await fetch(`/api/usuarios/${usuarioId}`, {
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                console.log('📋 Dados do usuário:', data);
+                
+                if (data.success) {
+                    usuarioAtualPermissoes = data.usuario;
+                    renderizarPermissoes(usuarioAtualPermissoes);
+                    document.getElementById('permissoes-usuario-container').style.display = 'block';
+                } else {
+                    showToast('❌ Erro ao carregar permissões do usuário', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar permissões:', error);
+                showToast('❌ Erro ao carregar permissões do usuário', 'error');
+            }
+        }
+
+        // Renderizar checkboxes de permissões
+        function renderizarPermissoes(usuario) {
+            const container = document.getElementById('permissoes-list');
+            container.innerHTML = '';
+            
+            const permissoesUsuario = usuario.permissoes || [];
+            console.log('🔑 Permissões atuais:', permissoesUsuario);
+            
+            // Renderizar por categoria
+            for (const [categoria, permissoes] of Object.entries(PERMISSOES_DISPONIVEIS)) {
+                const categoriaDiv = document.createElement('div');
+                categoriaDiv.style.cssText = 'background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd;';
+                
+                // Título da categoria com "Selecionar Todos"
+                const headerDiv = document.createElement('div');
+                headerDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #3498db;';
+                
+                const tituloH4 = document.createElement('h4');
+                tituloH4.textContent = categoria;
+                tituloH4.style.cssText = 'margin: 0; color: #2c3e50; font-size: 16px;';
+                
+                const btnSelecionarTodos = document.createElement('button');
+                btnSelecionarTodos.textContent = 'Selecionar Todos';
+                btnSelecionarTodos.className = 'btn-sm';
+                btnSelecionarTodos.style.cssText = 'font-size: 12px; padding: 5px 10px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;';
+                btnSelecionarTodos.onclick = () => selecionarTodosCategoria(categoria);
+                
+                headerDiv.appendChild(tituloH4);
+                headerDiv.appendChild(btnSelecionarTodos);
+                categoriaDiv.appendChild(headerDiv);
+                
+                // Checkboxes das permissões
+                permissoes.forEach(permissao => {
+                    const label = document.createElement('label');
+                    label.style.cssText = 'display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = permissao;
+                    checkbox.checked = permissoesUsuario.includes(permissao);
+                    checkbox.style.cssText = 'width: 18px; height: 18px; margin-right: 10px; cursor: pointer;';
+                    checkbox.className = `permissao-checkbox categoria-${categoria.replace(/ /g, '-')}`;
+                    
+                    const span = document.createElement('span');
+                    span.textContent = NOMES_PERMISSOES[permissao] || permissao;
+                    span.style.cssText = 'color: #555; font-size: 14px;';
+                    
+                    label.appendChild(checkbox);
+                    label.appendChild(span);
+                    categoriaDiv.appendChild(label);
+                });
+                
+                container.appendChild(categoriaDiv);
+            }
+        }
+
+        // Selecionar todos de uma categoria
+        function selecionarTodosCategoria(categoria) {
+            const checkboxes = document.querySelectorAll(`.categoria-${categoria.replace(/ /g, '-')}`);
+            const todosMarcados = Array.from(checkboxes).every(cb => cb.checked);
+            
+            checkboxes.forEach(cb => {
+                cb.checked = !todosMarcados;
+            });
+        }
+
+        // Salvar permissões alteradas
+        async function salvarPermissoes() {
+            if (!usuarioAtualPermissoes) {
+                showToast('⚠️ Nenhum usuário selecionado', 'warning');
+                return;
+            }
+            
+            // Coletar permissões marcadas
+            const checkboxes = document.querySelectorAll('.permissao-checkbox');
+            const permissoesNovas = [];
+            
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    permissoesNovas.push(cb.value);
+                }
+            });
+            
+            console.log('💾 Salvando permissões:', permissoesNovas);
+            
+            try {
+                const response = await fetch(`/api/usuarios/${usuarioAtualPermissoes.id}/permissoes`, {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        permissoes: permissoesNovas
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('✅ Permissões atualizadas com sucesso!', 'success');
+                    
+                    // Se for o próprio usuário, recarregar permissões do menu
+                    const usuarioLogado = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+                    if (usuarioLogado.id === usuarioAtualPermissoes.id) {
+                        console.log('🔄 Atualizando permissões do usuário logado...');
+                        await checkUserAuth(); // Recarrega dados do usuário
+                    }
+                } else {
+                    showToast(`❌ Erro: ${data.error || 'Erro desconhecido'}`, 'error');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao salvar permissões:', error);
+                showToast('❌ Erro ao salvar permissões', 'error');
+            }
+        }
+
+        // Cancelar edição de permissões
+        function cancelarEdicaoPermissoes() {
+            document.getElementById('select-usuario-permissao').value = '';
+            document.getElementById('permissoes-usuario-container').style.display = 'none';
+            usuarioAtualPermissoes = null;
+        }
     </script>
 </body>
 </html>
