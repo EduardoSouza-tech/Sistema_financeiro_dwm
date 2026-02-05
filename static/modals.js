@@ -2332,8 +2332,9 @@ function atualizarCalculoContrato() {
         return;
     }
     
-    // Campo é type="number", então .value já é string numérica
-    const valorMensal = parseFloat(campoValorMensal.value) || 0;
+    // 🔧 Parse correto de valor brasileiro: remove pontos (milhar), troca vírgula por ponto (decimal)
+    const valorMensalStr = String(campoValorMensal.value).replace(/\./g, '').replace(/,/g, '.');
+    const valorMensal = parseFloat(valorMensalStr) || 0;
     const meses = parseInt(campoMeses.value) || 0;
     const valorTotal = valorMensal * meses;
     
@@ -2414,9 +2415,10 @@ async function salvarContrato(event) {
         }
     });
     
-    // Pegar valor sem formatação (campo type="number" retorna string numérica pura)
+    // 🔧 Parse correto de valor brasileiro: remove pontos (milhar), troca vírgula por ponto (decimal)
     const valorMensalRaw = document.getElementById('contrato-valor-mensal').value;
-    const valorMensal = parseFloat(valorMensalRaw.replace(/[^\d.-]/g, '')) || 0;
+    const valorMensalStr = String(valorMensalRaw).replace(/\./g, '').replace(/,/g, '.');
+    const valorMensal = parseFloat(valorMensalStr) || 0;
     const quantidadeMeses = parseInt(document.getElementById('contrato-meses').value) || 1;
     const valorTotal = valorMensal * quantidadeMeses;
     
@@ -2859,7 +2861,8 @@ async function salvarSessao(event) {
     document.querySelectorAll('.equipe-item').forEach(item => {
         const funcionario_id = item.querySelector('.equipe-funcionario').value;
         const funcao = item.querySelector('.equipe-funcao').value;
-        const pagamento = parseFloat(item.querySelector('.equipe-pagamento').value) || 0;
+        const pagamentoStr = String(item.querySelector('.equipe-pagamento').value).replace(/\./g, '').replace(/,/g, '.');
+        const pagamento = parseFloat(pagamentoStr) || 0;
         if (funcionario_id) {
             equipe.push({ funcionario_id: parseInt(funcionario_id), funcao, pagamento });
         }
@@ -2885,7 +2888,8 @@ async function salvarSessao(event) {
     const equipamentos_alugados = [];
     document.querySelectorAll('.equipamento-alugado-item').forEach(item => {
         const nome = item.querySelector('.eq-alugado-nome').value;
-        const valor = parseFloat(item.querySelector('.eq-alugado-valor').value) || 0;
+        const valorStr = String(item.querySelector('.eq-alugado-valor').value).replace(/\./g, '').replace(/,/g, '.');
+        const valor = parseFloat(valorStr) || 0;
         const locadora = item.querySelector('.eq-alugado-locadora').value;
         if (nome) {
             equipamentos_alugados.push({ nome, valor, locadora });
@@ -2896,7 +2900,8 @@ async function salvarSessao(event) {
     const custos_adicionais = [];
     document.querySelectorAll('.custo-adicional-item').forEach(item => {
         const descricao = item.querySelector('.custo-descricao').value;
-        const valor = parseFloat(item.querySelector('.custo-valor').value) || 0;
+        const valorStr = String(item.querySelector('.custo-valor').value).replace(/\./g, '').replace(/,/g, '.');
+        const valor = parseFloat(valorStr) || 0;
         const tipo = item.querySelector('.custo-tipo').value;
         if (descricao) {
             custos_adicionais.push({ descricao, valor, tipo });
