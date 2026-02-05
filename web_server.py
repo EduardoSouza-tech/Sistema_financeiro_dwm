@@ -2587,7 +2587,18 @@ def importar_categorias_de_empresa():
 def listar_clientes():
     """Lista clientes ativos ou inativos com filtro de multi-tenancy"""
     ativos = request.args.get('ativos', 'true').lower() == 'true'
-    filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
+    
+    # 🔒 Obter filtro correto: usuario.id para clientes, None para admin
+    usuario = get_usuario_logado()
+    filtro_cliente_id = None
+    if usuario and usuario.get('tipo') == 'cliente':
+        filtro_cliente_id = usuario.get('id')  # usuario.id, NÃO empresa_id
+    
+    print(f"\n🔍 [GET /api/clientes]")
+    print(f"   - ativos: {ativos}")
+    print(f"   - usuario.id: {usuario.get('id') if usuario else None}")
+    print(f"   - usuario.tipo: {usuario.get('tipo') if usuario else None}")
+    print(f"   - filtro_cliente_id: {filtro_cliente_id}")
     
     clientes = db.listar_clientes(ativos=ativos, filtro_cliente_id=filtro_cliente_id)
     
