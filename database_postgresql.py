@@ -3323,9 +3323,10 @@ def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
     import json
     observacoes_json = json.dumps(observacoes_dict)
     
+    # 🔒 INCLUIR empresa_id no INSERT para garantir isolamento
     cursor.execute("""
-        INSERT INTO contratos (numero, cliente_id, descricao, valor, data_inicio, data_fim, status, observacoes)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO contratos (numero, cliente_id, descricao, valor, data_inicio, data_fim, status, observacoes, empresa_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id
     """, (
         dados.get('numero'),
@@ -3335,7 +3336,8 @@ def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
         dados.get('data_contrato', dados.get('data_inicio')),  # usar 'data_contrato' ou 'data_inicio'
         dados.get('data_fim'),
         dados.get('status', 'ativo'),
-        observacoes_json
+        observacoes_json,
+        empresa_id  # 🔒 Adicionar empresa_id
     ))
     
     contrato_id = cursor.fetchone()['id']
