@@ -4177,60 +4177,72 @@ def deletar_template(template_id: int) -> bool:
 def adicionar_sessao(dados: Dict) -> int:
     """Adiciona uma nova sessi?o"""
     import json
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
     
-    # Preparar dados_json com campos adicionais
-    dados_json = {
-        'horario': dados.get('horario'),
-        'quantidade_horas': dados.get('quantidade_horas'),
-        'tipo_foto': dados.get('tipo_foto', False),
-        'tipo_video': dados.get('tipo_video', False),
-        'tipo_mobile': dados.get('tipo_mobile', False),
-        'tags': dados.get('tags', ''),
-        'equipe': dados.get('equipe', []),
-        'responsaveis': dados.get('responsaveis', []),
-        'equipamentos': dados.get('equipamentos', []),
-        'equipamentos_alugados': dados.get('equipamentos_alugados', []),
-        'custos_adicionais': dados.get('custos_adicionais', [])
-    }
+    # 🔒 Obter empresa_id (obrigatório para RLS)
+    empresa_id = dados.get('empresa_id')
+    if not empresa_id:
+        from flask import session
+        empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para adicionar sessão")
     
-    cursor.execute("""
-        INSERT INTO sessoes (
-            titulo, data, data_sessao, duracao, contrato_id, cliente_id, 
-            valor, observacoes, endereco, descricao, prazo_entrega, dados_json
-        )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id
-    """, (
-        dados.get('titulo'),
-        dados.get('data_sessao'),  # Campo 'data' na tabela
-        dados.get('data_sessao'),  # Campo 'data_sessao' para compatibilidade
-        dados.get('duracao'),
-        dados.get('contrato_id'),
-        dados.get('cliente_id'),
-        dados.get('valor'),
-        dados.get('observacoes', ''),
-        dados.get('endereco', ''),
-        dados.get('descricao', ''),
-        dados.get('prazo_entrega'),
-        json.dumps(dados_json)
-    ))
-    
-    sessao_id = cursor.fetchone()['id']
-    
-    # Adicionar membros da equipe se fornecidos
-    if 'equipe' in dados and dados['equipe']:
-        for membro in dados['equipe']:
-            cursor.execute("""
-                INSERT INTO sessao_equipe (sessao_id, membro_nome, funcao)
-                VALUES (%s, %s, %s)
-            """, (sessao_id, membro['nome'], membro.get('funcao')))
-    
-    cursor.close()
-    return_to_pool(conn)  # Devolver ao pool
-    return sessao_id
+    # 🔒 Usar get_db_connection com empresa_id para RLS
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        # Preparar dados_json com campos adicionais
+        dados_json = {
+            'horario': dados.get('horario'),
+            'quantidade_horas': dados.get('quantidade_horas'),
+            'tipo_foto': dados.get('tipo_foto', False),
+            'tipo_video': dados.get('tipo_video', False),
+            'tipo_mobile': dados.get('tipo_mobile', False),
+            'tags': dados.get('tags', ''),
+            'equipe': dados.get('equipe', []),
+            'responsaveis': dados.get('responsaveis', []),
+            'equipamentos': dados.get('equipamentos', []),
+            'equipamentos_alugados': dados.get('equipamentos_alugados', []),
+            'custos_adicionais': dados.get('custos_adicionais', [])
+        }
+        
+        # 🔒 INCLUIR empresa_id no INSERT
+        cursor.execute("""
+            INSERT INTO sessoes (
+                titulo, data, data_sessao, duracao, contrato_id, cliente_id, 
+                valor, observacoes, endereco, descricao, prazo_entrega, dados_json, empresa_id
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (
+            dados.get('titulo'),
+            dados.get('data_sessao'),  # Campo 'data' na tabela
+            dados.get('data_sessao'),  # Campo 'data_sessao' para compatibilidade
+            dados.get('duracao'),
+            dados.get('contrato_id'),
+            dados.get('cliente_id'),
+            dados.get('valor'),
+            dados.get('observacoes', ''),
+            dados.get('endereco', ''),
+            dados.get('descricao', ''),
+            dados.get('prazo_entrega'),
+            json.dumps(dados_json),
+            empresa_id  # 🔒 Adicionar empresa_id
+        ))
+        
+        sessao_id = cursor.fetchone()['id']
+        
+        # Adicionar membros da equipe se fornecidos
+        if 'equipe' in dados and dados['equipe']:
+            for membro in dados['equipe']:
+                cursor.execute("""
+                    INSERT INTO sessao_equipe (sessao_id, membro_nome, funcao)
+                    VALUES (%s, %s, %s)
+                """, (sessao_id, membro['nome'], membro.get('funcao')))
+        
+        conn.commit()
+        cursor.close()
+        
+        return sessao_id
 
 def listar_sessoes_OLD_DEPRECATED() -> List[Dict]:
     """⚠️ DEPRECATED - Use listar_sessoes(empresa_id) com RLS"""
