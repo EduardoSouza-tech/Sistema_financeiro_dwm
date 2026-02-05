@@ -41,10 +41,10 @@ def contratos():
             for contrato in contratos:
                 contrato['cliente_id'] = contrato.get('cliente')
             
-            # Aplicar filtro por cliente
-            contratos_filtrados = filtrar_por_cliente(contratos, request.usuario)
+            # 🔒 RLS JÁ APLICA O FILTRO - Não precisa de filtro adicional
+            # contratos_filtrados = filtrar_por_cliente(contratos, request.usuario)
             
-            return jsonify(contratos_filtrados)
+            return jsonify(contratos)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # POST
