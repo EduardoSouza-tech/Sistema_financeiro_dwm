@@ -4806,10 +4806,21 @@ def criar_funcao_evento():
     """Cadastrar nova função para eventos"""
     try:
         dados = request.get_json()
-        nome = dados.get('nome', '').strip()
-        descricao = dados.get('descricao', '').strip()
+        
+        print(f"\n🔍 [POST /api/funcoes-evento] Dados recebidos:")
+        print(f"   - Raw JSON: {dados}")
+        print(f"   - Tipo: {type(dados)}")
+        print(f"   - Keys: {dados.keys() if dados else 'None'}")
+        
+        nome = dados.get('nome', '').strip() if dados else ''
+        descricao = dados.get('descricao', '').strip() if dados else ''
+        
+        print(f"   - nome extraído: '{nome}'")
+        print(f"   - descricao extraída: '{descricao}'")
+        print(f"   - nome vazio? {not nome}")
         
         if not nome:
+            print(f"   ❌ Rejeitando: nome vazio")
             return jsonify({'error': 'Nome da função é obrigatório'}), 400
         
         conn = db.get_connection()
