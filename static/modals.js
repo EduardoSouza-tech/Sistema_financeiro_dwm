@@ -2148,10 +2148,10 @@ async function openModalContrato(contratoEdit = null) {
                 
                 <div class="form-group">
                     <label>*Tipo:</label>
-                    <select id="contrato-tipo" required onchange="atualizarCalculoContrato()">
+                    <select id="contrato-tipo" required onchange="alterarTipoContrato()">
                         <option value="Mensal" ${isEdit && contratoEdit.tipo === 'Mensal' ? 'selected' : ''}>Mensal</option>
                         <option value="Único" ${isEdit && contratoEdit.tipo === 'Único' ? 'selected' : ''}>Único</option>
-                        <option value="Anual" ${isEdit && contratoEdit.tipo === 'Anual' ? 'selected' : ''}>Anual</option>
+                        <option value="Pacote" ${isEdit && contratoEdit.tipo === 'Pacote' ? 'selected' : ''}>Pacote</option>
                     </select>
                 </div>
             </div>
@@ -2287,13 +2287,18 @@ async function openModalContrato(contratoEdit = null) {
                 }
             }
         }, 150);
+        
+        // 🔄 Ajustar campos do formulário baseado no tipo (especialmente Pacote)
+        setTimeout(() => {
+            alterarTipoContrato();
+        }, 200);
     }
     
-    // Calcular valor total inicial apenas em modo de criação
-    // Em modo de edição, o valor já foi pré-calculado
+    // Calcular valor total inicial e ajustar campos por tipo
     if (!isEdit) {
         setTimeout(() => {
-            atualizarCalculoContrato();
+            alterarTipoContrato(); // Ajustar labels primeiro
+            atualizarCalculoContrato(); // Depois calcular
         }, 100);
     }
 }
@@ -2320,30 +2325,57 @@ function parseValorBR(valor) {
 function atualizarCalculoContrato() {
     const campoValorMensal = document.getElementById('contrato-valor-mensal');
     const campoMeses = document.getElementById('contrato-meses');
+    const campoHoras = document.getElementById('contrato-horas');
     const campoTotal = document.getElementById('contrato-valor-total');
+    const campoTipo = document.getElementById('contrato-tipo');
     
     console.log('🧮 Calculando:');
     console.log('   📍 campoValorMensal existe?', !!campoValorMensal);
     console.log('   📍 campoMeses existe?', !!campoMeses);
+    console.log('   📍 campoHoras existe?', !!campoHoras);
     console.log('   📍 campoTotal existe?', !!campoTotal);
+    console.log('   📍 campoTipo existe?', !!campoTipo);
     
-    if (!campoValorMensal || !campoMeses || !campoTotal) {
+    if (!campoValorMensal || !campoMeses || !campoTotal || !campoTipo) {
         console.warn('⚠️ Campos de cálculo não encontrados - abortando atualização');
         return;
     }
+    
+    const tipo = campoTipo.value;
+    let valorTotal = 0;
     
     // 🔧 Parse correto de valor brasileiro: remove pontos (milhar), troca vírgula por ponto (decimal)
     const valorMensalStr = String(campoValorMensal.value).replace(/\./g, '').replace(/,/g, '.');
     const valorMensal = parseFloat(valorMensalStr) || 0;
     const meses = parseInt(campoMeses.value) || 0;
-    const valorTotal = valorMensal * meses;
     
-    console.log('🧮 Calculando:');
-    console.log('   📝 Valor Mensal (.value):', campoValorMensal.value);
-    console.log('   💰 Valor Mensal (parseado):', valorMensal);
-    console.log('   📝 Meses (.value):', campoMeses.value);
-    console.log('   🔢 Meses (parseado):', meses);
-    console.log('   💵 Valor Total:', valorTotal);
+    if (tipo === 'Pacote') {
+        // === CÁLCULO TIPO PACOTE ===
+        // valorTotal = valor_hora × qtd_pacotes × horas_pacote
+        const horasPacote = parseInt(campoHoras.value) || 0;
+        valorTotal = valorMensal * meses * horasPacote;
+        
+        console.log('🧮 Calculando (PACOTE):');
+        console.log('   📝 Valor por Hora (.value):', campoValorMensal.value);
+        console.log('   💰 Valor por Hora (parseado):', valorMensal);
+        console.log('   📝 Qtd. Pacotes (.value):', campoMeses.value);
+        console.log('   🔢 Qtd. Pacotes (parseado):', meses);
+        console.log('   📝 Horas por Pacote (.value):', campoHoras.value);
+        console.log('   🔢 Horas por Pacote (parseado):', horasPacote);
+        console.log('   💵 Valor Total:', valorTotal, '=', valorMensal, '×', meses, '×', horasPacote);
+        
+    } else {
+        // === CÁLCULO TIPO MENSAL/ÚNICO ===
+        // valorTotal = valor_mensal × qtd_meses
+        valorTotal = valorMensal * meses;
+        
+        console.log('🧮 Calculando (MENSAL/ÚNICO):');
+        console.log('   📝 Valor Mensal (.value):', campoValorMensal.value);
+        console.log('   💰 Valor Mensal (parseado):', valorMensal);
+        console.log('   📝 Meses (.value):', campoMeses.value);
+        console.log('   🔢 Meses (parseado):', meses);
+        console.log('   💵 Valor Total:', valorTotal, '=', valorMensal, '×', meses);
+    }
     
     // Formatar e exibir
     const valorFormatado = 'R$ ' + valorTotal.toLocaleString('pt-BR', {
@@ -3185,5 +3217,78 @@ async function salvarKit(event) {
 
 window.openModalKit = openModalKit;
 window.salvarKit = salvarKit;
+
+/**
+ * FUNÇÃO: Altera dinamicamente os campos do formulário de contrato baseado no tipo
+ */
+function alterarTipoContrato() {
+    const tipoSelect = document.getElementById('contrato-tipo');
+    const tipo = tipoSelect ? tipoSelect.value : 'Mensal';
+    
+    const campoValorMensal = document.getElementById('contrato-valor-mensal');
+    const campoMeses = document.getElementById('contrato-meses');
+    const campoHoras = document.getElementById('contrato-horas');
+    
+    // Obter labels (parent > label)
+    const labelValorMensal = campoValorMensal?.parentElement?.querySelector('label');
+    const labelMeses = campoMeses?.parentElement?.querySelector('label');
+    const labelHoras = campoHoras?.parentElement?.querySelector('label');
+    
+    if (tipo === 'Pacote') {
+        // === MODO PACOTE ===
+        // Altera label "Valor Mensal" → "Valor por Hora"
+        if (labelValorMensal) labelValorMensal.textContent = '*Valor por Hora:';
+        if (campoValorMensal) {
+            campoValorMensal.placeholder = '150.00';
+            campoValorMensal.title = 'Valor cobrado por hora de trabalho';
+        }
+        
+        // Altera label "Qtd. Meses" → "Qtd. Pacotes"
+        if (labelMeses) labelMeses.textContent = '*Qtd. Pacotes:';
+        if (campoMeses) {
+            campoMeses.placeholder = '10';
+            campoMeses.title = 'Quantidade de pacotes contratados';
+        }
+        
+        // Altera label "Horas Mensais" → "Horas por Pacote" e torna obrigatório
+        if (labelHoras) labelHoras.textContent = '*Horas por Pacote:';
+        if (campoHoras) {
+            campoHoras.required = true;
+            campoHoras.placeholder = '8';
+            campoHoras.title = 'Horas incluídas em cada pacote';
+            campoHoras.oninput = atualizarCalculoContrato; // Adiciona trigger de cálculo
+        }
+        
+    } else {
+        // === MODO MENSAL/ÚNICO ===
+        // Restaura label "Valor por Hora" → "Valor Mensal"
+        if (labelValorMensal) labelValorMensal.textContent = '*Valor Mensal:';
+        if (campoValorMensal) {
+            campoValorMensal.placeholder = '3500.00';
+            campoValorMensal.title = 'Valor mensal do contrato';
+        }
+        
+        // Restaura label "Qtd. Pacotes" → "Qtd. Meses"
+        if (labelMeses) labelMeses.textContent = '*Qtd. Meses:';
+        if (campoMeses) {
+            campoMeses.placeholder = '12';
+            campoMeses.title = 'Duração do contrato em meses';
+        }
+        
+        // Restaura label "Horas por Pacote" → "Horas Mensais" e remove obrigatoriedade
+        if (labelHoras) labelHoras.textContent = 'Horas Mensais:';
+        if (campoHoras) {
+            campoHoras.required = false;
+            campoHoras.placeholder = '8';
+            campoHoras.title = 'Horas mensais estimadas (opcional)';
+            campoHoras.oninput = null; // Remove trigger de cálculo
+        }
+    }
+    
+    // Recalcula valor total com nova lógica
+    atualizarCalculoContrato();
+}
+
+window.alterarTipoContrato = alterarTipoContrato;
 
 console.log('✓ Modals.js v20251204lancamentos5 carregado com sucesso');
