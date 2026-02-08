@@ -6030,6 +6030,143 @@ def admin_page():
     print(f"\n🎯🎯🎯 ROTA /admin ALCANÇADA - Decorador passou! 🎯🎯🎯\n")
     return render_template('admin.html')
 
+@app.route('/admin/fix-empresa-id', methods=['GET', 'POST'])
+@require_admin
+def admin_fix_empresa_id():
+    """
+    Rota administrativa para corrigir empresa_id em registros antigos
+    
+    ⚠️ ATENÇÃO: Esta rota atualiza TODOS os registros sem empresa_id!
+    Use com cuidado!
+    """
+    from database_postgresql import get_db_connection
+    
+    if request.method == 'GET':
+        # Mostrar página de confirmação
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Corrigir empresa_id</title>
+            <style>
+                body { font-family: Arial; padding: 40px; max-width: 800px; margin: 0 auto; }
+                .warning { background: #fff3cd; border: 2px solid #ffc107; padding: 20px; margin: 20px 0; border-radius: 8px; }
+                .btn { background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+                .btn:hover { background: #0056b3; }
+                .danger { background: #dc3545; }
+                .danger:hover { background: #c82333; }
+                pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
+            </style>
+        </head>
+        <body>
+            <h1>🔧 Corrigir empresa_id em Registros Antigos</h1>
+            
+            <div class="warning">
+                <h3>⚠️ ATENÇÃO</h3>
+                <p>Esta ação irá atualizar TODOS os registros sem <code>empresa_id</code> nas seguintes tabelas:</p>
+                <ul>
+                    <li>contratos</li>
+                    <li>sessoes</li>
+                    <li>lancamentos</li>
+                    <li>clientes</li>
+                    <li>fornecedores</li>
+                    <li>categorias</li>
+                </ul>
+                <p><strong>Os registros serão associados à empresa ID 19.</strong></p>
+            </div>
+            
+            <h3>O que será feito:</h3>
+            <pre>
+UPDATE contratos SET empresa_id = 19 WHERE empresa_id IS NULL;
+UPDATE sessoes SET empresa_id = 19 WHERE empresa_id IS NULL;
+UPDATE lancamentos SET empresa_id = 19 WHERE empresa_id IS NULL;
+...
+            </pre>
+            
+            <form method="POST" onsubmit="return confirm('Tem certeza? Esta ação não pode ser desfeita!');">
+                <button type="submit" class="btn danger">✅ Executar Correção</button>
+                <a href="/admin" style="margin-left: 20px;">❌ Cancelar</a>
+            </form>
+        </body>
+        </html>
+        """
+    
+    # POST - Executar correção
+    try:
+        with get_db_connection(allow_global=True) as conn:
+            cursor = conn.cursor()
+            
+            resultados = []
+            
+            # Análise inicial
+            tabelas = ['contratos', 'sessoes', 'lancamentos', 'clientes', 'fornecedores', 'categorias']
+            analise_inicial = {}
+            
+            for tabela in tabelas:
+                cursor.execute(f"""
+                    SELECT 
+                        COUNT(*) as total,
+                        COUNT(CASE WHEN empresa_id IS NULL THEN 1 END) as sem_empresa_id
+                    FROM {tabela}
+                """)
+                result = cursor.fetchone()
+                analise_inicial[tabela] = {
+                    'total': result['total'],
+                    'sem_empresa_id': result['sem_empresa_id']
+                }
+            
+            # Executar correções
+            updates = {
+                'contratos': "UPDATE contratos SET empresa_id = 19 WHERE empresa_id IS NULL",
+                'sessoes': "UPDATE sessoes SET empresa_id = 19 WHERE empresa_id IS NULL",
+                'lancamentos': "UPDATE lancamentos SET empresa_id = 19 WHERE empresa_id IS NULL",
+                'clientes': "UPDATE clientes SET empresa_id = 19 WHERE empresa_id IS NULL",
+                'fornecedores': "UPDATE fornecedores SET empresa_id = 19 WHERE empresa_id IS NULL",
+                'categorias': "UPDATE categorias SET empresa_id = 19 WHERE empresa_id IS NULL"
+            }
+            
+            for tabela, sql in updates.items():
+                cursor.execute(sql)
+                count = cursor.rowcount
+                resultados.append(f"✅ {tabela}: {count} registro(s) atualizado(s)")
+            
+            conn.commit()
+            cursor.close()
+            
+            # Retornar resultado
+            html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Correção Concluída</title>
+                <style>
+                    body {{ font-family: Arial; padding: 40px; max-width: 800px; margin: 0 auto; }}
+                    .success {{ background: #d4edda; border: 2px solid #28a745; padding: 20px; margin: 20px 0; border-radius: 8px; }}
+                    .resultado {{ background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; }}
+                </style>
+            </head>
+            <body>
+                <h1>✅ Correção Concluída com Sucesso!</h1>
+                
+                <div class="success">
+                    <h3>Resultados:</h3>
+                    {''.join(f'<div class="resultado">{r}</div>' for r in resultados)}
+                </div>
+                
+                <a href="/admin">← Voltar ao Admin</a>
+            </body>
+            </html>
+            """
+            
+            return html
+            
+    except Exception as e:
+        return f"""
+        <h1>❌ Erro ao executar correção</h1>
+        <pre>{str(e)}</pre>
+        <a href="/admin">← Voltar</a>
+        """, 500
+
 # ============================================================================
 # ROTAS DE ADMINISTRAÇÃO MOBILE
 # ============================================================================
