@@ -97,12 +97,12 @@ def sessoes():
                     print(f"   - tipo_foto: {sessao.get('tipo_foto')}")
                     print(f"   - endereco: {sessao.get('endereco')}")
             
-            # 🔒 RLS JÁ APLICA O FILTRO - Não precisa de filtro adicional
-            # sessoes_filtradas = filtrar_por_cliente(sessoes, request.usuario)
+            # Aplicar filtro por cliente
+            sessoes_filtradas = filtrar_por_cliente(sessoes, request.usuario)
             
-            print(f"✅ [GET /api/sessoes] Retornando {len(sessoes)} sessões (RLS aplicado)\n")
+            print(f"✅ [GET /api/sessoes] Retornando {len(sessoes_filtradas)} sessões após filtro\n")
             
-            return jsonify(sessoes)
+            return jsonify(sessoes_filtradas)
         except Exception as e:
             print(f"❌ Erro em GET /api/sessoes: {e}")
             import traceback
