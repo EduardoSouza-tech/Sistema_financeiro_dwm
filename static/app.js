@@ -4210,20 +4210,32 @@ async function loadSessoes() {
             if (sessao.tipo_mobile) tipos.push('Mobile');
             const tiposCaptacao = tipos.join(', ') || '-';
             
+            // Badge de Status da Sessão
+            const statusSessao = sessao.status || 'rascunho';
+            const badgesStatus = {
+                'rascunho': { cor: '#94a3b8', label: '📝 Rascunho' },
+                'agendada': { cor: '#3b82f6', label: '📅 Agendada' },
+                'em_andamento': { cor: '#f59e0b', label: '⏳ Em Andamento' },
+                'finalizada': { cor: '#10b981', label: '✅ Finalizada' },
+                'cancelada': { cor: '#ef4444', label: '❌ Cancelada' },
+                'reaberta': { cor: '#8b5cf6', label: '🔄 Reaberta' }
+            };
+            const badgeStatus = badgesStatus[statusSessao] || badgesStatus['rascunho'];
+            
             // Status baseado no prazo
-            let statusClass = 'badge-success';
-            let statusText = 'No Prazo';
+            let statusPrazoClass = 'badge-success';
+            let statusPrazoText = 'No Prazo';
             const hoje = new Date();
             const prazo = sessao.prazo_entrega ? new Date(sessao.prazo_entrega) : null;
             
             if (prazo) {
                 const diffDias = Math.ceil((prazo - hoje) / (1000 * 60 * 60 * 24));
                 if (diffDias < 0) {
-                    statusClass = 'badge-danger';
-                    statusText = 'Atrasado';
+                    statusPrazoClass = 'badge-danger';
+                    statusPrazoText = 'Atrasado';
                 } else if (diffDias <= 3) {
-                    statusClass = 'badge-warning';
-                    statusText = 'Urgente';
+                    statusPrazoClass = 'badge-warning';
+                    statusPrazoText = 'Urgente';
                 }
             }
             
@@ -4236,7 +4248,13 @@ async function loadSessoes() {
                 <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(sessao.endereco || '')}">${escapeHtml(sessao.endereco || '-')}</td>
                 <td>${tiposCaptacao}</td>
                 <td>${sessao.prazo_entrega ? new Date(sessao.prazo_entrega).toLocaleDateString('pt-BR') : '-'}</td>
-                <td><span class="badge ${statusClass}">${statusText}</span></td>
+                <td>
+                    <span style="display: inline-block; background: ${badgeStatus.cor}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-bottom: 4px;">
+                        ${badgeStatus.label}
+                    </span>
+                    <br>
+                    <span class="badge ${statusPrazoClass}">${statusPrazoText}</span>
+                </td>
                 <td>
                     <button class="btn btn-sm btn-primary" onclick="editarSessao(${sessao.id})" title="Editar">✏️</button>
                     <button class="btn btn-sm btn-danger" onclick="excluirSessao(${sessao.id})" title="Excluir">🗑️</button>

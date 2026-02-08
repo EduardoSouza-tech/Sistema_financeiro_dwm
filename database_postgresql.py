@@ -3896,6 +3896,227 @@ def finalizar_sessao(empresa_id: int, sessao_id: int, usuario_id: int, horas_tra
         }
 
 
+def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, usuario_id: int = None) -> Dict:
+    """
+    Atualiza o status de uma sessão com validações de transição
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO para RLS]
+        sessao_id (int): ID da sessão
+        novo_status (str): Novo status (rascunho, agendada, em_andamento, finalizada, cancelada, reaberta)
+        usuario_id (int, optional): ID do usuário que fez a mudança
+    
+    Returns:
+        Dict: Resultado da operação
+        {
+            'success': bool,
+            'message': str,
+            'status_anterior': str,
+            'status_novo': str
+        }
+    
+    Raises:
+        ValueError: Se empresa_id não fornecido, sessão não encontrada ou transição inválida
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    # Status válidos
+    STATUS_VALIDOS = ['rascunho', 'agendada', 'em_andamento', 'finalizada', 'cancelada', 'reaberta']
+    
+    if novo_status not in STATUS_VALIDOS:
+        raise ValueError(f"Status inválido: {novo_status}. Valores aceitos: {', '.join(STATUS_VALIDOS)}")
+    
+    # 🔒 Usar get_db_connection com empresa_id
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        # Buscar sessão atual
+        cursor.execute("""
+            SELECT id, status, titulo
+            FROM sessoes
+            WHERE id = %s
+        """, (sessao_id,))
+        
+        sessao = cursor.fetchone()
+        if not sessao:
+            cursor.close()
+            return_to_pool(conn)
+            raise ValueError(f"Sessão {sessao_id} não encontrada")
+        
+        status_anterior = sessao.get('status', 'rascunho')
+        
+        # Validar transições (regras de negócio)
+        transicoes_invalidas = [
+            (status_anterior == 'finalizada' and novo_status not in ['reaberta', 'cancelada']),
+            (status_anterior == 'cancelada' and novo_status != 'reaberta'),
+        ]
+        
+        if any(transicoes_invalidas):
+            cursor.close()
+            return_to_pool(conn)
+            return {
+                'success': False,
+                'message': f'Transição inválida: {status_anterior} → {novo_status}',
+                'status_anterior': status_anterior,
+                'status_novo': novo_status
+            }
+        
+        # Atualizar status
+        cursor.execute("""
+            UPDATE sessoes
+            SET status = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (novo_status, sessao_id))
+        
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        
+        return {
+            'success': True,
+            'message': f'Status alterado: {status_anterior} → {novo_status}',
+            'status_anterior': status_anterior,
+            'status_novo': novo_status
+        }
+
+
+def cancelar_sessao(empresa_id: int, sessao_id: int, usuario_id: int, motivo: str = None) -> Dict:
+    """
+    Cancela uma sessão (não deleta, apenas muda status)
+    
+    Args:
+        empresa_id (int): ID da empresa
+        sessao_id (int): ID da sessão
+        usuario_id (int): ID do usuário que cancelou
+        motivo (str, optional): Motivo do cancelamento
+    
+    Returns:
+        Dict: Resultado da operação com detalhes
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        # Buscar sessão
+        cursor.execute("""
+            SELECT id, status, titulo
+            FROM sessoes
+            WHERE id = %s
+        """, (sessao_id,))
+        
+        sessao = cursor.fetchone()
+        if not sessao:
+            cursor.close()
+            return_to_pool(conn)
+            raise ValueError(f"Sessão {sessao_id} não encontrada")
+        
+        status_anterior = sessao.get('status', 'rascunho')
+        
+        # Atualizar para cancelada
+        observacoes_cancelamento = f"\n[CANCELADA em {datetime.now().strftime('%Y-%m-%d %H:%M')} por usuário {usuario_id}]"
+        if motivo:
+            observacoes_cancelamento += f"\nMotivo: {motivo}"
+        
+        cursor.execute("""
+            UPDATE sessoes
+            SET status = 'cancelada',
+                observacoes = COALESCE(observacoes, '') || %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (observacoes_cancelamento, sessao_id))
+        
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        
+        return {
+            'success': True,
+            'message': 'Sessão cancelada com sucesso',
+            'status_anterior': status_anterior,
+            'status_novo': 'cancelada'
+        }
+
+
+def reabrir_sessao(empresa_id: int, sessao_id: int, usuario_id: int) -> Dict:
+    """
+    Reabre uma sessão finalizada ou cancelada
+    
+    Args:
+        empresa_id (int): ID da empresa
+        sessao_id (int): ID da sessão
+        usuario_id (int): ID do usuário que reabriu
+    
+    Returns:
+        Dict: Resultado da operação
+    
+    Note:
+        ⚠️ Se sessão foi finalizada, as horas NÃO são devolvidas automaticamente ao contrato.
+        Isso deve ser feito manualmente se necessário.
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        # Buscar sessão
+        cursor.execute("""
+            SELECT id, status, titulo
+            FROM sessoes
+            WHERE id = %s
+        """, (sessao_id,))
+        
+        sessao = cursor.fetchone()
+        if not sessao:
+            cursor.close()
+            return_to_pool(conn)
+            raise ValueError(f"Sessão {sessao_id} não encontrada")
+        
+        status_anterior = sessao.get('status', 'rascunho')
+        
+        # Só pode reabrir se estiver finalizada ou cancelada
+        if status_anterior not in ['finalizada', 'cancelada']:
+            cursor.close()
+            return_to_pool(conn)
+            return {
+                'success': False,
+                'message': f'Apenas sessões finalizadas ou canceladas podem ser reabertas. Status atual: {status_anterior}'
+            }
+        
+        # Atualizar para reaberta
+        observacoes_reabertura = f"\n[REABERTA em {datetime.now().strftime('%Y-%m-%d %H:%M')} por usuário {usuario_id}]"
+        
+        cursor.execute("""
+            UPDATE sessoes
+            SET status = 'reaberta',
+                observacoes = COALESCE(observacoes, '') || %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (observacoes_reabertura, sessao_id))
+        
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        
+        aviso = ""
+        if status_anterior == 'finalizada':
+            aviso = "⚠️ As horas deduzidas do contrato NÃO foram devolvidas automaticamente."
+        
+        return {
+            'success': True,
+            'message': f'Sessão reaberta com sucesso. {aviso}',
+            'status_anterior': status_anterior,
+            'status_novo': 'reaberta'
+        }
+
+
 def deletar_sessao(sessao_id: int) -> bool:
     """Deleta uma sessão"""
     db = DatabaseManager()

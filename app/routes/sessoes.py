@@ -376,3 +376,153 @@ def finalizar_sessao_route(sessao_id):
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@sessoes_bp.route('/<int:sessao_id>/status', methods=['PUT'])
+@require_permission('sessoes_edit')
+def atualizar_status_route(sessao_id):
+    """
+    Atualiza o status de uma sessão
+    
+    Body (JSON):
+        {
+            "status": "agendada"  // rascunho, agendada, em_andamento, finalizada, cancelada, reaberta
+        }
+    
+    Returns:
+        {
+            "success": true,
+            "message": "Status alterado: rascunho → agendada",
+            "status_anterior": "rascunho",
+            "status_novo": "agendada"
+        }
+    """
+    try:
+        from flask import session
+        empresa_id = session.get('empresa_id')
+        usuario_id = session.get('usuario_id')
+        
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
+        data = request.get_json()
+        novo_status = data.get('status')
+        
+        if not novo_status:
+            return jsonify({'success': False, 'error': 'Campo "status" é obrigatório'}), 400
+        
+        print(f"\n📊 [PUT /api/sessoes/{sessao_id}/status]")
+        print(f"   - status: {novo_status}")
+        
+        resultado = db.atualizar_status_sessao(
+            empresa_id=empresa_id,
+            sessao_id=sessao_id,
+            novo_status=novo_status,
+            usuario_id=usuario_id
+        )
+        
+        if resultado['success']:
+            print(f"✅ Status atualizado: {resultado['status_anterior']} → {resultado['status_novo']}")
+            return jsonify(resultado), 200
+        else:
+            print(f"⚠️ Falha: {resultado['message']}")
+            return jsonify(resultado), 400
+            
+    except ValueError as e:
+        print(f"❌ Erro de validação: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        print(f"❌ Erro ao atualizar status: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@sessoes_bp.route('/<int:sessao_id>/cancelar', methods=['POST'])
+@require_permission('sessoes_edit')
+def cancelar_sessao_route(sessao_id):
+    """
+    Cancela uma sessão
+    
+    Body (JSON):
+        {
+            "motivo": "Cliente desmarcou"  // opcional
+        }
+    """
+    try:
+        from flask import session
+        empresa_id = session.get('empresa_id')
+        usuario_id = session.get('usuario_id')
+        
+        if not empresa_id or not usuario_id:
+            return jsonify({'success': False, 'error': 'Autenticação inválida'}), 403
+        
+        data = request.get_json() or {}
+        motivo = data.get('motivo')
+        
+        print(f"\n📊 [POST /api/sessoes/{sessao_id}/cancelar]")
+        print(f"   - motivo: {motivo}")
+        
+        resultado = db.cancelar_sessao(
+            empresa_id=empresa_id,
+            sessao_id=sessao_id,
+            usuario_id=usuario_id,
+            motivo=motivo
+        )
+        
+        if resultado['success']:
+            print(f"✅ Sessão cancelada")
+            return jsonify(resultado), 200
+        else:
+            print(f"⚠️ Falha: {resultado.get('message', 'Erro desconhecido')}")
+            return jsonify(resultado), 400
+            
+    except ValueError as e:
+        print(f"❌ Erro de validação: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        print(f"❌ Erro ao cancelar sessão: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@sessoes_bp.route('/<int:sessao_id>/reabrir', methods=['POST'])
+@require_permission('sessoes_edit')
+def reabrir_sessao_route(sessao_id):
+    """
+    Reabre uma sessão finalizada ou cancelada
+    
+    ⚠️ Se sessão foi finalizada, as horas NÃO são devolvidas ao contrato automaticamente.
+    """
+    try:
+        from flask import session
+        empresa_id = session.get('empresa_id')
+        usuario_id = session.get('usuario_id')
+        
+        if not empresa_id or not usuario_id:
+            return jsonify({'success': False, 'error': 'Autenticação inválida'}), 403
+        
+        print(f"\n📊 [POST /api/sessoes/{sessao_id}/reabrir]")
+        
+        resultado = db.reabrir_sessao(
+            empresa_id=empresa_id,
+            sessao_id=sessao_id,
+            usuario_id=usuario_id
+        )
+        
+        if resultado['success']:
+            print(f"✅ Sessão reaberta")
+            return jsonify(resultado), 200
+        else:
+            print(f"⚠️ Falha: {resultado.get('message', 'Erro desconhecido')}")
+            return jsonify(resultado), 400
+            
+    except ValueError as e:
+        print(f"❌ Erro de validação: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        print(f"❌ Erro ao reabrir sessão: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500

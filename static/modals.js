@@ -2591,6 +2591,226 @@ window.adicionarComissaoContrato = adicionarComissaoContrato;
 // SESSÕES
 // ========================================
 
+/**
+ * Renderiza botões de ação baseados no status da sessão
+ */
+function renderBotoesStatusSessao(sessao) {
+    if (!sessao || !sessao.id) return '';
+    
+    const status = sessao.status || 'rascunho';
+    const sessaoId = sessao.id;
+    
+    const badges = {
+        'rascunho': { cor: '#94a3b8', label: '📝 Rascunho', icone: '📝' },
+        'agendada': { cor: '#3b82f6', label: '📅 Agendada', icone: '📅' },
+        'em_andamento': { cor: '#f59e0b', label: '⏳ Em Andamento', icone: '⏳' },
+        'finalizada': { cor: '#10b981', label: '✅ Finalizada', icone: '✅' },
+        'cancelada': { cor: '#ef4444', label: '❌ Cancelada', icone: '❌' },
+        'reaberta': { cor: '#8b5cf6', label: '🔄 Reaberta', icone: '🔄' }
+    };
+    
+    const badge = badges[status] || badges['rascunho'];
+    
+    let html = `
+        <!-- Badge de Status -->
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; background: ${badge.cor}; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600;">
+            ${badge.label}
+        </div>
+    `;
+    
+    // Botões baseados no status
+    switch(status) {
+        case 'rascunho':
+            html += `
+                <button type="button" class="btn" style="background: #3b82f6; color: white;" onclick="confirmarSessao(${sessaoId})">
+                    📅 Confirmar/Agendar
+                </button>
+                <button type="button" class="btn" style="background: #ef4444; color: white;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar
+                </button>
+            `;
+            break;
+            
+        case 'agendada':
+            html += `
+                <button type="button" class="btn" style="background: #f59e0b; color: white;" onclick="iniciarSessao(${sessaoId})">
+                    ▶️ Iniciar Sessão
+                </button>
+                <button type="button" class="btn" style="background: #10b981; color: white;" onclick="finalizarSessaoModal(${sessaoId})">
+                    ✅ Finalizar Diretamente
+                </button>
+                <button type="button" class="btn" style="background: #ef4444; color: white;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar
+                </button>
+            `;
+            break;
+            
+        case 'em_andamento':
+            html += `
+                <button type="button" class="btn" style="background: #10b981; color: white;" onclick="finalizarSessaoModal(${sessaoId})">
+                    ✅ Finalizar Sessão
+                </button>
+                <button type="button" class="btn" style="background: #ef4444; color: white;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar
+                </button>
+            `;
+            break;
+            
+        case 'finalizada':
+            html += `
+                <button type="button" class="btn" style="background: #8b5cf6; color: white;" onclick="reabrirSessaoModal(${sessaoId})">
+                    🔄 Reabrir Sessão
+                </button>
+            `;
+            break;
+            
+        case 'cancelada':
+            html += `
+                <button type="button" class="btn" style="background: #8b5cf6; color: white;" onclick="reabrirSessaoModal(${sessaoId})">
+                    🔄 Reabrir Sessão
+                </button>
+            `;
+            break;
+            
+        case 'reaberta':
+            html += `
+                <button type="button" class="btn" style="background: #3b82f6; color: white;" onclick="confirmarSessao(${sessaoId})">
+                    📅 Agendar Novamente
+                </button>
+                <button type="button" class="btn" style="background: #10b981; color: white;" onclick="finalizarSessaoModal(${sessaoId})">
+                    ✅ Finalizar
+                </button>
+                <button type="button" class="btn" style="background: #ef4444; color: white;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar
+                </button>
+            `;
+            break;
+    }
+    
+    return html;
+}
+
+/**
+ * Confirma/Agenda uma sessão (rascunho → agendada)
+ */
+async function confirmarSessao(sessaoId) {
+    if (!confirm('📅 Confirmar esta sessão?\n\nStatus será alterado para AGENDADA.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/sessoes/${sessaoId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'agendada' })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showToast('✅ ' + result.message, 'success');
+            closeModal();
+            if (typeof loadSessoes === 'function') loadSessoes();
+        } else {
+            showToast('❌ Erro: ' + (result.message || result.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao confirmar sessão:', error);
+        showToast('❌ Erro: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Inicia uma sessão (agendada → em_andamento)
+ */
+async function iniciarSessao(sessaoId) {
+    if (!confirm('▶️ Iniciar esta sessão?\n\nStatus será alterado para EM ANDAMENTO.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/sessoes/${sessaoId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'em_andamento' })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showToast('✅ ' + result.message, 'success');
+            closeModal();
+            if (typeof loadSessoes === 'function') loadSessoes();
+        } else {
+            showToast('❌ Erro: ' + (result.message || result.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao iniciar sessão:', error);
+        showToast('❌ Erro: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Cancela uma sessão
+ */
+async function cancelarSessaoModal(sessaoId) {
+    const motivo = prompt('❌ Cancelar sessão?\n\nInforme o motivo (opcional):');
+    
+    if (motivo === null) {
+        return; // Usuário clicou em Cancelar
+    }
+    
+    try {
+        const response = await fetch(`/api/sessoes/${sessaoId}/cancelar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ motivo: motivo || undefined })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showToast('✅ ' + result.message, 'success');
+            closeModal();
+            if (typeof loadSessoes === 'function') loadSessoes();
+        } else {
+            showToast('❌ Erro: ' + (result.message || result.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao cancelar sessão:', error);
+        showToast('❌ Erro: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Reabre uma sessão finalizada ou cancelada
+ */
+async function reabrirSessaoModal(sessaoId) {
+    if (!confirm('🔄 Reabrir esta sessão?\n\n⚠️ ATENÇÃO: Se a sessão foi finalizada, as horas deduzidas do contrato NÃO serão devolvidas automaticamente.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/sessoes/${sessaoId}/reabrir`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showToast('✅ ' + result.message, 'success');
+            closeModal();
+            if (typeof loadSessoes === 'function') loadSessoes();
+        } else {
+            showToast('❌ Erro: ' + (result.message || result.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao reabrir sessão:', error);
+        showToast('❌ Erro: ' + error.message, 'error');
+    }
+}
+
 async function openModalSessao(sessaoEdit = null) {
     console.log('📋 openModalSessao chamada', sessaoEdit ? 'MODO EDIÇÃO' : 'MODO CRIAÇÃO');
     
@@ -2781,12 +3001,7 @@ async function openModalSessao(sessaoEdit = null) {
             <div style="display: flex; gap: 10px; margin-top: 20px; position: sticky; bottom: 0; background: white; padding: 15px 0; border-top: 2px solid #eee;">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
                 <button type="submit" class="btn btn-primary">Salvar Sessão</button>
-                ${isEdit && sessaoEdit.status !== 'finalizada' ? `
-                <button type="button" class="btn" style="background: #10b981; color: white;" onclick="finalizarSessaoModal(${sessaoEdit.id})">✅ Finalizar Sessão</button>
-                ` : ''}
-                ${isEdit && sessaoEdit.status === 'finalizada' ? `
-                <span style="padding: 10px 20px; background: #10b981; color: white; border-radius: 8px; font-weight: 600;">✅ Sessão Finalizada</span>
-                ` : ''}
+                ${isEdit ? renderBotoesStatusSessao(sessaoEdit) : ''}
             </div>
         </form>
     `);
@@ -3100,6 +3315,11 @@ async function finalizarSessaoModal(sessaoId) {
 window.openModalSessao = openModalSessao;
 window.salvarSessao = salvarSessao;
 window.finalizarSessaoModal = finalizarSessaoModal;
+window.renderBotoesStatusSessao = renderBotoesStatusSessao;
+window.confirmarSessao = confirmarSessao;
+window.iniciarSessao = iniciarSessao;
+window.cancelarSessaoModal = cancelarSessaoModal;
+window.reabrirSessaoModal = reabrirSessaoModal;
 window.adicionarEquipeSessao = adicionarEquipeSessao;
 window.adicionarResponsavelSessao = adicionarResponsavelSessao;
 window.adicionarEquipamentoAlugado = adicionarEquipamentoAlugado;
