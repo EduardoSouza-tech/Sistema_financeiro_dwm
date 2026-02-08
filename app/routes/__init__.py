@@ -35,6 +35,13 @@ def register_blueprints(app):
         print(f"⚠️  Blueprint 'sessões' não encontrado: {e}")
     
     try:
+        from .funcoes_responsaveis import funcoes_bp
+        app.register_blueprint(funcoes_bp)
+        print("✅ Blueprint 'funções de responsáveis' registrado")
+    except ImportError as e:
+        print(f"⚠️  Blueprint 'funções de responsáveis' não encontrado: {e}")
+    
+    try:
         from .relatorios import relatorios_bp
         app.register_blueprint(relatorios_bp)
         print("✅ Blueprint 'relatórios' registrado")

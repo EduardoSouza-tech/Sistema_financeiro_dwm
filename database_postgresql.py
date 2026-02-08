@@ -5036,6 +5036,206 @@ def deletar_tipo_sessao(tipo_id: int) -> bool:
     return sucesso
 
 
+# ==================== FUNÇÕES DE RESPONSÁVEIS (CARGOS/FUNÇÕES) ====================
+
+def adicionar_funcao_responsavel(empresa_id: int, dados: Dict) -> int:
+    """
+    Adiciona uma nova função/cargo para responsáveis
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        dados (Dict): {'nome': str, 'descricao': str (opcional)}
+    
+    Returns:
+        int: ID da função criada
+        
+    Security:
+        🔒 RLS aplicado - função vinculada à empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO funcoes_responsaveis (nome, descricao, empresa_id)
+            VALUES (%s, %s, %s)
+            RETURNING id
+        """, (
+            dados['nome'],
+            dados.get('descricao', ''),
+            empresa_id
+        ))
+        
+        funcao_id = cursor.fetchone()['id']
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        return funcao_id
+
+
+def listar_funcoes_responsaveis(empresa_id: int, apenas_ativas: bool = True) -> List[Dict]:
+    """
+    Lista todas as funções de responsáveis da empresa
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        apenas_ativas (bool): Se True, retorna apenas funções ativas
+    
+    Returns:
+        List[Dict]: Lista de funções
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        sql = "SELECT * FROM funcoes_responsaveis WHERE empresa_id = %s"
+        params = [empresa_id]
+        
+        if apenas_ativas:
+            sql += " AND ativa = true"
+        
+        sql += " ORDER BY nome"
+        
+        cursor.execute(sql, params)
+        
+        funcoes = []
+        for row in cursor.fetchall():
+            funcao = dict(row)
+            funcoes.append(funcao)
+        
+        cursor.close()
+        return_to_pool(conn)
+        return funcoes
+
+
+def obter_funcao_responsavel(empresa_id: int, funcao_id: int) -> Dict:
+    """
+    Busca uma função específica
+    
+    Args:
+        empresa_id (int): ID da empresa
+        funcao_id (int): ID da função
+    
+    Returns:
+        Dict: Dados da função ou None
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM funcoes_responsaveis
+            WHERE id = %s AND empresa_id = %s
+        """, (funcao_id, empresa_id))
+        
+        row = cursor.fetchone()
+        funcao = dict(row) if row else None
+        
+        cursor.close()
+        return_to_pool(conn)
+        return funcao
+
+
+def atualizar_funcao_responsavel(empresa_id: int, funcao_id: int, dados: Dict) -> bool:
+    """
+    Atualiza uma função existente
+    
+    Args:
+        empresa_id (int): ID da empresa
+        funcao_id (int): ID da função
+        dados (Dict): Dados a atualizar
+    
+    Returns:
+        bool: True se atualizado com sucesso
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE funcoes_responsaveis
+            SET nome = %s,
+                descricao = %s,
+                ativa = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND empresa_id = %s
+        """, (
+            dados['nome'],
+            dados.get('descricao', ''),
+            dados.get('ativa', True),
+            funcao_id,
+            empresa_id
+        ))
+        
+        sucesso = cursor.rowcount > 0
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        return sucesso
+
+
+def deletar_funcao_responsavel(empresa_id: int, funcao_id: int) -> bool:
+    """
+    Deleta (ou desativa) uma função
+    
+    Args:
+        empresa_id (int): ID da empresa
+        funcao_id (int): ID da função
+    
+    Returns:
+        bool: True se deletado com sucesso
+        
+    Note:
+        Por segurança, pode-se preferir desativar em vez de deletar
+        para preservar histórico de sessões antigas.
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        # Opção 1: Desativar (recomendado)
+        cursor.execute("""
+            UPDATE funcoes_responsaveis
+            SET ativa = false,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND empresa_id = %s
+        """, (funcao_id, empresa_id))
+        
+        # Opção 2: Deletar permanentemente (descomentar se preferir)
+        # cursor.execute("""
+        #     DELETE FROM funcoes_responsaveis
+        #     WHERE id = %s AND empresa_id = %s
+        # """, (funcao_id, empresa_id))
+        
+        sucesso = cursor.rowcount > 0
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        return sucesso
+
+
 # ==================== FUNi?i?ES DE AUTENTICAi?i?O E USUi?RIOS ====================
 
 from auth_functions import (

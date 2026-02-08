@@ -2827,6 +2827,9 @@ async function openModalSessao(sessaoEdit = null) {
     if (!window.kits || window.kits.length === 0) {
         await loadKits();
     }
+    if (!window.funcoesResponsaveis || window.funcoesResponsaveis.length === 0) {
+        await loadFuncoesResponsaveis();
+    }
     
     const isEdit = sessaoEdit !== null;
     const titulo = isEdit ? 'Editar Sessão' : 'Nova Sessão';
@@ -3089,16 +3092,41 @@ function adicionarResponsavelSessao(dadosIniciais = null) {
         }).join('')
         : '<option value="">Nenhum funcionário</option>';
     
+    // Opções de funções (para datalist)
+    const datalistId = 'funcoes-list-' + Date.now();
+    const opcoesFuncoes = window.funcoesResponsaveis && window.funcoesResponsaveis.length > 0
+        ? window.funcoesResponsaveis.map(f => `<option value="${f.nome}">`).join('')
+        : '';
+    
     const div = document.createElement('div');
     div.className = 'responsavel-item';
-    div.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
+    div.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr auto auto; gap: 10px; margin-bottom: 10px; align-items: center;';
     div.innerHTML = `
         <select class="responsavel-funcionario" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             <option value="">Selecione...</option>
             ${opcoesFuncionarios}
         </select>
-        <input type="text" class="responsavel-funcao" placeholder="Captação" value="${dadosIniciais ? dadosIniciais.funcao || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-        <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm btn-danger" style="padding: 8px 12px;">🗑️</button>
+        
+        <div style="position: relative; display: flex; gap: 5px;">
+            <input 
+                type="text" 
+                class="responsavel-funcao responsavel-funcao-select" 
+                list="${datalistId}"
+                placeholder="Captação, Edição..." 
+                value="${dadosIniciais ? dadosIniciais.funcao || '' : ''}" 
+                style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <datalist id="${datalistId}">
+                ${opcoesFuncoes}
+            </datalist>
+        </div>
+        
+        <button type="button" onclick="openModalAdicionarFuncao()" class="btn btn-sm" style="padding: 8px 12px; background: #10b981; color: white;" title="Adicionar Nova Função">
+            ➕
+        </button>
+        
+        <button type="button" onclick="this.closest('.responsavel-item').remove()" class="btn btn-sm btn-danger" style="padding: 8px 12px;">
+            🗑️
+        </button>
     `;
     container.appendChild(div);
 }
@@ -3324,6 +3352,145 @@ window.adicionarEquipeSessao = adicionarEquipeSessao;
 window.adicionarResponsavelSessao = adicionarResponsavelSessao;
 window.adicionarEquipamentoAlugado = adicionarEquipamentoAlugado;
 window.adicionarCustoAdicional = adicionarCustoAdicional;
+
+// ========================================
+// FUNÇÕES DE RESPONSÁVEIS
+// ========================================
+
+/**
+ * Armazena cache de funções localmente
+ */
+window.funcoesResponsaveis = [];
+
+/**
+ * Carrega funções de responsáveis do backend
+ */
+async function loadFuncoesResponsaveis() {
+    try {
+        console.log('📋 Carregando funções de responsáveis...');
+        const response = await fetch('/api/funcoes-responsaveis');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const funcoes = await response.json();
+        window.funcoesResponsaveis = funcoes;
+        console.log('✅ Funções carregadas:', funcoes.length);
+        return funcoes;
+    } catch (error) {
+        console.error('❌ Erro ao carregar funções:', error);
+        window.funcoesResponsaveis = [];
+        return [];
+    }
+}
+
+/**
+ * Abre modal rápido para adicionar nova função
+ */
+function openModalAdicionarFuncao() {
+    const modal = createModal('➕ Nova Função', `
+        <form id="form-funcao" onsubmit="salvarFuncaoRapida(event)" style="max-width: 500px;">
+            <div class="form-group">
+                <label>*Nome da Função:</label>
+                <input type="text" id="funcao-nome" required placeholder="Ex: Fotógrafo, Videomaker, Editor..." 
+                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Descrição (opcional):</label>
+                <textarea id="funcao-descricao" rows="3" placeholder="Descrição da função..." 
+                          style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">➕ Adicionar Função</button>
+            </div>
+        </form>
+    `);
+    
+    // Focar no campo nome
+    setTimeout(() => {
+        const campoNome = document.getElementById('funcao-nome');
+        if (campoNome) campoNome.focus();
+    }, 100);
+}
+
+/**
+ * Salva nova função via API
+ */
+async function salvarFuncaoRapida(event) {
+    event.preventDefault();
+    
+    const nome = document.getElementById('funcao-nome').value.trim();
+    const descricao = document.getElementById('funcao-descricao').value.trim();
+    
+    if (!nome) {
+        showToast('❌ Nome da função é obrigatório', 'error');
+        return;
+    }
+    
+    try {
+        console.log('💾 Salvando função:', nome);
+        
+        const response = await fetch('/api/funcoes-responsaveis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, descricao })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showToast('✅ Função criada com sucesso!', 'success');
+            
+            // Recarregar funções
+            await loadFuncoesResponsaveis();
+            
+            // Atualizar selects de funções abertos (se houver)
+            atualizarSelectsFuncoes();
+            
+            closeModal();
+        } else {
+            showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
+            console.error('❌ Erro ao criar função:', result);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao salvar função:', error);
+        showToast('❌ Erro ao salvar função: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Atualiza todos os selects de funções na página
+ */
+function atualizarSelectsFuncoes() {
+    // Atualizar selects de responsáveis em sessões
+    document.querySelectorAll('.responsavel-funcao-select').forEach(select => {
+        const valorAtual = select.value;
+        
+        // Limpar e recriar opções
+        select.innerHTML = '<option value="">Digite ou selecione...</option>';
+        
+        window.funcoesResponsaveis.forEach(funcao => {
+            const option = document.createElement('option');
+            option.value = funcao.nome;
+            option.textContent = funcao.nome;
+            if (funcao.nome === valorAtual) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+    });
+    
+    console.log('🔄 Selects de funções atualizados');
+}
+
+window.loadFuncoesResponsaveis = loadFuncoesResponsaveis;
+window.openModalAdicionarFuncao = openModalAdicionarFuncao;
+window.salvarFuncaoRapida = salvarFuncaoRapida;
+window.atualizarSelectsFuncoes = atualizarSelectsFuncoes;
 
 // ========================================
 // KITS DE EQUIPAMENTOS
