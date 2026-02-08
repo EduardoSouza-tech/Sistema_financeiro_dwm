@@ -3323,10 +3323,33 @@ def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
     import json
     observacoes_json = json.dumps(observacoes_dict)
     
-    # 🔒 INCLUIR empresa_id no INSERT para garantir isolamento
+    # � Calcular horas totais baseado no tipo
+    tipo = dados.get('tipo', 'Mensal')
+    horas_mensais = float(dados.get('horas_mensais') or 0)
+    qtd_meses = int(dados.get('quantidade_meses') or 1)
+    
+    horas_totais = 0
+    controle_horas_ativo = False
+    
+    if tipo == 'Pacote':
+        # Pacote: qtd_pacotes × horas_pacote
+        qtd_pacotes = qtd_meses  # Reutiliza campo quantidade_meses
+        horas_pacote = horas_mensais  # Reutiliza campo horas_mensais
+        horas_totais = qtd_pacotes * horas_pacote
+        controle_horas_ativo = True if horas_totais > 0 else False
+    elif horas_mensais > 0:
+        # Mensal/Único com horas definidas: horas_mensais × qtd_meses
+        horas_totais = horas_mensais * qtd_meses
+        controle_horas_ativo = True
+    
+    # 🔒 INCLUIR empresa_id, horas_totais e controle_horas_ativo no INSERT
     cursor.execute("""
-        INSERT INTO contratos (numero, cliente_id, descricao, valor, data_inicio, data_fim, status, observacoes, empresa_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO contratos (
+            numero, cliente_id, descricao, valor, data_inicio, data_fim, 
+            status, observacoes, empresa_id, 
+            horas_totais, horas_utilizadas, horas_extras, controle_horas_ativo
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id
     """, (
         dados.get('numero'),
@@ -3337,7 +3360,11 @@ def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
         dados.get('data_fim'),
         dados.get('status', 'ativo'),
         observacoes_json,
-        empresa_id  # 🔒 Adicionar empresa_id
+        empresa_id,  # 🔒 Adicionar empresa_id
+        horas_totais,  # 📊 Total de horas
+        0,  # horas_utilizadas inicial
+        0,  # horas_extras inicial
+        controle_horas_ativo  # 📊 Controle ativo
     ))
     
     contrato_id = cursor.fetchone()['id']
@@ -3403,6 +3430,22 @@ def listar_contratos(empresa_id: int) -> List[Dict]:
             # Se JSON não tem valor OU tem string vazia, mas tabela tem valor preenchido
             if valor_tabela and (valor_json is None or (isinstance(valor_json, str) and valor_json.strip() == '')):
                 contrato[campo] = valor_tabela
+        
+        # 📊 Calcular horas restantes (campo virtual)
+        if contrato.get('controle_horas_ativo'):
+            horas_totais = float(contrato.get('horas_totais', 0))
+            horas_utilizadas = float(contrato.get('horas_utilizadas', 0))
+            horas_restantes = horas_totais - horas_utilizadas
+            contrato['horas_restantes'] = horas_restantes
+            
+            # Calcular percentual utilizado
+            if horas_totais > 0:
+                contrato['percentual_utilizado'] = round((horas_utilizadas / horas_totais) * 100, 2)
+            else:
+                contrato['percentual_utilizado'] = 0
+        else:
+            contrato['horas_restantes'] = None
+            contrato['percentual_utilizado'] = None
         
         contratos.append(contrato)
     
@@ -3725,6 +3768,132 @@ def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
     cursor.close()
     return_to_pool(conn)
     return sucesso
+
+
+def finalizar_sessao(empresa_id: int, sessao_id: int, usuario_id: int, horas_trabalhadas: float = None) -> Dict:
+    """
+    Finaliza uma sessão e deduz horas do contrato vinculado
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO para RLS]
+        sessao_id (int): ID da sessão a finalizar
+        usuario_id (int): ID do usuário que finalizou
+        horas_trabalhadas (float, optional): Horas trabalhadas. Se None, usa duracao da sessão
+    
+    Returns:
+        Dict: Resultado da operação com detalhes
+        {
+            'success': bool,
+            'message': str,
+            'horas_deduzidas': float,
+            'horas_extras': float,
+            'saldo_restante': float
+        }
+    
+    Raises:
+        ValueError: Se empresa_id não fornecido ou sessão não encontrada
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para finalizar_sessao")
+    
+    # 🔒 Usar get_db_connection com empresa_id
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        # 1. Buscar dados da sessão
+        cursor.execute("""
+            SELECT s.*, c.controle_horas_ativo, c.horas_totais, c.horas_utilizadas, c.horas_extras, c.id as contrato_id
+            FROM sessoes s
+            LEFT JOIN contratos c ON s.contrato_id = c.id
+            WHERE s.id = %s
+        """, (sessao_id,))
+        
+        sessao = cursor.fetchone()
+        if not sessao:
+            cursor.close()
+            return_to_pool(conn)
+            raise ValueError(f"Sessão {sessao_id} não encontrada")
+        
+        # Se já finalizada, retornar erro
+        if sessao['status'] == 'finalizada':
+            cursor.close()
+            return_to_pool(conn)
+            return {
+                'success': False,
+                'message': 'Sessão já está finalizada',
+                'horas_deduzidas': 0,
+                'horas_extras': 0,
+                'saldo_restante': 0
+            }
+        
+        # 2. Determinar horas trabalhadas
+        if horas_trabalhadas is None:
+            horas_trabalhadas = float(sessao.get('duracao') or 0)
+        else:
+            horas_trabalhadas = float(horas_trabalhadas)
+        
+        # 3. Atualizar status da sessão
+        cursor.execute("""
+            UPDATE sessoes
+            SET status = 'finalizada',
+                horas_trabalhadas = %s,
+                finalizada_em = CURRENT_TIMESTAMP,
+                finalizada_por = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (horas_trabalhadas, usuario_id, sessao_id))
+        
+        # 4. Se contrato TEM controle de horas, deduzir
+        horas_deduzidas = 0
+        horas_extras_adicional = 0
+        saldo_restante = 0
+        
+        if sessao.get('contrato_id') and sessao.get('controle_horas_ativo'):
+            contrato_id = sessao['contrato_id']
+            horas_totais = float(sessao.get('horas_totais', 0))
+            horas_utilizadas = float(sessao.get('horas_utilizadas', 0))
+            horas_extras_atual = float(sessao.get('horas_extras', 0))
+            
+            # Calcular saldo atual
+            saldo_atual = horas_totais - horas_utilizadas
+            
+            # Se saldo suficiente, deduzir normalmente
+            if saldo_atual >= horas_trabalhadas:
+                horas_deduzidas = horas_trabalhadas
+                horas_extras_adicional = 0
+            else:
+                # Saldo insuficiente: usar o que resta + adicionar extras
+                horas_deduzidas = max(saldo_atual, 0)
+                horas_extras_adicional = horas_trabalhadas - horas_deduzidas
+            
+            # Atualizar contrato
+            cursor.execute("""
+                UPDATE contratos
+                SET horas_utilizadas = horas_utilizadas + %s,
+                    horas_extras = horas_extras + %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (horas_deduzidas, horas_extras_adicional, contrato_id))
+            
+            # Calcular saldo final
+            saldo_restante = horas_totais - (horas_utilizadas + horas_deduzidas)
+        
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        
+        return {
+            'success': True,
+            'message': 'Sessão finalizada com sucesso',
+            'horas_trabalhadas': horas_trabalhadas,
+            'horas_deduzidas': horas_deduzidas,
+            'horas_extras': horas_extras_adicional,
+            'saldo_restante': max(saldo_restante, 0),
+            'controle_horas_ativo': bool(sessao.get('controle_horas_ativo'))
+        }
 
 
 def deletar_sessao(sessao_id: int) -> bool:

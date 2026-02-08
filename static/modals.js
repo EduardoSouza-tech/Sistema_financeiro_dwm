@@ -2231,6 +2231,42 @@ async function openModalContrato(contratoEdit = null) {
                 </div>
             </div>
             
+            ${isEdit && contratoEdit.controle_horas_ativo ? `
+            <!-- Controle de Horas (somente em edição) -->
+            <div class="form-group" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; color: white;">
+                <h4 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">⏱️ Controle de Horas</h4>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
+                    <div>
+                        <small style="opacity: 0.9;">Total Contratado</small>
+                        <div style="font-size: 24px; font-weight: bold;">${(contratoEdit.horas_totais || 0).toFixed(1)}h</div>
+                    </div>
+                    <div>
+                        <small style="opacity: 0.9;">Horas Utilizadas</small>
+                        <div style="font-size: 24px; font-weight: bold;">${(contratoEdit.horas_utilizadas || 0).toFixed(1)}h</div>
+                    </div>
+                    <div>
+                        <small style="opacity: 0.9;">Horas Restantes</small>
+                        <div style="font-size: 24px; font-weight: bold; color: ${(contratoEdit.horas_restantes || 0) > 0 ? '#4ade80' : '#fbbf24'};">${(contratoEdit.horas_restantes || 0).toFixed(1)}h</div>
+                    </div>
+                    <div>
+                        <small style="opacity: 0.9;">Horas Extras</small>
+                        <div style="font-size: 24px; font-weight: bold; color: ${(contratoEdit.horas_extras || 0) > 0 ? '#f87171' : 'white'};">${(contratoEdit.horas_extras || 0).toFixed(1)}h</div>
+                    </div>
+                </div>
+                
+                <!-- Barra de progresso -->
+                <div style="margin-top: 15px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px;">
+                        <span>Progresso</span>
+                        <span>${(contratoEdit.percentual_utilizado || 0).toFixed(1)}%</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.3); height: 8px; border-radius: 4px; overflow: hidden;">
+                        <div style="background: ${(contratoEdit.percentual_utilizado || 0) > 90 ? '#f87171' : '#4ade80'}; height: 100%; width: ${Math.min((contratoEdit.percentual_utilizado || 0), 100)}%; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+            
             <!-- Comissões -->
             <div class="form-group">
                 <label>Comissões:</label>
@@ -2745,6 +2781,12 @@ async function openModalSessao(sessaoEdit = null) {
             <div style="display: flex; gap: 10px; margin-top: 20px; position: sticky; bottom: 0; background: white; padding: 15px 0; border-top: 2px solid #eee;">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
                 <button type="submit" class="btn btn-primary">Salvar Sessão</button>
+                ${isEdit && sessaoEdit.status !== 'finalizada' ? `
+                <button type="button" class="btn" style="background: #10b981; color: white;" onclick="finalizarSessaoModal(${sessaoEdit.id})">✅ Finalizar Sessão</button>
+                ` : ''}
+                ${isEdit && sessaoEdit.status === 'finalizada' ? `
+                <span style="padding: 10px 20px; background: #10b981; color: white; border-radius: 8px; font-weight: 600;">✅ Sessão Finalizada</span>
+                ` : ''}
             </div>
         </form>
     `);
@@ -3004,8 +3046,60 @@ async function salvarSessao(event) {
     }
 }
 
+async function finalizarSessaoModal(sessaoId) {
+    if (!confirm('⚠️ Tem certeza que deseja FINALIZAR esta sessão?\n\n✅ As horas trabalhadas serão deduzidas do contrato\n❌ Esta ação não pode ser desfeita facilmente')) {
+        return;
+    }
+    
+    try {
+        console.log('🏁 Finalizando sessão:', sessaoId);
+        
+        const response = await fetch(`/api/sessoes/${sessaoId}/finalizar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            console.log('✅ Sessão finalizada:', result);
+            
+            let mensagem = '✅ Sessão finalizada com sucesso!\n\n';
+            
+            if (result.controle_horas_ativo) {
+                mensagem += `⏱️ Horas trabalhadas: ${result.horas_trabalhadas}h\n`;
+                mensagem += `📉 Deduzido do contrato: ${result.horas_deduzidas}h\n`;
+                
+                if (result.horas_extras > 0) {
+                    mensagem += `⚠️ Horas extras: ${result.horas_extras}h (saldo zerado)\n`;
+                }
+                
+                mensagem += `✅ Saldo restante: ${result.saldo_restante}h`;
+            }
+            
+            showToast(mensagem, 'success');
+            closeModal();
+            
+            // Recarregar listas
+            if (typeof loadSessoes === 'function') loadSessoes();
+            if (typeof loadContratos === 'function') loadContratos();
+        } else {
+            showToast('❌ Erro: ' + (result.message || result.error || 'Erro desconhecido'), 'error');
+            console.error('❌ Detalhes do erro:', result);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao finalizar sessão:', error);
+        showToast('❌ Erro ao finalizar sessão: ' + error.message, 'error');
+    }
+}
+
 window.openModalSessao = openModalSessao;
 window.salvarSessao = salvarSessao;
+window.finalizarSessaoModal = finalizarSessaoModal;
 window.adicionarEquipeSessao = adicionarEquipeSessao;
 window.adicionarResponsavelSessao = adicionarResponsavelSessao;
 window.adicionarEquipamentoAlugado = adicionarEquipamentoAlugado;

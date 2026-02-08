@@ -303,3 +303,76 @@ def sessao_detalhes(sessao_id):
             import traceback
             traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
+
+@sessoes_bp.route('/<int:sessao_id>/finalizar', methods=['POST'])
+@require_permission('sessoes_edit')
+def finalizar_sessao_route(sessao_id):
+    """
+    Finaliza uma sessão e deduz horas do contrato
+    
+    Body (JSON):
+        {
+            "horas_trabalhadas": 8.5  // opcional, usa duracao se não informado
+        }
+    
+    Returns:
+        {
+            "success": true,
+            "message": "Sessão finalizada com sucesso",
+            "horas_trabalhadas": 8.5,
+            "horas_deduzidas": 8.5,
+            "horas_extras": 0,
+            "saldo_restante": 71.5,
+            "controle_horas_ativo": true
+        }
+    
+    Security:
+        🔒 RLS aplicado via empresa_id da sessão
+    """
+    try:
+        # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+        from flask import session
+        empresa_id = session.get('empresa_id')
+        usuario_id = session.get('usuario_id')
+        
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
+        if not usuario_id:
+            return jsonify({'success': False, 'error': 'Usuário não identificado'}), 403
+        
+        data = request.get_json() or {}
+        horas_trabalhadas = data.get('horas_trabalhadas')  # Opcional
+        
+        print(f"\n📊 [POST /api/sessoes/{sessao_id}/finalizar]")
+        print(f"   - empresa_id: {empresa_id}")
+        print(f"   - usuario_id: {usuario_id}")
+        print(f"   - horas_trabalhadas: {horas_trabalhadas}")
+        
+        # Chamar função de finalizar
+        resultado = db.finalizar_sessao(
+            empresa_id=empresa_id,
+            sessao_id=sessao_id,
+            usuario_id=usuario_id,
+            horas_trabalhadas=horas_trabalhadas
+        )
+        
+        if resultado['success']:
+            print(f"✅ Sessão {sessao_id} finalizada com sucesso")
+            print(f"   - Horas trabalhadas: {resultado['horas_trabalhadas']}")
+            print(f"   - Horas deduzidas: {resultado['horas_deduzidas']}")
+            print(f"   - Horas extras: {resultado['horas_extras']}")
+            print(f"   - Saldo restante: {resultado['saldo_restante']}")
+            return jsonify(resultado), 200
+        else:
+            print(f"⚠️ Falha ao finalizar sessão: {resultado['message']}")
+            return jsonify(resultado), 400
+            
+    except ValueError as e:
+        print(f"❌ Erro de validação ao finalizar sessão {sessao_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        print(f"❌ Erro ao finalizar sessão {sessao_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
