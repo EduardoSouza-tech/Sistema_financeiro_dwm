@@ -1157,8 +1157,9 @@ function openModalCliente(clienteEdit = null) {
             
             if (campoIE) campoIE.value = clienteEdit.ie || '';
             if (campoIM) campoIM.value = clienteEdit.im || '';
+            // 🌐 PARTE 7: Campos estruturados de endereço
             if (campoCEP) campoCEP.value = clienteEdit.cep || '';
-            if (campoRua) campoRua.value = clienteEdit.rua || clienteEdit.endereco || '';
+            if (campoRua) campoRua.value = clienteEdit.logradouro || clienteEdit.rua || clienteEdit.endereco || '';
             if (campoNumero) campoNumero.value = clienteEdit.numero || '';
             if (campoComplemento) campoComplemento.value = clienteEdit.complemento || '';
             if (campoBairro) campoBairro.value = clienteEdit.bairro || '';
@@ -1173,21 +1174,61 @@ function openModalCliente(clienteEdit = null) {
 }
 
 async function buscarCepCliente() {
-    const cep = document.getElementById('cliente-cep').value.replace(/\D/g, '');
-    if (cep.length !== 8) return;
+    const inputCep = document.getElementById('cliente-cep');
+    const cep = inputCep.value.replace(/\D/g, '');
+    
+    // Validar tamanho do CEP
+    if (cep.length !== 8) {
+        if (cep.length > 0) {
+            showToast('CEP deve conter 8 dígitos', 'warning');
+        }
+        return;
+    }
+    
+    // 🔄 Mostrar loading no campo CEP
+    const originalValue = inputCep.value;
+    const originalBg = inputCep.style.background;
+    inputCep.style.background = '#fff3cd';
+    inputCep.disabled = true;
+    inputCep.value = 'Buscando...';
     
     try {
         const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        
+        if (!response.ok) {
+            throw new Error('Erro ao consultar ViaCEP');
+        }
+        
         const data = await response.json();
         
-        if (!data.erro) {
+        if (data.erro) {
+            showToast('❌ CEP não encontrado', 'error');
+            inputCep.value = originalValue;
+        } else {
+            // ✅ Preencher campos com dados do ViaCEP
             document.getElementById('cliente-rua').value = (data.logradouro || '').toUpperCase();
             document.getElementById('cliente-bairro').value = (data.bairro || '').toUpperCase();
             document.getElementById('cliente-cidade').value = (data.localidade || '').toUpperCase();
-            document.getElementById('cliente-estado').value = data.uf;
+            document.getElementById('cliente-estado').value = data.uf || '';
+            
+            // Formatar CEP com hífen
+            inputCep.value = `${cep.substr(0,5)}-${cep.substr(5)}`;
+            
+            // Focar no campo número (geralmente não vem do CEP)
+            setTimeout(() => {
+                document.getElementById('cliente-numero').focus();
+            }, 100);
+            
+            showToast('✅ Endereço preenchido automaticamente!', 'success');
         }
     } catch (error) {
         console.error('Erro ao buscar CEP:', error);
+        showToast('⚠️ Erro ao buscar CEP. Tente novamente.', 'error');
+        inputCep.value = originalValue;
+    } finally {
+        // Restaurar estado do input
+        inputCep.style.background = originalBg;
+        inputCep.disabled = false;
     }
 }
 
@@ -1214,20 +1255,24 @@ async function salvarCliente(event) {
         razao_social: document.getElementById('cliente-razao').value,
         nome_fantasia: document.getElementById('cliente-fantasia').value,
         cnpj: document.getElementById('cliente-cnpj').value,
+        cpf_cnpj: document.getElementById('cliente-cnpj').value,
+        documento: document.getElementById('cliente-cnpj').value,
         ie: document.getElementById('cliente-ie').value,
         im: document.getElementById('cliente-im').value,
+        // 🌐 PARTE 7: Campos estruturados de endereço
         cep: document.getElementById('cliente-cep').value,
-        rua: document.getElementById('cliente-rua').value,
+        logradouro: document.getElementById('cliente-rua').value,
         numero: document.getElementById('cliente-numero').value,
         complemento: document.getElementById('cliente-complemento').value,
         bairro: document.getElementById('cliente-bairro').value,
         cidade: document.getElementById('cliente-cidade').value,
         estado: document.getElementById('cliente-estado').value,
+        // Campos de contato
         telefone: document.getElementById('cliente-telefone').value,
         contato: document.getElementById('cliente-telefone').value,
         email: document.getElementById('cliente-email').value.toLowerCase(),
+        // Campo legado (para retrocompatibilidade)
         endereco: `${document.getElementById('cliente-rua').value}, ${document.getElementById('cliente-numero').value}`,
-        documento: document.getElementById('cliente-cnpj').value,
         empresa_id: window.currentEmpresaId
     };
     

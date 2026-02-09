@@ -1986,7 +1986,10 @@ class DatabaseManager:
     
     def adicionar_cliente(self, cliente_data, cpf_cnpj: str = None, 
                          email: str = None, telefone: str = None,
-                         endereco: str = None, proprietario_id: int = None) -> int:
+                         endereco: str = None, proprietario_id: int = None,
+                         cep: str = None, logradouro: str = None, numero: str = None,
+                         complemento: str = None, bairro: str = None, 
+                         cidade: str = None, estado: str = None) -> int:
         """Adiciona um novo cliente (aceita dict ou parâmetros individuais)"""
         # Aceitar dict ou parâmetros individuais
         if isinstance(cliente_data, dict):
@@ -1995,6 +1998,14 @@ class DatabaseManager:
             email = cliente_data.get('email')
             telefone = cliente_data.get('telefone')
             endereco = cliente_data.get('endereco')
+            # 🌐 Campos de endereço estruturado (PARTE 7)
+            cep = cliente_data.get('cep')
+            logradouro = cliente_data.get('logradouro')
+            numero = cliente_data.get('numero')
+            complemento = cliente_data.get('complemento')
+            bairro = cliente_data.get('bairro')
+            cidade = cliente_data.get('cidade')
+            estado = cliente_data.get('estado')
             proprietario_id = cliente_data.get('proprietario_id', proprietario_id)
             empresa_id = cliente_data.get('empresa_id')  # 🔒 Pegar empresa_id
         else:
@@ -2013,10 +2024,16 @@ class DatabaseManager:
             cursor = conn.cursor()
             
             cursor.execute("""
-                INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco, proprietario_id, empresa_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO clientes (
+                    nome, cpf_cnpj, email, telefone, endereco, 
+                    cep, logradouro, numero, complemento, bairro, cidade, estado,
+                    proprietario_id, empresa_id
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
-            """, (nome, cpf_cnpj, email, telefone, endereco, proprietario_id, empresa_id))
+            """, (nome, cpf_cnpj, email, telefone, endereco, 
+                  cep, logradouro, numero, complemento, bairro, cidade, estado,
+                  proprietario_id, empresa_id))
             
             cliente_id = cursor.fetchone()['id']
             conn.commit()
@@ -2063,7 +2080,10 @@ class DatabaseManager:
         cursor.execute("""
             UPDATE clientes 
             SET nome = %s, cpf_cnpj = %s, email = %s, 
-                telefone = %s, endereco = %s, updated_at = CURRENT_TIMESTAMP
+                telefone = %s, endereco = %s,
+                cep = %s, logradouro = %s, numero = %s,
+                complemento = %s, bairro = %s, cidade = %s, estado = %s,
+                updated_at = CURRENT_TIMESTAMP
             WHERE UPPER(TRIM(nome)) = %s
         """, (
             dados.get('nome'),
@@ -2071,6 +2091,14 @@ class DatabaseManager:
             dados.get('email'),
             dados.get('telefone'),
             dados.get('endereco'),
+            # 🌐 Campos de endereço estruturado (PARTE 7)
+            dados.get('cep'),
+            dados.get('logradouro'),
+            dados.get('numero'),
+            dados.get('complemento'),
+            dados.get('bairro'),
+            dados.get('cidade'),
+            dados.get('estado'),
             nome_normalizado
         ))
         
@@ -3039,7 +3067,10 @@ def atualizar_nome_categoria(nome_antigo: str, nome_novo: str) -> bool:
     return db.atualizar_nome_categoria(nome_antigo, nome_novo)
 
 def adicionar_cliente(empresa_id: int, cliente_data, cpf_cnpj: str = None, email: str = None,
-                     telefone: str = None, endereco: str = None) -> int:
+                     telefone: str = None, endereco: str = None,
+                     cep: str = None, logradouro: str = None, numero: str = None,
+                     complemento: str = None, bairro: str = None, 
+                     cidade: str = None, estado: str = None) -> int:
     """
     Adiciona um cliente
     
@@ -3049,7 +3080,14 @@ def adicionar_cliente(empresa_id: int, cliente_data, cpf_cnpj: str = None, email
         cpf_cnpj (str): CPF/CNPJ
         email (str): Email
         telefone (str): Telefone
-        endereco (str): Endereço
+        endereco (str): Endereço (campo legado)
+        cep (str): CEP no formato 00000-000
+        logradouro (str): Rua, Avenida, etc
+        numero (str): Número do imóvel
+        complemento (str): Apto, Sala, Bloco, etc
+        bairro (str): Bairro
+        cidade (str): Cidade
+        estado (str): UF (SP, RJ, etc)
     
     Raises:
         ValueError: Se empresa_id não fornecido
@@ -3060,7 +3098,10 @@ def adicionar_cliente(empresa_id: int, cliente_data, cpf_cnpj: str = None, email
     if not empresa_id:
         raise ValueError("empresa_id é obrigatório para adicionar_cliente")
     db = DatabaseManager()
-    result = db.adicionar_cliente(cliente_data, cpf_cnpj, email, telefone, endereco)
+    result = db.adicionar_cliente(
+        cliente_data, cpf_cnpj, email, telefone, endereco,
+        cep, logradouro, numero, complemento, bairro, cidade, estado
+    )
     # 🔥 Invalidar cache da empresa
     invalidate_cache(empresa_id)
     return result
