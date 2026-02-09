@@ -241,14 +241,31 @@ def require_permission(permission_code: str):
                 request.usuario = usuario
                 return f(*args, **kwargs)
             
-            # Verificar se o usuário tem a permissão
-            permissoes = auth_db.obter_permissoes_usuario(usuario['id'])
+            # 🔒 MULTI-TENANT: Verificar permissões da empresa
+            empresa_id = session.get('empresa_id')
+            print(f"🔒 [PERMISSION CHECK] empresa_id da sessão: {empresa_id}")
+            
+            if not empresa_id:
+                print(f"❌ [PERMISSION CHECK] Empresa não selecionada!")
+                return jsonify({
+                    'success': False,
+                    'error': 'Empresa não selecionada'
+                }), 403
+            
+            # Buscar permissões da empresa (não permissões globais)
+            from auth_functions import obter_permissoes_usuario_empresa
+            permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
+            print(f"🔒 [PERMISSION CHECK] Permissões da empresa {empresa_id}: {len(permissoes)} itens")
+            print(f"🔒 [PERMISSION CHECK] Verificando se '{permission_code}' está em: {permissoes[:10]}..." if len(permissoes) > 10 else f"🔒 [PERMISSION CHECK] Permissões: {permissoes}")
             
             if permission_code not in permissoes:
+                print(f"❌ [PERMISSION CHECK] Permissão negada!")
                 return jsonify({
                     'success': False,
                     'error': f'Permissão negada - Você não tem acesso a: {permission_code}'
                 }), 403
+            
+            print(f"✅ [PERMISSION CHECK] Permissão concedida!")
             
             request.usuario = usuario
             return f(*args, **kwargs)
