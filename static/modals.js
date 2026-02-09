@@ -4350,4 +4350,117 @@ function alterarTipoContrato() {
 
 window.alterarTipoContrato = alterarTipoContrato;
 
+// ==================== COMISSÕES CALCULADAS (PARTE 8) ====================
+
+/**
+ * Calcula valor da comissão baseado em tipo, percentual e valor base
+ * @param {Object} comissao - Dados da comissão
+ * @param {string} comissao.tipo - 'percentual' ou 'fixo'
+ * @param {number} comissao.percentual - Percentual da comissão (ex: 10 para 10%)
+ * @param {number} comissao.valor - Valor fixo (se tipo = 'fixo')
+ * @param {number} valorBase - Valor base para cálculo (valor da sessão ou contrato)
+ * @returns {number} Valor calculado da comissão
+ */
+function calcularValorComissao(comissao, valorBase = 0) {
+    if (!comissao) return 0;
+    
+    // Se tipo é 'fixo' ou 'valor', retornar valor fixo
+    if (comissao.tipo === 'fixo' || comissao.tipo === 'valor') {
+        return parseFloat(comissao.valor) || 0;
+    }
+    
+    // Se tipo é 'percentual', calcular baseado no valor base
+    if (comissao.tipo === 'percentual') {
+        const percentual = parseFloat(comissao.percentual) || 0;
+        const base = parseFloat(valorBase) || 0;
+        return (base * percentual) / 100;
+    }
+    
+    return 0;
+}
+
+/**
+ * Formata comissão para exibição
+ * @param {Object} comissao - Dados da comissão
+ * @param {number} valorCalculado - Valor calculado
+ * @returns {string} Texto formatado (ex: "10% = R$ 150,00")
+ */
+function formatarComissao(comissao, valorCalculado) {
+    if (!comissao) return '';
+    
+    if (comissao.tipo === 'percentual') {
+        return `${comissao.percentual}% = ${formatarMoeda(valorCalculado)}`;
+    } else {
+        return formatarMoeda(valorCalculado);
+    }
+}
+
+/**
+ * Atualiza visualização de comissões calculadas em tempo real
+ * @param {string} containerId - ID do container HTML
+ * @param {Array} comissoes - Array de comissões
+ * @param {number} valorBase - Valor base para cálculo
+ */
+function atualizarComissoesCalculadas(containerId, comissoes, valorBase) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    if (!comissoes || comissoes.length === 0) {
+        container.innerHTML = '<p style="color: #7f8c8d; font-style: italic;">Nenhuma comissão cadastrada</p>';
+        return;
+    }
+    
+    let totalComissoes = 0;
+    const html = comissoes.map(com => {
+        const valorCalculado = calcularValorComissao(com, valorBase);
+        totalComissoes += valorCalculado;
+        
+        return `
+            <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee;">
+                <span>${com.descricao || com.funcionario_nome || 'Comissão'}</span>
+                <span style="font-weight: bold; color: #27ae60;">${formatarComissao(com, valorCalculado)}</span>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = `
+        ${html}
+        <div style="display: flex; justify-content: space-between; padding: 12px 8px; background: #ecf0f1; font-weight: bold; margin-top: 10px; border-radius: 4px;">
+            <span>Total de Comissões:</span>
+            <span style="color: #2c3e50;">${formatarMoeda(totalComissoes)}</span>
+        </div>
+    `;
+}
+
+/**
+ * Adiciona listener para recalcular comissões quando valor base muda
+ * @param {string} inputValorId - ID do input de valor
+ * @param {string} containerComissoesId - ID do container de comissões
+ * @param {Array} comissoes - Array de comissões
+ */
+function configurarCalculoAutomaticoComissoes(inputValorId, containerComissoesId, comissoes) {
+    const inputValor = document.getElementById(inputValorId);
+    if (!inputValor) return;
+    
+    inputValor.addEventListener('input', function() {
+        const valorRaw = this.value || '0';
+        const valorStr = String(valorRaw).replace(/\./g, '').replace(/,/g, '.');
+        const valor = parseFloat(valorStr) || 0;
+        
+        atualizarComissoesCalculadas(containerComissoesId, comissoes, valor);
+    });
+    
+    // Disparar cálculo inicial
+    const evento = new Event('input');
+    inputValor.dispatchEvent(evento);
+}
+
+// Expor funções globalmente
+window.calcularValorComissao = calcularValorComissao;
+window.formatarComissao = formatarComissao;
+window.atualizarComissoesCalculadas = atualizarComissoesCalculadas;
+window.configurarCalculoAutomaticoComissoes = configurarCalculoAutomaticoComissoes;
+
+// ==================== FIM: COMISSÕES CALCULADAS ====================
+
 console.log('✓ Modals.js v20251204lancamentos5 carregado com sucesso');

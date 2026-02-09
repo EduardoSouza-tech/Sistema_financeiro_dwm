@@ -4757,12 +4757,12 @@ def deletar_sessao(sessao_id: int) -> bool:
 
 # ==================== FUNi?i?ES CRUD - COMISSi?ES ====================
 def adicionar_comissao(dados: Dict) -> int:
-    """Adiciona uma nova comissi?o"""
+    """Adiciona uma nova comissão com suporte a cálculo automático (PARTE 8)"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
-    # Buscar cliente_id do contrato se ni?o fornecido
+    # Buscar cliente_id do contrato se não fornecido
     cliente_id = dados.get('cliente_id')
     contrato_id = dados.get('contrato_id')
     
@@ -4772,26 +4772,42 @@ def adicionar_comissao(dados: Dict) -> int:
         if result:
             cliente_id = result['cliente_id']
     
+    # 💰 PARTE 8: Campos de cálculo automático
+    sessao_id = dados.get('sessao_id')
+    calculo_automatico = dados.get('calculo_automatico', True)
+    base_calculo = dados.get('base_calculo', 'sessao')  # 'sessao', 'contrato', 'fixo'
+    
     cursor.execute("""
-        INSERT INTO comissoes (contrato_id, cliente_id, tipo, descricao, valor, percentual)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        RETURNING id
+        INSERT INTO comissoes (
+            contrato_id, cliente_id, sessao_id, tipo, descricao, 
+            valor, percentual, calculo_automatico, base_calculo
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id, valor_calculado
     """, (
         contrato_id,
         cliente_id,
+        sessao_id,
         dados.get('tipo', 'percentual'),
         dados.get('descricao'),
         dados.get('valor', 0),
-        dados.get('percentual', 0)
+        dados.get('percentual', 0),
+        calculo_automatico,
+        base_calculo
     ))
     
-    comissao_id = cursor.fetchone()['id']
+    result = cursor.fetchone()
+    comissao_id = result['id']
+    valor_calculado = result['valor_calculado']
+    
     cursor.close()
     return_to_pool(conn)  # Devolver ao pool
+    
+    # Retornar ID e valor calculado para exibição
     return comissao_id
 
 def listar_comissoes() -> List[Dict]:
-    """Lista todas as comissi?es com informai?i?es de contrato e cliente"""
+    """Lista todas as comissões com informações de contrato, cliente e sessão (PARTE 8)"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -4801,25 +4817,46 @@ def listar_comissoes() -> List[Dict]:
             com.*,
             ct.numero as contrato_numero,
             ct.valor as contrato_valor,
-            cl.nome as cliente_nome
+            cl.nome as cliente_nome,
+            s.data as sessao_data,
+            s.valor_total as sessao_valor,
+            -- 💰 PARTE 8: Exibir valor calculado e formatação
+            CASE 
+                WHEN com.tipo = 'percentual' THEN 
+                    com.percentual::TEXT || '% = R$ ' || COALESCE(com.valor_calculado, 0)::TEXT
+                ELSE 
+                    'R$ ' || COALESCE(com.valor_calculado, com.valor, 0)::TEXT
+            END as comissao_formatada
         FROM comissoes com
         LEFT JOIN contratos ct ON com.contrato_id = ct.id
         LEFT JOIN clientes cl ON com.cliente_id = cl.id
+        LEFT JOIN sessoes s ON com.sessao_id = s.id
         ORDER BY com.created_at DESC
     """)
     
-    comissoes = [dict(row) for row in cursor.fetchall()]
+    comissoes = []
+    for row in cursor.fetchall():
+        comissao = dict(row)
+        # Converter Decimal para float para JSON
+        if comissao.get('valor_calculado'):
+            comissao['valor_calculado'] = float(comissao['valor_calculado'])
+        if comissao.get('contrato_valor'):
+            comissao['contrato_valor'] = float(comissao['contrato_valor'])
+        if comissao.get('sessao_valor'):
+            comissao['sessao_valor'] = float(comissao['sessao_valor'])
+        comissoes.append(comissao)
+    
     cursor.close()
     return_to_pool(conn)  # Devolver ao pool
     return comissoes
 
 def atualizar_comissao(comissao_id: int, dados: Dict) -> bool:
-    """Atualiza uma comissi?o"""
+    """Atualiza uma comissão com suporte a cálculo automático (PARTE 8)"""
     db = DatabaseManager()
     conn = db.get_connection()
     cursor = conn.cursor()
     
-    # Buscar cliente_id do contrato se ni?o fornecido
+    # Buscar cliente_id do contrato se não fornecido
     cliente_id = dados.get('cliente_id')
     contrato_id = dados.get('contrato_id')
     
@@ -4829,23 +4866,41 @@ def atualizar_comissao(comissao_id: int, dados: Dict) -> bool:
         if result:
             cliente_id = result['cliente_id']
     
+    # 💰 PARTE 8: Campos de cálculo automático
+    sessao_id = dados.get('sessao_id')
+    calculo_automatico = dados.get('calculo_automatico', True)
+    base_calculo = dados.get('base_calculo', 'sessao')
+    
     cursor.execute("""
         UPDATE comissoes
-        SET contrato_id = %s, cliente_id = %s, tipo = %s, 
+        SET contrato_id = %s, cliente_id = %s, sessao_id = %s, tipo = %s, 
             descricao = %s, valor = %s, percentual = %s,
+            calculo_automatico = %s, base_calculo = %s,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = %s
+        RETURNING valor_calculado
     """, (
         contrato_id,
         cliente_id,
+        sessao_id,
         dados.get('tipo', 'percentual'),
         dados.get('descricao'),
         dados.get('valor', 0),
         dados.get('percentual', 0),
+        calculo_automatico,
+        base_calculo,
         comissao_id
     ))
     
     sucesso = cursor.rowcount > 0
+    
+    # Obter valor recalculado
+    if sucesso:
+        result = cursor.fetchone()
+        if result:
+            valor_calculado = result['valor_calculado']
+            print(f"   💰 Comissão {comissao_id} atualizada: valor_calculado = R$ {valor_calculado}")
+    
     cursor.close()
     return_to_pool(conn)  # Devolver ao pool
     return sucesso
