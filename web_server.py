@@ -4772,12 +4772,12 @@ def atualizar_evento(evento_id):
     try:
         usuario = get_usuario_logado()
         if not usuario:
+            return jsonify({'error': 'Usuário não autenticado'}), 401
         
         # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
         empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'error': 'Empresa não identificada'}), 403
-            return jsonify({'error': 'Empresa não identificada'}), 400
         
         dados = request.get_json()
         
