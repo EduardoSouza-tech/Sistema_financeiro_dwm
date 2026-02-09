@@ -5236,6 +5236,225 @@ def deletar_funcao_responsavel(empresa_id: int, funcao_id: int) -> bool:
         return sucesso
 
 
+# ==================== CUSTOS OPERACIONAIS ====================
+
+def adicionar_custo_operacional(empresa_id: int, dados: Dict) -> int:
+    """
+    Adiciona um novo custo operacional
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        dados (Dict): {
+            'nome': str,
+            'descricao': str (opcional),
+            'categoria': str,
+            'valor_padrao': float,
+            'unidade': str (opcional, default 'unidade')
+        }
+    
+    Returns:
+        int: ID do custo criado
+        
+    Security:
+        🔒 RLS aplicado - custo vinculado à empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO custos_operacionais (nome, descricao, categoria, valor_padrao, unidade, empresa_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (
+            dados['nome'],
+            dados.get('descricao', ''),
+            dados['categoria'],
+            dados.get('valor_padrao', 0.00),
+            dados.get('unidade', 'unidade'),
+            empresa_id
+        ))
+        
+        custo_id = cursor.fetchone()['id']
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        return custo_id
+
+
+def listar_custos_operacionais(empresa_id: int, apenas_ativos: bool = True, categoria: str = None) -> List[Dict]:
+    """
+    Lista todos os custos operacionais da empresa
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        apenas_ativos (bool): Se True, retorna apenas custos ativos
+        categoria (str): Filtro opcional por categoria
+    
+    Returns:
+        List[Dict]: Lista de custos
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        sql = "SELECT * FROM custos_operacionais WHERE empresa_id = %s"
+        params = [empresa_id]
+        
+        if apenas_ativos:
+            sql += " AND ativo = true"
+        
+        if categoria:
+            sql += " AND categoria = %s"
+            params.append(categoria)
+        
+        sql += " ORDER BY categoria, nome"
+        
+        cursor.execute(sql, params)
+        
+        custos = []
+        for row in cursor.fetchall():
+            custo = dict(row)
+            # Converter Decimal para float
+            if custo.get('valor_padrao'):
+                custo['valor_padrao'] = float(custo['valor_padrao'])
+            custos.append(custo)
+        
+        cursor.close()
+        return_to_pool(conn)
+        return custos
+
+
+def obter_custo_operacional(empresa_id: int, custo_id: int) -> Dict:
+    """
+    Busca um custo específico
+    
+    Args:
+        empresa_id (int): ID da empresa
+        custo_id (int): ID do custo
+    
+    Returns:
+        Dict: Dados do custo ou None
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM custos_operacionais
+            WHERE id = %s AND empresa_id = %s
+        """, (custo_id, empresa_id))
+        
+        row = cursor.fetchone()
+        custo = dict(row) if row else None
+        
+        if custo and custo.get('valor_padrao'):
+            custo['valor_padrao'] = float(custo['valor_padrao'])
+        
+        cursor.close()
+        return_to_pool(conn)
+        return custo
+
+
+def atualizar_custo_operacional(empresa_id: int, custo_id: int, dados: Dict) -> bool:
+    """
+    Atualiza um custo existente
+    
+    Args:
+        empresa_id (int): ID da empresa
+        custo_id (int): ID do custo
+        dados (Dict): Dados a atualizar
+    
+    Returns:
+        bool: True se atualizado com sucesso
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE custos_operacionais
+            SET nome = %s,
+                descricao = %s,
+                categoria = %s,
+                valor_padrao = %s,
+                unidade = %s,
+                ativo = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND empresa_id = %s
+        """, (
+            dados['nome'],
+            dados.get('descricao', ''),
+            dados['categoria'],
+            dados.get('valor_padrao', 0.00),
+            dados.get('unidade', 'unidade'),
+            dados.get('ativo', True),
+            custo_id,
+            empresa_id
+        ))
+        
+        sucesso = cursor.rowcount > 0
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        return sucesso
+
+
+def deletar_custo_operacional(empresa_id: int, custo_id: int) -> bool:
+    """
+    Deleta (ou desativa) um custo operacional
+    
+    Args:
+        empresa_id (int): ID da empresa
+        custo_id (int): ID do custo
+    
+    Returns:
+        bool: True se deletado com sucesso
+        
+    Note:
+        Por segurança, desativa em vez de deletar para preservar histórico.
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        # Desativar (recomendado)
+        cursor.execute("""
+            UPDATE custos_operacionais
+            SET ativo = false,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND empresa_id = %s
+        """, (custo_id, empresa_id))
+        
+        sucesso = cursor.rowcount > 0
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        return sucesso
+
+
 # ==================== FUNi?i?ES DE AUTENTICAi?i?O E USUi?RIOS ====================
 
 from auth_functions import (

@@ -2830,6 +2830,9 @@ async function openModalSessao(sessaoEdit = null) {
     if (!window.funcoesResponsaveis || window.funcoesResponsaveis.length === 0) {
         await loadFuncoesResponsaveis();
     }
+    if (!window.custosOperacionais || window.custosOperacionais.length === 0) {
+        await loadCustosOperacionais();
+    }
     
     const isEdit = sessaoEdit !== null;
     const titulo = isEdit ? 'Editar Sessão' : 'Nova Sessão';
@@ -3151,17 +3154,82 @@ function adicionarCustoAdicional(dadosIniciais = null) {
     const container = document.getElementById('sessao-custos-list');
     if (!container) return;
     
+    // Criar datalist único para este input
+    const datalistId = 'custos-list-' + Date.now();
+    const opcoesCustos = window.custosOperacionais && window.custosOperacionais.length > 0
+        ? window.custosOperacionais.map(c => {
+            return `<option value="${c.nome}" data-valor="${c.valor_padrao}" data-categoria="${c.categoria}" data-unidade="${c.unidade}">`;
+        }).join('')
+        : '';
+    
     const div = document.createElement('div');
     div.className = 'custo-adicional-item';
-    div.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
+    div.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr 1fr auto auto; gap: 10px; margin-bottom: 10px; align-items: center;';
     div.innerHTML = `
-        <input type="text" class="custo-descricao" placeholder="Estacionamento" value="${dadosIniciais ? dadosIniciais.descricao || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-        <input type="number" class="custo-valor" step="0.01" min="0" placeholder="65.00" value="${dadosIniciais ? dadosIniciais.valor || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-        <input type="text" class="custo-tipo" placeholder="Transporte" value="${dadosIniciais ? dadosIniciais.tipo || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-        <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm btn-danger" style="padding: 8px 12px;">🗑️</button>
+        <input 
+            type="text" 
+            class="custo-descricao custo-descricao-select" 
+            list="${datalistId}"
+            placeholder="Uber, Hotel, Alimentação..." 
+            value="${dadosIniciais ? dadosIniciais.descricao || '' : ''}" 
+            style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+            oninput="preencherDadosCusto(this)">
+        <datalist id="${datalistId}">
+            ${opcoesCustos}
+        </datalist>
+        
+        <input 
+            type="number" 
+            class="custo-valor" 
+            step="0.01" 
+            min="0" 
+            placeholder="65.00" 
+            value="${dadosIniciais ? dadosIniciais.valor || '' : ''}" 
+            style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        
+        <input 
+            type="text" 
+            class="custo-tipo" 
+            placeholder="Transporte" 
+            value="${dadosIniciais ? dadosIniciais.tipo || '' : ''}" 
+            style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        
+        <button type="button" onclick="openModalAdicionarCusto()" class="btn btn-sm" style="padding: 8px 12px; background: #10b981; color: white;" title="Adicionar Novo Custo">
+            ➕
+        </button>
+        
+        <button type="button" onclick="this.closest('.custo-adicional-item').remove()" class="btn btn-sm btn-danger" style="padding: 8px 12px;">
+            🗑️
+        </button>
     `;
     container.appendChild(div);
 }
+
+/**
+ * Preenche automaticamente valor e categoria ao selecionar custo
+ */
+function preencherDadosCusto(input) {
+    const custoNome = input.value;
+    const custo = window.custosOperacionais.find(c => c.nome === custoNome);
+    
+    if (custo) {
+        const container = input.closest('.custo-adicional-item');
+        const inputValor = container.querySelector('.custo-valor');
+        const inputTipo = container.querySelector('.custo-tipo');
+        
+        if (inputValor && !inputValor.value) {
+            inputValor.value = custo.valor_padrao;
+        }
+        
+        if (inputTipo) {
+            inputTipo.value = custo.categoria;
+        }
+        
+        console.log('💰 Custo preenchido automaticamente:', custo.nome, '-', custo.valor_padrao);
+    }
+}
+
+window.preencherDadosCusto = preencherDadosCusto;
 
 async function salvarSessao(event) {
     event.preventDefault();
@@ -3491,6 +3559,184 @@ window.loadFuncoesResponsaveis = loadFuncoesResponsaveis;
 window.openModalAdicionarFuncao = openModalAdicionarFuncao;
 window.salvarFuncaoRapida = salvarFuncaoRapida;
 window.atualizarSelectsFuncoes = atualizarSelectsFuncoes;
+
+// ========================================
+// CUSTOS OPERACIONAIS
+// ========================================
+
+/**
+ * Armazena cache de custos operacionais
+ */
+window.custosOperacionais = [];
+
+/**
+ * Carrega custos operacionais do backend
+ */
+async function loadCustosOperacionais() {
+    try {
+        console.log('💰 Carregando custos operacionais...');
+        const response = await fetch('/api/custos-operacionais');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const custos = await response.json();
+        window.custosOperacionais = custos;
+        console.log('✅ Custos carregados:', custos.length);
+        return custos;
+    } catch (error) {
+        console.error('❌ Erro ao carregar custos:', error);
+        window.custosOperacionais = [];
+        return [];
+    }
+}
+
+/**
+ * Abre modal rápido para adicionar novo custo operacional
+ */
+function openModalAdicionarCusto() {
+    const modal = createModal('💰 Novo Custo Operacional', `
+        <form id="form-custo" onsubmit="salvarCustoRapido(event)" style="max-width: 600px;">
+            <div class="form-group">
+                <label>*Nome do Custo:</label>
+                <input type="text" id="custo-nome" required placeholder="Ex: Uber, Hotel, Alimentação..." 
+                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+            </div>
+            
+            <div class="form-group">
+                <label>*Categoria:</label>
+                <select id="custo-categoria" required 
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                    <option value="">Selecione...</option>
+                    <option value="Transporte">Transporte</option>
+                    <option value="Hospedagem">Hospedagem</option>
+                    <option value="Alimentação">Alimentação</option>
+                    <option value="Equipamento">Equipamento</option>
+                    <option value="Outros">Outros</option>
+                </select>
+            </div>
+            
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                    <label>Valor Padrão:</label>
+                    <input type="number" id="custo-valor" step="0.01" min="0" placeholder="0.00" 
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                </div>
+                
+                <div class="form-group">
+                    <label>Unidade:</label>
+                    <select id="custo-unidade" 
+                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        <option value="unidade">Unidade</option>
+                        <option value="diária">Diária</option>
+                        <option value="hora">Hora</option>
+                        <option value="km">Quilômetro</option>
+                        <option value="litro">Litro</option>
+                        <option value="pessoa">Por Pessoa</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Descrição (opcional):</label>
+                <textarea id="custo-descricao-modal" rows="3" placeholder="Descrição do custo..." 
+                          style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">💰 Adicionar Custo</button>
+            </div>
+        </form>
+    `);
+    
+    // Focar no campo nome
+    setTimeout(() => {
+        const campoNome = document.getElementById('custo-nome');
+        if (campoNome) campoNome.focus();
+    }, 100);
+}
+
+/**
+ * Salva novo custo via API
+ */
+async function salvarCustoRapido(event) {
+    event.preventDefault();
+    
+    const nome = document.getElementById('custo-nome').value.trim();
+    const categoria = document.getElementById('custo-categoria').value;
+    const valor_padrao = parseFloat(document.getElementById('custo-valor').value) || 0;
+    const unidade = document.getElementById('custo-unidade').value;
+    const descricao = document.getElementById('custo-descricao-modal').value.trim();
+    
+    if (!nome || !categoria) {
+        showToast('❌ Nome e categoria são obrigatórios', 'error');
+        return;
+    }
+    
+    try {
+        console.log('💾 Salvando custo:', nome);
+        
+        const response = await fetch('/api/custos-operacionais', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, categoria, valor_padrao, unidade, descricao })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showToast('✅ Custo criado com sucesso!', 'success');
+            
+            // Recarregar custos
+            await loadCustosOperacionais();
+            
+            // Atualizar selects de custos abertos (se houver)
+            atualizarSelectsCustos();
+            
+            closeModal();
+        } else {
+            showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
+            console.error('❌ Erro ao criar custo:', result);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao salvar custo:', error);
+        showToast('❌ Erro ao salvar custo: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Atualiza todos os datalists de custos na página
+ */
+function atualizarSelectsCustos() {
+    // Atualizar datalists de custos em sessões
+    document.querySelectorAll('.custo-descricao-select').forEach(input => {
+        const datalistId = input.getAttribute('list');
+        const datalist = document.getElementById(datalistId);
+        
+        if (!datalist) return;
+        
+        // Limpar e recriar opções
+        datalist.innerHTML = '';
+        
+        window.custosOperacionais.forEach(custo => {
+            const option = document.createElement('option');
+            option.value = custo.nome;
+            option.setAttribute('data-valor', custo.valor_padrao);
+            option.setAttribute('data-categoria', custo.categoria);
+            option.setAttribute('data-unidade', custo.unidade);
+            datalist.appendChild(option);
+        });
+    });
+    
+    console.log('🔄 Datalists de custos atualizados');
+}
+
+window.loadCustosOperacionais = loadCustosOperacionais;
+window.openModalAdicionarCusto = openModalAdicionarCusto;
+window.salvarCustoRapido = salvarCustoRapido;
+window.atualizarSelectsCustos = atualizarSelectsCustos;
 
 // ========================================
 // KITS DE EQUIPAMENTOS

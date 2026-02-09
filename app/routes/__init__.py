@@ -42,6 +42,13 @@ def register_blueprints(app):
         print(f"⚠️  Blueprint 'funções de responsáveis' não encontrado: {e}")
     
     try:
+        from .custos_operacionais import custos_bp
+        app.register_blueprint(custos_bp)
+        print("✅ Blueprint 'custos operacionais' registrado")
+    except ImportError as e:
+        print(f"⚠️  Blueprint 'custos operacionais' não encontrado: {e}")
+    
+    try:
         from .relatorios import relatorios_bp
         app.register_blueprint(relatorios_bp)
         print("✅ Blueprint 'relatórios' registrado")
