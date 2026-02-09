@@ -2621,6 +2621,8 @@ def adicionar_cliente():
     """Adiciona um novo cliente"""
     try:
         from flask import session
+        from app.utils.validators import validate_cpf, validate_cnpj, validate_email
+        
         empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
@@ -2630,6 +2632,30 @@ def adicionar_cliente():
         # Validar campos obrigatórios
         if not data.get('nome'):
             return jsonify({'success': False, 'error': 'Nome do cliente é obrigatório'}), 400
+        
+        # 🔐 Validar CPF/CNPJ se fornecido
+        if data.get('cpf_cnpj'):
+            cpf_cnpj = data['cpf_cnpj'].strip()
+            # Remover formatação para detectar se é CPF (11) ou CNPJ (14)
+            import re
+            numeros = re.sub(r'[^0-9]', '', cpf_cnpj)
+            
+            if len(numeros) == 11:
+                is_valid, error_msg = validate_cpf(cpf_cnpj)
+                if not is_valid:
+                    return jsonify({'success': False, 'error': f'CPF inválido: {error_msg}'}), 400
+            elif len(numeros) == 14:
+                is_valid, error_msg = validate_cnpj(cpf_cnpj)
+                if not is_valid:
+                    return jsonify({'success': False, 'error': f'CNPJ inválido: {error_msg}'}), 400
+            elif numeros:  # Se tem algum número mas não é 11 nem 14
+                return jsonify({'success': False, 'error': 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos'}), 400
+        
+        # 🔐 Validar email se fornecido
+        if data.get('email'):
+            is_valid, error_msg = validate_email(data['email'])
+            if not is_valid:
+                return jsonify({'success': False, 'error': f'Email inválido: {error_msg}'}), 400
         
         # 🔒 Garantir que empresa_id está nos dados
         data['empresa_id'] = empresa_id
@@ -2704,11 +2730,36 @@ def modificar_cliente(nome):
     
     if request.method == 'PUT':
         try:
+            from app.utils.validators import validate_cpf, validate_cnpj, validate_email
+            import re
+            
             data = request.json
             print(f"\n=== Atualizando cliente ===")
             print(f"URL recebida: {request.url}")
             print(f"Nome da URL (raw): '{nome}'")
             print(f"Dados recebidos: {data}")
+            
+            # 🔐 Validar CPF/CNPJ se fornecido
+            if data.get('cpf_cnpj'):
+                cpf_cnpj = data['cpf_cnpj'].strip()
+                numeros = re.sub(r'[^0-9]', '', cpf_cnpj)
+                
+                if len(numeros) == 11:
+                    is_valid, error_msg = validate_cpf(cpf_cnpj)
+                    if not is_valid:
+                        return jsonify({'success': False, 'error': f'CPF inválido: {error_msg}'}), 400
+                elif len(numeros) == 14:
+                    is_valid, error_msg = validate_cnpj(cpf_cnpj)
+                    if not is_valid:
+                        return jsonify({'success': False, 'error': f'CNPJ inválido: {error_msg}'}), 400
+                elif numeros:
+                    return jsonify({'success': False, 'error': 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos'}), 400
+            
+            # 🔐 Validar email se fornecido
+            if data.get('email'):
+                is_valid, error_msg = validate_email(data['email'])
+                if not is_valid:
+                    return jsonify({'success': False, 'error': f'Email inválido: {error_msg}'}), 400
             
             # Validar propriedade antes de atualizar (se não for admin)
             if filtro_cliente_id is not None:
@@ -2771,6 +2822,9 @@ def listar_fornecedores():
 def adicionar_fornecedor():
     """Adiciona um novo fornecedor"""
     try:
+        from app.utils.validators import validate_cpf, validate_cnpj, validate_email
+        import re
+        
         # 🔒 VALIDAÇÃO DE SEGURANÇA
         empresa_id = session.get('empresa_id')
         if not empresa_id:
@@ -2781,6 +2835,28 @@ def adicionar_fornecedor():
         # 🔒 Validar campo obrigatório
         if not data.get('nome'):
             return jsonify({'success': False, 'error': 'Nome do fornecedor é obrigatório'}), 400
+        
+        # 🔐 Validar CPF/CNPJ se fornecido
+        if data.get('cpf_cnpj'):
+            cpf_cnpj = data['cpf_cnpj'].strip()
+            numeros = re.sub(r'[^0-9]', '', cpf_cnpj)
+            
+            if len(numeros) == 11:
+                is_valid, error_msg = validate_cpf(cpf_cnpj)
+                if not is_valid:
+                    return jsonify({'success': False, 'error': f'CPF inválido: {error_msg}'}), 400
+            elif len(numeros) == 14:
+                is_valid, error_msg = validate_cnpj(cpf_cnpj)
+                if not is_valid:
+                    return jsonify({'success': False, 'error': f'CNPJ inválido: {error_msg}'}), 400
+            elif numeros:
+                return jsonify({'success': False, 'error': 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos'}), 400
+        
+        # 🔐 Validar email se fornecido
+        if data.get('email'):
+            is_valid, error_msg = validate_email(data['email'])
+            if not is_valid:
+                return jsonify({'success': False, 'error': f'Email inválido: {error_msg}'}), 400
         
         # 🔒 Adicionar empresa_id aos dados
         data['empresa_id'] = empresa_id
@@ -2860,7 +2936,32 @@ def modificar_fornecedor(nome):
     
     if request.method == 'PUT':
         try:
+            from app.utils.validators import validate_cpf, validate_cnpj, validate_email
+            import re
+            
             data = request.json
+            
+            # 🔐 Validar CPF/CNPJ se fornecido
+            if data.get('cpf_cnpj'):
+                cpf_cnpj = data['cpf_cnpj'].strip()
+                numeros = re.sub(r'[^0-9]', '', cpf_cnpj)
+                
+                if len(numeros) == 11:
+                    is_valid, error_msg = validate_cpf(cpf_cnpj)
+                    if not is_valid:
+                        return jsonify({'success': False, 'error': f'CPF inválido: {error_msg}'}), 400
+                elif len(numeros) == 14:
+                    is_valid, error_msg = validate_cnpj(cpf_cnpj)
+                    if not is_valid:
+                        return jsonify({'success': False, 'error': f'CNPJ inválido: {error_msg}'}), 400
+                elif numeros:
+                    return jsonify({'success': False, 'error': 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos'}), 400
+            
+            # 🔐 Validar email se fornecido
+            if data.get('email'):
+                is_valid, error_msg = validate_email(data['email'])
+                if not is_valid:
+                    return jsonify({'success': False, 'error': f'Email inválido: {error_msg}'}), 400
             
             # Validar propriedade antes de atualizar (se não for admin)
             if filtro_cliente_id is not None:
@@ -4183,6 +4284,9 @@ def listar_funcionarios():
 def criar_funcionario():
     """Criar novo funcionário"""
     try:
+        from app.utils.validators import validate_cpf, validate_email
+        import re
+        
         usuario = get_usuario_logado()
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
@@ -4198,6 +4302,17 @@ def criar_funcionario():
             return jsonify({'error': 'Nome é obrigatório'}), 400
         if not dados.get('cpf'):
             return jsonify({'error': 'CPF é obrigatório'}), 400
+        
+        # 🔐 Validar CPF
+        is_valid, error_msg = validate_cpf(dados['cpf'])
+        if not is_valid:
+            return jsonify({'error': f'CPF inválido: {error_msg}'}), 400
+        
+        # 🔐 Validar email se fornecido
+        if dados.get('email'):
+            is_valid, error_msg = validate_email(dados['email'])
+            if not is_valid:
+                return jsonify({'error': f'Email inválido: {error_msg}'}), 400
         
         # Limpar CPF (remover pontuação)
         cpf = dados['cpf'].replace('.', '').replace('-', '').replace('/', '')
@@ -4277,6 +4392,9 @@ def criar_funcionario():
 def atualizar_funcionario(funcionario_id):
     """Atualizar funcionário existente"""
     try:
+        from app.utils.validators import validate_cpf, validate_email
+        import re
+        
         usuario = get_usuario_logado()
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
@@ -4286,6 +4404,18 @@ def atualizar_funcionario(funcionario_id):
             return jsonify({'error': 'Empresa não identificada'}), 400
         
         dados = request.get_json()
+        
+        # 🔐 Validar CPF se fornecido
+        if dados.get('cpf'):
+            is_valid, error_msg = validate_cpf(dados['cpf'])
+            if not is_valid:
+                return jsonify({'error': f'CPF inválido: {error_msg}'}), 400
+        
+        # 🔐 Validar email se fornecido
+        if dados.get('email'):
+            is_valid, error_msg = validate_email(dados['email'])
+            if not is_valid:
+                return jsonify({'error': f'Email inválido: {error_msg}'}), 400
         
         conn = db.get_connection()
         cursor = conn.cursor()
