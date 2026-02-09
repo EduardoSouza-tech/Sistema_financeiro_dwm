@@ -3469,41 +3469,27 @@ def upload_extrato_ofx():
         # Buscar informações da conta bancária cadastrada
         usuario = get_usuario_logado()
         
-        # Buscar contas acessíveis ao usuário
-        from database_postgresql import DatabaseManager
-        db_manager = DatabaseManager()
-        from auth_functions import listar_empresas_usuario
-        
-        # Buscar contas de todas as empresas do usuário
-        empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
-        contas_cadastradas = []
-        
-        # Usar empresa_id da sessão (empresa selecionada pelo usuário na interface)
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão (empresa selecionada)
         empresa_id = session.get('empresa_id')
         
-        # Se não houver empresa_id na sessão, usar a primeira empresa do usuário
-        if not empresa_id and empresas_usuario:
-            empresa_id = empresas_usuario[0].get('empresa_id')
-        
-        # Fallback final
         if not empresa_id:
-            empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+            print(f"❌ Erro: Empresa não identificada na sessão")
+            return jsonify({'success': False, 'error': 'Empresa não identificada. Faça login novamente.'}), 403
         
-        print(f"📊 Empresa ID para salvar transações: {empresa_id}")
+        print(f"🔒 EMPRESA ATUAL (sessão): {empresa_id}")
+        print(f"📊 Transações serão salvas APENAS para empresa: {empresa_id}")
         
-        for empresa in empresas_usuario:
-            proprietario_id = empresa.get('empresa_id')
-            try:
-                contas_empresa = db_manager.listar_contas(filtro_cliente_id=proprietario_id)
-                contas_cadastradas.extend(contas_empresa)
-            except Exception as e:
-                print(f"⚠️ Erro ao buscar contas da empresa {proprietario_id}: {e}")
+        # 🔒 Buscar APENAS contas da empresa atual (isolamento multi-tenant)
+        from database_postgresql import DatabaseManager
+        db_manager = DatabaseManager()
         
-        # Fallback: se não encontrou contas por empresa, buscar todas
-        if not contas_cadastradas:
-            contas_cadastradas = db_manager.listar_contas(filtro_cliente_id=None)
-        print(f"📊 Total de contas cadastradas (todas empresas): {len(contas_cadastradas)}")
-        print(f"📋 Nomes das contas: {[c.nome for c in contas_cadastradas]}")
+        try:
+            contas_cadastradas = db_manager.listar_contas(filtro_cliente_id=empresa_id)
+            print(f"📊 Total de contas da empresa {empresa_id}: {len(contas_cadastradas)}")
+            print(f"📋 Nomes das contas: {[c.nome for c in contas_cadastradas]}")
+        except Exception as e:
+            print(f"❌ Erro ao buscar contas da empresa {empresa_id}: {e}")
+            return jsonify({'success': False, 'error': f'Erro ao buscar contas bancárias: {str(e)}'}), 500
         
         conta_info = next((c for c in contas_cadastradas if c.nome == conta_bancaria), None)
         
@@ -3749,8 +3735,11 @@ def sugerir_conciliacoes_extrato(transacao_id):
     """Sugere lancamentos para conciliar com uma transacao"""
     try:
         usuario = get_usuario_logado()
-        # Usar cliente_id como empresa_id (multi-tenancy)
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
         sugestoes = extrato_functions.sugerir_conciliacoes(
             database,
@@ -3800,7 +3789,11 @@ def deletar_extrato_filtrado():
     """Deleta transacoes do extrato baseado em filtros"""
     try:
         usuario = get_usuario_logado()
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
         filtros = {
             'conta_bancaria': request.args.get('conta'),
@@ -3864,7 +3857,12 @@ def conciliacao_geral_extrato():
     try:
         logger.info("🚀 CONCILIAÇÃO GERAL INICIADA")
         usuario = get_usuario_logado()
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
         logger.info(f"👤 Usuário: {usuario.get('username')} | Empresa ID: {empresa_id}")
         
         dados = request.json
@@ -4083,7 +4081,11 @@ def desconciliar_extrato(transacao_id):
         print(f"🔙 DESCONCILIAÇÃO INICIADA - Transação ID: {transacao_id}")
         
         usuario = get_usuario_logado()
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
         # Buscar transação do extrato
         with db.get_connection() as conn:
@@ -4165,7 +4167,10 @@ def listar_funcionarios():
         logger.info(f"   empresa_id: {usuario.get('empresa_id')}")
         logger.info(f"   empresas: {usuario.get('empresas', [])}")
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 403
         logger.info(f"   ➡️ empresa_id final: {empresa_id}")
         
         if not empresa_id:
@@ -4291,9 +4296,10 @@ def criar_funcionario():
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 400
+            return jsonify({'error': 'Empresa não identificada'}), 403
         
         dados = request.get_json()
         
@@ -4399,9 +4405,10 @@ def atualizar_funcionario(funcionario_id):
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 400
+            return jsonify({'error': 'Empresa não identificada'}), 403
         
         dados = request.get_json()
         
@@ -4487,9 +4494,10 @@ def obter_funcionario(funcionario_id):
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 400
+            return jsonify({'error': 'Empresa não identificada'}), 403
         
         conn = db.get_connection()
         cursor = conn.cursor()
@@ -4559,7 +4567,10 @@ def deletar_funcionario(funcionario_id):
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 403
         if not empresa_id:
             return jsonify({'error': 'Empresa não identificada'}), 400
         
@@ -4604,8 +4615,10 @@ def listar_eventos():
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 403
             return jsonify({'error': 'Empresa não identificada'}), 400
         
         # Filtros opcionais
@@ -4695,9 +4708,10 @@ def criar_evento():
     try:
         usuario = get_usuario_logado()
         if not usuario:
-            return jsonify({'error': 'Usuário não autenticado'}), 401
-        
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 403_id') or 1
         if not empresa_id:
             return jsonify({'error': 'Empresa não identificada'}), 400
         
@@ -4758,10 +4772,11 @@ def atualizar_evento(evento_id):
     try:
         usuario = get_usuario_logado()
         if not usuario:
-            return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 403
             return jsonify({'error': 'Empresa não identificada'}), 400
         
         dados = request.get_json()
@@ -4867,15 +4882,16 @@ def atualizar_evento(evento_id):
 def deletar_evento(evento_id):
     """Deletar evento"""
     try:
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
         usuario = get_usuario_logado()
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
-        empresa_id = usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 400
-        
-        conn = db.get_connection()
+            return jsonify({'error': 'Empresa não identificada'}), 403
         cursor = conn.cursor()
         
         # Verificar se evento existe e pertence à empresa
