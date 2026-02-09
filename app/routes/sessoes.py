@@ -823,3 +823,323 @@ def sessoes_por_periodo():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# 💰 INTEGRAÇÃO COM CONTAS A RECEBER (PARTE 10)
+# ============================================================================
+
+@sessoes_bp.route('/<int:sessao_id>/gerar-lancamento', methods=['POST'])
+@require_permission('sessoes_edit')
+def gerar_lancamento_sessao(sessao_id):
+    """
+    Gera manualmente um lançamento de receita para uma sessão
+    
+    Path Parameters:
+        - sessao_id: ID da sessão
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    try:
+        from flask import session
+        
+        empresa_id = session.get('empresa_id')
+        usuario_id = session.get('usuario_id')
+        
+        if not empresa_id or not usuario_id:
+            return jsonify({'erro': 'Autenticação inválida'}), 403
+        
+        print(f"\n💰 [POST /api/sessoes/{sessao_id}/gerar-lancamento]")
+        
+        # Verificar se sessão pertence à empresa
+        sessao = db.buscar_sessao(sessao_id)
+        if not sessao:
+            return jsonify({'erro': 'Sessão não encontrada'}), 404
+        
+        if sessao.get('empresa_id') != empresa_id:
+            return jsonify({'erro': 'Acesso negado'}), 403
+        
+        # Verificar se já tem lançamento
+        if sessao.get('lancamento_id'):
+            return jsonify({
+                'success': False,
+                'message': 'Sessão já possui lançamento vinculado',
+                'lancamento_id': sessao['lancamento_id']
+            }), 400
+        
+        # Chamar função SQL para gerar lançamento
+        resultado = db.execute_query("""
+            SELECT gerar_lancamento_sessao(%s, %s) as lancamento_id
+        """, (sessao_id, usuario_id), fetch_one=True, empresa_id=empresa_id)
+        
+        if resultado and resultado.get('lancamento_id'):
+            lancamento_id = resultado['lancamento_id']
+            print(f"✅ Lançamento {lancamento_id} gerado para sessão {sessao_id}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Lançamento gerado com sucesso',
+                'lancamento_id': lancamento_id
+            }), 200
+        else:
+            raise Exception('Falha ao gerar lançamento')
+        
+    except Exception as e:
+        print(f"❌ Erro ao gerar lançamento: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@sessoes_bp.route('/<int:sessao_id>/estornar-lancamento', methods=['POST'])
+@require_permission('sessoes_edit')
+def estornar_lancamento_sessao(sessao_id):
+    """
+    Estorna/cancela o lançamento vinculado a uma sessão
+    
+    Path Parameters:
+        - sessao_id: ID da sessão
+    
+    Body Parameters (JSON):
+        - deletar (bool): Se TRUE, deleta o lançamento; se FALSE, apenas cancela
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    try:
+        from flask import session
+        
+        empresa_id = session.get('empresa_id')
+        usuario_id = session.get('usuario_id')
+        
+        if not empresa_id or not usuario_id:
+            return jsonify({'erro': 'Autenticação inválida'}), 403
+        
+        dados = request.get_json() or {}
+        deletar = dados.get('deletar', False)
+        
+        print(f"\n💰 [POST /api/sessoes/{sessao_id}/estornar-lancamento] Deletar: {deletar}")
+        
+        # Verificar se sessão pertence à empresa
+        sessao = db.buscar_sessao(sessao_id)
+        if not sessao:
+            return jsonify({'erro': 'Sessão não encontrada'}), 404
+        
+        if sessao.get('empresa_id') != empresa_id:
+            return jsonify({'erro': 'Acesso negado'}), 403
+        
+        # Verificar se tem lançamento
+        if not sessao.get('lancamento_id'):
+            return jsonify({
+                'success': False,
+                'message': 'Sessão não possui lançamento vinculado'
+            }), 400
+        
+        # Chamar função SQL para estornar
+        resultado = db.execute_query("""
+            SELECT estornar_lancamento_sessao(%s, %s) as sucesso
+        """, (sessao_id, deletar), fetch_one=True, empresa_id=empresa_id)
+        
+        if resultado and resultado.get('sucesso'):
+            acao = 'deletado' if deletar else 'cancelado'
+            print(f"✅ Lançamento {acao} para sessão {sessao_id}")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Lançamento {acao} com sucesso'
+            }), 200
+        else:
+            raise Exception('Falha ao estornar lançamento')
+        
+    except Exception as e:
+        print(f"❌ Erro ao estornar lançamento: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@sessoes_bp.route('/integracao', methods=['GET'])
+@require_permission('sessoes_view')
+def visualizar_integracao():
+    """
+    Visualiza o relacionamento entre sessões e lançamentos
+    
+    Query Parameters:
+        - situacao (str): Filtro por situação (SEM LANÇAMENTO, PAGO, A RECEBER, etc.)
+    
+    Security:
+        🔒 Filtrado por empresa_id da sessão
+    """
+    try:
+        from flask import session
+        
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+        
+        situacao = request.args.get('situacao')
+        
+        print(f"\n💰 [GET /api/sessoes/integracao] Empresa: {empresa_id}, Situação: {situacao}")
+        
+        # Buscar dados da view
+        query = """
+            SELECT 
+                sessao_id, sessao_titulo, data, cliente_id, cliente_nome,
+                sessao_valor, sessao_status, prazo_entrega, gerar_lancamento_automatico,
+                lancamento_id, lancamento_tipo, lancamento_descricao, lancamento_valor,
+                lancamento_vencimento, lancamento_pagamento, lancamento_status,
+                lancamento_categoria, situacao,
+                sessao_criada_em, sessao_atualizada_em, lancamento_criado_em
+            FROM vw_sessoes_lancamentos
+            WHERE empresa_id = %s
+        """
+        
+        params = [empresa_id]
+        
+        if situacao:
+            query += " AND situacao = %s"
+            params.append(situacao)
+        
+        query += " ORDER BY data DESC LIMIT 100"
+        
+        resultado = db.execute_query(query, tuple(params), fetch_all=True, empresa_id=empresa_id)
+        
+        print(f"✅ Retornados {len(resultado)} registros")
+        
+        return jsonify({
+            'success': True,
+            'data': resultado
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Erro ao visualizar integração: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@sessoes_bp.route('/analise-financeira', methods=['GET'])
+@require_permission('sessoes_view')
+def analise_financeira_integracao():
+    """
+    Análise financeira da integração sessões → contas a receber
+    
+    Returns:
+        - Total de sessões
+        - Sessões com/sem lançamento
+        - Valores recebidos/a receber
+        - Taxas de lançamento e recebimento
+    
+    Security:
+        🔒 Filtrado por empresa_id da sessão
+    """
+    try:
+        from flask import session
+        
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+        
+        print(f"\n💰 [GET /api/sessoes/analise-financeira] Empresa: {empresa_id}")
+        
+        # Buscar análise da view
+        resultado = db.execute_query("""
+            SELECT 
+                total_sessoes, sessoes_entregues, sessoes_com_lancamento,
+                sessoes_sem_lancamento, valor_total_entregue, valor_ja_recebido,
+                valor_a_receber, valor_nao_lancado, taxa_lancamento_pct,
+                taxa_recebimento_pct
+            FROM vw_sessoes_financeiro
+            WHERE empresa_id = %s
+        """, (empresa_id,), fetch_one=True, empresa_id=empresa_id)
+        
+        if not resultado:
+            # Se não há dados, retornar zeros
+            resultado = {
+                'total_sessoes': 0,
+                'sessoes_entregues': 0,
+                'sessoes_com_lancamento': 0,
+                'sessoes_sem_lancamento': 0,
+                'valor_total_entregue': 0,
+                'valor_ja_recebido': 0,
+                'valor_a_receber': 0,
+                'valor_nao_lancado': 0,
+                'taxa_lancamento_pct': 0,
+                'taxa_recebimento_pct': 0
+            }
+        
+        print(f"✅ Análise: {resultado.get('total_sessoes', 0)} sessões, "
+              f"{resultado.get('taxa_lancamento_pct', 0)}% com lançamento")
+        
+        return jsonify({
+            'success': True,
+            'analise': resultado
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Erro ao gerar análise financeira: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@sessoes_bp.route('/<int:sessao_id>/configurar-lancamento-automatico', methods=['PATCH'])
+@require_permission('sessoes_edit')
+def configurar_lancamento_automatico(sessao_id):
+    """
+    Ativa/desativa geração automática de lançamento para uma sessão
+    
+    Path Parameters:
+        - sessao_id: ID da sessão
+    
+    Body Parameters (JSON):
+        - ativar (bool): TRUE para ativar, FALSE para desativar
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    try:
+        from flask import session
+        
+        empresa_id = session.get('empresa_id')
+        usuario_id = session.get('usuario_id')
+        
+        if not empresa_id or not usuario_id:
+            return jsonify({'erro': 'Autenticação inválida'}), 403
+        
+        dados = request.get_json() or {}
+        ativar = dados.get('ativar', True)
+        
+        print(f"\n💰 [PATCH /api/sessoes/{sessao_id}/configurar-lancamento-automatico] Ativar: {ativar}")
+        
+        # Verificar se sessão pertence à empresa
+        sessao = db.buscar_sessao(sessao_id)
+        if not sessao:
+            return jsonify({'erro': 'Sessão não encontrada'}), 404
+        
+        if sessao.get('empresa_id') != empresa_id:
+            return jsonify({'erro': 'Acesso negado'}), 403
+        
+        # Atualizar configuração
+        db.execute_query("""
+            UPDATE sessoes
+            SET gerar_lancamento_automatico = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND empresa_id = %s
+        """, (ativar, sessao_id, empresa_id), fetch_all=False, empresa_id=empresa_id)
+        
+        status = 'ativada' if ativar else 'desativada'
+        print(f"✅ Geração automática {status} para sessão {sessao_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Geração automática {status} com sucesso',
+            'ativado': ativar
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Erro ao configurar geração automática: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
