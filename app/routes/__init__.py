@@ -49,6 +49,13 @@ def register_blueprints(app):
         print(f"⚠️  Blueprint 'custos operacionais' não encontrado: {e}")
     
     try:
+        from .tags import tags_bp
+        app.register_blueprint(tags_bp)
+        print("✅ Blueprint 'tags' registrado")
+    except ImportError as e:
+        print(f"⚠️  Blueprint 'tags' não encontrado: {e}")
+    
+    try:
         from .relatorios import relatorios_bp
         app.register_blueprint(relatorios_bp)
         print("✅ Blueprint 'relatórios' registrado")

@@ -2833,6 +2833,9 @@ async function openModalSessao(sessaoEdit = null) {
     if (!window.custosOperacionais || window.custosOperacionais.length === 0) {
         await loadCustosOperacionais();
     }
+    if (!window.tagsDisponiveis || window.tagsDisponiveis.length === 0) {
+        await loadTags();
+    }
     
     const isEdit = sessaoEdit !== null;
     const titulo = isEdit ? 'Editar Sessão' : 'Nova Sessão';
@@ -2945,7 +2948,9 @@ async function openModalSessao(sessaoEdit = null) {
             <!-- Linha 6: Tags -->
             <div class="form-group">
                 <label>Tags:</label>
-                <input type="text" id="sessao-tags" value="${isEdit ? sessaoEdit.tags || '' : ''}" placeholder="Redes sociais, press kit">
+                <div id="sessao-tags-container">
+                    ${renderizarSeletorTags(isEdit && sessaoEdit.tags_ids ? sessaoEdit.tags_ids : [])}
+                </div>
             </div>
             
             <!-- Linha 7: Prazo de Entrega -->
@@ -3054,6 +3059,14 @@ async function openModalSessao(sessaoEdit = null) {
                     adicionarCustoAdicional(ca);
                 });
             }
+            
+            // Configurar eventos de clique nas tags
+            configurarEventosTags();
+        }, 100);
+    } else {
+        // Se for criação, também configurar eventos das tags
+        setTimeout(() => {
+            configurarEventosTags();
         }, 100);
     }
 }
@@ -3304,7 +3317,7 @@ async function salvarSessao(event) {
         tipo_video: document.getElementById('sessao-tipo-video').checked,
         tipo_mobile: document.getElementById('sessao-tipo-mobile').checked,
         descricao: document.getElementById('sessao-descricao').value,
-        tags: document.getElementById('sessao-tags').value,
+        tags_ids: obterTagsSelecionadas(),
         prazo_entrega: document.getElementById('sessao-prazo').value,
         equipe: equipe,
         responsaveis: responsaveis,
@@ -3737,6 +3750,280 @@ window.loadCustosOperacionais = loadCustosOperacionais;
 window.openModalAdicionarCusto = openModalAdicionarCusto;
 window.salvarCustoRapido = salvarCustoRapido;
 window.atualizarSelectsCustos = atualizarSelectsCustos;
+
+// ========================================
+// TAGS
+// ========================================
+
+/**
+ * Armazena cache de tags
+ */
+window.tagsDisponiveis = [];
+
+/**
+ * Carrega tags do backend
+ */
+async function loadTags() {
+    try {
+        console.log('🏷️ Carregando tags...');
+        const response = await fetch('/api/tags');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const tags = await response.json();
+        window.tagsDisponiveis = tags;
+        console.log('✅ Tags carregadas:', tags.length);
+        return tags;
+    } catch (error) {
+        console.error('❌ Erro ao carregar tags:', error);
+        window.tagsDisponiveis = [];
+        return [];
+    }
+}
+
+/**
+ * Abre modal rápido para adicionar nova tag
+ */
+function openModalAdicionarTag() {
+    const modal = createModal('🏷️ Nova Tag', `
+        <form id="form-tag" onsubmit="salvarTagRapida(event)" style="max-width: 600px;">
+            <div class="form-group">
+                <label>*Nome da Tag:</label>
+                <input type="text" id="tag-nome" required placeholder="Ex: Urgente, VIP, Comercial..." 
+                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+            </div>
+            
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                    <label>Cor:</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="color" id="tag-cor" value="#3b82f6" 
+                               style="width: 60px; height: 40px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">
+                        <input type="text" id="tag-cor-texto" value="#3b82f6" placeholder="#3b82f6"
+                               style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+                               oninput="sincronizarCorTag(this, 'tag-cor')">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Ícone/Emoji:</label>
+                    <input type="text" id="tag-icone" placeholder="🔥" value="🏷️" maxlength="10"
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 20px; text-align: center;">
+                </div>
+            </div>
+            
+            <div class="form-group" style="margin-top: 15px;">
+                <label>Preview:</label>
+                <div id="tag-preview" style="padding: 15px; background: #f3f4f6; border-radius: 8px; border: 2px dashed #d1d5db;">
+                    <span style="display: inline-block; padding: 6px 16px; border-radius: 20px; background: #3b82f6; color: white; font-size: 14px; font-weight: 500;">
+                        <span id="preview-icone">🏷️</span> <span id="preview-nome">Nome da Tag</span>
+                    </span>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">🏷️ Adicionar Tag</button>
+            </div>
+        </form>
+    `);
+    
+    // Sincronizar campos de cor
+    setTimeout(() => {
+        const campoNome = document.getElementById('tag-nome');
+        const campoCor = document.getElementById('tag-cor');
+        const campoCorTexto = document.getElementById('tag-cor-texto');
+        const campoIcone = document.getElementById('tag-icone');
+        
+        // Listeners para preview
+        if (campoNome) {
+            campoNome.addEventListener('input', atualizarPreviewTag);
+            campoNome.focus();
+        }
+        if (campoCor) {
+            campoCor.addEventListener('input', (e) => {
+                campoCorTexto.value = e.target.value;
+                atualizarPreviewTag();
+            });
+        }
+        if (campoIcone) {
+            campoIcone.addEventListener('input', atualizarPreviewTag);
+        }
+    }, 100);
+}
+
+/**
+ * Sincroniza campo de cor texto com color picker
+ */
+function sincronizarCorTag(input, colorPickerId) {
+    const colorPicker = document.getElementById(colorPickerId);
+    if (colorPicker) {
+        colorPicker.value = input.value;
+        atualizarPreviewTag();
+    }
+}
+
+/**
+ * Atualiza preview da tag em tempo real
+ */
+function atualizarPreviewTag() {
+    const nome = document.getElementById('tag-nome')?.value || 'Nome da Tag';
+    const cor = document.getElementById('tag-cor')?.value || '#3b82f6';
+    const icone = document.getElementById('tag-icone')?.value || '🏷️';
+    
+    const previewNome = document.getElementById('preview-nome');
+    const previewIcone = document.getElementById('preview-icone');
+    const previewContainer = document.querySelector('#tag-preview span');
+    
+    if (previewNome) previewNome.textContent = nome;
+    if (previewIcone) previewIcone.textContent = icone;
+    if (previewContainer) previewContainer.style.background = cor;
+}
+
+/**
+ * Salva nova tag via API
+ */
+async function salvarTagRapida(event) {
+    event.preventDefault();
+    
+    const nome = document.getElementById('tag-nome').value.trim();
+    const cor = document.getElementById('tag-cor').value;
+    const icone = document.getElementById('tag-icone').value.trim();
+    
+    if (!nome) {
+        showToast('❌ Nome da tag é obrigatório', 'error');
+        return;
+    }
+    
+    try {
+        console.log('💾 Salvando tag:', nome);
+        
+        const response = await fetch('/api/tags', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, cor, icone })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showToast('✅ Tag criada com sucesso!', 'success');
+            
+            // Recarregar tags
+            await loadTags();
+            
+            // Atualizar interface de seleção de tags
+            atualizarInterfaceTags();
+            
+            closeModal();
+        } else {
+            showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
+            console.error('❌ Erro ao criar tag:', result);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao salvar tag:', error);
+        showToast('❌ Erro ao salvar tag: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Renderiza interface de seleção múltipla de tags
+ */
+function renderizarSeletorTags(tagsSelecionadas = []) {
+    const tags = window.tagsDisponiveis || [];
+    
+    if (tags.length === 0) {
+        return `
+            <div style="padding: 20px; text-align: center; color: #6b7280; background: #f9fafb; border-radius: 8px;">
+                <p>Nenhuma tag cadastrada</p>
+                <button type="button" onclick="openModalAdicionarTag()" class="btn btn-sm" style="margin-top: 10px; background: #10b981; color: white;">
+                    ➕ Criar Primeira Tag
+                </button>
+            </div>
+        `;
+    }
+    
+    return `
+        <div id="tags-selector" style="display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+            ${tags.map(tag => {
+                const selecionada = tagsSelecionadas.includes(tag.id) || tagsSelecionadas.includes(tag.nome);
+                return `
+                    <label style="cursor: pointer; user-select: none;">
+                        <input 
+                            type="checkbox" 
+                            class="tag-checkbox" 
+                            value="${tag.id}" 
+                            ${selecionada ? 'checked' : ''}
+                            style="display: none;">
+                        <span class="tag-badge ${selecionada ? 'tag-selected' : ''}" 
+                              data-tag-id="${tag.id}"
+                              style="display: inline-block; padding: 6px 12px; border-radius: 16px; background: ${tag.cor}; color: white; font-size: 13px; font-weight: 500; border: 2px solid ${selecionada ? '#1f2937' : 'transparent'}; transition: all 0.2s;">
+                            ${tag.icone} ${tag.nome}
+                        </span>
+                    </label>
+                `;
+            }).join('')}
+            
+            <button type="button" onclick="openModalAdicionarTag()" 
+                    class="btn btn-sm" 
+                    style="padding: 6px 12px; background: #10b981; color: white; border-radius: 16px; font-size: 13px; border: none; cursor: pointer;"
+                    title="Adicionar Nova Tag">
+                ➕ Nova Tag
+            </button>
+        </div>
+    `;
+}
+
+/**
+ * Atualiza interface de tags após criar nova
+ */
+function atualizarInterfaceTags() {
+    const container = document.getElementById('tags-selector');
+    if (container) {
+        const tagsSelecionadas = obterTagsSelecionadas();
+        container.outerHTML = renderizarSeletorTags(tagsSelecionadas);
+        configurarEventosTags();
+    }
+}
+
+/**
+ * Configura eventos de clique nas tags
+ */
+function configurarEventosTags() {
+    document.querySelectorAll('.tag-badge').forEach(badge => {
+        badge.addEventListener('click', function() {
+            const checkbox = this.closest('label').querySelector('.tag-checkbox');
+            checkbox.checked = !checkbox.checked;
+            
+            if (checkbox.checked) {
+                this.classList.add('tag-selected');
+                this.style.borderColor = '#1f2937';
+            } else {
+                this.classList.remove('tag-selected');
+                this.style.borderColor = 'transparent';
+            }
+        });
+    });
+}
+
+/**
+ * Obtém IDs das tags selecionadas
+ */
+function obterTagsSelecionadas() {
+    const checkboxes = document.querySelectorAll('.tag-checkbox:checked');
+    return Array.from(checkboxes).map(cb => parseInt(cb.value));
+}
+
+window.loadTags = loadTags;
+window.openModalAdicionarTag = openModalAdicionarTag;
+window.salvarTagRapida = salvarTagRapida;
+window.renderizarSeletorTags = renderizarSeletorTags;
+window.sincronizarCorTag = sincronizarCorTag;
+window.atualizarPreviewTag = atualizarPreviewTag;
+window.configurarEventosTags = configurarEventosTags;
+window.obterTagsSelecionadas = obterTagsSelecionadas;
 
 // ========================================
 // KITS DE EQUIPAMENTOS

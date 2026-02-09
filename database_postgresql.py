@@ -5455,6 +5455,286 @@ def deletar_custo_operacional(empresa_id: int, custo_id: int) -> bool:
         return sucesso
 
 
+# ==================== TAGS ====================
+
+def adicionar_tag(empresa_id: int, dados: Dict) -> int:
+    """
+    Adiciona uma nova tag
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        dados (Dict): {
+            'nome': str,
+            'cor': str (opcional, default '#3b82f6'),
+            'icone': str (opcional, default 'tag')
+        }
+    
+    Returns:
+        int: ID da tag criada
+        
+    Security:
+        🔒 RLS aplicado - tag vinculada à empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO tags (nome, cor, icone, empresa_id)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+        """, (
+            dados['nome'],
+            dados.get('cor', '#3b82f6'),
+            dados.get('icone', 'tag'),
+            empresa_id
+        ))
+        
+        tag_id = cursor.fetchone()['id']
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        return tag_id
+
+
+def listar_tags(empresa_id: int, apenas_ativas: bool = True) -> List[Dict]:
+    """
+    Lista todas as tags da empresa
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        apenas_ativas (bool): Se True, retorna apenas tags ativas
+    
+    Returns:
+        List[Dict]: Lista de tags
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        sql = "SELECT * FROM tags WHERE empresa_id = %s"
+        params = [empresa_id]
+        
+        if apenas_ativas:
+            sql += " AND ativa = true"
+        
+        sql += " ORDER BY nome"
+        
+        cursor.execute(sql, params)
+        
+        tags = []
+        for row in cursor.fetchall():
+            tag = dict(row)
+            tags.append(tag)
+        
+        cursor.close()
+        return_to_pool(conn)
+        return tags
+
+
+def obter_tag(empresa_id: int, tag_id: int) -> Dict:
+    """
+    Busca uma tag específica
+    
+    Args:
+        empresa_id (int): ID da empresa
+        tag_id (int): ID da tag
+    
+    Returns:
+        Dict: Dados da tag ou None
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM tags
+            WHERE id = %s AND empresa_id = %s
+        """, (tag_id, empresa_id))
+        
+        row = cursor.fetchone()
+        tag = dict(row) if row else None
+        
+        cursor.close()
+        return_to_pool(conn)
+        return tag
+
+
+def atualizar_tag(empresa_id: int, tag_id: int, dados: Dict) -> bool:
+    """
+    Atualiza uma tag existente
+    
+    Args:
+        empresa_id (int): ID da empresa
+        tag_id (int): ID da tag
+        dados (Dict): Dados a atualizar
+    
+    Returns:
+        bool: True se atualizado com sucesso
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE tags
+            SET nome = %s,
+                cor = %s,
+                icone = %s,
+                ativa = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND empresa_id = %s
+        """, (
+            dados['nome'],
+            dados.get('cor', '#3b82f6'),
+            dados.get('icone', 'tag'),
+            dados.get('ativa', True),
+            tag_id,
+            empresa_id
+        ))
+        
+        sucesso = cursor.rowcount > 0
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        return sucesso
+
+
+def deletar_tag(empresa_id: int, tag_id: int) -> bool:
+    """
+    Deleta (ou desativa) uma tag
+    
+    Args:
+        empresa_id (int): ID da empresa
+        tag_id (int): ID da tag
+    
+    Returns:
+        bool: True se deletado com sucesso
+        
+    Note:
+        Por segurança, desativa em vez de deletar para preservar histórico.
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        # Desativar (recomendado)
+        cursor.execute("""
+            UPDATE tags
+            SET ativa = false,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND empresa_id = %s
+        """, (tag_id, empresa_id))
+        
+        sucesso = cursor.rowcount > 0
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        return sucesso
+
+
+def adicionar_tags_sessao(empresa_id: int, sessao_id: int, tag_ids: List[int]) -> bool:
+    """
+    Adiciona múltiplas tags a uma sessão
+    
+    Args:
+        empresa_id (int): ID da empresa
+        sessao_id (int): ID da sessão
+        tag_ids (List[int]): IDs das tags
+    
+    Returns:
+        bool: True se adicionado com sucesso
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        # Remover tags antigas
+        cursor.execute("""
+            DELETE FROM sessao_tags
+            WHERE sessao_id = %s
+        """, (sessao_id,))
+        
+        # Adicionar novas tags
+        if tag_ids:
+            for tag_id in tag_ids:
+                cursor.execute("""
+                    INSERT INTO sessao_tags (sessao_id, tag_id)
+                    VALUES (%s, %s)
+                    ON CONFLICT (sessao_id, tag_id) DO NOTHING
+                """, (sessao_id, tag_id))
+        
+        conn.commit()
+        cursor.close()
+        return_to_pool(conn)
+        return True
+
+
+def listar_tags_sessao(empresa_id: int, sessao_id: int) -> List[Dict]:
+    """
+    Lista tags de uma sessão
+    
+    Args:
+        empresa_id (int): ID da empresa
+        sessao_id (int): ID da sessão
+    
+    Returns:
+        List[Dict]: Lista de tags
+        
+    Security:
+        🔒 RLS aplicado
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT t.*
+            FROM tags t
+            INNER JOIN sessao_tags st ON st.tag_id = t.id
+            WHERE st.sessao_id = %s AND t.empresa_id = %s
+            ORDER BY t.nome
+        """, (sessao_id, empresa_id))
+        
+        tags = []
+        for row in cursor.fetchall():
+            tag = dict(row)
+            tags.append(tag)
+        
+        cursor.close()
+        return_to_pool(conn)
+        return tags
+
+
 # ==================== FUNi?i?ES DE AUTENTICAi?i?O E USUi?RIOS ====================
 
 from auth_functions import (
