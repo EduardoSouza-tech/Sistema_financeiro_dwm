@@ -526,3 +526,300 @@ def reabrir_sessao_route(sessao_id):
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# 📊 DASHBOARD E RELATÓRIOS (PARTE 9)
+# ============================================================================
+
+@sessoes_bp.route('/dashboard', methods=['GET'])
+@require_permission('sessoes_view')
+def dashboard_sessoes():
+    """
+    Dashboard completo de sessões com estatísticas e alertas
+    
+    Returns:
+        {
+            "estatisticas": {...},
+            "top_clientes": [...],
+            "sessoes_atencao": [...],
+            "periodo_atual": {...}
+        }
+    
+    Security:
+        🔒 Filtrado por empresa_id da sessão
+    """
+    try:
+        from flask import session
+        from datetime import date, timedelta
+        
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+        
+        print(f"\n📊 [GET /api/sessoes/dashboard] Empresa: {empresa_id}")
+        
+        # 1. Estatísticas gerais (view)
+        estatisticas = db.execute_query("""
+            SELECT 
+                total_geral, total_pendentes, total_confirmadas, total_em_andamento,
+                total_concluidas, total_entregues, total_canceladas,
+                valor_total_ativo, ticket_medio, total_horas, media_horas,
+                prazo_medio_dias, captadas_diretas, captadas_indicacao
+            FROM vw_sessoes_estatisticas
+            WHERE empresa_id = %s
+        """, (empresa_id,), fetch_all=True, empresa_id=empresa_id)
+        
+        # 2. Top 10 clientes (view)
+        top_clientes = db.execute_query("""
+            SELECT 
+                cliente_id, cliente_nome, total_sessoes, valor_total,
+                ultima_sessao, taxa_conclusao_pct
+            FROM vw_top_clientes_sessoes
+            WHERE empresa_id = %s
+            ORDER BY valor_total DESC
+            LIMIT 10
+        """, (empresa_id,), fetch_all=True, empresa_id=empresa_id)
+        
+        # 3. Sessões com atenção (view)
+        sessoes_atencao = db.execute_query("""
+            SELECT 
+                id, cliente_nome, data, prazo_entrega, valor_total,
+                dias_ate_prazo, urgencia, status
+            FROM vw_sessoes_atencao
+            WHERE empresa_id = %s
+              AND urgencia IN ('ATRASADO', 'URGENTE - HOJE', 'URGENTE - 3 DIAS')
+            ORDER BY prazo_entrega ASC
+            LIMIT 20
+        """, (empresa_id,), fetch_all=True, empresa_id=empresa_id)
+        
+        # 4. Estatísticas do período atual (últimos 30 dias) - função SQL
+        data_inicio = date.today() - timedelta(days=30)
+        data_fim = date.today()
+        
+        periodo_atual = db.execute_query("""
+            SELECT * FROM obter_estatisticas_periodo(%s, %s, %s)
+        """, (empresa_id, data_inicio, data_fim), fetch_all=True, empresa_id=empresa_id)
+        
+        print(f"✅ Dashboard gerado: {len(top_clientes)} clientes, {len(sessoes_atencao)} alertas")
+        
+        return jsonify({
+            'success': True,
+            'estatisticas': estatisticas[0] if estatisticas else {},
+            'top_clientes': top_clientes,
+            'sessoes_atencao': sessoes_atencao,
+            'periodo_atual': periodo_atual[0] if periodo_atual else {}
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Erro ao gerar dashboard: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@sessoes_bp.route('/estatisticas', methods=['GET'])
+@require_permission('sessoes_view')
+def estatisticas_periodo():
+    """
+    Estatísticas de sessões para um período customizado
+    
+    Query Parameters:
+        - data_inicio (YYYY-MM-DD): Data inicial
+        - data_fim (YYYY-MM-DD): Data final
+    
+    Security:
+        🔒 Filtrado por empresa_id da sessão
+    """
+    try:
+        from flask import session
+        from datetime import datetime
+        
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+        
+        data_inicio_str = request.args.get('data_inicio')
+        data_fim_str = request.args.get('data_fim')
+        
+        if not data_inicio_str or not data_fim_str:
+            return jsonify({'erro': 'Parâmetros data_inicio e data_fim são obrigatórios'}), 400
+        
+        data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date()
+        
+        print(f"\n📊 [GET /api/sessoes/estatisticas] Empresa: {empresa_id}, Período: {data_inicio} a {data_fim}")
+        
+        # Usar função SQL para obter estatísticas
+        resultado = db.execute_query("""
+            SELECT * FROM obter_estatisticas_periodo(%s, %s, %s)
+        """, (empresa_id, data_inicio, data_fim), fetch_all=True, empresa_id=empresa_id)
+        
+        if resultado:
+            stats = resultado[0]
+            print(f"✅ Estatísticas: {stats.get('total_sessoes', 0)} sessões, R$ {stats.get('faturamento_total', 0):.2f}")
+            
+            return jsonify({
+                'success': True,
+                'periodo': {'inicio': data_inicio_str, 'fim': data_fim_str},
+                'estatisticas': stats
+            }), 200
+        else:
+            return jsonify({
+                'success': True,
+                'periodo': {'inicio': data_inicio_str, 'fim': data_fim_str},
+                'estatisticas': {}
+            }), 200
+        
+    except ValueError as e:
+        print(f"❌ Erro de validação: {e}")
+        return jsonify({'erro': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+    except Exception as e:
+        print(f"❌ Erro ao gerar estatísticas: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@sessoes_bp.route('/comparativo', methods=['GET'])
+@require_permission('sessoes_view')
+def comparativo_periodos():
+    """
+    Comparativo entre dois períodos com variação percentual
+    
+    Query Parameters:
+        - p1_inicio, p1_fim: Período 1
+        - p2_inicio, p2_fim: Período 2
+    
+    Example:
+        /api/sessoes/comparativo?p1_inicio=2025-12-01&p1_fim=2025-12-31&p2_inicio=2026-01-01&p2_fim=2026-01-31
+    
+    Security:
+        🔒 Filtrado por empresa_id da sessão
+    """
+    try:
+        from flask import session
+        from datetime import datetime
+        
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+        
+        # Validar parâmetros
+        parametros = ['p1_inicio', 'p1_fim', 'p2_inicio', 'p2_fim']
+        valores = {}
+        
+        for param in parametros:
+            valor = request.args.get(param)
+            if not valor:
+                return jsonify({'erro': f'Parâmetro {param} é obrigatório'}), 400
+            
+            try:
+                valores[param] = datetime.strptime(valor, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'erro': f'Formato inválido para {param}. Use YYYY-MM-DD'}), 400
+        
+        print(f"\n📊 [GET /api/sessoes/comparativo] Empresa: {empresa_id}")
+        print(f"   Período 1: {valores['p1_inicio']} a {valores['p1_fim']}")
+        print(f"   Período 2: {valores['p2_inicio']} a {valores['p2_fim']}")
+        
+        # Usar função SQL para comparativo
+        resultado = db.execute_query("""
+            SELECT * FROM comparativo_periodos(%s, %s, %s, %s, %s)
+        """, (empresa_id, valores['p1_inicio'], valores['p1_fim'], 
+              valores['p2_inicio'], valores['p2_fim']), fetch_all=True, empresa_id=empresa_id)
+        
+        print(f"✅ Comparativo gerado: {len(resultado)} métricas")
+        
+        return jsonify({
+            'success': True,
+            'periodo1': {'inicio': str(valores['p1_inicio']), 'fim': str(valores['p1_fim'])},
+            'periodo2': {'inicio': str(valores['p2_inicio']), 'fim': str(valores['p2_fim'])},
+            'comparativo': resultado
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Erro ao gerar comparativo: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@sessoes_bp.route('/periodo', methods=['GET'])
+@require_permission('sessoes_view')
+def sessoes_por_periodo():
+    """
+    Sessões agregadas por período (mês/semana/dia)
+    
+    Query Parameters:
+        - data_inicio (YYYY-MM-DD): Data inicial
+        - data_fim (YYYY-MM-DD): Data final
+        - agregacao (month|week|day): Tipo de agregação (padrão: month)
+    
+    Security:
+        🔒 Filtrado por empresa_id da sessão
+    """
+    try:
+        from flask import session
+        from datetime import datetime
+        
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+        
+        data_inicio_str = request.args.get('data_inicio')
+        data_fim_str = request.args.get('data_fim')
+        agregacao = request.args.get('agregacao', 'month')
+        
+        if not data_inicio_str or not data_fim_str:
+            return jsonify({'erro': 'Parâmetros data_inicio e data_fim são obrigatórios'}), 400
+        
+        if agregacao not in ['month', 'week', 'day']:
+            return jsonify({'erro': 'agregacao deve ser month, week ou day'}), 400
+        
+        data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date()
+        
+        print(f"\n📊 [GET /api/sessoes/periodo] Empresa: {empresa_id}, Agregação: {agregacao}")
+        
+        # Usar view de período
+        campo_periodo = {
+            'month': 'mes',
+            'week': 'semana',
+            'day': 'dia'
+        }[agregacao]
+        
+        resultado = db.execute_query(f"""
+            SELECT 
+                {campo_periodo} as periodo,
+                total_sessoes,
+                concluidas,
+                canceladas,
+                faturamento_bruto,
+                faturamento_entregue,
+                total_comissoes,
+                lucro_liquido,
+                media_ticket,
+                total_horas
+            FROM vw_sessoes_por_periodo
+            WHERE empresa_id = %s
+              AND {campo_periodo} BETWEEN %s AND %s
+            ORDER BY {campo_periodo} ASC
+        """, (empresa_id, data_inicio, data_fim), fetch_all=True, empresa_id=empresa_id)
+        
+        print(f"✅ Retornados {len(resultado)} períodos")
+        
+        return jsonify({
+            'success': True,
+            'agregacao': agregacao,
+            'data': resultado
+        }), 200
+        
+    except ValueError as e:
+        print(f"❌ Erro de validação: {e}")
+        return jsonify({'erro': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+    except Exception as e:
+        print(f"❌ Erro ao buscar período: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500

@@ -1,0 +1,387 @@
+/**
+ * 📊 ESTILOS DO DASHBOARD DE SESSÕES
+ * ==================================================
+ * CSS para componentes visuais do dashboard de relatórios
+ * 
+ * Autor: Sistema Financeiro DWM
+ * Data: 2026-02-08
+ */
+
+/* ============================================================================
+   GRID DE CARDS PRINCIPAIS
+   ============================================================================ */
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card-primary {
+    border-left: 4px solid #4169E1;
+}
+
+.stat-card-success {
+    border-left: 4px solid #32CD32;
+}
+
+.stat-card-info {
+    border-left: 4px solid #00CED1;
+}
+
+.stat-card-warning {
+    border-left: 4px solid #FFA500;
+}
+
+.stat-icon {
+    font-size: 42px;
+    line-height: 1;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: #666;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #333;
+    line-height: 1;
+    margin-bottom: 5px;
+}
+
+.stat-detail {
+    font-size: 12px;
+    color: #888;
+}
+
+
+/* ============================================================================
+   GRÁFICO DE PIZZA (LEGENDA COM BARRAS)
+   ============================================================================ */
+
+.chart-legend {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.legend-item {
+    margin-bottom: 12px;
+}
+
+.legend-item:last-child {
+    margin-bottom: 0;
+}
+
+.legend-bar {
+    position: relative;
+    min-width: 50px;
+    height: 40px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s;
+}
+
+.legend-bar:hover {
+    transform: scale(1.02);
+}
+
+.legend-emoji {
+    margin-right: 8px;
+}
+
+.legend-label {
+    flex: 1;
+}
+
+.legend-value {
+    font-size: 12px;
+    opacity: 0.95;
+}
+
+
+/* ============================================================================
+   TABELA DE TOP CLIENTES
+   ============================================================================ */
+
+.data-table {
+    width: 100%;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.data-table thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.data-table th {
+    padding: 15px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.data-table td {
+    padding: 12px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.data-table tbody tr {
+    transition: background-color 0.2s;
+}
+
+.data-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge-green {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.badge-orange {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.badge-red {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+
+/* ============================================================================
+   ALERTAS DE PRAZO
+   ============================================================================ */
+
+.alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.alert {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid;
+}
+
+.alert-danger {
+    border-left-color: #DC143C;
+    background-color: #FFF5F5;
+}
+
+.alert-warning {
+    border-left-color: #FFA500;
+    background-color: #FFFBF0;
+}
+
+.alert-icon {
+    font-size: 32px;
+    line-height: 1;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: #333;
+    margin-bottom: 6px;
+}
+
+.alert-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    font-size: 12px;
+    color: #666;
+}
+
+.alert-badge {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 11px;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.alert-badge-danger {
+    background-color: #DC143C;
+    color: white;
+}
+
+.alert-badge-warning {
+    background-color: #FFA500;
+    color: white;
+}
+
+
+/* ============================================================================
+   ESTATÍSTICAS DO PERÍODO
+   ============================================================================ */
+
+.period-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.period-stat {
+    text-align: center;
+    padding: 15px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.period-stat-label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.period-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #333;
+}
+
+
+/* ============================================================================
+   ESTADOS VAZIOS
+   ============================================================================ */
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    background: white;
+    border-radius: 12px;
+    color: #999;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.empty-state.success {
+    color: #155724;
+    background-color: #d4edda;
+}
+
+
+/* ============================================================================
+   SEÇÕES DO DASHBOARD
+   ============================================================================ */
+
+.dashboard-section {
+    margin-bottom: 30px;
+}
+
+.dashboard-section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+
+/* ============================================================================
+   RESPONSIVIDADE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+    }
+    
+    .alert {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .alert-details {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .data-table {
+        font-size: 12px;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 8px 6px;
+    }
+}
