@@ -4871,6 +4871,10 @@
                 if (data.success && data.authenticated && data.usuario) {
                     console.log('✅ Usuário autenticado:', data.usuario.username);
                     
+                    // 💾 CRÍTICO: Salvar dados do usuário no sessionStorage para app.js
+                    sessionStorage.setItem('usuario', JSON.stringify(data.usuario));
+                    console.log('💾 Usuário salvo no sessionStorage:', data.usuario);
+                    
                     // Atualizar nome do usuário na sidebar
                     const userElement = document.getElementById('userNameSidebar');
                     console.log('👤 Elemento userNameSidebar:', userElement);

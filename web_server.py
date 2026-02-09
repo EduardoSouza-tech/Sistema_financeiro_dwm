@@ -217,9 +217,6 @@ def auto_execute_migrations():
         import traceback
         traceback.print_exc()
 
-# Executar migrations no startup
-auto_execute_migrations()
-
 # Detectar ambiente de produção
 IS_PRODUCTION = bool(os.getenv('RAILWAY_ENVIRONMENT'))
 
@@ -448,6 +445,14 @@ try:
             print("⚠️ Migração tipo_saldo_inicial falhou (pode já estar aplicada)\n")
     except Exception as e:
         print(f"⚠️ Aviso: Não foi possível executar migração tipo_saldo_inicial: {e}")
+    
+    # 🚀 AUTO-EXECUTAR MIGRATIONS DE EVENTOS (após db estar pronto)
+    try:
+        print("\n🎉 Executando migração de Eventos...")
+        auto_execute_migrations()
+        print("✅ Migration de eventos verificada!\n")
+    except Exception as e:
+        print(f"⚠️ Aviso: Não foi possível executar auto-migration de eventos: {e}")
     
     try:
         print("\n📅 Executando migração Data de Início...")
