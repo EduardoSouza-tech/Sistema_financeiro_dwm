@@ -1817,9 +1817,14 @@ def listar_permissoes():
 def listar_contas():
     """Lista todas as contas bancárias com saldo real e filtro de multi-tenancy"""
     try:
-        filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
+        # 🔒 CORREÇÃO: Usar empresa_id da sessão ao invés de proprietario_id
+        from flask import session
+        empresa_id = session.get('empresa_id')
         
-        contas = db.listar_contas(filtro_cliente_id=filtro_cliente_id)
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
+        contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
         
         # Preparar resposta - usar saldo_inicial como saldo atual
         # (o campo saldo_inicial já representa o saldo atual da conta)

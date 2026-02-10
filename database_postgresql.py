@@ -1696,7 +1696,7 @@ class DatabaseManager:
         return conta_id
     
     def listar_contas(self, filtro_cliente_id: int = None) -> List[ContaBancaria]:
-        """Lista todas as contas banci?rias com suporte a multi-tenancy"""
+        """Lista todas as contas bancárias (DEPRECATED - use listar_contas_por_empresa)"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -1708,6 +1708,61 @@ class DatabaseManager:
         else:
             cursor.execute("SELECT * FROM contas_bancarias ORDER BY nome")
         rows = cursor.fetchall()
+        
+        contas = []
+        for row in rows:
+            conta = ContaBancaria(
+                id=row['id'],
+                nome=row['nome'],
+                banco=row['banco'],
+                agencia=row['agencia'],
+                conta=row['conta'],
+                saldo_inicial=Decimal(str(row['saldo_inicial'])),
+                tipo_saldo_inicial=row.get('tipo_saldo_inicial', 'credor'),
+                data_inicio=row.get('data_inicio'),
+                ativa=row['ativa'],
+                data_criacao=row['data_criacao']
+            )
+            contas.append(conta)
+        
+        cursor.close()
+        return_to_pool(conn)
+        return contas
+    
+    def listar_contas_por_empresa(self, empresa_id: int) -> List[ContaBancaria]:
+        """Lista todas as contas bancárias de uma empresa (multi-tenancy correto)"""
+        if not empresa_id:
+            raise ValueError("empresa_id é obrigatório para listar contas")
+        
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            "SELECT * FROM contas_bancarias WHERE empresa_id = %s ORDER BY nome",
+            (empresa_id,)
+        )
+        rows = cursor.fetchall()
+        
+        contas = []
+        for row in rows:
+            conta = ContaBancaria(
+                id=row['id'],
+                nome=row['nome'],
+                banco=row['banco'],
+                agencia=row['agencia'],
+                conta=row['conta'],
+                saldo_inicial=Decimal(str(row['saldo_inicial'])),
+                tipo_saldo_inicial=row.get('tipo_saldo_inicial', 'credor'),
+                data_inicio=row.get('data_inicio'),
+                ativa=row['ativa'],
+                data_criacao=row['data_criacao']
+            )
+            contas.append(conta)
+        
+        cursor.close()
+        return_to_pool(conn)
+        return contas
+
         
         contas = []
         for row in rows:
@@ -2999,7 +3054,7 @@ def listar_contas(empresa_id: int) -> List[ContaBancaria]:
     if not empresa_id:
         raise ValueError("empresa_id é obrigatório para listar_contas")
     db = DatabaseManager()
-    return db.listar_contas(filtro_cliente_id=empresa_id)
+    return db.listar_contas_por_empresa(empresa_id=empresa_id)
 
 def atualizar_conta(nome_antigo: str, conta: ContaBancaria) -> bool:
     db = DatabaseManager()
