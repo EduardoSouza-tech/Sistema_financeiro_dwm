@@ -4182,7 +4182,7 @@ def desconciliar_extrato(transacao_id):
 # ============================================================================
 
 @app.route('/api/regras-conciliacao', methods=['GET'])
-@require_permission('lancamentos_view')
+@require_permission('regras_conciliacao_view')
 def listar_regras_conciliacao():
     """Lista todas as regras de auto-conciliação da empresa"""
     try:
@@ -4203,7 +4203,7 @@ def listar_regras_conciliacao():
 
 
 @app.route('/api/regras-conciliacao', methods=['POST'])
-@require_permission('lancamentos_create')
+@require_permission('regras_conciliacao_create')
 def criar_regra_conciliacao():
     """Cria nova regra de auto-conciliação"""
     try:
@@ -4242,7 +4242,7 @@ def criar_regra_conciliacao():
 
 
 @app.route('/api/regras-conciliacao/<int:regra_id>', methods=['PUT'])
-@require_permission('lancamentos_edit')
+@require_permission('regras_conciliacao_edit')
 def atualizar_regra_conciliacao(regra_id):
     """Atualiza uma regra de auto-conciliação"""
     try:
@@ -4272,7 +4272,7 @@ def atualizar_regra_conciliacao(regra_id):
 
 
 @app.route('/api/regras-conciliacao/<int:regra_id>', methods=['DELETE'])
-@require_permission('lancamentos_delete')
+@require_permission('regras_conciliacao_delete')
 def excluir_regra_conciliacao(regra_id):
     """Exclui uma regra de auto-conciliação"""
     try:
