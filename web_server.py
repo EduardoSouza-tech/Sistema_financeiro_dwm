@@ -1,6 +1,8 @@
 ﻿"""
 Servidor Web para o Sistema Financeiro
 Otimizado para PostgreSQL com pool de conexões
+
+Deploy: 2026-02-10 17:16 - Fix métodos regras_conciliacao
 """
 from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
