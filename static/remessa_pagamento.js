@@ -752,5 +752,10 @@ const RemessaPagamento = {
     }
 };
 
+// Função global para integração com showSection
+window.loadRemessaPagamento = function() {
+    RemessaPagamento.init();
+};
+
 // Inicializar quando carregar a seção
 window.RemessaPagamento = RemessaPagamento;
