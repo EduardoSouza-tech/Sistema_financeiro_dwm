@@ -9950,7 +9950,8 @@ def adicionar_permissoes_config_extrato():
             WHERE ativo = TRUE
               AND permissoes_empresa @> '["config_extrato_bancario_view"]'::jsonb
         """)
-        total = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        total = result[0] if result else 0
         
         cursor.close()
         
