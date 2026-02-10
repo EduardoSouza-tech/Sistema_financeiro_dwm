@@ -7065,7 +7065,9 @@
                 tabCredenciamento.style.color = 'white';
                 tabCredenciamento.style.borderBottom = '3px solid #16a085';
                 formCredenciamento.style.display = 'block';
-                carregarCredenciamento(); // Carregar todos os credenciamentos
+                // Buscar o ID do evento atual selecionado
+                const eventoId = document.getElementById('equipe-evento-id').value;
+                carregarCredenciamento(eventoId); // Carregar credenciamento APENAS do evento atual
             }
         }
 
@@ -7468,117 +7470,79 @@
         // CREDENCIAMENTO
         // ==========================================
 
-        async function carregarCredenciamento() {
+        async function carregarCredenciamento(eventoId) {
             const tbody = document.getElementById('tbody-credenciamento-evento');
             const totalElement = document.getElementById('credenciamento-total-cooperados');
 
             tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Carregando...</td></tr>';
 
             try {
-                // Buscar todos os eventos
-                const eventosResponse = await fetch('/api/eventos', {
+                // Buscar equipe APENAS do evento atual, não de todos os eventos
+                const response = await fetch(`/api/eventos/${eventoId}/equipe`, {
                     method: 'GET',
                     credentials: 'include'
                 });
 
-                if (!eventosResponse.ok) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #e74c3c;">Erro ao carregar eventos</td></tr>';
+                if (!response.ok) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #e74c3c;">Erro ao carregar equipe do evento</td></tr>';
                     totalElement.textContent = '0';
                     return;
                 }
 
-                const eventosResult = await eventosResponse.json();
-                
-                // Garantir que temos um array - verificar diferentes formatos de resposta
-                let eventos;
-                if (Array.isArray(eventosResult)) {
-                    // Formato direto: [...]
-                    eventos = eventosResult;
-                } else if (eventosResult.data && Array.isArray(eventosResult.data)) {
-                    // Formato com data: { data: [...] }
-                    eventos = eventosResult.data;
-                } else if (eventosResult.eventos && Array.isArray(eventosResult.eventos)) {
-                    // Formato alternativo: { eventos: [...] }
-                    eventos = eventosResult.eventos;
-                } else {
-                    console.error('Eventos - formato não reconhecido:', eventosResult);
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #e74c3c;">Formato de dados inválido</td></tr>';
-                    totalElement.textContent = '0';
-                    return;
-                }
+                const result = await response.json();
+                const equipe = result.equipe || result;
 
-                if (eventos.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Nenhum evento cadastrado</td></tr>';
+                if (!equipe || equipe.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Nenhum cooperado alocado neste evento</td></tr>';
                     totalElement.textContent = '0';
                     return;
                 }
 
                 let html = '';
-                let totalCooperados = 0;
+                
+                equipe.forEach((item) => {
+                    const horaInicio = item.hora_inicio || '--:--';
+                    const horaFim = item.hora_fim || '--:--';
+                    let totalTrabalhado = '--:--';
 
-                // Para cada evento, buscar sua equipe
-                for (const evento of eventos) {
-                    const response = await fetch(`/api/eventos/${evento.id}/equipe`, {
-                        method: 'GET',
-                        credentials: 'include'
-                    });
-
-                    if (response.ok) {
-                        const result = await response.json();
-                        const equipe = result.equipe || result;
-
-                        if (equipe && equipe.length > 0) {
-                            equipe.forEach((item) => {
-                        const horaInicio = item.hora_inicio || '--:--';
-                        const horaFim = item.hora_fim || '--:--';
-                        let totalTrabalhado = '--:--';
-
-                        // Calcular total trabalhado se ambos os horários existirem
-                        if (item.hora_inicio && item.hora_fim) {
-                            try {
-                                const [h1, m1] = item.hora_inicio.split(':').map(Number);
-                                const [h2, m2] = item.hora_fim.split(':').map(Number);
-                                
-                                const inicio = h1 * 60 + m1;
-                                const fim = h2 * 60 + m2;
-                                
-                                let diferenca = fim - inicio;
-                                if (diferenca < 0) diferenca += 24 * 60;
-                                
-                                const horas = Math.floor(diferenca / 60);
-                                const minutos = diferenca % 60;
-                                
-                                totalTrabalhado = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
-                            } catch (error) {
-                                totalTrabalhado = '--:--';
-                            }
-                        }
-
-                        html += `
-                            <tr>
-                                <td style="padding: 12px; border: 1px solid #ddd;">${item.funcionario_nome || 'N/A'}</td>
-                                <td style="padding: 12px; border: 1px solid #ddd;">${item.funcionario_cpf || 'N/A'}</td>
-                                <td style="padding: 12px; border: 1px solid #ddd;">${item.funcionario_email || 'N/A'}</td>
-                                <td style="padding: 12px; border: 1px solid #ddd;">${item.funcao_nome || 'N/A'}</td>
-                                <td style="padding: 12px; border: 1px solid #ddd;">${item.setor_nome || 'N/A'}</td>
-                                <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${horaInicio}</td>
-                                <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${horaFim}</td>
-                                <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #27ae60;">${totalTrabalhado}</td>
-                            </tr>
-                        `;
-                                totalCooperados++;
-                            });
+                    // Calcular total trabalhado se ambos os horários existirem
+                    if (item.hora_inicio && item.hora_fim) {
+                        try {
+                            const [h1, m1] = item.hora_inicio.split(':').map(Number);
+                            const [h2, m2] = item.hora_fim.split(':').map(Number);
+                            
+                            const inicio = h1 * 60 + m1;
+                            const fim = h2 * 60 + m2;
+                            
+                            let diferenca = fim - inicio;
+                            if (diferenca < 0) diferenca += 24 * 60;
+                            
+                            const horas = Math.floor(diferenca / 60);
+                            const minutos = diferenca % 60;
+                            
+                            totalTrabalhado = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+                        } catch (error) {
+                            totalTrabalhado = '--:--';
                         }
                     }
-                }
 
-                if (html === '') {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #999;">Nenhum cooperado alocado em nenhum evento</td></tr>';
-                    totalElement.textContent = '0';
-                } else {
-                    tbody.innerHTML = html;
-                    totalElement.textContent = totalCooperados;
-                }
+                    html += `
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #ddd;">${item.funcionario_nome || 'N/A'}</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">${item.funcionario_cpf || 'N/A'}</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">${item.funcionario_email || 'N/A'}</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">${item.funcao_nome || 'N/A'}</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">${item.setor_nome || 'N/A'}</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${horaInicio}</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${horaFim}</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #27ae60;">${totalTrabalhado}</td>
+                        </tr>
+                    `;
+                });
+
+                tbody.innerHTML = html;
+                totalElement.textContent = equipe.length;
+                
             } catch (error) {
                 console.error('Erro ao carregar credenciamento:', error);
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #e74c3c;">Erro ao carregar dados</td></tr>';
