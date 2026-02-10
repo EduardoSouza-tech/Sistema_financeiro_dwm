@@ -1,0 +1,255 @@
+<!-- ============================================================================
+     MODAL: Configuração de Regras de Auto-Conciliação
+     ============================================================================
+     
+     Sistema inteligente de detecção automática para conciliação de extratos
+     
+     Funcionalidades:
+     - Cadastro de palavras-chave
+     - Vinculação com categoria/subcategoria
+     - Integração com Folha de Pagamento (detecta CPF)
+     - Auto-preenchimento na conciliação
+     
+     Data: 10/02/2026
+     =========================================================================== -->
+
+<!-- Modal Principal: Lista de Regras -->
+<div id="modal-config-regras" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; overflow-y: auto;">
+    <div style="background: white; margin: 40px auto; max-width: 1200px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+        <!-- Cabeçalho -->
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h2 style="margin: 0; font-size: 24px;">🔧 Configuração de Auto-Conciliação</h2>
+                <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Regras inteligentes para preenchimento automático</p>
+            </div>
+            <button onclick="document.getElementById('modal-config-regras').style.display='none'" 
+                    style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; cursor: pointer; width: 40px; height: 40px; border-radius: 50%; transition: all 0.3s;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.3)'"
+                    onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                ×
+            </button>
+        </div>
+        
+        <!-- Corpo do Modal -->
+        <div style="padding: 30px;">
+            <!-- Explicação -->
+            <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; margin-bottom: 25px; border-radius: 4px;">
+                <div style="font-weight: bold; color: #2e7d32; margin-bottom: 8px;">💡 Como funciona:</div>
+                <ul style="margin: 0; padding-left: 20px; color: #33691e;">
+                    <li><strong>Palavra-chave:</strong> Texto que será detectado na descrição do extrato (ex: "RESGATE APLIC")</li>
+                    <li><strong>Categoria/Subcategoria:</strong> Serão preenchidas automaticamente quando a palavra for encontrada</li>
+                    <li><strong>Integração Folha:</strong> Detecta CPF na descrição e busca o funcionário automaticamente</li>
+                    <li><strong>Cliente Padrão:</strong> Nome que será preenchido automaticamente (opcional)</li>
+                </ul>
+            </div>
+            
+            <!-- Botão Nova Regra -->
+            <div style="margin-bottom: 20px; text-align: right;">
+                <button onclick="RegrasConciliacao.novaRegra()" 
+                        style="background: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: all 0.3s;"
+                        onmouseover="this.style.background='#229954'"
+                        onmouseout="this.style.background='#27ae60'">
+                    ➕ Nova Regra
+                </button>
+            </div>
+            
+            <!-- Tabela de Regras -->
+            <div style="overflow-x: auto; border: 1px solid #ddd; border-radius: 8px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8f9fa;">
+                            <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">Palavra-chave / Descrição</th>
+                            <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">Categoria</th>
+                            <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">Subcategoria</th>
+                            <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">Cliente Padrão</th>
+                            <th style="padding: 15px; text-align: center; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">Integração Folha</th>
+                            <th style="padding: 15px; text-align: center; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057; width: 120px;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="regras-lista">
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                                <div style="font-size: 48px; margin-bottom: 10px;">⏳</div>
+                                <div style="font-size: 16px;">Carregando regras...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Rodapé -->
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 12px 12px; text-align: right; border-top: 1px solid #dee2e6;">
+            <button onclick="document.getElementById('modal-config-regras').style.display='none'" 
+                    style="background: #6c757d; color: white; border: none; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.3s;"
+                    onmouseover="this.style.background='#5a6268'"
+                    onmouseout="this.style.background='#6c757d'">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Criar/Editar Regra -->
+<div id="modal-regra-conciliacao" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10001; overflow-y: auto;">
+    <div style="background: white; margin: 40px auto; max-width: 700px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+        <!-- Cabeçalho -->
+        <div style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white; padding: 20px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center;">
+            <h3 id="modal-regra-titulo" style="margin: 0; font-size: 20px;">➕ Nova Regra de Auto-Conciliação</h3>
+            <button onclick="RegrasConciliacao.fecharModal()" 
+                    style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; cursor: pointer; width: 36px; height: 36px; border-radius: 50%;">
+                ×
+            </button>
+        </div>
+        
+        <!-- Formulário -->
+        <div style="padding: 25px;">
+            <input type="hidden" id="regra-id">
+            
+            <!-- Palavra-chave -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">
+                    🔍 Palavra-chave <span style="color: #e74c3c;">*</span>
+                </label>
+                <input type="text" 
+                       id="regra-palavra-chave" 
+                       placeholder="Ex: RESGATE APLIC, PAGAMENTO PIX, TED RECEBIDO"
+                       style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px; transition: border 0.3s;"
+                       onfocus="this.style.borderColor='#3498db'"
+                       onblur="this.style.borderColor='#ddd'">
+                <small style="color: #7f8c8d; font-size: 12px;">Texto que será detectado na descrição (maiúsculas/minúsculas não importam)</small>
+            </div>
+            
+            <!-- Descrição -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">
+                    📝 Descrição (opcional)
+                </label>
+                <input type="text" 
+                       id="regra-descricao" 
+                       placeholder="Ex: Resgates de aplicações financeiras"
+                       style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;"
+                       onfocus="this.style.borderColor='#3498db'"
+                       onblur="this.style.borderColor='#ddd'">
+                <small style="color: #7f8c8d; font-size: 12px;">Descrição para facilitar identificação da regra</small>
+            </div>
+            
+            <!-- Categoria -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">
+                    📂 Categoria (opcional)
+                </label>
+                <select id="regra-categoria"
+                        style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;"
+                        onfocus="this.style.borderColor='#3498db'"
+                        onblur="this.style.borderColor='#ddd'">
+                    <option value="">Selecione uma categoria...</option>
+                </select>
+                <small style="color: #7f8c8d; font-size: 12px;">Categoria que será preenchida automaticamente</small>
+            </div>
+            
+            <!-- Subcategoria -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">
+                    📁 Subcategoria (opcional)
+                </label>
+                <select id="regra-subcategoria"
+                        disabled
+                        style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px; background: #f5f5f5;"
+                        onfocus="this.style.borderColor='#3498db'"
+                        onblur="this.style.borderColor='#ddd'">
+                    <option value="">Primeiro selecione uma categoria</option>
+                </select>
+                <small style="color: #7f8c8d; font-size: 12px;">Subcategoria que será preenchida automaticamente</small>
+            </div>
+            
+            <!-- Cliente Padrão -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">
+                    👤 Cliente/Fornecedor Padrão (opcional)
+                </label>
+                <input type="text" 
+                       id="regra-cliente-padrao" 
+                       placeholder="Ex: Nome do cliente ou fornecedor"
+                       style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;"
+                       onfocus="this.style.borderColor='#3498db'"
+                       onblur="this.style.borderColor='#ddd'">
+                <small style="color: #7f8c8d; font-size: 12px;">Nome que será preenchido automaticamente</small>
+            </div>
+            
+            <!-- Integração Folha -->
+            <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" 
+                           id="regra-integracao-folha"
+                           style="width: 20px; height: 20px; margin-right: 12px; cursor: pointer;">
+                    <div>
+                        <div style="font-weight: 600; color: #856404; font-size: 14px;">
+                            👥 Integração com Folha de Pagamento
+                        </div>
+                        <div style="color: #856404; font-size: 12px; margin-top: 4px;">
+                            Quando ativado, o sistema detectará automaticamente o CPF na descrição (ex: "PAGAMENTO PIX 02141584620 EMILLY THAYNA") e buscará o funcionário cadastrado na folha.
+                        </div>
+                    </div>
+                </label>
+            </div>
+            
+            <!-- Exemplo Visual -->
+            <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 4px;">
+                <div style="font-weight: bold; color: #1565c0; margin-bottom: 8px;">💡 Exemplo Prático:</div>
+                <div style="color: #0d47a1; font-size: 13px; line-height: 1.6;">
+                    <strong>Palavra-chave:</strong> "PAGAMENTO PIX"<br>
+                    <strong>Categoria:</strong> DESPESAS COM TERCEIROS<br>
+                    <strong>Subcategoria:</strong> SERVIÇOS DE TERCEIROS TOMADOS<br>
+                    <strong>Integração Folha:</strong> ✅ ATIVA<br><br>
+                    Resultado: Ao detectar "PAGAMENTO PIX 02141584620 EMILLY...", o sistema irá:
+                    <ul style="margin: 8px 0 0 20px; padding: 0;">
+                        <li>Preencher categoria e subcategoria automaticamente</li>
+                        <li>Detectar CPF 02141584620 na descrição</li>
+                        <li>Buscar funcionário EMILLY THAYNA DE JESUS na folha</li>
+                        <li>Preencher o nome automaticamente</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Rodapé -->
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 12px 12px; text-align: right; border-top: 1px solid #dee2e6;">
+            <button onclick="RegrasConciliacao.fecharModal()" 
+                    style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; margin-right: 10px;">
+                Cancelar
+            </button>
+            <button onclick="RegrasConciliacao.salvarRegra()" 
+                    style="background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">
+                💾 Salvar Regra
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Animações suaves */
+#modal-config-regras, #modal-regra-conciliacao {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Hover effects em botões da tabela */
+.btn-icon:hover {
+    transform: scale(1.1);
+    transition: transform 0.2s;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+    #modal-config-regras > div,
+    #modal-regra-conciliacao > div {
+        margin: 20px;
+        max-width: calc(100% - 40px);
+    }
+}
+</style>

@@ -1724,14 +1724,26 @@
 
             <!-- Remessa de Pagamentos -->
             {% include 'remessa_pagamento.html' %}
+            
+            <!-- ============================================
+                 REGRAS DE AUTO-CONCILIAÇÃO
+                 ============================================ -->
+            {% include 'template_regras_conciliacao.html' %}
 
             <!-- Extrato Bancário -->
             <div id="extrato-bancario-section" class="content-card hidden">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px;">
                     <h2 style="margin: 0; color: #2c3e50;">🏦 Extrato Bancário - Importação OFX</h2>
-                    <button onclick="abrirConciliacaoGeral()" class="btn btn-success" style="padding: 10px 20px; background: #27ae60; font-weight: bold;">
-                        🔄 Conciliação Geral
-                    </button>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="abrirConfiguracaoRegras()" class="btn btn-secondary" style="padding: 10px 20px; background: #9b59b6; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; transition: all 0.3s;"
+                                onmouseover="this.style.background='#8e44ad'"
+                                onmouseout="this.style.background='#9b59b6'">
+                            ⚙️ Configuração de Extrato
+                        </button>
+                        <button onclick="abrirConciliacaoGeral()" class="btn btn-success" style="padding: 10px 20px; background: #27ae60; font-weight: bold;">
+                            🔄 Conciliação Geral
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Upload de Arquivo OFX -->
@@ -9710,5 +9722,6 @@
     
     <!-- Script Módulo Remessa Pagamento -->
     <script src="/static/remessa_pagamento.js?v={{ build_timestamp }}"></script>
+    <script src="/static/regras_conciliacao.js?v={{ build_timestamp }}"></script>
 </body>
 </html>

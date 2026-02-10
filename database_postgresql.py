@@ -7167,3 +7167,280 @@ def obter_estatisticas_empresa(empresa_id):
             return_to_pool(conn)
 
 
+# ============================================================================
+# REGRAS DE AUTO-CONCILIAÇÃO
+# ============================================================================
+
+def listar_regras_conciliacao(self, empresa_id: int) -> List[Dict]:
+    """
+    Lista todas as regras de auto-conciliação de uma empresa
+    
+    Args:
+        empresa_id: ID da empresa
+        
+    Returns:
+        Lista de regras
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_from_pool(self.pool)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT 
+                id, 
+                empresa_id,
+                palavra_chave,
+                categoria,
+                subcategoria,
+                cliente_padrao,
+                usa_integracao_folha,
+                descricao,
+                ativo,
+                created_at,
+                updated_at
+            FROM regras_conciliacao
+            WHERE empresa_id = %s
+            ORDER BY ativo DESC, palavra_chave ASC
+        """, (empresa_id,))
+        
+        regras = cursor.fetchall()
+        return [dict(r) for r in regras]
+        
+    except Exception as e:
+        print(f"❌ Erro ao listar regras de conciliação: {e}")
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+
+def criar_regra_conciliacao(self, empresa_id: int, palavra_chave: str, 
+                           categoria: str = None, subcategoria: str = None,
+                           cliente_padrao: str = None, usa_integracao_folha: bool = False,
+                           descricao: str = None) -> Optional[Dict]:
+    """
+    Cria nova regra de auto-conciliação
+    
+    Args:
+        empresa_id: ID da empresa
+        palavra_chave: Texto a ser detectado na descrição
+        categoria: Categoria a ser preenchida automaticamente
+        subcategoria: Subcategoria a ser preenchida automaticamente
+        cliente_padrao: Cliente/Fornecedor padrão
+        usa_integracao_folha: Se TRUE, busca CPF e vincula com funcionário
+        descricao: Descrição opcional da regra
+        
+    Returns:
+        Dicionário com a regra criada ou None se erro
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_from_pool(self.pool)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            INSERT INTO regras_conciliacao (
+                empresa_id, palavra_chave, categoria, subcategoria,
+                cliente_padrao, usa_integracao_folha, descricao, ativo
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE)
+            RETURNING *
+        """, (empresa_id, palavra_chave.upper(), categoria, subcategoria,
+              cliente_padrao, usa_integracao_folha, descricao))
+        
+        conn.commit()
+        regra = cursor.fetchone()
+        return dict(regra) if regra else None
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ Erro ao criar regra de conciliação: {e}")
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+
+def atualizar_regra_conciliacao(self, regra_id: int, empresa_id: int, **campos) -> bool:
+    """
+    Atualiza uma regra de auto-conciliação
+    
+    Args:
+        regra_id: ID da regra
+        empresa_id: ID da empresa (segurança)
+        **campos: Campos a atualizar
+        
+    Returns:
+        True se sucesso, False caso contrário
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_from_pool(self.pool)
+        cursor = conn.cursor()
+        
+        # Construir SQL dinâmico apenas com campos válidos
+        campos_validos = ['palavra_chave', 'categoria', 'subcategoria', 
+                         'cliente_padrao', 'usa_integracao_folha', 'descricao', 'ativo']
+        
+        sets = []
+        valores = []
+        for campo, valor in campos.items():
+            if campo in campos_validos:
+                sets.append(f"{campo} = %s")
+                # Normalizar palavra_chave para uppercase
+                if campo == 'palavra_chave' and isinstance(valor, str):
+                    valor = valor.upper()
+                valores.append(valor)
+        
+        if not sets:
+            return False
+        
+        valores.extend([regra_id, empresa_id])
+        
+        cursor.execute(f"""
+            UPDATE regras_conciliacao 
+            SET {', '.join(sets)}
+            WHERE id = %s AND empresa_id = %s
+        """, valores)
+        
+        conn.commit()
+        return cursor.rowcount > 0
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ Erro ao atualizar regra de conciliação: {e}")
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+
+def excluir_regra_conciliacao(self, regra_id: int, empresa_id: int) -> bool:
+    """
+    Exclui uma regra de auto-conciliação
+    
+    Args:
+        regra_id: ID da regra
+        empresa_id: ID da empresa (segurança)
+        
+    Returns:
+        True se sucesso, False caso contrário
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_from_pool(self.pool)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            DELETE FROM regras_conciliacao 
+            WHERE id = %s AND empresa_id = %s
+        """, (regra_id, empresa_id))
+        
+        conn.commit()
+        return cursor.rowcount > 0
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ Erro ao excluir regra de conciliação: {e}")
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+
+def buscar_regra_aplicavel(self, empresa_id: int, descricao: str) -> Optional[Dict]:
+    """
+    Busca a regra mais específica aplicável a uma descrição de extrato
+    
+    Args:
+        empresa_id: ID da empresa
+        descricao: Descrição da transação do extrato
+        
+    Returns:
+        Dicionário com a regra encontrada ou None
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_from_pool(self.pool)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT * FROM buscar_regras_aplicaveis(%s, %s)
+        """, (empresa_id, descricao))
+        
+        regra = cursor.fetchone()
+        return dict(regra) if regra else None
+        
+    except Exception as e:
+        print(f"❌ Erro ao buscar regra aplicável: {e}")
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+
+def buscar_funcionario_por_cpf(self, empresa_id: int, cpf: str) -> Optional[Dict]:
+    """
+    Busca funcionário da folha de pagamento pelo CPF
+    
+    Args:
+        empresa_id: ID da empresa
+        cpf: CPF do funcionário (apenas números)
+        
+    Returns:
+        Dicionário com dados do funcionário ou None
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_from_pool(self.pool)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Remover qualquer formatação do CPF
+        cpf_limpo = ''.join(filter(str.isdigit, cpf))
+        
+        cursor.execute("""
+            SELECT 
+                id,
+                nome,
+                cpf,
+                cargo,
+                salario,
+                ativo
+            FROM funcionarios
+            WHERE empresa_id = %s 
+              AND REPLACE(REPLACE(REPLACE(cpf, '.', ''), '-', ''), ' ', '') = %s
+              AND ativo = TRUE
+        """, (empresa_id, cpf_limpo))
+        
+        funcionario = cursor.fetchone()
+        return dict(funcionario) if funcionario else None
+        
+    except Exception as e:
+        print(f"❌ Erro ao buscar funcionário por CPF: {e}")
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            return_to_pool(conn)
+
+

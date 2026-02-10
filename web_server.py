@@ -4161,6 +4161,179 @@ def desconciliar_extrato(transacao_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ============================================================================
+# ROTAS DE REGRAS DE AUTO-CONCILIAÇÃO
+# ============================================================================
+
+@app.route('/api/regras-conciliacao', methods=['GET'])
+@require_permission('lancamentos_view')
+def listar_regras_conciliacao():
+    """Lista todas as regras de auto-conciliação da empresa"""
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
+        regras = db.listar_regras_conciliacao(empresa_id=empresa_id)
+        
+        return jsonify({
+            'success': True,
+            'data': regras
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Erro ao listar regras de conciliação: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/regras-conciliacao', methods=['POST'])
+@require_permission('lancamentos_create')
+def criar_regra_conciliacao():
+    """Cria nova regra de auto-conciliação"""
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
+        dados = request.json
+        
+        # Validar campos obrigatórios
+        if not dados.get('palavra_chave'):
+            return jsonify({'success': False, 'error': 'Palavra-chave é obrigatória'}), 400
+        
+        regra = db.criar_regra_conciliacao(
+            empresa_id=empresa_id,
+            palavra_chave=dados.get('palavra_chave'),
+            categoria=dados.get('categoria'),
+            subcategoria=dados.get('subcategoria'),
+            cliente_padrao=dados.get('cliente_padrao'),
+            usa_integracao_folha=dados.get('usa_integracao_folha', False),
+            descricao=dados.get('descricao')
+        )
+        
+        if regra:
+            return jsonify({
+                'success': True,
+                'message': 'Regra criada com sucesso',
+                'data': regra
+            }), 201
+        else:
+            return jsonify({'success': False, 'error': 'Erro ao criar regra'}), 500
+        
+    except Exception as e:
+        logger.error(f"Erro ao criar regra de conciliação: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/regras-conciliacao/<int:regra_id>', methods=['PUT'])
+@require_permission('lancamentos_edit')
+def atualizar_regra_conciliacao(regra_id):
+    """Atualiza uma regra de auto-conciliação"""
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
+        dados = request.json
+        
+        sucesso = db.atualizar_regra_conciliacao(
+            regra_id=regra_id,
+            empresa_id=empresa_id,
+            **dados
+        )
+        
+        if sucesso:
+            return jsonify({
+                'success': True,
+                'message': 'Regra atualizada com sucesso'
+            }), 200
+        else:
+            return jsonify({'success': False, 'error': 'Regra não encontrada ou sem permissão'}), 404
+        
+    except Exception as e:
+        logger.error(f"Erro ao atualizar regra de conciliação: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/regras-conciliacao/<int:regra_id>', methods=['DELETE'])
+@require_permission('lancamentos_delete')
+def excluir_regra_conciliacao(regra_id):
+    """Exclui uma regra de auto-conciliação"""
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
+        sucesso = db.excluir_regra_conciliacao(
+            regra_id=regra_id,
+            empresa_id=empresa_id
+        )
+        
+        if sucesso:
+            return jsonify({
+                'success': True,
+                'message': 'Regra excluída com sucesso'
+            }), 200
+        else:
+            return jsonify({'success': False, 'error': 'Regra não encontrada ou sem permissão'}), 404
+        
+    except Exception as e:
+        logger.error(f"Erro ao excluir regra de conciliação: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/regras-conciliacao/detectar', methods=['POST'])
+@require_permission('lancamentos_view')
+def detectar_regra_conciliacao():
+    """
+    Detecta regra aplicável e funcionário (se integração folha ativa)
+    para uma descrição de extrato
+    """
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
+        dados = request.json
+        descricao = dados.get('descricao', '')
+        
+        if not descricao:
+            return jsonify({'success': False, 'error': 'Descrição é obrigatória'}), 400
+        
+        # Buscar regra aplicável
+        regra = db.buscar_regra_aplicavel(empresa_id=empresa_id, descricao=descricao)
+        
+        resultado = {
+            'success': True,
+            'regra_encontrada': regra is not None,
+            'regra': regra,
+            'funcionario': None
+        }
+        
+        # Se regra tem integração com folha, buscar CPF na descrição
+        if regra and regra.get('usa_integracao_folha'):
+            import re
+            # Buscar CPF na descrição (11 dígitos consecutivos)
+            cpf_match = re.search(r'\b(\d{11})\b', descricao)
+            
+            if cpf_match:
+                cpf = cpf_match.group(1)
+                funcionario = db.buscar_funcionario_por_cpf(empresa_id=empresa_id, cpf=cpf)
+                
+                if funcionario:
+                    resultado['funcionario'] = {
+                        'nome': funcionario.get('nome'),
+                        'cpf': funcionario.get('cpf'),
+                        'cargo': funcionario.get('cargo')
+                    }
+        
+        return jsonify(resultado), 200
+        
+    except Exception as e:
+        logger.error(f"Erro ao detectar regra de conciliação: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # === ROTAS DE FOLHA DE PAGAMENTO (FUNCIONÁRIOS) ===
 
 @app.route('/api/funcionarios', methods=['GET'])

@@ -3213,20 +3213,73 @@ async function mostrarSugestoesConciliacao(transacaoId) {
             if (cpf_cnpj) fornecedoresPorCPF[cpf_cnpj] = f.nome;
         });
         
+        // 🤖 DETECTAR REGRA DE AUTO-CONCILIAÇÃO
+        let regraDetectada = null;
+        let categoriaPreSelecionada = '';
+        let subcategoriaPreSelecionada = '';
+        let razaoPreSelecionada = '';
+        
+        try {
+            const detectResponse = await fetch(`${API_URL}/regras-conciliacao/detectar`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ descricao: transacao.descricao })
+            });
+            
+            if (detectResponse.ok) {
+                const detectResult = await detectResponse.json();
+                
+                if (detectResult.success && detectResult.regra_encontrada) {
+                    regraDetectada = detectResult.regra;
+                    console.log('🎯 Regra detectada automaticamente:', regraDetectada);
+                    
+                    // Pré-selecionar categoria e subcategoria
+                    if (regraDetectada.categoria) {
+                        categoriaPreSelecionada = regraDetectada.categoria;
+                    }
+                    if (regraDetectada.subcategoria) {
+                        subcategoriaPreSelecionada = regraDetectada.subcategoria;
+                    }
+                    
+                    // Se tem integração com folha e encontrou funcionário
+                    if (detectResult.funcionario) {
+                        razaoPreSelecionada = detectResult.funcionario.nome;
+                        console.log('👤 Funcionário detectado automaticamente:', detectResult.funcionario.nome);
+                        showToast(`✅ Funcionário detectado: ${detectResult.funcionario.nome}`, 'success');
+                    }
+                    // Senão usar cliente padrão da regra
+                    else if (regraDetectada.cliente_padrao) {
+                        razaoPreSelecionada = regraDetectada.cliente_padrao;
+                    }
+                    
+                    if (regraDetectada.palavra_chave) {
+                        showToast(`🤖 Auto-conciliação: "${regraDetectada.palavra_chave}" detectado`, 'info');
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ Erro ao detectar regra (não crítico):', error);
+        }
+        
         // Determinar tipo e cor
         console.log('🔍 Tipo da transação:', transacao.tipo);
         const isCredito = transacao.tipo?.toUpperCase() === 'CREDITO';
         console.log('   É crédito?', isCredito);
         const valorColor = isCredito ? '#27ae60' : '#e74c3c';
         
-        // Tentar detectar CPF/CNPJ na descrição
-        const numeros = transacao.descricao.replace(/\D/g, '');
-        let razaoSugerida = '';
-        if (numeros.length === 11 || numeros.length === 14) {
-            razaoSugerida = isCredito ? 
-                (clientesPorCPF[numeros] || '') : 
-                (fornecedoresPorCPF[numeros] || '');
+        // Tentar detectar CPF/CNPJ na descrição (se não foi detectado por regra)
+        if (!razaoPreSelecionada) {
+            const numeros = transacao.descricao.replace(/\D/g, '');
+            if (numeros.length === 11 || numeros.length === 14) {
+                razaoPreSelecionada = isCredito ? 
+                    (clientesPorCPF[numeros] || '') : 
+                    (fornecedoresPorCPF[numeros] || '');
+            }
         }
+        const razaoSugerida = razaoPreSelecionada;
         
         // Filtrar categorias por tipo (case-insensitive)
         const categoriasOpcoes = isCredito ? 
@@ -3291,22 +3344,27 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                             onchange="carregarSubcategoriasIndividual(this.value)"
                             style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px;">
                         <option value="">Selecione a categoria...</option>
-                        ${categoriasOpcoes.map(c => `<option value="${c.nome}">${c.nome}</option>`).join('')}
+                        ${categoriasOpcoes.map(c => `<option value="${c.nome}" ${c.nome === categoriaPreSelecionada ? 'selected' : ''}>${c.nome}</option>`).join('')}
                     </select>
+                    ${categoriaPreSelecionada ? '<small style="color: #27ae60; font-weight: bold;">✅ Auto-selecionado pela regra</small>' : ''}
                 </div>
                 
                 <div class="form-group" style="margin-bottom: 0;">
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">Subcategoria:</label>
                     <select id="subcategoria-individual" 
-                            disabled
-                            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; background: #f5f5f5;">
+                            ${!categoriaPreSelecionada ? 'disabled' : ''}
+                            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; background: ${categoriaPreSelecionada ? 'white' : '#f5f5f5'};">
                         <option value="">Primeiro selecione uma categoria</option>
                     </select>
+                    ${subcategoriaPreSelecionada ? '<small style="color: #27ae60; font-weight: bold;">✅ Auto-selecionado pela regra</small>' : ''}
                 </div>
             </div>`;
         
         console.log('📝 HTML do formulário montado');
         console.log('   Tamanho do HTML:', formHtml.length, 'caracteres');
+        console.log('   🎯 Categoria pré-selecionada:', categoriaPreSelecionada || 'Nenhuma');
+        console.log('   🎯 Subcategoria pré-selecionada:', subcategoriaPreSelecionada || 'Nenhuma');
+        console.log('   🎯 Razão pré-selecionada:', razaoSugerida || 'Nenhuma');
         
         const formElement = document.getElementById('transacao-conciliacao-form');
         console.log('📍 Elemento transacao-conciliacao-form:', formElement);
@@ -3333,6 +3391,25 @@ async function mostrarSugestoesConciliacao(transacaoId) {
         
         // Mostrar modal
         showModal('modal-conciliacao');
+        
+        // Se categoria foi pré-selecionada carregar subcategorias e pré-selecionar
+        if (categoriaPreSelecionada) {
+            // Aguardar um momento para o DOM estar pronto
+            setTimeout(() => {
+                carregarSubcategoriasIndividual(categoriaPreSelecionada);
+                
+                // Se tem subcategoria pré-selecionada, aplicar
+                if (subcategoriaPreSelecionada) {
+                    setTimeout(() => {
+                        const subcatSelect = document.getElementById('subcategoria-individual');
+                        if (subcatSelect) {
+                            subcatSelect.value = subcategoriaPreSelecionada;
+                            console.log('✅ Subcategoria pré-selecionada aplicada:', subcategoriaPreSelecionada);
+                        }
+                    }, 100);
+                }
+            }, 50);
+        }
         
         console.log('✅ Modal de conciliação individual aberto');
         
