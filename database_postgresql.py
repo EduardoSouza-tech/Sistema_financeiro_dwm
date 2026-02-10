@@ -3296,7 +3296,7 @@ class DatabaseManager:
         conn = None
         cursor = None
         try:
-            conn = get_from_pool(self.pool)
+            conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             cursor.execute("""
@@ -3351,7 +3351,7 @@ class DatabaseManager:
         conn = None
         cursor = None
         try:
-            conn = get_from_pool(self.pool)
+            conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             cursor.execute("""
@@ -3393,7 +3393,7 @@ class DatabaseManager:
         conn = None
         cursor = None
         try:
-            conn = get_from_pool(self.pool)
+            conn = self.get_connection()
             cursor = conn.cursor()
             
             # Construir SQL dinâmico apenas com campos válidos
@@ -3449,7 +3449,7 @@ class DatabaseManager:
         conn = None
         cursor = None
         try:
-            conn = get_from_pool(self.pool)
+            conn = self.get_connection()
             cursor = conn.cursor()
             
             cursor.execute("""
