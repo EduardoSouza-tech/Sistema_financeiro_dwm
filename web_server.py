@@ -9530,6 +9530,105 @@ def criar_admin_inicial():
 
 
 # ============================================================================
+# ENDPOINT TEMPORÁRIO PARA ADICIONAR PERMISSÕES DE REGRAS (RAILWAY)
+# ============================================================================
+@app.route('/api/debug/adicionar-permissoes-regras', methods=['POST'])
+@csrf_instance.exempt
+def adicionar_permissoes_regras():
+    """
+    Endpoint temporário para adicionar permissões de regras de conciliação
+    no campo JSONB permissoes_empresa da tabela usuario_empresas
+    
+    ⚠️ DISPONÍVEL APENAS EM DESENVOLVIMENTO
+    """
+    # Bloquear em produção
+    check = _check_debug_endpoint_allowed()
+    if check:
+        return check
+    
+    try:
+        import json
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Buscar todos os vínculos usuario-empresa ativos
+        cursor.execute("""
+            SELECT usuario_id, empresa_id, permissoes_empresa
+            FROM usuario_empresas
+            WHERE ativo = TRUE
+        """)
+        vinculos = cursor.fetchall()
+        
+        # Permissões a adicionar
+        novas_permissoes = [
+            'regras_conciliacao_view',
+            'regras_conciliacao_create', 
+            'regras_conciliacao_edit',
+            'regras_conciliacao_delete'
+        ]
+        
+        atualizados = 0
+        detalhes = []
+        
+        for vinculo in vinculos:
+            usuario_id = vinculo['usuario_id']
+            empresa_id = vinculo['empresa_id']
+            permissoes_atual = vinculo['permissoes_empresa']
+            
+            # Converter JSONB para lista Python
+            if permissoes_atual:
+                if isinstance(permissoes_atual, str):
+                    permissoes = json.loads(permissoes_atual)
+                else:
+                    permissoes = permissoes_atual
+            else:
+                permissoes = []
+            
+            # Adicionar novas permissões se não existirem
+            permissoes_adicionadas = []
+            for perm in novas_permissoes:
+                if perm not in permissoes:
+                    permissoes.append(perm)
+                    permissoes_adicionadas.append(perm)
+            
+            if permissoes_adicionadas:
+                # Atualizar no banco
+                cursor.execute("""
+                    UPDATE usuario_empresas
+                    SET permissoes_empresa = %s::jsonb
+                    WHERE usuario_id = %s AND empresa_id = %s
+                """, (json.dumps(permissoes), usuario_id, empresa_id))
+                
+                atualizados += 1
+                detalhes.append({
+                    'usuario_id': usuario_id,
+                    'empresa_id': empresa_id,
+                    'permissoes_adicionadas': permissoes_adicionadas,
+                    'total_permissoes': len(permissoes)
+                })
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{atualizados} vínculo(s) atualizado(s)',
+            'vinculos_total': len(vinculos),
+            'vinculos_atualizados': atualizados,
+            'detalhes': detalhes
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+# ============================================================================
 # ENDPOINT TEMPORÁRIO PARA FIX SUBCATEGORIAS (RAILWAY)
 # ============================================================================
 @app.route('/api/debug/fix-subcategorias-type', methods=['POST'])
