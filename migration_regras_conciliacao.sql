@@ -100,7 +100,7 @@ VALUES
 ON CONFLICT (codigo) DO NOTHING;
 
 -- 7. Dar permissões para todos os usuários ativos
-INSERT INTO usuarios_permissoes (usuario_id, permissao_id)
+INSERT INTO usuario_permissoes (usuario_id, permissao_id)
 SELECT u.id, p.id
 FROM usuarios u
 CROSS JOIN permissoes p
