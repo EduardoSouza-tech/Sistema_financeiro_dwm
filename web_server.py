@@ -9706,6 +9706,77 @@ def fix_subcategorias_type():
 
 
 # ============================================================================
+# ENDPOINT TEMPORÁRIO PARA VERIFICAR TABELA REGRAS_CONCILIACAO
+# ============================================================================
+@app.route('/api/debug/verificar-tabela-regras', methods=['GET'])
+@csrf.exempt
+def verificar_tabela_regras():
+    """
+    Endpoint temporário para diagnosticar tabela regras_conciliacao
+    """
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # 1. Verificar se tabela existe
+        cursor.execute("""
+            SELECT COUNT(*) as existe
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'regras_conciliacao'
+        """)
+        tabela_existe = cursor.fetchone()['existe'] > 0
+        
+        resultado = {
+            'tabela_existe': tabela_existe
+        }
+        
+        if tabela_existe:
+            # 2. Verificar estrutura da tabela
+            cursor.execute("""
+                SELECT column_name, data_type, is_nullable
+                FROM information_schema.columns
+                WHERE table_name = 'regras_conciliacao'
+                ORDER BY ordinal_position
+            """)
+            colunas = cursor.fetchall()
+            resultado['colunas'] = [dict(c) for c in colunas]
+            
+            # 3. Contar registros
+            cursor.execute("SELECT COUNT(*) as total FROM regras_conciliacao")
+            resultado['total_regras'] = cursor.fetchone()['total']
+            
+            # 4. Testar query simples
+            try:
+                cursor.execute("""
+                    SELECT id, empresa_id, palavra_chave, ativo
+                    FROM regras_conciliacao
+                    LIMIT 5
+                """)
+                resultado['amostra'] = [dict(r) for r in cursor.fetchall()]
+                resultado['query_ok'] = True
+            except Exception as e:
+                resultado['query_ok'] = False
+                resultado['query_erro'] = str(e)
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': resultado
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+# ============================================================================
 # ENDPOINT DE STATUS DA MIGRAÇÃO DE SENHAS
 # ============================================================================
 @app.route('/api/admin/passwords/migration-status', methods=['GET'])
