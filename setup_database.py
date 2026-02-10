@@ -210,20 +210,103 @@ def execute_migration_regras_conciliacao():
         return False
 
 
+def execute_migration_permissoes_empresa_regras():
+    """Executa migration para adicionar permissões de regras no sistema multi-empresa"""
+    print("\n" + "="*80, flush=True)
+    print("📝 EXECUTANDO MIGRATION DE PERMISSÕES MULTI-EMPRESA", flush=True)
+    print("="*80, flush=True)
+    
+    try:
+        # Inicializar DatabaseManager
+        db = DatabaseManager()
+        print("✅ DatabaseManager inicializado", flush=True)
+        
+        # Conectar ao banco
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        print("✅ Conexão estabelecida", flush=True)
+        
+        # Verificar se já foi executado (simples: verifica se algum usuário já tem as permissões)
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM usuario_empresas
+            WHERE permissoes_empresa::text LIKE '%regras_conciliacao_view%'
+            AND ativo = TRUE
+        """)
+        
+        count = cursor.fetchone()[0]
+        
+        if count > 0:
+            print(f"✅ Migration já executada ({count} usuário(s) com permissões). Nada a fazer.", flush=True)
+            cursor.close()
+            return True
+        
+        print("⚠️ Permissões não encontradas. Executando migration...", flush=True)
+        
+        # Ler arquivo SQL
+        sql_file = os.path.join(os.path.dirname(__file__), 'migration_permissoes_empresa_regras.sql')
+        
+        if not os.path.exists(sql_file):
+            print(f"❌ Arquivo não encontrado: {sql_file}", flush=True)
+            return False
+        
+        print(f"✅ Arquivo SQL encontrado: {sql_file}", flush=True)
+        
+        with open(sql_file, 'r', encoding='utf-8') as f:
+            sql_content = f.read()
+        
+        print(f"✅ SQL lido ({len(sql_content)} bytes)", flush=True)
+        
+        # Executar SQL
+        print("📝 Executando SQL...", flush=True)
+        cursor.execute(sql_content)
+        conn.commit()
+        print("✅ SQL executado e commitado", flush=True)
+        
+        # Verificar resultado
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM usuario_empresas
+            WHERE permissoes_empresa::text LIKE '%regras_conciliacao_view%'
+            AND ativo = TRUE
+        """)
+        
+        count = cursor.fetchone()[0]
+        print(f"✅ {count} USUÁRIO(S) ATUALIZADOS COM PERMISSÕES", flush=True)
+        
+        cursor.close()
+        
+        print("\n" + "="*80, flush=True)
+        print("✅ MIGRATION PERMISSÕES MULTI-EMPRESA CONCLUÍDA!", flush=True)
+        print("="*80, flush=True)
+        
+        return True
+        
+    except Exception as e:
+        print(f"\n❌ ERRO NA MIGRATION PERMISSÕES: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        print("", flush=True)
+        return False
+
+
+
 if __name__ == '__main__':
     try:
         # Executar migrations
         eventos_success = execute_migration_eventos()
         regras_success = execute_migration_regras_conciliacao()
+        permissoes_success = execute_migration_permissoes_empresa_regras()
         
         print("\n" + "="*80, flush=True)
         print("📋 RESUMO DO SETUP", flush=True)
         print("="*80, flush=True)
         print(f"✅ Migration Eventos: {'OK' if eventos_success else 'FALHOU'}", flush=True)
         print(f"✅ Migration Regras: {'OK' if regras_success else 'FALHOU'}", flush=True)
+        print(f"✅ Migration Permissões: {'OK' if permissoes_success else 'FALHOU'}", flush=True)
         print("="*80, flush=True)
         
-        if eventos_success and regras_success:
+        if eventos_success and regras_success and permissoes_success:
             print("\n✅ SETUP CONCLUÍDO COM SUCESSO!", flush=True)
         else:
             print("\n⚠️ Setup com avisos (normal em redeploys)", flush=True)
@@ -235,3 +318,4 @@ if __name__ == '__main__':
         import traceback
         traceback.print_exc()
         sys.exit(0)  # Não falhar o deploy mesmo com erro
+
