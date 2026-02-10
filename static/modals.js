@@ -1005,45 +1005,55 @@ function openModalCliente(clienteEdit = null) {
     }
     
     // Escapar HTML para valores de atributos
-    // Backend pode retornar só 'nome' ou 'razao_social'
-    const nomeOriginal = isEdit ? (clienteEdit.razao_social || clienteEdit.nome || '') : '';
-    const nomeOriginalEscaped = nomeOriginal.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const escapeHtml = (str) => (str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     
-    // Usar nome como razao_social se razao_social não existir
+    // 📝 Extrair TODOS os valores do cliente (com fallbacks)
+    const nomeOriginal = isEdit ? (clienteEdit.razao_social || clienteEdit.nome || '') : '';
     const razaoSocial = isEdit ? (clienteEdit.razao_social || clienteEdit.nome || '') : '';
     const nomeFantasia = isEdit ? (clienteEdit.nome_fantasia || clienteEdit.nome || '') : '';
     const cnpj = isEdit ? (clienteEdit.cnpj || clienteEdit.cpf_cnpj || clienteEdit.documento || '') : '';
+    const ie = isEdit ? (clienteEdit.ie || clienteEdit.inscricao_estadual || '') : '';
+    const im = isEdit ? (clienteEdit.im || clienteEdit.inscricao_municipal || '') : '';
+    const cep = isEdit ? (clienteEdit.cep || '') : '';
+    const rua = isEdit ? (clienteEdit.logradouro || clienteEdit.rua || '') : '';
+    const numero = isEdit ? (clienteEdit.numero || '') : '';
+    const complemento = isEdit ? (clienteEdit.complemento || '') : '';
+    const bairro = isEdit ? (clienteEdit.bairro || '') : '';
+    const cidade = isEdit ? (clienteEdit.cidade || '') : '';
+    const estado = isEdit ? (clienteEdit.estado || clienteEdit.uf || '') : '';
+    const telefone = isEdit ? (clienteEdit.telefone || clienteEdit.contato || '') : '';
+    const email = isEdit ? (clienteEdit.email || '') : '';
     
     const modal = createModal(titulo, `
         <form id="form-cliente" onsubmit="salvarCliente(event)">
             <input type="hidden" id="cliente-edit-mode" value="${isEdit}">
-            <input type="hidden" id="cliente-nome-original" value="${nomeOriginalEscaped}">
+            <input type="hidden" id="cliente-nome-original" value="${escapeHtml(nomeOriginal)}">
             
             <div class="form-group">
                 <label>*CNPJ:</label>
-                <input type="text" id="cliente-cnpj" value="${cnpj}" required placeholder="00.000.000/0000-00" onblur="buscarDadosCNPJ()">
+                <input type="text" id="cliente-cnpj" value="${escapeHtml(cnpj)}" required placeholder="00.000.000/0000-00" onblur="buscarDadosCNPJ()">
                 <small style="color: #7f8c8d; font-size: 11px;">Digite o CNPJ para buscar dados automaticamente</small>
             </div>
             
             <div class="form-group">
                 <label>*Razão Social:</label>
-                <input type="text" id="cliente-razao" value="${razaoSocial}" required>
+                <input type="text" id="cliente-razao" value="${escapeHtml(razaoSocial)}" required>
             </div>
             
             <div class="form-group">
                 <label>*Nome Fantasia:</label>
-                <input type="text" id="cliente-fantasia" value="${nomeFantasia}" required>
+                <input type="text" id="cliente-fantasia" value="${escapeHtml(nomeFantasia)}" required>
             </div>
             
             <div class="form-row">
                 <div class="form-group">
                     <label>Inscrição Estadual:</label>
-                    <input type="text" id="cliente-ie">
+                    <input type="text" id="cliente-ie" value="${escapeHtml(ie)}">
                 </div>
                 
                 <div class="form-group">
                     <label>Inscrição Municipal:</label>
-                    <input type="text" id="cliente-im">
+                    <input type="text" id="cliente-im" value="${escapeHtml(im)}">
                 </div>
             </div>
             
@@ -1052,68 +1062,68 @@ function openModalCliente(clienteEdit = null) {
             
             <div class="form-group">
                 <label>CEP:</label>
-                <input type="text" id="cliente-cep" placeholder="00000-000" onblur="buscarCepCliente()">
+                <input type="text" id="cliente-cep" value="${escapeHtml(cep)}" placeholder="00000-000" onblur="buscarCepCliente()">
             </div>
             
             <div class="form-group">
                 <label>Rua/Avenida:</label>
-                <input type="text" id="cliente-rua">
+                <input type="text" id="cliente-rua" value="${escapeHtml(rua)}">
             </div>
             
             <div class="form-row">
                 <div class="form-group">
                     <label>Número:</label>
-                    <input type="text" id="cliente-numero">
+                    <input type="text" id="cliente-numero" value="${escapeHtml(numero)}">
                 </div>
                 
                 <div class="form-group">
                     <label>Complemento:</label>
-                    <input type="text" id="cliente-complemento">
+                    <input type="text" id="cliente-complemento" value="${escapeHtml(complemento)}">
                 </div>
             </div>
             
             <div class="form-group">
                 <label>Bairro:</label>
-                <input type="text" id="cliente-bairro">
+                <input type="text" id="cliente-bairro" value="${escapeHtml(bairro)}">
             </div>
             
             <div class="form-row">
                 <div class="form-group">
                     <label>Cidade:</label>
-                    <input type="text" id="cliente-cidade">
+                    <input type="text" id="cliente-cidade" value="${escapeHtml(cidade)}">
                 </div>
                 
                 <div class="form-group">
                     <label>Estado:</label>
                     <select id="cliente-estado">
                         <option value="">Selecione...</option>
-                        <option value="AC">AC</option>
-                        <option value="AL">AL</option>
-                        <option value="AP">AP</option>
-                        <option value="AM">AM</option>
-                        <option value="BA">BA</option>
-                        <option value="CE">CE</option>
-                        <option value="DF">DF</option>
-                        <option value="ES">ES</option>
-                        <option value="GO">GO</option>
-                        <option value="MA">MA</option>
-                        <option value="MT">MT</option>
-                        <option value="MS">MS</option>
-                        <option value="MG">MG</option>
-                        <option value="PA">PA</option>
-                        <option value="PB">PB</option>
-                        <option value="PR">PR</option>
-                        <option value="PE">PE</option>
-                        <option value="PI">PI</option>
-                        <option value="RJ">RJ</option>
-                        <option value="RN">RN</option>
-                        <option value="RS">RS</option>
-                        <option value="RO">RO</option>
-                        <option value="RR">RR</option>
-                        <option value="SC">SC</option>
-                        <option value="SP">SP</option>
-                        <option value="SE">SE</option>
-                        <option value="TO">TO</option>
+                        <option value="AC" ${estado === 'AC' ? 'selected' : ''}>AC</option>
+                        <option value="AL" ${estado === 'AL' ? 'selected' : ''}>AL</option>
+                        <option value="AP" ${estado === 'AP' ? 'selected' : ''}>AP</option>
+                        <option value="AM" ${estado === 'AM' ? 'selected' : ''}>AM</option>
+                        <option value="BA" ${estado === 'BA' ? 'selected' : ''}>BA</option>
+                        <option value="CE" ${estado === 'CE' ? 'selected' : ''}>CE</option>
+                        <option value="DF" ${estado === 'DF' ? 'selected' : ''}>DF</option>
+                        <option value="ES" ${estado === 'ES' ? 'selected' : ''}>ES</option>
+                        <option value="GO" ${estado === 'GO' ? 'selected' : ''}>GO</option>
+                        <option value="MA" ${estado === 'MA' ? 'selected' : ''}>MA</option>
+                        <option value="MT" ${estado === 'MT' ? 'selected' : ''}>MT</option>
+                        <option value="MS" ${estado === 'MS' ? 'selected' : ''}>MS</option>
+                        <option value="MG" ${estado === 'MG' ? 'selected' : ''}>MG</option>
+                        <option value="PA" ${estado === 'PA' ? 'selected' : ''}>PA</option>
+                        <option value="PB" ${estado === 'PB' ? 'selected' : ''}>PB</option>
+                        <option value="PR" ${estado === 'PR' ? 'selected' : ''}>PR</option>
+                        <option value="PE" ${estado === 'PE' ? 'selected' : ''}>PE</option>
+                        <option value="PI" ${estado === 'PI' ? 'selected' : ''}>PI</option>
+                        <option value="RJ" ${estado === 'RJ' ? 'selected' : ''}>RJ</option>
+                        <option value="RN" ${estado === 'RN' ? 'selected' : ''}>RN</option>
+                        <option value="RS" ${estado === 'RS' ? 'selected' : ''}>RS</option>
+                        <option value="RO" ${estado === 'RO' ? 'selected' : ''}>RO</option>
+                        <option value="RR" ${estado === 'RR' ? 'selected' : ''}>RR</option>
+                        <option value="SC" ${estado === 'SC' ? 'selected' : ''}>SC</option>
+                        <option value="SP" ${estado === 'SP' ? 'selected' : ''}>SP</option>
+                        <option value="SE" ${estado === 'SE' ? 'selected' : ''}>SE</option>
+                        <option value="TO" ${estado === 'TO' ? 'selected' : ''}>TO</option>
                     </select>
                 </div>
             </div>
@@ -1121,12 +1131,12 @@ function openModalCliente(clienteEdit = null) {
             <div class="form-row">
                 <div class="form-group">
                     <label>Telefone:</label>
-                    <input type="text" id="cliente-telefone" placeholder="(00) 00000-0000">
+                    <input type="text" id="cliente-telefone" value="${escapeHtml(telefone)}" placeholder="(00) 00000-0000">
                 </div>
                 
                 <div class="form-group">
                     <label>E-mail:</label>
-                    <input type="email" id="cliente-email">
+                    <input type="email" id="cliente-email" value="${escapeHtml(email)}">
                 </div>
             </div>
             
@@ -1137,39 +1147,10 @@ function openModalCliente(clienteEdit = null) {
         </form>
     `);
     
-    // Preencher campos se for edição
-    if (isEdit && clienteEdit) {
-        setTimeout(() => {
-            console.log('📝 Preenchendo campos de edição com:', clienteEdit);
-            
-            // Preencher campos adicionais que não estavam no HTML inicial
-            const campoIE = document.getElementById('cliente-ie');
-            const campoIM = document.getElementById('cliente-im');
-            const campoCEP = document.getElementById('cliente-cep');
-            const campoRua = document.getElementById('cliente-rua');
-            const campoNumero = document.getElementById('cliente-numero');
-            const campoComplemento = document.getElementById('cliente-complemento');
-            const campoBairro = document.getElementById('cliente-bairro');
-            const campoCidade = document.getElementById('cliente-cidade');
-            const campoEstado = document.getElementById('cliente-estado');
-            const campoTelefone = document.getElementById('cliente-telefone');
-            const campoEmail = document.getElementById('cliente-email');
-            
-            if (campoIE) campoIE.value = clienteEdit.ie || '';
-            if (campoIM) campoIM.value = clienteEdit.im || '';
-            // 🌐 PARTE 7: Campos estruturados de endereço
-            if (campoCEP) campoCEP.value = clienteEdit.cep || '';
-            if (campoRua) campoRua.value = clienteEdit.logradouro || clienteEdit.rua || clienteEdit.endereco || '';
-            if (campoNumero) campoNumero.value = clienteEdit.numero || '';
-            if (campoComplemento) campoComplemento.value = clienteEdit.complemento || '';
-            if (campoBairro) campoBairro.value = clienteEdit.bairro || '';
-            if (campoCidade) campoCidade.value = clienteEdit.cidade || '';
-            if (campoEstado) campoEstado.value = clienteEdit.estado || clienteEdit.uf || '';
-            if (campoTelefone) campoTelefone.value = clienteEdit.telefone || clienteEdit.contato || '';
-            if (campoEmail) campoEmail.value = clienteEdit.email || '';
-            
-            console.log('✅ Campos preenchidos com sucesso');
-        }, 100);
+    // ✅ Todos os campos já estão preenchidos no HTML acima
+    // Não precisa mais do setTimeout - dados já estão injetados
+    if (isEdit) {
+        console.log('✅ Modal de edição criado com todos os dados pré-preenchidos');
     }
 }
 
@@ -1317,57 +1298,58 @@ function openModalFornecedor(fornecedorEdit = null) {
     console.log('isEdit:', isEdit);
     if (isEdit) {
         console.log('Fornecedor recebido:', fornecedorEdit);
-        console.log('razao_social:', fornecedorEdit.razao_social);
-        console.log('nome:', fornecedorEdit.nome);
-        console.log('cnpj:', fornecedorEdit.cnpj);
-        console.log('telefone:', fornecedorEdit.telefone);
-        console.log('email:', fornecedorEdit.email);
-        console.log('endereco:', fornecedorEdit.endereco);
     }
     
     // Escapar HTML para valores de atributos
-    // Backend pode retornar só 'nome' ou 'razao_social'
-    const nomeOriginal = isEdit ? (fornecedorEdit.razao_social || fornecedorEdit.nome || '') : '';
-    const nomeOriginalEscaped = nomeOriginal.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const escapeHtml = (str) => (str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     
-    // Usar nome como fallback para razao_social
+    // 📝 Extrair TODOS os valores do fornecedor (com fallbacks)
+    const nomeOriginal = isEdit ? (fornecedorEdit.razao_social || fornecedorEdit.nome || '') : '';
     const razaoSocial = isEdit ? (fornecedorEdit.razao_social || fornecedorEdit.nome || '') : '';
     const nomeFantasia = isEdit ? (fornecedorEdit.nome_fantasia || fornecedorEdit.nome || '') : '';
     const cnpj = isEdit ? (fornecedorEdit.cnpj || fornecedorEdit.cpf_cnpj || fornecedorEdit.documento || '') : '';
+    const ie = isEdit ? (fornecedorEdit.ie || fornecedorEdit.inscricao_estadual || '') : '';
+    const im = isEdit ? (fornecedorEdit.im || fornecedorEdit.inscricao_municipal || '') : '';
+    const cep = isEdit ? (fornecedorEdit.cep || '') : '';
+    const rua = isEdit ? (fornecedorEdit.logradouro || fornecedorEdit.rua || fornecedorEdit.endereco || '') : '';
+    const numero = isEdit ? (fornecedorEdit.numero || '') : '';
+    const complemento = isEdit ? (fornecedorEdit.complemento || '') : '';
+    const bairro = isEdit ? (fornecedorEdit.bairro || '') : '';
+    const cidade = isEdit ? (fornecedorEdit.cidade || '') : '';
+    const estado = isEdit ? (fornecedorEdit.estado || fornecedorEdit.uf || '') : '';
     const telefone = isEdit ? (fornecedorEdit.telefone || fornecedorEdit.contato || '') : '';
     const email = isEdit ? (fornecedorEdit.email || '') : '';
-    const endereco = isEdit ? (fornecedorEdit.endereco || fornecedorEdit.rua || '') : '';
     
     const modal = createModal(titulo, `
         <form id="form-fornecedor" onsubmit="salvarFornecedor(event)">
             <input type="hidden" id="fornecedor-edit-mode" value="${isEdit}">
-            <input type="hidden" id="fornecedor-nome-original" value="${nomeOriginalEscaped}">
+            <input type="hidden" id="fornecedor-nome-original" value="${escapeHtml(nomeOriginal)}">
             
             <div class="form-group">
                 <label>*CNPJ:</label>
-                <input type="text" id="fornecedor-cnpj" value="${cnpj}" required placeholder="00.000.000/0000-00" onblur="buscarDadosCNPJFornecedor()">
+                <input type="text" id="fornecedor-cnpj" value="${escapeHtml(cnpj)}" required placeholder="00.000.000/0000-00" onblur="buscarDadosCNPJFornecedor()">
                 <small style="color: #7f8c8d; font-size: 11px;">Digite o CNPJ para buscar dados automaticamente</small>
             </div>
             
             <div class="form-group">
                 <label>*Razão Social:</label>
-                <input type="text" id="fornecedor-razao" value="${razaoSocial}" required>
+                <input type="text" id="fornecedor-razao" value="${escapeHtml(razaoSocial)}" required>
             </div>
             
             <div class="form-group">
                 <label>*Nome Fantasia:</label>
-                <input type="text" id="fornecedor-fantasia" value="${nomeFantasia}" required>
+                <input type="text" id="fornecedor-fantasia" value="${escapeHtml(nomeFantasia)}" required>
             </div>
             
             <div class="form-row">
                 <div class="form-group">
                     <label>Inscrição Estadual:</label>
-                    <input type="text" id="fornecedor-ie">
+                    <input type="text" id="fornecedor-ie" value="${escapeHtml(ie)}">
                 </div>
                 
                 <div class="form-group">
                     <label>Inscrição Municipal:</label>
-                    <input type="text" id="fornecedor-im">
+                    <input type="text" id="fornecedor-im" value="${escapeHtml(im)}">
                 </div>
             </div>
             
@@ -1376,68 +1358,68 @@ function openModalFornecedor(fornecedorEdit = null) {
             
             <div class="form-group">
                 <label>CEP:</label>
-                <input type="text" id="fornecedor-cep" placeholder="00000-000" onblur="buscarCepFornecedor()">
+                <input type="text" id="fornecedor-cep" value="${escapeHtml(cep)}" placeholder="00000-000" onblur="buscarCepFornecedor()">
             </div>
             
             <div class="form-group">
                 <label>Rua/Avenida:</label>
-                <input type="text" id="fornecedor-rua">
+                <input type="text" id="fornecedor-rua" value="${escapeHtml(rua)}">
             </div>
             
             <div class="form-row">
                 <div class="form-group">
                     <label>Número:</label>
-                    <input type="text" id="fornecedor-numero">
+                    <input type="text" id="fornecedor-numero" value="${escapeHtml(numero)}">
                 </div>
                 
                 <div class="form-group">
                     <label>Complemento:</label>
-                    <input type="text" id="fornecedor-complemento">
+                    <input type="text" id="fornecedor-complemento" value="${escapeHtml(complemento)}">
                 </div>
             </div>
             
             <div class="form-group">
                 <label>Bairro:</label>
-                <input type="text" id="fornecedor-bairro">
+                <input type="text" id="fornecedor-bairro" value="${escapeHtml(bairro)}">
             </div>
             
             <div class="form-row">
                 <div class="form-group">
                     <label>Cidade:</label>
-                    <input type="text" id="fornecedor-cidade">
+                    <input type="text" id="fornecedor-cidade" value="${escapeHtml(cidade)}">
                 </div>
                 
                 <div class="form-group">
                     <label>Estado:</label>
                     <select id="fornecedor-estado">
                         <option value="">Selecione...</option>
-                        <option value="AC">AC</option>
-                        <option value="AL">AL</option>
-                        <option value="AP">AP</option>
-                        <option value="AM">AM</option>
-                        <option value="BA">BA</option>
-                        <option value="CE">CE</option>
-                        <option value="DF">DF</option>
-                        <option value="ES">ES</option>
-                        <option value="GO">GO</option>
-                        <option value="MA">MA</option>
-                        <option value="MT">MT</option>
-                        <option value="MS">MS</option>
-                        <option value="MG">MG</option>
-                        <option value="PA">PA</option>
-                        <option value="PB">PB</option>
-                        <option value="PR">PR</option>
-                        <option value="PE">PE</option>
-                        <option value="PI">PI</option>
-                        <option value="RJ">RJ</option>
-                        <option value="RN">RN</option>
-                        <option value="RS">RS</option>
-                        <option value="RO">RO</option>
-                        <option value="RR">RR</option>
-                        <option value="SC">SC</option>
-                        <option value="SP">SP</option>
-                        <option value="SE">SE</option>
-                        <option value="TO">TO</option>
+                        <option value="AC" ${estado === 'AC' ? 'selected' : ''}>AC</option>
+                        <option value="AL" ${estado === 'AL' ? 'selected' : ''}>AL</option>
+                        <option value="AP" ${estado === 'AP' ? 'selected' : ''}>AP</option>
+                        <option value="AM" ${estado === 'AM' ? 'selected' : ''}>AM</option>
+                        <option value="BA" ${estado === 'BA' ? 'selected' : ''}>BA</option>
+                        <option value="CE" ${estado === 'CE' ? 'selected' : ''}>CE</option>
+                        <option value="DF" ${estado === 'DF' ? 'selected' : ''}>DF</option>
+                        <option value="ES" ${estado === 'ES' ? 'selected' : ''}>ES</option>
+                        <option value="GO" ${estado === 'GO' ? 'selected' : ''}>GO</option>
+                        <option value="MA" ${estado === 'MA' ? 'selected' : ''}>MA</option>
+                        <option value="MT" ${estado === 'MT' ? 'selected' : ''}>MT</option>
+                        <option value="MS" ${estado === 'MS' ? 'selected' : ''}>MS</option>
+                        <option value="MG" ${estado === 'MG' ? 'selected' : ''}>MG</option>
+                        <option value="PA" ${estado === 'PA' ? 'selected' : ''}>PA</option>
+                        <option value="PB" ${estado === 'PB' ? 'selected' : ''}>PB</option>
+                        <option value="PR" ${estado === 'PR' ? 'selected' : ''}>PR</option>
+                        <option value="PE" ${estado === 'PE' ? 'selected' : ''}>PE</option>
+                        <option value="PI" ${estado === 'PI' ? 'selected' : ''}>PI</option>
+                        <option value="RJ" ${estado === 'RJ' ? 'selected' : ''}>RJ</option>
+                        <option value="RN" ${estado === 'RN' ? 'selected' : ''}>RN</option>
+                        <option value="RS" ${estado === 'RS' ? 'selected' : ''}>RS</option>
+                        <option value="RO" ${estado === 'RO' ? 'selected' : ''}>RO</option>
+                        <option value="RR" ${estado === 'RR' ? 'selected' : ''}>RR</option>
+                        <option value="SC" ${estado === 'SC' ? 'selected' : ''}>SC</option>
+                        <option value="SP" ${estado === 'SP' ? 'selected' : ''}>SP</option>
+                        <option value="SE" ${estado === 'SE' ? 'selected' : ''}>SE</option>
+                        <option value="TO" ${estado === 'TO' ? 'selected' : ''}>TO</option>
                     </select>
                 </div>
             </div>
@@ -1445,12 +1427,12 @@ function openModalFornecedor(fornecedorEdit = null) {
             <div class="form-row">
                 <div class="form-group">
                     <label>Telefone:</label>
-                    <input type="text" id="fornecedor-telefone" placeholder="(00) 00000-0000">
+                    <input type="text" id="fornecedor-telefone" value="${escapeHtml(telefone)}" placeholder="(00) 00000-0000">
                 </div>
                 
                 <div class="form-group">
                     <label>E-mail:</label>
-                    <input type="email" id="fornecedor-email">
+                    <input type="email" id="fornecedor-email" value="${escapeHtml(email)}">
                 </div>
             </div>
             
@@ -1461,37 +1443,10 @@ function openModalFornecedor(fornecedorEdit = null) {
         </form>
     `);
     
-    // Preencher campos se for edição
-    if (isEdit && fornecedorEdit) {
-        setTimeout(() => {
-            console.log('📝 Preenchendo campos de fornecedor com:', fornecedorEdit);
-            
-            const campoIE = document.getElementById('fornecedor-ie');
-            const campoIM = document.getElementById('fornecedor-im');
-            const campoCEP = document.getElementById('fornecedor-cep');
-            const campoRua = document.getElementById('fornecedor-rua');
-            const campoNumero = document.getElementById('fornecedor-numero');
-            const campoComplemento = document.getElementById('fornecedor-complemento');
-            const campoBairro = document.getElementById('fornecedor-bairro');
-            const campoCidade = document.getElementById('fornecedor-cidade');
-            const campoEstado = document.getElementById('fornecedor-estado');
-            const campoTelefone = document.getElementById('fornecedor-telefone');
-            const campoEmail = document.getElementById('fornecedor-email');
-            
-            if (campoIE) campoIE.value = fornecedorEdit.ie || '';
-            if (campoIM) campoIM.value = fornecedorEdit.im || '';
-            if (campoCEP) campoCEP.value = fornecedorEdit.cep || '';
-            if (campoRua) campoRua.value = fornecedorEdit.rua || fornecedorEdit.endereco || '';
-            if (campoNumero) campoNumero.value = fornecedorEdit.numero || '';
-            if (campoComplemento) campoComplemento.value = fornecedorEdit.complemento || '';
-            if (campoBairro) campoBairro.value = fornecedorEdit.bairro || '';
-            if (campoCidade) campoCidade.value = fornecedorEdit.cidade || '';
-            if (campoEstado) campoEstado.value = fornecedorEdit.estado || fornecedorEdit.uf || '';
-            if (campoTelefone) campoTelefone.value = fornecedorEdit.telefone || fornecedorEdit.contato || '';
-            if (campoEmail) campoEmail.value = fornecedorEdit.email || '';
-            
-            console.log('✅ Campos de fornecedor preenchidos');
-        }, 100);
+    // ✅ Todos os campos já estão preenchidos no HTML acima
+    // Não precisa mais do setTimeout - dados já estão injetados
+    if (isEdit) {
+        console.log('✅ Modal de edição de fornecedor criado com todos os dados pré-preenchidos');
     }
 }
 

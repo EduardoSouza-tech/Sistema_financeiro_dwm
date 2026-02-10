@@ -2708,21 +2708,27 @@ def obter_cliente(nome):
         
         print(f"\n=== Buscando cliente ===")
         print(f"Nome: {nome}")
-        print(f"Filtro cliente ID: {filtro_cliente_id}")
+        print(f"Filtro cliente ID (empresa_id): {filtro_cliente_id}")
         
         cliente = db.obter_cliente_por_nome(nome)
         
         if not cliente:
             return jsonify({'success': False, 'error': 'Cliente não encontrado'}), 404
         
-        # Validar propriedade (se não for admin)
-        if filtro_cliente_id is not None and cliente.get('proprietario_id') != filtro_cliente_id:
-            return jsonify({'success': False, 'error': 'Cliente não encontrado ou sem permissão'}), 403
+        # ✅ CORREÇÃO: Validar por empresa_id (não mais proprietario_id)
+        # filtro_cliente_id contém o empresa_id do usuário logado
+        if filtro_cliente_id is not None:
+            cliente_empresa_id = cliente.get('empresa_id')
+            if cliente_empresa_id != filtro_cliente_id:
+                print(f"❌ Acesso negado: cliente.empresa_id={cliente_empresa_id}, filtro={filtro_cliente_id}")
+                return jsonify({'success': False, 'error': 'Cliente não encontrado ou sem permissão'}), 403
         
-        print(f"Cliente encontrado: {cliente}")
+        print(f"✅ Cliente encontrado: {cliente.get('nome')}")
+        print(f"   - empresa_id: {cliente.get('empresa_id')}")
+        print(f"   - cpf_cnpj: {cliente.get('cpf_cnpj')}")
         return jsonify(cliente)
     except Exception as e:
-        print(f"ERRO ao buscar cliente: {str(e)}")
+        print(f"❌ ERRO ao buscar cliente: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -2911,30 +2917,35 @@ def obter_fornecedor(nome):
         
         filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
         
+        print(f"\n=== Buscando fornecedor ===")
+        print(f"Nome: {nome}")
+        print(f"Filtro cliente ID (empresa_id): {filtro_cliente_id}")
+        
         # Buscar fornecedor
         fornecedor = db.obter_fornecedor_por_nome(nome)
         
         if not fornecedor:
             return jsonify({'error': 'Fornecedor não encontrado'}), 404
         
-        # Validar propriedade (se não for admin)
+        # ✅ CORREÇÃO: Validar por empresa_id (não mais proprietario_id)
+        # filtro_cliente_id contém o empresa_id do usuário logado
         if filtro_cliente_id is not None:
-            if fornecedor.get('proprietario_id') != filtro_cliente_id:
+            fornecedor_empresa_id = fornecedor.get('empresa_id')
+            if fornecedor_empresa_id != filtro_cliente_id:
+                print(f"❌ Acesso negado: fornecedor.empresa_id={fornecedor_empresa_id}, filtro={filtro_cliente_id}")
                 return jsonify({'error': 'Sem permissão para visualizar este fornecedor'}), 403
         
-        # Retornar dados do fornecedor
-        return jsonify({
-            'nome': fornecedor.get('nome'),
-            'cnpj': fornecedor.get('cnpj') or fornecedor.get('documento'),
-            'telefone': fornecedor.get('telefone'),
-            'email': fornecedor.get('email'),
-            'endereco': fornecedor.get('endereco'),
-            'ativo': fornecedor.get('ativo', True),
-            'proprietario_id': fornecedor.get('proprietario_id')
-        })
+        print(f"✅ Fornecedor encontrado: {fornecedor.get('nome')}")
+        print(f"   - empresa_id: {fornecedor.get('empresa_id')}")
+        print(f"   - cpf_cnpj: {fornecedor.get('cpf_cnpj')}")
+        
+        # Retornar dados completos do fornecedor
+        return jsonify(fornecedor)
         
     except Exception as e:
-        logger.error(f'Erro ao obter fornecedor {nome}: {e}')
+        print(f"❌ ERRO ao obter fornecedor {nome}: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
