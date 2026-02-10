@@ -17,6 +17,8 @@ const RegrasConciliacao = {
     regras: [],
     categorias: [],
     subcategorias: {},
+    clientes: [],
+    fornecedores: [],
     
     /**
      * Inicializa o módulo
@@ -24,6 +26,7 @@ const RegrasConciliacao = {
     init() {
         console.log('🔧 Inicializando Regras de Auto-Conciliação...');
         this.carregarCategorias();
+        this.carregarClientesFornecedores();
         this.carregarRegras();
         this.setupEventListeners();
     },
@@ -69,6 +72,40 @@ const RegrasConciliacao = {
         } catch (error) {
             console.error('❌ Erro ao carregar categorias:', error);
             showToast('Erro ao carregar categorias', 'error');
+        }
+    },
+    
+    /**
+     * Carrega clientes e fornecedores
+     */
+    async carregarClientesFornecedores() {
+        try {
+            const [responseClientes, responseFornecedores] = await Promise.all([
+                fetch(`${API_URL}/clientes`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                }),
+                fetch(`${API_URL}/fornecedores`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                })
+            ]);
+            
+            if (!responseClientes.ok || !responseFornecedores.ok) {
+                throw new Error('Erro ao carregar clientes/fornecedores');
+            }
+            
+            const clientesData = await responseClientes.json();
+            const fornecedoresData = await responseFornecedores.json();
+            
+            // Extrair arrays (pode vir como {data: [...]} ou direto)
+            this.clientes = Array.isArray(clientesData) ? clientesData : (clientesData.data || clientesData.clientes || []);
+            this.fornecedores = Array.isArray(fornecedoresData) ? fornecedoresData : (fornecedoresData.data || fornecedoresData.fornecedores || []);
+            
+            console.log(`✅ ${this.clientes.length} cliente(s) e ${this.fornecedores.length} fornecedor(es) carregados`);
+            
+        } catch (error) {
+            console.error('❌ Erro ao carregar clientes/fornecedores:', error);
+            this.clientes = [];
+            this.fornecedores = [];
         }
     },
     
@@ -169,7 +206,7 @@ const RegrasConciliacao = {
                         '<span class="badge badge-secondary" style="padding: 5px 10px; border-radius: 12px; background: #95a5a6; color: white; font-size: 11px;">DESATIVADA</span>'}
                 </td>
                 <td style="text-align: center;">
-                    <button class="btn-icon" onclick="RegrasC onciliacao.editarRegra(${regra.id})" 
+                    <button class="btn-icon" onclick="RegrasConciliacao.editarRegra(${regra.id})" 
                             title="Editar" style="background: #3498db; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">
                         ✏️
                     </button>
@@ -186,7 +223,48 @@ const RegrasConciliacao = {
     /**
      * Abre modal para criar nova regra
      */
-    novaRegra() {
+    no
+    
+    /**
+     * Preenche select de clientes/fornecedores
+     */
+    preencherSelectClientesFornecedores() {
+        const select = document.getElementById('regra-cliente-padrao');
+        if (!select) return;
+        
+        select.innerHTML = '<option value="">Nenhum (deixar vazio)</option>';
+        
+        // Adicionar grupo de C e clientes/fornecedores
+        this.preencherSelectCategorias();
+        this.preencherSelectClientesFornecedore {
+            const optgroupClientes = document.createElement('optgroup');
+            optgroupClientes.label = '👤 Clientes';
+            
+            this.clientes.forEach(cliente => {
+                const option = document.createElement('option');
+                option.value = cliente.nome;
+                option.textContent = cliente.nome;
+                optgroupClientes.appendChild(option);
+            });
+            
+            select.appendChild(optgroupClientes);
+        }
+        
+        // Adicionar grupo de Fornecedores
+        if (this.fornecedores.length > 0) {
+            const optgroupFornecedores = document.createElement('optgroup');
+            optgroupFornecedores.label = '🏭 Fornecedores';
+            
+            this.fornecedores.forEach(fornecedor => {
+                const option = document.createElement('option');
+                option.value = fornecedor.nome;
+                option.textContent = fornecedor.nome;
+                optgroupFornecedores.appendChild(option);
+            });
+            
+            select.appendChild(optgroupFornecedores);
+        }
+    },vaRegra() {
         // Limpar formulário
         document.getElementById('regra-id').value = '';
         document.getElementById('regra-palavra-chave').value = '';
@@ -198,18 +276,30 @@ const RegrasConciliacao = {
         document.getElementById('regra-integracao-folha').checked = false;
         
         // Preencher categorias
+        this.preencherSelectCat e clientes/fornecedores
         this.preencherSelectCategorias();
+        this.preencherSelectClientesFornecedores();
         
-        // Abrir modal
-        document.getElementById('modal-regra-conciliacao').style.display = 'flex';
-        document.getElementById('modal-regra-titulo').textContent = '➕ Nova Regra de Auto-Conciliação';
-    },
-    
-    /**
-     * Preenche select de categorias
-     */
-    preencherSelectCategorias() {
-        const select = document.getElementById('regra-categoria');
+        // Selecionar categoria
+        if (regra.categoria) {
+            document.getElementById('regra-categoria').value = regra.categoria;
+            this.carregarSubcategorias(regra.categoria);
+            
+            // Aguardar carregamento e selecionar subcategoria
+            setTimeout(() => {
+                if (regra.subcategoria) {
+                    document.getElementById('regra-subcategoria').value = regra.subcategoria;
+                }
+            }, 100);
+        }
+        
+        // Selecionar cliente padrão se houver
+        if (regra.cliente_padrao) {
+            // Aguardar preenchimento do select
+            setTimeout(() => {
+                const selectCliente = document.getElementById('regra-cliente-padrao');
+                if (selectCliente) {
+                    selectCliente.value = regra.cliente_padrao
         if (!select) return;
         
         select.innerHTML = '<option value="">Selecione uma categoria (opcional)...</option>';
