@@ -13,7 +13,7 @@
  * Data: 10/02/2026
  */
 
-const RegrasConc iliacao = {
+const RegrasConciliacao = {
     regras: [],
     categorias: [],
     subcategorias: {},

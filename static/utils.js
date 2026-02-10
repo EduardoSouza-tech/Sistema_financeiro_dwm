@@ -29,7 +29,8 @@ function formatarMoeda(valor, moeda = 'R$') {
             return `${moeda} 0,00`;
         }
         
-        // Converte para número de forma seguraconst numero = typeof valor === 'string' ? 
+        // Converte para número de forma segura
+        const numero = typeof valor === 'string' ? 
             // Se string tem vírgula: formato BR (1.234,56) - remove pontos, troca vírgula por ponto
             (valor.includes(',') ? 
                 parseFloat(valor.replace(/[^0-9,-]/g, '').replace(',', '.')) :
