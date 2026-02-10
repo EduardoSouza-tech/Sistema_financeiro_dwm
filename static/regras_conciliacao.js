@@ -19,12 +19,14 @@ const RegrasConciliacao = {
     subcategorias: {},
     clientes: [],
     fornecedores: [],
+    configIntegracaoFolha: false, // Estado da configuração global
     
     /**
      * Inicializa o módulo
      */
     init() {
         console.log('🔧 Inicializando Regras de Auto-Conciliação...');
+        this.carregarConfigIntegracao();
         this.carregarCategorias();
         this.carregarClientesFornecedores();
         this.carregarRegras();
@@ -41,6 +43,91 @@ const RegrasConciliacao = {
             categoriaSelect.addEventListener('change', (e) => {
                 this.carregarSubcategorias(e.target.value);
             });
+        }
+    },
+    
+    /**
+     * Carrega configuração de integração com folha
+     */
+    async carregarConfigIntegracao() {
+        try {
+            console.log('📄 Carregando configuração de integração com folha...');
+            
+            const response = await fetch('/api/config-extrato');
+            const data = await response.json();
+            
+            if (data.success && data.data) {
+                this.configIntegracaoFolha = data.data.integrar_folha_pagamento || false;
+                
+                // Atualizar checkbox
+                const checkbox = document.getElementById('config-integracao-folha');
+                const status = document.getElementById('config-integracao-status');
+                
+                if (checkbox) {
+                    checkbox.checked = this.configIntegracaoFolha;
+                }
+                
+                if (status) {
+                    status.textContent = this.configIntegracaoFolha ? 'Ativado ✅' : 'Ativar';
+                    status.style.color = this.configIntegracaoFolha ? '#00b894' : '#2d3436';
+                }
+                
+                console.log(`✅ Integração com folha: ${this.configIntegracaoFolha ? 'ATIVADA' : 'DESATIVADA'}`);
+            }
+        } catch (error) {
+            console.error('❌ Erro ao carregar configuração:', error);
+        }
+    },
+    
+    /**
+     * Toggle integração com folha de pagamento
+     */
+    async toggleIntegracaoFolha(ativo) {
+        try {
+            console.log(`🔄 Atualizando integração com folha: ${ativo ? 'ATIVAR' : 'DESATIVAR'}`);
+            
+            const response = await fetch('/api/config-extrato', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    integrar_folha_pagamento: ativo
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.configIntegracaoFolha = ativo;
+                
+                // Atualizar status visual
+                const status = document.getElementById('config-integracao-status');
+                if (status) {
+                    status.textContent = ativo ? 'Ativado ✅' : 'Ativar';
+                    status.style.color = ativo ? '#00b894' : '#2d3436';
+                }
+                
+                // Feedback visual
+                const mensagem = ativo 
+                    ? '✅ Integração ativada! O sistema detectará CPF automaticamente em todos os extratos.'
+                    : '⚠️ Integração desativada. CPF não será mais detectado automaticamente.';
+                
+                alert(mensagem);
+                
+                console.log(`✅ Configuração atualizada com sucesso`);
+            } else {
+                throw new Error(data.error || 'Erro ao atualizar configuração');
+            }
+        } catch (error) {
+            console.error('❌ Erro ao atualizar integração:', error);
+            alert('❌ Erro ao atualizar configuração: ' + error.message);
+            
+            // Reverter checkbox em caso de erro
+            const checkbox = document.getElementById('config-integracao-folha');
+            if (checkbox) {
+                checkbox.checked = this.configIntegracaoFolha;
+            }
         }
     },
     
@@ -213,11 +300,6 @@ const RegrasConciliacao = {
                     ${regra.cliente_padrao ? this.escapeHtml(regra.cliente_padrao) : '<span style="color: #95a5a6;">-</span>'}
                 </td>
                 <td style="padding: 15px; text-align: center;">
-                    ${regra.usa_integracao_folha ? 
-                        '<span style="color: #27ae60; font-weight: bold;">✓ Sim</span>' : 
-                        '<span style="color: #95a5a6;">✗ Não</span>'}
-                </td>
-                <td style="padding: 15px; text-align: center;">
                     <button onclick="RegrasConciliacao.editarRegra(${regra.id})" 
                             style="background: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 4px;"
                             title="Editar regra">
@@ -298,7 +380,6 @@ const RegrasConciliacao = {
         document.getElementById('regra-subcategoria').value = '';
         document.getElementById('regra-subcategoria').disabled = true;
         document.getElementById('regra-cliente-padrao').value = '';
-        document.getElementById('regra-integracao-folha').checked = false;
         
         // Preencher selects
         this.preencherSelectCategorias();
@@ -347,7 +428,6 @@ const RegrasConciliacao = {
         document.getElementById('regra-categoria').value = regra.categoria || '';
         document.getElementById('regra-subcategoria').value = regra.subcategoria || '';
         document.getElementById('regra-cliente-padrao').value = regra.cliente_padrao || '';
-        document.getElementById('regra-integracao-folha').checked = regra.integracao_folha || false;
         
         // Preencher selects
         this.preencherSelectCategorias();
@@ -405,7 +485,6 @@ const RegrasConciliacao = {
             const categoria = document.getElementById('regra-categoria').value;
             const subcategoria = document.getElementById('regra-subcategoria').value;
             const clientePadrao = document.getElementById('regra-cliente-padrao').value;
-            const integracaoFolha = document.getElementById('regra-integracao-folha').checked;
             
             // Validações
             if (!palavraChave) {
@@ -421,7 +500,6 @@ const RegrasConciliacao = {
                 categoria: categoria || null,
                 subcategoria: subcategoria || null,
                 cliente_padrao: clientePadrao || null,
-                usa_integracao_folha: integracaoFolha,
                 ativo: true
             };
             
