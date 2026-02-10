@@ -91,22 +91,22 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION buscar_regras_aplicaveis IS 'Busca a regra mais específica aplicável a uma descrição de extrato';
 
 -- 6. Inserir permissões
-INSERT INTO permissoes (codigo, nome, descricao, categoria, created_at)
+INSERT INTO permissoes (codigo, nome, descricao, categoria)
 VALUES 
-    ('regras_conciliacao_view', 'Visualizar Regras de Conciliação', 'Permite visualizar regras de auto-conciliação', 'Extratos', CURRENT_TIMESTAMP),
-    ('regras_conciliacao_create', 'Criar Regras de Conciliação', 'Permite criar novas regras de auto-conciliação', 'Extratos', CURRENT_TIMESTAMP),
-    ('regras_conciliacao_edit', 'Editar Regras de Conciliação', 'Permite editar regras de auto-conciliação', 'Extratos', CURRENT_TIMESTAMP),
-    ('regras_conciliacao_delete', 'Excluir Regras de Conciliação', 'Permite excluir regras de auto-conciliação', 'Extratos', CURRENT_TIMESTAMP)
+    ('regras_conciliacao_view', 'Visualizar Regras de Conciliação', 'Permite visualizar regras de auto-conciliação', 'Extratos'),
+    ('regras_conciliacao_create', 'Criar Regras de Conciliação', 'Permite criar novas regras de auto-conciliação', 'Extratos'),
+    ('regras_conciliacao_edit', 'Editar Regras de Conciliação', 'Permite editar regras de auto-conciliação', 'Extratos'),
+    ('regras_conciliacao_delete', 'Excluir Regras de Conciliação', 'Permite excluir regras de auto-conciliação', 'Extratos')
 ON CONFLICT (codigo) DO NOTHING;
 
--- 7. Dar permissões para administradores
-INSERT INTO usuarios_permissoes (usuario_id, permissao_id)
-SELECT u.id, p.id
-FROM usuarios u
-CROSS JOIN permissoes p
-WHERE u.tipo = 'admin'
-  AND p.codigo IN ('regras_conciliacao_view', 'regras_conciliacao_create', 'regras_conciliacao_edit', 'regras_conciliacao_delete')
-ON CONFLICT (usuario_id, permissao_id) DO NOTHING;
+-- 7. Dar permissões para administradores (COMENTADO - tabela usuarios_permissoes pode não existir)
+-- INSERT INTO usuarios_permissoes (usuario_id, permissao_id)
+-- SELECT u.id, p.id
+-- FROM usuarios u
+-- CROSS JOIN permissoes p
+-- WHERE u.tipo = 'admin'
+--   AND p.codigo IN ('regras_conciliacao_view', 'regras_conciliacao_create', 'regras_conciliacao_edit', 'regras_conciliacao_delete')
+-- ON CONFLICT (usuario_id, permissao_id) DO NOTHING;
 
 -- 8. Exemplo de regras pré-cadastradas (opcional - comentado)
 -- INSERT INTO regras_conciliacao (empresa_id, palavra_chave, categoria, subcategoria, cliente_padrao, usa_integracao_folha, descricao)
