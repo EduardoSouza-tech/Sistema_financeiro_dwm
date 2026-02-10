@@ -2096,25 +2096,34 @@ class DatabaseManager:
         return cliente_id
     
     def listar_clientes(self, ativos: bool = True, filtro_cliente_id: int = None) -> List[Dict]:
-        """Lista todos os clientes com suporte a multi-tenancy"""
+        """Lista todos os clientes com suporte a multi-tenancy
+        
+        Args:
+            ativos: Se True, retorna apenas clientes ativos
+            filtro_cliente_id: ID da empresa para filtrar (None = admin vê tudo)
+        
+        Note:
+            filtro_cliente_id é na verdade o empresa_id do usuário logado,
+            usado para garantir isolamento multi-tenant
+        """
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Construir query com filtro de multi-tenancy
+        # Construir query com filtro de multi-tenancy por EMPRESA
         if filtro_cliente_id is not None:
-            # Cliente especi?fico: ver apenas seus pri?prios clientes
+            # Usuário comum: ver apenas clientes da sua empresa
             if ativos:
                 cursor.execute(
-                    "SELECT * FROM clientes WHERE ativo = TRUE AND proprietario_id = %s ORDER BY nome",
+                    "SELECT * FROM clientes WHERE ativo = TRUE AND empresa_id = %s ORDER BY nome",
                     (filtro_cliente_id,)
                 )
             else:
                 cursor.execute(
-                    "SELECT * FROM clientes WHERE proprietario_id = %s ORDER BY nome",
+                    "SELECT * FROM clientes WHERE empresa_id = %s ORDER BY nome",
                     (filtro_cliente_id,)
                 )
         else:
-            # Admin: ver todos os clientes
+            # Admin: ver todos os clientes de todas as empresas
             if ativos:
                 cursor.execute("SELECT * FROM clientes WHERE ativo = TRUE ORDER BY nome")
             else:
@@ -2343,25 +2352,34 @@ class DatabaseManager:
             return fornecedor_id
     
     def listar_fornecedores(self, ativos: bool = True, filtro_cliente_id: int = None) -> List[Dict]:
-        """Lista todos os fornecedores com suporte a multi-tenancy"""
+        """Lista todos os fornecedores com suporte a multi-tenancy
+        
+        Args:
+            ativos: Se True, retorna apenas fornecedores ativos
+            filtro_cliente_id: ID da empresa para filtrar (None = admin vê tudo)
+        
+        Note:
+            filtro_cliente_id é na verdade o empresa_id do usuário logado,
+            usado para garantir isolamento multi-tenant
+        """
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Construir query com filtro de multi-tenancy
+        # Construir query com filtro de multi-tenancy por EMPRESA
         if filtro_cliente_id is not None:
-            # Cliente especi?fico: ver apenas seus pri?prios fornecedores
+            # Usuário comum: ver apenas fornecedores da sua empresa
             if ativos:
                 cursor.execute(
-                    "SELECT * FROM fornecedores WHERE ativo = TRUE AND proprietario_id = %s ORDER BY nome",
+                    "SELECT * FROM fornecedores WHERE ativo = TRUE AND empresa_id = %s ORDER BY nome",
                     (filtro_cliente_id,)
                 )
             else:
                 cursor.execute(
-                    "SELECT * FROM fornecedores WHERE proprietario_id = %s ORDER BY nome",
+                    "SELECT * FROM fornecedores WHERE empresa_id = %s ORDER BY nome",
                     (filtro_cliente_id,)
                 )
         else:
-            # Admin: ver todos os fornecedores
+            # Admin: ver todos os fornecedores de todas as empresas
             if ativos:
                 cursor.execute("SELECT * FROM fornecedores WHERE ativo = TRUE ORDER BY nome")
             else:

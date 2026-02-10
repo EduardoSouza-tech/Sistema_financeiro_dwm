@@ -2598,17 +2598,18 @@ def listar_clientes():
     """Lista clientes ativos ou inativos com filtro de multi-tenancy"""
     ativos = request.args.get('ativos', 'true').lower() == 'true'
     
-    # 🔒 Obter filtro correto: usuario.id para clientes, None para admin
-    usuario = get_usuario_logado()
-    filtro_cliente_id = None
-    if usuario and usuario.get('tipo') == 'cliente':
-        filtro_cliente_id = usuario.get('id')  # usuario.id, NÃO empresa_id
+    # ✅ CORREÇÃO: Usar filtro do decorator (empresa_id do usuário)
+    # O decorator @aplicar_filtro_cliente seta request.filtro_cliente_id = empresa_id
+    # As funções de DB agora filtram por empresa_id (não mais proprietario_id)
+    filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
     
+    usuario = get_usuario_logado()
     print(f"\n🔍 [GET /api/clientes]")
     print(f"   - ativos: {ativos}")
     print(f"   - usuario.id: {usuario.get('id') if usuario else None}")
     print(f"   - usuario.tipo: {usuario.get('tipo') if usuario else None}")
-    print(f"   - filtro_cliente_id: {filtro_cliente_id}")
+    print(f"   - empresa_id (via session): {session.get('empresa_id')}")
+    print(f"   - filtro_cliente_id (empresa_id do decorator): {filtro_cliente_id}")
     
     clientes = db.listar_clientes(ativos=ativos, filtro_cliente_id=filtro_cliente_id)
     
@@ -2814,6 +2815,10 @@ def modificar_cliente(nome):
 def listar_fornecedores():
     """Lista fornecedores ativos ou inativos com filtro de multi-tenancy"""
     ativos = request.args.get('ativos', 'true').lower() == 'true'
+    
+    # ✅ CORREÇÃO: Usar filtro do decorator (empresa_id do usuário)
+    # O decorator @aplicar_filtro_cliente seta request.filtro_cliente_id = empresa_id
+    # As funções de DB agora filtram por empresa_id (não mais proprietario_id)
     filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
     
     fornecedores = db.listar_fornecedores(ativos=ativos, filtro_cliente_id=filtro_cliente_id)
