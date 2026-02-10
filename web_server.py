@@ -9920,43 +9920,42 @@ def adicionar_permissoes_config_extrato():
     Endpoint temporário para forçar adição de permissões de config_extrato
     """
     try:
-        conn = db.get_connection()
-        cursor = conn.cursor()
+        from database_postgresql import get_db_connection, return_to_pool
         
-        # 1. Garantir que as permissões existem
-        cursor.execute("""
-            INSERT INTO permissoes (codigo, nome, descricao, categoria) VALUES
-            ('config_extrato_bancario_view', 'Visualizar Configurações de Extrato', 'Permite visualizar configurações de extrato bancário', 'configuracoes'),
-            ('config_extrato_bancario_edit', 'Editar Configurações de Extrato', 'Permite editar configurações de extrato bancário', 'configuracoes')
-            ON CONFLICT (codigo) DO NOTHING
-        """)
-        conn.commit()
-        
-        # 2. Adicionar permissões aos usuários ativos
-        cursor.execute("""
-            UPDATE usuario_empresas
-            SET permissoes_empresa = permissoes_empresa || 
-                jsonb_build_array('config_extrato_bancario_view', 'config_extrato_bancario_edit')
-            WHERE ativo = TRUE
-              AND NOT (permissoes_empresa @> '["config_extrato_bancario_view"]'::jsonb)
-        """)
-        conn.commit()
-        rows_updated = cursor.rowcount
-        
-        # 3. Verificar total
-        cursor.execute("""
-            SELECT COUNT(*) 
-            FROM usuario_empresas
-            WHERE ativo = TRUE
-              AND permissoes_empresa @> '["config_extrato_bancario_view"]'::jsonb
-        """)
-        result = cursor.fetchone()
-        total = result[0] if result else 0
-        
-        cursor.close()
-        
-        from database_postgresql import return_to_pool
-        return_to_pool(conn)
+        # Usar get_db_connection com allow_global=True
+        with get_db_connection(allow_global=True) as conn:
+            cursor = conn.cursor()
+            
+            # 1. Garantir que as permissões existem
+            cursor.execute("""
+                INSERT INTO permissoes (codigo, nome, descricao, categoria) VALUES
+                ('config_extrato_bancario_view', 'Visualizar Configurações de Extrato', 'Permite visualizar configurações de extrato bancário', 'configuracoes'),
+                ('config_extrato_bancario_edit', 'Editar Configurações de Extrato', 'Permite editar configurações de extrato bancário', 'configuracoes')
+                ON CONFLICT (codigo) DO NOTHING
+            """)
+            
+            # 2. Adicionar permissões aos usuários ativos
+            cursor.execute("""
+                UPDATE usuario_empresas
+                SET permissoes_empresa = permissoes_empresa || 
+                    jsonb_build_array('config_extrato_bancario_view', 'config_extrato_bancario_edit')
+                WHERE ativo = TRUE
+                  AND NOT (permissoes_empresa @> '["config_extrato_bancario_view"]'::jsonb)
+            """)
+            rows_updated = cursor.rowcount
+            
+            # 3. Verificar total
+            cursor.execute("""
+                SELECT COUNT(*) as total
+                FROM usuario_empresas
+                WHERE ativo = TRUE
+                  AND permissoes_empresa @> '["config_extrato_bancario_view"]'::jsonb
+            """)
+            result = cursor.fetchone()
+            total = result[0] if result else 0
+            
+            conn.commit()
+            cursor.close()
         
         return jsonify({
             'success': True,
