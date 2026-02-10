@@ -9911,6 +9911,71 @@ def verificar_metodos_db():
 
 
 # ============================================================================
+# ENDPOINT TEMPORÁRIO PARA FORÇAR ATUALIZAÇÃO DE PERMISSÕES
+# ============================================================================
+@app.route('/api/debug/adicionar-permissoes-config-extrato', methods=['POST'])
+@csrf.exempt
+def adicionar_permissoes_config_extrato():
+    """
+    Endpoint temporário para forçar adição de permissões de config_extrato
+    """
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # 1. Garantir que as permissões existem
+        cursor.execute("""
+            INSERT INTO permissoes (codigo, nome, descricao, categoria) VALUES
+            ('config_extrato_bancario_view', 'Visualizar Configurações de Extrato', 'Permite visualizar configurações de extrato bancário', 'configuracoes'),
+            ('config_extrato_bancario_edit', 'Editar Configurações de Extrato', 'Permite editar configurações de extrato bancário', 'configuracoes')
+            ON CONFLICT (codigo) DO NOTHING
+        """)
+        conn.commit()
+        
+        # 2. Adicionar permissões aos usuários ativos
+        cursor.execute("""
+            UPDATE usuario_empresas
+            SET permissoes_empresa = permissoes_empresa || 
+                jsonb_build_array('config_extrato_bancario_view', 'config_extrato_bancario_edit')
+            WHERE ativo = TRUE
+              AND NOT (permissoes_empresa @> '["config_extrato_bancario_view"]'::jsonb)
+        """)
+        conn.commit()
+        rows_updated = cursor.rowcount
+        
+        # 3. Verificar total
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM usuario_empresas
+            WHERE ativo = TRUE
+              AND permissoes_empresa @> '["config_extrato_bancario_view"]'::jsonb
+        """)
+        total = cursor.fetchone()[0]
+        
+        cursor.close()
+        
+        from database_postgresql import return_to_pool
+        return_to_pool(conn)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Permissões adicionadas com sucesso',
+            'data': {
+                'usuarios_atualizados': rows_updated,
+                'total_com_permissoes': total
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+# ============================================================================
 # ENDPOINT DE STATUS DA MIGRAÇÃO DE SENHAS
 # ============================================================================
 @app.route('/api/admin/passwords/migration-status', methods=['GET'])
