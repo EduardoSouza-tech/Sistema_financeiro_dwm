@@ -2781,7 +2781,7 @@ def modificar_cliente(nome):
             # Validar propriedade antes de atualizar (se não for admin)
             if filtro_cliente_id is not None:
                 cliente_atual = db.obter_cliente_por_nome(nome)
-                if not cliente_atual or cliente_atual.get('proprietario_id') != filtro_cliente_id:
+                if not cliente_atual or cliente_atual.get('empresa_id') != filtro_cliente_id:
                     return jsonify({'success': False, 'error': 'Cliente não encontrado ou sem permissão'}), 403
             
             success = atualizar_cliente(nome, data)
@@ -2801,7 +2801,7 @@ def modificar_cliente(nome):
             # Validar propriedade antes de deletar (se não for admin)
             if filtro_cliente_id is not None:
                 cliente_atual = db.obter_cliente_por_nome(nome)
-                if not cliente_atual or cliente_atual.get('proprietario_id') != filtro_cliente_id:
+                if not cliente_atual or cliente_atual.get('empresa_id') != filtro_cliente_id:
                     return jsonify({'success': False, 'error': 'Cliente não encontrado ou sem permissão'}), 403
             
             success, mensagem = db.excluir_cliente(nome)
@@ -2992,7 +2992,7 @@ def modificar_fornecedor(nome):
             # Validar propriedade antes de atualizar (se não for admin)
             if filtro_cliente_id is not None:
                 fornecedor_atual = db.obter_fornecedor_por_nome(nome)
-                if not fornecedor_atual or fornecedor_atual.get('proprietario_id') != filtro_cliente_id:
+                if not fornecedor_atual or fornecedor_atual.get('empresa_id') != filtro_cliente_id:
                     return jsonify({'success': False, 'error': 'Fornecedor não encontrado ou sem permissão'}), 403
             
             success = atualizar_fornecedor(nome, data)
@@ -3010,7 +3010,7 @@ def modificar_fornecedor(nome):
             # Validar propriedade antes de deletar (se não for admin)
             if filtro_cliente_id is not None:
                 fornecedor_atual = db.obter_fornecedor_por_nome(nome)
-                if not fornecedor_atual or fornecedor_atual.get('proprietario_id') != filtro_cliente_id:
+                if not fornecedor_atual or fornecedor_atual.get('empresa_id') != filtro_cliente_id:
                     return jsonify({'success': False, 'error': 'Fornecedor não encontrado ou sem permissão'}), 403
             
             success, mensagem = db.excluir_fornecedor(nome)
