@@ -1885,13 +1885,13 @@ def adicionar_conta():
         print(f"   - nome: {data.get('nome')}")
         print(f"   - banco: {data.get('banco')}")
         
-        # Verificar contas existentes antes de adicionar
-        contas_existentes = db.listar_contas(filtro_cliente_id=None)
+        # Verificar contas existentes da mesma empresa antes de adicionar
+        contas_existentes = db.listar_contas_por_empresa(empresa_id=empresa_id)
         
-        # Verificar se já existe
+        # Verificar se já existe conta com mesmo nome na mesma empresa
         for c in contas_existentes:
             if c.nome == data['nome']:
-                print(f"   ❌ CONFLITO: Conta '{data['nome']}' já existe!")
+                print(f"   ❌ CONFLITO: Conta '{data['nome']}' já existe na empresa {empresa_id}!")
                 return jsonify({'success': False, 'error': f'Já existe uma conta cadastrada com: Banco: {data["banco"]}, Agência: {data["agencia"]}, Conta: {data["conta"]}'}), 400
         
         conta = ContaBancaria(
@@ -3494,7 +3494,7 @@ def upload_extrato_ofx():
         db_manager = DatabaseManager()
         
         try:
-            contas_cadastradas = db_manager.listar_contas(filtro_cliente_id=empresa_id)
+            contas_cadastradas = db_manager.listar_contas_por_empresa(empresa_id=empresa_id)
             print(f"📊 Total de contas da empresa {empresa_id}: {len(contas_cadastradas)}")
             print(f"📋 Nomes das contas: {[c.nome for c in contas_cadastradas]}")
         except Exception as e:
