@@ -9974,6 +9974,82 @@ def adicionar_permissoes_config_extrato():
 
 
 # ============================================================================
+# ENDPOINT PARA EXECUTAR MIGRATION DE CONFIG EXTRATO
+# ============================================================================
+@app.route('/api/debug/executar-migration-config-extrato', methods=['POST'])
+@csrf.exempt
+def executar_migration_config_extrato():
+    """
+    Endpoint para forçar execução da migration de config_extrato_bancario
+    """
+    try:
+        from database_postgresql import execute_query
+        import os
+        
+        # Ler arquivo SQL
+        sql_file = os.path.join(os.path.dirname(__file__), 'migration_config_integracao_folha.sql')
+        
+        if not os.path.exists(sql_file):
+            return jsonify({
+                'success': False,
+                'error': f'Arquivo não encontrado: {sql_file}'
+            }), 404
+        
+        with open(sql_file, 'r', encoding='utf-8') as f:
+            sql_content = f.read()
+        
+        # Executar SQL
+        execute_query(sql_content, fetch_all=False, allow_global=True)
+        
+        # Verificar se tabela foi criada
+        result = execute_query("""
+            SELECT COUNT(*) as existe
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'config_extrato_bancario'
+        """, fetch_one=True, allow_global=True)
+        
+        tabela_criada = result['existe'] == 1 if result else False
+        
+        # Verificar se coluna foi removida
+        result_coluna = execute_query("""
+            SELECT COUNT(*) as existe
+            FROM information_schema.columns 
+            WHERE table_name = 'regras_conciliacao' 
+            AND column_name = 'usa_integracao_folha'
+        """, fetch_one=True, allow_global=True)
+        
+        coluna_removida = result_coluna['existe'] == 0 if result_coluna else False
+        
+        # Contar registros criados
+        result_config = execute_query("""
+            SELECT COUNT(*) as total
+            FROM config_extrato_bancario
+        """, fetch_one=True, allow_global=True)
+        
+        configs_criadas = result_config['total'] if result_config else 0
+        
+        return jsonify({
+            'success': True,
+            'message': 'Migration executada com sucesso',
+            'data': {
+                'tabela_criada': tabela_criada,
+                'coluna_removida': coluna_removida,
+                'configs_criadas': configs_criadas,
+                'sql_size': len(sql_content)
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+# ============================================================================
 # ENDPOINT DE STATUS DA MIGRAÇÃO DE SENHAS
 # ============================================================================
 @app.route('/api/admin/passwords/migration-status', methods=['GET'])
