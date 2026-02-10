@@ -3331,7 +3331,7 @@ class DatabaseManager:
 
     def criar_regra_conciliacao(self, empresa_id: int, palavra_chave: str, 
                                categoria: str = None, subcategoria: str = None,
-                               cliente_padrao: str = None, usa_integracao_folha: bool = False,
+                               cliente_padrao: str = None,
                                descricao: str = None) -> Optional[Dict]:
         """
         Cria nova regra de auto-conciliação
@@ -3342,7 +3342,6 @@ class DatabaseManager:
             categoria: Categoria a ser preenchida automaticamente
             subcategoria: Subcategoria a ser preenchida automaticamente
             cliente_padrao: Cliente/Fornecedor padrão
-            usa_integracao_folha: Se TRUE, busca CPF e vincula com funcionário
             descricao: Descrição opcional da regra
             
         Returns:
@@ -3357,11 +3356,11 @@ class DatabaseManager:
             cursor.execute("""
                 INSERT INTO regras_conciliacao (
                     empresa_id, palavra_chave, categoria, subcategoria,
-                    cliente_padrao, usa_integracao_folha, descricao, ativo
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE)
+                    cliente_padrao, descricao, ativo
+                ) VALUES (%s, %s, %s, %s, %s, %s, TRUE)
                 RETURNING *
             """, (empresa_id, palavra_chave.upper(), categoria, subcategoria,
-                  cliente_padrao, usa_integracao_folha, descricao))
+                  cliente_padrao, descricao))
             
             conn.commit()
             regra = cursor.fetchone()
@@ -3398,7 +3397,7 @@ class DatabaseManager:
             
             # Construir SQL dinâmico apenas com campos válidos
             campos_validos = ['palavra_chave', 'categoria', 'subcategoria', 
-                             'cliente_padrao', 'usa_integracao_folha', 'descricao', 'ativo']
+                             'cliente_padrao', 'descricao', 'ativo']
             
             sets = []
             valores = []
@@ -3464,6 +3463,88 @@ class DatabaseManager:
             if conn:
                 conn.rollback()
             print(f"❌ Erro ao excluir regra de conciliação: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                return_to_pool(conn)
+    
+    # ========================================================================
+    # CONFIGURAÇÕES DE EXTRATO BANCÁRIO
+    # ========================================================================
+    
+    def obter_config_extrato(self, empresa_id: int) -> Dict:
+        """
+        Obtém configurações de extrato bancário da empresa
+        
+        Args:
+            empresa_id: ID da empresa
+            
+        Returns:
+            Dicionário com as configurações ou valores padrão
+        """
+        conn = None
+        cursor = None
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("""
+                SELECT * FROM config_extrato_bancario
+                WHERE empresa_id = %s
+            """, (empresa_id,))
+            
+            config = cursor.fetchone()
+            if config:
+                return dict(config)
+            else:
+                # Retornar configuração padrão
+                return {
+                    'empresa_id': empresa_id,
+                    'integrar_folha_pagamento': False
+                }
+        except Exception as e:
+            print(f"❌ Erro ao obter configuração de extrato: {e}")
+            return {'empresa_id': empresa_id, 'integrar_folha_pagamento': False}
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                return_to_pool(conn)
+    
+    def atualizar_config_extrato(self, empresa_id: int, integrar_folha: bool) -> bool:
+        """
+        Atualiza configurações de extrato bancário
+        
+        Args:
+            empresa_id: ID da empresa
+            integrar_folha: Se TRUE, detecta CPF e vincula com funcionário
+            
+        Returns:
+            True se sucesso
+        """
+        conn = None
+        cursor = None
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO config_extrato_bancario (empresa_id, integrar_folha_pagamento)
+                VALUES (%s, %s)
+                ON CONFLICT (empresa_id) 
+                DO UPDATE SET 
+                    integrar_folha_pagamento = EXCLUDED.integrar_folha_pagamento,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (empresa_id, integrar_folha))
+            
+            conn.commit()
+            return True
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            print(f"❌ Erro ao atualizar configuração de extrato: {e}")
             return False
         finally:
             if cursor:

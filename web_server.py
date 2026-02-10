@@ -4249,7 +4249,6 @@ def criar_regra_conciliacao():
             categoria=dados.get('categoria'),
             subcategoria=dados.get('subcategoria'),
             cliente_padrao=dados.get('cliente_padrao'),
-            usa_integracao_folha=dados.get('usa_integracao_folha', False),
             descricao=dados.get('descricao')
         )
         print(f"✅ [DEBUG] Regra criada: {regra}")
@@ -4326,6 +4325,63 @@ def excluir_regra_conciliacao(regra_id):
         
     except Exception as e:
         logger.error(f"Erro ao excluir regra de conciliação: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# CONFIGURAÇÕES DE EXTRATO BANCÁRIO
+# ============================================================================
+
+@app.route('/api/config-extrato', methods=['GET'])
+@require_permission('config_extrato_bancario_view')
+def obter_config_extrato():
+    """
+    Obtém configurações de extrato bancário da empresa
+    """
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
+        config = db.obter_config_extrato(empresa_id)
+        
+        return jsonify({
+            'success': True,
+            'data': config
+        }), 200
+    except Exception as e:
+        logger.error(f"Erro ao obter configuração de extrato: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/config-extrato', methods=['PUT'])
+@require_permission('config_extrato_bancario_edit')
+def atualizar_config_extrato():
+    """
+    Atualiza configurações de extrato bancário
+    """
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
+        dados = request.json
+        integrar_folha = dados.get('integrar_folha_pagamento', False)
+        
+        sucesso = db.atualizar_config_extrato(
+            empresa_id=empresa_id,
+            integrar_folha=integrar_folha
+        )
+        
+        if sucesso:
+            return jsonify({
+                'success': True,
+                'message': 'Configuração atualizada com sucesso'
+            }), 200
+        else:
+            return jsonify({'success': False, 'error': 'Erro ao atualizar configuração'}), 500
+    except Exception as e:
+        logger.error(f"Erro ao atualizar configuração de extrato: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

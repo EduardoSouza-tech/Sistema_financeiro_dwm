@@ -198,6 +198,93 @@ def execute_migration_regras_conciliacao():
         
         print("\n" + "="*80, flush=True)
         print("✅ MIGRATION REGRAS CONCILIAÇÃO CONCLUÍDA!", flush=True)
+        print("="*80 + "\n", flush=True)
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ ERRO na migration de regras: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def executar_migration_config_integracao_folha(conn):
+    """
+    Migration: Configuração Global de Integração com Folha
+    
+    Move a integração de folha das regras individuais para configuração global da empresa
+    """
+    try:
+        print("\n" + "="*80, flush=True)
+        print("🔧 MIGRATION: Configuração Global de Integração com Folha", flush=True)
+        print("="*80, flush=True)
+        
+        cursor = conn.cursor()
+        
+        # Verificar se tabela já existe
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'config_extrato_bancario'
+        """)
+        
+        if cursor.fetchone()[0] == 1:
+            print("✅ Tabela config_extrato_bancario já existe. Nada a fazer.", flush=True)
+            cursor.close()
+            return True
+        
+        print(f"⚠️ Tabela não existe. Executando migration...", flush=True)
+        
+        # Ler arquivo SQL
+        sql_file = os.path.join(os.path.dirname(__file__), 'migration_config_integracao_folha.sql')
+        
+        if not os.path.exists(sql_file):
+            print(f"❌ Arquivo não encontrado: {sql_file}", flush=True)
+            return False
+        
+        print(f"✅ Arquivo SQL encontrado: {sql_file}", flush=True)
+        
+        with open(sql_file, 'r', encoding='utf-8') as f:
+            sql_content = f.read()
+        
+        print(f"✅ SQL lido ({len(sql_content)} bytes)", flush=True)
+        
+        # Executar SQL
+        print("📝 Executando SQL...", flush=True)
+        cursor.execute(sql_content)
+        conn.commit()
+        print("✅ SQL executado e commitado", flush=True)
+        
+        # Verificar criação
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'config_extrato_bancario'
+        """)
+        
+        if cursor.fetchone()[0] == 1:
+            print("✅ TABELA config_extrato_bancario CRIADA COM SUCESSO!", flush=True)
+        
+        # Verificar se coluna foi removida de regras_conciliacao
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM information_schema.columns 
+            WHERE table_name = 'regras_conciliacao' 
+            AND column_name = 'usa_integracao_folha'
+        """)
+        
+        if cursor.fetchone()[0] == 0:
+            print("✅ COLUNA usa_integracao_folha REMOVIDA de regras_conciliacao!", flush=True)
+        else:
+            print("⚠️ Coluna ainda existe (será removida na próxima tentativa)", flush=True)
+        
+        cursor.close()
+        
+        print("\n" + "="*80, flush=True)
+        print("✅ MIGRATION CONFIG INTEGRAÇÃO FOLHA CONCLUÍDA!", flush=True)
         print("="*80, flush=True)
         
         return True
@@ -298,12 +385,24 @@ if __name__ == '__main__':
         regras_success = execute_migration_regras_conciliacao()
         permissoes_success = execute_migration_permissoes_empresa_regras()
         
+        # Nova migration: Configuração global de integração com folha
+        print("\n", flush=True)
+        config_folha_success = False
+        try:
+            db = DatabaseManager()
+            conn = db.get_connection()
+            config_folha_success = executar_migration_config_integracao_folha(conn)
+            conn.close()
+        except Exception as e:
+            print(f"⚠️ Erro na migration de config: {e}", flush=True)
+        
         print("\n" + "="*80, flush=True)
         print("📋 RESUMO DO SETUP", flush=True)
         print("="*80, flush=True)
         print(f"✅ Migration Eventos: {'OK' if eventos_success else 'FALHOU'}", flush=True)
         print(f"✅ Migration Regras: {'OK' if regras_success else 'FALHOU'}", flush=True)
         print(f"✅ Migration Permissões: {'OK' if permissoes_success else 'FALHOU'}", flush=True)
+        print(f"✅ Migration Config Folha: {'OK' if config_folha_success else 'FALHOU'}", flush=True)
         print("="*80, flush=True)
         
         if eventos_success and regras_success and permissoes_success:
