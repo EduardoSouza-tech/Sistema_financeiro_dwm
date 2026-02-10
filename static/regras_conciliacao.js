@@ -156,10 +156,92 @@ const RegrasConciliacao = {
             this.regras = Array.isArray(data) ? data : (data.data || data.regras || []);
             console.log(`✅ ${this.regras.length} regra(s) carregadas`);
             
+            // Renderizar tabela
+            this.renderizarTabela();
+            
         } catch (error) {
             console.error('❌ Erro ao carregar regras:', error);
             this.regras = [];
+            this.renderizarTabela();
         }
+    },
+
+    /**
+     * Renderiza a tabela de regras
+     */
+    renderizarTabela() {
+        const tbody = document.getElementById('regras-lista');
+        if (!tbody) {
+            console.warn('⚠️ Elemento regras-lista não encontrado');
+            return;
+        }
+        
+        if (this.regras.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                        <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
+                        <div style="font-size: 16px;">Nenhuma regra cadastrada ainda.</div>
+                        <div style="font-size: 14px; margin-top: 10px; color: #95a5a6;">
+                            Clique em "➕ Nova Regra" para criar sua primeira regra de auto-conciliação
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = this.regras.map(regra => `
+            <tr style="border-bottom: 1px solid #dee2e6; ${!regra.ativo ? 'opacity: 0.5;' : ''}">
+                <td style="padding: 15px;">
+                    <div style="font-weight: 600; color: #2c3e50; margin-bottom: 4px;">
+                        ${this.escapeHtml(regra.palavra_chave)}
+                    </div>
+                    ${regra.descricao ? `
+                        <div style="font-size: 12px; color: #7f8c8d;">
+                            ${this.escapeHtml(regra.descricao)}
+                        </div>
+                    ` : ''}
+                </td>
+                <td style="padding: 15px; color: #495057;">
+                    ${regra.categoria ? this.escapeHtml(regra.categoria) : '<span style="color: #95a5a6;">-</span>'}
+                </td>
+                <td style="padding: 15px; color: #495057;">
+                    ${regra.subcategoria ? this.escapeHtml(regra.subcategoria) : '<span style="color: #95a5a6;">-</span>'}
+                </td>
+                <td style="padding: 15px; color: #495057;">
+                    ${regra.cliente_padrao ? this.escapeHtml(regra.cliente_padrao) : '<span style="color: #95a5a6;">-</span>'}
+                </td>
+                <td style="padding: 15px; text-align: center;">
+                    ${regra.usa_integracao_folha ? 
+                        '<span style="color: #27ae60; font-weight: bold;">✓ Sim</span>' : 
+                        '<span style="color: #95a5a6;">✗ Não</span>'}
+                </td>
+                <td style="padding: 15px; text-align: center;">
+                    <button onclick="RegrasConciliacao.editarRegra(${regra.id})" 
+                            style="background: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 4px;"
+                            title="Editar regra">
+                        ✏️
+                    </button>
+                    <button onclick="RegrasConciliacao.excluirRegra(${regra.id})" 
+                            style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;"
+                            title="Excluir regra">
+                        🗑️
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+        
+        console.log('✅ Tabela renderizada com', this.regras.length, 'regra(s)');
+    },
+
+    /**
+     * Escapa HTML para prevenir XSS
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     },
 
     /**
@@ -307,6 +389,119 @@ const RegrasConciliacao = {
      */
     fecharModal() {
         document.getElementById('modal-regra-conciliacao').style.display = 'none';
+    },
+
+    /**
+     * Salvar regra (criar ou atualizar)
+     */
+    async salvarRegra() {
+        console.log('💾 Salvando regra...');
+        
+        try {
+            // Coletar dados do formulário
+            const regraId = document.getElementById('regra-id').value;
+            const palavraChave = document.getElementById('regra-palavra-chave').value.trim();
+            const descricao = document.getElementById('regra-descricao').value.trim();
+            const categoria = document.getElementById('regra-categoria').value;
+            const subcategoria = document.getElementById('regra-subcategoria').value;
+            const clientePadrao = document.getElementById('regra-cliente-padrao').value;
+            const integracaoFolha = document.getElementById('regra-integracao-folha').checked;
+            
+            // Validações
+            if (!palavraChave) {
+                alert('❌ Palavra-chave é obrigatória!');
+                document.getElementById('regra-palavra-chave').focus();
+                return;
+            }
+            
+            // Preparar dados
+            const dados = {
+                palavra_chave: palavraChave,
+                descricao: descricao || null,
+                categoria: categoria || null,
+                subcategoria: subcategoria || null,
+                cliente_padrao: clientePadrao || null,
+                usa_integracao_folha: integracaoFolha,
+                ativo: true
+            };
+            
+            console.log('📤 Dados a enviar:', dados);
+            
+            // Determinar método e URL
+            const isEdicao = regraId && regraId !== '';
+            const url = isEdicao 
+                ? `/api/regras-conciliacao/${regraId}` 
+                : '/api/regras-conciliacao';
+            const method = isEdicao ? 'PUT' : 'POST';
+            
+            console.log(`🌐 ${method} ${url}`);
+            
+            // Enviar para API
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(dados)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+                console.log('✅ Regra salva com sucesso!', result);
+                alert(`✅ Regra ${isEdicao ? 'atualizada' : 'criada'} com sucesso!`);
+                
+                // Fechar modal
+                this.fecharModal();
+                
+                // Recarregar lista de regras
+                await this.carregarRegras();
+                
+            } else {
+                console.error('❌ Erro ao salvar regra:', result);
+                alert(`❌ Erro ao salvar regra: ${result.error || 'Erro desconhecido'}`);
+            }
+            
+        } catch (error) {
+            console.error('❌ Erro ao salvar regra:', error);
+            alert('❌ Erro ao salvar regra. Verifique o console para detalhes.');
+        }
+    },
+
+    /**
+     * Excluir regra
+     */
+    async excluirRegra(id) {
+        console.log('🗑️ Solicitação para excluir regra:', id);
+        
+        if (!confirm('⚠️ Tem certeza que deseja excluir esta regra?')) {
+            console.log('❌ Exclusão cancelada pelo usuário');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/regras-conciliacao/${id}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+                console.log('✅ Regra excluída com sucesso!');
+                alert('✅ Regra excluída com sucesso!');
+                
+                // Recarregar lista
+                await this.carregarRegras();
+                
+            } else {
+                console.error('❌ Erro ao excluir regra:', result);
+                alert(`❌ Erro ao excluir regra: ${result.error || 'Erro desconhecido'}`);
+            }
+            
+        } catch (error) {
+            console.error('❌ Erro ao excluir regra:', error);
+            alert('❌ Erro ao excluir regra. Verifique o console.');
+        }
     }
 };
 
