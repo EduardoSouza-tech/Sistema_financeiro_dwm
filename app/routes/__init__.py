@@ -101,6 +101,25 @@ def register_blueprints(app):
         import traceback
         print(f"   Traceback: {traceback.format_exc()}")
     
+    # REMESSA DE PAGAMENTOS SICREDI (Módulo independente - não afeta outras rotas)
+    try:
+        from .remessa import remessa_bp
+        app.register_blueprint(remessa_bp)
+        print("✅ Blueprint 'remessa de pagamentos' registrado em /api/remessa")
+        
+        # Listar rotas do blueprint
+        for rule in app.url_map.iter_rules():
+            if 'remessa' in rule.rule:
+                print(f"   📍 {rule.rule} - {list(rule.methods - {'HEAD', 'OPTIONS'})}")
+    except ImportError as e:
+        print(f"⚠️  Blueprint 'remessa' não encontrado: {e}")
+        import traceback
+        print(f"   Traceback: {traceback.format_exc()}")
+    except Exception as e:
+        print(f"❌ Erro ao registrar blueprint 'remessa': {e}")
+        import traceback
+        print(f"   Traceback: {traceback.format_exc()}")
+    
     # Adicionar outros blueprints aqui conforme forem criados
     # from .clientes import clientes_bp
     # app.register_blueprint(clientes_bp, url_prefix='/api')
