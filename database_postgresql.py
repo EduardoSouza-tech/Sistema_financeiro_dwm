@@ -2078,17 +2078,51 @@ class DatabaseManager:
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             
-            cursor.execute("""
-                INSERT INTO clientes (
-                    nome, cpf_cnpj, email, telefone, endereco, 
-                    cep, logradouro, numero, complemento, bairro, cidade, estado,
-                    proprietario_id, empresa_id
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (nome, cpf_cnpj, email, telefone, endereco, 
-                  cep, logradouro, numero, complemento, bairro, cidade, estado,
-                  proprietario_id, empresa_id))
+            # 🔄 Tentar inserir com campos estruturados (migration aplicada)
+            # Se falhar, fazer fallback para apenas campo 'endereco' TEXT
+            try:
+                cursor.execute("""
+                    INSERT INTO clientes (
+                        nome, cpf_cnpj, email, telefone, endereco, 
+                        cep, logradouro, numero, complemento, bairro, cidade, estado,
+                        proprietario_id, empresa_id
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (nome, cpf_cnpj, email, telefone, endereco, 
+                      cep, logradouro, numero, complemento, bairro, cidade, estado,
+                      proprietario_id, empresa_id))
+                
+            except Exception as e:
+                # ⚠️ Fallback: Se colunas estruturadas não existem, usar apenas 'endereco'
+                if 'does not exist' in str(e) and 'cep' in str(e):
+                    print(f"⚠️ Colunas de endereço estruturado não existem. Usando fallback...")
+                    conn.rollback()
+                    
+                    # Montar endereço completo no campo TEXT
+                    endereco_completo = endereco or ""
+                    if cep or logradouro or numero:
+                        partes = []
+                        if logradouro: partes.append(logradouro)
+                        if numero: partes.append(f"nº {numero}")
+                        if complemento: partes.append(complemento)
+                        if bairro: partes.append(bairro)
+                        if cidade: partes.append(cidade)
+                        if estado: partes.append(estado)
+                        if cep: partes.append(f"CEP: {cep}")
+                        endereco_completo = ", ".join(partes) if partes else endereco
+                    
+                    cursor.execute("""
+                        INSERT INTO clientes (
+                            nome, cpf_cnpj, email, telefone, endereco,
+                            proprietario_id, empresa_id
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id
+                    """, (nome, cpf_cnpj, email, telefone, endereco_completo,
+                          proprietario_id, empresa_id))
+                else:
+                    raise  # Re-lançar outros erros
             
             cliente_id = cursor.fetchone()['id']
             conn.commit()
@@ -2141,30 +2175,78 @@ class DatabaseManager:
         cursor = conn.cursor()
         
         nome_normalizado = nome_antigo.upper().strip()
-        cursor.execute("""
-            UPDATE clientes 
-            SET nome = %s, cpf_cnpj = %s, email = %s, 
-                telefone = %s, endereco = %s,
-                cep = %s, logradouro = %s, numero = %s,
-                complemento = %s, bairro = %s, cidade = %s, estado = %s,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE UPPER(TRIM(nome)) = %s
-        """, (
-            dados.get('nome'),
-            dados.get('cpf', dados.get('cpf_cnpj')),
-            dados.get('email'),
-            dados.get('telefone'),
-            dados.get('endereco'),
-            # 🌐 Campos de endereço estruturado (PARTE 7)
-            dados.get('cep'),
-            dados.get('logradouro'),
-            dados.get('numero'),
-            dados.get('complemento'),
-            dados.get('bairro'),
-            dados.get('cidade'),
-            dados.get('estado'),
-            nome_normalizado
-        ))
+        
+        # 🔄 Tentar atualizar com campos estruturados (migration aplicada)
+        # Se falhar, fazer fallback para apenas campo 'endereco' TEXT
+        try:
+            cursor.execute("""
+                UPDATE clientes 
+                SET nome = %s, cpf_cnpj = %s, email = %s, 
+                    telefone = %s, endereco = %s,
+                    cep = %s, logradouro = %s, numero = %s,
+                    complemento = %s, bairro = %s, cidade = %s, estado = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE UPPER(TRIM(nome)) = %s
+            """, (
+                dados.get('nome'),
+                dados.get('cpf', dados.get('cpf_cnpj')),
+                dados.get('email'),
+                dados.get('telefone'),
+                dados.get('endereco'),
+                # 🌐 Campos de endereço estruturado (PARTE 7)
+                dados.get('cep'),
+                dados.get('logradouro'),
+                dados.get('numero'),
+                dados.get('complemento'),
+                dados.get('bairro'),
+                dados.get('cidade'),
+                dados.get('estado'),
+                nome_normalizado
+            ))
+            
+        except Exception as e:
+            # ⚠️ Fallback: Se colunas estruturadas não existem, usar apenas 'endereco'
+            if 'does not exist' in str(e) and 'cep' in str(e):
+                print(f"⚠️ Colunas de endereço estruturado não existem. Usando fallback...")
+                conn.rollback()
+                
+                # Montar endereço completo no campo TEXT
+                endereco = dados.get('endereco') or ""
+                cep = dados.get('cep')
+                logradouro = dados.get('logradouro')
+                numero = dados.get('numero')
+                complemento = dados.get('complemento')
+                bairro = dados.get('bairro')
+                cidade = dados.get('cidade')
+                estado = dados.get('estado')
+                
+                if cep or logradouro or numero:
+                    partes = []
+                    if logradouro: partes.append(logradouro)
+                    if numero: partes.append(f"nº {numero}")
+                    if complemento: partes.append(complemento)
+                    if bairro: partes.append(bairro)
+                    if cidade: partes.append(cidade)
+                    if estado: partes.append(estado)
+                    if cep: partes.append(f"CEP: {cep}")
+                    endereco = ", ".join(partes) if partes else endereco
+                
+                cursor.execute("""
+                    UPDATE clientes 
+                    SET nome = %s, cpf_cnpj = %s, email = %s, 
+                        telefone = %s, endereco = %s,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE UPPER(TRIM(nome)) = %s
+                """, (
+                    dados.get('nome'),
+                    dados.get('cpf', dados.get('cpf_cnpj')),
+                    dados.get('email'),
+                    dados.get('telefone'),
+                    endereco,
+                    nome_normalizado
+                ))
+            else:
+                raise  # Re-lançar outros erros
         
         sucesso = cursor.rowcount > 0
         conn.commit()
