@@ -2782,14 +2782,15 @@
                                     <thead>
                                         <tr style="background: #f8f9fa; border-bottom: 2px solid #333;">
                                             <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 5%;">#</th>
-                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 30%;">Funcionário</th>
-                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 20%;">Função</th>
-                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 15%;">Setor</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 25%;">Funcionário</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 15%;">Função</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 12%;">Setor</th>
+                                            <th style="padding: 12px; text-align: right; border: 1px solid #ddd; width: 13%;">Valor (R$)</th>
                                             <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 30%;">Assinatura</th>
                                         </tr>
                                     </thead>
                                     <tbody id="tbody-assinatura-evento">
-                                        <tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>
+                                        <tr><td colspan="6" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>
                                     </tbody>
                                 </table>
 
@@ -7092,17 +7093,18 @@
             const linhasEquipe = tbodyEquipe.querySelectorAll('tr');
             
             if (linhasEquipe.length === 1 && linhasEquipe[0].cells.length === 1) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
                 return;
             }
             
             let html = '';
             linhasEquipe.forEach((linha, index) => {
                 const cells = linha.cells;
-                if (cells.length >= 4) {
+                if (cells.length >= 5) {
                     const funcionario = cells[0].textContent;
                     const funcao = cells[1].textContent;
                     const setor = cells[2].textContent;
+                    const valor = cells[4].textContent; // cells[4] é o Valor (não cells[3] que é Saldo Horas)
                     const setorId = linha.getAttribute('data-setor-id') || '';
                     
                     html += `
@@ -7111,13 +7113,14 @@
                             <td style="padding: 15px 12px; border: 1px solid #ddd;">${funcionario}</td>
                             <td style="padding: 15px 12px; border: 1px solid #ddd;">${funcao}</td>
                             <td style="padding: 15px 12px; border: 1px solid #ddd;">${setor}</td>
+                            <td style="padding: 15px 12px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #27ae60;">${valor}</td>
                             <td style="padding: 15px 12px; border: 1px solid #ddd; text-align: center;"></td>
                         </tr>
                     `;
                 }
             });
             
-            tbody.innerHTML = html || '<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
+            tbody.innerHTML = html || '<tr><td colspan="6" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
         }
 
         function toggleValorMassa() {
@@ -7221,7 +7224,7 @@
             
             linhas.forEach((linha, index) => {
                 const cells = linha.cells;
-                if (cells.length >= 4) {
+                if (cells.length >= 5) {
                     const setorId = linha.getAttribute('data-setor-id') || 'sem-setor';
                     const setorNome = cells[3].textContent.trim() || 'Sem Setor';
                     
@@ -7232,7 +7235,8 @@
                     setores.get(setorId).funcionarios.push({
                         funcionario: cells[1].textContent,
                         funcao: cells[2].textContent,
-                        setor: setorNome
+                        setor: setorNome,
+                        valor: cells[4].textContent // Adicionar valor
                     });
                 }
             });
@@ -7269,23 +7273,25 @@
                     func.funcionario,
                     func.funcao,
                     func.setor,
+                    func.valor,
                     ''
                 ]);
                 
                 // Gerar tabela
                 doc.autoTable({
                     startY: 52,
-                    head: [['#', 'Funcionário', 'Função', 'Setor', 'Assinatura']],
+                    head: [['#', 'Funcionário', 'Função', 'Setor', 'Valor (R$)', 'Assinatura']],
                     body: tableData,
                     theme: 'grid',
                     headStyles: { fillColor: [52, 152, 219], fontSize: 11, fontStyle: 'bold' },
                     bodyStyles: { fontSize: 10 },
                     columnStyles: {
                         0: { halign: 'center', cellWidth: 10 },
-                        1: { cellWidth: 50 },
-                        2: { cellWidth: 40 },
-                        3: { cellWidth: 35 },
-                        4: { halign: 'center', cellWidth: 55 }
+                        1: { cellWidth: 45 },
+                        2: { cellWidth: 35 },
+                        3: { cellWidth: 30 },
+                        4: { halign: 'right', cellWidth: 25 },
+                        5: { halign: 'center', cellWidth: 45 }
                     },
                     margin: { top: 52, bottom: 20 }
                 });
@@ -7331,18 +7337,20 @@
             // Dados
             linhas.forEach((linha, index) => {
                 const cells = linha.cells;
-                if (cells.length >= 4) {
+                if (cells.length >= 5) {
                     const funcionario = cells[0].textContent;
                     const funcao = cells[1].textContent;
                     const setor = cells[2].textContent;
-                    const valor = cells[3].textContent.replace('R$', '').replace('.', '').replace(',', '.').trim();
+                    // cells[4] é o Valor (cells[3] é Saldo de Horas)
+                    const valorTexto = cells[4].textContent.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+                    const valor = parseFloat(valorTexto) || 0;
                     
                     dados.push([
                         index + 1,
                         funcionario,
                         funcao,
                         setor,
-                        parseFloat(valor) || 0
+                        valor
                     ]);
                 }
             });
