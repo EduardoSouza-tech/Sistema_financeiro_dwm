@@ -5603,6 +5603,8 @@ def adicionar_funcionario_evento(evento_id):
     """Adicionar funcionário à equipe do evento"""
     try:
         dados = request.get_json()
+        print(f"[EQUIPE MASSA] Dados recebidos: {dados}", flush=True)  # DEBUG
+        
         funcionario_id = dados.get('funcionario_id')
         funcao_id = dados.get('funcao_id')
         setor_id = dados.get('setor_id')  # Opcional
@@ -5610,7 +5612,10 @@ def adicionar_funcionario_evento(evento_id):
         hora_inicio = dados.get('hora_inicio')  # Opcional
         hora_fim = dados.get('hora_fim')  # Opcional
         
+        print(f"[EQUIPE MASSA] funcionario_id={funcionario_id}, funcao_id={funcao_id}, valor={valor}", flush=True)  # DEBUG
+        
         if not funcionario_id or not funcao_id:
+            print(f"[EQUIPE MASSA] ❌ ERRO: Campos obrigatórios ausentes", flush=True)  # DEBUG
             return jsonify({'error': 'Funcionário e função são obrigatórios'}), 400
         
         conn = db.get_connection()
@@ -5620,10 +5625,12 @@ def adicionar_funcionario_evento(evento_id):
         cursor.execute("SELECT nome FROM funcoes_evento WHERE id = %s", (funcao_id,))
         funcao_row = cursor.fetchone()
         if not funcao_row:
+            print(f"[EQUIPE MASSA] ❌ ERRO: Função {funcao_id} não encontrada", flush=True)  # DEBUG
             cursor.close()
             return jsonify({'error': 'Função não encontrada'}), 404
         
         funcao_nome = funcao_row['nome']
+        print(f"[EQUIPE MASSA] Função encontrada: {funcao_nome}", flush=True)  # DEBUG
         
         # Verificar se já existe alocação
         cursor.execute("""
@@ -5632,6 +5639,7 @@ def adicionar_funcionario_evento(evento_id):
         """, (evento_id, funcionario_id, funcao_id))
         
         if cursor.fetchone():
+            print(f"[EQUIPE MASSA] ⚠️ DUPLICADO: Funcionário {funcionario_id} já alocado no evento {evento_id} com função {funcao_id}", flush=True)  # DEBUG
             cursor.close()
             return jsonify({'error': 'Este funcionário já está alocado com esta função neste evento'}), 400
         

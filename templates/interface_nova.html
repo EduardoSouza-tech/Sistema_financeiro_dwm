@@ -7408,7 +7408,8 @@
 
             // Enviar em lote
             let sucessos = 0;
-            let erros = 0;
+            let erros = [];
+            let duplicados = 0;
 
             showToast(`⏳ Adicionando ${funcionariosSelecionados.length} cooperado(s)...`, 'info');
 
@@ -7432,6 +7433,8 @@
                         dados.hora_fim = horaFim;
                     }
                     
+                    console.log('[MASSA] Enviando dados:', dados); // DEBUG
+                    
                     const response = await fetch(`/api/eventos/${eventoId}/equipe`, {
                         method: 'POST',
                         credentials: 'include',
@@ -7444,11 +7447,19 @@
                     if (response.ok) {
                         sucessos++;
                     } else {
-                        erros++;
+                        const errorData = await response.json();
+                        console.error('[MASSA] Erro:', response.status, errorData); // DEBUG
+                        
+                        // Verificar se é erro de duplicação
+                        if (errorData.error && errorData.error.includes('já está alocado')) {
+                            duplicados++;
+                        } else {
+                            erros.push(`${errorData.error || 'Erro desconhecido'}`);
+                        }
                     }
                 } catch (error) {
-                    console.error('Erro ao adicionar cooperado:', error);
-                    erros++;
+                    console.error('[MASSA] Exceção:', error);
+                    erros.push(error.message);
                 }
             }
 
@@ -7461,8 +7472,17 @@
                 await loadEventos();
             }
 
-            if (erros > 0) {
-                showToast(`⚠️ ${erros} erro(s) ao adicionar cooperado(s)`, 'warning');
+            if (duplicados > 0) {
+                showToast(`⚠️ ${duplicados} cooperado(s) já estava(m) alocado(s) neste evento`, 'warning');
+            }
+
+            if (erros.length > 0) {
+                console.error('[MASSA] Lista de erros:', erros);
+                showToast(`❌ ${erros.length} erro(s): ${erros[0]}`, 'error');
+                // Mostrar todos os erros no console para debug
+                erros.forEach((erro, index) => {
+                    console.error(`[MASSA] Erro ${index + 1}:`, erro);
+                });
             }
         }
 
