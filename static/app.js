@@ -3255,7 +3255,7 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                     <div>
                         <strong>Valor:</strong> 
                         <span style="color: ${valorColor}; font-weight: bold; font-size: 18px;">
-                            ${parseFloat(transacao.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            ${formatarMoeda(transacao.valor)}
                         </span>
                     </div>
                     <div>

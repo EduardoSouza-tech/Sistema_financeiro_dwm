@@ -29,8 +29,14 @@ function formatarMoeda(valor, moeda = 'R$') {
             return `${moeda} 0,00`;
         }
         
-        // Converte para número
-        const numero = typeof valor === 'string' ? parseFloat(valor.replace(/[^0-9,-]/g, '').replace(',', '.')) : parseFloat(valor);
+        // Converte para número de forma seguraconst numero = typeof valor === 'string' ? 
+            // Se string tem vírgula: formato BR (1.234,56) - remove pontos, troca vírgula por ponto
+            (valor.includes(',') ? 
+                parseFloat(valor.replace(/[^0-9,-]/g, '').replace(',', '.')) :
+                // Se string tem só ponto ou números: formato SQL (1234.56) - usa direto
+                parseFloat(valor)
+            ) : 
+            parseFloat(valor);
         
         if (isNaN(numero)) {
             return `${moeda} 0,00`;
