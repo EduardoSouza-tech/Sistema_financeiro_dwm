@@ -57,6 +57,12 @@ except ImportError:
 # ============================================================================
 # IMPORTAÇÕES DO BANCO DE DADOS - APENAS POSTGRESQL
 # ============================================================================
+# FORÇA REIMPORT DO MÓDULO database_postgresql
+# Remove do cache para garantir que métodos novos sejam carregados
+if 'database_postgresql' in sys.modules:
+    print("🔄 Forçando reimport de database_postgresql...")
+    del sys.modules['database_postgresql']
+    
 try:
     import database_postgresql as database
     import database_postgresql as auth_db
