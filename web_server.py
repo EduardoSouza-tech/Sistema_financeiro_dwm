@@ -4186,11 +4186,18 @@ def desconciliar_extrato(transacao_id):
 def listar_regras_conciliacao():
     """Lista todas as regras de auto-conciliação da empresa"""
     try:
+        print("🔍 [DEBUG] Iniciando listar_regras_conciliacao")
+        
         empresa_id = session.get('empresa_id')
+        print(f"🔍 [DEBUG] empresa_id: {empresa_id}")
+        
         if not empresa_id:
+            print("❌ [DEBUG] Empresa não selecionada")
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
         
+        print(f"🔍 [DEBUG] Chamando db.listar_regras_conciliacao(empresa_id={empresa_id})")
         regras = db.listar_regras_conciliacao(empresa_id=empresa_id)
+        print(f"✅ [DEBUG] Regras retornadas: {len(regras) if regras else 0}")
         
         return jsonify({
             'success': True,
@@ -4198,6 +4205,9 @@ def listar_regras_conciliacao():
         }), 200
         
     except Exception as e:
+        print(f"❌ [DEBUG] ERRO: {e}")
+        import traceback
+        traceback.print_exc()
         logger.error(f"Erro ao listar regras de conciliação: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -4207,16 +4217,24 @@ def listar_regras_conciliacao():
 def criar_regra_conciliacao():
     """Cria nova regra de auto-conciliação"""
     try:
+        print("🔍 [DEBUG] Iniciando criar_regra_conciliacao")
+        
         empresa_id = session.get('empresa_id')
+        print(f"🔍 [DEBUG] empresa_id: {empresa_id}")
+        
         if not empresa_id:
+            print("❌ [DEBUG] Empresa não selecionada")
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
         
         dados = request.json
+        print(f"🔍 [DEBUG] Dados recebidos: {dados}")
         
         # Validar campos obrigatórios
         if not dados.get('palavra_chave'):
+            print("❌ [DEBUG] Palavra-chave não fornecida")
             return jsonify({'success': False, 'error': 'Palavra-chave é obrigatória'}), 400
         
+        print(f"🔍 [DEBUG] Chamando db.criar_regra_conciliacao")
         regra = db.criar_regra_conciliacao(
             empresa_id=empresa_id,
             palavra_chave=dados.get('palavra_chave'),
@@ -4226,6 +4244,7 @@ def criar_regra_conciliacao():
             usa_integracao_folha=dados.get('usa_integracao_folha', False),
             descricao=dados.get('descricao')
         )
+        print(f"✅ [DEBUG] Regra criada: {regra}")
         
         if regra:
             return jsonify({
@@ -4234,9 +4253,13 @@ def criar_regra_conciliacao():
                 'data': regra
             }), 201
         else:
+            print("❌ [DEBUG] db.criar_regra_conciliacao retornou None")
             return jsonify({'success': False, 'error': 'Erro ao criar regra'}), 500
         
     except Exception as e:
+        print(f"❌ [DEBUG] ERRO: {e}")
+        import traceback
+        traceback.print_exc()
         logger.error(f"Erro ao criar regra de conciliação: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
