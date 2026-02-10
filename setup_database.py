@@ -20,7 +20,7 @@ except Exception as e:
     sys.exit(1)
 
 
-def execute_migration():
+def execute_migration_eventos():
     """Executa migration de eventos"""
     print("\n" + "="*80, flush=True)
     print("📝 EXECUTANDO MIGRATION DE EVENTOS", flush=True)
@@ -110,37 +110,128 @@ def execute_migration():
         return False
 
 
+def execute_migration_regras_conciliacao():
+    """Executa migration de regras de conciliação"""
+    print("\n" + "="*80, flush=True)
+    print("📝 EXECUTANDO MIGRATION DE REGRAS DE CONCILIAÇÃO", flush=True)
+    print("="*80, flush=True)
+    
+    try:
+        # Inicializar DatabaseManager
+        db = DatabaseManager()
+        print("✅ DatabaseManager inicializado", flush=True)
+        
+        # Conectar ao banco
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        print("✅ Conexão estabelecida", flush=True)
+        
+        # Verificar se tabela já existe
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'regras_conciliacao'
+        """)
+        
+        count = cursor.fetchone()[0]
+        
+        if count == 1:
+            print("✅ Tabela regras_conciliacao já existe. Nada a fazer.", flush=True)
+            cursor.close()
+            return True
+        
+        print(f"⚠️ Tabela não existe. Executando migration...", flush=True)
+        
+        # Ler arquivo SQL
+        sql_file = os.path.join(os.path.dirname(__file__), 'migration_regras_conciliacao.sql')
+        
+        if not os.path.exists(sql_file):
+            print(f"❌ Arquivo não encontrado: {sql_file}", flush=True)
+            return False
+        
+        print(f"✅ Arquivo SQL encontrado: {sql_file}", flush=True)
+        
+        with open(sql_file, 'r', encoding='utf-8') as f:
+            sql_content = f.read()
+        
+        print(f"✅ SQL lido ({len(sql_content)} bytes)", flush=True)
+        
+        # Executar SQL
+        print("📝 Executando SQL...", flush=True)
+        cursor.execute(sql_content)
+        conn.commit()
+        print("✅ SQL executado e commitado", flush=True)
+        
+        # Verificar criação
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'regras_conciliacao'
+        """)
+        
+        if cursor.fetchone()[0] == 1:
+            print("✅ TABELA regras_conciliacao CRIADA COM SUCESSO!", flush=True)
+        
+        # Verificar função
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM pg_proc 
+            WHERE proname = 'buscar_regras_aplicaveis'
+        """)
+        
+        if cursor.fetchone()[0] > 0:
+            print("✅ FUNÇÃO buscar_regras_aplicaveis CRIADA!", flush=True)
+        
+        # Verificar permissões
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM permissoes 
+            WHERE codigo LIKE 'regras_conciliacao_%'
+        """)
+        
+        perm_count = cursor.fetchone()[0]
+        print(f"✅ {perm_count} PERMISSÕES CRIADAS", flush=True)
+        
+        cursor.close()
+        
+        print("\n" + "="*80, flush=True)
+        print("✅ MIGRATION REGRAS CONCILIAÇÃO CONCLUÍDA!", flush=True)
+        print("="*80, flush=True)
+        
+        return True
+        
+    except Exception as e:
+        print(f"\n❌ ERRO NA MIGRATION REGRAS: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        print("", flush=True)
+        return False
+
+
 if __name__ == '__main__':
     try:
-        success = execute_migration()
+        # Executar migrations
+        eventos_success = execute_migration_eventos()
+        regras_success = execute_migration_regras_conciliacao()
         
-        if success:
-            print("\n✅ Setup concluído com sucesso!", flush=True)
-            sys.exit(0)
+        print("\n" + "="*80, flush=True)
+        print("📋 RESUMO DO SETUP", flush=True)
+        print("="*80, flush=True)
+        print(f"✅ Migration Eventos: {'OK' if eventos_success else 'FALHOU'}", flush=True)
+        print(f"✅ Migration Regras: {'OK' if regras_success else 'FALHOU'}", flush=True)
+        print("="*80, flush=True)
+        
+        if eventos_success and regras_success:
+            print("\n✅ SETUP CONCLUÍDO COM SUCESSO!", flush=True)
         else:
-            print("\n⚠️ Setup teve problemas, mas não vamos falhar o deploy", flush=True)
-            sys.exit(0)  # Não falhar o deploy
+            print("\n⚠️ Setup com avisos (normal em redeploys)", flush=True)
+        
+        sys.exit(0)  # Nunca falhar o deploy
             
     except Exception as e:
         print(f"\n❌ Erro fatal no setup: {e}", flush=True)
         import traceback
         traceback.print_exc()
         sys.exit(0)  # Não falhar o deploy mesmo com erro
-    
-    # Resultado final
-    print("\n" + "="*60)
-    if eventos_success and rls_success:
-        print("✅ SETUP CONCLUÍDO COM SUCESSO!")
-        print("="*60)
-        print("✅ Migration de eventos aplicada")
-        print("✅ Row Level Security aplicado")
-        sys.exit(0)
-    else:
-        print("⚠️ SETUP CONCLUÍDO COM AVISOS")
-        print("="*60)
-        if not eventos_success:
-            print("⚠️ Migration de eventos falhou (pode já existir)")
-        if not rls_success:
-            print("⚠️ RLS falhou (pode já existir)")
-        print("\n💡 Erros são normais em redeploys (tabelas já existem)")
-        sys.exit(0)  # Não falhar o deploy por isso

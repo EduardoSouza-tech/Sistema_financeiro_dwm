@@ -206,6 +206,8 @@ const RegrasConciliacao = {
      * Nova regra
      */
     novaRegra() {
+        console.log('🆕 Abrindo formulário de nova regra...');
+        
         // Limpar formulário
         document.getElementById('regra-id').value = '';
         document.getElementById('regra-palavra-chave').value = '';
@@ -219,6 +221,14 @@ const RegrasConciliacao = {
         // Preencher selects
         this.preencherSelectCategorias();
         this.preencherSelectClientesFornecedores();
+        
+        // Atualizar título do modal
+        document.getElementById('modal-regra-titulo').textContent = '➕ Nova Regra de Auto-Conciliação';
+        
+        // Abrir modal
+        document.getElementById('modal-regra-conciliacao').style.display = 'flex';
+        
+        console.log('✅ Modal de nova regra aberto');
     },
 
     /**
