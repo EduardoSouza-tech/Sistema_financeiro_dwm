@@ -1969,12 +1969,16 @@ class DatabaseManager:
             print(f'   ➡️ Atualizando COM empresa_id = {empresa_id}')
             cursor.execute("""
                 UPDATE categorias 
-                SET nome = %s, tipo = %s, subcategorias = %s, empresa_id = %s
+                SET nome = %s, tipo = %s, subcategorias = %s, 
+                    cor = %s, icone = %s, descricao = %s, empresa_id = %s
                 WHERE UPPER(TRIM(nome)) = %s
             """, (
                 nome_novo_normalizado,
                 categoria.tipo.value,
                 subcategorias_json,
+                categoria.cor,
+                categoria.icone,
+                categoria.descricao,
                 empresa_id,
                 nome_busca
             ))
@@ -1982,12 +1986,16 @@ class DatabaseManager:
             print('   ➡️ Atualizando SEM empresa_id (mantém valor existente)')
             cursor.execute("""
                 UPDATE categorias 
-                SET nome = %s, tipo = %s, subcategorias = %s
+                SET nome = %s, tipo = %s, subcategorias = %s,
+                    cor = %s, icone = %s, descricao = %s
                 WHERE UPPER(TRIM(nome)) = %s
             """, (
                 nome_novo_normalizado,
                 categoria.tipo.value,
                 subcategorias_json,
+                categoria.cor,
+                categoria.icone,
+                categoria.descricao,
                 nome_busca
             ))
         
