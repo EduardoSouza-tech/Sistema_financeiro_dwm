@@ -2049,7 +2049,13 @@ class DatabaseManager:
         # Aceitar dict ou parâmetros individuais
         if isinstance(cliente_data, dict):
             nome = cliente_data.get('nome')
+            razao_social = cliente_data.get('razao_social', cliente_data.get('nome'))
+            nome_fantasia = cliente_data.get('nome_fantasia')
             cpf_cnpj = cliente_data.get('cpf', cliente_data.get('cpf_cnpj'))
+            cnpj = cliente_data.get('cnpj', cliente_data.get('cpf_cnpj'))
+            documento = cliente_data.get('documento', cliente_data.get('cpf_cnpj'))
+            ie = cliente_data.get('ie')
+            im = cliente_data.get('im')
             email = cliente_data.get('email')
             telefone = cliente_data.get('telefone')
             endereco = cliente_data.get('endereco')
@@ -2065,6 +2071,12 @@ class DatabaseManager:
             empresa_id = cliente_data.get('empresa_id')  # 🔒 Pegar empresa_id
         else:
             nome = cliente_data
+            razao_social = cliente_data
+            nome_fantasia = None
+            cnpj = cpf_cnpj
+            documento = cpf_cnpj
+            ie = None
+            im = None
             empresa_id = None
         
         # 🔒 Validar empresa_id obrigatório
@@ -2083,13 +2095,15 @@ class DatabaseManager:
             try:
                 cursor.execute("""
                     INSERT INTO clientes (
-                        nome, cpf_cnpj, email, telefone, endereco, 
+                        nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
+                        email, telefone, endereco, 
                         cep, logradouro, numero, complemento, bairro, cidade, estado,
                         proprietario_id, empresa_id
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
-                """, (nome, cpf_cnpj, email, telefone, endereco, 
+                """, (nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
+                      email, telefone, endereco, 
                       cep, logradouro, numero, complemento, bairro, cidade, estado,
                       proprietario_id, empresa_id))
                 
@@ -2114,12 +2128,14 @@ class DatabaseManager:
                     
                     cursor.execute("""
                         INSERT INTO clientes (
-                            nome, cpf_cnpj, email, telefone, endereco,
+                            nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
+                            email, telefone, endereco,
                             proprietario_id, empresa_id
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         RETURNING id
-                    """, (nome, cpf_cnpj, email, telefone, endereco_completo,
+                    """, (nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
+                          email, telefone, endereco_completo,
                           proprietario_id, empresa_id))
                 else:
                     raise  # Re-lançar outros erros
@@ -2181,15 +2197,22 @@ class DatabaseManager:
         try:
             cursor.execute("""
                 UPDATE clientes 
-                SET nome = %s, cpf_cnpj = %s, email = %s, 
-                    telefone = %s, endereco = %s,
+                SET nome = %s, razao_social = %s, nome_fantasia = %s,
+                    cpf_cnpj = %s, cnpj = %s, documento = %s, ie = %s, im = %s,
+                    email = %s, telefone = %s, endereco = %s,
                     cep = %s, logradouro = %s, numero = %s,
                     complemento = %s, bairro = %s, cidade = %s, estado = %s,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE UPPER(TRIM(nome)) = %s
+                WHERE UPPER(TRIM(nome)) = %s OR UPPER(TRIM(razao_social)) = %s
             """, (
                 dados.get('nome'),
+                dados.get('razao_social', dados.get('nome')),
+                dados.get('nome_fantasia'),
                 dados.get('cpf', dados.get('cpf_cnpj')),
+                dados.get('cnpj', dados.get('cpf_cnpj')),
+                dados.get('documento', dados.get('cpf_cnpj')),
+                dados.get('ie'),
+                dados.get('im'),
                 dados.get('email'),
                 dados.get('telefone'),
                 dados.get('endereco'),
@@ -2201,6 +2224,7 @@ class DatabaseManager:
                 dados.get('bairro'),
                 dados.get('cidade'),
                 dados.get('estado'),
+                nome_normalizado,
                 nome_normalizado
             ))
             
@@ -2233,16 +2257,24 @@ class DatabaseManager:
                 
                 cursor.execute("""
                     UPDATE clientes 
-                    SET nome = %s, cpf_cnpj = %s, email = %s, 
-                        telefone = %s, endereco = %s,
+                    SET nome = %s, razao_social = %s, nome_fantasia = %s,
+                        cpf_cnpj = %s, cnpj = %s, documento = %s, ie = %s, im = %s,
+                        email = %s, telefone = %s, endereco = %s,
                         updated_at = CURRENT_TIMESTAMP
-                    WHERE UPPER(TRIM(nome)) = %s
+                    WHERE UPPER(TRIM(nome)) = %s OR UPPER(TRIM(razao_social)) = %s
                 """, (
                     dados.get('nome'),
+                    dados.get('razao_social', dados.get('nome')),
+                    dados.get('nome_fantasia'),
                     dados.get('cpf', dados.get('cpf_cnpj')),
+                    dados.get('cnpj', dados.get('cpf_cnpj')),
+                    dados.get('documento', dados.get('cpf_cnpj')),
+                    dados.get('ie'),
+                    dados.get('im'),
                     dados.get('email'),
                     dados.get('telefone'),
                     endereco,
+                    nome_normalizado,
                     nome_normalizado
                 ))
             else:
@@ -2379,19 +2411,42 @@ class DatabaseManager:
     
     def adicionar_fornecedor(self, fornecedor_data, cpf_cnpj: str = None,
                            email: str = None, telefone: str = None,
-                           endereco: str = None, proprietario_id: int = None) -> int:
+                           endereco: str = None, proprietario_id: int = None,
+                           cep: str = None, logradouro: str = None, numero: str = None,
+                           complemento: str = None, bairro: str = None, 
+                           cidade: str = None, estado: str = None) -> int:
         """Adiciona um novo fornecedor com multi-tenancy"""
         # Aceitar dict ou parâmetros individuais
         if isinstance(fornecedor_data, dict):
             nome = fornecedor_data.get('nome')
+            razao_social = fornecedor_data.get('razao_social', fornecedor_data.get('nome'))
+            nome_fantasia = fornecedor_data.get('nome_fantasia')
             cpf_cnpj = fornecedor_data.get('cnpj', fornecedor_data.get('cpf_cnpj'))
+            cnpj = fornecedor_data.get('cnpj', fornecedor_data.get('cpf_cnpj'))
+            documento = fornecedor_data.get('documento', fornecedor_data.get('cpf_cnpj'))
+            ie = fornecedor_data.get('ie')
+            im = fornecedor_data.get('im')
             email = fornecedor_data.get('email')
             telefone = fornecedor_data.get('telefone')
             endereco = fornecedor_data.get('endereco')
+            # 🌐 Campos de endereço estruturado
+            cep = fornecedor_data.get('cep')
+            logradouro = fornecedor_data.get('logradouro')
+            numero = fornecedor_data.get('numero')
+            complemento = fornecedor_data.get('complemento')
+            bairro = fornecedor_data.get('bairro')
+            cidade = fornecedor_data.get('cidade')
+            estado = fornecedor_data.get('estado')
             proprietario_id = fornecedor_data.get('proprietario_id', proprietario_id)
             empresa_id = fornecedor_data.get('empresa_id')
         else:
             nome = fornecedor_data
+            razao_social = fornecedor_data
+            nome_fantasia = None
+            cnpj = cpf_cnpj
+            documento = cpf_cnpj
+            ie = None
+            im = None
             empresa_id = None
         
         # 🔒 Validar empresa_id obrigatório
@@ -2420,11 +2475,52 @@ class DatabaseManager:
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             
-            cursor.execute("""
-                INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco, proprietario_id, empresa_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (nome, cpf_cnpj, email, telefone, endereco, proprietario_id, empresa_id))
+            # 🔄 Tentar inserir com campos estruturados (migration aplicada)
+            try:
+                cursor.execute("""
+                    INSERT INTO fornecedores (
+                        nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
+                        email, telefone, endereco,
+                        cep, logradouro, numero, complemento, bairro, cidade, estado,
+                        proprietario_id, empresa_id
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
+                      email, telefone, endereco,
+                      cep, logradouro, numero, complemento, bairro, cidade, estado,
+                      proprietario_id, empresa_id))
+            
+            except Exception as e:
+                # ⚠️ Fallback: Se colunas estruturadas não existem
+                if 'does not exist' in str(e):
+                    print(f"⚠️ Colunas estruturadas não existem. Usando fallback...")
+                    conn.rollback()
+                    
+                    # Montar endereço completo no campo TEXT
+                    endereco_completo = endereco or ""
+                    if cep or logradouro or numero:
+                        partes = []
+                        if logradouro: partes.append(logradouro)
+                        if numero: partes.append(f"nº {numero}")
+                        if complemento: partes.append(complemento)
+                        if bairro: partes.append(bairro)
+                        if cidade: partes.append(cidade)
+                        if estado: partes.append(estado)
+                        if cep: partes.append(f"CEP: {cep}")
+                        endereco_completo = ", ".join(partes) if partes else endereco
+                    
+                    cursor.execute("""
+                        INSERT INTO fornecedores (
+                            nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
+                            email, telefone, endereco, proprietario_id, empresa_id
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id
+                    """, (nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
+                          email, telefone, endereco_completo, proprietario_id, empresa_id))
+                else:
+                    raise  # Re-lançar outros erros
             
             fornecedor_id = cursor.fetchone()['id']
             conn.commit()
@@ -2496,19 +2592,92 @@ class DatabaseManager:
         cursor = conn.cursor()
         
         nome_normalizado = nome_antigo.upper().strip()
-        cursor.execute("""
-            UPDATE fornecedores 
-            SET nome = %s, cpf_cnpj = %s, email = %s, 
-                telefone = %s, endereco = %s, updated_at = CURRENT_TIMESTAMP
-            WHERE UPPER(TRIM(nome)) = %s
-        """, (
-            dados.get('nome'),
-            dados.get('cnpj', dados.get('cpf_cnpj')),
-            dados.get('email'),
-            dados.get('telefone'),
-            dados.get('endereco'),
-            nome_normalizado
-        ))
+        
+        # 🔄 Tentar atualizar com campos estruturados
+        try:
+            cursor.execute("""
+                UPDATE fornecedores 
+                SET nome = %s, razao_social = %s, nome_fantasia = %s,
+                    cpf_cnpj = %s, cnpj = %s, documento = %s, ie = %s, im = %s,
+                    email = %s, telefone = %s, endereco = %s,
+                    cep = %s, logradouro = %s, numero = %s,
+                    complemento = %s, bairro = %s, cidade = %s, estado = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE UPPER(TRIM(nome)) = %s OR UPPER(TRIM(razao_social)) = %s
+            """, (
+                dados.get('nome'),
+                dados.get('razao_social', dados.get('nome')),
+                dados.get('nome_fantasia'),
+                dados.get('cnpj', dados.get('cpf_cnpj')),
+                dados.get('cnpj', dados.get('cpf_cnpj')),
+                dados.get('documento', dados.get('cpf_cnpj')),
+                dados.get('ie'),
+                dados.get('im'),
+                dados.get('email'),
+                dados.get('telefone'),
+                dados.get('endereco'),
+                dados.get('cep'),
+                dados.get('logradouro'),
+                dados.get('numero'),
+                dados.get('complemento'),
+                dados.get('bairro'),
+                dados.get('cidade'),
+                dados.get('estado'),
+                nome_normalizado,
+                nome_normalizado
+            ))
+        
+        except Exception as e:
+            # ⚠️ Fallback: Se colunas estruturadas não existem
+            if 'does not exist' in str(e):
+                print(f"⚠️ Colunas de endereço estruturado não existem. Usando fallback...")
+                conn.rollback()
+                
+                # Montar endereço completo
+                endereco = dados.get('endereco') or ""
+                cep = dados.get('cep')
+                logradouro = dados.get('logradouro')
+                numero = dados.get('numero')
+                complemento = dados.get('complemento')
+                bairro = dados.get('bairro')
+                cidade = dados.get('cidade')
+                estado = dados.get('estado')
+                
+                if cep or logradouro or numero:
+                    partes = []
+                    if logradouro: partes.append(logradouro)
+                    if numero: partes.append(f"nº {numero}")
+                    if complemento: partes.append(complemento)
+                    if bairro: partes.append(bairro)
+                    if cidade: partes.append(cidade)
+                    if estado: partes.append(estado)
+                    if cep: partes.append(f"CEP: {cep}")
+                    endereco = ", ".join(partes) if partes else endereco
+                
+                cursor.execute("""
+                    UPDATE fornecedores 
+                    SET nome = %s, razao_social = %s, nome_fantasia = %s,
+                        cpf_cnpj = %s, cnpj = %s, documento = %s, ie = %s, im = %s,
+                        email = %s, telefone = %s, endereco = %s,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE UPPER(TRIM(nome)) = %s OR UPPER(TRIM(razao_social)) = %s
+                """, (
+                    dados.get('nome'),
+                    dados.get('razao_social', dados.get('nome')),
+                    dados.get('nome_fantasia'),
+                    dados.get('cnpj', dados.get('cpf_cnpj')),
+                    dados.get('cnpj', dados.get('cpf_cnpj')),
+                    dados.get('documento', dados.get('cpf_cnpj')),
+                    dados.get('ie'),
+                    dados.get('im'),
+                    dados.get('email'),
+                    dados.get('telefone'),
+                    endereco,
+                    nome_normalizado,
+                    nome_normalizado
+                ))
+            else:
+                raise  # Re-lançar outros erros
         
         sucesso = cursor.rowcount > 0
         conn.commit()
