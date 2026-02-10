@@ -9802,6 +9802,53 @@ def verificar_tabela_regras():
 
 
 # ============================================================================
+# ENDPOINT TEMPORÁRIO PARA VERIFICAR MÉTODOS DO DatabaseManager
+# ============================================================================
+@app.route('/api/debug/verificar-metodos-db', methods=['GET'])
+@csrf.exempt
+def verificar_metodos_db():
+    """
+    Endpoint temporário para verificar quais métodos o objeto db possui
+    """
+    try:
+        # Listar todos os métodos do objeto db
+        metodos_db = [m for m in dir(db) if not m.startswith('_')]
+        
+        # Verificar especificamente os métodos de regras
+        metodos_regras = {
+            'listar_regras_conciliacao': hasattr(db, 'listar_regras_conciliacao'),
+            'criar_regra_conciliacao': hasattr(db, 'criar_regra_conciliacao'),
+            'atualizar_regra_conciliacao': hasattr(db, 'atualizar_regra_conciliacao'),
+            'excluir_regra_conciliacao': hasattr(db, 'excluir_regra_conciliacao'),
+        }
+        
+        # Informações sobre o objeto db
+        info_db = {
+            'tipo': str(type(db)),
+            'modulo': db.__class__.__module__,
+            'classe': db.__class__.__name__,
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'info_db': info_db,
+                'total_metodos': len(metodos_db),
+                'metodos_regras': metodos_regras,
+                'sample_metodos': metodos_db[:50]  # Primeiros 50 métodos
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+# ============================================================================
 # ENDPOINT DE STATUS DA MIGRAÇÃO DE SENHAS
 # ============================================================================
 @app.route('/api/admin/passwords/migration-status', methods=['GET'])
