@@ -49,54 +49,54 @@ const RegrasConciliacao = {
      */
     async carregarCategorias() {
         try {
-            const response = await fetch(`${API_URL}/categorias`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
+            console.log('📂 Carregando categorias...');
             
-            if (!response.ok) throw new Error('Erro ao carregar categorias');
-            
+            const response = await fetch('/api/categorias');
             const data = await response.json();
+            
+            // Suporte ao novo formato de resposta
             this.categorias = Array.isArray(data) ? data : (data.data || data.categorias || []);
             
-            console.log(`✅ ${this.categorias.length} categorias carregadas`);
-            
-            // Agrupar subcategorias por categoria
+            // Organizar subcategorias por categoria
+            this.subcategorias = {};
             this.categorias.forEach(cat => {
-                if (cat.subcategorias && cat.subcategorias.length > 0) {
-                    this.subcategorias[cat.nome] = cat.subcategorias;
+                if (cat.subcategorias) {
+                    try {
+                        this.subcategorias[cat.nome] = Array.isArray(cat.subcategorias) ? 
+                            cat.subcategorias : JSON.parse(cat.subcategorias);
+                    } catch (e) {
+                        this.subcategorias[cat.nome] = [];
+                    }
+                } else {
+                    this.subcategorias[cat.nome] = [];
                 }
             });
+            
+            console.log(`✅ ${this.categorias.length} categoria(s) carregadas`);
             
         } catch (error) {
             console.error('❌ Erro ao carregar categorias:', error);
-            showToast('Erro ao carregar categorias', 'error');
+            this.categorias = [];
+            this.subcategorias = {};
         }
     },
-    
+
     /**
      * Carrega clientes e fornecedores
      */
     async carregarClientesFornecedores() {
         try {
-            const [responseClientes, responseFornecedores] = await Promise.all([
-                fetch(`${API_URL}/clientes`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                }),
-                fetch(`${API_URL}/fornecedores`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                })
+            console.log('👥 Carregando clientes e fornecedores...');
+            
+            const [clientesResponse, fornecedoresResponse] = await Promise.all([
+                fetch('/api/clientes'),
+                fetch('/api/fornecedores')
             ]);
             
-            if (!responseClientes.ok || !responseFornecedores.ok) {
-                throw new Error('Erro ao carregar clientes/fornecedores');
-            }
+            const clientesData = await clientesResponse.json();
+            const fornecedoresData = await fornecedoresResponse.json();
             
-            const clientesData = await responseClientes.json();
-            const fornecedoresData = await responseFornecedores.json();
-            
-            // Extrair arrays (pode vir como {data: [...]} ou direto)
+            // Suporte ao novo formato de resposta
             this.clientes = Array.isArray(clientesData) ? clientesData : (clientesData.data || clientesData.clientes || []);
             this.fornecedores = Array.isArray(fornecedoresData) ? fornecedoresData : (fornecedoresData.data || fornecedoresData.fornecedores || []);
             
@@ -108,7 +108,7 @@ const RegrasConciliacao = {
             this.fornecedores = [];
         }
     },
-    
+
     /**
      * Carrega subcategorias de uma categoria específica
      */
@@ -132,7 +132,7 @@ const RegrasConciliacao = {
             return;
         }
         
-        // Adicionar opções
+        // Preencher opções
         subs.forEach(sub => {
             const option = document.createElement('option');
             option.value = sub;
@@ -142,89 +142,26 @@ const RegrasConciliacao = {
         
         subcategoriaSelect.disabled = false;
     },
-    
+
     /**
-     * Carrega regras cadastradas
+     * Carrega regras existentes
      */
     async carregarRegras() {
         try {
-            const response = await fetch(`${API_URL}/regras-conciliacao`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
+            console.log('📋 Carregando regras existentes...');
             
-            if (!response.ok) throw new Error('Erro ao carregar regras');
-            
+            const response = await fetch('/api/regras-conciliacao');
             const data = await response.json();
-            this.regras = data.data || [];
             
-            console.log(`✅ ${this.regras.length} regra(s) carregada(s)`);
-            this.renderizarRegras();
+            this.regras = Array.isArray(data) ? data : (data.data || data.regras || []);
+            console.log(`✅ ${this.regras.length} regra(s) carregadas`);
             
         } catch (error) {
             console.error('❌ Erro ao carregar regras:', error);
-            showToast('Erro ao carregar regras', 'error');
+            this.regras = [];
         }
     },
-    
-    /**
-     * Renderiza tabela de regras
-     */
-    renderizarRegras() {
-        const tbody = document.getElementById('regras-lista');
-        if (!tbody) return;
-        
-        if (this.regras.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" style="text-align: center; padding: 40px; color: #7f8c8d;">
-                        <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
-                        <div style="font-size: 16px; font-weight: bold;">Nenhuma regra cadastrada</div>
-                        <div style="font-size: 14px; margin-top: 5px;">Clique em "Nova Regra" para começar</div>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-        
-        tbody.innerHTML = '';
-        
-        this.regras.forEach(regra => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>
-                    <strong>${regra.palavra_chave}</strong>
-                    ${regra.descricao ? `<br><small style="color: #7f8c8d;">${regra.descricao}</small>` : ''}
-                </td>
-                <td>${regra.categoria || '<span style="color: #95a5a6;">-</span>'}</td>
-                <td>${regra.subcategoria || '<span style="color: #95a5a6;">-</span>'}</td>
-                <td>${regra.cliente_padrao || '<span style="color: #95a5a6;">-</span>'}</td>
-                <td style="text-align: center;">
-                    ${regra.usa_integracao_folha ? 
-                        '<span class="badge badge-success" style="padding: 5px 10px; border-radius: 12px; background: #27ae60; color: white; font-size: 11px;">✅ ATIVA</span>' : 
-                        '<span class="badge badge-secondary" style="padding: 5px 10px; border-radius: 12px; background: #95a5a6; color: white; font-size: 11px;">DESATIVADA</span>'}
-                </td>
-                <td style="text-align: center;">
-                    <button class="btn-icon" onclick="RegrasConciliacao.editarRegra(${regra.id})" 
-                            title="Editar" style="background: #3498db; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">
-                        ✏️
-                    </button>
-                    <button class="btn-icon" onclick="RegrasConciliacao.excluirRegra(${regra.id})"
-                            title="Excluir" style="background: #e74c3c; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer;">
-                        🗑️
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    },
-    
-    /**
-     * Abre modal para criar nova regra
-     */
-    no
-    
+
     /**
      * Preenche select de clientes/fornecedores
      */
@@ -234,9 +171,8 @@ const RegrasConciliacao = {
         
         select.innerHTML = '<option value="">Nenhum (deixar vazio)</option>';
         
-        // Adicionar grupo de C e clientes/fornecedores
-        this.preencherSelectCategorias();
-        this.preencherSelectClientesFornecedore {
+        // Adicionar grupo de Clientes
+        if (this.clientes.length > 0) {
             const optgroupClientes = document.createElement('optgroup');
             optgroupClientes.label = '👤 Clientes';
             
@@ -264,7 +200,12 @@ const RegrasConciliacao = {
             
             select.appendChild(optgroupFornecedores);
         }
-    },vaRegra() {
+    },
+
+    /**
+     * Nova regra
+     */
+    novaRegra() {
         // Limpar formulário
         document.getElementById('regra-id').value = '';
         document.getElementById('regra-palavra-chave').value = '';
@@ -275,8 +216,48 @@ const RegrasConciliacao = {
         document.getElementById('regra-cliente-padrao').value = '';
         document.getElementById('regra-integracao-folha').checked = false;
         
-        // Preencher categorias
-        this.preencherSelectCat e clientes/fornecedores
+        // Preencher selects
+        this.preencherSelectCategorias();
+        this.preencherSelectClientesFornecedores();
+    },
+
+    /**
+     * Preenche select de categorias
+     */
+    preencherSelectCategorias() {
+        const select = document.getElementById('regra-categoria');
+        if (!select) return;
+        
+        select.innerHTML = '<option value="">Selecione uma categoria (opcional)...</option>';
+        
+        this.categorias.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.nome;
+            option.textContent = `${cat.nome} (${cat.tipo})`;
+            select.appendChild(option);
+        });
+    },
+    
+    /**
+     * Editar regra existente
+     */
+    editarRegra(id) {
+        const regra = this.regras.find(r => r.id === id);
+        if (!regra) {
+            console.error('Regra não encontrada:', id);
+            return;
+        }
+
+        // Preencher formulário
+        document.getElementById('regra-id').value = regra.id;
+        document.getElementById('regra-palavra-chave').value = regra.palavra_chave;
+        document.getElementById('regra-descricao').value = regra.descricao || '';
+        document.getElementById('regra-categoria').value = regra.categoria || '';
+        document.getElementById('regra-subcategoria').value = regra.subcategoria || '';
+        document.getElementById('regra-cliente-padrao').value = regra.cliente_padrao || '';
+        document.getElementById('regra-integracao-folha').checked = regra.integracao_folha || false;
+        
+        // Preencher selects
         this.preencherSelectCategorias();
         this.preencherSelectClientesFornecedores();
         
@@ -299,171 +280,20 @@ const RegrasConciliacao = {
             setTimeout(() => {
                 const selectCliente = document.getElementById('regra-cliente-padrao');
                 if (selectCliente) {
-                    selectCliente.value = regra.cliente_padrao
-        if (!select) return;
-        
-        select.innerHTML = '<option value="">Selecione uma categoria (opcional)...</option>';
-        
-        this.categorias.forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.nome;
-            option.textContent = `${cat.nome} (${cat.tipo})`;
-            select.appendChild(option);
-        });
-    },
-    
-    /**
-     * Editar regra existente
-     */
-    editarRegra(id) {
-        const regra = this.regras.find(r => r.id === id);
-        if (!regra) {
-            showToast('Regra não encontrada', 'error');
-            return;
-        }
-        
-        // Preencher formulário
-        document.getElementById('regra-id').value = regra.id;
-        document.getElementById('regra-palavra-chave').value = regra.palavra_chave;
-        document.getElementById('regra-descricao').value = regra.descricao || '';
-        document.getElementById('regra-cliente-padrao').value = regra.cliente_padrao || '';
-        document.getElementById('regra-integracao-folha').checked = regra.usa_integracao_folha;
-        
-        // Preencher categorias
-        this.preencherSelectCategorias();
-        
-        // Selecionar categoria
-        if (regra.categoria) {
-            document.getElementById('regra-categoria').value = regra.categoria;
-            this.carregarSubcategorias(regra.categoria);
-            
-            // Aguardar carregamento e selecionar subcategoria
-            setTimeout(() => {
-                if (regra.subcategoria) {
-                    document.getElementById('regra-subcategoria').value = regra.subcategoria;
+                    selectCliente.value = regra.cliente_padrao;
                 }
-            }, 100);
+            }, 200);
         }
         
         // Abrir modal
         document.getElementById('modal-regra-conciliacao').style.display = 'flex';
-        document.getElementById('modal-regra-titulo').textContent = '✏️ Editar Regra de Auto-Conciliação';
-    },
-    
-    /**
-     * Salva regra (criar ou atualizar)
-     */
-    async salvarRegra() {
-        try {
-            const id = document.getElementById('regra-id').value;
-            const dados = {
-                palavra_chave: document.getElementById('regra-palavra-chave').value.trim().toUpperCase(),
-                descricao: document.getElementById('regra-descricao').value.trim(),
-                categoria: document.getElementById('regra-categoria').value,
-                subcategoria: document.getElementById('regra-subcategoria').value,
-                cliente_padrao: document.getElementById('regra-cliente-padrao').value.trim(),
-                usa_integracao_folha: document.getElementById('regra-integracao-folha').checked
-            };
-            
-            // Validar
-            if (!dados.palavra_chave) {
-                showToast('Palavra-chave é obrigatória', 'error');
-                return;
-            }
-            
-            // Se tem integração folha, avisar sobre formato de descrição
-            if (dados.usa_integracao_folha) {
-                console.log('🔍 Integração Folha ATIVA - Sistema detectará CPF automaticamente');
-            }
-            
-            const url = id ? `${API_URL}/regras-conciliacao/${id}` : `${API_URL}/regras-conciliacao`;
-            const method = id ? 'PUT' : 'POST';
-            
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify(dados)
-            });
-            
-            if (!response.ok) throw new Error('Erro ao salvar regra');
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                showToast(id ? 'Regra atualizada com sucesso' : 'Regra criada com sucesso', 'success');
-                this.fecharModal();
-                this.carregarRegras();
-            } else {
-                throw new Error(result.error || 'Erro desconhecido');
-            }
-            
-        } catch (error) {
-            console.error('❌ Erro ao salvar regra:', error);
-            showToast(error.message || 'Erro ao salvar regra', 'error');
-        }
-    },
-    
-    /**
-     * Exclui regra
-     */
-    async excluirRegra(id) {
-        if (!confirm('Tem certeza que deseja excluir esta regra?')) return;
+        document.getElementById('modal-regra-titulo').textContent = '✏️ Editar Regra';  
         
-        try {
-            const response = await fetch(`${API_URL}/regras-conciliacao/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-            
-            if (!response.ok) throw new Error('Erro ao excluir regra');
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                showToast('Regra excluída com sucesso', 'success');
-                this.carregarRegras();
-            } else {
-                throw new Error(result.error || 'Erro desconhecido');
-            }
-            
-        } catch (error) {
-            console.error('❌ Erro ao excluir regra:', error);
-            showToast(error.message || 'Erro ao excluir regra', 'error');
-        }
+        console.log('✅ Modal de edição aberto para regra:', regra);
     },
     
     /**
-     * Detecta regra aplicável para uma descrição
-     */
-    async detectarRegra(descricao) {
-        try {
-            const response = await fetch(`${API_URL}/regras-conciliacao/detectar`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({ descricao })
-            });
-            
-            if (!response.ok) throw new Error('Erro ao detectar regra');
-            
-            const result = await response.json();
-            return result;
-            
-        } catch (error) {
-            console.error('❌ Erro ao detectar regra:', error);
-            return { success: false, regra_encontrada: false };
-        }
-    },
-    
-    /**
-     * Fecha modal
+     * Fechar modal
      */
     fecharModal() {
         document.getElementById('modal-regra-conciliacao').style.display = 'none';
