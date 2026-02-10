@@ -21,6 +21,9 @@
     <!-- CSS Externo com Sistema de Responsividade Completo v2.0 -->
     <link rel="stylesheet" href="/static/style.css?v={{ build_timestamp }}">
     
+    <!-- CSS Módulo Remessa Pagamento -->
+    <link rel="stylesheet" href="/static/remessa_pagamento.css?v={{ build_timestamp }}">
+    
     <!-- SUPRESSOR DE ERROS DE EXTENSÕES - DEVE SER A PRIMEIRA COISA -->
     <script>
         (function() {
@@ -1287,6 +1290,7 @@
             <div class="submenu" id="submenu-financeiro" style="display: none;">
                 <button class="submenu-button" onclick="showSection('contas-receber')" data-permission="lancamentos_view">💵 Contas a Receber</button>
                 <button class="submenu-button" onclick="showSection('contas-pagar')" data-permission="lancamentos_view">💳 Contas a Pagar</button>
+                <button class="submenu-button" onclick="showSection('remessa-pagamento')" data-permission="remessa_view">📤 Remessa Pagamentos</button>
                 <button class="submenu-button" onclick="showSection('extrato-bancario')" data-permission="lancamentos_view">🏦 Extrato Bancário</button>
             </div>
             
@@ -1716,6 +1720,9 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Remessa de Pagamentos -->
+            {% include 'remessa_pagamento.html' %}
 
             <!-- Extrato Bancário -->
             <div id="extrato-bancario-section" class="content-card hidden">
@@ -9699,5 +9706,8 @@
             usuarioAtualPermissoes = null;
         }
     </script>
+    
+    <!-- Script Módulo Remessa Pagamento -->
+    <script src="/static/remessa_pagamento.js?v={{ build_timestamp }}"></script>
 </body>
 </html>
