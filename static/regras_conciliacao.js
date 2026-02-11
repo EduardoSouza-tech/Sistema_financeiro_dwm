@@ -408,9 +408,8 @@ const RegrasConciliacao = {
         console.log('🔍 [DEBUG] preencherSelect - modoRegraFolha =', this.modoRegraFolha);
         
         // ✅ NOVO: Se estamos criando regra de folha, mostrar APENAS funcionários
-        if (this.modoRegraFolha || this.configIntegracaoFolha) {
-            if (this.funcionarios.length > 0) {
-                console.log('✅ Mostrando APENAS funcionários no select!');
+        if (this.modoRegraFolha && this.funcionarios.length > 0) {
+            console.log('✅ Mostrando APENAS funcionários no select (modo regra folha)!');
             
             // Atualizar label do campo
             const labelClientePadrao = document.getElementById('label-cliente-padrao');
