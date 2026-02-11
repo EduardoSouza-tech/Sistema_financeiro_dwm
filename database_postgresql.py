@@ -3350,26 +3350,47 @@ class DatabaseManager:
         conn = None
         cursor = None
         try:
-            conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            print(f"🔍 [criar_regra] Iniciando criação de regra", flush=True)
+            print(f"🔍 [criar_regra] empresa_id={empresa_id}, palavra_chave={palavra_chave}", flush=True)
+            print(f"🔍 [criar_regra] categoria={categoria}, subcategoria={subcategoria}", flush=True)
+            print(f"🔍 [criar_regra] cliente_padrao={cliente_padrao}, descricao={descricao}", flush=True)
             
-            cursor.execute("""
+            conn = self.get_connection()
+            print(f"✅ [criar_regra] Conexão obtida", flush=True)
+            
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            print(f"✅ [criar_regra] Cursor criado", flush=True)
+            
+            query = """
                 INSERT INTO regras_conciliacao (
                     empresa_id, palavra_chave, categoria, subcategoria,
                     cliente_padrao, descricao, ativo
                 ) VALUES (%s, %s, %s, %s, %s, %s, TRUE)
                 RETURNING *
-            """, (empresa_id, palavra_chave.upper(), categoria, subcategoria,
-                  cliente_padrao, descricao))
+            """
+            params = (empresa_id, palavra_chave.upper(), categoria, subcategoria,
+                     cliente_padrao, descricao)
+            
+            print(f"🔍 [criar_regra] Query preparada", flush=True)
+            print(f"🔍 [criar_regra] Params: {params}", flush=True)
+            
+            cursor.execute(query, params)
+            print(f"✅ [criar_regra] Query executada", flush=True)
             
             conn.commit()
+            print(f"✅ [criar_regra] COMMIT executado", flush=True)
+            
             regra = cursor.fetchone()
+            print(f"✅ [criar_regra] Regra retornada: {regra}", flush=True)
+            
             return dict(regra) if regra else None
             
         except Exception as e:
             if conn:
                 conn.rollback()
-            print(f"❌ Erro ao criar regra de conciliação: {e}")
+            print(f"❌ [criar_regra] Erro ao criar regra de conciliação: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
             return None
         finally:
             if cursor:
