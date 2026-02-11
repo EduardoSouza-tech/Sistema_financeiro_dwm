@@ -2500,9 +2500,9 @@ class DatabaseManager:
                       proprietario_id, empresa_id))
             
             except Exception as e:
-                # ⚠️ Fallback: Se colunas estruturadas não existem
+                # ⚠️ Fallback: Se colunas estruturadas não existem, usar schema básico
                 if 'does not exist' in str(e):
-                    print(f"⚠️ Colunas estruturadas não existem. Usando fallback...")
+                    print(f"⚠️ Colunas estruturadas não existem. Usando schema básico...")
                     conn.rollback()
                     
                     # Montar endereço completo no campo TEXT
@@ -2518,15 +2518,15 @@ class DatabaseManager:
                         if cep: partes.append(f"CEP: {cep}")
                         endereco_completo = ", ".join(partes) if partes else endereco
                     
+                    # ✅ SCHEMA BÁSICO: apenas colunas que existem na tabela
+                    # id, nome, cpf_cnpj, email, telefone, endereco, ativo, created_at, updated_at
                     cursor.execute("""
                         INSERT INTO fornecedores (
-                            nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
-                            email, telefone, endereco, proprietario_id, empresa_id
+                            nome, cpf_cnpj, email, telefone, endereco
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s)
                         RETURNING id
-                    """, (nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
-                          email, telefone, endereco_completo, proprietario_id, empresa_id))
+                    """, (nome, cpf_cnpj or cnpj or documento, email, telefone, endereco_completo))
                 else:
                     raise  # Re-lançar outros erros
             
@@ -2636,9 +2636,9 @@ class DatabaseManager:
             ))
         
         except Exception as e:
-            # ⚠️ Fallback: Se colunas estruturadas não existem
+            # ⚠️ Fallback: Se colunas estruturadas não existem, usar schema básico
             if 'does not exist' in str(e):
-                print(f"⚠️ Colunas de endereço estruturado não existem. Usando fallback...")
+                print(f"⚠️ Colunas de endereço estruturado não existem. Usando schema básico...")
                 conn.rollback()
                 
                 # Montar endereço completo
@@ -2662,26 +2662,23 @@ class DatabaseManager:
                     if cep: partes.append(f"CEP: {cep}")
                     endereco = ", ".join(partes) if partes else endereco
                 
+                # ✅ SCHEMA BÁSICO: apenas colunas que existem na tabela
+                # id, nome, cpf_cnpj, email, telefone, endereco, ativo, created_at, updated_at
                 cursor.execute("""
                     UPDATE fornecedores 
-                    SET nome = %s, razao_social = %s, nome_fantasia = %s,
-                        cpf_cnpj = %s, cnpj = %s, documento = %s, ie = %s, im = %s,
-                        email = %s, telefone = %s, endereco = %s,
+                    SET nome = %s,
+                        cpf_cnpj = %s,
+                        email = %s, 
+                        telefone = %s, 
+                        endereco = %s,
                         updated_at = CURRENT_TIMESTAMP
-                    WHERE UPPER(TRIM(nome)) = %s OR UPPER(TRIM(razao_social)) = %s
+                    WHERE UPPER(TRIM(nome)) = %s
                 """, (
                     dados.get('nome'),
-                    dados.get('razao_social', dados.get('nome')),
-                    dados.get('nome_fantasia'),
-                    dados.get('cnpj', dados.get('cpf_cnpj')),
-                    dados.get('cnpj', dados.get('cpf_cnpj')),
-                    dados.get('documento', dados.get('cpf_cnpj')),
-                    dados.get('ie'),
-                    dados.get('im'),
+                    dados.get('cnpj') or dados.get('cpf_cnpj') or dados.get('documento'),
                     dados.get('email'),
                     dados.get('telefone'),
                     endereco,
-                    nome_normalizado,
                     nome_normalizado
                 ))
             else:
