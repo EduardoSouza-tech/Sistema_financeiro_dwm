@@ -19,6 +19,7 @@ const RegrasConciliacao = {
     subcategorias: {},
     clientes: [],
     fornecedores: [],
+    funcionarios: [], // ✅ NOVO: Lista de funcionários para integração folha
     configIntegracaoFolha: false, // Estado da configuração global
     
     /**
@@ -107,6 +108,9 @@ const RegrasConciliacao = {
             if (data.success) {
                 this.configIntegracaoFolha = ativo;
                 
+                // ✅ NOVO: Recarregar listas com ou sem funcionários
+                await this.carregarClientesFornecedores();
+                
                 // Atualizar status visual
                 const status = document.getElementById('config-integracao-status');
                 if (status) {
@@ -116,8 +120,8 @@ const RegrasConciliacao = {
                 
                 // Feedback visual
                 const mensagem = ativo 
-                    ? '✅ Integração ativada! O sistema detectará CPF automaticamente em todos os extratos.'
-                    : '⚠️ Integração desativada. CPF não será mais detectado automaticamente.';
+                    ? '✅ Integração ativada! O campo "Cliente Padrão" agora lista funcionários da folha de pagamento.'
+                    : '⚠️ Integração desativada. Voltando a listar clientes e fornecedores normalmente.';
                 
                 alert(mensagem);
                 
@@ -181,24 +185,40 @@ const RegrasConciliacao = {
         try {
             console.log('👥 Carregando clientes e fornecedores...');
             
-            const [clientesResponse, fornecedoresResponse] = await Promise.all([
+            const promises = [
                 fetch('/api/clientes'),
                 fetch('/api/fornecedores')
-            ]);
+            ];
             
-            const clientesData = await clientesResponse.json();
-            const fornecedoresData = await fornecedoresResponse.json();
+            // ✅ NOVO: Se integração com folha ativa, carregar funcionários também
+            if (this.configIntegracaoFolha) {
+                console.log('📋 Integração folha ativa - carregando funcionários...');
+                promises.push(fetch('/api/funcionarios'));
+            }
+            
+            const responses = await Promise.all(promises);
+            const [clientesData, fornecedoresData, funcionariosData] = await Promise.all(
+                responses.map(r => r.json())
+            );
             
             // Suporte ao novo formato de resposta
             this.clientes = Array.isArray(clientesData) ? clientesData : (clientesData.data || clientesData.clientes || []);
             this.fornecedores = Array.isArray(fornecedoresData) ? fornecedoresData : (fornecedoresData.data || fornecedoresData.fornecedores || []);
             
-            console.log(`✅ ${this.clientes.length} cliente(s) e ${this.fornecedores.length} fornecedor(es) carregados`);
+            // ✅ NOVO: Extrair funcionários se foram carregados
+            if (funcionariosData) {
+                this.funcionarios = Array.isArray(funcionariosData) ? funcionariosData : (funcionariosData.data || funcionariosData.funcionarios || []);
+                console.log(`✅ ${this.clientes.length} cliente(s), ${this.fornecedores.length} fornecedor(es) e ${this.funcionarios.length} funcionário(s) carregados`);
+            } else {
+                this.funcionarios = [];
+                console.log(`✅ ${this.clientes.length} cliente(s) e ${this.fornecedores.length} fornecedor(es) carregados`);
+            }
             
         } catch (error) {
-            console.error('❌ Erro ao carregar clientes/fornecedores:', error);
+            console.error('❌ Erro ao carregar clientes/fornecedores/funcionários:', error);
             this.clientes = [];
             this.fornecedores = [];
+            this.funcionarios = [];
         }
     },
 
@@ -336,7 +356,7 @@ const RegrasConciliacao = {
     },
 
     /**
-     * Preenche select de clientes/fornecedores
+     * Preenche select de clientes/fornecedores/funcionários
      */
     preencherSelectClientesFornecedores() {
         const select = document.getElementById('regra-cliente-padrao');
@@ -344,7 +364,76 @@ const RegrasConciliacao = {
         
         select.innerHTML = '<option value="">Nenhum (deixar vazio)</option>';
         
-        // Adicionar grupo de Clientes
+        // ✅ NOVO: Se integração com folha ativa, mostrar APENAS funcionários
+        if (this.configIntegracaoFolha && this.funcionarios.length > 0) {
+            // Atualizar label do campo
+            const labelClientePadrao = document.getElementById('label-cliente-padrao');
+            if (labelClientePadrao) {
+                labelClientePadrao.innerHTML = '👥 Funcionário (Folha de Pagamento)';
+                labelClientePadrao.style.color = '#00b894';
+            }
+            
+            // Atualizar hint
+            const hintClientePadrao = document.getElementById('hint-cliente-padrao');
+            if (hintClientePadrao) {
+                hintClientePadrao.innerHTML = 'Nome do funcionário que será exibido automaticamente no extrato';
+                hintClientePadrao.style.color = '#00b894';
+                hintClientePadrao.style.fontWeight = '600';
+            }
+            
+            const optgroupFuncionarios = document.createElement('optgroup');
+            optgroupFuncionarios.label = '👥 Funcionários (Folha de Pagamento)';
+            optgroupFuncionarios.style.color = '#00b894';
+            optgroupFuncionarios.style.fontWeight = 'bold';
+            
+            this.funcionarios.forEach(func => {
+                const option = document.createElement('option');
+                // Usar nome completo do funcionário
+                const nomeCompleto = func.nome || func.nome_completo || `Funcionário ${func.id}`;
+                option.value = nomeCompleto;
+                option.textContent = `${nomeCompleto}${func.cpf ? ` (CPF: ${func.cpf})` : ''}`;
+                optgroupFuncionarios.appendChild(option);
+            });
+            
+            select.appendChild(optgroupFuncionarios);
+            
+            // Adicionar aviso visual
+            const avisoDiv = document.getElementById('aviso-integracao-folha');
+            if (avisoDiv) {
+                avisoDiv.style.display = 'block';
+                avisoDiv.innerHTML = `
+                    <div style="background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                        <strong>👥 Integração com Folha Ativada</strong><br>
+                        <small>O campo "Cliente Padrão" está listando <strong>funcionários da folha de pagamento</strong>. Ao conciliar, o nome do funcionário será exibido automaticamente no extrato.</small>
+                    </div>
+                `;
+            }
+            
+            return; // Retornar sem mostrar clientes/fornecedores
+        }
+        
+        // Ocultar aviso se integração desativada
+        const avisoDiv = document.getElementById('aviso-integracao-folha');
+        if (avisoDiv) {
+            avisoDiv.style.display = 'none';
+        }
+        
+        // Restaurar label padrão
+        const labelClientePadrao = document.getElementById('label-cliente-padrao');
+        if (labelClientePadrao) {
+            labelClientePadrao.innerHTML = '👤 Cliente/Fornecedor Padrão';
+            labelClientePadrao.style.color = '#2c3e50';
+        }
+        
+        // Restaurar hint padrão
+        const hintClientePadrao = document.getElementById('hint-cliente-padrao');
+        if (hintClientePadrao) {
+            hintClientePadrao.innerHTML = 'Nome que será preenchido automaticamente';
+            hintClientePadrao.style.color = '#7f8c8d';
+            hintClientePadrao.style.fontWeight = 'normal';
+        }
+        
+        // Adicionar grupo de Clientes (comportamento padrão)
         if (this.clientes.length > 0) {
             const optgroupClientes = document.createElement('optgroup');
             optgroupClientes.label = '👤 Clientes';

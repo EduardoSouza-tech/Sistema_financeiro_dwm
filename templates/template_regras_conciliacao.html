@@ -186,10 +186,13 @@
                 <small style="color: #7f8c8d; font-size: 12px;">Subcategoria que será preenchida automaticamente</small>
             </div>
             
+            <!-- ✅ NOVO: Aviso de integração com folha -->
+            <div id="aviso-integracao-folha" style="display: none;"></div>
+            
             <!-- Cliente Padrão -->
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">
-                    👤 Cliente/Fornecedor Padrão (opcional)
+                    <span id="label-cliente-padrao">👤 Cliente/Fornecedor Padrão</span> (opcional)
                 </label>
                 <select id="regra-cliente-padrao" 
                         style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;"
@@ -197,7 +200,7 @@
                         onblur="this.style.borderColor='#ddd'">
                     <option value="">Nenhum (deixar vazio)</option>
                 </select>
-                <small style="color: #7f8c8d; font-size: 12px;">Nome que será preenchido automaticamente</small>
+                <small style="color: #7f8c8d; font-size: 12px;" id="hint-cliente-padrao">Nome que será preenchido automaticamente</small>
             </div>
             
             <!-- Exemplo Visual -->
