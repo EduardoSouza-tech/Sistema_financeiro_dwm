@@ -2483,52 +2483,20 @@ class DatabaseManager:
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             
-            # 🔄 Tentar inserir com campos estruturados (migration aplicada)
-            try:
-                cursor.execute("""
-                    INSERT INTO fornecedores (
-                        nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
-                        email, telefone, endereco,
-                        cep, logradouro, numero, complemento, bairro, cidade, estado,
-                        proprietario_id, empresa_id
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id
-                """, (nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
-                      email, telefone, endereco,
-                      cep, logradouro, numero, complemento, bairro, cidade, estado,
-                      proprietario_id, empresa_id))
-            
-            except Exception as e:
-                # ⚠️ Fallback: Se colunas estruturadas não existem, usar schema básico
-                if 'does not exist' in str(e):
-                    print(f"⚠️ Colunas estruturadas não existem. Usando schema básico...")
-                    conn.rollback()
-                    
-                    # Montar endereço completo no campo TEXT
-                    endereco_completo = endereco or ""
-                    if cep or logradouro or numero:
-                        partes = []
-                        if logradouro: partes.append(logradouro)
-                        if numero: partes.append(f"nº {numero}")
-                        if complemento: partes.append(complemento)
-                        if bairro: partes.append(bairro)
-                        if cidade: partes.append(cidade)
-                        if estado: partes.append(estado)
-                        if cep: partes.append(f"CEP: {cep}")
-                        endereco_completo = ", ".join(partes) if partes else endereco
-                    
-                    # ✅ SCHEMA BÁSICO: apenas colunas que existem na tabela
-                    # id, nome, cpf_cnpj, email, telefone, endereco, ativo, created_at, updated_at
-                    cursor.execute("""
-                        INSERT INTO fornecedores (
-                            nome, cpf_cnpj, email, telefone, endereco
-                        )
-                        VALUES (%s, %s, %s, %s, %s)
-                        RETURNING id
-                    """, (nome, cpf_cnpj or cnpj or documento, email, telefone, endereco_completo))
-                else:
-                    raise  # Re-lançar outros erros
+            # ✅ INSERT com schema completo (após migration)
+            cursor.execute("""
+                INSERT INTO fornecedores (
+                    nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
+                    email, telefone, endereco,
+                    cep, logradouro, numero, complemento, bairro, cidade, estado,
+                    proprietario_id, empresa_id
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
+                  email, telefone, endereco,
+                  cep, logradouro, numero, complemento, bairro, cidade, estado,
+                  proprietario_id, empresa_id))
             
             fornecedor_id = cursor.fetchone()['id']
             conn.commit()
@@ -2601,88 +2569,38 @@ class DatabaseManager:
         
         nome_normalizado = nome_antigo.upper().strip()
         
-        # 🔄 Tentar atualizar com campos estruturados
-        try:
-            cursor.execute("""
-                UPDATE fornecedores 
-                SET nome = %s, razao_social = %s, nome_fantasia = %s,
-                    cpf_cnpj = %s, cnpj = %s, documento = %s, ie = %s, im = %s,
-                    email = %s, telefone = %s, endereco = %s,
-                    cep = %s, logradouro = %s, numero = %s,
-                    complemento = %s, bairro = %s, cidade = %s, estado = %s,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE UPPER(TRIM(nome)) = %s OR UPPER(TRIM(razao_social)) = %s
-            """, (
-                dados.get('nome'),
-                dados.get('razao_social', dados.get('nome')),
-                dados.get('nome_fantasia'),
-                dados.get('cnpj', dados.get('cpf_cnpj')),
-                dados.get('cnpj', dados.get('cpf_cnpj')),
-                dados.get('documento', dados.get('cpf_cnpj')),
-                dados.get('ie'),
-                dados.get('im'),
-                dados.get('email'),
-                dados.get('telefone'),
-                dados.get('endereco'),
-                dados.get('cep'),
-                dados.get('logradouro'),
-                dados.get('numero'),
-                dados.get('complemento'),
-                dados.get('bairro'),
-                dados.get('cidade'),
-                dados.get('estado'),
-                nome_normalizado,
-                nome_normalizado
-            ))
-        
-        except Exception as e:
-            # ⚠️ Fallback: Se colunas estruturadas não existem, usar schema básico
-            if 'does not exist' in str(e):
-                print(f"⚠️ Colunas de endereço estruturado não existem. Usando schema básico...")
-                conn.rollback()
-                
-                # Montar endereço completo
-                endereco = dados.get('endereco') or ""
-                cep = dados.get('cep')
-                logradouro = dados.get('logradouro')
-                numero = dados.get('numero')
-                complemento = dados.get('complemento')
-                bairro = dados.get('bairro')
-                cidade = dados.get('cidade')
-                estado = dados.get('estado')
-                
-                if cep or logradouro or numero:
-                    partes = []
-                    if logradouro: partes.append(logradouro)
-                    if numero: partes.append(f"nº {numero}")
-                    if complemento: partes.append(complemento)
-                    if bairro: partes.append(bairro)
-                    if cidade: partes.append(cidade)
-                    if estado: partes.append(estado)
-                    if cep: partes.append(f"CEP: {cep}")
-                    endereco = ", ".join(partes) if partes else endereco
-                
-                # ✅ SCHEMA BÁSICO: apenas colunas que existem na tabela
-                # id, nome, cpf_cnpj, email, telefone, endereco, ativo, created_at, updated_at
-                cursor.execute("""
-                    UPDATE fornecedores 
-                    SET nome = %s,
-                        cpf_cnpj = %s,
-                        email = %s, 
-                        telefone = %s, 
-                        endereco = %s,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE UPPER(TRIM(nome)) = %s
-                """, (
-                    dados.get('nome'),
-                    dados.get('cnpj') or dados.get('cpf_cnpj') or dados.get('documento'),
-                    dados.get('email'),
-                    dados.get('telefone'),
-                    endereco,
-                    nome_normalizado
-                ))
-            else:
-                raise  # Re-lançar outros erros
+        # ✅ UPDATE com schema completo (após migration)
+        cursor.execute("""
+            UPDATE fornecedores 
+            SET nome = %s, razao_social = %s, nome_fantasia = %s,
+                cpf_cnpj = %s, cnpj = %s, documento = %s, ie = %s, im = %s,
+                email = %s, telefone = %s, endereco = %s,
+                cep = %s, logradouro = %s, numero = %s,
+                complemento = %s, bairro = %s, cidade = %s, estado = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE UPPER(TRIM(nome)) = %s OR UPPER(TRIM(razao_social)) = %s
+        """, (
+            dados.get('nome'),
+            dados.get('razao_social', dados.get('nome')),
+            dados.get('nome_fantasia'),
+            dados.get('cnpj', dados.get('cpf_cnpj')),
+            dados.get('cnpj', dados.get('cpf_cnpj')),
+            dados.get('documento', dados.get('cpf_cnpj')),
+            dados.get('ie'),
+            dados.get('im'),
+            dados.get('email'),
+            dados.get('telefone'),
+            dados.get('endereco'),
+            dados.get('cep'),
+            dados.get('logradouro'),
+            dados.get('numero'),
+            dados.get('complemento'),
+            dados.get('bairro'),
+            dados.get('cidade'),
+            dados.get('estado'),
+            nome_normalizado,
+            nome_normalizado
+        ))
         
         sucesso = cursor.rowcount > 0
         conn.commit()
