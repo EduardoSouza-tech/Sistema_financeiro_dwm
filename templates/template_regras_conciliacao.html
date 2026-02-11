@@ -67,37 +67,106 @@
                 </div>
             </div>
             
-            <!-- Botão Nova Regra -->
-            <div style="margin-bottom: 20px; text-align: right;">
-                <button onclick="RegrasConciliacao.novaRegra()" 
-                        style="background: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: all 0.3s;"
-                        onmouseover="this.style.background='#229954'"
-                        onmouseout="this.style.background='#27ae60'">
-                    ➕ Nova Regra
-                </button>
+            <!-- ============================================================
+                 SEÇÃO EXCLUSIVA: REGRAS DE INTEGRAÇÃO FOLHA
+                 Visível APENAS quando integração está ativa
+                 ============================================================ -->
+            <div id="secao-regras-folha" style="display: none; margin-bottom: 30px;">
+                <div style="background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h3 style="margin: 0 0 8px 0; font-size: 20px;">👥 Regras de Integração com Folha de Pagamento</h3>
+                    <p style="margin: 0; font-size: 13px; opacity: 0.95;">Regras exclusivas para vincular automaticamente transações bancárias com funcionários</p>
+                </div>
+                
+                <div style="background: #f8f9fa; border: 2px solid #6c5ce7; border-top: none; border-radius: 0 0 10px 10px; padding: 20px;">
+                    <!-- Informação sobre funcionamento -->
+                    <div style="background: white; border-left: 4px solid #6c5ce7; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                        <div style="font-weight: bold; color: #6c5ce7; margin-bottom: 8px;">🎯 Como funcionam as regras de folha:</div>
+                        <ul style="margin: 0; padding-left: 20px; color: #2d3436; font-size: 13px;">
+                            <li>O sistema detecta <strong>CPF automaticamente</strong> na descrição do extrato (ex: PIX com CPF)</li>
+                            <li>Vincula com o <strong>funcionário correspondente</strong> cadastrado na folha</li>
+                            <li>Aplica automaticamente a <strong>categoria e subcategoria</strong> configuradas</li>
+                            <li>O nome do funcionário aparece automaticamente no campo "Razão Social"</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Botão Nova Regra Folha -->
+                    <div style="margin-bottom: 20px; text-align: right;">
+                        <button onclick="RegrasConciliacao.novaRegraFolha()" 
+                                style="background: #6c5ce7; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: all 0.3s;"
+                                onmouseover="this.style.background='#5f4dd3'"
+                                onmouseout="this.style.background='#6c5ce7'">
+                            ➕ Nova Regra de Folha
+                        </button>
+                    </div>
+                    
+                    <!-- Tabela de Regras de Folha -->
+                    <div style="overflow-x: auto; border: 1px solid #ddd; border-radius: 8px; background: white;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%); color: white;">
+                                    <th style="padding: 15px; text-align: left; font-weight: 600;">Palavra-chave / Padrão CPF</th>
+                                    <th style="padding: 15px; text-align: left; font-weight: 600;">Categoria</th>
+                                    <th style="padding: 15px; text-align: left; font-weight: 600;">Subcategoria</th>
+                                    <th style="padding: 15px; text-align: center; font-weight: 600; width: 120px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="regras-folha-lista">
+                                <tr>
+                                    <td colspan="4" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                                        <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
+                                        <div style="font-size: 16px;">Nenhuma regra de folha configurada</div>
+                                        <div style="font-size: 13px; color: #95a5a6; margin-top: 8px;">Clique em "Nova Regra de Folha" para criar</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
             
-            <!-- Tabela de Regras -->
-            <div style="overflow-x: auto; border: 1px solid #ddd; border-radius: 8px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: #f8f9fa;">
-                            <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">Palavra-chave / Descrição</th>
-                            <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">Categoria</th>
-                            <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">Subcategoria</th>
-                            <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">Cliente Padrão</th>
-                            <th style="padding: 15px; text-align: center; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057; width: 120px;">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="regras-lista">
-                        <tr>
-                            <td colspan="6" style="text-align: center; padding: 40px; color: #7f8c8d;">
-                                <div style="font-size: 48px; margin-bottom: 10px;">⏳</div>
-                                <div style="font-size: 16px;">Carregando regras...</div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <!-- ============================================================
+                 SEÇÃO PADRÃO: REGRAS DE AUTO-CONCILIAÇÃO NORMAIS
+                 ============================================================ -->
+            <div style="margin-bottom: 30px;">
+                <div style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h3 style="margin: 0 0 8px 0; font-size: 20px;">📋 Regras de Auto-Conciliação Padrão</h3>
+                    <p style="margin: 0; font-size: 13px; opacity: 0.95;">Regras baseadas em palavras-chave para clientes e fornecedores</p>
+                </div>
+                
+                <div style="background: white; border: 2px solid #0984e3; border-top: none; border-radius: 0 0 10px 10px; padding: 20px;">
+                    <!-- Botão Nova Regra -->
+                    <div style="margin-bottom: 20px; text-align: right;">
+                        <button onclick="RegrasConciliacao.novaRegra()" 
+                                style="background: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: all 0.3s;"
+                                onmouseover="this.style.background='#229954'"
+                                onmouseout="this.style.background='#27ae60'">
+                            ➕ Nova Regra
+                        </button>
+                    </div>
+            
+                    <!-- Tabela de Regras -->
+                    <div style="overflow-x: auto; border: 1px solid #ddd; border-radius: 8px;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8f9fa;">
+                                    <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">Palavra-chave / Descrição</th>
+                                    <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">Categoria</th>
+                                    <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">Subcategoria</th>
+                                    <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">Cliente Padrão</th>
+                                    <th style="padding: 15px; text-align: center; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057; width: 120px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="regras-lista">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                                        <div style="font-size: 48px; margin-bottom: 10px;">⏳</div>
+                                        <div style="font-size: 16px;">Carregando regras...</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
         

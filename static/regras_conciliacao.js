@@ -21,6 +21,7 @@ const RegrasConciliacao = {
     fornecedores: [],
     funcionarios: [], // ✅ NOVO: Lista de funcionários para integração folha
     configIntegracaoFolha: false, // Estado da configuração global
+    modoRegraFolha: false, // ✅ NOVO: Indica se estamos criando regra de folha
     
     /**
      * Inicializa o módulo
@@ -81,6 +82,12 @@ const RegrasConciliacao = {
                     status.style.color = this.configIntegracaoFolha ? '#00b894' : '#2d3436';
                 }
                 
+                // ✅ NOVO: Mostrar/ocultar seção de regras folha
+                const secaoRegrasFolha = document.getElementById('secao-regras-folha');
+                if (secaoRegrasFolha) {
+                    secaoRegrasFolha.style.display = this.configIntegracaoFolha ? 'block' : 'none';
+                }
+                
                 console.log(`✅ Integração com folha: ${this.configIntegracaoFolha ? 'ATIVADA' : 'DESATIVADA'}`);
             }
         } catch (error) {
@@ -110,6 +117,12 @@ const RegrasConciliacao = {
             if (data.success) {
                 this.configIntegracaoFolha = ativo;
                 
+                // ✅ NOVO: Mostrar/ocultar seção de regras folha
+                const secaoRegrasFolha = document.getElementById('secao-regras-folha');
+                if (secaoRegrasFolha) {
+                    secaoRegrasFolha.style.display = ativo ? 'block' : 'none';
+                }
+                
                 // ✅ NOVO: Recarregar listas com ou sem funcionários
                 await this.carregarClientesFornecedores();
                 
@@ -122,8 +135,8 @@ const RegrasConciliacao = {
                 
                 // Feedback visual
                 const mensagem = ativo 
-                    ? '✅ Integração ativada! O campo "Cliente Padrão" agora lista funcionários da folha de pagamento.'
-                    : '⚠️ Integração desativada. Voltando a listar clientes e fornecedores normalmente.';
+                    ? '✅ Integração ativada!\n\nAgora você pode criar regras exclusivas de Folha na seção roxa que apareceu acima.'
+                    : '⚠️ Integração desativada. Seção de regras de folha foi ocultada.';
                 
                 alert(mensagem);
                 
@@ -392,9 +405,10 @@ const RegrasConciliacao = {
         
         console.log('🔍 [DEBUG] preencherSelect - configIntegracaoFolha =', this.configIntegracaoFolha);
         console.log('🔍 [DEBUG] preencherSelect - funcionarios.length =', this.funcionarios.length);
+        console.log('🔍 [DEBUG] preencherSelect - modoRegraFolha =', this.modoRegraFolha);
         
-        // ✅ NOVO: Se integração com folha ativa
-        if (this.configIntegracaoFolha) {
+        // ✅ NOVO: Se estamos criando regra de folha, mostrar APENAS funcionários
+        if (this.modoRegraFolha || this.configIntegracaoFolha) {
             if (this.funcionarios.length > 0) {
                 console.log('✅ Mostrando APENAS funcionários no select!');
             
@@ -525,6 +539,49 @@ const RegrasConciliacao = {
     novaRegra() {
         console.log('🆕 Abrindo formulário de nova regra...');
         
+        // Resetar modo folha
+        this.modoRegraFolha = false;
+        
+        // Limpar formulário
+        document.getElementById('regra-id').value = '';
+        document.getElementById('regra-palavra-chave').value = '';
+        document.getElementById('regra-descricao').value = '';
+        document.getElementById('regra-categoria').value = '';
+        document.getElementById('regra-subcategoria').value = '';
+        document.getElementById('regra-subcategoria').disabled = true;
+        document.getElementById('regra-cliente-padrao').value = '';
+        
+        // Preencher selects (modo normal - clientes/fornecedores)
+        this.preencherSelectCategorias();
+        this.preencherSelectClientesFornecedores();
+        
+        // Atualizar título do modal
+        const titulo = document.getElementById('modal-regra-titulo');
+        titulo.textContent = '➕ Nova Regra de Auto-Conciliação';
+        titulo.style.background = 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
+        
+        // Abrir modal
+        document.getElementById('modal-regra-conciliacao').style.display = 'flex';
+        
+        console.log('✅ Modal de nova regra aberto');
+    },
+
+    /**
+     * Nova regra de Folha (Integração)
+     */
+    novaRegraFolha() {
+        console.log('🆕 Abrindo formulário de nova regra de FOLHA...');
+        
+        if (!this.configIntegracaoFolha) {
+            alert('⚠️ A integração com folha não está ativa!');
+            return;
+        }
+        
+        if (this.funcionarios.length === 0) {
+            alert('⚠️ Não há funcionários disponíveis!\n\nVerifique se:\n- Há funcionários cadastrados na folha\n- Você tem permissão "folha_pagamento_view"');
+            return;
+        }
+        
         // Limpar formulário
         document.getElementById('regra-id').value = '';
         document.getElementById('regra-palavra-chave').value = '';
@@ -536,15 +593,19 @@ const RegrasConciliacao = {
         
         // Preencher selects
         this.preencherSelectCategorias();
-        this.preencherSelectClientesFornecedores();
+        this.preencherSelectClientesFornecedores();  // Já vai mostrar funcionários
         
         // Atualizar título do modal
-        document.getElementById('modal-regra-titulo').textContent = '➕ Nova Regra de Auto-Conciliação';
+        document.getElementById('modal-regra-titulo').textContent = '➕ Nova Regra de Folha de Pagamento';
+        document.getElementById('modal-regra-titulo').style.background = 'linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%)';
+        
+        // Marcar que estamos em modo folha
+        this.modoRegraFolha = true;
         
         // Abrir modal
         document.getElementById('modal-regra-conciliacao').style.display = 'flex';
         
-        console.log('✅ Modal de nova regra aberto');
+        console.log('✅ Modal de nova regra de FOLHA aberto');
     },
 
     /**
