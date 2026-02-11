@@ -198,8 +198,8 @@
         <div style="padding: 25px;">
             <input type="hidden" id="regra-id">
             
-            <!-- Palavra-chave -->
-            <div style="margin-bottom: 20px;">
+            <!-- Palavra-chave - Oculto quando modo folha -->
+            <div id="campo-palavra-chave" style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">
                     🔍 Palavra-chave <span style="color: #e74c3c;">*</span>
                 </label>
@@ -212,8 +212,8 @@
                 <small style="color: #7f8c8d; font-size: 12px;">Texto que será detectado na descrição (maiúsculas/minúsculas não importam)</small>
             </div>
             
-            <!-- Descrição -->
-            <div style="margin-bottom: 20px;">
+            <!-- Descrição - Oculto quando modo folha -->
+            <div id="campo-descricao" style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">
                     📝 Descrição (opcional)
                 </label>
@@ -229,7 +229,7 @@
             <!-- Categoria -->
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">
-                    📂 Categoria (opcional)
+                    📂 Categoria <span id="asterisco-categoria" style="color: #e74c3c; display: none;">*</span><span id="opcional-categoria">(opcional)</span>
                 </label>
                 <select id="regra-categoria"
                         style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;"
@@ -243,7 +243,7 @@
             <!-- Subcategoria -->
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">
-                    📁 Subcategoria (opcional)
+                    📁 Subcategoria <span id="asterisco-subcategoria" style="color: #e74c3c; display: none;">*</span><span id="opcional-subcategoria">(opcional)</span>
                 </label>
                 <select id="regra-subcategoria"
                         disabled
@@ -258,8 +258,8 @@
             <!-- ✅ NOVO: Aviso de integração com folha -->
             <div id="aviso-integracao-folha" style="display: none;"></div>
             
-            <!-- Cliente Padrão -->
-            <div style="margin-bottom: 20px;">
+            <!-- Cliente Padrão - Oculto quando modo folha -->
+            <div id="campo-cliente-padrao" style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">
                     <span id="label-cliente-padrao">👤 Cliente/Fornecedor Padrão</span> (opcional)
                 </label>

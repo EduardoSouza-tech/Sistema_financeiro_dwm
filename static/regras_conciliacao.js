@@ -561,6 +561,17 @@ const RegrasConciliacao = {
         titulo.textContent = '➕ Nova Regra de Auto-Conciliação';
         titulo.style.background = 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
         
+        // ⚠️ NOVO: Mostrar todos os campos (modo normal)
+        document.getElementById('campo-palavra-chave').style.display = 'block';
+        document.getElementById('campo-descricao').style.display = 'block';
+        document.getElementById('campo-cliente-padrao').style.display = 'block';
+        
+        // Categoria e subcategoria são opcionais no modo normal
+        document.getElementById('asterisco-categoria').style.display = 'none';
+        document.getElementById('opcional-categoria').style.display = 'inline';
+        document.getElementById('asterisco-subcategoria').style.display = 'none';
+        document.getElementById('opcional-subcategoria').style.display = 'inline';
+        
         // Abrir modal
         document.getElementById('modal-regra-conciliacao').style.display = 'flex';
         
@@ -701,21 +712,39 @@ const RegrasConciliacao = {
             const subcategoria = document.getElementById('regra-subcategoria').value;
             const clientePadrao = document.getElementById('regra-cliente-padrao').value;
             
-            // Validações
-            if (!palavraChave) {
-                alert('❌ Palavra-chave é obrigatória!');
-                document.getElementById('regra-palavra-chave').focus();
-                return;
+            // ⚠️ NOVO: Validações diferentes para regra de folha vs regra normal
+            if (this.modoRegraFolha) {
+                // Regra de Folha: Exigir categoria e subcategoria
+                if (!categoria) {
+                    alert('❌ Categoria é obrigatória para regras de folha!');
+                    document.getElementById('regra-categoria').focus();
+                    return;
+                }
+                if (!subcategoria) {
+                    alert('❌ Subcategoria é obrigatória para regras de folha!');
+                    document.getElementById('regra-subcategoria').focus();
+                    return;
+                }
+                console.log('✅ Validação de regra de FOLHA aprovada (categoria + subcategoria)');
+            } else {
+                // Regra Normal: Exigir palavra-chave
+                if (!palavraChave) {
+                    alert('❌ Palavra-chave é obrigatória!');
+                    document.getElementById('regra-palavra-chave').focus();
+                    return;
+                }
+                console.log('✅ Validação de regra NORMAL aprovada (palavra-chave)');
             }
             
             // Preparar dados
             const dados = {
-                palavra_chave: palavraChave,
+                palavra_chave: palavraChave || null,  // Pode ser null para regras de folha
                 descricao: descricao || null,
                 categoria: categoria || null,
                 subcategoria: subcategoria || null,
                 cliente_padrao: clientePadrao || null,
-                ativo: true
+                ativo: true,
+                tipo_regra: this.modoRegraFolha ? 'folha' : 'normal'  // ⚠️ Identificar tipo
             };
             
             console.log('📤 Dados a enviar:', dados);
@@ -723,10 +752,10 @@ const RegrasConciliacao = {
             // Determinar método e URL
             const isEdicao = regraId && regraId !== '';
             
-            // Se não é edição, verificar se já existe regra com essa palavra-chave
-            if (!isEdicao) {
+            // Se não é edição e tem palavra-chave, verificar duplicata
+            if (!isEdicao && palavraChave) {
                 const regraExistente = window.regrasAtivas.find(r => 
-                    r.palavra_chave.toUpperCase() === palavraChave.toUpperCase()
+                    r.palavra_chave && r.palavra_chave.toUpperCase() === palavraChave.toUpperCase()
                 );
                 
                 if (regraExistente) {
