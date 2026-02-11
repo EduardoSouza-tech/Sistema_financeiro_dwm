@@ -6050,6 +6050,10 @@ window.abrirConciliacaoGeral = async function() {
         const clientesData = await responseClientes.json();
         const fornecedoresData = await responseFornecedores.json();
         
+        // 🔍 DEBUG: Ver estrutura da resposta de fornecedores
+        console.log('🔍 Resposta RAW fornecedores:', fornecedoresData);
+        console.log('🔍 Tipo:', typeof fornecedoresData, '| É array?', Array.isArray(fornecedoresData));
+        
         // Extrair arrays dos dados (pode vir como {data: [...]} ou direto)
         const categorias = Array.isArray(categoriasData) ? categoriasData : (categoriasData.categorias || categoriasData.data || []);
         const clientes = Array.isArray(clientesData) ? clientesData : (clientesData.clientes || clientesData.data || []);
@@ -6057,6 +6061,12 @@ window.abrirConciliacaoGeral = async function() {
         
         console.log('📂 Categorias carregadas:', categorias.length);
         console.log('👥 Clientes:', clientes.length, '| Fornecedores:', fornecedores.length);
+        
+        if (fornecedores.length > 0) {
+            console.log('🔍 Primeiro fornecedor:', fornecedores[0]);
+        } else {
+            console.warn('⚠️ NENHUM fornecedor encontrado! Verifique se existem fornecedores cadastrados na empresa', window.currentEmpresaId);
+        }
         
         // Debug: mostrar primeira categoria
         if (categorias.length > 0) {
