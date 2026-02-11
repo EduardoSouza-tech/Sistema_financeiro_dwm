@@ -196,24 +196,47 @@ const RegrasConciliacao = {
             // ✅ NOVO: Se integração com folha ativa, carregar funcionários também
             if (this.configIntegracaoFolha) {
                 console.log('📋 Integração folha ativa - carregando funcionários...');
-                promises.push(fetch('/api/funcionarios'));
+                promises.push(fetch('/api/funcionarios', {
+                    credentials: 'include',  // ⚡ Enviar cookies de sessão
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }));
             }
             
             const responses = await Promise.all(promises);
-            const [clientesData, fornecedoresData, funcionariosData] = await Promise.all(
-                responses.map(r => r.json())
-            );
+            
+            console.log('📦 [DEBUG] Responses recebidos:', responses.length);
+            responses.forEach((resp, idx) => {
+                const endpoints = ['clientes', 'fornecedores', 'funcionários'];
+                console.log(`   [${idx}] ${endpoints[idx] || 'unknown'}: Status ${resp.status} ${resp.statusText}`);
+            });
+            
+            // Tratar respostas com erro
+            const dataPromises = responses.map(async (resp, idx) => {
+                if (!resp.ok) {
+                    console.warn(`⚠️ Endpoint ${idx} retornou erro ${resp.status}`);
+                    return null;  // Retornar null em caso de erro
+                }
+                return resp.json();
+            });
+            
+            const [clientesData, fornecedoresData, funcionariosData] = await Promise.all(dataPromises);
             
             // Suporte ao novo formato de resposta
-            this.clientes = Array.isArray(clientesData) ? clientesData : (clientesData.data || clientesData.clientes || []);
-            this.fornecedores = Array.isArray(fornecedoresData) ? fornecedoresData : (fornecedoresData.data || fornecedoresData.fornecedores || []);
+            this.clientes = Array.isArray(clientesData) ? clientesData : (clientesData?.data || clientesData?.clientes || []);
+            this.fornecedores = Array.isArray(fornecedoresData) ? fornecedoresData : (fornecedoresData?.data || fornecedoresData?.fornecedores || []);
             
             // ✅ NOVO: Extrair funcionários se foram carregados
-            if (funcionariosData) {
+            if (funcionariosData && funcionariosData !== null) {
                 this.funcionarios = Array.isArray(funcionariosData) ? funcionariosData : (funcionariosData.data || funcionariosData.funcionarios || []);
                 console.log(`✅ ${this.clientes.length} cliente(s), ${this.fornecedores.length} fornecedor(es) e ${this.funcionarios.length} funcionário(s) carregados`);
             } else {
                 this.funcionarios = [];
+                if (this.configIntegracaoFolha) {
+                    console.error('❌ Erro ao carregar funcionários - Integração folha ativa mas dados não recebidos!');
+                    console.error('   Verifique se o usuário tem permissão "folha_pagamento_view"');
+                }
                 console.log(`✅ ${this.clientes.length} cliente(s) e ${this.fornecedores.length} fornecedor(es) carregados`);
             }
             
@@ -370,9 +393,10 @@ const RegrasConciliacao = {
         console.log('🔍 [DEBUG] preencherSelect - configIntegracaoFolha =', this.configIntegracaoFolha);
         console.log('🔍 [DEBUG] preencherSelect - funcionarios.length =', this.funcionarios.length);
         
-        // ✅ NOVO: Se integração com folha ativa, mostrar APENAS funcionários
-        if (this.configIntegracaoFolha && this.funcionarios.length > 0) {
-            console.log('✅ Mostrando APENAS funcionários no select!');
+        // ✅ NOVO: Se integração com folha ativa
+        if (this.configIntegracaoFolha) {
+            if (this.funcionarios.length > 0) {
+                console.log('✅ Mostrando APENAS funcionários no select!');
             
             // Atualizar label do campo
             const labelClientePadrao = document.getElementById('label-cliente-padrao');
@@ -418,6 +442,29 @@ const RegrasConciliacao = {
             }
             
             return; // Retornar sem mostrar clientes/fornecedores
+            } else {
+                // ⚠️ Integração ativa mas sem funcionários (erro de permissão)
+                console.error('❌ Integração folha ativa mas SEM funcionários carregados!');
+                
+                // Mostrar aviso de erro
+                const avisoDiv = document.getElementById('aviso-integracao-folha');
+                if (avisoDiv) {
+                    avisoDiv.style.display = 'block';
+                    avisoDiv.innerHTML = `
+                        <div style="background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                            <strong>⚠️ Erro na Integração com Folha</strong><br>
+                            <small>Não foi possível carregar os funcionários. Verifique se você tem permissão "folha_pagamento_view" ou se há funcionários cadastrados.</small><br>
+                            <small style="font-weight: 600;">Desative a integração para usar clientes/fornecedores normalmente.</small>
+                        </div>
+                    `;
+                }
+                
+                // Desabilitar select
+                select.disabled = true;
+                select.title = 'Integração folha ativa mas sem funcionários disponíveis';
+                
+                return; // Retornar sem mostrar clientes/fornecedores
+            }
         }
         
         // Ocultar aviso se integração desativada
