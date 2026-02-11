@@ -325,14 +325,23 @@ const RegrasConciliacao = {
      * Renderiza a tabela de regras
      */
     renderizarTabela() {
-        const tbody = document.getElementById('regras-lista');
-        if (!tbody) {
+        const tbodyNormais = document.getElementById('regras-lista');
+        const tbodyFolha = document.getElementById('regras-folha-lista');
+        
+        if (!tbodyNormais) {
             console.warn('⚠️ Elemento regras-lista não encontrado');
             return;
         }
         
-        if (this.regras.length === 0) {
-            tbody.innerHTML = `
+        // ⚠️ NOVO: Separar regras por tipo
+        const regrasNormais = this.regras.filter(r => !r.palavra_chave || !r.palavra_chave.startsWith('FOLHA_'));
+        const regrasFolha = this.regras.filter(r => r.palavra_chave && r.palavra_chave.startsWith('FOLHA_'));
+        
+        console.log(`📊 Total: ${this.regras.length} regras | Normais: ${regrasNormais.length} | Folha: ${regrasFolha.length}`);
+        
+        // Renderizar tabela de regras NORMAIS (azul)
+        if (regrasNormais.length === 0) {
+            tbodyNormais.innerHTML = `
                 <tr>
                     <td colspan="6" style="text-align: center; padding: 40px; color: #7f8c8d;">
                         <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
@@ -343,10 +352,37 @@ const RegrasConciliacao = {
                     </td>
                 </tr>
             `;
-            return;
+        } else {
+            tbodyNormais.innerHTML = regrasNormais.map(regra => this.renderizarLinhaRegra(regra)).join('');
         }
         
-        tbody.innerHTML = this.regras.map(regra => `
+        // Renderizar tabela de regras de FOLHA (roxa)
+        if (tbodyFolha) {
+            if (regrasFolha.length === 0) {
+                tbodyFolha.innerHTML = `
+                    <tr>
+                        <td colspan="3" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                            <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
+                            <div style="font-size: 16px;">Nenhuma regra de folha configurada</div>
+                            <div style="font-size: 14px; margin-top: 10px; color: #95a5a6;">
+                                Clique em "➕ Nova Regra de Folha" para criar
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbodyFolha.innerHTML = regrasFolha.map(regra => this.renderizarLinhaRegraFolha(regra)).join('');
+            }
+        }
+        
+        console.log('✅ Tabelas renderizadas:', regrasNormais.length, 'normais +', regrasFolha.length, 'folha');
+    },
+    
+    /**
+     * Renderiza linha de regra NORMAL
+     */
+    renderizarLinhaRegra(regra) {
+        return `
             <tr style="border-bottom: 1px solid #dee2e6; ${!regra.ativo ? 'opacity: 0.5;' : ''}">
                 <td style="padding: 15px;">
                     <div style="font-weight: 600; color: #2c3e50; margin-bottom: 4px;">
@@ -380,9 +416,35 @@ const RegrasConciliacao = {
                     </button>
                 </td>
             </tr>
-        `).join('');
-        
-        console.log('✅ Tabela renderizada com', this.regras.length, 'regra(s)');
+        `;
+    },
+    
+    /**
+     * Renderiza linha de regra de FOLHA (formato simplificado)
+     */
+    renderizarLinhaRegraFolha(regra) {
+        return `
+            <tr style="border-bottom: 1px solid #dee2e6; ${!regra.ativo ? 'opacity: 0.5;' : ''}">
+                <td style="padding: 15px; color: #495057;">
+                    ${regra.categoria ? this.escapeHtml(regra.categoria) : '<span style="color: #95a5a6;">-</span>'}
+                </td>
+                <td style="padding: 15px; color: #495057;">
+                    ${regra.subcategoria ? this.escapeHtml(regra.subcategoria) : '<span style="color: #95a5a6;">-</span>'}
+                </td>
+                <td style="padding: 15px; text-align: center;">
+                    <button onclick="RegrasConciliacao.editarRegra(${regra.id})" 
+                            style="background: #a29bfe; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 4px;"
+                            title="Editar regra de folha">
+                        ✏️
+                    </button>
+                    <button onclick="RegrasConciliacao.excluirRegra(${regra.id})" 
+                            style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;"
+                            title="Excluir regra de folha">
+                        🗑️
+                    </button>
+                </td>
+            </tr>
+        `;
     },
 
     /**
