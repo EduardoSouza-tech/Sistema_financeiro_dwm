@@ -407,56 +407,58 @@ const RegrasConciliacao = {
         console.log('🔍 [DEBUG] preencherSelect - funcionarios.length =', this.funcionarios.length);
         console.log('🔍 [DEBUG] preencherSelect - modoRegraFolha =', this.modoRegraFolha);
         
-        // ✅ NOVO: Se estamos criando regra de folha, mostrar APENAS funcionários
-        if (this.modoRegraFolha && this.funcionarios.length > 0) {
-            console.log('✅ Mostrando APENAS funcionários no select (modo regra folha)!');
-            
-            // Atualizar label do campo
-            const labelClientePadrao = document.getElementById('label-cliente-padrao');
-            if (labelClientePadrao) {
-                labelClientePadrao.innerHTML = '👥 Funcionário (Folha de Pagamento)';
-                labelClientePadrao.style.color = '#00b894';
-            }
-            
-            // Atualizar hint
-            const hintClientePadrao = document.getElementById('hint-cliente-padrao');
-            if (hintClientePadrao) {
-                hintClientePadrao.innerHTML = 'Nome do funcionário que será exibido automaticamente no extrato';
-                hintClientePadrao.style.color = '#00b894';
-                hintClientePadrao.style.fontWeight = '600';
-            }
-            
-            const optgroupFuncionarios = document.createElement('optgroup');
-            optgroupFuncionarios.label = '👥 Funcionários (Folha de Pagamento)';
-            optgroupFuncionarios.style.color = '#00b894';
-            optgroupFuncionarios.style.fontWeight = 'bold';
-            
-            this.funcionarios.forEach(func => {
-                const option = document.createElement('option');
-                // Usar nome completo do funcionário
-                const nomeCompleto = func.nome || func.nome_completo || `Funcionário ${func.id}`;
-                option.value = nomeCompleto;
-                option.textContent = `${nomeCompleto}${func.cpf ? ` (CPF: ${func.cpf})` : ''}`;
-                optgroupFuncionarios.appendChild(option);
-            });
-            
-            select.appendChild(optgroupFuncionarios);
-            
-            // Adicionar aviso visual
-            const avisoDiv = document.getElementById('aviso-integracao-folha');
-            if (avisoDiv) {
-                avisoDiv.style.display = 'block';
-                avisoDiv.innerHTML = `
-                    <div style="background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
-                        <strong>👥 Integração com Folha Ativada</strong><br>
-                        <small>O campo "Cliente Padrão" está listando <strong>funcionários da folha de pagamento</strong>. Ao conciliar, o nome do funcionário será exibido automaticamente no extrato.</small>
-                    </div>
-                `;
-            }
-            
-            return; // Retornar sem mostrar clientes/fornecedores
+        // ✅ NOVO: Se estamos criando regra de folha, verificar funcionários
+        if (this.modoRegraFolha) {
+            // Caso 1: Tem funcionários carregados
+            if (this.funcionarios.length > 0) {
+                console.log('✅ Mostrando APENAS funcionários no select (modo regra folha)!');
+                
+                // Atualizar label do campo
+                const labelClientePadrao = document.getElementById('label-cliente-padrao');
+                if (labelClientePadrao) {
+                    labelClientePadrao.innerHTML = '👥 Funcionário (Folha de Pagamento)';
+                    labelClientePadrao.style.color = '#00b894';
+                }
+                
+                // Atualizar hint
+                const hintClientePadrao = document.getElementById('hint-cliente-padrao');
+                if (hintClientePadrao) {
+                    hintClientePadrao.innerHTML = 'Nome do funcionário que será exibido automaticamente no extrato';
+                    hintClientePadrao.style.color = '#00b894';
+                    hintClientePadrao.style.fontWeight = '600';
+                }
+                
+                const optgroupFuncionarios = document.createElement('optgroup');
+                optgroupFuncionarios.label = '👥 Funcionários (Folha de Pagamento)';
+                optgroupFuncionarios.style.color = '#00b894';
+                optgroupFuncionarios.style.fontWeight = 'bold';
+                
+                this.funcionarios.forEach(func => {
+                    const option = document.createElement('option');
+                    // Usar nome completo do funcionário
+                    const nomeCompleto = func.nome || func.nome_completo || `Funcionário ${func.id}`;
+                    option.value = nomeCompleto;
+                    option.textContent = `${nomeCompleto}${func.cpf ? ` (CPF: ${func.cpf})` : ''}`;
+                    optgroupFuncionarios.appendChild(option);
+                });
+                
+                select.appendChild(optgroupFuncionarios);
+                
+                // Adicionar aviso visual
+                const avisoDiv = document.getElementById('aviso-integracao-folha');
+                if (avisoDiv) {
+                    avisoDiv.style.display = 'block';
+                    avisoDiv.innerHTML = `
+                        <div style="background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                            <strong>👥 Integração com Folha Ativada</strong><br>
+                            <small>O campo "Cliente Padrão" está listando <strong>funcionários da folha de pagamento</strong>. Ao conciliar, o nome do funcionário será exibido automaticamente no extrato.</small>
+                        </div>
+                    `;
+                }
+                
+                return; // Retornar sem mostrar clientes/fornecedores
             } else {
-                // ⚠️ Integração ativa mas sem funcionários (erro de permissão)
+                // Caso 2: Integração ativa mas sem funcionários (erro de permissão)
                 console.error('❌ Integração folha ativa mas SEM funcionários carregados!');
                 
                 // Mostrar aviso de erro
