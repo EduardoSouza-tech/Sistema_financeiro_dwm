@@ -1967,11 +1967,12 @@ class DatabaseManager:
         
         if empresa_id is not None:
             print(f'   ➡️ Atualizando COM empresa_id = {empresa_id}')
+            # ✅ FIX: Incluir empresa_id no WHERE para evitar violação de constraint UNIQUE
             cursor.execute("""
                 UPDATE categorias 
                 SET nome = %s, tipo = %s, subcategorias = %s, 
                     cor = %s, icone = %s, descricao = %s, empresa_id = %s
-                WHERE UPPER(TRIM(nome)) = %s
+                WHERE UPPER(TRIM(nome)) = %s AND empresa_id = %s
             """, (
                 nome_novo_normalizado,
                 categoria.tipo.value,
@@ -1980,7 +1981,8 @@ class DatabaseManager:
                 categoria.icone,
                 categoria.descricao,
                 empresa_id,
-                nome_busca
+                nome_busca,
+                empresa_id  # ✅ CRITICAL: Garantir que estamos atualizando O MESMO registro
             ))
         else:
             print('   ➡️ Atualizando SEM empresa_id (mantém valor existente)')
@@ -2005,11 +2007,20 @@ class DatabaseManager:
         # Se mudou o nome, também atualizar referências nos lançamentos
         if sucesso and nome_busca != nome_novo_normalizado:
             print(f'   🔄 Nome mudou! Atualizando referências nos lançamentos...')
-            cursor.execute("""
-                UPDATE lancamentos 
-                SET categoria = %s 
-                WHERE UPPER(TRIM(categoria)) = %s
-            """, (nome_novo_normalizado, nome_busca))
+            if empresa_id is not None:
+                # Atualizar apenas lançamentos da mesma empresa
+                cursor.execute("""
+                    UPDATE lancamentos 
+                    SET categoria = %s 
+                    WHERE UPPER(TRIM(categoria)) = %s AND empresa_id = %s
+                """, (nome_novo_normalizado, nome_busca, empresa_id))
+            else:
+                # Atualizar todos os lançamentos com esse nome (admin)
+                cursor.execute("""
+                    UPDATE lancamentos 
+                    SET categoria = %s 
+                    WHERE UPPER(TRIM(categoria)) = %s
+                """, (nome_novo_normalizado, nome_busca))
             lancamentos_atualizados = cursor.rowcount
             print(f'   📊 {lancamentos_atualizados} lançamento(s) atualizado(s)')
         
