@@ -4719,27 +4719,41 @@ def gerar_correcoes_cpf():
             return jsonify({'error': 'Empresa não selecionada'}), 403
         
         # Buscar funcionários da empresa
-        funcionarios = db.obter_funcionarios_por_empresa(empresa_id=empresa_id)
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Buscar todos os funcionários da empresa
+        query = """
+            SELECT id, nome, cpf, email, celular, ativo, data_admissao, data_demissao
+            FROM funcionarios
+            WHERE empresa_id = %s
+            ORDER BY nome ASC
+        """
+        
+        cursor.execute(query, (empresa_id,))
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        # Converter para lista de dicionários
+        funcionarios = []
+        for row in rows:
+            funcionarios.append({
+                'id': row[0],
+                'nome': row[1],
+                'cpf': row[2] or '',
+                'email': row[3] or ''
+            })
+        
         logger.info(f"🔧 [CPF CORRETOR] Analisando {len(funcionarios)} funcionários...")
         
         # Filtrar apenas funcionários com CPF inválido
         funcionarios_invalidos = []
         for func in funcionarios:
-            if isinstance(func, dict):
-                cpf = func.get('cpf', '')
-            else:
-                cpf = getattr(func, 'cpf', '')
+            cpf = func.get('cpf', '')
             
             if cpf and not CPFValidator.validar(cpf):
-                if isinstance(func, dict):
-                    funcionarios_invalidos.append(func)
-                else:
-                    funcionarios_invalidos.append({
-                        'id': func.id,
-                        'nome': func.nome,
-                        'cpf': func.cpf,
-                        'email': getattr(func, 'email', '')
-                    })
+                funcionarios_invalidos.append(func)
         
         logger.info(f"🔧 [CPF CORRETOR] Encontrados {len(funcionarios_invalidos)} funcionários com CPF inválido")
         
@@ -4792,7 +4806,26 @@ def corrigir_cpf_funcionario(funcionario_id):
         
         # Atualizar CPF no banco
         cpf_formatado = validacao['cpf_formatado']
-        success = db.atualizar_cpf_funcionario(funcionario_id, cpf_formatado, empresa_id)
+        
+        # Fazer update direto no banco
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE funcionarios 
+            SET cpf = %s, 
+                data_atualizacao = CURRENT_TIMESTAMP
+            WHERE id = %s 
+              AND empresa_id = %s
+              AND ativo = TRUE
+        """, (cpf_formatado, funcionario_id, empresa_id))
+        
+        rows_affected = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        success = rows_affected > 0
         
         if success:
             logger.info(f"✅ [CPF CORRETOR] CPF do funcionário {funcionario_id} atualizado para: {cpf_formatado}")
