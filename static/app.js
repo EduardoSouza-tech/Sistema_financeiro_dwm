@@ -6003,8 +6003,11 @@ window.salvarTransferencia = async function() {
 };
 // === CONCILIAÇÃO GERAL DE EXTRATO ===
 window.abrirConciliacaoGeral = async function() {
+    console.log('🔄 [APP.JS] Abrindo Conciliação Geral...');
+    
     try {
         // Obter extratos filtrados e não conciliados
+        console.log('📡 Buscando transações não conciliadas...');
         const conta = document.getElementById('extrato-filter-conta')?.value || document.getElementById('filtro-conta-extrato')?.value;
         const dataInicio = document.getElementById('extrato-filter-data-inicio')?.value || document.getElementById('filtro-data-inicio-extrato')?.value;
         const dataFim = document.getElementById('extrato-filter-data-fim')?.value || document.getElementById('filtro-data-fim-extrato')?.value;
@@ -6022,6 +6025,7 @@ window.abrirConciliacaoGeral = async function() {
         if (!response.ok) throw new Error('Erro ao carregar extratos');
         
         const transacoes = await response.json();
+        console.log('📊 Transações não conciliadas:', transacoes.length);
         
         if (transacoes.length === 0) {
             showToast('Nenhuma transação não conciliada encontrada no período filtrado', 'warning');
@@ -6029,6 +6033,7 @@ window.abrirConciliacaoGeral = async function() {
         }
         
         // Buscar categorias e subcategorias
+        console.log('📡 Buscando categorias, clientes e fornecedores...');
         const [responseCategorias, responseClientes, responseFornecedores] = await Promise.all([
             fetch(`${API_URL}/categorias`, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -6050,6 +6055,17 @@ window.abrirConciliacaoGeral = async function() {
         const clientes = Array.isArray(clientesData) ? clientesData : (clientesData.clientes || clientesData.data || []);
         const fornecedores = Array.isArray(fornecedoresData) ? fornecedoresData : (fornecedoresData.fornecedores || fornecedoresData.data || []);
         
+        console.log('📂 Categorias carregadas:', categorias.length);
+        console.log('👥 Clientes:', clientes.length, '| Fornecedores:', fornecedores.length);
+        
+        // Debug: mostrar primeira categoria
+        if (categorias.length > 0) {
+            console.log('🔍 Primeira categoria:', categorias[0]);
+            console.log('   - nome:', categorias[0].nome);
+            console.log('   - tipo:', categorias[0].tipo, '(type:', typeof categorias[0].tipo + ')');
+            console.log('   - subcategorias:', categorias[0].subcategorias);
+        }
+        
         // Criar dicionário de matching CPF/CNPJ
         window.clientesPorCPF = {};
         clientes.forEach(c => {
@@ -6063,9 +6079,19 @@ window.abrirConciliacaoGeral = async function() {
             if (cpf_cnpj) window.fornecedoresPorCPF[cpf_cnpj] = f.nome;
         });
         
-        // Agrupar categorias por tipo
-        const categoriasDespesa = categorias.filter(c => c.tipo === 'DESPESA');
-        const categoriasReceita = categorias.filter(c => c.tipo === 'RECEITA');
+        // 🔧 FIX: Agrupar categorias por tipo usando LOWERCASE
+        const categoriasDespesa = categorias.filter(c => (c.tipo || '').toLowerCase() === 'despesa');
+        const categoriasReceita = categorias.filter(c => (c.tipo || '').toLowerCase() === 'receita');
+        
+        console.log('📊 Categorias filtradas:');
+        console.log('   - Despesas:', categoriasDespesa.length);
+        console.log('   - Receitas:', categoriasReceita.length);
+        if (categoriasDespesa.length > 0) {
+            console.log('   - Despesa exemplo:', categoriasDespesa[0].nome);
+        }
+        if (categoriasReceita.length > 0) {
+            console.log('   - Receita exemplo:', categoriasReceita[0].nome);
+        }
         
         // Renderizar lista de transações
         let html = `
@@ -6116,6 +6142,13 @@ window.abrirConciliacaoGeral = async function() {
             
             // Opções de categoria filtradas por tipo
             const categoriasOpcoes = isCredito ? categoriasReceita : categoriasDespesa;
+            
+            // Debug primeira transação
+            if (index === 0) {
+                console.log(`🔍 Transação #${t.id}:`);
+                console.log('   - Tipo:', t.tipo, '| isCredito:', isCredito);
+                console.log('   - Categorias disponíveis:', categoriasOpcoes.length);
+            }
             
             html += `
                 <tr style="border-bottom: 1px solid #ecf0f1;">
@@ -6175,11 +6208,13 @@ window.abrirConciliacaoGeral = async function() {
         window.transacoesConciliacao = transacoes;
         window.categoriasConciliacao = categorias;
         
+        console.log('✅ Modal renderizado com sucesso');
+        
         // Mostrar modal
         document.getElementById('modal-conciliacao-geral').style.display = 'block';
         
     } catch (error) {
-        console.error('Erro ao abrir conciliação geral:', error);
+        console.error('❌ Erro ao abrir conciliação geral:', error);
         showToast('Erro ao carregar dados de conciliação', 'error');
     }
 };
