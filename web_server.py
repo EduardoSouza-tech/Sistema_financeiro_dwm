@@ -10058,6 +10058,59 @@ def executar_migration_config_extrato():
         }), 500
 
 
+@app.route('/api/debug/listar-regras-raw', methods=['GET'])
+@csrf.exempt
+def listar_regras_raw():
+    """
+    Endpoint de debug para listar todas as regras diretamente do banco
+    """
+    try:
+        from database_postgresql import execute_query
+        
+        empresa_id = request.args.get('empresa_id', type=int)
+        
+        if not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'empresa_id é obrigatório'
+            }), 400
+        
+        # Query direta no banco
+        query = """
+            SELECT 
+                id,
+                empresa_id,
+                palavra_chave,
+                categoria,
+                subcategoria,
+                cliente_padrao,
+                descricao,
+                ativo,
+                created_at,
+                updated_at
+            FROM regras_conciliacao
+            WHERE empresa_id = %s
+            ORDER BY id
+        """
+        
+        regras = execute_query(query, (empresa_id,), fetch_all=True, allow_global=True)
+        
+        return jsonify({
+            'success': True,
+            'empresa_id': empresa_id,
+            'total': len(regras) if regras else 0,
+            'regras': regras or []
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
 # ============================================================================
 # ENDPOINT DE STATUS DA MIGRAÇÃO DE SENHAS
 # ============================================================================

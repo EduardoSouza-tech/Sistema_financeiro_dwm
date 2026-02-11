@@ -3296,6 +3296,8 @@ class DatabaseManager:
         conn = None
         cursor = None
         try:
+            print(f"🔍 [listar_regras] Listando regras para empresa_id={empresa_id}", flush=True)
+            
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
@@ -3307,7 +3309,6 @@ class DatabaseManager:
                     categoria,
                     subcategoria,
                     cliente_padrao,
-                    usa_integracao_folha,
                     descricao,
                     ativo,
                     created_at,
@@ -3318,10 +3319,18 @@ class DatabaseManager:
             """, (empresa_id,))
             
             regras = cursor.fetchall()
+            print(f"✅ [listar_regras] {len(regras)} regra(s) encontrada(s)", flush=True)
+            
+            # Log detalhado das regras
+            for r in regras:
+                print(f"   • ID {r['id']}: {r['palavra_chave']} | Ativo: {r['ativo']}", flush=True)
+            
             return [dict(r) for r in regras]
             
         except Exception as e:
-            print(f"❌ Erro ao listar regras de conciliação: {e}")
+            print(f"❌ [listar_regras] Erro ao listar regras de conciliação: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
             return []
         finally:
             if cursor:
