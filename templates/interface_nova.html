@@ -6260,6 +6260,13 @@
                 alert('❌ Erro ao processar conciliação. Verifique sua conexão e tente novamente.');
             }
         }
+        
+        // 🔧 Expor funções no escopo global
+        window.abrirConciliacaoGeral = abrirConciliacaoGeral;
+        window.fecharConciliacaoGeral = fecharConciliacaoGeral;
+        window.atualizarSubcategorias = atualizarSubcategorias;
+        window.processarConciliacaoGeral = processarConciliacaoGeral;
+        console.log('✅ Funções de Conciliação Geral expostas no window');
 
         // Deletar extratos filtrados
         async function deletarExtratoFiltradoOFX() {
