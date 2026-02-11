@@ -611,13 +611,24 @@ const RegrasConciliacao = {
         document.getElementById('modal-regra-titulo').textContent = '➕ Nova Regra de Folha de Pagamento';
         document.getElementById('modal-regra-titulo').style.background = 'linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%)';
         
+        // ⚠️ CRÍTICO: Ocultar campos desnecessários para regra de folha
+        document.getElementById('campo-palavra-chave').style.display = 'none';
+        document.getElementById('campo-descricao').style.display = 'none';
+        document.getElementById('campo-cliente-padrao').style.display = 'none';
+        
+        // Marcar categoria e subcategoria como OBRIGATÓRIAS
+        document.getElementById('asterisco-categoria').style.display = 'inline';
+        document.getElementById('opcional-categoria').style.display = 'none';
+        document.getElementById('asterisco-subcategoria').style.display = 'inline';
+        document.getElementById('opcional-subcategoria').style.display = 'none';
+        
         // Marcar que estamos em modo folha
         this.modoRegraFolha = true;
         
         // Abrir modal
         document.getElementById('modal-regra-conciliacao').style.display = 'flex';
         
-        console.log('✅ Modal de nova regra de FOLHA aberto');
+        console.log('✅ Modal de nova regra de FOLHA aberto (apenas Categoria e Subcategoria obrigatórios)');
     },
 
     /**
@@ -695,6 +706,20 @@ const RegrasConciliacao = {
      */
     fecharModal() {
         document.getElementById('modal-regra-conciliacao').style.display = 'none';
+        
+        // Resetar visibilidade dos campos (modo normal)
+        document.getElementById('campo-palavra-chave').style.display = 'block';
+        document.getElementById('campo-descricao').style.display = 'block';
+        document.getElementById('campo-cliente-padrao').style.display = 'block';
+        
+        // Resetar flags de obrigatoriedade
+        document.getElementById('asterisco-categoria').style.display = 'none';
+        document.getElementById('opcional-categoria').style.display = 'inline';
+        document.getElementById('asterisco-subcategoria').style.display = 'none';
+        document.getElementById('opcional-subcategoria').style.display = 'inline';
+        
+        // Resetar modo folha
+        this.modoRegraFolha = false;
     },
 
     /**
