@@ -750,7 +750,21 @@ const RegrasConciliacao = {
                     document.getElementById('regra-subcategoria').focus();
                     return;
                 }
+                
+                // 🔑 CRÍTICO: Gerar palavra-chave automática para regras de folha
+                // Backend exige palavra_chave, mas sistema detecta por CPF
+                // Usar formato: FOLHA_[CATEGORIA]_[SUBCATEGORIA]
+                const palavraChaveAuto = `FOLHA_${categoria.replace(/\s+/g, '_').toUpperCase()}_${subcategoria.replace(/\s+/g, '_').toUpperCase()}`;
+                document.getElementById('regra-palavra-chave').value = palavraChaveAuto;
+                
+                // 📝 Gerar descrição automática se vazia
+                if (!descricao) {
+                    const descricaoAuto = `Regra de Folha: ${categoria} - ${subcategoria}`;
+                    document.getElementById('regra-descricao').value = descricaoAuto;
+                }
+                
                 console.log('✅ Validação de regra de FOLHA aprovada (categoria + subcategoria)');
+                console.log(`🔑 Palavra-chave gerada: ${palavraChaveAuto}`);
             } else {
                 // Regra Normal: Exigir palavra-chave
                 if (!palavraChave) {
@@ -761,10 +775,14 @@ const RegrasConciliacao = {
                 console.log('✅ Validação de regra NORMAL aprovada (palavra-chave)');
             }
             
+            // 🔄 Recoletar palavra-chave e descrição após possível geração automática
+            const palavraChaveFinal = document.getElementById('regra-palavra-chave').value.trim();
+            const descricaoFinal = document.getElementById('regra-descricao').value.trim();
+            
             // Preparar dados
             const dados = {
-                palavra_chave: palavraChave || null,  // Pode ser null para regras de folha
-                descricao: descricao || null,
+                palavra_chave: palavraChaveFinal,  // Sempre terá valor (auto-gerado para folha)
+                descricao: descricaoFinal || null,
                 categoria: categoria || null,
                 subcategoria: subcategoria || null,
                 cliente_padrao: clientePadrao || null,
@@ -777,14 +795,14 @@ const RegrasConciliacao = {
             // Determinar método e URL
             const isEdicao = regraId && regraId !== '';
             
-            // Se não é edição e tem palavra-chave, verificar duplicata
-            if (!isEdicao && palavraChave) {
+            // Se não é edição e não é folha (regra normal), verificar duplicata por palavra-chave
+            if (!isEdicao && !this.modoRegraFolha && palavraChaveFinal) {
                 const regraExistente = window.regrasAtivas.find(r => 
-                    r.palavra_chave && r.palavra_chave.toUpperCase() === palavraChave.toUpperCase()
+                    r.palavra_chave && r.palavra_chave.toUpperCase() === palavraChaveFinal.toUpperCase()
                 );
                 
                 if (regraExistente) {
-                    alert(`⚠️ Já existe uma regra com a palavra-chave "${palavraChave}"!\n\nEdite a regra existente ao invés de criar uma nova.`);
+                    alert(`⚠️ Já existe uma regra com a palavra-chave "${palavraChaveFinal}"!\n\nEdite a regra existente ao invés de criar uma nova.`);
                     document.getElementById('regra-palavra-chave').focus();
                     return;
                 }
@@ -820,6 +838,8 @@ const RegrasConciliacao = {
                 
             } else {
                 console.error('❌ Erro ao salvar regra:', result);
+                console.error('📊 Status HTTP:', response.status);
+                console.error('📦 Dados enviados:', dados);
                 alert(`❌ Erro ao salvar regra: ${result.error || 'Erro desconhecido'}`);
             }
             
