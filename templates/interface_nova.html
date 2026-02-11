@@ -2473,7 +2473,7 @@
                 <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
                     <div class="modal-header" style="background gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
                         <h3 style="margin: 0; font-size: 24px;">🔐 Relatório de Validação de CPFs</h3>
-                        <span class="close" onclick="fecharModalRelatorioC PFs()" style="cursor: pointer; font-size: 28px;">&times;</span>
+                        <span class="close" onclick="fecharModalRelatorioCPFs()" style="cursor: pointer; font-size: 28px;">&times;</span>
                     </div>
                     <div class="modal-body" style="padding: 20px;">
                         
@@ -2550,7 +2550,7 @@
                     </div>
                     <div class="modal-footer" style="padding: 15px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
                         <div style="color: #666; font-size: 12px;" id="cpf-data-analise">Análise realizada em: --</div>
-                        <button type="button" onclick="fecharModalRelatorioC PFs()" class="btn btn-secondary" 
+                        <button type="button" onclick="fecharModalRelatorioCPFs()" class="btn btn-secondary" 
                                 style="padding: 10px 30px; background: #95a5a6;">
                             Fechar
                         </button>
@@ -9166,7 +9166,7 @@
             
             // Abrir modal de edição (função já existente)
             // Assumindo que existe uma função para abrir o modal de funcionário
-            if (typeof abrirModalEditar Funcionario === 'function') {
+            if (typeof abrirModalEditarFuncionario === 'function') {
                 abrirModalEditarFuncionario(funcionarioId);
             } else {
                 console.warn('⚠️ Função abrirModalEditarFuncionario não encontrada');
