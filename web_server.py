@@ -90,6 +90,11 @@ import psycopg2
 import psycopg2.extras
 
 # ============================================================================
+# VALIDAÇÃO DE DOCUMENTOS
+# ============================================================================
+from cpf_validator import CPFValidator
+
+# ============================================================================
 # UTILITÁRIOS COMPARTILHADOS (FASE 4)
 # ============================================================================
 from app.utils import (
@@ -4575,12 +4580,136 @@ def listar_funcionarios():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/funcionarios/cpf/relatorio', methods=['GET'])
+@require_permission('folha_pagamento_view')
+def relatorio_cpfs_invalidos():
+    """
+    🔐 Relatório de CPFs Inválidos
+    ================================
+    
+    Retorna lista de funcionários com CPFs inválidos ou ausentes.
+    
+    Resposta:
+        - total_funcionarios: total de funcionários da empresa
+        - total_cpfs_invalidos: quantidade de CPFs inválidos
+        - total_cpfs_ausentes: quantidade de CPFs não informados
+        - taxa_erro: percentual de erros (%)
+        - funcionarios_invalidos: lista detalhada com erros
+    """
+    try:
+        print("\n🔍 [CPF RELATORIO] Iniciando análise...")
+        
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 403
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Buscar todos os funcionários da empresa
+        query = """
+            SELECT id, nome, cpf, email, celular, ativo, data_admissao, data_demissao
+            FROM funcionarios
+            WHERE empresa_id = %s
+            ORDER BY nome ASC
+        """
+        
+        cursor.execute(query, (empresa_id,))
+        rows = cursor.fetchall()
+        cursor.close()
+        
+        # Análise de CPFs
+        total_funcionarios = len(rows)
+        funcionarios_invalidos = []
+        funcionarios_ausentes = []
+        
+        for row in rows:
+            if isinstance(row, dict):
+                func_id = row['id']
+                nome = row['nome']
+                cpf = row.get('cpf')
+                email = row.get('email')
+                celular = row.get('celular')
+                ativo = row.get('ativo', True)
+                data_admissao = row['data_admissao'].isoformat() if row.get('data_admissao') else None
+                data_demissao = row['data_demissao'].isoformat() if row.get('data_demissao') else None
+            else:
+                func_id, nome, cpf, email, celular, ativo, data_admissao, data_demissao = row[:8]
+                data_admissao = data_admissao.isoformat() if data_admissao else None
+                data_demissao = data_demissao.isoformat() if data_demissao else None
+            
+            # Validar CPF
+            if not cpf or cpf.strip() == '':
+                funcionarios_ausentes.append({
+                    'id': func_id,
+                    'nome': nome,
+                    'cpf': None,
+                    'email': email,
+                    'celular': celular,
+                    'ativo': ativo,
+                    'data_admissao': data_admissao,
+                    'data_demissao': data_demissao,
+                    'erro': 'CPF não informado',
+                    'tipo_erro': 'ausente'
+                })
+            else:
+                validacao = CPFValidator.validar_com_detalhes(cpf)
+                if not validacao['valido']:
+                    funcionarios_invalidos.append({
+                        'id': func_id,
+                        'nome': nome,
+                        'cpf': cpf,
+                        'cpf_formatado': CPFValidator.formatar(cpf) if len(CPFValidator.limpar(cpf)) == 11 else cpf,
+                        'email': email,
+                        'celular': celular,
+                        'ativo': ativo,
+                        'data_admissao': data_admissao,
+                        'data_demissao': data_demissao,
+                        'erro': validacao['erro'],
+                        'tipo_erro': 'invalido'
+                    })
+        
+        # Calcular estatísticas
+        total_invalidos = len(funcionarios_invalidos)
+        total_ausentes = len(funcionarios_ausentes)
+        total_problemas = total_invalidos + total_ausentes
+        taxa_erro = round((total_problemas / total_funcionarios * 100), 2) if total_funcionarios > 0 else 0
+        taxa_validos = round(((total_funcionarios - total_problemas) / total_funcionarios * 100), 2) if total_funcionarios > 0 else 0
+        
+        # Combinar listas
+        todos_problemas = funcionarios_invalidos + funcionarios_ausentes
+        
+        print(f"✅ [CPF RELATORIO] Análise concluída:")
+        print(f"   Total: {total_funcionarios} funcionários")
+        print(f"   Inválidos: {total_invalidos}")
+        print(f"   Ausentes: {total_ausentes}")
+        print(f"   Taxa de erro: {taxa_erro}%")
+        
+        return jsonify({
+            'success': True,
+            'total_funcionarios': total_funcionarios,
+            'total_cpfs_validos': total_funcionarios - total_problemas,
+            'total_cpfs_invalidos': total_invalidos,
+            'total_cpfs_ausentes': total_ausentes,
+            'total_cpfs_problemas': total_problemas,
+            'taxa_erro': taxa_erro,
+            'taxa_validos': taxa_validos,
+            'funcionarios_com_problemas': todos_problemas,
+            'data_analise': time.strftime('%Y-%m-%d %H:%M:%S')
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao gerar relatório de CPFs: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/funcionarios', methods=['POST'])
 @require_permission('folha_pagamento_create')
 def criar_funcionario():
     """Criar novo funcionário"""
     try:
-        from app.utils.validators import validate_cpf, validate_email
         import re
         
         usuario = get_usuario_logado()
@@ -4600,24 +4729,33 @@ def criar_funcionario():
         if not dados.get('cpf'):
             return jsonify({'error': 'CPF é obrigatório'}), 400
         
-        # 🔐 Validar CPF
-        is_valid, error_msg = validate_cpf(dados['cpf'])
-        if not is_valid:
-            return jsonify({'error': f'CPF inválido: {error_msg}'}), 400
+        # 🔐 NOVO: Validar CPF com CPFValidator
+        validacao_cpf = CPFValidator.validar_com_detalhes(dados['cpf'])
+        if not validacao_cpf['valido']:
+            return jsonify({'error': f'CPF inválido: {validacao_cpf["erro"]}'}), 400
         
         # 🔐 Validar email se fornecido
         if dados.get('email'):
-            is_valid, error_msg = validate_email(dados['email'])
-            if not is_valid:
-                return jsonify({'error': f'Email inválido: {error_msg}'}), 400
+            try:
+                from app.utils.validators import validate_email
+                is_valid, error_msg = validate_email(dados['email'])
+                if not is_valid:
+                    return jsonify({'error': f'Email inválido: {error_msg}'}), 400
+            except ImportError:
+                # Validação simples caso validators não esteja disponível
+                import re
+                email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+                if not re.match(email_regex, dados['email']):
+                    return jsonify({'error': 'Email inválido'}), 400
         
-        # Limpar CPF (remover pontuação)
-        cpf = dados['cpf'].replace('.', '').replace('-', '').replace('/', '')
+        # Limpar e formatar CPF
+        cpf = CPFValidator.limpar(dados['cpf'])
         
         print(f"\n🔍 [POST /api/funcionarios]")
         print(f"   - empresa_id: {empresa_id}")
         print(f"   - nome: {dados.get('nome')}")
         print(f"   - cpf: {cpf}")
+        print(f"   - cpf_formatado: {validacao_cpf['cpf_formatado']}")
         
         # 🔒 Usar get_db_connection com empresa_id para aplicar RLS
         with get_db_connection(empresa_id=empresa_id) as conn:

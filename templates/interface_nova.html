@@ -2198,6 +2198,11 @@
                         <option value="false">❌ Inativos</option>
                     </select>
 
+                    <button onclick="abrirRelatorioC PFs()" class="btn" 
+                            style="padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                        🔐 Validar CPFs
+                    </button>
+
                     <button onclick="exportarFuncionariosExcel()" class="btn btn-success" 
                             style="padding: 10px 20px; background: #27ae60;">
                         📥 Exportar Excel
@@ -2459,6 +2464,96 @@
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🔐 Modal Relatório de CPFs -->
+            <div id="modal-relatorio-cpfs" class="modal" style="display: none;">
+                <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
+                    <div class="modal-header" style="background gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+                        <h3 style="margin: 0; font-size: 24px;">🔐 Relatório de Validação de CPFs</h3>
+                        <span class="close" onclick="fecharModalRelatorioC PFs()" style="cursor: pointer; font-size: 28px;">&times;</span>
+                    </div>
+                    <div class="modal-body" style="padding: 20px;">
+                        
+                        <!-- Loading -->
+                        <div id="cpf-relatorio-loading" style="text-align: center; padding: 40px;">
+                            <div style="font-size: 48px;">⏳</div>
+                            <div style="margin-top: 10px; font-size: 16px; color: #666;">Analisando CPFs...</div>
+                        </div>
+
+                        <!-- Conteúdo do Relatório -->
+                        <div id="cpf-relatorio-conteudo" style="display: none;">
+                            
+                            <!-- Estatísticas -->
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                                <!-- Total -->
+                                <div style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white; padding: 20px; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 32px; font-weight: bold;" id="cpf-total">0</div>
+                                    <div style="font-size: 14px; margin-top: 5px;">📊 Total de Funcionários</div>
+                                </div>
+                                
+                                <!-- Válidos -->
+                                <div style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); color: white; padding: 20px; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 32px; font-weight: bold;" id="cpf-validos">0</div>
+                                    <div style="font-size: 14px; margin-top: 5px;">✅ CPFs Válidos</div>
+                                    <div style="font-size: 12px; margin-top: 5px; opacity: 0.9;" id="cpf-taxa-validos">0%</div>
+                                </div>
+                                
+                                <!-- Inválidos -->
+                                <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 20px; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 32px; font-weight: bold;" id="cpf-invalidos">0</div>
+                                    <div style="font-size: 14px; margin-top: 5px;">❌ CPFs Inválidos</div>
+                                    <div style="font-size: 12px; margin-top: 5px; opacity: 0.9;" id="cpf-taxa-invalidos">0%</div>
+                                </div>
+                                
+                                <!-- Ausentes -->
+                                <div style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; padding: 20px; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 32px; font-weight: bold;" id="cpf-ausentes">0</div>
+                                    <div style="font-size: 14px; margin-top: 5px;">⚠️ CPFs Ausentes</div>
+                                </div>
+                            </div>
+
+                            <!-- Tabela de Problemas -->
+                            <div id="cpf-problemas-container">
+                                <h4 style="margin: 20px 0 15px 0; color: #2c3e50;">🔍 Funcionários com Problemas no CPF</h4>
+                                
+                                <div style="overflow-x: auto; border: 1px solid #ddd; border-radius: 8px; background: white;">
+                                    <table style="width: 100%; border-collapse: collapse;">
+                                        <thead>
+                                            <tr style="background: #f5f5f5;">
+                                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Nome</th>
+                                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">CPF</th>
+                                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Email</th>
+                                                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Status</th>
+                                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Erro</th>
+                                                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd; width: 100px;">Ação</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="cpf-problemas-lista">
+                                            <!-- Preenchido dinamicamente -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Mensagem de Sucesso (todos CPFs válidos) -->
+                            <div id="cpf-todos-validos" style="display: none; text-align: center; padding: 40px;">
+                                <div style="font-size: 64px;">✅</div>
+                                <div style="font-size: 20px; color: #27ae60; margin-top: 15px; font-weight: bold;">Todos os CPFs estão válidos!</div>
+                                <div style="font-size: 14px; color: #666; margin-top: 10px;">Parabéns! Não há problemas de validação de CPF.</div>
+                            </div>
+
+                        </div>
+
+                    </div>
+                    <div class="modal-footer" style="padding: 15px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="color: #666; font-size: 12px;" id="cpf-data-analise">Análise realizada em: --</div>
+                        <button type="button" onclick="fecharModalRelatorioC PFs()" class="btn btn-secondary" 
+                                style="padding: 10px 30px; background: #95a5a6;">
+                            Fechar
+                        </button>
                     </div>
                 </div>
             </div>
@@ -8947,6 +9042,143 @@
             document.querySelectorAll('input[type="text"], textarea').forEach(function(campo) {
                 aplicarMaiusculas(campo);
             });
+        });
+    </script>
+    
+    <!-- ============================================================================
+         RELATÓRIO DE VALIDAÇÃO DE CPFs - FOLHA DE PAGAMENTO
+         ============================================================================ -->
+    <script>
+        // 🔐 Função para abrir o relatório de validação de CPFs
+        async function abrirRelatorioCPFs() {
+            try {
+                // Abrir modal
+                const modal = document.getElementById('modal-relatorio-cpfs');
+                modal.style.display = 'block';
+                
+                // Mostrar loading
+                document.getElementById('cpf-relatorio-loading').style.display = 'block';
+                document.getElementById('cpf-relatorio-conteudo').style.display = 'none';
+                
+                // Chamar API
+                console.log('🔍 [CPF RELATORIO] Iniciando análise de CPFs...');
+                const response = await fetch('/api/funcionarios/cpf/relatorio', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('✅ [CPF RELATORIO] Dados recebidos:', data);
+                
+                if (data.success) {
+                    // Ocultar loading, mostrar conteúdo
+                    document.getElementById('cpf-relatorio-loading').style.display = 'none';
+                    document.getElementById('cpf-relatorio-conteudo').style.display = 'block';
+                    
+                    // Preencher estatísticas
+                    document.getElementById('cpf-total').textContent = data.total_funcionarios;
+                    document.getElementById('cpf-validos').textContent = data.total_cpfs_validos;
+                    document.getElementById('cpf-invalidos').textContent = data.total_cpfs_invalidos;
+                    document.getElementById('cpf-ausentes').textContent = data.total_cpfs_ausentes;
+                    document.getElementById('cpf-taxa-validos').textContent = data.taxa_validos.toFixed(1) + '%';
+                    document.getElementById('cpf-taxa-invalidos').textContent = data.taxa_erro.toFixed(1) + '%';
+                    
+                    // Atualizar data da análise
+                    const agora = new Date();
+                    document.getElementById('cpf-data-analise').textContent = 
+                        `Análise realizada em: ${agora.toLocaleDateString('pt-BR')} às ${agora.toLocaleTimeString('pt-BR')}`;
+                    
+                    // Verificar se há problemas
+                    const totalProblemas = data.total_cpfs_invalidos + data.total_cpfs_ausentes;
+                    
+                    if (totalProblemas === 0) {
+                        // Todos válidos! Mostrar mensagem de sucesso
+                        document.getElementById('cpf-todos-validos').style.display = 'block';
+                        document.getElementById('cpf-problemas-container').style.display = 'none';
+                    } else {
+                        // Há problemas - mostrar tabela
+                        document.getElementById('cpf-todos-validos').style.display = 'none';
+                        document.getElementById('cpf-problemas-container').style.display = 'block';
+                        
+                        // Renderizar lista de problemas
+                        const tbody = document.getElementById('cpf-problemas-lista');
+                        tbody.innerHTML = data.funcionarios_com_problemas.map((func, index) => {
+                            const isInvalido = func.tipo_erro === 'invalido';
+                            const isAusente = func.tipo_erro === 'ausente';
+                            
+                            return `
+                                <tr style="background: ${index % 2 === 0 ? '#fff' : '#f9f9f9'};">
+                                    <td style="padding: 12px;">${func.nome}</td>
+                                    <td style="padding: 12px; font-family: monospace;">
+                                        ${func.cpf || '<span style="color: #999;">--</span>'}
+                                    </td>
+                                    <td style="padding: 12px; font-size: 12px; color: #666;">
+                                        ${func.email || '<span style="color: #999;">--</span>'}
+                                    </td>
+                                    <td style="padding: 12px; text-align: center;">
+                                        <span style="padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; 
+                                                     background: ${isInvalido ? '#e74c3c' : '#f39c12'}; color: white;">
+                                            ${isInvalido ? '❌ INVÁLIDO' : '⚠️ AUSENTE'}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px; font-size: 12px; color: #e74c3c;">
+                                        ${func.erro}
+                                    </td>
+                                    <td style="padding: 12px; text-align: center;">
+                                        <button onclick="editarFuncionarioCPF(${func.id})" 
+                                                class="btn" 
+                                                style="padding: 6px 12px; background: #3498db; color: white; font-size: 11px;">
+                                            ✏️ Corrigir
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
+                    
+                } else {
+                    throw new Error(data.message || 'Erro desconhecido');
+                }
+                
+            } catch (error) {
+                console.error('❌ [CPF RELATORIO] Erro:', error);
+                showToast('Erro ao carregar relatório: ' + error.message, 'error');
+                fecharModalRelatorioCPFs();
+            }
+        }
+        
+        // 🔐 Fechar modal de relatório
+        function fecharModalRelatorioCPFs() {
+            document.getElementById('modal-relatorio-cpfs').style.display = 'none';
+        }
+        
+        // 🔐 Editar funcionário com problema no CPF
+        function editarFuncionarioCPF(funcionarioId) {
+            // Fechar modal de relatório
+            fecharModalRelatorioCPFs();
+            
+            // Abrir modal de edição (função já existente)
+            // Assumindo que existe uma função para abrir o modal de funcionário
+            if (typeof abrirModalEditar Funcionario === 'function') {
+                abrirModalEditarFuncionario(funcionarioId);
+            } else {
+                console.warn('⚠️ Função abrirModalEditarFuncionario não encontrada');
+            }
+        }
+        
+        // Fechar modal ao clicar fora dele
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('modal-relatorio-cpfs');
+            if (event.target === modal) {
+                fecharModalRelatorioCPFs();
+            }
         });
     </script>
     
