@@ -5960,6 +5960,7 @@
             
             try {
                 // Buscar transações não conciliadas
+                console.log('📡 Buscando transações não conciliadas...');
                 const response = await fetch('/api/extratos?conciliado=false', {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -5978,33 +5979,68 @@
                     return;
                 }
                 
-                // Buscar categorias do sistema
-                const categoriasResponse = await fetch('/api/categorias', {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
-                const categoriasData = await categoriasResponse.json();
-                let categorias = categoriasData;
+                // Buscar categorias do sistema (usar AppState.categorias se disponível)
+                let categorias = [];
                 
-                // Extrair data se vier no formato {success, data}
-                if (categoriasData && typeof categoriasData === 'object' && 'data' in categoriasData) {
-                    categorias = categoriasData.data;
+                if (window.AppState && window.AppState.categorias && window.AppState.categorias.length > 0) {
+                    categorias = window.AppState.categorias;
+                    console.log('📂 Categorias carregadas de AppState:', categorias.length);
+                } else if (window.categorias && window.categorias.length > 0) {
+                    categorias = window.categorias;
+                    console.log('📂 Categorias carregadas de window.categorias:', categorias.length);
+                } else {
+                    console.log('📡 Buscando categorias via API...');
+                    const categoriasResponse = await fetch('/api/categorias', {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    });
+                    
+                    if (!categoriasResponse.ok) {
+                        throw new Error('Erro ao carregar categorias');
+                    }
+                    
+                    const categoriasData = await categoriasResponse.json();
+                    
+                    // Extrair data se vier no formato {success, data}
+                    if (categoriasData && typeof categoriasData === 'object' && 'data' in categoriasData) {
+                        categorias = categoriasData.data;
+                    } else {
+                        categorias = categoriasData;
+                    }
+                    console.log('📂 Categorias carregadas via API:', categorias.length);
                 }
-                console.log('📂 Categorias carregadas:', categorias.length);
+                
+                // Debug: mostrar primeiras categorias
+                if (categorias.length > 0) {
+                    console.log('🔍 Primeira categoria:', categorias[0]);
+                    console.log('   - nome:', categorias[0].nome);
+                    console.log('   - tipo:', categorias[0].tipo);
+                    console.log('   - subcategorias:', categorias[0].subcategorias);
+                }
                 
                 // Buscar clientes
+                console.log('📡 Buscando clientes...');
                 const clientesResponse = await fetch('/api/clientes', {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 });
+                
+                if (!clientesResponse.ok) {
+                    throw new Error('Erro ao carregar clientes');
+                }
+                
                 const clientesData = await clientesResponse.json();
-                let clientes = clientesData;
+                let clientes = [];
                 
                 // Extrair data se vier no formato {success, data}
                 if (clientesData && typeof clientesData === 'object' && 'data' in clientesData) {
                     clientes = clientesData.data;
+                } else if (Array.isArray(clientesData)) {
+                    clientes = clientesData;
+                } else {
+                    clientes = [];
                 }
                 console.log('👥 Clientes carregados:', clientes.length);
                 
@@ -6014,7 +6050,24 @@
                 transacoes.forEach((transacao, index) => {
                     const valor = parseFloat(transacao.valor);
                     const tipoTransacao = valor >= 0 ? 'receita' : 'despesa';
-                    const categoriasFiltered = categorias.filter(c => c.tipo.toLowerCase() === tipoTransacao);
+                    
+                    // Filtrar categorias por tipo
+                    const categoriasFiltered = categorias.filter(c => {
+                        const tipoCategoria = (c.tipo || '').toLowerCase();
+                        return tipoCategoria === tipoTransacao;
+                    });
+                    
+                    // Debug para primeira transação
+                    if (index === 0) {
+                        console.log(`🔍 Transação #${transacao.id}:`);
+                        console.log('   - Valor:', valor);
+                        console.log('   - Tipo detectado:', tipoTransacao);
+                        console.log('   - Total categorias:', categorias.length);
+                        console.log('   - Categorias filtradas:', categoriasFiltered.length);
+                        categoriasFiltered.forEach(c => {
+                            console.log(`      • ${c.nome} (${c.tipo}) - Subs:`, c.subcategorias);
+                        });
+                    }
                     
                     html += `
                         <div class="transacao-conciliacao-item" style="background: #f8f9fa; padding: 15px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ddd;">
@@ -6044,7 +6097,10 @@
                                                     style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;"
                                                     onchange="atualizarSubcategorias(${transacao.id})">
                                                 <option value="">Selecione...</option>
-                                                ${categoriasFiltered.map(c => `<option value="${c.nome}" data-subcategorias='${JSON.stringify(c.subcategorias || [])}'>${c.nome}</option>`).join('')}
+                                                ${categoriasFiltered.map(c => {
+                                                    const subcats = Array.isArray(c.subcategorias) ? c.subcategorias : [];
+                                                    return `<option value="${c.nome}" data-subcategorias='${JSON.stringify(subcats)}'>${c.nome}</option>`;
+                                                }).join('')}
                                             </select>
                                         </div>
                                         
