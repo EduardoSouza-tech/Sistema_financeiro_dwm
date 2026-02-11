@@ -4445,8 +4445,12 @@ def detectar_regra_conciliacao():
 def listar_funcionarios():
     """Listar todos os funcionários da empresa"""
     try:
+        print("\n🔍 [FUNCIONARIOS GET] Iniciando...")
         usuario = get_usuario_logado()
+        print(f"   Usuario logado: {usuario.get('username') if usuario else 'NENHUM'}")
+        
         if not usuario:
+            print("❌ [FUNCIONARIOS GET] Usuario não autenticado!")
             return jsonify({'error': 'Usuário não autenticado'}), 401
         
         logger.info(f"🔍 [FUNCIONARIOS] Usuario: {usuario.get('username')}")
