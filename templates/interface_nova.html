@@ -2550,10 +2550,106 @@
                     </div>
                     <div class="modal-footer" style="padding: 15px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
                         <div style="color: #666; font-size: 12px;" id="cpf-data-analise">Análise realizada em: --</div>
-                        <button type="button" onclick="fecharModalRelatorioCPFs()" class="btn btn-secondary" 
-                                style="padding: 10px 30px; background: #95a5a6;">
-                            Fechar
-                        </button>
+                        <div>
+                            <button type="button" id="btn-corrigir-cpfs" onclick="abrirCorrecaoAutomatica()" class="btn" 
+                                    style="padding: 10px 20px; background: #f39c12; color: white; margin-right: 10px; display: none;">
+                                🔧 Corrigir Automaticamente
+                            </button>
+                            <button type="button" onclick="fecharModalRelatorioCPFs()" class="btn btn-secondary" 
+                                    style="padding: 10px 30px; background: #95a5a6;">
+                                Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🔧 Modal Correção Automática de CPFs -->
+            <div id="modal-correcao-cpfs" class="modal" style="display: none;">
+                <div class="modal-content" style="max-width: 1200px; max-height: 90vh; overflow-y: auto;">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+                        <h3 style="margin: 0; font-size: 24px;">🔧 Correção Automática de CPFs</h3>
+                        <span class="close" onclick="fecharModalCorrecaoCPFs()" style="cursor: pointer; font-size: 28px;">&times;</span>
+                    </div>
+                    <div class="modal-body" style="padding: 20px;">
+                        
+                        <!-- Loading -->
+                        <div id="correcao-loading" style="text-align: center; padding: 40px;">
+                            <div style="font-size: 48px;">🔧</div>
+                            <div style="margin-top: 10px; font-size: 16px; color: #666;">Analisando correções possíveis...</div>
+                        </div>
+
+                        <!-- Conteúdo da Correção -->
+                        <div id="correcao-conteudo" style="display: none;">
+                            
+                            <!-- Estatísticas de Correção -->
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                                <!-- Total Inválidos -->
+                                <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 20px; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 32px; font-weight: bold;" id="correcao-total-invalidos">0</div>
+                                    <div style="font-size: 14px; margin-top: 5px;">❌ CPFs Inválidos</div>
+                                </div>
+                                
+                                <!-- Passíveis de Correção -->
+                                <div style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; padding: 20px; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 32px; font-weight: bold;" id="correcao-corrigidos">0</div>
+                                    <div style="font-size: 14px; margin-top: 5px;">🔧 Corrigíveis</div>
+                                    <div style="font-size: 12px; margin-top: 5px; opacity: 0.9;" id="correcao-taxa">0%</div>
+                                </div>
+                                
+                                <!-- Não Corrigíveis -->
+                                <div style="background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%); color: white; padding: 20px; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 32px; font-weight: bold;" id="correcao-nao-corrigidos">0</div>
+                                    <div style="font-size: 14px; margin-top: 5px;">⚠️ Impossíveis</div>
+                                </div>
+                            </div>
+
+                            <!-- Tabela de Correções Sugeridas -->
+                            <div id="correcoes-container">
+                                <h4 style="margin: 20px 0 15px 0; color: #2c3e50;">🔧 Correções Sugeridas</h4>
+                                
+                                <div style="overflow-x: auto; border: 1px solid #ddd; border-radius: 8px; background: white;">
+                                    <table style="width: 100%; border-collapse: collapse;">
+                                        <thead>
+                                            <tr style="background: #f5f5f5;">
+                                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Nome</th>
+                                                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">CPF Original</th>
+                                                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">CPF Corrigido</th>
+                                                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Tipo</th>
+                                                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Confiança</th>
+                                                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Recomendação</th>
+                                                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd; width: 150px;">Ação</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="correcoes-lista">
+                                            <!-- Preenchido dinamicamente -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Mensagem quando não há correções -->
+                            <div id="sem-correcoes" style="display: none; text-align: center; padding: 40px;">
+                                <div style="font-size: 64px;">⚠️</div>
+                                <div style="font-size: 20px; color: #f39c12; margin-top: 15px; font-weight: bold;">Nenhuma correção automática possível</div>
+                                <div style="font-size: 14px; color: #666; margin-top: 10px;">Os CPFs inválidos precisam ser corrigidos manualmente.</div>
+                            </div>
+
+                        </div>
+
+                    </div>
+                    <div class="modal-footer" style="padding: 15px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="color: #666; font-size: 12px;" id="correcao-data-analise">Análise realizada em: --</div>
+                        <div>
+                            <button type="button" id="btn-aplicar-todas-correcoes" onclick="aplicarTodasCorrecoes()" class="btn" 
+                                    style="padding: 10px 20px; background: #27ae60; color: white; margin-right: 10px; display: none;">
+                                ✅ Aplicar Correções Seguras
+                            </button>
+                            <button type="button" onclick="fecharModalCorrecaoCPFs()" class="btn btn-secondary" 
+                                    style="padding: 10px 30px; background: #95a5a6;">
+                                Fechar
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -9102,10 +9198,12 @@
                         // Todos válidos! Mostrar mensagem de sucesso
                         document.getElementById('cpf-todos-validos').style.display = 'block';
                         document.getElementById('cpf-problemas-container').style.display = 'none';
+                        document.getElementById('btn-corrigir-cpfs').style.display = 'none';
                     } else {
-                        // Há problemas - mostrar tabela
+                        // Há problemas - mostrar tabela e botão de correção
                         document.getElementById('cpf-todos-validos').style.display = 'none';
                         document.getElementById('cpf-problemas-container').style.display = 'block';
+                        document.getElementById('btn-corrigir-cpfs').style.display = 'inline-block';
                         
                         // Renderizar lista de problemas
                         const tbody = document.getElementById('cpf-problemas-lista');
@@ -9178,6 +9276,245 @@
             const modal = document.getElementById('modal-relatorio-cpfs');
             if (event.target === modal) {
                 fecharModalRelatorioCPFs();
+            }
+        });
+        
+        // ============================================================================
+        // SISTEMA DE CORREÇÃO AUTOMÁTICA DE CPF
+        // ============================================================================
+        
+        // 🔧 Abrir modal de correção automática
+        async function abrirCorrecaoAutomatica() {
+            try {
+                // Fechar modal de relatório
+                fecharModalRelatorioCPFs();
+                
+                // Abrir modal de correção
+                const modal = document.getElementById('modal-correcao-cpfs');
+                modal.style.display = 'block';
+                
+                // Mostrar loading
+                document.getElementById('correcao-loading').style.display = 'block';
+                document.getElementById('correcao-conteudo').style.display = 'none';
+                
+                // Chamar API de correção
+                console.log('🔧 [CORRECAO CPF] Iniciando análise de correções...');
+                const response = await fetch('/api/funcionarios/cpf/correcao', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('✅ [CORRECAO CPF] Dados de correção recebidos:', data);
+                
+                if (data.success) {
+                    // Ocultar loading, mostrar conteúdo
+                    document.getElementById('correcao-loading').style.display = 'none';
+                    document.getElementById('correcao-conteudo').style.display = 'block';
+                    
+                    // Preencher estatísticas
+                    document.getElementById('correcao-total-invalidos').textContent = data.total_cpfs_invalidos;
+                    document.getElementById('correcao-corrigidos').textContent = data.total_corrigidos;
+                    document.getElementById('correcao-nao-corrigidos').textContent = data.total_nao_corrigidos;
+                    document.getElementById('correcao-taxa').textContent = data.taxa_correcao.toFixed(1) + '%';
+                    
+                    // Atualizar data da análise
+                    const agora = new Date();
+                    document.getElementById('correcao-data-analise').textContent = 
+                        `Análise realizada em: ${agora.toLocaleDateString('pt-BR')} às ${agora.toLocaleTimeString('pt-BR')}`;
+                    
+                    // Verificar se há correções disponíveis
+                    if (data.total_corrigidos === 0) {
+                        // Nenhuma correção possível
+                        document.getElementById('sem-correcoes').style.display = 'block';
+                        document.getElementById('correcoes-container').style.display = 'none';
+                        document.getElementById('btn-aplicar-todas-correcoes').style.display = 'none';
+                    } else {
+                        // Há correções - mostrar tabela
+                        document.getElementById('sem-correcoes').style.display = 'none';
+                        document.getElementById('correcoes-container').style.display = 'block';
+                        
+                        // Mostrar botão "Aplicar Correções Seguras" se há correções com alta confiança
+                        const correcoes_seguras = data.correcoes_sugeridas.filter(c => c.confianca >= 0.90);
+                        if (correcoes_seguras.length > 0) {
+                            document.getElementById('btn-aplicar-todas-correcoes').style.display = 'inline-block';
+                        } else {
+                            document.getElementById('btn-aplicar-todas-correcoes').style.display = 'none';
+                        }
+                        
+                        // Renderizar lista de correções
+                        const tbody = document.getElementById('correcoes-lista');
+                        tbody.innerHTML = data.correcoes_sugeridas.map((correcao, index) => {
+                            return `
+                                <tr style="background: ${index % 2 === 0 ? '#fff' : '#f9f9f9'};">
+                                    <td style="padding: 12px;">${correcao.funcionario_nome}</td>
+                                    <td style="padding: 12px; font-family: monospace; text-align: center; color: #e74c3c;">
+                                        ${correcao.cpf_original}
+                                    </td>
+                                    <td style="padding: 12px; font-family: monospace; text-align: center; color: #27ae60;">
+                                        ${correcao.cpf_corrigido}
+                                    </td>
+                                    <td style="padding: 12px; text-align: center; font-size: 11px;">
+                                        ${getTipoCorrecaoLabel(correcao.tipo_correcao)}
+                                    </td>
+                                    <td style="padding: 12px; text-align: center;">
+                                        <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                                            <div style="width: 50px; height: 8px; background: #ddd; border-radius: 4px; overflow: hidden;">
+                                                <div style="width: ${correcao.confianca * 100}%; height: 100%; 
+                                                           background: ${correcao.confianca >= 0.90 ? '#27ae60' : correcao.confianca >= 0.75 ? '#f39c12' : '#e74c3c'};">
+                                                </div>
+                                            </div>
+                                            <span style="font-size: 11px; font-weight: bold;">${(correcao.confianca * 100).toFixed(0)}%</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding: 12px; text-align: center; font-size: 11px;">
+                                        ${correcao.recomendacao}
+                                    </td>
+                                    <td style="padding: 12px; text-align: center;">
+                                        <button onclick="aplicarCorrecaoIndividual(${correcao.funcionario_id}, '${correcao.cpf_corrigido}', '${correcao.funcionario_nome}', ${index})" 
+                                                class="btn" 
+                                                style="padding: 6px 12px; background: ${correcao.confianca >= 0.90 ? '#27ae60' : '#f39c12'}; color: white; font-size: 11px;">
+                                            ${correcao.confianca >= 0.90 ? '✅ Aplicar' : '⚠️ Aplicar'}
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
+                    
+                } else {
+                    throw new Error(data.message || 'Erro desconhecido');
+                }
+                
+            } catch (error) {
+                console.error('❌ [CORRECAO CPF] Erro:', error);
+                showToast('Erro ao carregar correções: ' + error.message, 'error');
+                fecharModalCorrecaoCPFs();
+            }
+        }
+        
+        // 🔧 Fechar modal de correção
+        function fecharModalCorrecaoCPFs() {
+            document.getElementById('modal-correcao-cpfs').style.display = 'none';
+        }
+        
+        // 🔧 Aplicar correção individual
+        async function aplicarCorrecaoIndividual(funcionarioId, cpfCorrigido, nomeFunc, rowIndex) {
+            try {
+                console.log(`🔧 [CORRECAO] Aplicando correção para ${nomeFunc}: ${cpfCorrigido}`);
+                
+                const response = await fetch(`/api/funcionarios/${funcionarioId}/cpf`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        cpf: cpfCorrigido
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(`✅ CPF de ${nomeFunc} corrigido com sucesso!`, 'success');
+                    
+                    // Marcar linha como aplicada
+                    const row = document.querySelectorAll('#correcoes-lista tr')[rowIndex];
+                    if (row) {
+                        row.style.background = '#d5f4e6';
+                        row.style.opacity = '0.7';
+                        const button = row.querySelector('button');
+                        button.innerHTML = '✅ Aplicado';
+                        button.disabled = true;
+                        button.style.background = '#95a5a6';
+                    }
+                    
+                } else {
+                    throw new Error(data.error || 'Erro desconhecido');
+                }
+                
+            } catch (error) {
+                console.error('❌ [CORRECAO] Erro ao aplicar correção:', error);
+                showToast(`❌ Erro ao corrigir CPF de ${nomeFunc}: ${error.message}`, 'error');
+            }
+        }
+        
+        // 🔧 Aplicar todas as correções seguras (confiança >= 90%)
+        async function aplicarTodasCorrecoes() {
+            const confirmacao = confirm('🔧 Aplicar todas as correções com alta confiança (≥90%)?\n\nEsta ação irá alterar automaticamente os CPFs dos funcionários.');
+            
+            if (!confirmacao) {
+                return;
+            }
+            
+            try {
+                console.log('🔧 [CORRECAO] Aplicando correções em lote...');
+                
+                const rows = document.querySelectorAll('#correcoes-lista tr');
+                let sucessos = 0;
+                let erros = 0;
+                
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    const button = row.querySelector('button');
+                    
+                    // Aplicar apenas correções seguras (botão verde)
+                    if (button && button.style.background.includes('39, 174, 96')) { // Verde (#27ae60)
+                        button.click();
+                        
+                        // Aguardar um pouco entre as requisições
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        // Verificar se foi aplicada com sucesso
+                        if (button.innerHTML.includes('Aplicado')) {
+                            sucessos++;
+                        } else {
+                            erros++;
+                        }
+                    }
+                }
+                
+                // Mostrar resultado final
+                if (sucessos > 0) {
+                    showToast(`✅ ${sucessos} correção(ões) aplicada(s) com sucesso!${erros > 0 ? ` (${erros} erro(s))` : ''}`, 'success');
+                    
+                    // Ocultar botão após aplicação
+                    document.getElementById('btn-aplicar-todas-correcoes').style.display = 'none';
+                } else {
+                    showToast(`⚠️ Nenhuma correção foi aplicada. ${erros} erro(s) encontrado(s).`, 'warning');
+                }
+                
+            } catch (error) {
+                console.error('❌ [CORRECAO] Erro ao aplicar correções em lote:', error);
+                showToast('❌ Erro ao aplicar correções: ' + error.message, 'error');
+            }
+        }
+        
+        // 🏷️ Converter tipo de correção para rótulo amigável
+        function getTipoCorrecaoLabel(tipo) {
+            const labels = {
+                'formatacao_apenas': '🎨 Formatação',
+                'formatacao_e_zeros': '🔢 Formatação + Zeros',
+                'digitos_verificadores': '🔍 Dígitos Verificadores',
+                'transposicao_digitos': '🔄 Transposição',
+                'digito_simples': '🎯 Dígito Simples'
+            };
+            return labels[tipo] || tipo;
+        }
+        
+        // Fechar modais ao clicar fora deles
+        window.addEventListener('click', function(event) {
+            const modalCorrecao = document.getElementById('modal-correcao-cpfs');
+            if (event.target === modalCorrecao) {
+                fecharModalCorrecaoCPFs();
             }
         });
     </script>

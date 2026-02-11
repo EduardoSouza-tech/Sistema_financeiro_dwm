@@ -7770,3 +7770,54 @@ def buscar_funcionario_por_cpf(pool, empresa_id: int, cpf: str) -> Optional[Dict
             return_to_pool(conn)
 
 
+def atualizar_cpf_funcionario(funcionario_id: int, novo_cpf: str, empresa_id: int) -> bool:
+    """
+    Atualiza o CPF de um funcionário específico
+    
+    Args:
+        funcionario_id: ID do funcionário
+        novo_cpf: Novo CPF (formatado)
+        empresa_id: ID da empresa (para segurança multi-tenant)
+        
+    Returns:
+        True se atualizado com sucesso, False caso contrário
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Atualizar CPF apenas se funcionário pertence à empresa
+        cursor.execute("""
+            UPDATE funcionarios 
+            SET cpf = %s, 
+                data_atualizacao = CURRENT_TIMESTAMP
+            WHERE id = %s 
+              AND empresa_id = %s
+              AND ativo = TRUE
+        """, (novo_cpf, funcionario_id, empresa_id))
+        
+        # Verificar se realmente atualizou alguma linha
+        rows_affected = cursor.rowcount
+        conn.commit()
+        
+        if rows_affected > 0:
+            print(f"✅ CPF do funcionário {funcionario_id} atualizado para: {novo_cpf}")
+            return True
+        else:
+            print(f"⚠️ Funcionário {funcionario_id} não encontrado ou sem permissão (empresa {empresa_id})")
+            return False
+        
+    except Exception as e:
+        print(f"❌ Erro ao atualizar CPF do funcionário: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+

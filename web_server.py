@@ -93,6 +93,7 @@ import psycopg2.extras
 # VALIDAÇÃO DE DOCUMENTOS
 # ============================================================================
 from cpf_validator import CPFValidator
+from cpf_corrector import CPFCorrector
 
 # ============================================================================
 # UTILITÁRIOS COMPARTILHADOS (FASE 4)
@@ -4700,6 +4701,111 @@ def relatorio_cpfs_invalidos():
         
     except Exception as e:
         logger.error(f"❌ Erro ao gerar relatório de CPFs: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/funcionarios/cpf/correcao', methods=['GET'])
+@require_permission('folha_pagamento_edit')
+def gerar_correcoes_cpf():
+    """Gera sugestões de correção automática para CPFs inválidos"""
+    try:
+        logger.info("🔧 [CPF CORRETOR] Iniciando análise de correções...")
+        
+        # Obter empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não selecionada'}), 403
+        
+        # Buscar funcionários da empresa
+        funcionarios = db.obter_funcionarios_por_empresa(empresa_id=empresa_id)
+        logger.info(f"🔧 [CPF CORRETOR] Analisando {len(funcionarios)} funcionários...")
+        
+        # Filtrar apenas funcionários com CPF inválido
+        funcionarios_invalidos = []
+        for func in funcionarios:
+            if isinstance(func, dict):
+                cpf = func.get('cpf', '')
+            else:
+                cpf = getattr(func, 'cpf', '')
+            
+            if cpf and not CPFValidator.validar(cpf):
+                if isinstance(func, dict):
+                    funcionarios_invalidos.append(func)
+                else:
+                    funcionarios_invalidos.append({
+                        'id': func.id,
+                        'nome': func.nome,
+                        'cpf': func.cpf,
+                        'email': getattr(func, 'email', '')
+                    })
+        
+        logger.info(f"🔧 [CPF CORRETOR] Encontrados {len(funcionarios_invalidos)} funcionários com CPF inválido")
+        
+        # Aplicar correção automática
+        resultado_correcao = CPFCorrector.corrigir_lista_funcionarios(funcionarios_invalidos)
+        
+        # Preparar resposta
+        resposta = {
+            'success': True,
+            'total_funcionarios': len(funcionarios),
+            'total_cpfs_invalidos': len(funcionarios_invalidos),
+            'total_corrigidos': resultado_correcao['total_corrigidos'],
+            'total_nao_corrigidos': resultado_correcao['total_nao_corrigidos'],
+            'taxa_correcao': round(resultado_correcao['total_corrigidos'] / len(funcionarios_invalidos) * 100, 1) if funcionarios_invalidos else 0,
+            'correcoes_por_tipo': resultado_correcao['correcoes_por_tipo'],
+            'correcoes_sugeridas': resultado_correcao['correcoes_sugeridas']
+        }
+        
+        logger.info(f"✅ [CPF CORRETOR] Análise concluída: {resultado_correcao['total_corrigidos']}/{len(funcionarios_invalidos)} correções possíveis")
+        
+        return jsonify(resposta)
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao gerar correções de CPF: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/funcionarios/<int:funcionario_id>/cpf', methods=['PUT'])
+@require_permission('folha_pagamento_edit')
+def corrigir_cpf_funcionario(funcionario_id):
+    """Aplica correção de CPF em um funcionário específico"""
+    try:
+        dados = request.get_json()
+        novo_cpf = dados.get('cpf', '').strip()
+        
+        if not novo_cpf:
+            return jsonify({'error': 'CPF não informado'}), 400
+        
+        # Validar novo CPF
+        validacao = CPFValidator.validar_com_detalhes(novo_cpf)
+        if not validacao['valido']:
+            return jsonify({'error': f'CPF inválido: {validacao["erro"]}'}), 400
+        
+        # Obter empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não selecionada'}), 403
+        
+        # Atualizar CPF no banco
+        cpf_formatado = validacao['cpf_formatado']
+        success = db.atualizar_cpf_funcionario(funcionario_id, cpf_formatado, empresa_id)
+        
+        if success:
+            logger.info(f"✅ [CPF CORRETOR] CPF do funcionário {funcionario_id} atualizado para: {cpf_formatado}")
+            return jsonify({
+                'success': True,
+                'cpf_novo': cpf_formatado,
+                'message': 'CPF atualizado com sucesso'
+            })
+        else:
+            return jsonify({'error': 'Funcionário não encontrado ou sem permissão'}), 404
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao corrigir CPF: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
