@@ -5952,6 +5952,259 @@
             window.loadExtratoTransacoes();
         }
 
+        // ==================== CONCILIAÇÃO GERAL ====================
+        
+        // Abrir modal de conciliação geral
+        async function abrirConciliacaoGeral() {
+            console.log('🔄 Abrindo Conciliação Geral...');
+            
+            try {
+                // Buscar transações não conciliadas
+                const response = await fetch('/api/extratos?conciliado=false', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar transações');
+                }
+                
+                const transacoes = await response.json();
+                console.log('📊 Transações não conciliadas:', transacoes.length);
+                
+                if (transacoes.length === 0) {
+                    alert('✅ Não há transações pendentes de conciliação!');
+                    return;
+                }
+                
+                // Buscar categorias do sistema
+                const categoriasResponse = await fetch('/api/categorias', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                const categoriasData = await categoriasResponse.json();
+                let categorias = categoriasData;
+                
+                // Extrair data se vier no formato {success, data}
+                if (categoriasData && typeof categoriasData === 'object' && 'data' in categoriasData) {
+                    categorias = categoriasData.data;
+                }
+                console.log('📂 Categorias carregadas:', categorias.length);
+                
+                // Buscar clientes
+                const clientesResponse = await fetch('/api/clientes', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                const clientesData = await clientesResponse.json();
+                let clientes = clientesData;
+                
+                // Extrair data se vier no formato {success, data}
+                if (clientesData && typeof clientesData === 'object' && 'data' in clientesData) {
+                    clientes = clientesData.data;
+                }
+                console.log('👥 Clientes carregados:', clientes.length);
+                
+                // Montar HTML com lista de transações
+                let html = '<div style="max-height: 500px; overflow-y: auto;">';
+                
+                transacoes.forEach((transacao, index) => {
+                    const valor = parseFloat(transacao.valor);
+                    const tipoTransacao = valor >= 0 ? 'receita' : 'despesa';
+                    const categoriasFiltered = categorias.filter(c => c.tipo.toLowerCase() === tipoTransacao);
+                    
+                    html += `
+                        <div class="transacao-conciliacao-item" style="background: #f8f9fa; padding: 15px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                            <div style="display: flex; gap: 15px; align-items: flex-start;">
+                                <div style="flex-shrink: 0;">
+                                    <input type="checkbox" class="checkbox-transacao-conciliacao" data-transacao-id="${transacao.id}" 
+                                           style="width: 20px; height: 20px; cursor: pointer; margin-top: 5px;">
+                                </div>
+                                
+                                <div style="flex: 1;">
+                                    <!-- Info da transação -->
+                                    <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
+                                        <strong style="font-size: 14px; color: #2c3e50;">📅 ${new Date(transacao.data).toLocaleDateString('pt-BR')}</strong>
+                                        <span style="margin: 0 10px; color: #95a5a6;">|</span>
+                                        <span style="font-size: 13px; color: #555;">${transacao.descricao || '-'}</span>
+                                        <span style="margin: 0 10px; color: #95a5a6;">|</span>
+                                        <strong style="font-size: 14px; color: ${valor >= 0 ? '#27ae60' : '#e74c3c'};">${valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
+                                        <span style="margin: 0 10px; color: #95a5a6;">|</span>
+                                        <span style="font-size: 12px; color: #777;">🏦 ${transacao.conta_bancaria || '-'}</span>
+                                    </div>
+                                    
+                                    <!-- Campos de configuração -->
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                                        <div>
+                                            <label style="display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 4px;">Categoria:</label>
+                                            <select id="categoria-${transacao.id}" class="select-categoria-conciliacao" 
+                                                    style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;"
+                                                    onchange="atualizarSubcategorias(${transacao.id})">
+                                                <option value="">Selecione...</option>
+                                                ${categoriasFiltered.map(c => `<option value="${c.nome}" data-subcategorias='${JSON.stringify(c.subcategorias || [])}'>${c.nome}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                        
+                                        <div>
+                                            <label style="display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 4px;">Subcategoria:</label>
+                                            <select id="subcategoria-${transacao.id}" class="select-subcategoria-conciliacao"
+                                                    style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                                                <option value="">Selecione...</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div>
+                                            <label style="display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 4px;">Cliente/Fornecedor:</label>
+                                            <select id="cliente-${transacao.id}" class="select-cliente-conciliacao"
+                                                    style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                                                <option value="">Selecione (opcional)...</option>
+                                                ${clientes.map(cliente => `<option value="${cliente.razao_social}">${cliente.razao_social}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                
+                // Inserir no modal
+                document.getElementById('conciliacao-transacoes-lista').innerHTML = html;
+                
+                // Mostrar modal
+                document.getElementById('modal-conciliacao-geral').style.display = 'flex';
+                
+            } catch (error) {
+                console.error('❌ Erro ao abrir conciliação geral:', error);
+                alert('❌ Erro ao carregar transações para conciliação. Verifique o console.');
+            }
+        }
+        
+        // Fechar modal de conciliação geral
+        function fecharConciliacaoGeral() {
+            document.getElementById('modal-conciliacao-geral').style.display = 'none';
+        }
+        
+        // Atualizar subcategorias quando categoria é selecionada
+        function atualizarSubcategorias(transacaoId) {
+            const selectCategoria = document.getElementById(`categoria-${transacaoId}`);
+            const selectSubcategoria = document.getElementById(`subcategoria-${transacaoId}`);
+            
+            if (!selectCategoria || !selectSubcategoria) return;
+            
+            // Limpar subcategorias
+            selectSubcategoria.innerHTML = '<option value="">Selecione...</option>';
+            
+            const selectedOption = selectCategoria.options[selectCategoria.selectedIndex];
+            if (!selectedOption || !selectedOption.value) return;
+            
+            try {
+                const subcategorias = JSON.parse(selectedOption.dataset.subcategorias || '[]');
+                subcategorias.forEach(sub => {
+                    const option = document.createElement('option');
+                    option.value = sub;
+                    option.textContent = sub;
+                    selectSubcategoria.appendChild(option);
+                });
+            } catch (e) {
+                console.error('Erro ao parsear subcategorias:', e);
+            }
+        }
+        
+        // Processar conciliação geral (criar lançamentos em massa)
+        async function processarConciliacaoGeral() {
+            console.log('⚙️ Processando conciliação geral...');
+            
+            const checkboxes = document.querySelectorAll('.checkbox-transacao-conciliacao:checked');
+            
+            if (checkboxes.length === 0) {
+                alert('⚠️ Selecione pelo menos uma transação para conciliar!');
+                return;
+            }
+            
+            const transacoesSelecionadas = [];
+            const erros = [];
+            
+            // Validar e coletar dados
+            checkboxes.forEach(checkbox => {
+                const transacaoId = parseInt(checkbox.dataset.transacaoId);
+                const categoria = document.getElementById(`categoria-${transacaoId}`).value;
+                const subcategoria = document.getElementById(`subcategoria-${transacaoId}`).value;
+                const cliente = document.getElementById(`cliente-${transacaoId}`).value;
+                
+                if (!categoria) {
+                    erros.push(`Transação #${transacaoId}: categoria não selecionada`);
+                    return;
+                }
+                
+                if (!subcategoria) {
+                    erros.push(`Transação #${transacaoId}: subcategoria não selecionada`);
+                    return;
+                }
+                
+                transacoesSelecionadas.push({
+                    transacao_id: transacaoId,
+                    categoria: categoria,
+                    subcategoria: subcategoria,
+                    razao_social: cliente || null
+                });
+            });
+            
+            // Mostrar erros se houver
+            if (erros.length > 0) {
+                alert('⚠️ Corrija os seguintes erros antes de continuar:\n\n' + erros.join('\n'));
+                return;
+            }
+            
+            console.log('📤 Enviando', transacoesSelecionadas.length, 'transações para conciliação...');
+            
+            // Confirmar ação
+            if (!confirm(`Confirma a conciliação em massa de ${transacoesSelecionadas.length} transação(ões)?\n\nSerão criados lançamentos automaticamente para cada transação selecionada.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/extratos/conciliacao-geral', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        transacoes: transacoesSelecionadas
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    const mensagem = `✅ Conciliação em massa concluída!\n\n📊 Lançamentos criados: ${result.criados || 0}`;
+                    if (result.erros && result.erros.length > 0) {
+                        alert(mensagem + `\n\n⚠️ Erros encontrados:\n${result.erros.join('\n')}`);
+                        console.error('Detalhes dos erros:', result.erros);
+                    } else {
+                        alert(mensagem);
+                    }
+                    
+                    // Fechar modal e recarregar transações
+                    fecharConciliacaoGeral();
+                    await window.loadExtratoTransacoes();
+                    
+                } else {
+                    alert(`❌ Erro ao processar conciliação em massa:\n${result.error || result.message || 'Erro desconhecido'}`);
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao processar conciliação:', error);
+                alert('❌ Erro ao processar conciliação. Verifique sua conexão e tente novamente.');
+            }
+        }
+
         // Deletar extratos filtrados
         async function deletarExtratoFiltradoOFX() {
             const contaId = document.getElementById('filtro-conta-extrato').value;
