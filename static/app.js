@@ -6222,6 +6222,10 @@ window.abrirConciliacaoGeral = async function() {
         
         document.getElementById('conciliacao-transacoes-lista').innerHTML = html;
         
+        // ⚙️ Armazenar dados para processamento (ANTES de aplicar regras!)
+        window.transacoesConciliacao = transacoes;
+        window.categoriasConciliacao = categorias;
+        
         // 🤖 Aplicar regras de auto-conciliação
         if (regrasAtivas.length > 0) {
             console.log('🤖 Aplicando regras de auto-conciliação...');
@@ -6276,10 +6280,6 @@ window.abrirConciliacaoGeral = async function() {
                 console.log('⚠️ Nenhuma regra aplicada (nenhum match encontrado)');
             }
         }
-        
-        // Armazenar dados para processamento
-        window.transacoesConciliacao = transacoes;
-        window.categoriasConciliacao = categorias;
         
         console.log('✅ Modal renderizado com sucesso');
         
