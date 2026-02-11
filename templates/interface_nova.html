@@ -2782,15 +2782,15 @@
                                     <thead>
                                         <tr style="background: #f8f9fa; border-bottom: 2px solid #333;">
                                             <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 5%;">#</th>
-                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 25%;">Funcionário</th>
-                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 15%;">Função</th>
-                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 12%;">Setor</th>
-                                            <th style="padding: 12px; text-align: right; border: 1px solid #ddd; width: 13%;">Valor (R$)</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 30%;">Funcionário</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 20%;">Função</th>
+                                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 15%;">Setor</th>
+                                            <!-- ⚠️ IMPORTANTE: Coluna "Valor (R$)" REMOVIDA do preview de Assinatura! Só no Excel! -->
                                             <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 30%;">Assinatura</th>
                                         </tr>
                                     </thead>
                                     <tbody id="tbody-assinatura-evento">
-                                        <tr><td colspan="6" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>
+                                        <tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>
                                     </tbody>
                                 </table>
 
@@ -7409,7 +7409,8 @@
             const linhasEquipe = tbodyEquipe.querySelectorAll('tr');
             
             if (linhasEquipe.length === 1 && linhasEquipe[0].cells.length === 1) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
+                // ⚠️ IMPORTANTE: Apenas 5 colunas (sem Valor!)
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
                 return;
             }
             
@@ -7420,7 +7421,7 @@
                     const funcionario = cells[0].textContent;
                     const funcao = cells[1].textContent;
                     const setor = cells[2].textContent;
-                    const valor = cells[4].textContent; // cells[4] é o Valor (não cells[3] que é Saldo Horas)
+                    // ⚠️ REMOVIDO: const valor = cells[4].textContent; - Não mostrar valor na aba Assinatura!
                     const setorId = linha.getAttribute('data-setor-id') || '';
                     
                     html += `
@@ -7429,14 +7430,14 @@
                             <td style="padding: 15px 12px; border: 1px solid #ddd;">${funcionario}</td>
                             <td style="padding: 15px 12px; border: 1px solid #ddd;">${funcao}</td>
                             <td style="padding: 15px 12px; border: 1px solid #ddd;">${setor}</td>
-                            <td style="padding: 15px 12px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #27ae60;">${valor}</td>
+                            <!-- ⚠️ REMOVIDA coluna Valor (R$) - Só no Excel! -->
                             <td style="padding: 15px 12px; border: 1px solid #ddd; text-align: center;"></td>
                         </tr>
                     `;
                 }
             });
             
-            tbody.innerHTML = html || '<tr><td colspan="6" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
+            tbody.innerHTML = html || '<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário alocado</td></tr>';
         }
 
         function toggleValorMassa() {
@@ -7584,30 +7585,30 @@
                 doc.setTextColor(0, 0, 0);
                 
                 // Preparar dados da tabela
+                // ⚠️ IMPORTANTE: PDF NÃO DEVE TER COLUNA "VALOR (R$)" - Apenas Excel deve ter!
                 const tableData = setor.funcionarios.map((func, idx) => [
                     idx + 1,
                     func.funcionario,
                     func.funcao,
                     func.setor,
-                    func.valor,
-                    ''
+                    '' // Coluna de Assinatura (removido Valor - não vai no PDF!)
                 ]);
                 
                 // Gerar tabela
                 doc.autoTable({
                     startY: 52,
-                    head: [['#', 'Funcionário', 'Função', 'Setor', 'Valor (R$)', 'Assinatura']],
+                    // ⚠️ IMPORTANTE: PDF NÃO TEM COLUNA "VALOR (R$)" - Apenas no Excel!
+                    head: [['#', 'Funcionário', 'Função', 'Setor', 'Assinatura']],
                     body: tableData,
                     theme: 'grid',
                     headStyles: { fillColor: [52, 152, 219], fontSize: 11, fontStyle: 'bold' },
                     bodyStyles: { fontSize: 10 },
                     columnStyles: {
-                        0: { halign: 'center', cellWidth: 10 },
-                        1: { cellWidth: 45 },
-                        2: { cellWidth: 35 },
-                        3: { cellWidth: 30 },
-                        4: { halign: 'right', cellWidth: 25 },
-                        5: { halign: 'center', cellWidth: 45 }
+                        0: { halign: 'center', cellWidth: 12 },  // #
+                        1: { cellWidth: 55 },                     // Funcionário
+                        2: { cellWidth: 40 },                     // Função
+                        3: { cellWidth: 30 },                     // Setor
+                        4: { halign: 'center', cellWidth: 53 }    // Assinatura (sem Valor!)
                     },
                     margin: { top: 52, bottom: 20 }
                 });
@@ -7628,6 +7629,7 @@
         }
 
         function exportarAssinaturaExcel() {
+            // ✅ IMPORTANTE: Excel DEVE TER coluna "Valor (R$)" - Apenas PDF não tem!
             // Obter dados
             const eventoNome = document.getElementById('assinatura-evento-nome').textContent;
             const eventoData = document.getElementById('assinatura-evento-data').textContent;
@@ -7648,6 +7650,7 @@
             dados.push([eventoNome]);
             dados.push([eventoData]);
             dados.push([]); // Linha vazia
+            // ✅ IMPORTANTE: Excel DEVE TER coluna "Valor (R$)"!
             dados.push(['#', 'Funcionário', 'Função', 'Setor', 'Valor (R$)']);
             
             // Dados
