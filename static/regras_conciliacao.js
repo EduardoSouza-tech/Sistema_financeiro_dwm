@@ -25,7 +25,7 @@ const RegrasConciliacao = {
     /**
      * Inicializa o módulo
      */
-    init() {
+    async init() {
         console.log('🔧 Inicializando Regras de Auto-Conciliação...');
         
         // Inicializar array global para validação de duplicatas
@@ -33,7 +33,9 @@ const RegrasConciliacao = {
             window.regrasAtivas = [];
         }
         
-        this.carregarConfigIntegracao();
+        // ⚡ CRÍTICO: Aguardar config antes de carregar listas
+        await this.carregarConfigIntegracao();
+        
         this.carregarCategorias();
         this.carregarClientesFornecedores();
         this.carregarRegras();
@@ -184,6 +186,7 @@ const RegrasConciliacao = {
     async carregarClientesFornecedores() {
         try {
             console.log('👥 Carregando clientes e fornecedores...');
+            console.log('🔍 [DEBUG] configIntegracaoFolha =', this.configIntegracaoFolha);
             
             const promises = [
                 fetch('/api/clientes'),
@@ -364,8 +367,13 @@ const RegrasConciliacao = {
         
         select.innerHTML = '<option value="">Nenhum (deixar vazio)</option>';
         
+        console.log('🔍 [DEBUG] preencherSelect - configIntegracaoFolha =', this.configIntegracaoFolha);
+        console.log('🔍 [DEBUG] preencherSelect - funcionarios.length =', this.funcionarios.length);
+        
         // ✅ NOVO: Se integração com folha ativa, mostrar APENAS funcionários
         if (this.configIntegracaoFolha && this.funcionarios.length > 0) {
+            console.log('✅ Mostrando APENAS funcionários no select!');
+            
             // Atualizar label do campo
             const labelClientePadrao = document.getElementById('label-cliente-padrao');
             if (labelClientePadrao) {
