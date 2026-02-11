@@ -6093,6 +6093,31 @@ window.abrirConciliacaoGeral = async function() {
             console.log('   - Receita exemplo:', categoriasReceita[0].nome);
         }
         
+        // 🔧 NOVO: Carregar regras de auto-conciliação
+        console.log('📋 Carregando regras de auto-conciliação...');
+        let regrasAtivas = [];
+        try {
+            const regrasResponse = await fetch(`${API_URL}/regras-conciliacao`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const regrasData = await regrasResponse.json();
+            regrasAtivas = Array.isArray(regrasData) ? regrasData : (regrasData.data || regrasData.regras || []);
+            regrasAtivas = regrasAtivas.filter(r => r.ativo); // Apenas ativas
+            console.log('✅', regrasAtivas.length, 'regra(s) ativa(s) carregadas');
+        } catch (error) {
+            console.warn('⚠️ Não foi possível carregar regras:', error);
+        }
+        
+        // Preparar listas de razão social
+        const clientesOpcoes = clientes.map(c => ({
+            value: c.razao_social || c.nome,
+            label: c.razao_social || c.nome
+        }));
+        const fornecedoresOpcoes = fornecedores.map(f => ({
+            value: f.razao_social || f.nome,
+            label: f.razao_social || f.nome
+        }));
+        
         // Renderizar lista de transações
         let html = `
             <div style="background: #ecf0f1; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
@@ -6164,12 +6189,13 @@ window.abrirConciliacaoGeral = async function() {
                         </span>
                     </td>
                     <td>
-                        <input type="text" 
-                               id="razao-${t.id}" 
-                               value="${razaoSugerida}"
-                               placeholder="${isCredito ? 'Cliente' : 'Fornecedor'}"
-                               list="lista-${isCredito ? 'clientes' : 'fornecedores'}"
-                               style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                        <select id="razao-${t.id}"
+                                style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                            <option value="">Selecione ${isCredito ? 'Cliente' : 'Fornecedor'}...</option>
+                            ${(isCredito ? clientesOpcoes : fornecedoresOpcoes).map(p => 
+                                `<option value="${p.value}" ${p.value === razaoSugerida ? 'selected' : ''}>${p.label}</option>`
+                            ).join('')}
+                        </select>
                     </td>
                     <td>
                         <select id="categoria-${t.id}" 
@@ -6192,17 +6218,64 @@ window.abrirConciliacaoGeral = async function() {
         html += `
                     </tbody>
                 </table>
-            </div>
-            
-            <!-- Datalists para autocomplete -->
-            <datalist id="lista-clientes">
-                ${clientes.map(c => `<option value="${c.nome}">`).join('')}
-            </datalist>
-            <datalist id="lista-fornecedores">
-                ${fornecedores.map(f => `<option value="${f.nome}">`).join('')}
-            </datalist>`;
+            </div>`;
         
         document.getElementById('conciliacao-transacoes-lista').innerHTML = html;
+        
+        // 🤖 Aplicar regras de auto-conciliação
+        if (regrasAtivas.length > 0) {
+            console.log('🤖 Aplicando regras de auto-conciliação...');
+            let aplicadas = 0;
+            
+            transacoes.forEach(t => {
+                const descricao = (t.descricao || '').toUpperCase();
+                
+                // Procurar regra que faça match
+                for (const regra of regrasAtivas) {
+                    const palavraChave = (regra.palavra_chave || '').toUpperCase();
+                    
+                    if (palavraChave && descricao.includes(palavraChave)) {
+                        console.log(`   ✓ Match encontrado: "${palavraChave}" em transação #${t.id}`);
+                        
+                        // Auto-preencher categoria
+                        const catSelect = document.getElementById(`categoria-${t.id}`);
+                        if (catSelect && regra.categoria) {
+                            catSelect.value = regra.categoria;
+                            
+                            // Auto-carregar subcategorias
+                            carregarSubcategoriasConciliacao(t.id, regra.categoria);
+                            
+                            // Auto-preencher subcategoria (após delay para aguardar carregamento)
+                            if (regra.subcategoria) {
+                                setTimeout(() => {
+                                    const subSelect = document.getElementById(`subcategoria-${t.id}`);
+                                    if (subSelect) {
+                                        subSelect.value = regra.subcategoria;
+                                    }
+                                }, 150);
+                            }
+                        }
+                        
+                        // Auto-preencher razão social (cliente_padrao)
+                        if (regra.cliente_padrao) {
+                            const razaoSelect = document.getElementById(`razao-${t.id}`);
+                            if (razaoSelect) {
+                                razaoSelect.value = regra.cliente_padrao;
+                            }
+                        }
+                        
+                        aplicadas++;
+                        break; // Primeira regra que der match
+                    }
+                }
+            });
+            
+            if (aplicadas > 0) {
+                console.log(`✅ ${aplicadas} regra(s) aplicada(s) automaticamente de ${transacoes.length} transações`);
+            } else {
+                console.log('⚠️ Nenhuma regra aplicada (nenhum match encontrado)');
+            }
+        }
         
         // Armazenar dados para processamento
         window.transacoesConciliacao = transacoes;
