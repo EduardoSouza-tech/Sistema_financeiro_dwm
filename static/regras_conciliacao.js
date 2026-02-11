@@ -26,6 +26,12 @@ const RegrasConciliacao = {
      */
     init() {
         console.log('🔧 Inicializando Regras de Auto-Conciliação...');
+        
+        // Inicializar array global para validação de duplicatas
+        if (!window.regrasAtivas) {
+            window.regrasAtivas = [];
+        }
+        
         this.carregarConfigIntegracao();
         this.carregarCategorias();
         this.carregarClientesFornecedores();
@@ -242,6 +248,9 @@ const RegrasConciliacao = {
             
             this.regras = Array.isArray(data) ? data : (data.data || data.regras || []);
             console.log(`✅ ${this.regras.length} regra(s) carregadas`);
+            
+            // Armazenar globalmente para validação de duplicatas
+            window.regrasAtivas = this.regras.filter(r => r.ativo);
             
             // Renderizar tabela
             this.renderizarTabela();
@@ -507,6 +516,20 @@ const RegrasConciliacao = {
             
             // Determinar método e URL
             const isEdicao = regraId && regraId !== '';
+            
+            // Se não é edição, verificar se já existe regra com essa palavra-chave
+            if (!isEdicao) {
+                const regraExistente = window.regrasAtivas.find(r => 
+                    r.palavra_chave.toUpperCase() === palavraChave.toUpperCase()
+                );
+                
+                if (regraExistente) {
+                    alert(`⚠️ Já existe uma regra com a palavra-chave "${palavraChave}"!\n\nEdite a regra existente ao invés de criar uma nova.`);
+                    document.getElementById('regra-palavra-chave').focus();
+                    return;
+                }
+            }
+            
             const url = isEdicao 
                 ? `/api/regras-conciliacao/${regraId}` 
                 : '/api/regras-conciliacao';

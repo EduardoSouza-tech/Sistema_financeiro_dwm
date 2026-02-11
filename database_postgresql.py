@@ -4,7 +4,7 @@ Otimizado com pool de conexoes para maxima performance
 COM ROW LEVEL SECURITY PARA ISOLAMENTO 100% ENTRE EMPRESAS
 """
 import psycopg2  # type: ignore
-from psycopg2 import Error, sql, pool  # type: ignore
+from psycopg2 import Error, sql, pool, errors  # type: ignore
 from psycopg2.extras import RealDictCursor  # type: ignore
 from datetime import datetime, date
 from typing import List, Optional, Dict, Any
@@ -3385,13 +3385,20 @@ class DatabaseManager:
             
             return dict(regra) if regra else None
             
+        except errors.UniqueViolation as e:
+            if conn:
+                conn.rollback()
+            print(f"⚠️ [criar_regra] Regra duplicada: {e}", flush=True)
+            # Retornar erro específico para tratamento no endpoint
+            raise ValueError(f"Já existe uma regra com a palavra-chave '{palavra_chave}' para esta empresa")
+            
         except Exception as e:
             if conn:
                 conn.rollback()
             print(f"❌ [criar_regra] Erro ao criar regra de conciliação: {e}", flush=True)
             import traceback
             traceback.print_exc()
-            return None
+            raise
         finally:
             if cursor:
                 cursor.close()

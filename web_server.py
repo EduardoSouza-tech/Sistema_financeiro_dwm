@@ -4253,22 +4253,23 @@ def criar_regra_conciliacao():
         )
         print(f"✅ [DEBUG] Regra criada: {regra}")
         
-        if regra:
-            return jsonify({
-                'success': True,
-                'message': 'Regra criada com sucesso',
-                'data': regra
-            }), 201
-        else:
-            print("❌ [DEBUG] db.criar_regra_conciliacao retornou None")
-            return jsonify({'success': False, 'error': 'Erro ao criar regra'}), 500
+        return jsonify({
+            'success': True,
+            'message': 'Regra criada com sucesso',
+            'data': regra
+        }), 201
+        
+    except ValueError as e:
+        # Erro de validação (ex: regra duplicada)
+        print(f"⚠️ [DEBUG] ERRO DE VALIDAÇÃO: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 400
         
     except Exception as e:
         print(f"❌ [DEBUG] ERRO: {e}")
         import traceback
         traceback.print_exc()
         logger.error(f"Erro ao criar regra de conciliação: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Erro interno ao criar regra'}), 500
 
 
 @app.route('/api/regras-conciliacao/<int:regra_id>', methods=['PUT'])
