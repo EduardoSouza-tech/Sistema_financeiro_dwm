@@ -4710,8 +4710,13 @@ def relatorio_cpfs_invalidos():
 @require_permission('folha_pagamento_edit')
 def gerar_correcoes_cpf():
     """Gera sugestões de correção automática para CPFs inválidos"""
+    import traceback
+    import sys
+    
     try:
-        logger.info("🔧 [CPF CORRETOR] Iniciando análise de correções...")
+        logger.info("=" * 80)
+        logger.info("🔧 [CPF CORRETOR] === INÍCIO DA EXECUÇÃO ===")
+        logger.info("=" * 80)
         
         # Obter empresa_id da sessão
         empresa_id = session.get('empresa_id')
@@ -4719,15 +4724,17 @@ def gerar_correcoes_cpf():
             logger.error("❌ [CPF CORRETOR] Empresa não selecionada")
             return jsonify({'error': 'Empresa não selecionada'}), 403
         
-        logger.info(f"🔧 [CPF CORRETOR] Empresa ID: {empresa_id}")
+        logger.info(f"✅ [CPF CORRETOR] Empresa ID: {empresa_id}")
         
         # Buscar funcionários da empresa
         conn = None
         cursor = None
         try:
+            logger.info("🔧 [CPF CORRETOR] Conectando ao banco de dados...")
             conn = db.get_connection()
             cursor = conn.cursor()
             
+            logger.info("🔧 [CPF CORRETOR] Executando query...")
             # Buscar todos os funcionários da empresa
             query = """
                 SELECT id, nome, cpf
@@ -4739,10 +4746,11 @@ def gerar_correcoes_cpf():
             cursor.execute(query, (empresa_id,))
             rows = cursor.fetchall()
             
-            logger.info(f"🔧 [CPF CORRETOR] Encontrados {len(rows)} funcionários no banco")
+            logger.info(f"✅ [CPF CORRETOR] Encontrados {len(rows)} funcionários no banco")
             
         except Exception as db_error:
             logger.error(f"❌ [CPF CORRETOR] Erro na consulta ao banco: {db_error}")
+            logger.error(traceback.format_exc())
             return jsonify({
                 'success': False,
                 'error': f'Erro ao acessar banco de dados: {str(db_error)}'
@@ -4752,8 +4760,10 @@ def gerar_correcoes_cpf():
                 cursor.close()
             if conn:
                 conn.close()
+            logger.info("🔧 [CPF CORRETOR] Conexão com banco fechada")
         
         # Converter para lista de dicionários
+        logger.info("🔧 [CPF CORRETOR] Convertendo dados...")
         funcionarios = []
         for row in rows:
             funcionarios.append({
@@ -4762,22 +4772,33 @@ def gerar_correcoes_cpf():
                 'cpf': row[2] or ''
             })
         
-        logger.info(f"🔧 [CPF CORRETOR] Analisando {len(funcionarios)} funcionários...")
+        logger.info(f"✅ [CPF CORRETOR] {len(funcionarios)} funcionários convertidos")
         
         # Filtrar apenas funcionários com CPF inválido
+        logger.info("🔧 [CPF CORRETOR] Iniciando validação de CPFs...")
         funcionarios_invalidos = []
-        for func in funcionarios:
+        
+        for i, func in enumerate(funcionarios):
             cpf = func.get('cpf', '')
             
-            if cpf and not CPFValidator.validar(cpf):
-                funcionarios_invalidos.append(func)
-                logger.info(f"   CPF inválido: {func['nome']} - '{cpf}'")
+            if not cpf:
+                continue
+                
+            try:
+                is_valid = CPFValidator.validar(cpf)
+                if not is_valid:
+                    funcionarios_invalidos.append(func)
+                    if len(funcionarios_invalidos) <= 5:  # Log apenas os 5 primeiros
+                        logger.info(f"   ❌ CPF inválido [{i+1}]: {func['nome'][:30]} - '{cpf}'")
+            except Exception as val_error:
+                logger.error(f"❌ [CPF CORRETOR] Erro ao validar CPF de {func['nome']}: {val_error}")
+                logger.error(traceback.format_exc())
         
-        logger.info(f"🔧 [CPF CORRETOR] Encontrados {len(funcionarios_invalidos)} funcionários com CPF inválido")
+        logger.info(f"✅ [CPF CORRETOR] Validação concluída: {len(funcionarios_invalidos)} CPFs inválidos")
         
         # Se não há funcionários com CPF inválido, retornar resultado vazio
         if len(funcionarios_invalidos) == 0:
-            logger.info("✅ [CPF CORRETOR] Nenhum CPF inválido encontrado")
+            logger.info("✅ [CPF CORRETOR] Nenhum CPF inválido - retornando sucesso")
             return jsonify({
                 'success': True,
                 'total_funcionarios': len(funcionarios),
@@ -4790,20 +4811,23 @@ def gerar_correcoes_cpf():
             })
         
         # Aplicar correção automática
+        logger.info("🔧 [CPF CORRETOR] Iniciando correção automática...")
         try:
-            logger.info("🔧 [CPF CORRETOR] Iniciando correção automática...")
             resultado_correcao = CPFCorrector.corrigir_lista_funcionarios(funcionarios_invalidos)
-            logger.info(f"🔧 [CPF CORRETOR] Resultado: {resultado_correcao['total_corrigidos']}/{len(funcionarios_invalidos)} correções")
+            logger.info(f"✅ [CPF CORRETOR] Correção concluída: {resultado_correcao['total_corrigidos']}/{len(funcionarios_invalidos)}")
         except Exception as corrector_error:
-            logger.error(f"❌ [CPF CORRETOR] Erro no corretor: {corrector_error}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"❌ [CPF CORRETOR] ERRO NO CORRETOR: {corrector_error}")
+            logger.error(f"Tipo do erro: {type(corrector_error).__name__}")
+            logger.error(traceback.format_exc())
             return jsonify({
                 'success': False,
-                'error': f'Erro no sistema de correção: {str(corrector_error)}'
+                'error': f'Erro no sistema de correção: {str(corrector_error)}',
+                'error_type': type(corrector_error).__name__,
+                'traceback': traceback.format_exc()
             }), 500
         
         # Preparar resposta
+        logger.info("🔧 [CPF CORRETOR] Preparando resposta...")
         resposta = {
             'success': True,
             'total_funcionarios': len(funcionarios),
@@ -4815,17 +4839,31 @@ def gerar_correcoes_cpf():
             'correcoes_sugeridas': resultado_correcao['correcoes_sugeridas']
         }
         
-        logger.info(f"✅ [CPF CORRETOR] Análise concluída com sucesso")
+        logger.info(f"✅ [CPF CORRETOR] === CONCLUSÃO: {resultado_correcao['total_corrigidos']} correções ===")
+        logger.info("=" * 80)
         
         return jsonify(resposta)
         
     except Exception as e:
-        logger.error(f"❌ [CPF CORRETOR] Erro geral: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error("=" * 80)
+        logger.error(f"❌❌❌ [CPF CORRETOR] ERRO CRÍTICO NÃO TRATADO: {e}")
+        logger.error(f"Tipo do erro: {type(e).__name__}")
+        logger.error(f"Args: {e.args}")
+        logger.error("TRACEBACK COMPLETO:")
+        logger.error(traceback.format_exc())
+        logger.error("=" * 80)
+        
+        # Print para stderr também
+        print("=" * 80, file=sys.stderr)
+        print(f"ERRO CRÍTICO CPF CORRETOR: {e}", file=sys.stderr)
+        print(traceback.format_exc(), file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+        
         return jsonify({
             'success': False, 
-            'error': str(e)
+            'error': str(e),
+            'error_type': type(e).__name__,
+            'traceback': traceback.format_exc()
         }), 500
 
 
