@@ -5720,6 +5720,17 @@ def atualizar_evento(evento_id):
         
         if linhas_afetadas == 0:
             logger.error(f"❌ [DEBUG EVENTO] NENHUMA LINHA FOI ATUALIZADA! Evento {evento_id} não existe ou WHERE falhou!")
+            cursor.close()
+            return jsonify({'error': 'Evento não encontrado ou não pôde ser atualizado'}), 404
+        
+        # VERIFICAÇÃO IMEDIATA: Ler o valor que acabamos de gravar
+        cursor.execute("SELECT data_evento FROM eventos WHERE id = %s", (evento_id,))
+        verificacao = cursor.fetchone()
+        if verificacao:
+            data_gravada = verificacao['data_evento'] if isinstance(verificacao, dict) else verificacao[0]
+            logger.info(f"🔍 [DEBUG EVENTO] VERIFICAÇÃO: data_evento no banco após UPDATE = {data_gravada}")
+            if 'data_evento' in dados and str(data_gravada) != dados['data_evento']:
+                logger.error(f"❌ [DEBUG EVENTO] INCONSISTÊNCIA! Esperado: {dados['data_evento']}, Gravado: {data_gravada}")
         
         # RECALCULAR MARGEM se valor_liquido_nf ou custo_evento foram alterados
         if 'valor_liquido_nf' in dados or 'custo_evento' in dados:
@@ -5747,6 +5758,14 @@ def atualizar_evento(evento_id):
         logger.info(f"💾 [DEBUG EVENTO] Executando COMMIT na transação...")
         conn.commit()
         logger.info(f"✅ [DEBUG EVENTO] COMMIT executado com sucesso!")
+        
+        # SEGUNDA VERIFICAÇÃO: Confirmar que commit persistiu
+        cursor.execute("SELECT data_evento, nome_evento FROM eventos WHERE id = %s", (evento_id,))
+        confirmacao = cursor.fetchone()
+        if confirmacao:
+            data_final = confirmacao['data_evento'] if isinstance(confirmacao, dict) else confirmacao[0]
+            nome_final = confirmacao['nome_evento'] if isinstance(confirmacao, dict) else confirmacao[1]
+            logger.info(f"✅ [DEBUG EVENTO] CONFIRMAÇÃO PÓS-COMMIT: {nome_final} - data_evento = {data_final}")
         
         cursor.close()
         logger.info(f"✅ [DEBUG EVENTO] Cursor fechado. Atualização completa!")
