@@ -3349,7 +3349,7 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                     ${categoriaPreSelecionada ? '<small style="color: #27ae60; font-weight: bold;">✅ Auto-selecionado pela regra</small>' : ''}
                 </div>
                 
-                <div class="form-group" style="margin-bottom: 0;">
+                <div class="form-group" style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">Subcategoria:</label>
                     <select id="subcategoria-individual" 
                             ${!categoriaPreSelecionada ? 'disabled' : ''}
@@ -3357,6 +3357,15 @@ async function mostrarSugestoesConciliacao(transacaoId) {
                         <option value="">Primeiro selecione uma categoria</option>
                     </select>
                     ${subcategoriaPreSelecionada ? '<small style="color: #27ae60; font-weight: bold;">✅ Auto-selecionado pela regra</small>' : ''}
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">📝 Descrição:</label>
+                    <input type="text" id="descricao-individual" 
+                           value="${(transacao.descricao || '').replace(/"/g, '&quot;')}" 
+                           placeholder="Descrição personalizada (opcional)" 
+                           style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; background: #fffef7;">
+                    <small style="color: #7f8c8d;">Campo opcional - Deixe em branco para usar a descrição original</small>
                 </div>
             </div>`;
         
@@ -3500,7 +3509,8 @@ window.conciliarTransacaoIndividual = async function() {
                     transacao_id: transacao.id,
                     razao_social: razao,
                     categoria: categoria,
-                    subcategoria: subcategoria
+                    subcategoria: subcategoria,
+                    descricao: descricao || null
                 }]
             })
         });
@@ -6142,12 +6152,13 @@ window.abrirConciliacaoGeral = async function() {
                         <tr>
                             <th style="width: 50px; text-align: center;">✓</th>
                             <th style="width: 100px;">Data</th>
-                            <th style="min-width: 250px;">Descrição</th>
+                            <th style="min-width: 200px;">Descrição Original</th>
                             <th style="width: 120px;">Valor</th>
                             <th style="width: 80px;">Tipo</th>
                             <th style="width: 200px;">Razão Social</th>
                             <th style="width: 200px;">Categoria</th>
                             <th style="width: 200px;">Subcategoria</th>
+                            <th style="min-width: 250px;">📝 Descrição</th>
                         </tr>
                     </thead>
                     <tbody>`;
@@ -6211,6 +6222,12 @@ window.abrirConciliacaoGeral = async function() {
                                 style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; background: #f5f5f5;">
                             <option value="">Primeiro selecione categoria</option>
                         </select>
+                    </td>
+                    <td>
+                        <input type="text" id="descricao-${t.id}" 
+                               value="${(t.descricao || '').replace(/"/g, '&quot;')}" 
+                               placeholder="Descrição personalizada (opcional)" 
+                               style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; background: #fffef7;">
                     </td>
                 </tr>`;
         });
@@ -6340,6 +6357,7 @@ window.processarConciliacaoGeral = async function() {
             const categoria = document.getElementById(`categoria-${transacao.id}`).value;
             const subcategoria = document.getElementById(`subcategoria-${transacao.id}`).value;
             const razaoSocial = document.getElementById(`razao-${transacao.id}`).value;
+            const descricao = document.getElementById(`descricao-${transacao.id}`).value.trim();
             
             if (!categoria) {
                 errosValidacao.push(`Transação "${transacao.descricao.substring(0, 30)}...": categoria não selecionada`);
@@ -6350,7 +6368,8 @@ window.processarConciliacaoGeral = async function() {
                 transacao_id: transacao.id,
                 categoria: categoria,
                 subcategoria: subcategoria,
-                razao_social: razaoSocial
+                razao_social: razaoSocial,
+                descricao: descricao || null
             });
         });
         
