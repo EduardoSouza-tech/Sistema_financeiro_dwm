@@ -5759,7 +5759,10 @@ def atualizar_evento(evento_id):
                 UPDATE eventos
                 SET margem = %s
                 WHERE id = %s
-          🔥 CRITICAL: Abrir NOVA conexão para verificar se dados foram persistidos
+            """, (margem, evento_id))
+            logger.info(f"✅ [DEBUG EVENTO] Margem recalculada: {margem}")
+        
+        # CRITICAL: Abrir NOVA conexão para verificar se dados foram persistidos
         logger.info(f"🔍 [DEBUG EVENTO] Abrindo NOVA CONEXÃO para verificar persistência...")
         conn_verificacao = db.get_connection()
         cursor_verificacao = conn_verificacao.cursor()
@@ -8788,7 +8791,7 @@ def fix_kits_table():
     Migration: Adiciona colunas 'descricao' e 'empresa_id' na tabela kits
     Bug descoberto na Fase 3 - código usa campos que não existem
     
-    ⚠️ DISPONÍVEL APENAS EM DESENVOLVIMENTO
+    ATENCAO: DISPONÍVEL APENAS EM DESENVOLVIMENTO
     """
     # Bloquear em produção
     check = _check_debug_endpoint_allowed()
@@ -8876,14 +8879,14 @@ def fix_kits_table():
 @csrf_instance.exempt
 def fix_p1_issues():
     """
-    🔧 Migration P1: Corrige bugs prioritários
+    Migration P1: Corrige bugs prioritários
     
     Funcionalidades:
     1. Adiciona empresa_id em todas as tabelas (multi-tenancy)
     2. Cria indexes para empresa_id
     3. Reporta campos que precisam de conversão manual (VARCHAR → FK)
     
-    ⚠️ DISPONÍVEL APENAS EM DESENVOLVIMENTO
+    ATENCAO: DISPONÍVEL APENAS EM DESENVOLVIMENTO
     
     Returns:
         JSON com resultados detalhados da migration
