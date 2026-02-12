@@ -5785,11 +5785,22 @@ def atualizar_evento(evento_id):
         cursor.execute("SELECT data_evento, nome_evento FROM eventos WHERE id = %s", (evento_id,))
         confirmacao = cursor.fetchone()
         if confirmacao:
-            data_final = confirmacao['data_evento'] if isinstance(confirmacao, dict) else confirmacao[0]
-            nome_final = confirmacao['nome_evento'] if isinstance(confirmacao, dict) else confirmacao[1]
-            logger.info(f"✅ [DEBUG EVENTO] CONFIRMAÇÃO PÓS-COMMIT: {nome_final} - data_evento = {data_final}")
-        
-        cursor.close()
+           conn:
+            try:
+                conn.rollback()
+                logger.info(f"✅ [DEBUG EVENTO] Rollback executado")
+            except:
+                pass
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        # Garantir que cursor e conexão sejam fechados
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
         logger.info(f"✅ [DEBUG EVENTO] Cursor fechado. Atualização completa!")
         
         return jsonify({
@@ -7126,7 +7137,7 @@ def admin_fix_empresa_id():
     """
     Rota administrativa para corrigir empresa_id em registros antigos
     
-    ⚠️ ATENÇÃO: Esta rota atualiza TODOS os registros sem empresa_id!
+    ATENCAO: Esta rota atualiza TODOS os registros sem empresa_id!
     Use com cuidado!
     """
     from database_postgresql import get_db_connection
