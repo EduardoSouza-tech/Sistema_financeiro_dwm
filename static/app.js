@@ -281,7 +281,12 @@ function formatarMoeda(valor) {
  * NOTA: Esta função agora usa a biblioteca utils.js (Fase 4)
  */
 function formatarData(data) {
-    // Delega para a função da biblioteca utils.js
+    // String YYYY-MM-DD: formatar direto sem Date (evita bug timezone UTC-3)
+    if (typeof data === 'string' && data.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const parts = data.substring(0, 10).split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    // Outros formatos: delega para utils.js
     return Utils.formatarData(data);
 }
 

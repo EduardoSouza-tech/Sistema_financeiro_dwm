@@ -455,6 +455,11 @@ function formatarData(data) {
     if (!data) return 'N/A';
     
     try {
+        // String YYYY-MM-DD: formatar direto sem Date (evita bug timezone UTC-3)
+        if (typeof data === 'string' && data.match(/^\d{4}-\d{2}-\d{2}/)) {
+            const parts = data.substring(0, 10).split('-');
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
         const dataObj = new Date(data);
         return dataObj.toLocaleDateString('pt-BR');
     } catch (error) {

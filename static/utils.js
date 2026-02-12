@@ -118,7 +118,22 @@ function formatarData(data, incluirHora = false) {
     try {
         if (!data) return '';
         
-        const dataObj = typeof data === 'string' ? new Date(data) : data;
+        // Se for string no formato YYYY-MM-DD, formatar direto sem Date (evita bug timezone UTC-3)
+        if (typeof data === 'string' && data.match(/^\d{4}-\d{2}-\d{2}/)) {
+            const parts = data.substring(0, 10).split('-');
+            let formatado = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            
+            if (incluirHora && data.length > 10) {
+                // Extrair hora da string ISO se disponivel
+                const timePart = data.substring(11, 16);
+                if (timePart) formatado += ` ${timePart}`;
+            }
+            
+            return formatado;
+        }
+        
+        // Fallback para Date objects ou outros formatos
+        const dataObj = typeof data === 'string' ? new Date(data + 'T12:00:00') : data;
         
         if (isNaN(dataObj.getTime())) return '';
         
