@@ -5633,6 +5633,8 @@ def criar_evento():
 @require_permission('eventos_edit')
 def atualizar_evento(evento_id):
     """Atualizar evento existente"""
+    conn = None
+    cursor = None
     try:
         usuario = get_usuario_logado()
         if not usuario:
@@ -5652,6 +5654,11 @@ def atualizar_evento(evento_id):
             logger.info(f"🔍 [DEBUG EVENTO] data_evento recebida: {dados['data_evento']} (tipo: {type(dados['data_evento'])})")
         
         conn = db.get_connection()
+        
+        # 🔥 CRITICAL: Forçar AUTOCOMMIT = False para controlar transação manualmente
+        conn.autocommit = False
+        logger.info(f"🔧 [DEBUG EVENTO] AUTOCOMMIT definido como: {conn.autocommit}")
+        
         cursor = conn.cursor()
         
         # Verificar se evento existe e pertence à empresa
@@ -5752,13 +5759,28 @@ def atualizar_evento(evento_id):
                 UPDATE eventos
                 SET margem = %s
                 WHERE id = %s
-            """, (margem, evento_id))
-            logger.info(f"✅ [DEBUG EVENTO] Margem recalculada: {margem}")
+          🔥 CRITICAL: Abrir NOVA conexão para verificar se dados foram persistidos
+        logger.info(f"🔍 [DEBUG EVENTO] Abrindo NOVA CONEXÃO para verificar persistência...")
+        conn_verificacao = db.get_connection()
+        cursor_verificacao = conn_verificacao.cursor()
+        cursor_verificacao.execute("""
+            SELECT id, nome_evento, data_evento 
+            FROM eventos 
+            WHERE id = %s AND empresa_id = %s
+        """, (evento_id, empresa_id))
+        evento_verificado = cursor_verificacao.fetchone()
+        cursor_verificacao.close()
         
-        logger.info(f"💾 [DEBUG EVENTO] Executando COMMIT na transação...")
-        conn.commit()
-        logger.info(f"✅ [DEBUG EVENTO] COMMIT executado com sucesso!")
-        
+        if evento_verificado:
+            id_db = evento_verificado['id'] if isinstance(evento_verificado, dict) else evento_verificado[0]
+            nome_db = evento_verificado['nome_evento'] if isinstance(evento_verificado, dict) else evento_verificado[1]
+            data_db = evento_verificado['data_evento'] if isinstance(evento_verificado, dict) else evento_verificado[2]
+            logger.info(f"✅ [VERIFICAÇÃO FINAL] ID: {id_db}, Nome: {nome_db}, Data: {data_db}")
+            
+            if 'data_evento' in dados and str(data_db) != dados['data_evento']:
+                logger.error(f"❌ [VERIFICAÇÃO FINAL] FALHA! Esperado: {dados['data_evento']}, No banco: {data_db}")
+        else:
+            logger.error(f"❌ [VERIFICAÇÃO FINAL] Evento {evento_id} NÃO ENCONTRADO após commit!
         # SEGUNDA VERIFICAÇÃO: Confirmar que commit persistiu
         cursor.execute("SELECT data_evento, nome_evento FROM eventos WHERE id = %s", (evento_id,))
         confirmacao = cursor.fetchone()
