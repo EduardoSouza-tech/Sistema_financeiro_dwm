@@ -5628,6 +5628,12 @@ def atualizar_evento(evento_id):
         
         dados = request.get_json()
         
+        # DEBUG: Log dos dados recebidos
+        logger.info(f"🔍 [DEBUG EVENTO] Atualizando evento {evento_id}")
+        logger.info(f"🔍 [DEBUG EVENTO] Dados recebidos: {dados}")
+        if 'data_evento' in dados:
+            logger.info(f"🔍 [DEBUG EVENTO] data_evento recebida: {dados['data_evento']} (tipo: {type(dados['data_evento'])})")
+        
         conn = db.get_connection()
         cursor = conn.cursor()
         
@@ -5648,6 +5654,7 @@ def atualizar_evento(evento_id):
         if 'data_evento' in dados:
             campos_update.append("data_evento = %s")
             valores.append(dados['data_evento'])
+            logger.info(f"🔍 [DEBUG EVENTO] Campo data_evento será atualizado para: {dados['data_evento']}")
         
         if 'nf_associada' in dados:
             campos_update.append("nf_associada = %s")
@@ -5685,6 +5692,10 @@ def atualizar_evento(evento_id):
         valores.append(evento_id)
         
         query = f"UPDATE eventos SET {', '.join(campos_update)} WHERE id = %s"
+        
+        logger.info(f"🔍 [DEBUG EVENTO] Query SQL: {query}")
+        logger.info(f"🔍 [DEBUG EVENTO] Valores: {valores}")
+        
         cursor.execute(query, valores)
         
         # RECALCULAR MARGEM se valor_liquido_nf ou custo_evento foram alterados

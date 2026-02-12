@@ -7284,10 +7284,23 @@
             const title = document.getElementById('modal-evento-title');
             
             if (evento) {
+                console.log('🔍 [DEBUG EVENTO] Abrindo modal para edição:', evento);
+                console.log('🔍 [DEBUG EVENTO] data_evento original:', evento.data_evento);
+                
                 title.textContent = 'Editar Evento';
                 document.getElementById('evento-id').value = evento.id;
                 document.getElementById('evento-nome').value = evento.nome_evento;
-                document.getElementById('evento-data').value = evento.data_evento;
+                
+                // Garante que a data esteja no formato YYYY-MM-DD para input type="date"
+                let dataFormatada = evento.data_evento;
+                if (dataFormatada && dataFormatada.includes('/')) {
+                    // Se vier em formato DD/MM/YYYY, converte para YYYY-MM-DD
+                    const partes = dataFormatada.split('/');
+                    dataFormatada = `${partes[2]}-${partes[1]}-${partes[0]}`;
+                }
+                document.getElementById('evento-data').value = dataFormatada;
+                console.log('🔍 [DEBUG EVENTO] data_evento formatada para input:', dataFormatada);
+                
                 document.getElementById('evento-nf').value = evento.nf_associada || '';
                 document.getElementById('evento-valor-liquido').value = evento.valor_liquido_nf || '';
                 document.getElementById('evento-custo').value = evento.custo_evento || '';
@@ -7321,9 +7334,15 @@
             event.preventDefault();
             
             const id = document.getElementById('evento-id').value;
+            const dataInput = document.getElementById('evento-data').value;
+            
+            console.log('🔍 [DEBUG EVENTO] Salvando evento...');
+            console.log('🔍 [DEBUG EVENTO] ID:', id);
+            console.log('🔍 [DEBUG EVENTO] data_evento do input:', dataInput);
+            
             const dados = {
                 nome_evento: document.getElementById('evento-nome').value,
-                data_evento: document.getElementById('evento-data').value,
+                data_evento: dataInput,
                 nf_associada: document.getElementById('evento-nf').value || null,
                 valor_liquido_nf: parseFloat(document.getElementById('evento-valor-liquido').value) || null,
                 custo_evento: parseFloat(document.getElementById('evento-custo').value) || null,
@@ -7332,10 +7351,14 @@
                 status: document.getElementById('evento-status').value,
                 observacoes: document.getElementById('evento-observacoes').value || null
             };
+            
+            console.log('🔍 [DEBUG EVENTO] Dados a enviar:', JSON.stringify(dados, null, 2));
 
             try {
                 const url = id ? `/api/eventos/${id}` : '/api/eventos';
                 const method = id ? 'PUT' : 'POST';
+                
+                console.log(`🔍 [DEBUG EVENTO] Enviando ${method} para ${url}`);
                 
                 const response = await fetch(url, {
                     method: method,
@@ -7347,6 +7370,7 @@
                 });
 
                 const result = await response.json();
+                console.log('🔍 [DEBUG EVENTO] Resposta do servidor:', result);
 
                 if (response.ok) {
                     showToast(`✅ Evento ${id ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
@@ -7356,7 +7380,7 @@
                     showToast(`❌ Erro: ${result.error || 'Erro desconhecido'}`, 'error');
                 }
             } catch (error) {
-                console.error('Erro ao salvar evento:', error);
+                console.error('❌ [DEBUG EVENTO] Erro ao salvar evento:', error);
                 showToast('❌ Erro ao salvar evento. Verifique sua conexão.', 'error');
             }
         }
