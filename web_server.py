@@ -5638,36 +5638,32 @@ def atualizar_evento(evento_id):
     try:
         usuario = get_usuario_logado()
         if not usuario:
-            return jsonify({'error': 'Usuário não autenticado'}), 401
+            return jsonify({'error': 'Usuario nao autenticado'}), 401
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 403
+            return jsonify({'error': 'Empresa nao identificada'}), 403
         
         dados = request.get_json()
         
-        # DEBUG: Log dos dados recebidos
-        logger.info(f"🔍 [DEBUG EVENTO] Atualizando evento {evento_id}")
-        logger.info(f"🔍 [DEBUG EVENTO] Dados recebidos: {dados}")
-        if 'data_evento' in dados:
-            logger.info(f"🔍 [DEBUG EVENTO] data_evento recebida: {dados['data_evento']} (tipo: {type(dados['data_evento'])})")
+        logger.info(f"[EVENTO UPDATE] Atualizando evento {evento_id}, empresa {empresa_id}")
+        logger.info(f"[EVENTO UPDATE] Dados recebidos: {dados}")
         
         conn = db.get_connection()
-        
-        # 🔥 CRITICAL: Forçar AUTOCOMMIT = False para controlar transação manualmente
         conn.autocommit = False
-        logger.info(f"🔧 [DEBUG EVENTO] AUTOCOMMIT definido como: {conn.autocommit}")
-        
         cursor = conn.cursor()
         
-        # Verificar se evento existe e pertence à empresa
-        cursor.execute("SELECT id FROM eventos WHERE id = %s AND empresa_id = %s", (evento_id, empresa_id))
-        if not cursor.fetchone():
+        # Verificar se evento existe e pertence a empresa
+        cursor.execute("SELECT id, data_evento FROM eventos WHERE id = %s AND empresa_id = %s", (evento_id, empresa_id))
+        evento_atual = cursor.fetchone()
+        if not evento_atual:
             cursor.close()
-            return jsonify({'error': 'Evento não encontrado'}), 404
+            return jsonify({'error': 'Evento nao encontrado'}), 404
         
-        # Construir query dinâmica baseada nos campos fornecidos
+        data_antes = evento_atual['data_evento'] if isinstance(evento_atual, dict) else evento_atual[1]
+        logger.info(f"[EVENTO UPDATE] Data ANTES do update: {data_antes}")
+        
+        # Construir query dinamica
         campos_update = []
         valores = []
         
@@ -5678,7 +5674,7 @@ def atualizar_evento(evento_id):
         if 'data_evento' in dados:
             campos_update.append("data_evento = %s")
             valores.append(dados['data_evento'])
-            logger.info(f"🔍 [DEBUG EVENTO] Campo data_evento será atualizado para: {dados['data_evento']}")
+            logger.info(f"[EVENTO UPDATE] Novo valor data_evento: {dados['data_evento']}")
         
         if 'nf_associada' in dados:
             campos_update.append("nf_associada = %s")
@@ -5714,97 +5710,38 @@ def atualizar_evento(evento_id):
         
         campos_update.append("data_atualizacao = CURRENT_TIMESTAMP")
         valores.append(evento_id)
+        valores.append(empresa_id)
         
-        query = f"UPDATE eventos SET {', '.join(campos_update)} WHERE id = %s"
+        query = f"UPDATE eventos SET {', '.join(campos_update)} WHERE id = %s AND empresa_id = %s"
         
-        logger.info(f"🔍 [DEBUG EVENTO] Query SQL: {query}")
-        logger.info(f"🔍 [DEBUG EVENTO] Valores: {valores}")
+        logger.info(f"[EVENTO UPDATE] Query: {query}")
+        logger.info(f"[EVENTO UPDATE] Valores: {valores}")
         
-        logger.info(f"⚡ [DEBUG EVENTO] EXECUTANDO UPDATE no banco...")
         cursor.execute(query, valores)
-        linhas_afetadas = cursor.rowcount
-        logger.info(f"✅ [DEBUG EVENTO] UPDATE executado! Linhas afetadas: {linhas_afetadas}")
+        linhas = cursor.rowcount
+        logger.info(f"[EVENTO UPDATE] Linhas afetadas: {linhas}")
         
-        if linhas_afetadas == 0:
-            logger.error(f"❌ [DEBUG EVENTO] NENHUMA LINHA FOI ATUALIZADA! Evento {evento_id} não existe ou WHERE falhou!")
-            cursor.close()
-            return jsonify({'error': 'Evento não encontrado ou não pôde ser atualizado'}), 404
-        
-        # VERIFICAÇÃO IMEDIATA: Ler o valor que acabamos de gravar
-        cursor.execute("SELECT data_evento FROM eventos WHERE id = %s", (evento_id,))
-        verificacao = cursor.fetchone()
-        if verificacao:
-            data_gravada = verificacao['data_evento'] if isinstance(verificacao, dict) else verificacao[0]
-            logger.info(f"🔍 [DEBUG EVENTO] VERIFICAÇÃO: data_evento no banco após UPDATE = {data_gravada}")
-            if 'data_evento' in dados and str(data_gravada) != dados['data_evento']:
-                logger.error(f"❌ [DEBUG EVENTO] INCONSISTÊNCIA! Esperado: {dados['data_evento']}, Gravado: {data_gravada}")
-        
-        # RECALCULAR MARGEM se valor_liquido_nf ou custo_evento foram alterados
+        # Recalcular margem se necessario
         if 'valor_liquido_nf' in dados or 'custo_evento' in dados:
-            cursor.execute("""
-                SELECT valor_liquido_nf, custo_evento
-                FROM eventos
-                WHERE id = %s
-            """, (evento_id,))
-            
-            evento_row = cursor.fetchone()
-            valor_liquido = evento_row['valor_liquido_nf'] if evento_row and evento_row['valor_liquido_nf'] else 0
-            custo = evento_row['custo_evento'] if evento_row and evento_row['custo_evento'] else 0
-            
-            # Calcular margem: Valor Líquido - Custo
-            margem = float(valor_liquido) - float(custo)
-            
-            # Atualizar margem recalculada
-            cursor.execute("""
-                UPDATE eventos
-                SET margem = %s
-                WHERE id = %s
-            """, (margem, evento_id))
-            logger.info(f"✅ [DEBUG EVENTO] Margem recalculada: {margem}")
+            cursor.execute("SELECT valor_liquido_nf, custo_evento FROM eventos WHERE id = %s", (evento_id,))
+            evt = cursor.fetchone()
+            if evt:
+                vl = float(evt['valor_liquido_nf'] if isinstance(evt, dict) else evt[0]) if (evt['valor_liquido_nf'] if isinstance(evt, dict) else evt[0]) else 0
+                ct = float(evt['custo_evento'] if isinstance(evt, dict) else evt[1]) if (evt['custo_evento'] if isinstance(evt, dict) else evt[1]) else 0
+                margem_calc = vl - ct
+                cursor.execute("UPDATE eventos SET margem = %s WHERE id = %s", (margem_calc, evento_id))
+                logger.info(f"[EVENTO UPDATE] Margem recalculada: {margem_calc}")
         
-        # CRITICAL: Abrir NOVA conexão para verificar se dados foram persistidos
-        logger.info(f"🔍 [DEBUG EVENTO] Abrindo NOVA CONEXÃO para verificar persistência...")
-        conn_verificacao = db.get_connection()
-        cursor_verificacao = conn_verificacao.cursor()
-        cursor_verificacao.execute("""
-            SELECT id, nome_evento, data_evento 
-            FROM eventos 
-            WHERE id = %s AND empresa_id = %s
-        """, (evento_id, empresa_id))
-        evento_verificado = cursor_verificacao.fetchone()
-        cursor_verificacao.close()
+        conn.commit()
+        logger.info(f"[EVENTO UPDATE] COMMIT executado!")
         
-        if evento_verificado:
-            id_db = evento_verificado['id'] if isinstance(evento_verificado, dict) else evento_verificado[0]
-            nome_db = evento_verificado['nome_evento'] if isinstance(evento_verificado, dict) else evento_verificado[1]
-            data_db = evento_verificado['data_evento'] if isinstance(evento_verificado, dict) else evento_verificado[2]
-            logger.info(f"✅ [VERIFICAÇÃO FINAL] ID: {id_db}, Nome: {nome_db}, Data: {data_db}")
-            
-            if 'data_evento' in dados and str(data_db) != dados['data_evento']:
-                logger.error(f"❌ [VERIFICAÇÃO FINAL] FALHA! Esperado: {dados['data_evento']}, No banco: {data_db}")
-        else:
-            logger.error(f"❌ [VERIFICAÇÃO FINAL] Evento {evento_id} NÃO ENCONTRADO após commit!
-        # SEGUNDA VERIFICAÇÃO: Confirmar que commit persistiu
-        cursor.execute("SELECT data_evento, nome_evento FROM eventos WHERE id = %s", (evento_id,))
-        confirmacao = cursor.fetchone()
-        if confirmacao:
-           conn:
-            try:
-                conn.rollback()
-                logger.info(f"✅ [DEBUG EVENTO] Rollback executado")
-            except:
-                pass
-        import traceback
-        traceback.print_exc(file=sys.stderr)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        # Garantir que cursor e conexão sejam fechados
-        if cursor:
-            try:
-                cursor.close()
-            except:
-                pass
-        logger.info(f"✅ [DEBUG EVENTO] Cursor fechado. Atualização completa!")
+        # Verificacao pos-commit
+        cursor.execute("SELECT data_evento FROM eventos WHERE id = %s", (evento_id,))
+        verif = cursor.fetchone()
+        data_depois = verif['data_evento'] if isinstance(verif, dict) else verif[0]
+        logger.info(f"[EVENTO UPDATE] Data DEPOIS do commit: {data_depois}")
+        
+        cursor.close()
         
         return jsonify({
             'success': True,
@@ -5812,19 +5749,21 @@ def atualizar_evento(evento_id):
         }), 200
     
     except Exception as e:
-        logger.error(f"❌ [DEBUG EVENTO] EXCEÇÃO CAPTURADA: {e}")
-        logger.error(f"❌ [DEBUG EVENTO] Fazendo ROLLBACK...")
-        if 'conn' in locals():
-            conn.rollback()
+        logger.error(f"[EVENTO UPDATE] ERRO: {e}")
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
-    
-    except Exception as e:
-        logger.error(f"Erro ao atualizar evento: {e}")
-        import traceback
-        traceback.print_exc(file=sys.stderr)
-        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
 
 
 @app.route('/api/eventos/<int:evento_id>', methods=['DELETE'])
