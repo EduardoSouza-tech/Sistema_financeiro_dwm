@@ -267,10 +267,15 @@ def renovar_sessao():
     Renova a sessão automaticamente a cada requisição para evitar timeout
     durante uso ativo do sistema. A sessão é marcada como modificada para
     forçar o Flask a atualizar o cookie de sessão.
+    
+    IMPORTANTE: Verifica 'session_token' que é a chave usada pelo sistema
+    de autenticação (não 'user_id' nem 'usuario_id').
     """
-    if 'user_id' in session:
+    # Verificar se há token de sessão ativo (chave correta do sistema)
+    if 'session_token' in session:
         session.modified = True  # Força renovação do cookie de sessão
         # O Flask automaticamente atualiza o timestamp da sessão
+        logger.debug(f"♻️ [SESSÃO] Renovada automaticamente para token: {session.get('session_token', '')[:20]}...")
 
 # ============================================================================
 # INICIALIZAR CSRF PROTECTION
