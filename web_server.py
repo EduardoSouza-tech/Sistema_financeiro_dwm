@@ -5713,7 +5713,13 @@ def atualizar_evento(evento_id):
         logger.info(f"🔍 [DEBUG EVENTO] Query SQL: {query}")
         logger.info(f"🔍 [DEBUG EVENTO] Valores: {valores}")
         
+        logger.info(f"⚡ [DEBUG EVENTO] EXECUTANDO UPDATE no banco...")
         cursor.execute(query, valores)
+        linhas_afetadas = cursor.rowcount
+        logger.info(f"✅ [DEBUG EVENTO] UPDATE executado! Linhas afetadas: {linhas_afetadas}")
+        
+        if linhas_afetadas == 0:
+            logger.error(f"❌ [DEBUG EVENTO] NENHUMA LINHA FOI ATUALIZADA! Evento {evento_id} não existe ou WHERE falhou!")
         
         # RECALCULAR MARGEM se valor_liquido_nf ou custo_evento foram alterados
         if 'valor_liquido_nf' in dados or 'custo_evento' in dados:
@@ -5736,12 +5742,20 @@ def atualizar_evento(evento_id):
                 SET margem = %s
                 WHERE id = %s
             """, (margem, evento_id))
+            logger.info(f"✅ [DEBUG EVENTO] Margem recalculada: {margem}")
         
+        logger.info(f"💾 [DEBUG EVENTO] Executando COMMIT na transação...")
         conn.commit()
+        logger.info(f"✅ [DEBUG EVENTO] COMMIT executado com sucesso!")
+        
         cursor.close()
+        logger.info(f"✅ [DEBUG EVENTO] Cursor fechado. Atualização completa!")
         
         return jsonify({
-            'success': True,
+            'success': ❌ [DEBUG EVENTO] EXCEÇÃO CAPTURADA: {e}")
+        logger.error(f"❌ [DEBUG EVENTO] Fazendo ROLLBACK...")
+        if 'conn' in locals():
+            conn.rollback(
             'message': 'Evento atualizado com sucesso'
         }), 200
     
