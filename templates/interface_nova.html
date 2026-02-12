@@ -7370,12 +7370,17 @@
                 });
 
                 const result = await response.json();
-                console.log('🔍 [DEBUG EVENTO] Resposta do servidor:', result);
+                console.log('🔍 [DEBUG EVENTO] Resposta COMPLETA do servidor:', JSON.stringify(result, null, 2));
+                
+                if (result.evento) {
+                    console.log('🔍 [DEBUG EVENTO] Evento retornado - data_evento:', result.evento.data_evento);
+                    console.log('🔍 [DEBUG EVENTO] Data ANTES:', result.data_antes, '=> DEPOIS:', result.data_depois);
+                }
 
                 if (response.ok) {
                     showToast(`✅ Evento ${id ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
                     fecharModalEvento();
-                    loadEventos();
+                    await loadEventos();
                 } else {
                     showToast(`❌ Erro: ${result.error || 'Erro desconhecido'}`, 'error');
                 }
@@ -7409,7 +7414,9 @@
                 
                 console.log('🔄 [DEBUG LOAD] Eventos recebidos do servidor:', result.eventos?.length || 0);
                 if (result.eventos?.length > 0) {
-                    console.log('🔄 [DEBUG LOAD] Primeiro evento - data_evento:', result.eventos[0].data_evento);
+                    result.eventos.forEach((ev, i) => {
+                        console.log(`🔄 [DEBUG LOAD] Evento[${i}] id=${ev.id} nome="${ev.nome_evento}" data=${ev.data_evento}`);
+                    });
                 }
 
                 const tbody = document.getElementById('tbody-eventos');
