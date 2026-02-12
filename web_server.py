@@ -5504,8 +5504,16 @@ def listar_eventos():
         
         query += " ORDER BY data_evento DESC"
         
+        logger.info(f"🔍 [DEBUG LOAD] Query SQL: {query}")
+        logger.info(f"🔍 [DEBUG LOAD] Params: {params}")
+        
         cursor.execute(query, params)
         rows = cursor.fetchall()
+        
+        logger.info(f"🔍 [DEBUG LOAD] Linhas retornadas do DB: {len(rows)}")
+        if rows:
+            logger.info(f"🔍 [DEBUG LOAD] Primeira linha - data_evento: {rows[0].get('data_evento') if isinstance(rows[0], dict) else rows[0][3]}")
+        
         cursor.close()
         
         eventos = []

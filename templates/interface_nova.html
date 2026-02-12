@@ -7387,6 +7387,8 @@
 
         async function loadEventos() {
             try {
+                console.log('🔄 [DEBUG LOAD] Recarregando eventos...');
+                
                 const dataInicio = document.getElementById('filtro-data-inicio-evento').value;
                 const dataFim = document.getElementById('filtro-data-fim-evento').value;
                 const status = document.getElementById('filtro-status-evento').value;
@@ -7396,10 +7398,19 @@
                 if (dataFim) params.append('data_fim', dataFim);
                 if (status) params.append('status', status);
 
-                const response = await fetch(`/api/eventos?${params.toString()}`, {
-                    credentials: 'include'
+                const url = `/api/eventos?${params.toString()}&_t=${Date.now()}`; // Cache buster
+                console.log('🔄 [DEBUG LOAD] URL:', url);
+                
+                const response = await fetch(url, {
+                    credentials: 'include',
+                    cache: 'no-cache' // Forçar buscar do servidor
                 });
                 const result = await response.json();
+                
+                console.log('🔄 [DEBUG LOAD] Eventos recebidos do servidor:', result.eventos?.length || 0);
+                if (result.eventos?.length > 0) {
+                    console.log('🔄 [DEBUG LOAD] Primeiro evento - data_evento:', result.eventos[0].data_evento);
+                }
 
                 const tbody = document.getElementById('tbody-eventos');
 
@@ -9026,8 +9037,11 @@
 
         function formatarData(data) {
             if (!data) return '-';
+            console.log('📅 [DEBUG formatarData] Input:', data, 'Tipo:', typeof data);
             const d = new Date(data + 'T00:00:00');
-            return d.toLocaleDateString('pt-BR');
+            const resultado = d.toLocaleDateString('pt-BR');
+            console.log('📅 [DEBUG formatarData] Output:', resultado);
+            return resultado;
         }
 
         function formatarMoeda(valor) {
