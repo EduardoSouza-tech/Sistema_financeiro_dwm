@@ -5552,6 +5552,10 @@ def listar_eventos():
                     'data_atualizacao': row[12].isoformat() if row[12] else None
                 })
         
+        logger.info(f"🔍 [DEBUG LOAD] Eventos processados: {len(eventos)}")
+        if eventos:
+            logger.info(f"🔍 [DEBUG LOAD] Primeiro evento processado - id: {eventos[0]['id']}, data_evento: {eventos[0]['data_evento']}")
+        
         return jsonify({'eventos': eventos}), 200
     
     except Exception as e:
