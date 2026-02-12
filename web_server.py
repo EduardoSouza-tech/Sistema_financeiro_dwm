@@ -4797,9 +4797,9 @@ def gerar_correcoes_cpf():
         funcionarios = []
         for row in rows:
             funcionarios.append({
-                'id': row[0],
-                'nome': row[1],
-                'cpf': row[2] or ''
+                'id': row['id'],
+                'nome': row['nome'],
+                'cpf': row['cpf'] or ''
             })
         
         logger.info(f"✅ [CPF CORRETOR] {len(funcionarios)} funcionários convertidos")
