@@ -9379,6 +9379,8 @@
                                     </td>
                                     <td style="padding: 12px; text-align: center;">
                                         <button onclick="aplicarCorrecaoIndividual(${correcao.funcionario_id}, '${correcao.cpf_corrigido}', '${correcao.funcionario_nome}', ${index})" 
+                                                data-funcionario-id="${correcao.funcionario_id}"
+                                                data-cpf="${correcao.cpf_corrigido}"
                                                 class="btn" 
                                                 style="padding: 6px 12px; background: ${correcao.confianca >= 0.90 ? '#27ae60' : '#f39c12'}; color: white; font-size: 11px;">
                                             ${correcao.confianca >= 0.90 ? '✅ Aplicar' : '⚠️ Aplicar'}
@@ -9458,38 +9460,83 @@
             try {
                 console.log('🔧 [CORRECAO] Aplicando correções em lote...');
                 
+                // Coletar todas as correções com alta confiança (≥90%)
+                const correcoes = [];
                 const rows = document.querySelectorAll('#correcoes-lista tr');
-                let sucessos = 0;
-                let erros = 0;
                 
-                for (let i = 0; i < rows.length; i++) {
-                    const row = rows[i];
+                rows.forEach(row => {
                     const button = row.querySelector('button');
                     
-                    // Aplicar apenas correções seguras (botão verde)
-                    if (button && button.style.background.includes('39, 174, 96')) { // Verde (#27ae60)
-                        button.click();
+                    // Verificar se é correção segura (botão verde - confiança ≥90%)
+                    if (button && button.style.background.includes('39, 174, 96')) {
+                        const funcId = button.getAttribute('data-funcionario-id');
+                        const cpf = button.getAttribute('data-cpf');
                         
-                        // Aguardar um pouco entre as requisições
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        
-                        // Verificar se foi aplicada com sucesso
-                        if (button.innerHTML.includes('Aplicado')) {
-                            sucessos++;
-                        } else {
-                            erros++;
+                        if (funcId && cpf) {
+                            correcoes.push({
+                                funcionario_id: parseInt(funcId),
+                                cpf: cpf
+                            });
                         }
                     }
+                });
+                
+                if (correcoes.length === 0) {
+                    showToast('⚠️ Nenhuma correção com alta confiança encontrada', 'warning');
+                    return;
                 }
                 
-                // Mostrar resultado final
-                if (sucessos > 0) {
-                    showToast(`✅ ${sucessos} correção(ões) aplicada(s) com sucesso!${erros > 0 ? ` (${erros} erro(s))` : ''}`, 'success');
+                console.log(`🔧 [CORRECAO] Enviando ${correcoes.length} correções em lote...`);
+                showToast(`⏳ Processando ${correcoes.length} correções...`, 'info');
+                
+                // Enviar todas as correções em uma única requisição
+                const response = await fetch('/api/funcionarios/cpf/corrigir-lote', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ correcoes })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                console.log('✅ [CORRECAO] Resultado:', result);
+                
+                // Mostrar resultado
+                if (result.success) {
+                    showToast(
+                        `✅ ${result.total_sucesso} correção(ões) aplicada(s) com sucesso!${
+                            result.total_falhas > 0 ? ` (${result.total_falhas} erro(s))` : ''
+                        }`, 
+                        'success'
+                    );
                     
                     // Ocultar botão após aplicação
                     document.getElementById('btn-aplicar-todas-correcoes').style.display = 'none';
+                    
+                    // Atualizar tabela removendo as correções aplicadas
+                    result.resultados.forEach((res, index) => {
+                        if (res.success && rows[index]) {
+                            const row = rows[index];
+                            const button = row.querySelector('button');
+                            if (button) {
+                                button.innerHTML = '✅ Aplicado';
+                                button.disabled = true;
+                                button.style.background = '#95a5a6'; // Cinza
+                            }
+                        }
+                    });
+                    
+                    // Recarregar lista de funcionários após 2 segundos
+                    setTimeout(() => {
+                        loadFuncionariosLocal();
+                    }, 2000);
                 } else {
-                    showToast(`⚠️ Nenhuma correção foi aplicada. ${erros} erro(s) encontrado(s).`, 'warning');
+                    showToast('⚠️ Erro ao aplicar correções: ' + (result.error || 'Erro desconhecido'), 'error');
                 }
                 
             } catch (error) {

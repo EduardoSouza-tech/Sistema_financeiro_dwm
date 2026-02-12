@@ -4907,6 +4907,137 @@ def ping_cpf_correcao():
     })
 
 
+@app.route('/api/funcionarios/cpf/corrigir-lote', methods=['PUT'])
+@require_permission('folha_pagamento_edit')
+def corrigir_cpf_lote():
+    """
+    🚀 Correção em Lote de CPFs
+    ============================
+    
+    Aplica correções de CPF em múltiplos funcionários de uma vez.
+    Evita problemas de rate limit e melhora performance.
+    
+    Body:
+        {
+            "correcoes": [
+                {"funcionario_id": 123, "cpf": "12345678901"},
+                {"funcionario_id": 456, "cpf": "98765432100"}
+            ]
+        }
+    
+    Resposta:
+        {
+            "success": true,
+            "total_processados": 2,
+            "total_sucesso": 2,
+            "total_falhas": 0,
+            "resultados": [...]
+        }
+    """
+    from cpf_validator import CPFValidator
+    
+    try:
+        dados = request.get_json()
+        correcoes = dados.get('correcoes', [])
+        
+        if not correcoes or not isinstance(correcoes, list):
+            return jsonify({'error': 'Lista de correções não informada'}), 400
+        
+        if len(correcoes) > 500:
+            return jsonify({'error': 'Máximo de 500 correções por lote'}), 400
+        
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não selecionada'}), 403
+        
+        logger.info(f"🔧 [LOTE CPF] Processando {len(correcoes)} correções para empresa {empresa_id}")
+        
+        resultados = []
+        total_sucesso = 0
+        total_falhas = 0
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            for i, correcao in enumerate(correcoes):
+                funcionario_id = correcao.get('funcionario_id')
+                novo_cpf = correcao.get('cpf', '').strip()
+                
+                if not funcionario_id or not novo_cpf:
+                    resultados.append({
+                        'funcionario_id': funcionario_id,
+                        'success': False,
+                        'error': 'Dados incompletos'
+                    })
+                    total_falhas += 1
+                    continue
+                
+                # Validar novo CPF
+                validacao = CPFValidator.validar_com_detalhes(novo_cpf)
+                if not validacao['valido']:
+                    resultados.append({
+                        'funcionario_id': funcionario_id,
+                        'success': False,
+                        'error': f'CPF inválido: {validacao["erro"]}'
+                    })
+                    total_falhas += 1
+                    continue
+                
+                # Atualizar CPF no banco
+                cpf_limpo = CPFValidator.limpar(novo_cpf)
+                
+                cursor.execute("""
+                    UPDATE funcionarios 
+                    SET cpf = %s, data_atualizacao = CURRENT_TIMESTAMP
+                    WHERE id = %s AND empresa_id = %s
+                """, (cpf_limpo, funcionario_id, empresa_id))
+                
+                if cursor.rowcount > 0:
+                    resultados.append({
+                        'funcionario_id': funcionario_id,
+                        'success': True,
+                        'cpf_atualizado': CPFValidator.formatar(cpf_limpo)
+                    })
+                    total_sucesso += 1
+                else:
+                    resultados.append({
+                        'funcionario_id': funcionario_id,
+                        'success': False,
+                        'error': 'Funcionário não encontrado ou sem permissão'
+                    })
+                    total_falhas += 1
+                
+                # Log a cada 50 correções
+                if (i + 1) % 50 == 0:
+                    logger.info(f"✅ [LOTE CPF] Processados {i + 1}/{len(correcoes)}")
+            
+            conn.commit()
+            logger.info(f"✅ [LOTE CPF] Concluído: {total_sucesso} sucesso, {total_falhas} falhas")
+            
+            return jsonify({
+                'success': True,
+                'total_processados': len(correcoes),
+                'total_sucesso': total_sucesso,
+                'total_falhas': total_falhas,
+                'resultados': resultados
+            })
+            
+        except Exception as db_error:
+            conn.rollback()
+            logger.error(f"❌ [LOTE CPF] Erro no banco: {db_error}")
+            raise db_error
+        finally:
+            cursor.close()
+            conn.close()
+        
+    except Exception as e:
+        logger.error(f"❌ [LOTE CPF] Erro geral: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/funcionarios/<int:funcionario_id>/cpf', methods=['PUT'])
 @require_permission('folha_pagamento_edit')
 def corrigir_cpf_funcionario(funcionario_id):
