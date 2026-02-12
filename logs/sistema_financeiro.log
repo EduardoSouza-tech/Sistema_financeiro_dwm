@@ -447,3 +447,8 @@
 2026-01-21 07:55:42 | [32mINFO[0m | sistema_financeiro:<module>:41 | Sistema de logging e monitoramento inicializado
 2026-01-21 07:55:42 | [32mINFO[0m | sistema_financeiro:<module>:42 | Sentry: ⚠️  Desabilitado
 2026-01-21 07:55:42 | [32mINFO[0m | sistema_financeiro:<module>:43 | ================================================================================
+2026-02-11 20:53:57 | [32mINFO[0m | sistema_financeiro:setup_logging:191 | Sistema de logging configurado - Nível: INFO
+2026-02-11 20:53:57 | [32mINFO[0m | sistema_financeiro:<module>:42 | ================================================================================
+2026-02-11 20:53:57 | [32mINFO[0m | sistema_financeiro:<module>:43 | Sistema de logging e monitoramento inicializado
+2026-02-11 20:53:57 | [32mINFO[0m | sistema_financeiro:<module>:44 | Sentry: ⚠️  Desabilitado
+2026-02-11 20:53:57 | [32mINFO[0m | sistema_financeiro:<module>:45 | ================================================================================

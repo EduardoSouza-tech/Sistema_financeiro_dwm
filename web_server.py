@@ -4709,132 +4709,82 @@ def relatorio_cpfs_invalidos():
 @app.route('/api/funcionarios/cpf/correcao', methods=['GET'])
 @require_permission('folha_pagamento_edit')
 def gerar_correcoes_cpf():
-    """Gera sugestões de correção automática para CPFs inválidos"""
+    """Gera sugestões de correção automática para CPFs inválidos - VERSÃO TESTE"""
     try:
-        logger.info("🔧 [CPF CORRETOR] Iniciando análise de correções...")
+        logger.info("🔧 [CPF CORRETOR] TESTE - Iniciando versão simplificada...")
         
-        # Obter empresa_id da sessão
+        # Testar empresa_id
         empresa_id = session.get('empresa_id')
         if not empresa_id:
             logger.error("❌ [CPF CORRETOR] Empresa não selecionada")
             return jsonify({'error': 'Empresa não selecionada'}), 403
         
-        logger.info(f"🔧 [CPF CORRETOR] Empresa ID: {empresa_id}")
+        logger.info(f"🔧 [CPF CORRETOR] TESTE - Empresa ID: {empresa_id}")
         
-        # Buscar funcionários da empresa
-        conn = None
-        cursor = None
+        # Testar imports
         try:
+            logger.info("🔧 [CPF CORRETOR] TESTE - Testando CPFValidator...")
+            test_cpf = CPFValidator.validar("12345678901")
+            logger.info(f"🔧 [CPF CORRETOR] TESTE - CPFValidator funcionou: {test_cpf}")
+        except Exception as import_error:
+            logger.error(f"❌ [CPF CORRETOR] TESTE - Erro no CPFValidator: {import_error}")
+            return jsonify({
+                'success': False,
+                'error': f'Erro no CPFValidator: {import_error}',
+                'tipo_erro': 'erro_import_validator'
+            }), 500
+        
+        try:
+            logger.info("🔧 [CPF CORRETOR] TESTE - Testando CPFCorrector...")
+            test_result = CPFCorrector.tentar_correcao_automatica("12345678901")
+            logger.info(f"🔧 [CPF CORRETOR] TESTE - CPFCorrector funcionou: {test_result}")
+        except Exception as import_error:
+            logger.error(f"❌ [CPF CORRETOR] TESTE - Erro no CPFCorrector: {import_error}")
+            return jsonify({
+                'success': False,
+                'error': f'Erro no CPFCorrector: {import_error}',
+                'tipo_erro': 'erro_import_corrector'
+            }), 500
+        
+        # Testar conexão banco simples
+        try:
+            logger.info("🔧 [CPF CORRETOR] TESTE - Testando conexão banco...")
             conn = db.get_connection()
             cursor = conn.cursor()
-            
-            # Buscar todos os funcionários da empresa
-            query = """
-                SELECT id, nome, cpf, email, celular, ativo, data_admissao, data_demissao
-                FROM funcionarios
-                WHERE empresa_id = %s
-                ORDER BY nome ASC
-            """
-            
-            cursor.execute(query, (empresa_id,))
-            rows = cursor.fetchall()
-            
-            logger.info(f"🔧 [CPF CORRETOR] Encontrados {len(rows)} funcionários no banco")
-            
+            cursor.execute("SELECT COUNT(*) FROM funcionarios WHERE empresa_id = %s", (empresa_id,))
+            total_funcionarios = cursor.fetchone()[0]
+            cursor.close()
+            conn.close()
+            logger.info(f"🔧 [CPF CORRETOR] TESTE - Banco OK: {total_funcionarios} funcionários")
         except Exception as db_error:
-            logger.error(f"❌ [CPF CORRETOR] Erro na consulta ao banco: {db_error}")
-            raise db_error
-        finally:
-            if cursor:
-                cursor.close()
-            if conn:
-                conn.close()
-        
-        # Converter para lista de dicionários
-        funcionarios = []
-        for row in rows:
-            funcionarios.append({
-                'id': row[0],
-                'nome': row[1],
-                'cpf': row[2] or '',
-                'email': row[3] or ''
-            })
-        
-        logger.info(f"🔧 [CPF CORRETOR] Analisando {len(funcionarios)} funcionários...")
-        
-        # Filtrar apenas funcionários com CPF inválido
-        funcionarios_invalidos = []
-        for func in funcionarios:
-            cpf = func.get('cpf', '')
-            
-            if cpf:
-                try:
-                    if not CPFValidator.validar(cpf):
-                        funcionarios_invalidos.append(func)
-                        logger.info(f"🔧 [CPF CORRETOR] CPF inválido encontrado: {func['nome']} - {cpf}")
-                except Exception as cpf_error:
-                    logger.error(f"❌ [CPF CORRETOR] Erro ao validar CPF de {func['nome']}: {cpf_error}")
-        
-        logger.info(f"🔧 [CPF CORRETOR] Encontrados {len(funcionarios_invalidos)} funcionários com CPF inválido")
-        
-        # Se não há funcionários com CPF inválido, retornar resultado vazio
-        if len(funcionarios_invalidos) == 0:
-            logger.info("🔧 [CPF CORRETOR] Nenhum CPF inválido encontrado")
+            logger.error(f"❌ [CPF CORRETOR] TESTE - Erro no banco: {db_error}")
             return jsonify({
-                'success': True,
-                'total_funcionarios': len(funcionarios),
-                'total_cpfs_invalidos': 0,
-                'total_corrigidos': 0,
-                'total_nao_corrigidos': 0,
-                'taxa_correcao': 0,
-                'correcoes_por_tipo': {},
-                'correcoes_sugeridas': []
-            })
+                'success': False,
+                'error': f'Erro no banco: {db_error}',
+                'tipo_erro': 'erro_banco'
+            }), 500
         
-        # Aplicar correção automática
-        try:
-            logger.info("🔧 [CPF CORRETOR] Iniciando análise de correções...")
-            resultado_correcao = CPFCorrector.corrigir_lista_funcionarios(funcionarios_invalidos)
-            logger.info(f"🔧 [CPF CORRETOR] Resultado da análise: {resultado_correcao}")
-        except Exception as corrector_error:
-            logger.error(f"❌ [CPF CORRETOR] Erro no corretor: {corrector_error}")
-            # Retornar resultado básico se houver erro no corretor
-            return jsonify({
-                'success': True,
-                'total_funcionarios': len(funcionarios),
-                'total_cpfs_invalidos': len(funcionarios_invalidos),
-                'total_corrigidos': 0,
-                'total_nao_corrigidos': len(funcionarios_invalidos),
-                'taxa_correcao': 0,
-                'correcoes_por_tipo': {},
-                'correcoes_sugeridas': [],
-                'erro_corretor': str(corrector_error)
-            })
+        # Retornar sucesso na versão teste
+        logger.info("✅ [CPF CORRETOR] TESTE - Todos os componentes funcionando!")
         
-        # Preparar resposta
-        resposta = {
+        return jsonify({
             'success': True,
-            'total_funcionarios': len(funcionarios),
-            'total_cpfs_invalidos': len(funcionarios_invalidos),
-            'total_corrigidos': resultado_correcao['total_corrigidos'],
-            'total_nao_corrigidos': resultado_correcao['total_nao_corrigidos'],
-            'taxa_correcao': round(resultado_correcao['total_corrigidos'] / len(funcionarios_invalidos) * 100, 1) if funcionarios_invalidos else 0,
-            'correcoes_por_tipo': resultado_correcao['correcoes_por_tipo'],
-            'correcoes_sugeridas': resultado_correcao['correcoes_sugeridas']
-        }
-        
-        logger.info(f"✅ [CPF CORRETOR] Análise concluída: {resultado_correcao['total_corrigidos']}/{len(funcionarios_invalidos)} correções possíveis")
-        
-        return jsonify(resposta)
+            'teste_mode': True,
+            'total_funcionarios': total_funcionarios,
+            'cpf_validator_ok': True,
+            'cpf_corrector_ok': True,
+            'banco_ok': True,
+            'message': 'Teste de componentes realizado com sucesso'
+        })
         
     except Exception as e:
-        logger.error(f"❌ Erro ao gerar correções de CPF: {e}")
+        logger.error(f"❌ [CPF CORRETOR] TESTE - Erro geral: {e}")
         import traceback
-        traceback.print_exc(file=sys.stderr)
+        traceback.print_exc()
         return jsonify({
             'success': False, 
             'error': str(e),
-            'tipo_erro': 'erro_geral'
+            'tipo_erro': 'erro_geral_teste'
         }), 500
 
 
