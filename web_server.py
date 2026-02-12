@@ -3945,6 +3945,7 @@ def conciliacao_geral_extrato():
                 categoria = item.get('categoria')
                 subcategoria = item.get('subcategoria', '')
                 razao_social = item.get('razao_social', '')
+                descricao_personalizada = item.get('descricao', '')
                 
                 # Buscar transação do extrato
                 with db.get_connection() as conn:
@@ -4016,8 +4017,11 @@ def conciliacao_geral_extrato():
                     data_transacao = datetime.fromisoformat(data_transacao.replace('Z', '+00:00')).date()
                 
                 # Transação do extrato já foi paga/recebida (já passou pelo banco)
+                # Usar descrição personalizada se fornecida, senão usar a original do extrato
+                descricao_final = descricao_personalizada if descricao_personalizada else descricao
+                
                 lancamento = Lancamento(
-                    descricao=f"[EXTRATO] {descricao}",
+                    descricao=f"[EXTRATO] {descricao_final}",
                     valor=abs(float(transacao['valor'])),
                     tipo=tipo,
                     categoria=categoria,

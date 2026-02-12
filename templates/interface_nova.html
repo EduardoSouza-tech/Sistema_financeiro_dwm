@@ -6281,7 +6281,7 @@
                                     </div>
                                     
                                     <!-- Campos de configuração -->
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
                                         <div>
                                             <label style="display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 4px;">Categoria:</label>
                                             <select id="categoria-${transacao.id}" class="select-categoria-conciliacao" 
@@ -6311,6 +6311,14 @@
                                                 ${clientes.map(cliente => `<option value="${cliente.razao_social}">${cliente.razao_social}</option>`).join('')}
                                             </select>
                                         </div>
+                                    </div>
+                                    
+                                    <div style="margin-top: 8px;">
+                                        <label style="display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 4px;">Descrição:</label>
+                                        <input type="text" id="descricao-${transacao.id}" class="input-descricao-conciliacao" 
+                                               placeholder="Descrição personalizada (opcional)" 
+                                               value="${(transacao.descricao || '').replace(/"/g, '&quot;')}"
+                                               style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
                                     </div>
                                 </div>
                             </div>
@@ -6383,6 +6391,7 @@
                 const categoria = document.getElementById(`categoria-${transacaoId}`).value;
                 const subcategoria = document.getElementById(`subcategoria-${transacaoId}`).value;
                 const cliente = document.getElementById(`cliente-${transacaoId}`).value;
+                const descricao = document.getElementById(`descricao-${transacaoId}`).value;
                 
                 if (!categoria) {
                     erros.push(`Transação #${transacaoId}: categoria não selecionada`);
@@ -6398,7 +6407,8 @@
                     transacao_id: transacaoId,
                     categoria: categoria,
                     subcategoria: subcategoria,
-                    razao_social: cliente || null
+                    razao_social: cliente || null,
+                    descricao: descricao || null
                 });
             });
             
@@ -6513,10 +6523,207 @@
             }
         }
 
-        // Conciliar transação (placeholder - pode ser expandido)
-        async function conciliarTransacao(transacaoId) {
-            alert('🔗 Funcionalidade de conciliação será implementada em breve!\n\nEsta transação será vinculada a um lançamento do sistema.');
+        // Conciliar transação individual
+        async function mostrarSugestoesConciliacao(transacaoId) {
+            console.log('🔗 Abrindo modal de conciliação para transação:', transacaoId);
+            
+            try {
+                // Buscar dados da transação
+                const transacao = window.extratos?.find(t => t.id === transacaoId);
+                if (!transacao) {
+                    alert('❌ Transação não encontrada');
+                    return;
+                }
+                
+                // Buscar categorias
+                let categorias = [];
+                if (window.AppState && window.AppState.categorias && window.AppState.categorias.length > 0) {
+                    categorias = window.AppState.categorias;
+                } else if (window.categorias && window.categorias.length > 0) {
+                    categorias = window.categorias;
+                } else {
+                    const categoriasResponse = await fetch('/api/categorias', {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    });
+                    
+                    if (categoriasResponse.ok) {
+                        const categoriasData = await categoriasResponse.json();
+                        categorias = categoriasData.data || categoriasData;
+                    }
+                }
+                
+                // Buscar clientes
+                const clientesResponse = await fetch('/api/clientes', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                let clientes = [];
+                if (clientesResponse.ok) {
+                    const clientesData = await clientesResponse.json();
+                    clientes = clientesData.data || clientesData;
+                }
+                
+                // Filtrar categorias por tipo (receita/despesa)
+                const valor = parseFloat(transacao.valor);
+                const tipoTransacao = valor >= 0 ? 'receita' : 'despesa';
+                const categoriasFiltered = categorias.filter(c => {
+                    const tipoCategoria = (c.tipo || '').toLowerCase();
+                    return tipoCategoria === tipoTransacao;
+                });
+                
+                // Preencher formulário do modal
+                const form = document.getElementById('transacao-conciliacao-form');
+                form.innerHTML = `
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">📋 Dados da Transação</h3>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 14px;">
+                            <div><strong>Data:</strong> ${new Date(transacao.data).toLocaleDateString('pt-BR')}</div>
+                            <div><strong>Valor:</strong> <span style="color: ${valor >= 0 ? '#27ae60' : '#e74c3c'}; font-weight: bold;">${valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                            <div style="grid-column: 1 / -1;"><strong>Descrição Original:</strong> ${transacao.descricao || '-'}</div>
+                            <div style="grid-column: 1 / -1;"><strong>Conta:</strong> ${transacao.conta_bancaria || '-'}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #555;">Categoria: *</label>
+                            <select id="conciliacao-categoria" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" onchange="atualizarSubcategoriasModal()">
+                                <option value="">Selecione...</option>
+                                ${categoriasFiltered.map(c => {
+                                    const subcats = Array.isArray(c.subcategorias) ? c.subcategorias : [];
+                                    return `<option value="${c.nome}" data-subcategorias='${JSON.stringify(subcats)}'>${c.nome}</option>`;
+                                }).join('')}
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #555;">Subcategoria: *</label>
+                            <select id="conciliacao-subcategoria" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #555;">Descrição:</label>
+                        <input type="text" id="conciliacao-descricao" value="${(transacao.descricao || '').replace(/"/g, '&quot;')}" 
+                               placeholder="Descrição personalizada (opcional)" 
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #555;">Cliente/Fornecedor:</label>
+                        <select id="conciliacao-cliente" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            <option value="">Selecione (opcional)...</option>
+                            ${Array.isArray(clientes) ? clientes.map(cliente => `<option value="${cliente.razao_social}">${cliente.razao_social}</option>`).join('') : ''}
+                        </select>
+                    </div>
+                    
+                    <input type="hidden" id="conciliacao-transacao-id" value="${transacaoId}">
+                `;
+                
+                // Expor função de atualização de subcategorias
+                window.atualizarSubcategoriasModal = function() {
+                    const selectCategoria = document.getElementById('conciliacao-categoria');
+                    const selectSubcategoria = document.getElementById('conciliacao-subcategoria');
+                    
+                    if (!selectCategoria || !selectSubcategoria) return;
+                    
+                    selectSubcategoria.innerHTML = '<option value="">Selecione...</option>';
+                    
+                    const selectedOption = selectCategoria.options[selectCategoria.selectedIndex];
+                    if (selectedOption && selectedOption.value) {
+                        try {
+                            const subcategorias = JSON.parse(selectedOption.dataset.subcategorias || '[]');
+                            subcategorias.forEach(sub => {
+                                const option = document.createElement('option');
+                                option.value = sub;
+                                option.textContent = sub;
+                                selectSubcategoria.appendChild(option);
+                            });
+                        } catch (e) {
+                            console.error('Erro ao parsear subcategorias:', e);
+                        }
+                    }
+                };
+                
+                // Abrir modal
+                document.getElementById('modal-conciliacao').style.display = 'flex';
+                
+            } catch (error) {
+                console.error('❌ Erro ao abrir modal de conciliação:', error);
+                alert('❌ Erro ao abrir modal de conciliação. Verifique o console.');
+            }
         }
+        
+        // Salvar conciliação individual
+        async function conciliarTransacaoIndividual() {
+            try {
+                const transacaoId = document.getElementById('conciliacao-transacao-id').value;
+                const categoria = document.getElementById('conciliacao-categoria').value;
+                const subcategoria = document.getElementById('conciliacao-subcategoria').value;
+                const descricao = document.getElementById('conciliacao-descricao').value;
+                const cliente = document.getElementById('conciliacao-cliente').value;
+                
+                // Validar campos obrigatórios
+                if (!categoria) {
+                    alert('⚠️ Por favor, selecione uma categoria');
+                    return;
+                }
+                
+                if (!subcategoria) {
+                    alert('⚠️ Por favor, selecione uma subcategoria');
+                    return;
+                }
+                
+                // Confirmar
+                if (!confirm('Confirma a conciliação desta transação?\n\nSerá criado um lançamento automático no sistema.')) {
+                    return;
+                }
+                
+                // Enviar para API (usar endpoint de conciliação geral com 1 transação)
+                const response = await fetch('/api/extratos/conciliacao-geral', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        transacoes: [{
+                            transacao_id: parseInt(transacaoId),
+                            categoria: categoria,
+                            subcategoria: subcategoria,
+                            descricao: descricao || null,
+                            razao_social: cliente || null
+                        }]
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('✅ Transação conciliada com sucesso!');
+                    
+                    // Fechar modal e recarregar transações
+                    closeModal('modal-conciliacao');
+                    await window.loadExtratoTransacoes();
+                } else {
+                    alert(`❌ Erro ao conciliar transação:\n${result.error || result.message || 'Erro desconhecido'}`);
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao conciliar transação:', error);
+                alert('❌ Erro ao conciliar transação. Verifique sua conexão e tente novamente.');
+            }
+        }
+        
+        // Expor funções no escopo global
+        window.mostrarSugestoesConciliacao = mostrarSugestoesConciliacao;
+        window.conciliarTransacaoIndividual = conciliarTransacaoIndividual;
 
         // ====================================
         // FOLHA DE PAGAMENTO - FUNCIONÁRIOS
