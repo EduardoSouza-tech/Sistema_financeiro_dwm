@@ -92,8 +92,9 @@ import psycopg2.extras
 # ============================================================================
 # VALIDAÇÃO DE DOCUMENTOS
 # ============================================================================
-from cpf_validator import CPFValidator
-from cpf_corrector import CPFCorrector
+# IMPORTS COMENTADOS - movidos para dentro das funções específicas
+# from cpf_validator import CPFValidator
+# from cpf_corrector import CPFCorrector
 
 # ============================================================================
 # UTILITÁRIOS COMPARTILHADOS (FASE 4)
@@ -4597,6 +4598,9 @@ def relatorio_cpfs_invalidos():
         - taxa_erro: percentual de erros (%)
         - funcionarios_invalidos: lista detalhada com erros
     """
+    # Import local para evitar falha de carregamento do módulo
+    from cpf_validator import CPFValidator
+    
     try:
         print("\n🔍 [CPF RELATORIO] Iniciando análise...")
         
@@ -4907,6 +4911,9 @@ def ping_cpf_correcao():
 @require_permission('folha_pagamento_edit')
 def corrigir_cpf_funcionario(funcionario_id):
     """Aplica correção de CPF em um funcionário específico"""
+    # Import local para evitar falha de carregamento do módulo
+    from cpf_validator import CPFValidator
+    
     try:
         dados = request.get_json()
         novo_cpf = dados.get('cpf', '').strip()
@@ -4968,6 +4975,9 @@ def corrigir_cpf_funcionario(funcionario_id):
 @require_permission('folha_pagamento_create')
 def criar_funcionario():
     """Criar novo funcionário"""
+    # Import local para evitar falha de carregamento do módulo
+    from cpf_validator import CPFValidator
+    
     try:
         import re
         
