@@ -4709,83 +4709,52 @@ def relatorio_cpfs_invalidos():
 @app.route('/api/funcionarios/cpf/correcao', methods=['GET'])
 @require_permission('folha_pagamento_edit')
 def gerar_correcoes_cpf():
-    """Gera sugestões de correção automática para CPFs inválidos - VERSÃO TESTE"""
+    """Gera sugestões de correção automática para CPFs inválidos - VERSÃO ULTRA SIMPLES"""
     try:
-        logger.info("🔧 [CPF CORRETOR] TESTE - Iniciando versão simplificada...")
+        logger.info("🔧 [CPF CORRETOR] ULTRA-TESTE - Versão minimalista iniciada...")
         
-        # Testar empresa_id
+        # Testar apenas empresa_id
         empresa_id = session.get('empresa_id')
         if not empresa_id:
             logger.error("❌ [CPF CORRETOR] Empresa não selecionada")
             return jsonify({'error': 'Empresa não selecionada'}), 403
         
-        logger.info(f"🔧 [CPF CORRETOR] TESTE - Empresa ID: {empresa_id}")
+        logger.info(f"✅ [CPF CORRETOR] ULTRA-TESTE - Empresa ID: {empresa_id}")
         
-        # Testar imports
-        try:
-            logger.info("🔧 [CPF CORRETOR] TESTE - Testando CPFValidator...")
-            test_cpf = CPFValidator.validar("12345678901")
-            logger.info(f"🔧 [CPF CORRETOR] TESTE - CPFValidator funcionou: {test_cpf}")
-        except Exception as import_error:
-            logger.error(f"❌ [CPF CORRETOR] TESTE - Erro no CPFValidator: {import_error}")
-            return jsonify({
-                'success': False,
-                'error': f'Erro no CPFValidator: {import_error}',
-                'tipo_erro': 'erro_import_validator'
-            }), 500
-        
-        try:
-            logger.info("🔧 [CPF CORRETOR] TESTE - Testando CPFCorrector...")
-            test_result = CPFCorrector.tentar_correcao_automatica("12345678901")
-            logger.info(f"🔧 [CPF CORRETOR] TESTE - CPFCorrector funcionou: {test_result}")
-        except Exception as import_error:
-            logger.error(f"❌ [CPF CORRETOR] TESTE - Erro no CPFCorrector: {import_error}")
-            return jsonify({
-                'success': False,
-                'error': f'Erro no CPFCorrector: {import_error}',
-                'tipo_erro': 'erro_import_corrector'
-            }), 500
-        
-        # Testar conexão banco simples
-        try:
-            logger.info("🔧 [CPF CORRETOR] TESTE - Testando conexão banco...")
-            conn = db.get_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM funcionarios WHERE empresa_id = %s", (empresa_id,))
-            total_funcionarios = cursor.fetchone()[0]
-            cursor.close()
-            conn.close()
-            logger.info(f"🔧 [CPF CORRETOR] TESTE - Banco OK: {total_funcionarios} funcionários")
-        except Exception as db_error:
-            logger.error(f"❌ [CPF CORRETOR] TESTE - Erro no banco: {db_error}")
-            return jsonify({
-                'success': False,
-                'error': f'Erro no banco: {db_error}',
-                'tipo_erro': 'erro_banco'
-            }), 500
-        
-        # Retornar sucesso na versão teste
-        logger.info("✅ [CPF CORRETOR] TESTE - Todos os componentes funcionando!")
-        
+        # Retornar resposta de sucesso SEM usar CPFValidator ou CPFCorrector
         return jsonify({
             'success': True,
-            'teste_mode': True,
-            'total_funcionarios': total_funcionarios,
-            'cpf_validator_ok': True,
-            'cpf_corrector_ok': True,
-            'banco_ok': True,
-            'message': 'Teste de componentes realizado com sucesso'
+            'teste_ultra_simples': True,
+            'empresa_id': empresa_id,
+            'message': 'Endpoint funcionando - aguardando implementação dos módulos CPF',
+            'total_funcionarios': 0,
+            'total_cpfs_invalidos': 0,
+            'total_corrigidos': 0,
+            'total_nao_corrigidos': 0,
+            'taxa_correcao': 0,
+            'correcoes_por_tipo': {},
+            'correcoes_sugeridas': []
         })
         
     except Exception as e:
-        logger.error(f"❌ [CPF CORRETOR] TESTE - Erro geral: {e}")
+        logger.error(f"❌ [CPF CORRETOR] ULTRA-TESTE - Erro: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({
             'success': False, 
             'error': str(e),
-            'tipo_erro': 'erro_geral_teste'
+            'tipo_erro': 'erro_ultra_simples'
         }), 500
+
+
+@app.route('/api/funcionarios/cpf/ping', methods=['GET'])
+def ping_cpf_correcao():
+    """Endpoint de teste puro - sem decorator, sem dependências"""
+    return jsonify({
+        'success': True,
+        'message': 'Endpoint CPF funcionando',
+        'timestamp': str(datetime.now())
+    })
 
 
 @app.route('/api/funcionarios/<int:funcionario_id>/cpf', methods=['PUT'])
