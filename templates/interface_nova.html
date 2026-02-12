@@ -5394,6 +5394,68 @@
             console.log('🔐 Chamando checkUserAuth...');
             checkUserAuth();
             
+            // ============================================================================
+            // SISTEMA DE HEARTBEAT - Mantém sessão ativa durante uso
+            // ============================================================================
+            // Fazer uma requisição leve a cada 5 minutos para renovar a sessão
+            // e evitar timeout durante períodos de inatividade
+            setInterval(async function() {
+                try {
+                    console.log('💓 Heartbeat: Renovando sessão...');
+                    const response = await fetch('/api/auth/verify');
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (!data.authenticated) {
+                            console.warn('⚠️ Sessão expirada - redirecionando para login');
+                            window.location.href = '/login';
+                        } else {
+                            console.log('✅ Heartbeat: Sessão renovada com sucesso');
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ Erro no heartbeat:', error);
+                }
+            }, 5 * 60 * 1000); // 5 minutos
+            
+            console.log('💓 Sistema de heartbeat iniciado (renovação a cada 5 minutos)');
+            
+            // ============================================================================
+            // DETECTOR DE INATIVIDADE - Avisa antes da sessão expirar
+            // ============================================================================
+            let ultimaAtividade = Date.now();
+            let avisoMostrado = false;
+            
+            // Atualizar timestamp de atividade quando usuário interagir
+            const atualizarAtividade = () => {
+                ultimaAtividade = Date.now();
+                avisoMostrado = false;
+            };
+            
+            // Monitorar atividade do usuário
+            document.addEventListener('mousemove', atualizarAtividade);
+            document.addEventListener('keypress', atualizarAtividade);
+            document.addEventListener('click', atualizarAtividade);
+            document.addEventListener('scroll', atualizarAtividade);
+            
+            // Verificar inatividade a cada minuto
+            setInterval(function() {
+                const tempoInativo = Date.now() - ultimaAtividade;
+                const minutosInativo = Math.floor(tempoInativo / 60000);
+                
+                // Avisar após 20 minutos de inatividade (apenas uma vez)
+                if (minutosInativo >= 20 && !avisoMostrado) {
+                    avisoMostrado = true;
+                    console.warn('⚠️ Usuário inativo há 20 minutos');
+                    
+                    // Mostrar toast discreto
+                    if (typeof showToast === 'function') {
+                        showToast('⏰ Você está inativo há 20 minutos. A sessão expira em 4 horas sem atividade.', 'warning');
+                    }
+                }
+            }, 60 * 1000); // Verificar a cada 1 minuto
+            
+            console.log('👁️ Detector de inatividade iniciado (aviso após 20 minutos)');
+            
             // Definir ano e mês atuais nos filtros do dashboard
             const hoje = new Date();
             const anoAtual = hoje.getFullYear();

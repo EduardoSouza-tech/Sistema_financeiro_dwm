@@ -259,6 +259,20 @@ CORS(app,
      supports_credentials=True)
 
 # ============================================================================
+# AUTO-RENOVAÇÃO DE SESSÃO (KEEP-ALIVE)
+# ============================================================================
+@app.before_request
+def renovar_sessao():
+    """
+    Renova a sessão automaticamente a cada requisição para evitar timeout
+    durante uso ativo do sistema. A sessão é marcada como modificada para
+    forçar o Flask a atualizar o cookie de sessão.
+    """
+    if 'user_id' in session:
+        session.modified = True  # Força renovação do cookie de sessão
+        # O Flask automaticamente atualiza o timestamp da sessão
+
+# ============================================================================
 # INICIALIZAR CSRF PROTECTION
 # ============================================================================
 csrf_instance = init_csrf(app)
