@@ -10233,7 +10233,7 @@ def criar_admin_inicial():
     """
     Endpoint temporário para criar usuário admin no Railway
     
-    ⚠️ DISPONÍVEL APENAS EM DESENVOLVIMENTO
+    ATENCAO: DISPONÍVEL APENAS EM DESENVOLVIMENTO
     Em produção, use: python criar_admin_railway.py
     """
     # Bloquear em produção
@@ -10298,7 +10298,7 @@ def adicionar_permissoes_regras():
     Endpoint temporário para adicionar permissões de regras de conciliação
     no campo JSONB permissoes_empresa da tabela usuario_empresas
     
-    ⚠️ DISPONÍVEL APENAS EM DESENVOLVIMENTO
+    ATENCAO: DISPONÍVEL APENAS EM DESENVOLVIMENTO
     """
     # Bloquear em produção
     check = _check_debug_endpoint_allowed()
