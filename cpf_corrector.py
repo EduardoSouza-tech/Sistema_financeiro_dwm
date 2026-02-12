@@ -131,19 +131,37 @@ class CPFCorrector:
     def _corrigir_formatacao_zeros(cpf: str) -> Optional[str]:
         """
         Corrige formatação e adiciona zeros à esquerda se necessário
+        
+        Casos tratados:
+        - Remove caracteres não numéricos (pontos, traços, espaços)
+        - Adiciona zeros à esquerda até completar 11 dígitos
+        - Rejeita CPFs com mais de 11 dígitos após limpeza
+        
+        Exemplos:
+        - "969.256.476-20" -> "96925647620" (apenas formatação)
+        - "9692564762" -> "09692564762" (1 zero à esquerda)
+        - "969256476" -> "00969256476" (2 zeros à esquerda)
+        - "12345678901234" -> None (mais de 11 dígitos)
         """
+        if not cpf:
+            return None
+            
         # Limpar tudo que não é dígito
         cpf_limpo = re.sub(r'\D', '', cpf)
         
-        # Se tem 10 dígitos, adicionar zero à esquerda
-        if len(cpf_limpo) == 10:
-            cpf_limpo = '0' + cpf_limpo
-        
-        # Deve ter exatamente 11 dígitos
-        if len(cpf_limpo) != 11:
+        # Se não tem dígitos, retornar None
+        if not cpf_limpo:
             return None
         
-        return cpf_limpo
+        # Se tem mais de 11 dígitos, não pode corrigir
+        if len(cpf_limpo) > 11:
+            return None
+        
+        # Adicionar zeros à esquerda até completar 11 dígitos
+        cpf_completo = cpf_limpo.zfill(11)
+        
+        # Retornar CPF com 11 dígitos
+        return cpf_completo
     
     @staticmethod
     def _corrigir_digitos_verificadores(cpf: str) -> Optional[str]:
