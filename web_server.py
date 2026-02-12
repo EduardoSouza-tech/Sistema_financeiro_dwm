@@ -4713,6 +4713,33 @@ def gerar_correcoes_cpf():
     import traceback
     import sys
     
+    # IMPORTAR MÓDULOS CPF DENTRO DA FUNÇÃO (para debug)
+    try:
+        logger.info("🔧 [CPF] Importando CPFValidator...")
+        from cpf_validator import CPFValidator as CPFVal
+        logger.info("✅ [CPF] CPFValidator importado com sucesso")
+    except Exception as import_error:
+        logger.error(f"❌ [CPF] ERRO AO IMPORTAR CPFValidator: {import_error}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'Erro ao importar CPFValidator: {str(import_error)}',
+            'traceback': traceback.format_exc()
+        }), 500
+    
+    try:
+        logger.info("🔧 [CPF] Importando CPFCorrector...")
+        from cpf_corrector import CPFCorrector as CPFCorr
+        logger.info("✅ [CPF] CPFCorrector importado com sucesso")
+    except Exception as import_error:
+        logger.error(f"❌ [CPF] ERRO AO IMPORTAR CPFCorrector: {import_error}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'Erro ao importar CPFCorrector: {str(import_error)}',
+            'traceback': traceback.format_exc()
+        }), 500
+    
     try:
         logger.info("=" * 80)
         logger.info("🔧 [CPF CORRETOR] === INÍCIO DA EXECUÇÃO ===")
@@ -4735,7 +4762,6 @@ def gerar_correcoes_cpf():
             cursor = conn.cursor()
             
             logger.info("🔧 [CPF CORRETOR] Executando query...")
-            # Buscar todos os funcionários da empresa
             query = """
                 SELECT id, nome, cpf
                 FROM funcionarios
@@ -4785,7 +4811,7 @@ def gerar_correcoes_cpf():
                 continue
                 
             try:
-                is_valid = CPFValidator.validar(cpf)
+                is_valid = CPFVal.validar(cpf)
                 if not is_valid:
                     funcionarios_invalidos.append(func)
                     if len(funcionarios_invalidos) <= 5:  # Log apenas os 5 primeiros
@@ -4813,7 +4839,7 @@ def gerar_correcoes_cpf():
         # Aplicar correção automática
         logger.info("🔧 [CPF CORRETOR] Iniciando correção automática...")
         try:
-            resultado_correcao = CPFCorrector.corrigir_lista_funcionarios(funcionarios_invalidos)
+            resultado_correcao = CPFCorr.corrigir_lista_funcionarios(funcionarios_invalidos)
             logger.info(f"✅ [CPF CORRETOR] Correção concluída: {resultado_correcao['total_corrigidos']}/{len(funcionarios_invalidos)}")
         except Exception as corrector_error:
             logger.error(f"❌ [CPF CORRETOR] ERRO NO CORRETOR: {corrector_error}")
