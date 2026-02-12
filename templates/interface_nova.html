@@ -7279,6 +7279,9 @@
         // EVENTOS OPERACIONAIS
         // ====================================
 
+        // Guarda os dados originais do evento para comparar depois
+        var _eventoOriginal = null;
+
         function abrirModalEvento(evento = null) {
             const modal = document.getElementById('modal-evento');
             const title = document.getElementById('modal-evento-title');
@@ -7286,6 +7289,9 @@
             if (evento) {
                 console.log('🔍 [DEBUG EVENTO] Abrindo modal para edição:', evento);
                 console.log('🔍 [DEBUG EVENTO] data_evento original:', evento.data_evento);
+                
+                // Guardar dados originais para comparar ao salvar
+                _eventoOriginal = JSON.parse(JSON.stringify(evento));
                 
                 title.textContent = 'Editar Evento';
                 document.getElementById('evento-id').value = evento.id;
@@ -7308,7 +7314,14 @@
                 document.getElementById('evento-tipo').value = evento.tipo_evento || '';
                 document.getElementById('evento-status').value = evento.status || 'PENDENTE';
                 document.getElementById('evento-observacoes').value = evento.observacoes || '';
+                
+                // Listener para detectar mudança na data
+                const dateInput = document.getElementById('evento-data');
+                dateInput.onchange = function() {
+                    console.log('📅 [MUDANCA] Usuario alterou data de', _eventoOriginal?.data_evento, 'para', this.value);
+                };
             } else {
+                _eventoOriginal = null;
                 title.textContent = 'Novo Evento';
                 document.getElementById('form-evento').reset();
                 document.getElementById('evento-id').value = '';
@@ -7339,6 +7352,16 @@
             console.log('🔍 [DEBUG EVENTO] Salvando evento...');
             console.log('🔍 [DEBUG EVENTO] ID:', id);
             console.log('🔍 [DEBUG EVENTO] data_evento do input:', dataInput);
+            
+            // Comparar com valores originais
+            if (_eventoOriginal && id) {
+                console.log('📊 [COMPARACAO] Data original:', _eventoOriginal.data_evento, '=> Nova:', dataInput);
+                if (_eventoOriginal.data_evento === dataInput) {
+                    console.log('⚠️ [COMPARACAO] DATA NAO FOI ALTERADA! Valor igual ao original.');
+                } else {
+                    console.log('✅ [COMPARACAO] DATA FOI ALTERADA!', _eventoOriginal.data_evento, '->', dataInput);
+                }
+            }
             
             const dados = {
                 nome_evento: document.getElementById('evento-nome').value,
@@ -7378,8 +7401,18 @@
                 }
 
                 if (response.ok) {
-                    showToast(`✅ Evento ${id ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
+                    // Mostrar detalhes da mudança
+                    if (id && result.data_antes && result.data_depois) {
+                        if (result.data_antes !== result.data_depois) {
+                            showToast(`✅ Evento atualizado! Data: ${result.data_antes} → ${result.data_depois}`, 'success');
+                        } else {
+                            showToast(`✅ Evento atualizado com sucesso!`, 'success');
+                        }
+                    } else {
+                        showToast(`✅ Evento ${id ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
+                    }
                     fecharModalEvento();
+                    _eventoOriginal = null;
                     await loadEventos();
                 } else {
                     showToast(`❌ Erro: ${result.error || 'Erro desconhecido'}`, 'error');
