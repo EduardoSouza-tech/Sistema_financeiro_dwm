@@ -4716,24 +4716,39 @@ def gerar_correcoes_cpf():
         # Obter empresa_id da sessão
         empresa_id = session.get('empresa_id')
         if not empresa_id:
+            logger.error("❌ [CPF CORRETOR] Empresa não selecionada")
             return jsonify({'error': 'Empresa não selecionada'}), 403
         
+        logger.info(f"🔧 [CPF CORRETOR] Empresa ID: {empresa_id}")
+        
         # Buscar funcionários da empresa
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
-        # Buscar todos os funcionários da empresa
-        query = """
-            SELECT id, nome, cpf, email, celular, ativo, data_admissao, data_demissao
-            FROM funcionarios
-            WHERE empresa_id = %s
-            ORDER BY nome ASC
-        """
-        
-        cursor.execute(query, (empresa_id,))
-        rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
+        conn = None
+        cursor = None
+        try:
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            
+            # Buscar todos os funcionários da empresa
+            query = """
+                SELECT id, nome, cpf, email, celular, ativo, data_admissao, data_demissao
+                FROM funcionarios
+                WHERE empresa_id = %s
+                ORDER BY nome ASC
+            """
+            
+            cursor.execute(query, (empresa_id,))
+            rows = cursor.fetchall()
+            
+            logger.info(f"🔧 [CPF CORRETOR] Encontrados {len(rows)} funcionários no banco")
+            
+        except Exception as db_error:
+            logger.error(f"❌ [CPF CORRETOR] Erro na consulta ao banco: {db_error}")
+            raise db_error
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
         
         # Converter para lista de dicionários
         funcionarios = []
@@ -4752,13 +4767,49 @@ def gerar_correcoes_cpf():
         for func in funcionarios:
             cpf = func.get('cpf', '')
             
-            if cpf and not CPFValidator.validar(cpf):
-                funcionarios_invalidos.append(func)
+            if cpf:
+                try:
+                    if not CPFValidator.validar(cpf):
+                        funcionarios_invalidos.append(func)
+                        logger.info(f"🔧 [CPF CORRETOR] CPF inválido encontrado: {func['nome']} - {cpf}")
+                except Exception as cpf_error:
+                    logger.error(f"❌ [CPF CORRETOR] Erro ao validar CPF de {func['nome']}: {cpf_error}")
         
         logger.info(f"🔧 [CPF CORRETOR] Encontrados {len(funcionarios_invalidos)} funcionários com CPF inválido")
         
+        # Se não há funcionários com CPF inválido, retornar resultado vazio
+        if len(funcionarios_invalidos) == 0:
+            logger.info("🔧 [CPF CORRETOR] Nenhum CPF inválido encontrado")
+            return jsonify({
+                'success': True,
+                'total_funcionarios': len(funcionarios),
+                'total_cpfs_invalidos': 0,
+                'total_corrigidos': 0,
+                'total_nao_corrigidos': 0,
+                'taxa_correcao': 0,
+                'correcoes_por_tipo': {},
+                'correcoes_sugeridas': []
+            })
+        
         # Aplicar correção automática
-        resultado_correcao = CPFCorrector.corrigir_lista_funcionarios(funcionarios_invalidos)
+        try:
+            logger.info("🔧 [CPF CORRETOR] Iniciando análise de correções...")
+            resultado_correcao = CPFCorrector.corrigir_lista_funcionarios(funcionarios_invalidos)
+            logger.info(f"🔧 [CPF CORRETOR] Resultado da análise: {resultado_correcao}")
+        except Exception as corrector_error:
+            logger.error(f"❌ [CPF CORRETOR] Erro no corretor: {corrector_error}")
+            # Retornar resultado básico se houver erro no corretor
+            return jsonify({
+                'success': True,
+                'total_funcionarios': len(funcionarios),
+                'total_cpfs_invalidos': len(funcionarios_invalidos),
+                'total_corrigidos': 0,
+                'total_nao_corrigidos': len(funcionarios_invalidos),
+                'taxa_correcao': 0,
+                'correcoes_por_tipo': {},
+                'correcoes_sugeridas': [],
+                'erro_corretor': str(corrector_error)
+            })
         
         # Preparar resposta
         resposta = {
@@ -4780,7 +4831,11 @@ def gerar_correcoes_cpf():
         logger.error(f"❌ Erro ao gerar correções de CPF: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'success': False, 
+            'error': str(e),
+            'tipo_erro': 'erro_geral'
+        }), 500
 
 
 @app.route('/api/funcionarios/<int:funcionario_id>/cpf', methods=['PUT'])
