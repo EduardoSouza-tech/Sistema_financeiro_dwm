@@ -5771,12 +5771,18 @@ def atualizar_evento(evento_id):
         logger.info(f"✅ [DEBUG EVENTO] Cursor fechado. Atualização completa!")
         
         return jsonify({
-            'success': ❌ [DEBUG EVENTO] EXCEÇÃO CAPTURADA: {e}")
-        logger.error(f"❌ [DEBUG EVENTO] Fazendo ROLLBACK...")
-        if 'conn' in locals():
-            conn.rollback(
+            'success': True,
             'message': 'Evento atualizado com sucesso'
         }), 200
+    
+    except Exception as e:
+        logger.error(f"❌ [DEBUG EVENTO] EXCEÇÃO CAPTURADA: {e}")
+        logger.error(f"❌ [DEBUG EVENTO] Fazendo ROLLBACK...")
+        if 'conn' in locals():
+            conn.rollback()
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
     
     except Exception as e:
         logger.error(f"Erro ao atualizar evento: {e}")
