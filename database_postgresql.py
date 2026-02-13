@@ -2083,6 +2083,9 @@ class DatabaseManager:
             email = cliente_data.get('email')
             telefone = cliente_data.get('telefone')
             endereco = cliente_data.get('endereco')
+            empresa_id = cliente_data.get('empresa_id')
+            if proprietario_id is None:
+                proprietario_id = cliente_data.get('proprietario_id')
             # 🌐 Campos de endereço estruturado - montar em TEXT
             cep = cliente_data.get('cep')
             logradouro = cliente_data.get('logradouro')
@@ -2096,6 +2099,7 @@ class DatabaseManager:
             email = email
             telefone = telefone
             endereco = endereco
+            empresa_id = None
         
         # Montar endereço completo no campo TEXT se tiver campos estruturados
         if cep or logradouro or numero:
@@ -2114,10 +2118,10 @@ class DatabaseManager:
         
         # ✅ INSERT usando APENAS as colunas que existem no schema
         cursor.execute("""
-            INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco, empresa_id, proprietario_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (nome, cpf_cnpj, email, telefone, endereco))
+        """, (nome, cpf_cnpj, email, telefone, endereco, empresa_id, proprietario_id))
         
         cliente_id = cursor.fetchone()['id']
         conn.commit()
@@ -2361,6 +2365,7 @@ class DatabaseManager:
             email = fornecedor_data.get('email')
             telefone = fornecedor_data.get('telefone')
             endereco = fornecedor_data.get('endereco')
+            empresa_id = fornecedor_data.get('empresa_id')
             # 🌐 Campos de endereço estruturado - montar em TEXT
             cep = fornecedor_data.get('cep')
             logradouro = fornecedor_data.get('logradouro')
@@ -2371,6 +2376,7 @@ class DatabaseManager:
             estado = fornecedor_data.get('estado')
         else:
             nome = fornecedor_data
+            empresa_id = None
         
         # Montar endereço completo no campo TEXT se tiver campos estruturados
         if cep or logradouro or numero:
@@ -2389,10 +2395,10 @@ class DatabaseManager:
         
         # ✅ INSERT usando APENAS as colunas que existem no schema
         cursor.execute("""
-            INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco, empresa_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (nome, cpf_cnpj, email, telefone, endereco))
+        """, (nome, cpf_cnpj, email, telefone, endereco, empresa_id))
         
         fornecedor_id = cursor.fetchone()['id']
         conn.commit()
