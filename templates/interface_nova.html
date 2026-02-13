@@ -8374,6 +8374,7 @@
             const tbody = document.getElementById('tbody-credenciamento-evento');
             const totalElement = document.getElementById('credenciamento-total-cooperados');
 
+            console.log('[CREDENCIAMENTO] Carregando evento ID:', eventoId);
             tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 30px; color: #999;">Carregando...</td></tr>';
 
             try {
@@ -8383,6 +8384,8 @@
                     credentials: 'include'
                 });
 
+                console.log('[CREDENCIAMENTO] Response status:', response.status);
+
                 if (!response.ok) {
                     tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 30px; color: #e74c3c;">Erro ao carregar equipe do evento</td></tr>';
                     totalElement.textContent = '0';
@@ -8391,6 +8394,9 @@
 
                 const result = await response.json();
                 const equipe = result.equipe || result;
+
+                console.log('[CREDENCIAMENTO] Equipe recebida:', equipe);
+                console.log('[CREDENCIAMENTO] Quantidade de membros:', equipe?.length);
 
                 if (!equipe || equipe.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 30px; color: #999;">Nenhum cooperado alocado neste evento</td></tr>';
@@ -8444,8 +8450,10 @@
                 tbody.innerHTML = html;
                 totalElement.textContent = equipe.length;
                 
+                console.log('[CREDENCIAMENTO] ✅ Tabela renderizada com', equipe.length, 'cooperados');
+                
             } catch (error) {
-                console.error('Erro ao carregar credenciamento:', error);
+                console.error('[CREDENCIAMENTO] ❌ Erro ao carregar:', error);
                 tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 30px; color: #e74c3c;">Erro ao carregar dados</td></tr>';
                 totalElement.textContent = '0';
             }
