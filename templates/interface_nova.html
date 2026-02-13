@@ -8695,6 +8695,7 @@
                         <tr>
                             <th>Cooperado</th>
                             <th>CPF</th>
+                            <th>Chave PIX</th>
                             <th>E-mail</th>
                             <th>Função</th>
                             <th>Setor</th>
@@ -8709,18 +8710,19 @@
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
                 
-                // Apenas processar linhas de dados (8 células)
-                if (cells.length === 8) {
+                // Apenas processar linhas de dados (9 células agora com Chave PIX)
+                if (cells.length === 9) {
                     html += `
                         <tr>
                             <td>${cells[0].textContent.trim()}</td>
-                            <td>${cells[1].textContent.trim()}</td>
-                            <td>${cells[2].textContent.trim()}</td>
-                            <td>${cells[3].textContent.trim()}</td>
+                            <td style="font-size: 8pt;">${cells[1].textContent.trim()}</td>
+                            <td style="font-size: 8pt; font-family: monospace;">${cells[2].textContent.trim()}</td>
+                            <td style="font-size: 8pt;">${cells[3].textContent.trim()}</td>
                             <td>${cells[4].textContent.trim()}</td>
-                            <td style="text-align: center;">${cells[5].textContent.trim()}</td>
+                            <td>${cells[5].textContent.trim()}</td>
                             <td style="text-align: center;">${cells[6].textContent.trim()}</td>
-                            <td style="text-align: center; font-weight: bold;">${cells[7].textContent.trim()}</td>
+                            <td style="text-align: center;">${cells[7].textContent.trim()}</td>
+                            <td style="text-align: center; font-weight: bold;">${cells[8].textContent.trim()}</td>
                         </tr>
                     `;
                 }
