@@ -3209,6 +3209,43 @@
                         <span class="close" onclick="fecharModalConfigMunicipios()">&times;</span>
                     </div>
                     <div class="modal-body">
+                        <!-- Certificado Digital A1 -->
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px; color: white;">
+                            <h4 style="margin: 0 0 15px 0; color: white;">🔐 Certificado Digital A1</h4>
+                            
+                            <!-- Status do Certificado Atual -->
+                            <div id="cert-status-container" style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                <div id="cert-status" style="text-align: center;">
+                                    <span style="font-size: 14px;">⏳ Verificando certificado...</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Upload de Novo Certificado -->
+                            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                                <h5 style="margin: 0 0 10px 0; color: white; font-size: 13px;">📤 Carregar Certificado (.pfx / .p12)</h5>
+                                <form id="form-upload-certificado" onsubmit="uploadCertificadoNFSe(event); return false;">
+                                    <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                                        <div style="flex: 2; min-width: 200px;">
+                                            <label style="display: block; margin-bottom: 4px; font-size: 12px; color: rgba(255,255,255,0.8);">Arquivo do Certificado:</label>
+                                            <input type="file" id="cert-arquivo" accept=".pfx,.p12" required 
+                                                style="width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.2); color: white; font-size: 13px;">
+                                        </div>
+                                        <div style="flex: 1; min-width: 150px;">
+                                            <label style="display: block; margin-bottom: 4px; font-size: 12px; color: rgba(255,255,255,0.8);">Senha do Certificado:</label>
+                                            <input type="password" id="cert-senha" required placeholder="Digite a senha" 
+                                                style="width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.2); color: white; font-size: 13px;">
+                                        </div>
+                                        <div>
+                                            <button type="submit" id="btn-upload-cert" class="btn btn-primary" 
+                                                style="padding: 8px 20px; background: #27ae60; border: none; color: white; border-radius: 4px; cursor: pointer; font-size: 13px; height: 38px; white-space: nowrap;">
+                                                🔑 Enviar Certificado
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
                         <!-- Formulário de Novo Município -->
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                             <h4 style="margin: 0 0 15px 0;">➕ Adicionar Município</h4>

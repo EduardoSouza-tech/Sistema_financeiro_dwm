@@ -11165,19 +11165,8 @@ def buscar_nfse():
         
         cnpj_prestador = empresa['cnpj'].replace('.', '').replace('/', '').replace('-', '')
         
-        # Buscar certificado da empresa (assumindo que existe na tabela 'certificados')
-        # Por segurança, o caminho e senha devem vir de variáveis de ambiente ou storage seguro
-        certificado_path = os.getenv('CERTIFICADO_A1_PATH', '/app/certificados/certificado.pfx')
-        certificado_senha = os.getenv('CERTIFICADO_A1_SENHA', '')
-        
-        if not os.path.exists(certificado_path):
-            return jsonify({
-                'success': False,
-                'error': 'Certificado A1 não configurado'
-            }), 400
-        
-        from nfse_functions import buscar_nfse_periodo
-        from datetime import datetime
+        # Buscar certificado da empresa do banco de dados
+        from nfse_functions import get_certificado_para_soap
         
         # Parâmetros de conexão ao banco
         db_params = {
@@ -11187,6 +11176,31 @@ def buscar_nfse():
             'password': os.getenv('PGPASSWORD'),
             'port': int(os.getenv('PGPORT', 5432))
         }
+        
+        cert_data = get_certificado_para_soap(db_params, empresa_id)
+        
+        if cert_data:
+            # Certificado do banco - salvar temporariamente para uso SOAP
+            import tempfile
+            pfx_bytes, cert_senha = cert_data
+            temp_cert = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
+            temp_cert.write(pfx_bytes)
+            temp_cert.close()
+            certificado_path = temp_cert.name
+            certificado_senha = cert_senha
+        else:
+            # Fallback para variáveis de ambiente
+            certificado_path = os.getenv('CERTIFICADO_A1_PATH', '/app/certificados/certificado.pfx')
+            certificado_senha = os.getenv('CERTIFICADO_A1_SENHA', '')
+            
+            if not os.path.exists(certificado_path):
+                return jsonify({
+                    'success': False,
+                    'error': 'Certificado A1 não configurado. Faça o upload do certificado digital nas Configurações da NFS-e.'
+                }), 400
+        
+        from nfse_functions import buscar_nfse_periodo
+        from datetime import datetime
         
         # Converter datas
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
@@ -11556,6 +11570,224 @@ def export_nfse_xml():
             'success': False,
             'error': str(e)
         }), 500
+
+
+# ============================================================================
+# ROTAS NFS-e - CERTIFICADO DIGITAL A1
+# ============================================================================
+
+@app.route('/api/nfse/certificado/upload', methods=['POST'])
+@require_auth
+@require_permission('nfse_config')
+def upload_certificado_nfse():
+    """Upload de certificado digital A1 (.pfx/.p12)"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        # Verificar se o arquivo foi enviado
+        if 'certificado' not in request.files:
+            return jsonify({'success': False, 'error': 'Nenhum arquivo de certificado enviado'}), 400
+        
+        arquivo = request.files['certificado']
+        senha = request.form.get('senha', '')
+        
+        if not arquivo.filename:
+            return jsonify({'success': False, 'error': 'Nenhum arquivo selecionado'}), 400
+        
+        if not senha:
+            return jsonify({'success': False, 'error': 'Senha do certificado é obrigatória'}), 400
+        
+        # Validar extensão
+        extensao = arquivo.filename.rsplit('.', 1)[-1].lower() if '.' in arquivo.filename else ''
+        if extensao not in ('pfx', 'p12'):
+            return jsonify({'success': False, 'error': 'Formato inválido. Use arquivo .pfx ou .p12'}), 400
+        
+        # Ler bytes do arquivo
+        pfx_bytes = arquivo.read()
+        
+        if len(pfx_bytes) == 0:
+            return jsonify({'success': False, 'error': 'Arquivo vazio'}), 400
+        
+        if len(pfx_bytes) > 10 * 1024 * 1024:  # 10MB max
+            return jsonify({'success': False, 'error': 'Arquivo muito grande (máximo 10MB)'}), 400
+        
+        from nfse_functions import upload_certificado, registrar_operacao
+        
+        # Parâmetros de conexão ao banco
+        db_params = {
+            'host': os.getenv('PGHOST'),
+            'database': os.getenv('PGDATABASE'),
+            'user': os.getenv('PGUSER'),
+            'password': os.getenv('PGPASSWORD'),
+            'port': int(os.getenv('PGPORT', 5432))
+        }
+        
+        sucesso, info, erro = upload_certificado(db_params, empresa_id, pfx_bytes, senha)
+        
+        if sucesso:
+            # Log de auditoria
+            registrar_operacao(
+                db_params=db_params,
+                empresa_id=empresa_id,
+                usuario_id=usuario['id'],
+                operacao='CONFIG',
+                detalhes={
+                    'acao': 'upload_certificado',
+                    'cnpj': info.get('cnpj'),
+                    'municipio': info.get('nome_municipio'),
+                    'validade_fim': info.get('validade_fim')
+                },
+                ip_address=request.remote_addr
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': 'Certificado carregado com sucesso!',
+                'certificado': {
+                    'id': info.get('cert_id'),
+                    'cnpj': info.get('cnpj'),
+                    'razao_social': info.get('razao_social'),
+                    'emitente': info.get('emitente'),
+                    'validade_inicio': info.get('validade_inicio'),
+                    'validade_fim': info.get('validade_fim'),
+                    'codigo_municipio': info.get('codigo_municipio'),
+                    'nome_municipio': info.get('nome_municipio'),
+                    'uf': info.get('uf')
+                }
+            })
+        else:
+            return jsonify({'success': False, 'error': erro}), 400
+        
+    except Exception as e:
+        logger.error(f"Erro ao fazer upload de certificado: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/nfse/certificado', methods=['GET'])
+@require_auth
+def get_certificado_nfse():
+    """Retorna informações do certificado ativo da empresa"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        from nfse_functions import get_certificado_info
+        
+        db_params = {
+            'host': os.getenv('PGHOST'),
+            'database': os.getenv('PGDATABASE'),
+            'user': os.getenv('PGUSER'),
+            'password': os.getenv('PGPASSWORD'),
+            'port': int(os.getenv('PGPORT', 5432))
+        }
+        
+        cert = get_certificado_info(db_params, empresa_id)
+        
+        return jsonify({
+            'success': True,
+            'certificado': cert
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar certificado: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/nfse/certificado/<int:cert_id>', methods=['DELETE'])
+@require_auth
+@require_permission('nfse_config')
+def delete_certificado_nfse(cert_id):
+    """Remove certificado digital"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        from nfse_functions import excluir_certificado_empresa, registrar_operacao
+        
+        db_params = {
+            'host': os.getenv('PGHOST'),
+            'database': os.getenv('PGDATABASE'),
+            'user': os.getenv('PGUSER'),
+            'password': os.getenv('PGPASSWORD'),
+            'port': int(os.getenv('PGPORT', 5432))
+        }
+        
+        sucesso = excluir_certificado_empresa(db_params, cert_id)
+        
+        if sucesso:
+            registrar_operacao(
+                db_params=db_params,
+                empresa_id=empresa_id,
+                usuario_id=usuario['id'],
+                operacao='CONFIG',
+                detalhes={'acao': 'excluir_certificado', 'cert_id': cert_id},
+                ip_address=request.remote_addr
+            )
+            return jsonify({'success': True, 'message': 'Certificado removido'})
+        else:
+            return jsonify({'success': False, 'error': 'Certificado não encontrado'}), 404
+        
+    except Exception as e:
+        logger.error(f"Erro ao excluir certificado: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# ROTAS NFS-e - GERAÇÃO DE PDF (DANFSE)
+# ============================================================================
+
+@app.route('/api/nfse/<int:nfse_id>/pdf', methods=['GET'])
+@require_auth
+@require_permission('nfse_view')
+def gerar_pdf_nfse_route(nfse_id):
+    """Gera e retorna o PDF (DANFSE) de uma NFS-e"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        from nfse_functions import gerar_pdf_nfse
+        
+        db_params = {
+            'host': os.getenv('PGHOST'),
+            'database': os.getenv('PGDATABASE'),
+            'user': os.getenv('PGUSER'),
+            'password': os.getenv('PGPASSWORD'),
+            'port': int(os.getenv('PGPORT', 5432))
+        }
+        
+        pdf_bytes = gerar_pdf_nfse(db_params, nfse_id)
+        
+        if pdf_bytes:
+            import tempfile
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+            temp_file.write(pdf_bytes)
+            temp_file.close()
+            
+            return send_file(
+                temp_file.name,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=f'nfse_{nfse_id}.pdf'
+            )
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Não foi possível gerar o PDF desta NFS-e'
+            }), 400
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar PDF NFS-e: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 if __name__ == '__main__':

@@ -6485,6 +6485,9 @@ window.loadNFSeSection = async function() {
     
     // Carregar lista de municípios configurados
     await window.carregarMunicipiosNFSe();
+    
+    // Auto-carregar NFS-e do mês atual
+    await window.consultarNFSeLocal();
 };
 
 // Carregar municípios configurados no dropdown
@@ -6685,6 +6688,7 @@ window.exibirNFSe = function(nfses) {
             <td style="text-align: center;">${badgeSituacao}</td>
             <td style="text-align: center;">
                 <button onclick="verDetalhesNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; background: #3498db;" title="Ver Detalhes">👁️</button>
+                <button onclick="gerarPdfNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; background: #e74c3c; margin-left: 4px;" title="Gerar PDF">📄</button>
             </td>
         `;
         
@@ -6814,7 +6818,10 @@ window.exportarNFSeXMLs = async function() {
 // Mostrar modal de configuração de municípios
 window.mostrarConfigMunicipiosNFSe = async function() {
     document.getElementById('modal-config-municipios').style.display = 'block';
-    await window.carregarListaMunicipiosNFSe();
+    await Promise.all([
+        window.carregarListaMunicipiosNFSe(),
+        window.carregarCertificadoNFSe()
+    ]);
 };
 
 // Fechar modal de configuração
@@ -7043,6 +7050,232 @@ window.copiarXMLNFSe = async function() {
     } catch (error) {
         console.error('❌ Erro ao copiar XML:', error);
         showToast('❌ Erro ao copiar XML', 'error');
+    }
+};
+
+// ============================================================================
+// CERTIFICADO DIGITAL A1
+// ============================================================================
+
+// Carregar status do certificado ativo
+window.carregarCertificadoNFSe = async function() {
+    const container = document.getElementById('cert-status');
+    if (!container) return;
+    
+    try {
+        const response = await fetch('/api/nfse/certificado', {
+            method: 'GET',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.certificado) {
+            const cert = data.certificado;
+            const validadeFim = cert.validade_fim ? new Date(cert.validade_fim) : null;
+            const hoje = new Date();
+            const expirado = validadeFim && validadeFim < hoje;
+            const diasRestantes = validadeFim ? Math.ceil((validadeFim - hoje) / (1000 * 60 * 60 * 24)) : 0;
+            
+            let statusBadge = '';
+            if (expirado) {
+                statusBadge = '<span style="background: #e74c3c; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">❌ EXPIRADO</span>';
+            } else if (diasRestantes <= 30) {
+                statusBadge = `<span style="background: #f39c12; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">⚠️ EXPIRA EM ${diasRestantes} DIAS</span>`;
+            } else {
+                statusBadge = '<span style="background: #27ae60; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">✅ VÁLIDO</span>';
+            }
+            
+            const cnpjFmt = cert.cnpj_extraido && cert.cnpj_extraido.length === 14 
+                ? `${cert.cnpj_extraido.substr(0,2)}.${cert.cnpj_extraido.substr(2,3)}.${cert.cnpj_extraido.substr(5,3)}/${cert.cnpj_extraido.substr(8,4)}-${cert.cnpj_extraido.substr(12,2)}`
+                : cert.cnpj_extraido || '-';
+            
+            const validadeFormatada = validadeFim ? validadeFim.toLocaleDateString('pt-BR') : '-';
+            const municipioInfo = cert.nome_municipio ? `${cert.nome_municipio}/${cert.uf}` : '-';
+            
+            container.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <div style="font-size: 11px; opacity: 0.8;">CNPJ:</div>
+                        <div style="font-weight: bold; font-size: 14px;">${cnpjFmt}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; opacity: 0.8;">Razão Social:</div>
+                        <div style="font-weight: bold; font-size: 13px;">${cert.razao_social || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; opacity: 0.8;">Município:</div>
+                        <div style="font-weight: bold;">${municipioInfo}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; opacity: 0.8;">Validade até:</div>
+                        <div style="font-weight: bold;">${validadeFormatada} ${statusBadge}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; opacity: 0.8;">Emitente:</div>
+                        <div style="font-size: 12px;">${cert.emitente || '-'}</div>
+                    </div>
+                    <div style="display: flex; align-items: flex-end;">
+                        <button onclick="excluirCertificadoNFSe(${cert.id})" class="btn" 
+                            style="padding: 5px 12px; font-size: 12px; background: rgba(231,76,60,0.8); color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            🗑️ Remover Certificado
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 5px;">
+                    <span style="font-size: 20px;">🔓</span>
+                    <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">Nenhum certificado configurado. Faça o upload do seu certificado A1 (.pfx) abaixo.</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar certificado:', error);
+        container.innerHTML = '<span style="font-size: 13px; opacity: 0.8;">⚠️ Erro ao verificar certificado</span>';
+    }
+};
+
+// Upload de certificado digital
+window.uploadCertificadoNFSe = async function(event) {
+    event.preventDefault();
+    
+    const fileInput = document.getElementById('cert-arquivo');
+    const senhaInput = document.getElementById('cert-senha');
+    const btnUpload = document.getElementById('btn-upload-cert');
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+        showToast('⚠️ Selecione o arquivo do certificado (.pfx)', 'warning');
+        return;
+    }
+    
+    if (!senhaInput.value) {
+        showToast('⚠️ Digite a senha do certificado', 'warning');
+        return;
+    }
+    
+    const arquivo = fileInput.files[0];
+    const ext = arquivo.name.split('.').pop().toLowerCase();
+    
+    if (!['pfx', 'p12'].includes(ext)) {
+        showToast('⚠️ Formato inválido. Use arquivo .pfx ou .p12', 'warning');
+        return;
+    }
+    
+    // Confirmar upload
+    if (!confirm('🔐 Deseja carregar este certificado digital?\n\nO sistema vai:\n1. Extrair o CNPJ automaticamente\n2. Buscar o código do município\n3. Armazenar o certificado para consulta de NFS-e\n\nDeseja continuar?')) {
+        return;
+    }
+    
+    btnUpload.disabled = true;
+    btnUpload.textContent = '⏳ Processando...';
+    showToast('⏳ Processando certificado...', 'info');
+    
+    try {
+        const formData = new FormData();
+        formData.append('certificado', arquivo);
+        formData.append('senha', senhaInput.value);
+        
+        const response = await fetch('/api/nfse/certificado/upload', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const cert = data.certificado;
+            let msg = `✅ Certificado carregado com sucesso!\n\n`;
+            msg += `📋 CNPJ: ${cert.cnpj || '-'}\n`;
+            msg += `🏢 ${cert.razao_social || '-'}\n`;
+            msg += `🏙️ Município: ${cert.nome_municipio || '-'}/${cert.uf || '-'}\n`;
+            msg += `📅 Validade: ${cert.validade_fim ? new Date(cert.validade_fim).toLocaleDateString('pt-BR') : '-'}`;
+            
+            showToast(msg, 'success', 5000);
+            
+            // Resetar form
+            document.getElementById('form-upload-certificado').reset();
+            
+            // Recarregar status do certificado
+            await window.carregarCertificadoNFSe();
+        } else {
+            showToast(`❌ Erro: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao fazer upload do certificado:', error);
+        showToast('❌ Erro ao processar certificado', 'error');
+    } finally {
+        btnUpload.disabled = false;
+        btnUpload.textContent = '🔑 Enviar Certificado';
+    }
+};
+
+// Excluir certificado
+window.excluirCertificadoNFSe = async function(certId) {
+    if (!confirm('⚠️ Deseja remover este certificado digital?\n\nAs NFS-e já baixadas não serão afetadas.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/nfse/certificado/${certId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('✅ Certificado removido com sucesso!', 'success');
+            await window.carregarCertificadoNFSe();
+        } else {
+            showToast(`❌ Erro: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao excluir certificado:', error);
+        showToast('❌ Erro ao excluir certificado', 'error');
+    }
+};
+
+// ============================================================================
+// GERAÇÃO DE PDF (DANFSE)
+// ============================================================================
+
+// Gerar PDF de uma NFS-e
+window.gerarPdfNFSe = async function(nfseId) {
+    console.log('📄 Gerando PDF da NFS-e ID:', nfseId);
+    showToast('⏳ Gerando PDF da NFS-e...', 'info');
+    
+    try {
+        const response = await fetch(`/api/nfse/${nfseId}/pdf`, {
+            method: 'GET',
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `nfse_${nfseId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            
+            showToast('✅ PDF gerado com sucesso!', 'success');
+        } else {
+            let errorMsg = 'Erro ao gerar PDF';
+            try {
+                const data = await response.json();
+                errorMsg = data.error || errorMsg;
+            } catch (e) {}
+            showToast(`❌ ${errorMsg}`, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao gerar PDF:', error);
+        showToast('❌ Erro ao gerar PDF da NFS-e', 'error');
     }
 };
 

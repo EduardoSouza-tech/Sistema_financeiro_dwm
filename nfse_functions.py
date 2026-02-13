@@ -18,6 +18,7 @@ from datetime import date, datetime
 from typing import Dict, List, Optional, Tuple
 import logging
 import os
+import re
 from nfse_database import NFSeDatabase
 from nfse_service import NFSeService, descobrir_provedor, testar_conexao
 
@@ -606,3 +607,549 @@ if __name__ == "__main__":
     print(f"  Novas: {resultado['nfse_novas']}")
     print(f"  Atualizadas: {resultado['nfse_atualizadas']}")
     print(f"  Municípios com sucesso: {resultado['municipios_sucesso']}/{resultado['total_municipios']}")
+
+
+# ============================================================================
+# PROCESSAMENTO DE CERTIFICADO DIGITAL A1
+# ============================================================================
+
+def processar_certificado(pfx_bytes: bytes, senha: str) -> Dict:
+    """
+    Extrai informações do certificado digital A1 (.pfx / .p12).
+    Retorna CNPJ, razão social, emitente, validade, serial number.
+    """
+    from cryptography.hazmat.primitives.serialization import pkcs12
+    from cryptography.x509 import oid as x509_oid
+    import re
+    
+    try:
+        # Carregar certificado PKCS12
+        private_key, certificate, additional = pkcs12.load_key_and_certificates(
+            pfx_bytes, senha.encode()
+        )
+        
+        if certificate is None:
+            return {'success': False, 'error': 'Certificado não encontrado no arquivo .pfx'}
+        
+        info = {
+            'success': True,
+            'validade_inicio': certificate.not_valid_before_utc.isoformat(),
+            'validade_fim': certificate.not_valid_after_utc.isoformat(),
+            'serial_number': str(certificate.serial_number),
+            'cnpj': None,
+            'razao_social': None,
+            'emitente': None
+        }
+        
+        # Extrair dados do Subject
+        subject = certificate.subject
+        
+        # Nome / Razão Social do CN (Common Name)
+        cn_list = subject.get_attributes_for_oid(x509_oid.NameOID.COMMON_NAME)
+        if cn_list:
+            cn = cn_list[0].value
+            info['razao_social'] = cn
+            # Tentar extrair CNPJ do CN (formato: "NOME:CNPJ")
+            cnpj_match = re.search(r'(\d{14})', cn.replace('.', '').replace('/', '').replace('-', ''))
+            if cnpj_match:
+                info['cnpj'] = cnpj_match.group(1)
+        
+        # OID ICP-Brasil para CNPJ: 2.16.76.1.3.3
+        OID_CNPJ_ICPBRASIL = '2.16.76.1.3.3'
+        for attr in subject:
+            if attr.oid.dotted_string == OID_CNPJ_ICPBRASIL:
+                cnpj_raw = attr.value.replace('.', '').replace('/', '').replace('-', '')
+                cnpj_digits = re.sub(r'\D', '', cnpj_raw)
+                if len(cnpj_digits) >= 14:
+                    info['cnpj'] = cnpj_digits[:14]
+                break
+        
+        # Se não encontrou no Subject, tentar no SAN (Subject Alternative Name)
+        if not info['cnpj']:
+            try:
+                from cryptography.x509 import SubjectAlternativeName, OtherName
+                san_ext = certificate.extensions.get_extension_for_class(SubjectAlternativeName)
+                for name in san_ext.value:
+                    if isinstance(name, OtherName):
+                        # OID 2.16.76.1.3.3 para CNPJ
+                        if name.type_id.dotted_string == OID_CNPJ_ICPBRASIL:
+                            raw = name.value
+                            if isinstance(raw, bytes):
+                                raw = raw.decode('utf-8', errors='ignore')
+                            cnpj_digits = re.sub(r'\D', '', str(raw))
+                            if len(cnpj_digits) >= 14:
+                                info['cnpj'] = cnpj_digits[:14]
+                                break
+            except Exception:
+                pass  # SAN pode não existir
+        
+        # Se ainda não encontrou, tentar no OU (Organizational Unit)
+        if not info['cnpj']:
+            ou_list = subject.get_attributes_for_oid(x509_oid.NameOID.ORGANIZATIONAL_UNIT_NAME)
+            for ou in ou_list:
+                cnpj_digits = re.sub(r'\D', '', ou.value)
+                if len(cnpj_digits) >= 14:
+                    info['cnpj'] = cnpj_digits[:14]
+                    break
+        
+        # Emitente (Issuer)
+        issuer = certificate.issuer
+        issuer_cn = issuer.get_attributes_for_oid(x509_oid.NameOID.COMMON_NAME)
+        if issuer_cn:
+            info['emitente'] = issuer_cn[0].value
+        
+        # Organization do subject (razão social alternativa)
+        if not info['razao_social']:
+            org_list = subject.get_attributes_for_oid(x509_oid.NameOID.ORGANIZATION_NAME)
+            if org_list:
+                info['razao_social'] = org_list[0].value
+        
+        logger.info(f"✅ Certificado processado: CNPJ={info['cnpj']}, Validade até {info['validade_fim']}")
+        return info
+        
+    except ValueError as e:
+        error_msg = str(e).lower()
+        if 'password' in error_msg or 'mac' in error_msg or 'invalid' in error_msg:
+            return {'success': False, 'error': 'Senha do certificado incorreta'}
+        return {'success': False, 'error': f'Erro ao processar certificado: {e}'}
+    except Exception as e:
+        logger.error(f"❌ Erro ao processar certificado: {e}")
+        return {'success': False, 'error': f'Erro ao processar certificado: {e}'}
+
+
+def buscar_municipio_por_cnpj(cnpj: str) -> Dict:
+    """
+    Consulta dados do CNPJ via BrasilAPI para obter município e código IBGE.
+    """
+    import requests
+    
+    cnpj_limpo = re.sub(r'\D', '', cnpj) if cnpj else ''
+    
+    if len(cnpj_limpo) != 14:
+        return {'success': False, 'error': 'CNPJ inválido'}
+    
+    try:
+        # BrasilAPI - consulta CNPJ
+        url = f'https://brasilapi.com.br/api/cnpj/v1/{cnpj_limpo}'
+        response = requests.get(url, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            result = {
+                'success': True,
+                'codigo_municipio': str(data.get('codigo_municipio_ibge', '') or data.get('codigo_municipio', '')),
+                'nome_municipio': data.get('municipio', ''),
+                'uf': data.get('uf', ''),
+                'razao_social': data.get('razao_social', ''),
+                'nome_fantasia': data.get('nome_fantasia', ''),
+                'logradouro': data.get('logradouro', ''),
+                'bairro': data.get('bairro', ''),
+                'cep': data.get('cep', '')
+            }
+            
+            # Garantir código IBGE com 7 dígitos
+            if result['codigo_municipio'] and len(result['codigo_municipio']) < 7:
+                result['codigo_municipio'] = result['codigo_municipio'].zfill(7)
+            
+            logger.info(f"✅ Município do CNPJ {cnpj_limpo}: {result['nome_municipio']}/{result['uf']} - IBGE {result['codigo_municipio']}")
+            return result
+        else:
+            logger.warning(f"⚠️ BrasilAPI retornou status {response.status_code}")
+            return {'success': False, 'error': f'CNPJ não encontrado (status {response.status_code})'}
+    except requests.exceptions.Timeout:
+        return {'success': False, 'error': 'Timeout ao consultar CNPJ'}
+    except Exception as e:
+        logger.error(f"❌ Erro ao consultar CNPJ: {e}")
+        return {'success': False, 'error': f'Erro ao consultar CNPJ: {e}'}
+
+
+import re  # Garantir import no nível do módulo se necessário
+
+
+def upload_certificado(db_params: Dict, empresa_id: int, pfx_bytes: bytes, senha: str) -> Tuple[bool, Dict, str]:
+    """
+    Processa e salva certificado digital A1.
+    Retorna (sucesso, info_certificado, erro)
+    """
+    # 1. Processar certificado
+    info = processar_certificado(pfx_bytes, senha)
+    if not info.get('success'):
+        return False, {}, info.get('error', 'Erro ao processar certificado')
+    
+    # 2. Buscar município pelo CNPJ
+    cnpj = info.get('cnpj')
+    municipio_info = {}
+    if cnpj:
+        municipio_info = buscar_municipio_por_cnpj(cnpj)
+        if municipio_info.get('success'):
+            info['codigo_municipio'] = municipio_info.get('codigo_municipio')
+            info['nome_municipio'] = municipio_info.get('nome_municipio')
+            info['uf'] = municipio_info.get('uf')
+            # Atualizar razão social se obtida da ReceitaWS
+            if municipio_info.get('razao_social'):
+                info['razao_social'] = municipio_info['razao_social']
+    
+    # 3. Salvar no banco
+    try:
+        with NFSeDatabase(db_params) as db:
+            cert_id = db.salvar_certificado(empresa_id, pfx_bytes, senha, info)
+            info['cert_id'] = cert_id
+            return True, info, ''
+    except Exception as e:
+        return False, {}, f'Erro ao salvar certificado: {e}'
+
+
+def get_certificado_info(db_params: Dict, empresa_id: int) -> Optional[Dict]:
+    """Retorna info do certificado ativo da empresa"""
+    try:
+        with NFSeDatabase(db_params) as db:
+            return db.get_certificado_ativo(empresa_id)
+    except Exception as e:
+        logger.error(f"❌ Erro ao buscar certificado: {e}")
+        return None
+
+
+def excluir_certificado_empresa(db_params: Dict, cert_id: int) -> bool:
+    """Exclui certificado"""
+    try:
+        with NFSeDatabase(db_params) as db:
+            return db.excluir_certificado(cert_id)
+    except Exception as e:
+        logger.error(f"❌ Erro ao excluir certificado: {e}")
+        return False
+
+
+def get_certificado_para_soap(db_params: Dict, empresa_id: int) -> Optional[Tuple[bytes, str]]:
+    """
+    Retorna (pfx_bytes, senha) do certificado ativo para uso em SOAP.
+    """
+    import base64
+    try:
+        with NFSeDatabase(db_params) as db:
+            cert = db.get_certificado_pfx(empresa_id)
+            if cert:
+                pfx_data = bytes(cert['pfx_data'])
+                senha = base64.b64decode(cert['senha_certificado']).decode()
+                return pfx_data, senha
+            return None
+    except Exception as e:
+        logger.error(f"❌ Erro ao buscar certificado para SOAP: {e}")
+        return None
+
+
+# ============================================================================
+# GERAÇÃO DE PDF (DANFSE)
+# ============================================================================
+
+def gerar_pdf_nfse(db_params: Dict, nfse_id: int) -> Optional[bytes]:
+    """
+    Gera PDF (DANFSE) da NFS-e usando os dados armazenados no banco.
+    Retorna bytes do PDF ou None se falhar.
+    """
+    from io import BytesIO
+    
+    try:
+        # Buscar dados da NFS-e
+        with NFSeDatabase(db_params) as db:
+            nfse = db.get_nfse_by_id(nfse_id)
+        
+        if not nfse:
+            logger.error(f"❌ NFS-e ID {nfse_id} não encontrada")
+            return None
+        
+        # Gerar PDF com reportlab-like approach usando fpdf2
+        try:
+            from fpdf import FPDF
+        except ImportError:
+            # Fallback: gerar PDF minimal sem fpdf2
+            return _gerar_pdf_minimal(nfse)
+        
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        
+        # --- CABEÇALHO ---
+        pdf.set_fill_color(41, 128, 185)  # Azul
+        pdf.rect(10, 10, 190, 25, 'F')
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 16)
+        pdf.set_xy(15, 13)
+        pdf.cell(0, 10, 'DANFSE - Documento Auxiliar da NFS-e', ln=True)
+        pdf.set_font('Helvetica', '', 10)
+        pdf.set_xy(15, 23)
+        pdf.cell(0, 8, 'Nota Fiscal de Servico Eletronica', ln=True)
+        
+        pdf.set_text_color(0, 0, 0)
+        y = 40
+        
+        # --- NÚMERO E DADOS DA NOTA ---
+        pdf.set_fill_color(236, 240, 241)
+        pdf.rect(10, y, 190, 20, 'F')
+        pdf.set_font('Helvetica', 'B', 12)
+        pdf.set_xy(15, y + 2)
+        numero = nfse.get('numero_nfse', '-')
+        pdf.cell(60, 8, f'NFS-e No: {numero}', ln=False)
+        
+        pdf.set_font('Helvetica', '', 10)
+        data_emissao = nfse.get('data_emissao', '')
+        if data_emissao:
+            if isinstance(data_emissao, str):
+                try:
+                    dt = datetime.fromisoformat(data_emissao.replace('Z', '+00:00'))
+                    data_emissao = dt.strftime('%d/%m/%Y')
+                except:
+                    pass
+            else:
+                data_emissao = data_emissao.strftime('%d/%m/%Y')
+        pdf.cell(60, 8, f'Data Emissao: {data_emissao}', ln=False)
+        
+        cod_verif = nfse.get('codigo_verificacao', '-')
+        pdf.cell(60, 8, f'Cod. Verificacao: {cod_verif}', ln=True)
+        
+        # Situação
+        situacao = nfse.get('situacao', 'NORMAL')
+        pdf.set_xy(15, y + 12)
+        pdf.set_font('Helvetica', 'B', 10)
+        if situacao == 'CANCELADA':
+            pdf.set_text_color(231, 76, 60)
+            pdf.cell(60, 6, f'Situacao: {situacao}')
+        elif situacao == 'SUBSTITUIDA':
+            pdf.set_text_color(243, 156, 18)
+            pdf.cell(60, 6, f'Situacao: {situacao}')
+        else:
+            pdf.set_text_color(39, 174, 96)
+            pdf.cell(60, 6, f'Situacao: {situacao}')
+        pdf.set_text_color(0, 0, 0)
+        
+        municipio = nfse.get('nome_municipio', '-')
+        uf = nfse.get('uf', '-')
+        pdf.cell(0, 6, f'Municipio: {municipio}/{uf}', ln=True)
+        y += 25
+        
+        # --- PRESTADOR ---
+        pdf.set_fill_color(41, 128, 185)
+        pdf.rect(10, y, 190, 8, 'F')
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.set_xy(15, y + 1)
+        pdf.cell(0, 6, 'PRESTADOR DE SERVICOS', ln=True)
+        pdf.set_text_color(0, 0, 0)
+        y += 10
+        
+        pdf.set_font('Helvetica', '', 10)
+        pdf.set_xy(15, y)
+        cnpj_prest = nfse.get('cnpj_prestador', '-')
+        if cnpj_prest and len(cnpj_prest) == 14:
+            cnpj_prest = f'{cnpj_prest[:2]}.{cnpj_prest[2:5]}.{cnpj_prest[5:8]}/{cnpj_prest[8:12]}-{cnpj_prest[12:]}'
+        pdf.cell(0, 6, f'CNPJ: {cnpj_prest}', ln=True)
+        y += 10
+        
+        # --- TOMADOR ---
+        pdf.set_fill_color(41, 128, 185)
+        pdf.rect(10, y, 190, 8, 'F')
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.set_xy(15, y + 1)
+        pdf.cell(0, 6, 'TOMADOR DE SERVICOS', ln=True)
+        pdf.set_text_color(0, 0, 0)
+        y += 10
+        
+        pdf.set_font('Helvetica', '', 10)
+        pdf.set_xy(15, y)
+        cnpj_tom = nfse.get('cnpj_tomador', '-')
+        if cnpj_tom and len(cnpj_tom) == 14:
+            cnpj_tom = f'{cnpj_tom[:2]}.{cnpj_tom[2:5]}.{cnpj_tom[5:8]}/{cnpj_tom[8:12]}-{cnpj_tom[12:]}'
+        razao_tom = nfse.get('razao_social_tomador', '-')
+        pdf.cell(90, 6, f'CNPJ/CPF: {cnpj_tom}', ln=False)
+        pdf.cell(0, 6, f'Razao Social: {razao_tom}', ln=True)
+        y += 10
+        
+        # --- DISCRIMINAÇÃO DOS SERVIÇOS ---
+        pdf.set_fill_color(41, 128, 185)
+        pdf.rect(10, y, 190, 8, 'F')
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.set_xy(15, y + 1)
+        pdf.cell(0, 6, 'DISCRIMINACAO DOS SERVICOS', ln=True)
+        pdf.set_text_color(0, 0, 0)
+        y += 10
+        
+        pdf.set_font('Helvetica', '', 9)
+        pdf.set_xy(15, y)
+        discriminacao = nfse.get('discriminacao', '-') or '-'
+        # Multi_cell para texto longo
+        pdf.multi_cell(180, 5, discriminacao)
+        y = pdf.get_y() + 5
+        
+        # --- VALORES ---
+        pdf.set_fill_color(41, 128, 185)
+        pdf.rect(10, y, 190, 8, 'F')
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.set_xy(15, y + 1)
+        pdf.cell(0, 6, 'VALORES', ln=True)
+        pdf.set_text_color(0, 0, 0)
+        y += 10
+        
+        def fmt_valor(v):
+            try:
+                return f"R$ {float(v):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+            except:
+                return "R$ 0,00"
+        
+        pdf.set_font('Helvetica', '', 10)
+        pdf.set_xy(15, y)
+        
+        valor_servico = fmt_valor(nfse.get('valor_servico', 0))
+        valor_deducoes = fmt_valor(nfse.get('valor_deducoes', 0))
+        valor_iss = fmt_valor(nfse.get('valor_iss', 0))
+        valor_liquido = fmt_valor(nfse.get('valor_liquido', 0))
+        aliquota = nfse.get('aliquota_iss', 0)
+        
+        pdf.cell(95, 7, f'Valor dos Servicos: {valor_servico}', border=1, ln=False)
+        pdf.cell(95, 7, f'Deducoes: {valor_deducoes}', border=1, ln=True)
+        y += 7
+        pdf.set_xy(15, y)
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.cell(63, 7, f'Valor ISS: {valor_iss}', border=1, ln=False)
+        pdf.set_font('Helvetica', '', 10)
+        
+        try:
+            aliq_fmt = f"{float(aliquota):.2f}%"
+        except:
+            aliq_fmt = "0,00%"
+        pdf.cell(63, 7, f'Aliquota ISS: {aliq_fmt}', border=1, ln=False)
+        pdf.set_font('Helvetica', 'B', 11)
+        pdf.set_fill_color(39, 174, 96)
+        pdf.set_text_color(255, 255, 255)
+        pdf.cell(64, 7, f'Valor Liquido: {valor_liquido}', border=1, fill=True, ln=True)
+        pdf.set_text_color(0, 0, 0)
+        
+        y = pdf.get_y() + 10
+        
+        # --- RODAPÉ ---
+        pdf.set_font('Helvetica', 'I', 8)
+        pdf.set_xy(10, 275)
+        pdf.set_text_color(128, 128, 128)
+        pdf.cell(0, 5, f'Documento gerado pelo Sistema Financeiro DWM - {datetime.now().strftime("%d/%m/%Y %H:%M")}', align='C')
+        
+        # Retornar bytes do PDF
+        return pdf.output()
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao gerar PDF da NFS-e {nfse_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def _gerar_pdf_minimal(nfse: Dict) -> bytes:
+    """
+    Gera PDF minimal sem dependências externas (plain text).
+    Usado como fallback se fpdf2 não estiver instalado.
+    """
+    # Gerar PDF minimal com texto formatado
+    # Usando formato PDF 1.4 manual
+    from io import BytesIO
+    
+    def fmt_valor(v):
+        try:
+            return f"R$ {float(v):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+        except:
+            return "R$ 0,00"
+    
+    numero = nfse.get('numero_nfse', '-')
+    data = nfse.get('data_emissao', '-')
+    cnpj_prest = nfse.get('cnpj_prestador', '-')
+    cnpj_tom = nfse.get('cnpj_tomador', '-')
+    razao_tom = nfse.get('razao_social_tomador', '-')
+    valor = fmt_valor(nfse.get('valor_servico', 0))
+    iss = fmt_valor(nfse.get('valor_iss', 0))
+    situacao = nfse.get('situacao', 'NORMAL')
+    municipio = nfse.get('nome_municipio', '-')
+    discriminacao = nfse.get('discriminacao', '-') or '-'
+    
+    lines = [
+        "DANFSE - Documento Auxiliar da NFS-e",
+        "=" * 60,
+        f"NFS-e No: {numero}",
+        f"Data Emissao: {data}",
+        f"Situacao: {situacao}",
+        f"Municipio: {municipio}/{nfse.get('uf', '-')}",
+        "",
+        "PRESTADOR",
+        f"  CNPJ: {cnpj_prest}",
+        "",
+        "TOMADOR",
+        f"  CNPJ/CPF: {cnpj_tom}",
+        f"  Razao Social: {razao_tom}",
+        "",
+        "SERVICOS",
+        f"  {discriminacao[:200]}",
+        "",
+        "VALORES",
+        f"  Valor Servico: {valor}",
+        f"  ISS: {iss}",
+        "",
+        f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    ]
+    
+    content = '\n'.join(lines)
+    
+    # Construir PDF manualmente (PDF 1.4 spec)
+    buf = BytesIO()
+    
+    # Escapar parênteses
+    safe_content = content.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+    
+    # Calcular posições de stream
+    text_lines = safe_content.split('\n')
+    stream_parts = []
+    stream_parts.append('BT')
+    stream_parts.append('/F1 10 Tf')
+    y_pos = 800
+    for line in text_lines:
+        stream_parts.append(f'1 0 0 1 50 {y_pos} Tm')
+        stream_parts.append(f'({line}) Tj')
+        y_pos -= 14
+    stream_parts.append('ET')
+    stream_content = '\n'.join(stream_parts)
+    stream_bytes = stream_content.encode('latin-1', errors='replace')
+    
+    objects = []
+    
+    # Obj 1: Catalog
+    objects.append(b'1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n')
+    # Obj 2: Pages
+    objects.append(b'2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n')
+    # Obj 3: Page
+    objects.append(b'3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n')
+    # Obj 4: Stream
+    stream_obj = f'4 0 obj\n<< /Length {len(stream_bytes)} >>\nstream\n'.encode('latin-1')
+    stream_obj += stream_bytes
+    stream_obj += b'\nendstream\nendobj\n'
+    objects.append(stream_obj)
+    # Obj 5: Font
+    objects.append(b'5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n')
+    
+    buf.write(b'%PDF-1.4\n')
+    offsets = []
+    for obj in objects:
+        offsets.append(buf.tell())
+        buf.write(obj)
+    
+    xref_offset = buf.tell()
+    buf.write(b'xref\n')
+    buf.write(f'0 {len(objects) + 1}\n'.encode())
+    buf.write(b'0000000000 65535 f \n')
+    for off in offsets:
+        buf.write(f'{off:010d} 00000 n \n'.encode())
+    
+    buf.write(b'trailer\n')
+    buf.write(f'<< /Root 1 0 R /Size {len(objects) + 1} >>\n'.encode())
+    buf.write(b'startxref\n')
+    buf.write(f'{xref_offset}\n'.encode())
+    buf.write(b'%%EOF\n')
+    
+    return buf.getvalue()

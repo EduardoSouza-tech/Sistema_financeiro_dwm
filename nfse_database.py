@@ -575,6 +575,107 @@ class NFSeDatabase:
         except Exception as e:
             logger.error(f"❌ Erro ao registrar auditoria: {e}")
 
+    # ========================================================================
+    # CERTIFICADOS DIGITAIS A1
+    # ========================================================================
+
+    def salvar_certificado(self, empresa_id, pfx_data, senha_certificado, info_cert):
+        """Salva ou atualiza certificado digital A1 da empresa"""
+        try:
+            with self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                # Desativar outros certificados da empresa
+                cursor.execute(
+                    "UPDATE nfse_certificados SET ativo = FALSE WHERE empresa_id = %s AND ativo = TRUE",
+                    (empresa_id,)
+                )
+                
+                import base64
+                senha_b64 = base64.b64encode(senha_certificado.encode()).decode()
+                
+                sql = """
+                INSERT INTO nfse_certificados 
+                    (empresa_id, pfx_data, senha_certificado, cnpj_extraido, razao_social, 
+                     emitente, serial_number, validade_inicio, validade_fim,
+                     codigo_municipio, nome_municipio, uf, ativo)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+                RETURNING id
+                """
+                cursor.execute(sql, (
+                    empresa_id,
+                    psycopg2.Binary(pfx_data),
+                    senha_b64,
+                    info_cert.get('cnpj'),
+                    info_cert.get('razao_social'),
+                    info_cert.get('emitente'),
+                    info_cert.get('serial_number'),
+                    info_cert.get('validade_inicio'),
+                    info_cert.get('validade_fim'),
+                    info_cert.get('codigo_municipio'),
+                    info_cert.get('nome_municipio'),
+                    info_cert.get('uf')
+                ))
+                cert_id = cursor.fetchone()['id']
+                self.conn.commit()
+                
+                logger.info(f"✅ Certificado salvo ID={cert_id} empresa={empresa_id}")
+                return cert_id
+        except Exception as e:
+            self.conn.rollback()
+            logger.error(f"❌ Erro ao salvar certificado: {e}")
+            raise
+
+    def get_certificado_ativo(self, empresa_id):
+        """Retorna o certificado ativo da empresa (sem o binário do pfx)"""
+        try:
+            with self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                sql = """
+                SELECT id, empresa_id, cnpj_extraido, razao_social, emitente, 
+                       serial_number, validade_inicio, validade_fim,
+                       codigo_municipio, nome_municipio, uf, ativo, criado_em
+                FROM nfse_certificados 
+                WHERE empresa_id = %s AND ativo = TRUE 
+                ORDER BY criado_em DESC LIMIT 1
+                """
+                cursor.execute(sql, (empresa_id,))
+                cert = cursor.fetchone()
+                if cert:
+                    # Converter datas para string
+                    for campo in ['validade_inicio', 'validade_fim', 'criado_em']:
+                        if cert.get(campo):
+                            cert[campo] = cert[campo].isoformat()
+                return cert
+        except Exception as e:
+            logger.error(f"❌ Erro ao buscar certificado: {e}")
+            return None
+
+    def get_certificado_pfx(self, empresa_id):
+        """Retorna o certificado com dados PFX (para uso em SOAP)"""
+        try:
+            with self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                sql = """
+                SELECT id, pfx_data, senha_certificado, cnpj_extraido
+                FROM nfse_certificados 
+                WHERE empresa_id = %s AND ativo = TRUE 
+                ORDER BY criado_em DESC LIMIT 1
+                """
+                cursor.execute(sql, (empresa_id,))
+                return cursor.fetchone()
+        except Exception as e:
+            logger.error(f"❌ Erro ao buscar PFX: {e}")
+            return None
+
+    def excluir_certificado(self, cert_id):
+        """Exclui um certificado"""
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute("DELETE FROM nfse_certificados WHERE id = %s", (cert_id,))
+                self.conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            self.conn.rollback()
+            logger.error(f"❌ Erro ao excluir certificado: {e}")
+            raise
+
 
 # ============================================================================
 # EXEMPLO DE USO
