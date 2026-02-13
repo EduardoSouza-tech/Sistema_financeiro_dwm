@@ -3474,8 +3474,9 @@ window.conciliarTransacaoIndividual = async function() {
         const razao = document.getElementById('razao-individual')?.value.trim();
         const categoria = document.getElementById('categoria-individual')?.value;
         const subcategoria = document.getElementById('subcategoria-individual')?.value;
+        const descricao = document.getElementById('descricao-individual')?.value?.trim();
         
-        console.log('📝 Dados do formulário:', { razao, categoria, subcategoria });
+        console.log('📝 Dados do formulário:', { razao, categoria, subcategoria, descricao });
         
         if (!categoria) {
             console.warn('⚠️ Categoria não selecionada');
