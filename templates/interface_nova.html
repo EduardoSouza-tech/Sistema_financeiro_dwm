@@ -7714,6 +7714,9 @@
                     document.getElementById('equipe-custo-total').textContent = 'R$ 0,00';
                     document.getElementById('equipe-evento-custo-atual').textContent = 'R$ 0,00';
                 }
+                
+                // ✅ FIX: Atualizar lista de assinatura sempre que equipe mudar
+                carregarListaAssinatura();
             } catch (error) {
                 console.error('Erro ao carregar equipe:', error);
                 showToast('❌ Erro ao carregar equipe do evento', 'error');
@@ -7771,6 +7774,7 @@
                     document.getElementById('form-adicionar-funcionario-evento').reset();
                     document.getElementById('equipe-saldo-horas').value = '--:--'; // Limpar saldo
                     await carregarEquipeEvento(eventoId);
+                    // ✅ FIX: carregarEquipeEvento já atualiza lista de assinatura
                     await loadEventos(); // Atualizar tabela principal
                 } else {
                     showToast(`❌ ${result.error || 'Erro ao adicionar cooperado'}`, 'error');
@@ -7799,6 +7803,7 @@
                 if (response.ok) {
                     showToast('✅ Funcionário removido da equipe!', 'success');
                     await carregarEquipeEvento(eventoId);
+                    // ✅ FIX: carregarEquipeEvento já atualiza lista de assinatura
                     await loadEventos(); // Atualizar tabela principal
                 } else {
                     showToast(`❌ ${result.error || 'Erro ao remover funcionário'}`, 'error');
