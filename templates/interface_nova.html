@@ -137,7 +137,8 @@
                 'sessoes': 'loadSessoes',
                 'comissoes': 'loadComissoes',
                 'funcionarios': 'loadFuncionariosRH',
-                'remessa-pagamento': 'loadRemessaPagamento'
+                'remessa-pagamento': 'loadRemessaPagamento',
+                'nfse': 'loadNFSeSection'
             };
             
             const loadFunctionName = loadFunctions[sectionId];
@@ -1305,6 +1306,7 @@
                 <button class="submenu-button" onclick="showSection('comparativo-periodos')" data-permission="relatorios_view">📉 Comparativo de Períodos</button>
                 <button class="submenu-button" onclick="showSection('indicadores')" data-permission="relatorios_view">🎯 Indicadores Financeiros</button>
                 <button class="submenu-button" onclick="showSection('inadimplencia')" data-permission="relatorios_view">⚠️ Inadimplência <span id="badge-inadimplencia" class="badge-inadimplencia">0</span></button>
+                <button class="submenu-button" onclick="showSection('nfse')" data-permission="nfse_view">📄 NFS-e - Notas Fiscais</button>
             </div>
             
             <!-- Menu de Cadastros com Submenu -->
@@ -3199,6 +3201,224 @@
                 </div>
             </div>
 
+            <!-- Modal: Configurar Municípios NFS-e -->
+            <div id="modal-config-municipios" class="modal" style="display: none;">
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h3>⚙️ Configurar Municípios NFS-e</h3>
+                        <span class="close" onclick="fecharModalConfigMunicipios()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Formulário de Novo Município -->
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <h4 style="margin: 0 0 15px 0;">➕ Adicionar Município</h4>
+                            <form id="form-novo-municipio-nfse" onsubmit="salvarMunicipioNFSe(event); return false;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">CNPJ: <span style="color: red;">*</span></label>
+                                        <input type="text" id="config-cnpj" required placeholder="00.000.000/0000-00" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Código IBGE: <span style="color: red;">*</span></label>
+                                        <input type="text" id="config-codigo-municipio" required placeholder="5002704" maxlength="7" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nome do Município: <span style="color: red;">*</span></label>
+                                        <input type="text" id="config-nome-municipio" required placeholder="Campo Grande" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">UF: <span style="color: red;">*</span></label>
+                                        <select id="config-uf" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <option value="">Selecione...</option>
+                                            <option value="AC">AC</option>
+                                            <option value="AL">AL</option>
+                                            <option value="AP">AP</option>
+                                            <option value="AM">AM</option>
+                                            <option value="BA">BA</option>
+                                            <option value="CE">CE</option>
+                                            <option value="DF">DF</option>
+                                            <option value="ES">ES</option>
+                                            <option value="GO">GO</option>
+                                            <option value="MA">MA</option>
+                                            <option value="MT">MT</option>
+                                            <option value="MS">MS</option>
+                                            <option value="MG">MG</option>
+                                            <option value="PA">PA</option>
+                                            <option value="PB">PB</option>
+                                            <option value="PR">PR</option>
+                                            <option value="PE">PE</option>
+                                            <option value="PI">PI</option>
+                                            <option value="RJ">RJ</option>
+                                            <option value="RN">RN</option>
+                                            <option value="RS">RS</option>
+                                            <option value="RO">RO</option>
+                                            <option value="RR">RR</option>
+                                            <option value="SC">SC</option>
+                                            <option value="SP">SP</option>
+                                            <option value="SE">SE</option>
+                                            <option value="TO">TO</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Inscrição Municipal: <span style="color: red;">*</span></label>
+                                        <input type="text" id="config-inscricao-municipal" required placeholder="123456" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Provedor:</label>
+                                        <select id="config-provedor" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <option value="">Auto-detectar</option>
+                                            <option value="GINFES">GINFES</option>
+                                            <option value="ISSNET">ISS.NET</option>
+                                            <option value="BETHA">BETHA</option>
+                                            <option value="EISS">eISS</option>
+                                            <option value="WEBISS">WEBISS</option>
+                                            <option value="SIMPLISS">SIMPLISS</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="margin-bottom: 15px;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">URL Customizada (opcional):</label>
+                                    <input type="url" id="config-url-customizada" placeholder="https://nfse.municipio.com.br/ws" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <small style="color: #666;">Deixe em branco para usar a URL padrão do provedor.</small>
+                                </div>
+                                <div style="display: flex; justify-content: flex-end;">
+                                    <button type="submit" class="btn btn-primary" style="padding: 10px 30px; background: #27ae60;">💾 Salvar Configuração</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Lista de Municípios Configurados -->
+                        <div>
+                            <h4 style="margin: 0 0 15px 0;">📋 Municípios Configurados</h4>
+                            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                                <table style="width: 100%;">
+                                    <thead>
+                                        <tr style="background: #f8f9fa;">
+                                            <th style="padding: 10px; text-align: left;">Município</th>
+                                            <th style="padding: 10px; text-align: center;">UF</th>
+                                            <th style="padding: 10px; text-align: center;">Cód. IBGE</th>
+                                            <th style="padding: 10px; text-align: center;">Provedor</th>
+                                            <th style="padding: 10px; text-align: center;">Status</th>
+                                            <th style="padding: 10px; text-align: center; width: 100px;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-municipios-nfse">
+                                        <tr><td colspan="6" style="text-align: center; padding: 30px; color: #999;">Nenhum município configurado.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="button" onclick="fecharModalConfigMunicipios()" class="btn btn-secondary" style="flex: 1; padding: 10px; background: #95a5a6;">❌ Fechar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: Detalhes NFS-e -->
+            <div id="modal-detalhes-nfse" class="modal" style="display: none;">
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h3>📄 Detalhes da NFS-e</h3>
+                        <span class="close" onclick="fecharModalDetalhesNFSe()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div id="detalhes-nfse-content">
+                            <p style="text-align: center; color: #999; padding: 30px;">Carregando detalhes...</p>
+                        </div>
+
+                        <!-- Abas: Dados / XML -->
+                        <div style="margin-top: 20px;">
+                            <div style="display: flex; border-bottom: 2px solid #e0e0e0; margin-bottom: 15px;">
+                                <button id="tab-dados-nfse" onclick="mostrarAbaDetalhesNFSe('dados')" style="padding: 10px 20px; border: none; background: #3498db; color: white; cursor: pointer; border-radius: 5px 5px 0 0; margin-right: 5px;">📋 Dados</button>
+                                <button id="tab-xml-nfse" onclick="mostrarAbaDetalhesNFSe('xml')" style="padding: 10px 20px; border: none; background: #95a5a6; color: white; cursor: pointer; border-radius: 5px 5px 0 0;">📄 XML</button>
+                            </div>
+
+                            <!-- Conteúdo: Dados -->
+                            <div id="conteudo-dados-nfse" style="display: block;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div>
+                                        <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #666;">Número NFS-e:</label>
+                                        <p id="det-numero" style="margin: 0; padding: 8px; background: #f8f9fa; border-radius: 4px;">-</p>
+                                    </div>
+                                    <div>
+                                        <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #666;">Código de Verificação:</label>
+                                        <p id="det-codigo-verificacao" style="margin: 0; padding: 8px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 12px;">-</p>
+                                    </div>
+                                    <div>
+                                        <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #666;">Data Emissão:</label>
+                                        <p id="det-data-emissao" style="margin: 0; padding: 8px; background: #f8f9fa; border-radius: 4px;">-</p>
+                                    </div>
+                                    <div>
+                                        <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #666;">Situação:</label>
+                                        <p id="det-situacao" style="margin: 0; padding: 8px; background: #f8f9fa; border-radius: 4px;">-</p>
+                                    </div>
+                                </div>
+
+                                <hr style="margin: 20px 0; border: none; border-top: 2px solid #e0e0e0;">
+
+                                <h4 style="margin: 0 0 10px 0;">🏢 Prestador</h4>
+                                <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 20px;">
+                                    <div>
+                                        <label style="font-weight: bold; color: #666;">CNPJ:</label>
+                                        <span id="det-cnpj-prestador">-</span>
+                                    </div>
+                                </div>
+
+                                <h4 style="margin: 0 0 10px 0;">👤 Tomador</h4>
+                                <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 20px;">
+                                    <div>
+                                        <label style="font-weight: bold; color: #666;">CNPJ/CPF:</label>
+                                        <span id="det-cnpj-tomador">-</span>
+                                    </div>
+                                    <div>
+                                        <label style="font-weight: bold; color: #666;">Razão Social:</label>
+                                        <span id="det-razao-social-tomador">-</span>
+                                    </div>
+                                </div>
+
+                                <h4 style="margin: 0 0 10px 0;">💰 Valores</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                                    <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; text-align: center;">
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Valor Serviço</div>
+                                        <div id="det-valor-servico" style="font-size: 20px; font-weight: bold; color: #27ae60;">R$ 0,00</div>
+                                    </div>
+                                    <div style="background: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Deduções</div>
+                                        <div id="det-valor-deducoes" style="font-size: 20px; font-weight: bold; color: #f39c12;">R$ 0,00</div>
+                                    </div>
+                                    <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">ISS</div>
+                                        <div id="det-valor-iss" style="font-size: 20px; font-weight: bold; color: #3498db;">R$ 0,00</div>
+                                    </div>
+                                </div>
+
+                                <h4 style="margin: 0 0 10px 0;">📝 Serviço</h4>
+                                <div style="margin-bottom: 20px;">
+                                    <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #666;">Discriminação:</label>
+                                    <p id="det-discriminacao" style="margin: 0; padding: 10px; background: #f8f9fa; border-radius: 4px; white-space: pre-wrap;">-</p>
+                                </div>
+                            </div>
+
+                            <!-- Conteúdo: XML -->
+                            <div id="conteudo-xml-nfse" style="display: none;">
+                                <div style="background: #282c34; color: #abb2bf; padding: 15px; border-radius: 8px; max-height: 500px; overflow-y: auto;">
+                                    <pre id="det-xml-content" style="margin: 0; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap; word-wrap: break-word;">-</pre>
+                                </div>
+                                <div style="margin-top: 10px; text-align: right;">
+                                    <button onclick="copiarXMLNFSe()" class="btn btn-secondary" style="padding: 8px 16px; background: #7f8c8d;">📋 Copiar XML</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="button" onclick="fecharModalDetalhesNFSe()" class="btn btn-secondary" style="flex: 1; padding: 10px; background: #95a5a6;">❌ Fechar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Relatórios (mantido para compatibilidade, mas não usado) -->
             <div id="relatorios-section" class="content-card hidden">
                 <h2 style="color: #000000 !important; font-weight: 700;">Relatórios</h2>
@@ -3525,6 +3745,101 @@
                     <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
                     <h3 style="color: #34495e; margin-bottom: 10px;">Análise de Inadimplência</h3>
                     <p style="margin: 0; font-size: 14px;">Esta seção carrega automaticamente os dados de contas a receber vencidas e em atraso.</p>
+                </div>
+            </div>
+
+            <!-- NFS-e - Notas Fiscais de Serviço Eletrônica -->
+            <div id="nfse-section" class="content-card hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">📄 NFS-e - Notas Fiscais de Serviço</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-secondary" onclick="mostrarConfigMunicipiosNFSe()" data-permission="nfse_config" style="padding: 8px 16px; font-size: 13px; background: #95a5a6;">⚙️ Configurar Municípios</button>
+                        <button class="btn btn-primary" onclick="exportarNFSeExcel()" data-permission="nfse_export" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📊 Exportar Excel</button>
+                        <button class="btn btn-primary" onclick="exportarNFSeXMLs()" data-permission="nfse_export" style="padding: 8px 16px; font-size: 13px; background: #3498db;">📄 Baixar XMLs</button>
+                    </div>
+                </div>
+
+                <!-- Filtros de Busca -->
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+                        <div>
+                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Data Inicial:</label>
+                            <input type="date" id="nfse-data-inicial" style="padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; height: 38px; width: 150px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Data Final:</label>
+                            <input type="date" id="nfse-data-final" style="padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; height: 38px; width: 150px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Município:</label>
+                            <select id="nfse-municipio" style="padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; height: 38px; min-width: 200px;">
+                                <option value="">Todos os municípios</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: transparent; display: block; margin-bottom: 4px; user-select: none;">&#8203;</label>
+                            <button class="btn btn-primary" onclick="consultarNFSeLocal()" data-permission="nfse_view" style="padding: 8px 16px; height: 38px; font-size: 14px;">🔍 Consultar Banco Local</button>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: transparent; display: block; margin-bottom: 4px; user-select: none;">&#8203;</label>
+                            <button class="btn btn-success" onclick="buscarNFSeAPI()" data-permission="nfse_buscar" style="padding: 8px 16px; height: 38px; font-size: 14px; background: #e67e22;">⬇️ Baixar via API SOAP</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cards de Resumo -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3); text-align: center;">
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.9); margin-bottom: 5px; font-weight: 600;">📄 TOTAL DE NOTAS</div>
+                        <div id="total-nfse" style="font-size: 32px; color: white; font-weight: bold;">0</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(245, 87, 108, 0.3); text-align: center;">
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.9); margin-bottom: 5px; font-weight: 600;">💰 VALOR TOTAL</div>
+                        <div id="valor-total-nfse" style="font-size: 32px; color: white; font-weight: bold;">R$ 0,00</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3); text-align: center;">
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.9); margin-bottom: 5px; font-weight: 600;">🏛️ ISS TOTAL</div>
+                        <div id="iss-total-nfse" style="font-size: 32px; color: white; font-weight: bold;">R$ 0,00</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); padding: 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(67, 233, 123, 0.3); text-align: center;">
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.9); margin-bottom: 5px; font-weight: 600;">🏙️ MUNICÍPIOS</div>
+                        <div id="municipios-nfse" style="font-size: 32px; color: white; font-weight: bold;">0</div>
+                    </div>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="loading-nfse" style="display: none; text-align: center; padding: 20px; background: #fff3cd; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="font-size: 24px; margin-bottom: 10px;">⏳</div>
+                    <p style="margin: 0; color: #856404; font-weight: 500;">Buscando NFS-e...</p>
+                    <p style="margin: 5px 0 0 0; color: #856404; font-size: 14px;">Isso pode levar alguns minutos dependendo da quantidade de notas.</p>
+                </div>
+
+                <!-- Tabela de Resultados -->
+                <div class="table-scroll-container">
+                    <table id="table-nfse">
+                        <thead>
+                            <tr>
+                                <th style="width: 100px;">Número</th>
+                                <th style="width: 120px;">Data Emissão</th>
+                                <th style="width: 250px;">Tomador</th>
+                                <th style="width: 180px;">Município</th>
+                                <th style="width: 120px;">Valor Serviço</th>
+                                <th style="width: 100px;">ISS</th>
+                                <th style="width: 100px;">Situação</th>
+                                <th style="width: 100px;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-nfse">
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 60px; color: #7f8c8d;">
+                                    <div style="font-size: 48px; margin-bottom: 20px;">📄</div>
+                                    <h3 style="color: #34495e; margin-bottom: 10px;">NFS-e - Notas Fiscais de Serviço</h3>
+                                    <p style="margin: 0; font-size: 14px;">Selecione o período e clique em <strong>🔍 Consultar Banco Local</strong> para ver as NFS-e já baixadas.</p>
+                                    <p style="margin: 5px 0 0 0; font-size: 14px;">Ou clique em <strong>⬇️ Baixar via API SOAP</strong> para buscar novas notas nos servidores municipais.</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -5647,6 +5962,9 @@
             } else if (sectionId === 'inadimplencia') {
                 console.log('  ➡️ carregarInadimplencia:', typeof carregarInadimplencia);
                 if (typeof carregarInadimplencia === 'function') carregarInadimplencia();
+            } else if (sectionId === 'nfse') {
+                console.log('  ➡️ loadNFSeSection:', typeof loadNFSeSection);
+                if (typeof loadNFSeSection === 'function') loadNFSeSection();
             } else if (sectionId === 'tipos-sessao') {
                 console.log('  ➡️ loadTiposSessao:', typeof loadTiposSessao);
                 if (typeof loadTiposSessao === 'function') loadTiposSessao();
@@ -11027,6 +11345,9 @@
             document.getElementById('permissoes-usuario-container').style.display = 'none';
             usuarioAtualPermissoes = null;
         }
+
+        // NFS-e: Módulo movido para app.js (window.loadNFSeSection, etc.)
+
     </script>
     
     <!-- Script Módulo Remessa Pagamento -->

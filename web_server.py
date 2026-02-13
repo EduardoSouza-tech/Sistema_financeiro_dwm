@@ -10962,6 +10962,602 @@ def get_lazy_loading_summary():
         }), 500
 
 
+# ============================================================================
+# ROTAS NFS-e (Nota Fiscal de Serviço Eletrônica)
+# ============================================================================
+
+@app.route('/api/nfse/config', methods=['GET'])
+@require_auth
+def get_config_nfse():
+    """Lista configurações de municípios da empresa"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'Empresa não selecionada'
+            }), 400
+        
+        from nfse_functions import listar_municipios
+        
+        # Parâmetros de conexão ao banco
+        db_params = {
+            'host': os.getenv('PGHOST'),
+            'database': os.getenv('PGDATABASE'),
+            'user': os.getenv('PGUSER'),
+            'password': os.getenv('PGPASSWORD'),
+            'port': int(os.getenv('PGPORT', 5432))
+        }
+        
+        configs = listar_municipios(db_params, empresa_id)
+        
+        return jsonify({
+            'success': True,
+            'configs': configs
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar configs NFS-e: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/nfse/config', methods=['POST'])
+@require_auth
+@require_permission('nfse_config')
+def add_config_nfse():
+    """Adiciona configuração de município"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'Empresa não selecionada'
+            }), 400
+        
+        data = request.json
+        
+        # Validar campos obrigatórios
+        required_fields = ['cnpj_cpf', 'codigo_municipio', 'nome_municipio', 
+                          'uf', 'inscricao_municipal']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    'success': False,
+                    'error': f'Campo obrigatório: {field}'
+                }), 400
+        
+        from nfse_functions import adicionar_municipio
+        
+        # Parâmetros de conexão ao banco
+        db_params = {
+            'host': os.getenv('PGHOST'),
+            'database': os.getenv('PGDATABASE'),
+            'user': os.getenv('PGUSER'),
+            'password': os.getenv('PGPASSWORD'),
+            'port': int(os.getenv('PGPORT', 5432))
+        }
+        
+        sucesso, config_id, erro = adicionar_municipio(
+            db_params=db_params,
+            empresa_id=empresa_id,
+            cnpj_cpf=data['cnpj_cpf'],
+            codigo_municipio=data['codigo_municipio'],
+            nome_municipio=data['nome_municipio'],
+            uf=data['uf'],
+            inscricao_municipal=data['inscricao_municipal'],
+            provedor=data.get('provedor'),
+            url_customizada=data.get('url_customizada')
+        )
+        
+        if sucesso:
+            # Log de auditoria
+            from nfse_functions import registrar_operacao
+            registrar_operacao(
+                db_params=db_params,
+                empresa_id=empresa_id,
+                usuario_id=usuario['id'],
+                operacao='CONFIG',
+                detalhes={'municipio': data['nome_municipio']},
+                ip_address=request.remote_addr
+            )
+            
+            return jsonify({
+                'success': True,
+                'config_id': config_id,
+                'message': 'Município configurado com sucesso'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': erro
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Erro ao adicionar config NFS-e: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/nfse/config/<int:config_id>', methods=['DELETE'])
+@require_auth
+@require_permission('nfse_config')
+def delete_config_nfse(config_id):
+    """Remove configuração de município"""
+    try:
+        from nfse_functions import excluir_municipio
+        
+        # Parâmetros de conexão ao banco
+        db_params = {
+            'host': os.getenv('PGHOST'),
+            'database': os.getenv('PGDATABASE'),
+            'user': os.getenv('PGUSER'),
+            'password': os.getenv('PGPASSWORD'),
+            'port': int(os.getenv('PGPORT', 5432))
+        }
+        
+        sucesso, erro = excluir_municipio(db_params, config_id)
+        
+        if sucesso:
+            return jsonify({
+                'success': True,
+                'message': 'Configuração excluída'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': erro
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Erro ao excluir config NFS-e: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/nfse/buscar', methods=['POST'])
+@require_auth
+@require_permission('nfse_buscar')
+def buscar_nfse():
+    """Busca NFS-e via API SOAP municipal"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'Empresa não selecionada'
+            }), 400
+        
+        data = request.json
+        
+        # Validar campos obrigatórios
+        if not data.get('data_inicial') or not data.get('data_final'):
+            return jsonify({
+                'success': False,
+                'error': 'Datas inicial e final são obrigatórias'
+            }), 400
+        
+        # Buscar CNPJ da empresa
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute("SELECT cnpj FROM empresas WHERE id = %s", (empresa_id,))
+        empresa = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if not empresa:
+            return jsonify({
+                'success': False,
+                'error': 'Empresa não encontrada'
+            }), 404
+        
+        cnpj_prestador = empresa['cnpj'].replace('.', '').replace('/', '').replace('-', '')
+        
+        # Buscar certificado da empresa (assumindo que existe na tabela 'certificados')
+        # Por segurança, o caminho e senha devem vir de variáveis de ambiente ou storage seguro
+        certificado_path = os.getenv('CERTIFICADO_A1_PATH', '/app/certificados/certificado.pfx')
+        certificado_senha = os.getenv('CERTIFICADO_A1_SENHA', '')
+        
+        if not os.path.exists(certificado_path):
+            return jsonify({
+                'success': False,
+                'error': 'Certificado A1 não configurado'
+            }), 400
+        
+        from nfse_functions import buscar_nfse_periodo
+        from datetime import datetime
+        
+        # Parâmetros de conexão ao banco
+        db_params = {
+            'host': os.getenv('PGHOST'),
+            'database': os.getenv('PGDATABASE'),
+            'user': os.getenv('PGUSER'),
+            'password': os.getenv('PGPASSWORD'),
+            'port': int(os.getenv('PGPORT', 5432))
+        }
+        
+        # Converter datas
+        data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
+        data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
+        
+        # Municípios específicos ou todos
+        codigos_municipios = data.get('codigos_municipios')
+        
+        # Buscar NFS-e
+        resultado = buscar_nfse_periodo(
+            db_params=db_params,
+            empresa_id=empresa_id,
+            cnpj_prestador=cnpj_prestador,
+            data_inicial=data_inicial,
+            data_final=data_final,
+            certificado_path=certificado_path,
+            certificado_senha=certificado_senha,
+            codigos_municipios=codigos_municipios
+        )
+        
+        # Log de auditoria
+        from nfse_functions import registrar_operacao
+        registrar_operacao(
+            db_params=db_params,
+            empresa_id=empresa_id,
+            usuario_id=usuario['id'],
+            operacao='BUSCA',
+            detalhes={
+                'data_inicial': data['data_inicial'],
+                'data_final': data['data_final'],
+                'total_nfse': resultado['total_nfse']
+            },
+            ip_address=request.remote_addr
+        )
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar NFS-e: {e}")
+        capture_exception(e)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/nfse/consultar', methods=['POST'])
+@require_auth
+@require_permission('nfse_view')
+def consultar_nfse():
+    """Consulta NFS-e armazenadas localmente (sem buscar via API)"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'Empresa não selecionada'
+            }), 400
+        
+        data = request.json
+        
+        from nfse_functions import consultar_nfse_periodo
+        from datetime import datetime
+        
+        # Parâmetros de conexão ao banco
+        db_params = {
+            'host': os.getenv('PGHOST'),
+            'database': os.getenv('PGDATABASE'),
+            'user': os.getenv('PGUSER'),
+            'password': os.getenv('PGPASSWORD'),
+            'port': int(os.getenv('PGPORT', 5432))
+        }
+        
+        # Converter datas
+        data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
+        data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
+        
+        # Consultar banco local
+        nfses = consultar_nfse_periodo(
+            db_params=db_params,
+            empresa_id=empresa_id,
+            data_inicial=data_inicial,
+            data_final=data_final,
+            codigo_municipio=data.get('codigo_municipio')
+        )
+        
+        # Converter objetos datetime para string (JSON serialization)
+        for nfse in nfses:
+            for key, value in nfse.items():
+                if isinstance(value, (datetime, date)):
+                    nfse[key] = value.isoformat()
+                elif isinstance(value, Decimal):
+                    nfse[key] = float(value)
+        
+        return jsonify({
+            'success': True,
+            'nfses': nfses,
+            'total': len(nfses)
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao consultar NFS-e: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/nfse/<int:nfse_id>', methods=['GET'])
+@require_auth
+@require_permission('nfse_view')
+def get_nfse_detalhes(nfse_id):
+    """Retorna detalhes completos de uma NFS-e"""
+    try:
+        from nfse_functions import get_detalhes_nfse
+        
+        # Parâmetros de conexão ao banco
+        db_params = {
+            'host': os.getenv('PGHOST'),
+            'database': os.getenv('PGDATABASE'),
+            'user': os.getenv('PGUSER'),
+            'password': os.getenv('PGPASSWORD'),
+            'port': int(os.getenv('PGPORT', 5432))
+        }
+        
+        nfse = get_detalhes_nfse(db_params, nfse_id)
+        
+        if not nfse:
+            return jsonify({
+                'success': False,
+                'error': 'NFS-e não encontrada'
+            }), 404
+        
+        # Converter objetos datetime para string
+        for key, value in nfse.items():
+            if isinstance(value, (datetime, date)):
+                nfse[key] = value.isoformat()
+            elif isinstance(value, Decimal):
+                nfse[key] = float(value)
+        
+        return jsonify({
+            'success': True,
+            'nfse': nfse
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar detalhes NFS-e: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/nfse/resumo-mensal', methods=['POST'])
+@require_auth
+@require_permission('nfse_view')
+def get_resumo_mensal_nfse():
+    """Retorna resumo mensal de NFS-e"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'Empresa não selecionada'
+            }), 400
+        
+        data = request.json
+        ano = data.get('ano')
+        mes = data.get('mes')
+        
+        if not ano or not mes:
+            return jsonify({
+                'success': False,
+                'error': 'Ano e mês são obrigatórios'
+            }), 400
+        
+        from nfse_functions import get_resumo_mensal
+        
+        # Parâmetros de conexão ao banco
+        db_params = {
+            'host': os.getenv('PGHOST'),
+            'database': os.getenv('PGDATABASE'),
+            'user': os.getenv('PGUSER'),
+            'password': os.getenv('PGPASSWORD'),
+            'port': int(os.getenv('PGPORT', 5432))
+        }
+        
+        resumo = get_resumo_mensal(db_params, empresa_id, ano, mes)
+        
+        # Converter Decimal para float
+        for key, value in resumo.items():
+            if isinstance(value, Decimal):
+                resumo[key] = float(value)
+        
+        return jsonify({
+            'success': True,
+            'resumo': resumo
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar resumo mensal: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/nfse/export/excel', methods=['POST'])
+@require_auth
+@require_permission('nfse_export')
+def export_nfse_excel():
+    """Exporta NFS-e para Excel/CSV"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'Empresa não selecionada'
+            }), 400
+        
+        data = request.json
+        
+        from nfse_functions import exportar_nfse_excel
+        from datetime import datetime
+        import tempfile
+        
+        # Parâmetros de conexão ao banco
+        db_params = {
+            'host': os.getenv('PGHOST'),
+            'database': os.getenv('PGDATABASE'),
+            'user': os.getenv('PGUSER'),
+            'password': os.getenv('PGPASSWORD'),
+            'port': int(os.getenv('PGPORT', 5432))
+        }
+        
+        # Converter datas
+        data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
+        data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
+        
+        # Criar arquivo temporário
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
+        caminho_arquivo = temp_file.name
+        temp_file.close()
+        
+        # Exportar
+        sucesso, erro = exportar_nfse_excel(
+            db_params=db_params,
+            empresa_id=empresa_id,
+            data_inicial=data_inicial,
+            data_final=data_final,
+            caminho_arquivo=caminho_arquivo
+        )
+        
+        if sucesso:
+            # Log de auditoria
+            from nfse_functions import registrar_operacao
+            registrar_operacao(
+                db_params=db_params,
+                empresa_id=empresa_id,
+                usuario_id=usuario['id'],
+                operacao='EXPORT',
+                detalhes={'formato': 'CSV'},
+                ip_address=request.remote_addr
+            )
+            
+            return send_file(
+                caminho_arquivo,
+                mimetype='text/csv',
+                as_attachment=True,
+                download_name=f'nfse_{data_inicial}_{data_final}.csv'
+            )
+        else:
+            return jsonify({
+                'success': False,
+                'error': erro
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Erro ao exportar NFS-e: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/nfse/export/xml', methods=['POST'])
+@require_auth
+@require_permission('nfse_export')
+def export_nfse_xml():
+    """Exporta XMLs de NFS-e para arquivo ZIP"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'Empresa não selecionada'
+            }), 400
+        
+        data = request.json
+        
+        from nfse_functions import exportar_xmls_zip
+        from datetime import datetime
+        import tempfile
+        
+        # Parâmetros de conexão ao banco
+        db_params = {
+            'host': os.getenv('PGHOST'),
+            'database': os.getenv('PGDATABASE'),
+            'user': os.getenv('PGUSER'),
+            'password': os.getenv('PGPASSWORD'),
+            'port': int(os.getenv('PGPORT', 5432))
+        }
+        
+        # Converter datas
+        data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
+        data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
+        
+        # Criar arquivo temporário
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+        caminho_arquivo = temp_file.name
+        temp_file.close()
+        
+        # Exportar
+        sucesso, erro = exportar_xmls_zip(
+            db_params=db_params,
+            empresa_id=empresa_id,
+            data_inicial=data_inicial,
+            data_final=data_final,
+            caminho_arquivo=caminho_arquivo
+        )
+        
+        if sucesso:
+            # Log de auditoria
+            from nfse_functions import registrar_operacao
+            registrar_operacao(
+                db_params=db_params,
+                empresa_id=empresa_id,
+                usuario_id=usuario['id'],
+                operacao='EXPORT',
+                detalhes={'formato': 'XML_ZIP'},
+                ip_address=request.remote_addr
+            )
+            
+            return send_file(
+                caminho_arquivo,
+                mimetype='application/zip',
+                as_attachment=True,
+                download_name=f'nfse_xmls_{data_inicial}_{data_final}.zip'
+            )
+        else:
+            return jsonify({
+                'success': False,
+                'error': erro
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Erro ao exportar XMLs: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 if __name__ == '__main__':
     # Inicializar tabelas de importação
     try:

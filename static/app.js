@@ -6463,3 +6463,587 @@ window.fecharConciliacaoGeral = function() {
     window.transacoesConciliacao = null;
     window.categoriasConciliacao = null;
 };
+
+// ============================================================================
+// MÓDULO NFS-e (Notas Fiscais de Serviço Eletrônica)
+// ============================================================================
+
+window.nfsesCarregadas = [];
+window.municipiosNFSe = [];
+
+// Carregar seção NFS-e
+window.loadNFSeSection = async function() {
+    console.log('📄 Carregando seção NFS-e...');
+    
+    // Definir período padrão (mês atual)
+    const hoje = new Date();
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    
+    document.getElementById('nfse-data-inicial').value = primeiroDia.toISOString().split('T')[0];
+    document.getElementById('nfse-data-final').value = ultimoDia.toISOString().split('T')[0];
+    
+    // Carregar lista de municípios configurados
+    await window.carregarMunicipiosNFSe();
+};
+
+// Carregar municípios configurados no dropdown
+window.carregarMunicipiosNFSe = async function() {
+    try {
+        const response = await fetch('/api/nfse/config', {
+            method: 'GET',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            window.municipiosNFSe = data.configs || [];
+            
+            const select = document.getElementById('nfse-municipio');
+            select.innerHTML = '<option value="">Todos os municípios</option>';
+            
+            window.municipiosNFSe.forEach(config => {
+                const option = document.createElement('option');
+                option.value = config.codigo_municipio;
+                option.textContent = `${config.nome_municipio}/${config.uf} - ${config.provedor}`;
+                select.appendChild(option);
+            });
+            
+            console.log(`✅ ${window.municipiosNFSe.length} municípios carregados`);
+        } else {
+            console.error('❌ Erro ao carregar municípios:', data.error);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar municípios:', error);
+    }
+};
+
+// Consultar NFS-e no banco local (sem API SOAP)
+window.consultarNFSeLocal = async function() {
+    const dataInicial = document.getElementById('nfse-data-inicial').value;
+    const dataFinal = document.getElementById('nfse-data-final').value;
+    const codigoMunicipio = document.getElementById('nfse-municipio').value;
+    
+    if (!dataInicial || !dataFinal) {
+        showToast('⚠️ Selecione o período (data inicial e final)', 'warning');
+        return;
+    }
+    
+    console.log('🔍 Consultando NFS-e localmente:', { dataInicial, dataFinal, codigoMunicipio });
+    
+    // Mostrar loading
+    const tbody = document.getElementById('tbody-nfse');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="font-size: 24px;">⏳</div><p>Consultando banco de dados...</p></td></tr>';
+    
+    try {
+        const body = {
+            data_inicial: dataInicial,
+            data_final: dataFinal
+        };
+        
+        if (codigoMunicipio) {
+            body.codigo_municipio = codigoMunicipio;
+        }
+        
+        const response = await fetch('/api/nfse/consultar', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            window.nfsesCarregadas = data.nfses || [];
+            window.exibirNFSe(window.nfsesCarregadas);
+            window.atualizarResumoNFSe(window.nfsesCarregadas);
+            showToast(`✅ ${window.nfsesCarregadas.length} NFS-e encontradas`, 'success');
+        } else {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro ao Consultar</h3><p>${data.error}</p></td></tr>`;
+            showToast(`❌ Erro: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao consultar NFS-e:', error);
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro de Conexão</h3><p>Não foi possível conectar ao servidor.</p></td></tr>';
+        showToast('❌ Erro ao consultar NFS-e', 'error');
+    }
+};
+
+// Buscar NFS-e via API SOAP (download das prefeituras)
+window.buscarNFSeAPI = async function() {
+    const dataInicial = document.getElementById('nfse-data-inicial').value;
+    const dataFinal = document.getElementById('nfse-data-final').value;
+    const codigoMunicipio = document.getElementById('nfse-municipio').value;
+    
+    if (!dataInicial || !dataFinal) {
+        showToast('⚠️ Selecione o período (data inicial e final)', 'warning');
+        return;
+    }
+    
+    console.log('⬇️ Baixando NFS-e via API SOAP:', { dataInicial, dataFinal, codigoMunicipio });
+    
+    // Confirmar ação (pode demorar)
+    if (!confirm('⚠️ Esta operação pode levar alguns minutos.\n\n📡 Será feito acesso aos servidores das prefeituras via SOAP para baixar as NFS-e do período selecionado.\n\n💾 As notas serão salvas no banco de dados.\n\nDeseja continuar?')) {
+        return;
+    }
+    
+    // Mostrar loading
+    const loading = document.getElementById('loading-nfse');
+    loading.style.display = 'block';
+    
+    const tbody = document.getElementById('tbody-nfse');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="font-size: 48px;">⏳</div><p>Buscando NFS-e via SOAP...</p><p style="color: #856404; font-size: 14px;">Isso pode levar vários minutos dependendo da quantidade de notas.</p></td></tr>';
+    
+    try {
+        const body = {
+            data_inicial: dataInicial,
+            data_final: dataFinal
+        };
+        
+        if (codigoMunicipio) {
+            body.codigos_municipios = [codigoMunicipio];
+        }
+        
+        const response = await fetch('/api/nfse/buscar', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+        
+        const data = await response.json();
+        
+        loading.style.display = 'none';
+        
+        if (data.success) {
+            const resultado = data.resultado;
+            
+            showToast(`✅ Busca concluída!\n📄 ${resultado.total_nfse} NFS-e encontradas\n💾 ${resultado.nfse_novas} novas, ${resultado.nfse_atualizadas} atualizadas`, 'success', 5000);
+            
+            // Atualizar tabela com consulta local
+            await window.consultarNFSeLocal();
+        } else {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro ao Buscar NFS-e</h3><p>${data.error}</p></td></tr>`;
+            showToast(`❌ Erro: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao buscar NFS-e via API:', error);
+        loading.style.display = 'none';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro de Conexão</h3><p>Não foi possível conectar ao servidor.</p></td></tr>';
+        showToast('❌ Erro ao buscar NFS-e', 'error');
+    }
+};
+
+// Exibir NFS-e na tabela
+window.exibirNFSe = function(nfses) {
+    const tbody = document.getElementById('tbody-nfse');
+    
+    if (nfses.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 60px; color: #7f8c8d;"><div style="font-size: 48px; margin-bottom: 20px;">📄</div><h3 style="color: #34495e;">Nenhuma NFS-e encontrada</h3><p style="font-size: 14px;">Tente ajustar o período ou buscar via API SOAP.</p></td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    
+    nfses.forEach(nfse => {
+        const tr = document.createElement('tr');
+        
+        // Formatações
+        const dataEmissao = nfse.data_emissao ? new Date(nfse.data_emissao + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+        const valorServico = nfse.valor_servico ? parseFloat(nfse.valor_servico).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
+        const valorIss = nfse.valor_iss ? parseFloat(nfse.valor_iss).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
+        
+        // Badge situação
+        let badgeSituacao = '';
+        switch (nfse.situacao) {
+            case 'NORMAL':
+                badgeSituacao = '<span style="background: #27ae60; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">✅ NORMAL</span>';
+                break;
+            case 'CANCELADA':
+                badgeSituacao = '<span style="background: #e74c3c; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">❌ CANCELADA</span>';
+                break;
+            case 'SUBSTITUIDA':
+                badgeSituacao = '<span style="background: #f39c12; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">🔄 SUBSTITUÍDA</span>';
+                break;
+            default:
+                badgeSituacao = `<span style="background: #95a5a6; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">${nfse.situacao || '?'}</span>`;
+        }
+        
+        tr.innerHTML = `
+            <td style="text-align: center; font-weight: bold;">${nfse.numero_nfse || '-'}</td>
+            <td style="text-align: center;">${dataEmissao}</td>
+            <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${nfse.razao_social_tomador || '-'}">${nfse.razao_social_tomador || '-'}</td>
+            <td style="text-align: center;">${nfse.nome_municipio || '-'}/${nfse.uf || '-'}</td>
+            <td style="text-align: right; font-weight: bold; color: #27ae60;">${valorServico}</td>
+            <td style="text-align: right; font-weight: bold; color: #3498db;">${valorIss}</td>
+            <td style="text-align: center;">${badgeSituacao}</td>
+            <td style="text-align: center;">
+                <button onclick="verDetalhesNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; background: #3498db;" title="Ver Detalhes">👁️</button>
+            </td>
+        `;
+        
+        tbody.appendChild(tr);
+    });
+};
+
+// Atualizar cards de resumo
+window.atualizarResumoNFSe = function(nfses) {
+    const totalNotas = nfses.length;
+    const valorTotal = nfses.reduce((sum, nfse) => sum + (parseFloat(nfse.valor_servico) || 0), 0);
+    const issTotal = nfses.reduce((sum, nfse) => sum + (parseFloat(nfse.valor_iss) || 0), 0);
+    const municipiosUnicos = [...new Set(nfses.map(nfse => nfse.codigo_municipio))].length;
+    
+    document.getElementById('total-nfse').textContent = totalNotas;
+    document.getElementById('valor-total-nfse').textContent = valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    document.getElementById('iss-total-nfse').textContent = issTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    document.getElementById('municipios-nfse').textContent = municipiosUnicos;
+};
+
+// Exportar NFS-e para Excel (CSV)
+window.exportarNFSeExcel = async function() {
+    const dataInicial = document.getElementById('nfse-data-inicial').value;
+    const dataFinal = document.getElementById('nfse-data-final').value;
+    
+    if (!dataInicial || !dataFinal) {
+        showToast('⚠️ Selecione o período para exportação', 'warning');
+        return;
+    }
+    
+    if (window.nfsesCarregadas.length === 0) {
+        showToast('⚠️ Nenhuma NFS-e para exportar. Faça uma consulta primeiro.', 'warning');
+        return;
+    }
+    
+    console.log('📊 Exportando NFS-e para Excel/CSV...');
+    showToast('⏳ Gerando arquivo Excel...', 'info');
+    
+    try {
+        const response = await fetch('/api/nfse/export/excel', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                data_inicial: dataInicial,
+                data_final: dataFinal
+            })
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `nfse_${dataInicial}_${dataFinal}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            
+            showToast('✅ Arquivo CSV baixado com sucesso!', 'success');
+        } else {
+            const data = await response.json();
+            showToast(`❌ Erro: ${data.error || 'Erro desconhecido'}`, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao exportar NFS-e:', error);
+        showToast('❌ Erro ao exportar NFS-e', 'error');
+    }
+};
+
+// Exportar XMLs em arquivo ZIP
+window.exportarNFSeXMLs = async function() {
+    const dataInicial = document.getElementById('nfse-data-inicial').value;
+    const dataFinal = document.getElementById('nfse-data-final').value;
+    
+    if (!dataInicial || !dataFinal) {
+        showToast('⚠️ Selecione o período para exportação', 'warning');
+        return;
+    }
+    
+    if (window.nfsesCarregadas.length === 0) {
+        showToast('⚠️ Nenhuma NFS-e para exportar. Faça uma consulta primeiro.', 'warning');
+        return;
+    }
+    
+    console.log('📄 Exportando XMLs das NFS-e...');
+    showToast('⏳ Gerando arquivo ZIP com XMLs...', 'info');
+    
+    try {
+        const response = await fetch('/api/nfse/export/xml', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                data_inicial: dataInicial,
+                data_final: dataFinal
+            })
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `nfse_xmls_${dataInicial}_${dataFinal}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            
+            showToast('✅ Arquivo ZIP com XMLs baixado com sucesso!', 'success');
+        } else {
+            const data = await response.json();
+            showToast(`❌ Erro: ${data.error || 'Erro desconhecido'}`, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao exportar XMLs:', error);
+        showToast('❌ Erro ao exportar XMLs', 'error');
+    }
+};
+
+// Mostrar modal de configuração de municípios
+window.mostrarConfigMunicipiosNFSe = async function() {
+    document.getElementById('modal-config-municipios').style.display = 'block';
+    await window.carregarListaMunicipiosNFSe();
+};
+
+// Fechar modal de configuração
+window.fecharModalConfigMunicipios = function() {
+    document.getElementById('modal-config-municipios').style.display = 'none';
+    document.getElementById('form-novo-municipio-nfse').reset();
+};
+
+// Carregar lista de municípios configurados na tabela do modal
+window.carregarListaMunicipiosNFSe = async function() {
+    try {
+        const response = await fetch('/api/nfse/config', {
+            method: 'GET',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const municipios = data.configs || [];
+            const tbody = document.getElementById('tbody-municipios-nfse');
+            
+            if (municipios.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; color: #999;">Nenhum município configurado.</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            
+            municipios.forEach(config => {
+                const tr = document.createElement('tr');
+                
+                const statusBadge = config.ativo 
+                    ? '<span style="background: #27ae60; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">✅ ATIVO</span>'
+                    : '<span style="background: #95a5a6; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">⏸️ INATIVO</span>';
+                
+                tr.innerHTML = `
+                    <td>${config.nome_municipio || '-'}</td>
+                    <td style="text-align: center;">${config.uf || '-'}</td>
+                    <td style="text-align: center;">${config.codigo_municipio || '-'}</td>
+                    <td style="text-align: center;">${config.provedor || '-'}</td>
+                    <td style="text-align: center;">${statusBadge}</td>
+                    <td style="text-align: center;">
+                        <button onclick="excluirMunicipioNFSe(${config.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; background: #e74c3c;">🗑️</button>
+                    </td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+        } else {
+            console.error('❌ Erro ao carregar lista de municípios:', data.error);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar lista de municípios:', error);
+    }
+};
+
+// Salvar novo município
+window.salvarMunicipioNFSe = async function(event) {
+    event.preventDefault();
+    
+    const novoMunicipio = {
+        cnpj_cpf: document.getElementById('config-cnpj').value.replace(/\D/g, ''),
+        codigo_municipio: document.getElementById('config-codigo-municipio').value,
+        nome_municipio: document.getElementById('config-nome-municipio').value,
+        uf: document.getElementById('config-uf').value,
+        inscricao_municipal: document.getElementById('config-inscricao-municipal').value,
+        provedor: document.getElementById('config-provedor').value || null,
+        url_customizada: document.getElementById('config-url-customizada').value || null
+    };
+    
+    console.log('💾 Salvando novo município:', novoMunicipio);
+    showToast('⏳ Salvando configuração...', 'info');
+    
+    try {
+        const response = await fetch('/api/nfse/config', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(novoMunicipio)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('✅ Município configurado com sucesso!', 'success');
+            document.getElementById('form-novo-municipio-nfse').reset();
+            await window.carregarListaMunicipiosNFSe();
+            await window.carregarMunicipiosNFSe(); // Atualizar dropdown na seção principal
+        } else {
+            showToast(`❌ Erro: ${data.error || 'Erro desconhecido'}`, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao salvar município:', error);
+        showToast('❌ Erro ao salvar município', 'error');
+    }
+};
+
+// Excluir município
+window.excluirMunicipioNFSe = async function(configId) {
+    if (!confirm('⚠️ Deseja excluir esta configuração de município?\n\n⚠️ As NFS-e já baixadas não serão excluídas, apenas a configuração será removida.')) {
+        return;
+    }
+    
+    console.log('🗑️ Excluindo município ID:', configId);
+    showToast('⏳ Excluindo...', 'info');
+    
+    try {
+        const response = await fetch(`/api/nfse/config/${configId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('✅ Configuração excluída com sucesso!', 'success');
+            await window.carregarListaMunicipiosNFSe();
+            await window.carregarMunicipiosNFSe();
+        } else {
+            showToast(`❌ Erro: ${data.error || 'Erro desconhecido'}`, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao excluir município:', error);
+        showToast('❌ Erro ao excluir município', 'error');
+    }
+};
+
+// Ver detalhes de NFS-e
+window.verDetalhesNFSe = async function(nfseId) {
+    console.log('👁️ Carregando detalhes da NFS-e ID:', nfseId);
+    
+    document.getElementById('modal-detalhes-nfse').style.display = 'block';
+    document.getElementById('detalhes-nfse-content').innerHTML = '<p style="text-align: center; color: #999; padding: 30px;">⏳ Carregando detalhes...</p>';
+    
+    try {
+        const response = await fetch(`/api/nfse/${nfseId}`, {
+            method: 'GET',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const nfse = data.nfse;
+            
+            // Preencher dados
+            document.getElementById('det-numero').textContent = nfse.numero_nfse || '-';
+            document.getElementById('det-codigo-verificacao').textContent = nfse.codigo_verificacao || '-';
+            document.getElementById('det-data-emissao').textContent = nfse.data_emissao ? new Date(nfse.data_emissao + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+            
+            let situacaoHtml = '';
+            switch (nfse.situacao) {
+                case 'NORMAL':
+                    situacaoHtml = '<span style="background: #27ae60; color: white; padding: 6px 12px; border-radius: 12px; font-weight: bold;">✅ NORMAL</span>';
+                    break;
+                case 'CANCELADA':
+                    situacaoHtml = '<span style="background: #e74c3c; color: white; padding: 6px 12px; border-radius: 12px; font-weight: bold;">❌ CANCELADA</span>';
+                    break;
+                case 'SUBSTITUIDA':
+                    situacaoHtml = '<span style="background: #f39c12; color: white; padding: 6px 12px; border-radius: 12px; font-weight: bold;">🔄 SUBSTITUÍDA</span>';
+                    break;
+                default:
+                    situacaoHtml = `<span style="background: #95a5a6; color: white; padding: 6px 12px; border-radius: 12px; font-weight: bold;">${nfse.situacao || '?'}</span>`;
+            }
+            document.getElementById('det-situacao').innerHTML = situacaoHtml;
+            
+            document.getElementById('det-cnpj-prestador').textContent = nfse.cnpj_prestador || '-';
+            document.getElementById('det-cnpj-tomador').textContent = nfse.cnpj_tomador || '-';
+            document.getElementById('det-razao-social-tomador').textContent = nfse.razao_social_tomador || '-';
+            
+            document.getElementById('det-valor-servico').textContent = nfse.valor_servico ? parseFloat(nfse.valor_servico).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
+            document.getElementById('det-valor-deducoes').textContent = nfse.valor_deducoes ? parseFloat(nfse.valor_deducoes).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
+            document.getElementById('det-valor-iss').textContent = nfse.valor_iss ? parseFloat(nfse.valor_iss).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
+            
+            document.getElementById('det-discriminacao').textContent = nfse.discriminacao || '-';
+            
+            // XML (formatado)
+            document.getElementById('det-xml-content').textContent = nfse.xml_content || '(XML não disponível)';
+            
+            // Mostrar aba de dados por padrão
+            window.mostrarAbaDetalhesNFSe('dados');
+        } else {
+            document.getElementById('detalhes-nfse-content').innerHTML = `<p style="text-align: center; color: #e74c3c; padding: 30px;">❌ Erro: ${data.error}</p>`;
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar detalhes:', error);
+        document.getElementById('detalhes-nfse-content').innerHTML = '<p style="text-align: center; color: #e74c3c; padding: 30px;">❌ Erro ao carregar detalhes</p>';
+    }
+};
+
+// Fechar modal de detalhes
+window.fecharModalDetalhesNFSe = function() {
+    document.getElementById('modal-detalhes-nfse').style.display = 'none';
+};
+
+// Alternar abas no modal de detalhes
+window.mostrarAbaDetalhesNFSe = function(aba) {
+    const tabDados = document.getElementById('tab-dados-nfse');
+    const tabXml = document.getElementById('tab-xml-nfse');
+    const conteudoDados = document.getElementById('conteudo-dados-nfse');
+    const conteudoXml = document.getElementById('conteudo-xml-nfse');
+    
+    if (aba === 'dados') {
+        tabDados.style.background = '#3498db';
+        tabXml.style.background = '#95a5a6';
+        conteudoDados.style.display = 'block';
+        conteudoXml.style.display = 'none';
+    } else {
+        tabDados.style.background = '#95a5a6';
+        tabXml.style.background = '#3498db';
+        conteudoDados.style.display = 'none';
+        conteudoXml.style.display = 'block';
+    }
+};
+
+// Copiar XML para área de transferência
+window.copiarXMLNFSe = async function() {
+    const xmlContent = document.getElementById('det-xml-content').textContent;
+    
+    try {
+        await navigator.clipboard.writeText(xmlContent);
+        showToast('✅ XML copiado para área de transferência!', 'success');
+    } catch (error) {
+        console.error('❌ Erro ao copiar XML:', error);
+        showToast('❌ Erro ao copiar XML', 'error');
+    }
+};
+
+// FIM MÓDULO NFS-e

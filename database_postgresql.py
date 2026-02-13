@@ -2064,21 +2064,26 @@ class DatabaseManager:
                          cep: str = None, logradouro: str = None, numero: str = None,
                          complemento: str = None, bairro: str = None, 
                          cidade: str = None, estado: str = None) -> int:
-        """Adiciona um novo cliente (aceita dict ou parâmetros individuais)"""
+        """Adiciona um novo cliente (aceita dict ou parâmetros individuais)
+        
+        SCHEMA CORRETO (schema_empresa.sql):
+        - id SERIAL PRIMARY KEY
+        - nome VARCHAR(255) NOT NULL
+        - cpf_cnpj VARCHAR(18)
+        - email VARCHAR(255)
+        - telefone VARCHAR(20)
+        - endereco TEXT
+        - ativo BOOLEAN DEFAULT TRUE
+        - created_at TIMESTAMP DEFAULT NOW()
+        """
         # Aceitar dict ou parâmetros individuais
         if isinstance(cliente_data, dict):
             nome = cliente_data.get('nome')
-            razao_social = cliente_data.get('razao_social', cliente_data.get('nome'))
-            nome_fantasia = cliente_data.get('nome_fantasia')
             cpf_cnpj = cliente_data.get('cpf', cliente_data.get('cpf_cnpj'))
-            cnpj = cliente_data.get('cnpj', cliente_data.get('cpf_cnpj'))
-            documento = cliente_data.get('documento', cliente_data.get('cpf_cnpj'))
-            ie = cliente_data.get('ie')
-            im = cliente_data.get('im')
             email = cliente_data.get('email')
             telefone = cliente_data.get('telefone')
             endereco = cliente_data.get('endereco')
-            # 🌐 Campos de endereço estruturado (PARTE 7)
+            # 🌐 Campos de endereço estruturado - montar em TEXT
             cep = cliente_data.get('cep')
             logradouro = cliente_data.get('logradouro')
             numero = cliente_data.get('numero')
@@ -2086,81 +2091,36 @@ class DatabaseManager:
             bairro = cliente_data.get('bairro')
             cidade = cliente_data.get('cidade')
             estado = cliente_data.get('estado')
-            proprietario_id = cliente_data.get('proprietario_id', proprietario_id)
-            empresa_id = cliente_data.get('empresa_id')  # 🔒 Pegar empresa_id
         else:
             nome = cliente_data
-            razao_social = cliente_data
-            nome_fantasia = None
-            cnpj = cpf_cnpj
-            documento = cpf_cnpj
-            ie = None
-            im = None
-            empresa_id = None
+            email = email
+            telefone = telefone
+            endereco = endereco
         
-        # 🔒 Validar empresa_id obrigatório
-        if not empresa_id:
-            from flask import session
-            empresa_id = session.get('empresa_id')
-        if not empresa_id:
-            raise ValueError("empresa_id é obrigatório para adicionar cliente")
+        # Montar endereço completo no campo TEXT se tiver campos estruturados
+        if cep or logradouro or numero:
+            partes = []
+            if logradouro: partes.append(logradouro)
+            if numero: partes.append(f"nº {numero}")
+            if complemento: partes.append(complemento)
+            if bairro: partes.append(bairro)
+            if cidade: partes.append(cidade)
+            if estado: partes.append(estado)
+            if cep: partes.append(f"CEP: {cep}")
+            endereco = ", ".join(partes) if partes else endereco
         
-        # 🔒 Usar get_db_connection com empresa_id para aplicar RLS
-        with get_db_connection(empresa_id=empresa_id) as conn:
-            cursor = conn.cursor()
-            
-            # 🔄 Tentar inserir com campos estruturados (migration aplicada)
-            # Se falhar, fazer fallback para apenas campo 'endereco' TEXT
-            try:
-                cursor.execute("""
-                    INSERT INTO clientes (
-                        nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
-                        email, telefone, endereco, 
-                        cep, logradouro, numero, complemento, bairro, cidade, estado,
-                        proprietario_id, empresa_id
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id
-                """, (nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
-                      email, telefone, endereco, 
-                      cep, logradouro, numero, complemento, bairro, cidade, estado,
-                      proprietario_id, empresa_id))
-                
-            except Exception as e:
-                # ⚠️ Fallback: Se colunas estruturadas não existem, usar apenas 'endereco'
-                if 'does not exist' in str(e) and 'cep' in str(e):
-                    print(f"⚠️ Colunas de endereço estruturado não existem. Usando fallback...")
-                    conn.rollback()
-                    
-                    # Montar endereço completo no campo TEXT
-                    endereco_completo = endereco or ""
-                    if cep or logradouro or numero:
-                        partes = []
-                        if logradouro: partes.append(logradouro)
-                        if numero: partes.append(f"nº {numero}")
-                        if complemento: partes.append(complemento)
-                        if bairro: partes.append(bairro)
-                        if cidade: partes.append(cidade)
-                        if estado: partes.append(estado)
-                        if cep: partes.append(f"CEP: {cep}")
-                        endereco_completo = ", ".join(partes) if partes else endereco
-                    
-                    cursor.execute("""
-                        INSERT INTO clientes (
-                            nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
-                            email, telefone, endereco,
-                            proprietario_id, empresa_id
-                        )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        RETURNING id
-                    """, (nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
-                          email, telefone, endereco_completo,
-                          proprietario_id, empresa_id))
-                else:
-                    raise  # Re-lançar outros erros
-            
-            cliente_id = cursor.fetchone()['id']
-            conn.commit()
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        # ✅ INSERT usando APENAS as colunas que existem no schema
+        cursor.execute("""
+            INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
+        """, (nome, cpf_cnpj, email, telefone, endereco))
+        
+        cliente_id = cursor.fetchone()['id']
+        conn.commit()
         
         return cliente_id
     
@@ -2205,99 +2165,48 @@ class DatabaseManager:
         return clientes
     
     def atualizar_cliente(self, nome_antigo: str, dados: Dict) -> bool:
-        """Atualiza os dados de um cliente pelo nome"""
+        """Atualiza os dados de um cliente pelo nome
+        
+        SCHEMA CORRETO (schema_empresa.sql):
+        - nome VARCHAR(255) NOT NULL
+        - cpf_cnpj VARCHAR(18)
+        - email VARCHAR(255)
+        - telefone VARCHAR(20)
+        - endereco TEXT
+        - ativo BOOLEAN DEFAULT TRUE
+        - created_at TIMESTAMP DEFAULT NOW()
+        """
         conn = self.get_connection()
         cursor = conn.cursor()
         
         nome_normalizado = nome_antigo.upper().strip()
         
-        # 🔄 Tentar atualizar com campos estruturados (migration aplicada)
-        # Se falhar, fazer fallback para apenas campo 'endereco' TEXT
-        try:
-            cursor.execute("""
-                UPDATE clientes 
-                SET nome = %s, razao_social = %s, nome_fantasia = %s,
-                    cpf_cnpj = %s, cnpj = %s, documento = %s, ie = %s, im = %s,
-                    email = %s, telefone = %s, endereco = %s,
-                    cep = %s, logradouro = %s, numero = %s,
-                    complemento = %s, bairro = %s, cidade = %s, estado = %s,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE UPPER(TRIM(nome)) = %s OR UPPER(TRIM(razao_social)) = %s
-            """, (
-                dados.get('nome'),
-                dados.get('razao_social', dados.get('nome')),
-                dados.get('nome_fantasia'),
-                dados.get('cpf', dados.get('cpf_cnpj')),
-                dados.get('cnpj', dados.get('cpf_cnpj')),
-                dados.get('documento', dados.get('cpf_cnpj')),
-                dados.get('ie'),
-                dados.get('im'),
-                dados.get('email'),
-                dados.get('telefone'),
-                dados.get('endereco'),
-                # 🌐 Campos de endereço estruturado (PARTE 7)
-                dados.get('cep'),
-                dados.get('logradouro'),
-                dados.get('numero'),
-                dados.get('complemento'),
-                dados.get('bairro'),
-                dados.get('cidade'),
-                dados.get('estado'),
-                nome_normalizado,
-                nome_normalizado
-            ))
-            
-        except Exception as e:
-            # ⚠️ Fallback: Se colunas estruturadas não existem, usar apenas 'endereco'
-            if 'does not exist' in str(e) and 'cep' in str(e):
-                print(f"⚠️ Colunas de endereço estruturado não existem. Usando fallback...")
-                conn.rollback()
-                
-                # Montar endereço completo no campo TEXT
-                endereco = dados.get('endereco') or ""
-                cep = dados.get('cep')
-                logradouro = dados.get('logradouro')
-                numero = dados.get('numero')
-                complemento = dados.get('complemento')
-                bairro = dados.get('bairro')
-                cidade = dados.get('cidade')
-                estado = dados.get('estado')
-                
-                if cep or logradouro or numero:
-                    partes = []
-                    if logradouro: partes.append(logradouro)
-                    if numero: partes.append(f"nº {numero}")
-                    if complemento: partes.append(complemento)
-                    if bairro: partes.append(bairro)
-                    if cidade: partes.append(cidade)
-                    if estado: partes.append(estado)
-                    if cep: partes.append(f"CEP: {cep}")
-                    endereco = ", ".join(partes) if partes else endereco
-                
-                cursor.execute("""
-                    UPDATE clientes 
-                    SET nome = %s, razao_social = %s, nome_fantasia = %s,
-                        cpf_cnpj = %s, cnpj = %s, documento = %s, ie = %s, im = %s,
-                        email = %s, telefone = %s, endereco = %s,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE UPPER(TRIM(nome)) = %s OR UPPER(TRIM(razao_social)) = %s
-                """, (
-                    dados.get('nome'),
-                    dados.get('razao_social', dados.get('nome')),
-                    dados.get('nome_fantasia'),
-                    dados.get('cpf', dados.get('cpf_cnpj')),
-                    dados.get('cnpj', dados.get('cpf_cnpj')),
-                    dados.get('documento', dados.get('cpf_cnpj')),
-                    dados.get('ie'),
-                    dados.get('im'),
-                    dados.get('email'),
-                    dados.get('telefone'),
-                    endereco,
-                    nome_normalizado,
-                    nome_normalizado
-                ))
-            else:
-                raise  # Re-lançar outros erros
+        # Montar endereço completo se tiver campos estruturados
+        endereco = dados.get('endereco') or ""
+        if dados.get('cep') or dados.get('logradouro') or dados.get('numero'):
+            partes = []
+            if dados.get('logradouro'): partes.append(dados.get('logradouro'))
+            if dados.get('numero'): partes.append(f"nº {dados.get('numero')}")
+            if dados.get('complemento'): partes.append(dados.get('complemento'))
+            if dados.get('bairro'): partes.append(dados.get('bairro'))
+            if dados.get('cidade'): partes.append(dados.get('cidade'))
+            if dados.get('estado'): partes.append(dados.get('estado'))
+            if dados.get('cep'): partes.append(f"CEP: {dados.get('cep')}")
+            endereco = ", ".join(partes) if partes else endereco
+        
+        # ✅ UPDATE usando APENAS as colunas que existem no schema
+        cursor.execute("""
+            UPDATE clientes 
+            SET nome = %s, cpf_cnpj = %s, email = %s, telefone = %s, endereco = %s
+            WHERE UPPER(TRIM(nome)) = %s
+        """, (
+            dados.get('nome'),
+            dados.get('cpf', dados.get('cpf_cnpj')),
+            dados.get('email'),
+            dados.get('telefone'),
+            endereco,
+            nome_normalizado
+        ))
         
         sucesso = cursor.rowcount > 0
         conn.commit()
@@ -2434,21 +2343,25 @@ class DatabaseManager:
                            cep: str = None, logradouro: str = None, numero: str = None,
                            complemento: str = None, bairro: str = None, 
                            cidade: str = None, estado: str = None) -> int:
-        """Adiciona um novo fornecedor com multi-tenancy"""
+        """Adiciona um novo fornecedor
+        
+        SCHEMA CORRETO (schema_empresa.sql):
+        - nome VARCHAR(255) NOT NULL
+        - cpf_cnpj VARCHAR(18)
+        - email VARCHAR(255)
+        - telefone VARCHAR(20)
+        - endereco TEXT
+        - ativo BOOLEAN DEFAULT TRUE
+        - created_at TIMESTAMP DEFAULT NOW()
+        """
         # Aceitar dict ou parâmetros individuais
         if isinstance(fornecedor_data, dict):
             nome = fornecedor_data.get('nome')
-            razao_social = fornecedor_data.get('razao_social', fornecedor_data.get('nome'))
-            nome_fantasia = fornecedor_data.get('nome_fantasia')
             cpf_cnpj = fornecedor_data.get('cnpj', fornecedor_data.get('cpf_cnpj'))
-            cnpj = fornecedor_data.get('cnpj', fornecedor_data.get('cpf_cnpj'))
-            documento = fornecedor_data.get('documento', fornecedor_data.get('cpf_cnpj'))
-            ie = fornecedor_data.get('ie')
-            im = fornecedor_data.get('im')
             email = fornecedor_data.get('email')
             telefone = fornecedor_data.get('telefone')
             endereco = fornecedor_data.get('endereco')
-            # 🌐 Campos de endereço estruturado
+            # 🌐 Campos de endereço estruturado - montar em TEXT
             cep = fornecedor_data.get('cep')
             logradouro = fornecedor_data.get('logradouro')
             numero = fornecedor_data.get('numero')
@@ -2456,65 +2369,35 @@ class DatabaseManager:
             bairro = fornecedor_data.get('bairro')
             cidade = fornecedor_data.get('cidade')
             estado = fornecedor_data.get('estado')
-            proprietario_id = fornecedor_data.get('proprietario_id', proprietario_id)
-            empresa_id = fornecedor_data.get('empresa_id')
         else:
             nome = fornecedor_data
-            razao_social = fornecedor_data
-            nome_fantasia = None
-            cnpj = cpf_cnpj
-            documento = cpf_cnpj
-            ie = None
-            im = None
-            empresa_id = None
         
-        # 🔒 Validar empresa_id obrigatório
-        if not empresa_id:
-            from flask import session
-            empresa_id = session.get('empresa_id')
-        if not empresa_id:
-            raise ValueError("empresa_id é obrigatório para adicionar fornecedor")
+        # Montar endereço completo no campo TEXT se tiver campos estruturados
+        if cep or logradouro or numero:
+            partes = []
+            if logradouro: partes.append(logradouro)
+            if numero: partes.append(f"nº {numero}")
+            if complemento: partes.append(complemento)
+            if bairro: partes.append(bairro)
+            if cidade: partes.append(cidade)
+            if estado: partes.append(estado)
+            if cep: partes.append(f"CEP: {cep}")
+            endereco = ", ".join(partes) if partes else endereco
         
-        # 🔒 Validar proprietario_id se fornecido
-        if proprietario_id:
-            with get_db_connection(empresa_id=empresa_id) as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT id FROM usuarios WHERE id = %s", (proprietario_id,))
-                if not cursor.fetchone():
-                    cursor.close()
-                    raise ValueError(f"proprietario_id {proprietario_id} não existe na tabela usuarios")
-                cursor.close()
+        conn = self.get_connection()
+        cursor = conn.cursor()
         
-        print(f"\n🔍 [adicionar_fornecedor]")
-        print(f"   - empresa_id: {empresa_id}")
-        print(f"   - nome: {nome}")
-        print(f"   - proprietario_id: {proprietario_id}")
+        # ✅ INSERT usando APENAS as colunas que existem no schema
+        cursor.execute("""
+            INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
+        """, (nome, cpf_cnpj, email, telefone, endereco))
         
-        # 🔒 Usar get_db_connection com empresa_id para aplicar RLS
-        with get_db_connection(empresa_id=empresa_id) as conn:
-            cursor = conn.cursor()
-            
-            # ✅ INSERT com schema completo (após migration)
-            cursor.execute("""
-                INSERT INTO fornecedores (
-                    nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
-                    email, telefone, endereco,
-                    cep, logradouro, numero, complemento, bairro, cidade, estado,
-                    proprietario_id, empresa_id
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (nome, razao_social, nome_fantasia, cpf_cnpj, cnpj, documento, ie, im,
-                  email, telefone, endereco,
-                  cep, logradouro, numero, complemento, bairro, cidade, estado,
-                  proprietario_id, empresa_id))
-            
-            fornecedor_id = cursor.fetchone()['id']
-            conn.commit()
-            cursor.close()
-            
-            print(f"   ✅ Fornecedor criado com ID: {fornecedor_id}")
-            return fornecedor_id
+        fornecedor_id = cursor.fetchone()['id']
+        conn.commit()
+        
+        return fornecedor_id
     
     def listar_fornecedores(self, ativos: bool = True, filtro_cliente_id: int = None) -> List[Dict]:
         """Lista todos os fornecedores com suporte a multi-tenancy
@@ -2574,42 +2457,46 @@ class DatabaseManager:
         return dict(row) if row else None
     
     def atualizar_fornecedor(self, nome_antigo: str, dados: Dict) -> bool:
-        """Atualiza os dados de um fornecedor pelo nome"""
+        """Atualiza os dados de um fornecedor pelo nome
+        
+        SCHEMA CORRETO (schema_empresa.sql):
+        - nome VARCHAR(255) NOT NULL
+        - cpf_cnpj VARCHAR(18)
+        - email VARCHAR(255)
+        - telefone VARCHAR(20)
+        - endereco TEXT
+        - ativo BOOLEAN DEFAULT TRUE
+        - created_at TIMESTAMP DEFAULT NOW()
+        """
         conn = self.get_connection()
         cursor = conn.cursor()
         
         nome_normalizado = nome_antigo.upper().strip()
         
-        # ✅ UPDATE com schema completo (após migration)
+        # Montar endereço completo se tiver campos estruturados
+        endereco = dados.get('endereco') or ""
+        if dados.get('cep') or dados.get('logradouro') or dados.get('numero'):
+            partes = []
+            if dados.get('logradouro'): partes.append(dados.get('logradouro'))
+            if dados.get('numero'): partes.append(f"nº {dados.get('numero')}")
+            if dados.get('complemento'): partes.append(dados.get('complemento'))
+            if dados.get('bairro'): partes.append(dados.get('bairro'))
+            if dados.get('cidade'): partes.append(dados.get('cidade'))
+            if dados.get('estado'): partes.append(dados.get('estado'))
+            if dados.get('cep'): partes.append(f"CEP: {dados.get('cep')}")
+            endereco = ", ".join(partes) if partes else endereco
+        
+        # ✅ UPDATE usando APENAS as colunas que existem no schema
         cursor.execute("""
             UPDATE fornecedores 
-            SET nome = %s, razao_social = %s, nome_fantasia = %s,
-                cpf_cnpj = %s, cnpj = %s, documento = %s, ie = %s, im = %s,
-                email = %s, telefone = %s, endereco = %s,
-                cep = %s, logradouro = %s, numero = %s,
-                complemento = %s, bairro = %s, cidade = %s, estado = %s,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE UPPER(TRIM(nome)) = %s OR UPPER(TRIM(razao_social)) = %s
+            SET nome = %s, cpf_cnpj = %s, email = %s, telefone = %s, endereco = %s
+            WHERE UPPER(TRIM(nome)) = %s
         """, (
             dados.get('nome'),
-            dados.get('razao_social', dados.get('nome')),
-            dados.get('nome_fantasia'),
             dados.get('cnpj', dados.get('cpf_cnpj')),
-            dados.get('cnpj', dados.get('cpf_cnpj')),
-            dados.get('documento', dados.get('cpf_cnpj')),
-            dados.get('ie'),
-            dados.get('im'),
             dados.get('email'),
             dados.get('telefone'),
-            dados.get('endereco'),
-            dados.get('cep'),
-            dados.get('logradouro'),
-            dados.get('numero'),
-            dados.get('complemento'),
-            dados.get('bairro'),
-            dados.get('cidade'),
-            dados.get('estado'),
-            nome_normalizado,
+            endereco,
             nome_normalizado
         ))
         
