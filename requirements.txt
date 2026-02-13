@@ -5,6 +5,7 @@ flask-limiter==3.5.0  # Fase 7: Rate limiting
 psycopg2-binary==2.9.9
 gunicorn==21.2.0
 bcrypt==4.1.2  # Autenticação
+python-dateutil==2.8.2  # Parsing de datas
 
 # Testes
 pytest==7.4.3
