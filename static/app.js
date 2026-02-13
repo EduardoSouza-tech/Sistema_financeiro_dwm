@@ -5211,6 +5211,10 @@ async function loadFornecedores(ativos = true) {
         
         console.log(`📦 ${fornecedores.length} fornecedores recebidos`);
         
+        // Armazenar em window.fornecedores para uso nos modais de despesa
+        window.fornecedores = fornecedores;
+        console.log('✅ window.fornecedores definido:', window.fornecedores.length, 'fornecedores');
+        
         const tbody = document.getElementById('tbody-fornecedores');
         if (!tbody) {
             console.error('❌ tbody-fornecedores não encontrado!');
