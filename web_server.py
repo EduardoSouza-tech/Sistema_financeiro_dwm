@@ -5793,9 +5793,8 @@ def atualizar_evento(evento_id):
 @require_permission('eventos_delete')
 def deletar_evento(evento_id):
     """Deletar evento"""
+    conn = None
     try:
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
-        empresa_id = session.get('empresa_id')
         usuario = get_usuario_logado()
         if not usuario:
             return jsonify({'error': 'Usuário não autenticado'}), 401
@@ -5804,6 +5803,8 @@ def deletar_evento(evento_id):
         empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'error': 'Empresa não identificada'}), 403
+        
+        conn = db.get_connection()
         cursor = conn.cursor()
         
         # Verificar se evento existe e pertence à empresa
@@ -5827,6 +5828,10 @@ def deletar_evento(evento_id):
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
+    
+    finally:
+        if conn:
+            database.return_to_pool(conn)
 
 
 # === ROTAS DE ALOCAÇÃO DE EQUIPE EM EVENTOS ===
