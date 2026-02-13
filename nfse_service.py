@@ -17,8 +17,14 @@ Data: 2026-02-13
 """
 
 import requests
-from requests_pkcs12 import post as post_pkcs12
-from lxml import etree
+try:
+    from requests_pkcs12 import post as post_pkcs12
+except ImportError:
+    post_pkcs12 = None
+try:
+    from lxml import etree
+except ImportError:
+    etree = None
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, date
 import logging
