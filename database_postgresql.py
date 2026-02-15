@@ -15,6 +15,7 @@ import os
 import sys
 import time
 from contextlib import contextmanager
+from urllib.parse import urlparse
 
 # Importar session do Flask para obter empresa_id automaticamente
 try:
@@ -278,22 +279,43 @@ __all__ = [
 ]
 
 # ============================================================================
-# CONFIGURAi?i?O OTIMIZADA DO POSTGRESQL COM POOL DE CONEXi?ES
+# CONFIGURAÇÃO OTIMIZADA DO POSTGRESQL COM POOL DE CONEXÕES
 # ============================================================================
 
+def _parse_database_url(database_url: str) -> dict:
+    """
+    Parseia DATABASE_URL e retorna dict com parâmetros individuais
+    
+    Args:
+        database_url: String de conexão no formato postgresql://user:pass@host:port/db
+        
+    Returns:
+        Dict com host, port, user, password, database
+    """
+    parsed = urlparse(database_url)
+    return {
+        'host': parsed.hostname,
+        'port': parsed.port or 5432,
+        'user': parsed.username,
+        'password': parsed.password,
+        'database': parsed.path.lstrip('/'),
+        'dsn': database_url  # Manter DSN também para compatibilidade
+    }
+
 def _get_postgresql_config():
-    """Configurai?i?o do PostgreSQL com prioridade para DATABASE_URL"""
+    """Configuração do PostgreSQL com prioridade para DATABASE_URL"""
     database_url = os.getenv('DATABASE_URL')
     
     if database_url:
-        return {'dsn': database_url}
+        # Retornar AMBOS os formatos: DSN e parâmetros individuais
+        return _parse_database_url(database_url)
     
-    # Fallback para varii?veis individuais (desenvolvimento local)
+    # Fallback para variáveis individuais (desenvolvimento local)
     host = os.getenv('PGHOST', 'localhost')
     if not host or host == 'localhost':
         raise ValueError(
-            "? ERRO: DATABASE_URL ni?o configurado. "
-            "Configure a varii?vel de ambiente DATABASE_URL para conectar ao PostgreSQL."
+            "❌ ERRO: DATABASE_URL não configurado. "
+            "Configure a variável de ambiente DATABASE_URL para conectar ao PostgreSQL."
         )
     
     return {
@@ -306,7 +328,18 @@ def _get_postgresql_config():
 
 POSTGRESQL_CONFIG = _get_postgresql_config()
 
-# Pool de conexi?es global para reutilizai?i?o eficiente
+def get_nfse_db_params() -> dict:
+    """
+    Retorna parâmetros de conexão para NFSeDatabase (sem DSN)
+    
+    Returns:
+        Dict com host, port, user, password, database
+    """
+    params = POSTGRESQL_CONFIG.copy()
+    params.pop('dsn', None)  # Remover DSN se existir
+    return params
+
+# Pool de conexões global para reutilização eficiente
 _connection_pool = None
 _database_initialized = False  # Flag para controlar inicializai?i?o i?nica
 

@@ -11083,11 +11083,10 @@ def get_config_nfse():
             }), 400
         
         from nfse_functions import listar_municipios
-        from database_postgresql import POSTGRESQL_CONFIG
+        from database_postgresql import get_nfse_db_params
         
         # Usar configuração centralizada do banco
-        db_params = POSTGRESQL_CONFIG.copy()
-        db_params.pop('dsn', None)
+        db_params = get_nfse_db_params()
         
         configs = listar_municipios(db_params, empresa_id)
         
@@ -11132,11 +11131,10 @@ def add_config_nfse():
                 }), 400
         
         from nfse_functions import adicionar_municipio
-        from database_postgresql import POSTGRESQL_CONFIG
+        from database_postgresql import get_nfse_db_params
         
         # Usar configuração centralizada do banco
-        db_params = POSTGRESQL_CONFIG.copy()
-        db_params.pop('dsn', None)
+        db_params = get_nfse_db_params()
         
         sucesso, config_id, erro = adicionar_municipio(
             db_params=db_params,
@@ -11188,11 +11186,10 @@ def delete_config_nfse(config_id):
     """Remove configuração de município"""
     try:
         from nfse_functions import excluir_municipio
-        from database_postgresql import POSTGRESQL_CONFIG
+        from database_postgresql import get_nfse_db_params
         
         # Usar configuração centralizada do banco
-        db_params = POSTGRESQL_CONFIG.copy()
-        db_params.pop('dsn', None)
+        db_params = get_nfse_db_params()
         
         sucesso, erro = excluir_municipio(db_params, config_id)
         
@@ -11257,11 +11254,10 @@ def buscar_nfse():
         
         # Buscar certificado da empresa do banco de dados
         from nfse_functions import get_certificado_para_soap
-        from database_postgresql import POSTGRESQL_CONFIG
+        from database_postgresql import get_nfse_db_params
         
         # Usar configuração centralizada do banco
-        db_params = POSTGRESQL_CONFIG.copy()
-        db_params.pop('dsn', None)
+        db_params = get_nfse_db_params()
         
         cert_data = get_certificado_para_soap(db_params, empresa_id)
         
@@ -11352,11 +11348,10 @@ def consultar_nfse():
         
         from nfse_functions import consultar_nfse_periodo
         from datetime import datetime
-        from database_postgresql import POSTGRESQL_CONFIG
+        from database_postgresql import get_nfse_db_params
         
         # Usar configuração centralizada do banco
-        db_params = POSTGRESQL_CONFIG.copy()
-        db_params.pop('dsn', None)
+        db_params = get_nfse_db_params()
         
         # Converter datas
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
@@ -11400,11 +11395,10 @@ def get_nfse_detalhes(nfse_id):
     """Retorna detalhes completos de uma NFS-e"""
     try:
         from nfse_functions import get_detalhes_nfse
-        from database_postgresql import POSTGRESQL_CONFIG
+        from database_postgresql import get_nfse_db_params
         
         # Usar configuração centralizada do banco
-        db_params = POSTGRESQL_CONFIG.copy()
-        db_params.pop('dsn', None)
+        db_params = get_nfse_db_params()
         
         nfse = get_detalhes_nfse(db_params, nfse_id)
         
@@ -11461,11 +11455,10 @@ def get_resumo_mensal_nfse():
         
         from nfse_functions import get_resumo_mensal
         
-        from database_postgresql import POSTGRESQL_CONFIG
+        from database_postgresql import get_nfse_db_params
         
         # Usar configuração centralizada do banco
-        db_params = POSTGRESQL_CONFIG.copy()
-        db_params.pop('dsn', None)
+        db_params = get_nfse_db_params()
         
         resumo = get_resumo_mensal(db_params, empresa_id, ano, mes)
         
@@ -11506,12 +11499,11 @@ def export_nfse_excel():
         
         from nfse_functions import exportar_nfse_excel
         from datetime import datetime
-        from database_postgresql import POSTGRESQL_CONFIG
+        from database_postgresql import get_nfse_db_params
         import tempfile
         
         # Usar configuração centralizada do banco
-        db_params = POSTGRESQL_CONFIG.copy()
-        db_params.pop('dsn', None)
+        db_params = get_nfse_db_params()
         
         # Converter datas
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
@@ -11582,12 +11574,11 @@ def export_nfse_xml():
         
         from nfse_functions import exportar_xmls_zip
         from datetime import datetime
-        from database_postgresql import POSTGRESQL_CONFIG
+        from database_postgresql import get_nfse_db_params
         import tempfile
         
         # Usar configuração centralizada do banco
-        db_params = POSTGRESQL_CONFIG.copy()
-        db_params.pop('dsn', None)
+        db_params = get_nfse_db_params()
         
         # Converter datas
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
@@ -11683,12 +11674,11 @@ def upload_certificado_nfse():
             return jsonify({'success': False, 'error': 'Arquivo muito grande (máximo 10MB)'}), 400
         
         from nfse_functions import upload_certificado, registrar_operacao
-        from database_postgresql import POSTGRESQL_CONFIG
+        from database_postgresql import get_nfse_db_params
         
         # Usar configuração centralizada do banco
-        db_params = POSTGRESQL_CONFIG.copy()
+        db_params = get_nfse_db_params()
         # Remover 'dsn' se existir (NFSeDatabase espera parâmetros individuais)
-        db_params.pop('dsn', None)
         
         sucesso, info, erro = upload_certificado(db_params, empresa_id, pfx_bytes, senha)
         
@@ -11743,11 +11733,10 @@ def get_certificado_nfse():
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
         
         from nfse_functions import get_certificado_info
-        from database_postgresql import POSTGRESQL_CONFIG
+        from database_postgresql import get_nfse_db_params
         
         # Usar configuração centralizada do banco
-        db_params = POSTGRESQL_CONFIG.copy()
-        db_params.pop('dsn', None)  # Remover DSN se existir
+        db_params = get_nfse_db_params()  # Remover DSN se existir
         
         cert = get_certificado_info(db_params, empresa_id)
         
@@ -11771,10 +11760,9 @@ def delete_certificado_nfse(cert_id):
         empresa_id = usuario.get('empresa_id')
         
         from nfse_functions import excluir_certificado_empresa, registrar_operacao
-        from database_postgresql import POSTGRESQL_CONFIG
+        from database_postgresql import get_nfse_db_params
         
-        db_params = POSTGRESQL_CONFIG.copy()
-        db_params.pop('dsn', None)
+        db_params = get_nfse_db_params()
         
         sucesso = excluir_certificado_empresa(db_params, cert_id)
         
@@ -11813,10 +11801,9 @@ def gerar_pdf_nfse_route(nfse_id):
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
         
         from nfse_functions import gerar_pdf_nfse
-        from database_postgresql import POSTGRESQL_CONFIG
+        from database_postgresql import get_nfse_db_params
         
-        db_params = POSTGRESQL_CONFIG.copy()
-        db_params.pop('dsn', None)
+        db_params = get_nfse_db_params()
         
         pdf_bytes = gerar_pdf_nfse(db_params, nfse_id)
         
