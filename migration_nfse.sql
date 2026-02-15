@@ -205,13 +205,6 @@ COMMENT ON COLUMN nfse_certificados.pfx_data IS 'Binário completo do certificad
 COMMENT ON COLUMN nfse_certificados.senha_certificado IS 'Senha do certificado codificada em base64';
 COMMENT ON COLUMN nfse_certificados.ativo IS 'Apenas um certificado ativo por empresa';
 
--- Trigger para atualizar timestamp
-DROP TRIGGER IF EXISTS update_nfse_certificados_updated_at ON nfse_certificados;
-CREATE TRIGGER update_nfse_certificados_updated_at
-    BEFORE UPDATE ON nfse_certificados
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
 -- ============================================================================
 
 -- VIEWS ÚTEIS
@@ -293,6 +286,12 @@ CREATE TRIGGER update_rps_updated_at
 DROP TRIGGER IF EXISTS update_nsu_updated_at ON nsu_nfse;
 CREATE TRIGGER update_nsu_updated_at
     BEFORE UPDATE ON nsu_nfse
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_nfse_certificados_updated_at ON nfse_certificados;
+CREATE TRIGGER update_nfse_certificados_updated_at
+    BEFORE UPDATE ON nfse_certificados
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
