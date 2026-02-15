@@ -11506,16 +11506,12 @@ def export_nfse_excel():
         
         from nfse_functions import exportar_nfse_excel
         from datetime import datetime
+        from database_postgresql import POSTGRESQL_CONFIG
         import tempfile
         
-        # Parâmetros de conexão ao banco
-        db_params = {
-            'host': os.getenv('PGHOST'),
-            'database': os.getenv('PGDATABASE'),
-            'user': os.getenv('PGUSER'),
-            'password': os.getenv('PGPASSWORD'),
-            'port': int(os.getenv('PGPORT', 5432))
-        }
+        # Usar configuração centralizada do banco
+        db_params = POSTGRESQL_CONFIG.copy()
+        db_params.pop('dsn', None)
         
         # Converter datas
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
@@ -11586,16 +11582,12 @@ def export_nfse_xml():
         
         from nfse_functions import exportar_xmls_zip
         from datetime import datetime
+        from database_postgresql import POSTGRESQL_CONFIG
         import tempfile
         
-        # Parâmetros de conexão ao banco
-        db_params = {
-            'host': os.getenv('PGHOST'),
-            'database': os.getenv('PGDATABASE'),
-            'user': os.getenv('PGUSER'),
-            'password': os.getenv('PGPASSWORD'),
-            'port': int(os.getenv('PGPORT', 5432))
-        }
+        # Usar configuração centralizada do banco
+        db_params = POSTGRESQL_CONFIG.copy()
+        db_params.pop('dsn', None)
         
         # Converter datas
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
@@ -11779,14 +11771,10 @@ def delete_certificado_nfse(cert_id):
         empresa_id = usuario.get('empresa_id')
         
         from nfse_functions import excluir_certificado_empresa, registrar_operacao
+        from database_postgresql import POSTGRESQL_CONFIG
         
-        db_params = {
-            'host': os.getenv('PGHOST'),
-            'database': os.getenv('PGDATABASE'),
-            'user': os.getenv('PGUSER'),
-            'password': os.getenv('PGPASSWORD'),
-            'port': int(os.getenv('PGPORT', 5432))
-        }
+        db_params = POSTGRESQL_CONFIG.copy()
+        db_params.pop('dsn', None)
         
         sucesso = excluir_certificado_empresa(db_params, cert_id)
         
@@ -11825,14 +11813,10 @@ def gerar_pdf_nfse_route(nfse_id):
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
         
         from nfse_functions import gerar_pdf_nfse
+        from database_postgresql import POSTGRESQL_CONFIG
         
-        db_params = {
-            'host': os.getenv('PGHOST'),
-            'database': os.getenv('PGDATABASE'),
-            'user': os.getenv('PGUSER'),
-            'password': os.getenv('PGPASSWORD'),
-            'port': int(os.getenv('PGPORT', 5432))
-        }
+        db_params = POSTGRESQL_CONFIG.copy()
+        db_params.pop('dsn', None)
         
         pdf_bytes = gerar_pdf_nfse(db_params, nfse_id)
         
