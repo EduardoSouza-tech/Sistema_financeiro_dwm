@@ -2920,8 +2920,8 @@ class DatabaseManager:
             verificacao = cursor.fetchone()
             if verificacao:
                 print(f"🔍 VERIFICAÇÃO pós-UPDATE no banco:")
-                print(f"   - associacao no banco: '{verificacao[0]}'")
-                print(f"   - numero_documento no banco: '{verificacao[1]}'")
+                print(f"   - associacao no banco: '{verificacao.get('associacao', 'N/A')}'")
+                print(f"   - numero_documento no banco: '{verificacao.get('numero_documento', 'N/A')}'")
             
         except Exception as e:
             print(f"❌ ERRO no UPDATE: {e}")
