@@ -2896,14 +2896,40 @@ class DatabaseManager:
             lancamento.id
         )
         
-        print(f"?? Query: {query}")
-        print(f"?? Params: {params}")
+        print(f"📝 Query: {query}")
+        print(f"📋 Params ({len(params)} items):")
+        for i, p in enumerate(params):
+            if i == 18:  # associacao
+                print(f"   [{i}] associacao = '{p}' (tipo: {type(p)})")
+            elif i == 19:  # numero_documento
+                print(f"   [{i}] numero_documento = '{p}' (tipo: {type(p)})")
+            elif i == 20:  # id (WHERE)
+                print(f"   [{i}] id (WHERE) = {p}")
         
-        cursor.execute(query, params)
-        sucesso = cursor.rowcount > 0
+        try:
+            print(f"🔧 Executando UPDATE...")
+            cursor.execute(query, params)
+            sucesso = cursor.rowcount > 0
+            
+            print(f"✅ Linhas afetadas: {cursor.rowcount}")
+            print(f"✅ Sucesso: {sucesso}")
+            print(f"✅ autocommit: {conn.autocommit}")
+            
+            # Verificar se o valor foi realmente atualizado
+            cursor.execute("SELECT associacao, numero_documento FROM lancamentos WHERE id = %s", (lancamento.id,))
+            verificacao = cursor.fetchone()
+            if verificacao:
+                print(f"🔍 VERIFICAÇÃO pós-UPDATE no banco:")
+                print(f"   - associacao no banco: '{verificacao[0]}'")
+                print(f"   - numero_documento no banco: '{verificacao[1]}'")
+            
+        except Exception as e:
+            print(f"❌ ERRO no UPDATE: {e}")
+            import traceback
+            traceback.print_exc()
+            sucesso = False
         
-        print(f"? Linhas afetadas: {cursor.rowcount}, Sucesso: {sucesso}\n")
-        
+        print(f"{'='*80}\n")
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
         return sucesso
