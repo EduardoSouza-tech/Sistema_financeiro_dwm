@@ -11237,12 +11237,11 @@ def buscar_nfse():
             }), 400
         
         # Buscar CNPJ da empresa
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cursor.execute("SELECT cnpj FROM empresas WHERE id = %s", (empresa_id,))
-        empresa = cursor.fetchone()
-        cursor.close()
-        conn.close()
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute("SELECT cnpj FROM empresas WHERE id = %s", (empresa_id,))
+            empresa = cursor.fetchone()
+            cursor.close()
         
         if not empresa:
             return jsonify({
