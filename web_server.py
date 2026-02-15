@@ -11188,15 +11188,11 @@ def delete_config_nfse(config_id):
     """Remove configuração de município"""
     try:
         from nfse_functions import excluir_municipio
+        from database_postgresql import POSTGRESQL_CONFIG
         
-        # Parâmetros de conexão ao banco
-        db_params = {
-            'host': os.getenv('PGHOST'),
-            'database': os.getenv('PGDATABASE'),
-            'user': os.getenv('PGUSER'),
-            'password': os.getenv('PGPASSWORD'),
-            'port': int(os.getenv('PGPORT', 5432))
-        }
+        # Usar configuração centralizada do banco
+        db_params = POSTGRESQL_CONFIG.copy()
+        db_params.pop('dsn', None)
         
         sucesso, erro = excluir_municipio(db_params, config_id)
         
@@ -11356,15 +11352,11 @@ def consultar_nfse():
         
         from nfse_functions import consultar_nfse_periodo
         from datetime import datetime
+        from database_postgresql import POSTGRESQL_CONFIG
         
-        # Parâmetros de conexão ao banco
-        db_params = {
-            'host': os.getenv('PGHOST'),
-            'database': os.getenv('PGDATABASE'),
-            'user': os.getenv('PGUSER'),
-            'password': os.getenv('PGPASSWORD'),
-            'port': int(os.getenv('PGPORT', 5432))
-        }
+        # Usar configuração centralizada do banco
+        db_params = POSTGRESQL_CONFIG.copy()
+        db_params.pop('dsn', None)
         
         # Converter datas
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
@@ -11408,15 +11400,11 @@ def get_nfse_detalhes(nfse_id):
     """Retorna detalhes completos de uma NFS-e"""
     try:
         from nfse_functions import get_detalhes_nfse
+        from database_postgresql import POSTGRESQL_CONFIG
         
-        # Parâmetros de conexão ao banco
-        db_params = {
-            'host': os.getenv('PGHOST'),
-            'database': os.getenv('PGDATABASE'),
-            'user': os.getenv('PGUSER'),
-            'password': os.getenv('PGPASSWORD'),
-            'port': int(os.getenv('PGPORT', 5432))
-        }
+        # Usar configuração centralizada do banco
+        db_params = POSTGRESQL_CONFIG.copy()
+        db_params.pop('dsn', None)
         
         nfse = get_detalhes_nfse(db_params, nfse_id)
         
@@ -11473,14 +11461,11 @@ def get_resumo_mensal_nfse():
         
         from nfse_functions import get_resumo_mensal
         
-        # Parâmetros de conexão ao banco
-        db_params = {
-            'host': os.getenv('PGHOST'),
-            'database': os.getenv('PGDATABASE'),
-            'user': os.getenv('PGUSER'),
-            'password': os.getenv('PGPASSWORD'),
-            'port': int(os.getenv('PGPORT', 5432))
-        }
+        from database_postgresql import POSTGRESQL_CONFIG
+        
+        # Usar configuração centralizada do banco
+        db_params = POSTGRESQL_CONFIG.copy()
+        db_params.pop('dsn', None)
         
         resumo = get_resumo_mensal(db_params, empresa_id, ano, mes)
         
