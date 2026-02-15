@@ -3984,7 +3984,7 @@ def conciliacao_geral_extrato():
                 # Validar se a conta bancária está ativa
                 conta_bancaria = transacao['conta_bancaria']
                 print(f"🔍 Validando conta bancária: {conta_bancaria}")
-                contas = db.listar_contas(empresa_id=empresa_id)
+                contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
                 print(f"📊 Total de contas encontradas: {len(contas)}")
                 
                 # Debug: listar todas as contas
