@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Script para executar migration DIRETAMENTE no banco do Railway
+Script para executar migration NFS-e DIRETAMENTE no banco do Railway
 Conecta direto via PostgreSQL sem precisar de deploy
 """
 import os
@@ -10,7 +10,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 print("="*80)
-print("🚀 EXECUTANDO MIGRATION DIRETO NO RAILWAY")
+print("🚀 MIGRATION NFS-e - EXECUTANDO DIRETO NO RAILWAY")
 print("="*80)
 
 # URL de conexão do Railway
@@ -28,41 +28,40 @@ try:
     print("✅ Conexão estabelecida!")
     
     # Verificar se tabelas já existem
-    print("\n🔍 Verificando tabelas existentes...")
+    print("\n🔍 Verificando tabelas NFS-e existentes...")
     cursor.execute("""
         SELECT COUNT(*) as count
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
-        AND table_name IN ('funcoes_evento', 'evento_funcionarios')
+        AND table_name IN ('nfse_config', 'nfse_baixadas', 'rps', 'nsu_nfse', 'nfse_certificados', 'nfse_audit_log')
     """)
     
     count = cursor.fetchone()['count']
-    print(f"   📊 Encontradas {count}/2 tabelas")
+    print(f"   📊 Encontradas {count}/6 tabelas NFS-e")
     
-    if count == 2:
-        print("\n✅ Tabelas já existem!")
+    if count > 0:
+        cursor.execute("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name IN ('nfse_config', 'nfse_baixadas', 'rps', 'nsu_nfse', 'nfse_certificados', 'nfse_audit_log')
+            ORDER BY table_name
+        """)
+        existentes = cursor.fetchall()
+        print("\n   Tabelas encontradas:")
+        for t in existentes:
+            print(f"   ✓ {t['table_name']}")
         
-        # Contar funções
-        cursor.execute("SELECT COUNT(*) as total FROM funcoes_evento")
-        total_funcoes = cursor.fetchone()['total']
-        print(f"   📋 {total_funcoes} funções cadastradas")
-        
-        resposta = input("\n⚠️ Deseja recriar as tabelas? (s/N): ").lower()
+        resposta = input("\n⚠️ Deseja recriar/atualizar as tabelas? (s/N): ").lower()
         if resposta != 's':
             print("\n✅ Operação cancelada")
             cursor.close()
             conn.close()
             sys.exit(0)
-        
-        print("\n🗑️ Removendo tabelas antigas...")
-        cursor.execute("DROP TABLE IF EXISTS evento_funcionarios CASCADE")
-        cursor.execute("DROP TABLE IF EXISTS funcoes_evento CASCADE")
-        conn.commit()
-        print("✅ Tabelas removidas")
     
     # Ler arquivo SQL
-    print("\n📂 Lendo arquivo SQL...")
-    sql_file = os.path.join(os.path.dirname(__file__), 'migration_evento_funcionarios.sql')
+    print("\n📂 Lendo migration_nfse.sql...")
+    sql_file = os.path.join(os.path.dirname(__file__), 'migration_nfse.sql')
     
     if not os.path.exists(sql_file):
         print(f"❌ Arquivo não encontrado: {sql_file}")
@@ -71,10 +70,10 @@ try:
     with open(sql_file, 'r', encoding='utf-8') as f:
         sql_content = f.read()
     
-    print(f"✅ SQL lido ({len(sql_content)} bytes)")
+    print(f"✅ SQL lido ({len(sql_content)} caracteres)")
     
     # Executar SQL
-    print("\n📝 Executando migration...")
+    print("\n📝 Executando migration NFS-e...")
     cursor.execute(sql_content)
     conn.commit()
     print("✅ SQL executado e commitado!")
@@ -85,35 +84,48 @@ try:
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
-        AND table_name IN ('funcoes_evento', 'evento_funcionarios')
+        AND table_name IN ('nfse_config', 'nfse_baixadas', 'rps', 'nsu_nfse', 'nfse_certificados', 'nfse_audit_log')
         ORDER BY table_name
     """)
     
     tables = cursor.fetchall()
-    print(f"\n✅ {len(tables)} TABELAS CRIADAS:")
+    print(f"\n✅ {len(tables)} TABELAS NFS-e CRIADAS:")
     for table in tables:
-        print(f"   ✓ {table['table_name']}")
+        # Contar registros
+        cursor.execute(f"SELECT COUNT(*) as count FROM {table['table_name']}")
+        count = cursor.fetchone()['count']
+        print(f"   ✓ {table['table_name']}: {count} registros")
     
-    # Contar funções
-    cursor.execute("SELECT COUNT(*) as total FROM funcoes_evento")
-    count_funcoes = cursor.fetchone()['total']
-    print(f"\n✅ {count_funcoes} FUNÇÕES INSERIDAS")
+    # Verificar views
+    cursor.execute("""
+        SELECT table_name 
+        FROM information_schema.views 
+        WHERE table_schema = 'public' 
+        AND table_name LIKE 'vw_nfse%'
+        ORDER BY table_name
+    """)
+    views = cursor.fetchall()
     
-    # Listar algumas funções
-    cursor.execute("SELECT nome FROM funcoes_evento ORDER BY nome LIMIT 5")
-    funcoes = cursor.fetchall()
-    print("\n   Exemplos:")
-    for func in funcoes:
-        print(f"   • {func['nome']}")
+    if views:
+        print(f"\n✅ {len(views)} VIEWS CRIADAS:")
+        for view in views:
+            print(f"   ✓ {view['table_name']}")
     
     cursor.close()
     conn.close()
     
     print("\n" + "="*80)
-    print("✅ MIGRATION CONCLUÍDA COM SUCESSO!")
+    print("✅ MIGRATION NFS-e CONCLUÍDA COM SUCESSO!")
     print("="*80)
-    print("\n🔄 Recarregue a página do sistema (F5)")
-    print("✅ O sistema de alocação de equipe está pronto!")
+    print("\n📋 Tabelas criadas:")
+    print("   • nfse_config - Configurações de municípios")
+    print("   • nfse_baixadas - NFS-e consultadas")
+    print("   • rps - Recibos Provisórios")
+    print("   • nsu_nfse - Controle NSU")
+    print("   • nfse_certificados - Certificados digitais")
+    print("   • nfse_audit_log - Log de auditoria")
+    print("\n🔄 Recarregue a página do sistema (Ctrl + Shift + R)")
+    print("✅ O módulo NFS-e está pronto para uso!")
     
 except Exception as e:
     print(f"\n❌ ERRO: {e}")
