@@ -2845,13 +2845,15 @@ class DatabaseManager:
         return_to_pool(conn)  # Devolver ao pool
         return sucesso
     
-    def atualizar_lancamento(self, lancamento: Lancamento) -> bool:
-        """Atualiza um lani?amento existente"""
-        print(f"\n?? DatabaseManager.atualizar_lancamento() chamada:")
+    def atualizar_lancamento(self, lancamento: Lancamento, empresa_id: int) -> bool:
+        """Atualiza um lançamento existente COM Row Level Security"""
+        print(f"\n📝 DatabaseManager.atualizar_lancamento() chamada:")
         print(f"   ID: {lancamento.id}")
+        print(f"   🔒 empresa_id: {empresa_id}")
         
-        conn = self.get_connection()
-        cursor = conn.cursor()
+        # 🔒 Usar get_db_connection com empresa_id para aplicar RLS
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
         
         # 🔗 Sincronizar associacao ↔ numero_documento (mesmo valor)
         valor_sincronizado = getattr(lancamento, 'associacao', '') or ''
@@ -2928,11 +2930,8 @@ class DatabaseManager:
             import traceback
             traceback.print_exc()
             sucesso = False
-        
-        print(f"{'='*80}\n")
-        cursor.close()
-        return_to_pool(conn)  # Devolver ao pool
-        return sucesso
+            
+            return sucesso
     
     def pagar_lancamento(self, lancamento_id: int, conta: str = '', data_pagamento: date = None,
                         juros: float = 0, desconto: float = 0, observacoes: str = '',

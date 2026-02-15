@@ -3502,8 +3502,8 @@ def gerenciar_lancamento(lancamento_id):
             print(f"   - ID: {lancamento_atualizado.id}")
             print(f"   - associacao: '{lancamento_atualizado.associacao}' (tipo: {type(lancamento_atualizado.associacao)})")
             
-            # Atualizar no banco
-            success = db.atualizar_lancamento(lancamento_atualizado)
+            # Atualizar no banco COM empresa_id para RLS
+            success = db.atualizar_lancamento(lancamento_atualizado, empresa_id=empresa_id)
             
             print(f"✅ Resultado: {success}")
             print(f"{'='*80}\n")
