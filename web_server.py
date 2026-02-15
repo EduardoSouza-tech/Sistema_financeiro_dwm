@@ -11692,14 +11692,22 @@ def upload_certificado_nfse():
                     'acao': 'upload_certificado',
                     'cnpj': info.get('cnpj'),
                     'municipio': info.get('nome_municipio'),
-                    'validade_fim': info.get('validade_fim')
+                    'validade_fim': info.get('validade_fim'),
+                    'config_criada': info.get('config_criada', False)
                 },
                 ip_address=request.remote_addr
             )
             
+            # Mensagem personalizada se criou configuração automaticamente
+            message = 'Certificado carregado com sucesso!'
+            if info.get('config_criada'):
+                message += f' Município {info.get("nome_municipio")} configurado automaticamente. Complete a Inscrição Municipal em Configurações.'
+            elif info.get('codigo_municipio'):
+                message += ' Lembre-se de configurar o município em Configurações.'
+            
             return jsonify({
                 'success': True,
-                'message': 'Certificado carregado com sucesso!',
+                'message': message,
                 'certificado': {
                     'id': info.get('cert_id'),
                     'cnpj': info.get('cnpj'),
@@ -11709,7 +11717,9 @@ def upload_certificado_nfse():
                     'validade_fim': info.get('validade_fim'),
                     'codigo_municipio': info.get('codigo_municipio'),
                     'nome_municipio': info.get('nome_municipio'),
-                    'uf': info.get('uf')
+                    'uf': info.get('uf'),
+                    'config_criada': info.get('config_criada', False),
+                    'config_id': info.get('config_id')
                 }
             })
         else:

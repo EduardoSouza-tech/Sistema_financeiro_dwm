@@ -770,6 +770,7 @@ import re  # Garantir import no nível do módulo se necessário
 def upload_certificado(db_params: Dict, empresa_id: int, pfx_bytes: bytes, senha: str) -> Tuple[bool, Dict, str]:
     """
     Processa e salva certificado digital A1.
+    Cria automaticamente configuração do município se identificado.
     Retorna (sucesso, info_certificado, erro)
     """
     # 1. Processar certificado
@@ -795,6 +796,34 @@ def upload_certificado(db_params: Dict, empresa_id: int, pfx_bytes: bytes, senha
         with NFSeDatabase(db_params) as db:
             cert_id = db.salvar_certificado(empresa_id, pfx_bytes, senha, info)
             info['cert_id'] = cert_id
+            
+            # 4. Criar configuração do município automaticamente se identificado
+            if info.get('codigo_municipio') and info.get('cnpj'):
+                try:
+                    config = {
+                        'empresa_id': empresa_id,
+                        'cnpj_cpf': info['cnpj'],
+                        'provedor': 'GINFES',  # Provedor padrão, usuário pode alterar depois
+                        'codigo_municipio': info['codigo_municipio'],
+                        'nome_municipio': info.get('nome_municipio', ''),
+                        'uf': info.get('uf', ''),
+                        'inscricao_municipal': '',  # Usuário deve preencher
+                        'url_customizada': None,
+                        'ativo': True
+                    }
+                    
+                    config_id = db.adicionar_config_nfse(config)
+                    if config_id:
+                        logger.info(f"✅ Configuração do município {info['nome_municipio']} criada automaticamente (ID={config_id})")
+                        info['config_criada'] = True
+                        info['config_id'] = config_id
+                    else:
+                        logger.warning(f"⚠️ Não foi possível criar configuração automática do município")
+                        info['config_criada'] = False
+                except Exception as e:
+                    logger.warning(f"⚠️ Erro ao criar configuração automática: {e}")
+                    info['config_criada'] = False
+            
             return True, info, ''
     except Exception as e:
         return False, {}, f'Erro ao salvar certificado: {e}'
