@@ -160,6 +160,7 @@ class Lancamento:
                  recorrente: bool = False, frequencia_recorrencia: str = "",
                  dia_vencimento: Optional[int] = None,
                  juros: float = 0.0, desconto: float = 0.0,
+                 associacao: str = "",
                  id: Optional[int] = None, proprietario_id: Optional[int] = None):
         self.id = id
         self.tipo = tipo
@@ -181,6 +182,7 @@ class Lancamento:
         self.dia_vencimento = dia_vencimento
         self.juros = juros
         self.desconto = desconto
+        self.associacao = associacao
         self.proprietario_id = proprietario_id
     
     def to_dict(self) -> dict:
@@ -202,6 +204,7 @@ class Lancamento:
             'anexo': self.anexo,
             'recorrente': self.recorrente,
             'frequencia_recorrencia': self.frequencia_recorrencia,
+            'associacao': self.associacao,
             'proprietario_id': self.proprietario_id
         }
 
@@ -2581,8 +2584,9 @@ class DatabaseManager:
                 INSERT INTO lancamentos 
                 (tipo, descricao, valor, data_vencimento, data_pagamento,
                  categoria, subcategoria, conta_bancaria, cliente_fornecedor, pessoa,
-                 status, observacoes, anexo, recorrente, frequencia_recorrencia, dia_vencimento, proprietario_id, empresa_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 status, observacoes, anexo, recorrente, frequencia_recorrencia, dia_vencimento, 
+                 associacao, proprietario_id, empresa_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 lancamento.tipo.value,
@@ -2601,6 +2605,7 @@ class DatabaseManager:
                 lancamento.recorrente,
                 lancamento.frequencia_recorrencia,
                 lancamento.dia_vencimento,
+                lancamento.associacao,
                 proprietario_id,
                 empresa_id
             ))
@@ -2635,7 +2640,7 @@ class DatabaseManager:
             id, tipo, descricao, valor, data_vencimento, data_pagamento,
             categoria, subcategoria, conta_bancaria, cliente_fornecedor,
             pessoa, status, observacoes, anexo, recorrente,
-            frequencia_recorrencia, dia_vencimento
+            frequencia_recorrencia, dia_vencimento, associacao
         """
         
         query = f"SELECT {columns} FROM lancamentos WHERE 1=1"
@@ -2719,7 +2724,8 @@ class DatabaseManager:
                     anexo=row['anexo'] or '',
                     recorrente=row['recorrente'] or False,
                     frequencia_recorrencia=row['frequencia_recorrencia'] or '',
-                    dia_vencimento=row['dia_vencimento'] or 0
+                    dia_vencimento=row['dia_vencimento'] or 0,
+                    associacao=row.get('associacao', '') or ''
                 )
                 lancamentos.append(lancamento)
             except Exception as e:

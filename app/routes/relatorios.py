@@ -106,7 +106,9 @@ def relatorio_fluxo_caixa():
                 'categoria': l.categoria,
                 'subcategoria': l.subcategoria,
                 'pessoa': l.pessoa,
-                'conta_bancaria': l.conta_bancaria if hasattr(l, 'conta_bancaria') else None
+                'conta_bancaria': l.conta_bancaria if hasattr(l, 'conta_bancaria') else None,
+                'associacao': l.associacao if hasattr(l, 'associacao') else '',
+                'id': l.id if hasattr(l, 'id') else None
             })
             # Crédito na conta destino (aparece como RECEITA)
             resultado.append({
@@ -117,7 +119,9 @@ def relatorio_fluxo_caixa():
                 'categoria': l.categoria,
                 'subcategoria': l.conta_bancaria,  # Inverter: origem vai para subcategoria
                 'pessoa': l.pessoa,
-                'conta_bancaria': l.subcategoria  # Destino vira a conta bancária
+                'conta_bancaria': l.subcategoria,  # Destino vira a conta bancária
+                'associacao': l.associacao if hasattr(l, 'associacao') else '',
+                'id': l.id if hasattr(l, 'id') else None
             })
         else:
             # Receitas e despesas normais
@@ -129,7 +133,9 @@ def relatorio_fluxo_caixa():
                 'categoria': l.categoria,
                 'subcategoria': l.subcategoria,
                 'pessoa': l.pessoa,
-                'conta_bancaria': l.conta_bancaria if hasattr(l, 'conta_bancaria') else None
+                'conta_bancaria': l.conta_bancaria if hasattr(l, 'conta_bancaria') else None,
+                'associacao': l.associacao if hasattr(l, 'associacao') else '',
+                'id': l.id if hasattr(l, 'id') else None
             })
     return jsonify(resultado)
 

@@ -2828,16 +2828,14 @@ window.gerarDRE = async function() {
 
 window.exportarFluxoPDF = async function() {
     try {
-        if (!window.fluxoCaixaDados) {
+        if (!window.fluxoCaixaTransacoes || window.fluxoCaixaTransacoes.length === 0) {
             showToast('Carregue o fluxo de caixa primeiro', 'warning');
             return;
         }
         
-        showToast('Funcionalidade PDF em desenvolvimento. Use a função de impressão do navegador (Ctrl+P)', 'info');
-        
-        // Criar versão para impressão
+        // Criar versão para impressão com transações detalhadas
         const printWindow = window.open('', '_blank');
-        const dados = window.fluxoCaixaDados;
+        const transacoes = window.fluxoCaixaTransacoes;
         
         let html = `
             <!DOCTYPE html>
@@ -2846,49 +2844,68 @@ window.exportarFluxoPDF = async function() {
                 <meta charset="UTF-8">
                 <title>Fluxo de Caixa - ${new Date().toLocaleDateString('pt-BR')}</title>
                 <style>
-                    body { font-family: Arial, sans-serif; padding: 20px; }
-                    h1 { color: #2c3e50; text-align: center; }
+                    body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; }
+                    h1 { color: #2c3e50; text-align: center; margin-bottom: 5px; }
+                    .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 20px; }
                     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                    th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
-                    th { background: #3498db; color: white; }
+                    th, td { padding: 8px; text-align: left; border: 1px solid #ddd; font-size: 11px; }
+                    th { background: #34495e; color: white; font-weight: bold; }
+                    .entrada { color: #27ae60; font-weight: bold; text-align: right; }
+                    .saida { color: #e74c3c; font-weight: bold; text-align: right; }
                     .total { font-weight: bold; background: #ecf0f1; }
-                    .positivo { color: #27ae60; }
-                    .negativo { color: #e74c3c; }
+                    @media print {
+                        body { margin: 0; padding: 10px; }
+                        table { page-break-inside: auto; }
+                        tr { page-break-inside: avoid; }
+                    }
                 </style>
             </head>
             <body>
-                <h1>📈 Fluxo de Caixa</h1>
-                <p style="text-align: center; color: #7f8c8d;">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+                <h1>📈 Fluxo de Caixa - Transações Detalhadas</h1>
+                <p class="subtitle">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
                 
                 <table>
                     <thead>
                         <tr>
-                            <th>Período</th>
-                            <th style="text-align: right;">Receitas</th>
-                            <th style="text-align: right;">Despesas</th>
-                            <th style="text-align: right;">Saldo</th>
+                            <th>Data</th>
+                            <th>Descrição</th>
+                            <th>Categoria</th>
+                            <th style="text-align: right;">Entrada</th>
+                            <th style="text-align: right;">Saída</th>
+                            <th>Conta</th>
+                            <th>Associação</th>
                         </tr>
                     </thead>
                     <tbody>`;
         
-        if (dados.evolucao) {
-            dados.evolucao.forEach(item => {
-                html += `
-                    <tr>
-                        <td>${item.periodo}</td>
-                        <td style="text-align: right;" class="positivo">${formatarMoeda(item.receitas)}</td>
-                        <td style="text-align: right;" class="negativo">${formatarMoeda(item.despesas)}</td>
-                        <td style="text-align: right;" class="${item.saldo >= 0 ? 'positivo' : 'negativo'}">${formatarMoeda(item.saldo)}</td>
-                    </tr>`;
-            });
-        }
+        let totalEntradas = 0;
+        let totalSaidas = 0;
+        
+        transacoes.forEach(t => {
+            const entrada = t.tipo === 'receita' ? t.valor : 0;
+            const saida = t.tipo === 'despesa' ? t.valor : 0;
+            
+            totalEntradas += entrada;
+            totalSaidas += saida;
+            
+            html += `
+                <tr>
+                    <td>${formatarData(t.data_pagamento)}</td>
+                    <td>${t.descricao || '-'}</td>
+                    <td>${t.categoria || '-'}</td>
+                    <td class="entrada">${entrada > 0 ? formatarMoeda(entrada) : '-'}</td>
+                    <td class="saida">${saida > 0 ? formatarMoeda(saida) : '-'}</td>
+                    <td>${t.conta_bancaria || '-'}</td>
+                    <td>${t.associacao || '-'}</td>
+                </tr>`;
+        });
         
         html += `
                         <tr class="total">
-                            <td><strong>TOTAL</strong></td>
-                            <td style="text-align: right;" class="positivo"><strong>${formatarMoeda(dados.totais?.receitas || 0)}</strong></td>
-                            <td style="text-align: right;" class="negativo"><strong>${formatarMoeda(dados.totais?.despesas || 0)}</strong></td>
-                            <td style="text-align: right;" class="${(dados.totais?.saldo || 0) >= 0 ? 'positivo' : 'negativo'}"><strong>${formatarMoeda(dados.totais?.saldo || 0)}</strong></td>
+                            <td colspan="3"><strong>TOTAL</strong></td>
+                            <td class="entrada"><strong>${formatarMoeda(totalEntradas)}</strong></td>
+                            <td class="saida"><strong>${formatarMoeda(totalSaidas)}</strong></td>
+                            <td colspan="2"><strong>Saldo: ${formatarMoeda(totalEntradas - totalSaidas)}</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -2911,31 +2928,45 @@ window.exportarFluxoPDF = async function() {
 
 function exportarFluxoExcel() {
     try {
-        if (!window.fluxoCaixaDados) {
+        if (!window.fluxoCaixaTransacoes || window.fluxoCaixaTransacoes.length === 0) {
             showToast('Carregue o fluxo de caixa primeiro', 'warning');
             return;
         }
         
-        const dados = window.fluxoCaixaDados;
+        const transacoes = window.fluxoCaixaTransacoes;
         
-        // Criar CSV (compatível com Excel)
-        let csv = 'Período,Receitas,Despesas,Saldo\n';
+        // Criar CSV (compatível com Excel) com transações detalhadas
+        let csv = 'Data,Descrição,Categoria,Entrada,Saída,Conta,Associação\n';
         
-        if (dados.evolucao) {
-            dados.evolucao.forEach(item => {
-                csv += `${item.periodo},${item.receitas.toFixed(2)},${item.despesas.toFixed(2)},${item.saldo.toFixed(2)}\n`;
-            });
-        }
+        let totalEntradas = 0;
+        let totalSaidas = 0;
         
-        csv += `\nTOTAL,${(dados.totais?.receitas || 0).toFixed(2)},${(dados.totais?.despesas || 0).toFixed(2)},${(dados.totais?.saldo || 0).toFixed(2)}`;
+        transacoes.forEach(t => {
+            const entrada = t.tipo === 'receita' ? t.valor : 0;
+            const saida = t.tipo === 'despesa' ? t.valor : 0;
+            
+            totalEntradas += entrada;
+            totalSaidas += saida;
+            
+            const data = formatarData(t.data_pagamento);
+            const descricao = (t.descricao || '-').replace(/,/g, ';'); // Escapar vírgulas
+            const categoria = (t.categoria || '-').replace(/,/g, ';');
+            const conta = (t.conta_bancaria || '-').replace(/,/g, ';');
+            const associacao = (t.associacao || '-').replace(/,/g, ';');
+            
+            csv += `${data},${descricao},${categoria},${entrada.toFixed(2)},${saida.toFixed(2)},${conta},${associacao}\n`;
+        });
+        
+        csv += `\nTOTAL,,,${totalEntradas.toFixed(2)},${totalSaidas.toFixed(2)},,\n`;
+        csv += `SALDO,,,,,${(totalEntradas - totalSaidas).toFixed(2)},`;
         
         // Download do arquivo
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); // \uFEFF = BOM para UTF-8
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         
         link.setAttribute('href', url);
-        link.setAttribute('download', `fluxo_caixa_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute('download', `fluxo_caixa_detalhado_${new Date().toISOString().split('T')[0]}.csv`);
         link.style.visibility = 'hidden';
         
         document.body.appendChild(link);
@@ -5723,7 +5754,10 @@ window.carregarFluxoCaixa = async function() {
             
             <!-- Abas -->
             <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ecf0f1;">
-                <button onclick="mostrarAbaFluxo('realizado')" id="aba-realizado" class="aba-fluxo aba-ativa" style="padding: 12px 24px; border: none; background: none; cursor: pointer; font-weight: bold; color: #27ae60; border-bottom: 3px solid #27ae60;">
+                <button onclick="mostrarAbaFluxo('transacoes')" id="aba-transacoes" class="aba-fluxo aba-ativa" style="padding: 12px 24px; border: none; background: none; cursor: pointer; font-weight: bold; color: #2c3e50; border-bottom: 3px solid #2c3e50;">
+                    📋 Transações Detalhadas
+                </button>
+                <button onclick="mostrarAbaFluxo('realizado')" id="aba-realizado" class="aba-fluxo" style="padding: 12px 24px; border: none; background: none; cursor: pointer; font-weight: bold; color: #95a5a6; border-bottom: 3px solid transparent;">
                     ✅ Fluxo Realizado
                 </button>
                 <button onclick="mostrarAbaFluxo('projetado')" id="aba-projetado" class="aba-fluxo" style="padding: 12px 24px; border: none; background: none; cursor: pointer; font-weight: bold; color: #95a5a6; border-bottom: 3px solid transparent;">
@@ -5731,8 +5765,33 @@ window.carregarFluxoCaixa = async function() {
                 </button>
             </div>
             
+            <!-- Conteúdo Transações Detalhadas -->
+            <div id="conteudo-transacoes" class="conteudo-aba-fluxo">
+                <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <table class="data-table" id="tabela-transacoes-fluxo">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Descrição</th>
+                                <th>Categoria</th>
+                                <th style="text-align: right; color: #27ae60;">Entrada</th>
+                                <th style="text-align: right; color: #e74c3c;">Saída</th>
+                                <th>Conta</th>
+                                <th style="width: 200px;">Associação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-transacoes-fluxo">
+                            <tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">Carregando transações...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 10px; padding: 10px; background: #ecf0f1; border-radius: 5px; color: #7f8c8d; font-size: 13px;">
+                    📌 <strong>Transações Detalhadas:</strong> Mostra cada lançamento pago individualmente. Digite no campo "Associação" para adicionar observações personalizadas (salva automaticamente).
+                </div>
+            </div>
+            
             <!-- Conteúdo Fluxo Realizado -->
-            <div id="conteudo-realizado" class="conteudo-aba-fluxo">
+            <div id="conteudo-realizado" class="conteudo-aba-fluxo" style="display: none;">
                 <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     <table class="data-table">
                         <thead>
@@ -5822,6 +5881,9 @@ window.carregarFluxoCaixa = async function() {
         
         content.innerHTML = html;
         
+        // Carregar transações detalhadas
+        await carregarTransacoesDetalhadas(dataInicio, dataFim, banco);
+        
         // Armazenar dados para exportação
         window.fluxoCaixaDados = {
             ...dadosRealizado,
@@ -5843,6 +5905,171 @@ window.carregarFluxoCaixa = async function() {
         const content = document.getElementById('fluxo-caixa-content');
         content.innerHTML = '<div style="text-align: center; padding: 40px; color: #e74c3c;">❌ Erro ao carregar dados do fluxo de caixa</div>';
         showToast('Erro ao carregar fluxo de caixa', 'error');
+    }
+};
+
+window.mostrarAbaFluxo = function(aba) {
+    // Atualizar botões
+    document.querySelectorAll('.aba-fluxo').forEach(btn => {
+        btn.style.color = '#95a5a6';
+        btn.style.borderBottom = '3px solid transparent';
+    });
+    
+    const botaoAtivo = document.getElementById(`aba-${aba}`);
+    if (botaoAtivo) {
+        botaoAtivo.style.borderBottom = aba === 'transacoes' ? '3px solid #2c3e50' : (aba === 'realizado' ? '3px solid #27ae60' : '3px solid #8e44ad');
+        botaoAtivo.style.color = aba === 'transacoes' ? '#2c3e50' : (aba === 'realizado' ? '#27ae60' : '#8e44ad');
+    }
+    
+    // Ocultar todos os conteúdos
+    document.querySelectorAll('.conteudo-aba-fluxo').forEach(div => {
+        div.style.display = 'none';
+    });
+    
+    // Mostrar conteúdo selecionado
+    const conteudo = document.getElementById(`conteudo-${aba}`);
+    if (conteudo) {
+        conteudo.style.display = 'block';
+    }
+};
+
+// Função para carregar transações detalhadas
+async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
+    try {
+        let url = `${API_URL}/relatorios/fluxo-caixa?data_inicio=${dataInicio}&data_fim=${dataFim}`;
+        if (banco) {
+            // Filtrar por banco no frontend já que o backend não suporta esse filtro ainda
+        }
+        
+        const response = await fetch(url, {
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken || ''
+            }
+        });
+        
+        if (!response.ok) throw new Error('Erro ao carregar transações');
+        
+        let transacoes = await response.json();
+        
+        // Filtrar por banco se especificado
+        if (banco) {
+            transacoes = transacoes.filter(t => t.conta_bancaria === banco);
+        }
+        
+        // Armazenar para exportação
+        window.fluxoCaixaTransacoes = transacoes;
+        
+        const tbody = document.getElementById('tbody-transacoes-fluxo');
+        
+        if (transacoes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">Nenhuma transação paga encontrada no período</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        
+        transacoes.forEach((transacao, index) => {
+            const entrada = transacao.tipo === 'receita' ? formatarMoeda(transacao.valor) : '-';
+            const saida = transacao.tipo === 'despesa' ? formatarMoeda(transacao.valor) : '-';
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${formatarData(transacao.data_pagamento)}</td>
+                <td>${transacao.descricao || '-'}</td>
+                <td>${transacao.categoria || '-'}</td>
+                <td style="text-align: right; color: #27ae60; font-weight: bold;">${entrada}</td>
+                <td style="text-align: right; color: #e74c3c; font-weight: bold;">${saida}</td>
+                <td>${transacao.conta_bancaria || '-'}</td>
+                <td>
+                    <input 
+                        type="text" 
+                        class="input-associacao-fluxo" 
+                        value="${transacao.associacao || ''}" 
+                        placeholder="Digite aqui..." 
+                        data-lancamento-id="${transacao.id}"
+                        data-index="${index}"
+                        style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;"
+                        onblur="salvarAssociacaoFluxo(this)"
+                        title="Digite e o sistema salvará automaticamente ao sair do campo"
+                    />
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+    } catch (error) {
+        console.error('Erro ao carregar transações detalhadas:', error);
+        const tbody = document.getElementById('tbody-transacoes-fluxo');
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #e74c3c;">❌ Erro ao carregar transações</td></tr>';
+    }
+}
+
+// Função para salvar associação automaticamente
+window.salvarAssociacaoFluxo = async function(input) {
+    const lancamentoId = input.dataset.lancamentoId;
+    const novaAssociacao = input.value.trim();
+    const index = input.dataset.index;
+    
+    // Se não tem ID (transferências duplicadas na exibição), não salvar
+    if (!lancamentoId || lancamentoId === 'null' || lancamentoId === 'undefined') {
+        console.log('⚠️ Transação sem ID (provavelmente transferência duplicada na visualização), não será salva');
+        return;
+    }
+    
+    try {
+        // Indicador visual de salvamento
+        const originalBorder = input.style.border;
+        input.style.border = '2px solid #3498db';
+        input.disabled = true;
+        
+        const response = await fetch(`${API_URL}/lancamentos/${lancamentoId}/associacao`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken || ''
+            },
+            body: JSON.stringify({ associacao: novaAssociacao })
+        });
+        
+        const resultado = await response.json();
+        
+        if (resultado.success) {
+            // Sucesso - borda verde por 1 segundo
+            input.style.border = '2px solid #27ae60';
+            
+            // Atualizar dados em memória
+            if (window.fluxoCaixaTransacoes && window.fluxoCaixaTransacoes[index]) {
+                window.fluxoCaixaTransacoes[index].associacao = novaAssociacao;
+            }
+            
+            setTimeout(() => {
+                input.style.border = originalBorder;
+                input.disabled = false;
+            }, 1000);
+            
+        } else {
+            // Erro - borda vermelha
+            input.style.border = '2px solid #e74c3c';
+            showToast(`Erro ao salvar: ${resultado.error}`, 'error');
+            
+            setTimeout(() => {
+                input.style.border = originalBorder;
+                input.disabled = false;
+            }, 2000);
+        }
+        
+    } catch (error) {
+        console.error('Erro ao salvar associação:', error);
+        input.style.border = '2px solid #e74c3c';
+        showToast('Erro ao salvar associação', 'error');
+        
+        setTimeout(() => {
+            input.style.border = '1px solid #ddd';
+            input.disabled = false;
+        }, 2000);
     }
 };
 

@@ -7119,6 +7119,52 @@ def cancelar_lancamento_route(lancamento_id):
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
+@app.route('/api/lancamentos/<int:lancamento_id>/associacao', methods=['PATCH'])
+@require_permission('lancamentos_edit')
+def atualizar_associacao_lancamento(lancamento_id):
+    """
+    Atualiza apenas o campo de associação de um lançamento (salvamento automático)
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+        🔒 Verifica permissão lancamentos_edit
+    """
+    try:
+        # 🔒 VALIDAÇÃO DE SEGURANÇA
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
+        data = request.get_json()
+        nova_associacao = data.get('associacao', '')
+        
+        # Atualizar apenas o campo associacao
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                UPDATE lancamentos 
+                SET associacao = %s
+                WHERE id = %s AND empresa_id = %s
+                RETURNING id
+            """, (nova_associacao, lancamento_id, empresa_id))
+            
+            resultado = cursor.fetchone()
+            conn.commit()
+            cursor.close()
+            
+            if not resultado:
+                return jsonify({'success': False, 'error': 'Lançamento não encontrado'}), 404
+            
+            return jsonify({'success': True, 'id': lancamento_id, 'associacao': nova_associacao})
+            
+    except Exception as e:
+        print(f"❌ Erro ao atualizar associação: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
 # === ROTA PRINCIPAL ===
 
 @app.route('/login')
