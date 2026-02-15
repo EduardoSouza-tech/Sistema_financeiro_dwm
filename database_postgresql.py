@@ -4,7 +4,7 @@ Otimizado com pool de conexoes para maxima performance
 COM ROW LEVEL SECURITY PARA ISOLAMENTO 100% ENTRE EMPRESAS
 """
 import psycopg2  # type: ignore
-from psycopg2 import Error, sql, pool, errors  # type: ignore
+from psycopg2 import Error, sql, pool, errors, OperationalError, InterfaceError  # type: ignore
 from psycopg2.extras import RealDictCursor  # type: ignore
 from datetime import datetime, date
 from typing import List, Optional, Dict, Any
@@ -13,6 +13,7 @@ from enum import Enum
 import json
 import os
 import sys
+import time
 from contextlib import contextmanager
 
 # Importar session do Flask para obter empresa_id automaticamente
@@ -317,19 +318,21 @@ def _get_connection_pool():
         try:
             if 'dsn' in POSTGRESQL_CONFIG:
                 _connection_pool = pool.ThreadedConnectionPool(
-                    minconn=5,
-                    maxconn=50,
+                    minconn=3,
+                    maxconn=20,
                     dsn=POSTGRESQL_CONFIG['dsn'],
-                    cursor_factory=RealDictCursor
+                    cursor_factory=RealDictCursor,
+                    connect_timeout=10
                 )
             else:
                 _connection_pool = pool.ThreadedConnectionPool(
-                    minconn=5,
-                    maxconn=50,
+                    minconn=3,
+                    maxconn=20,
                     cursor_factory=RealDictCursor,
+                    connect_timeout=10,
                     **POSTGRESQL_CONFIG
                 )
-            print("? Pool de conexi?es PostgreSQL criado (5-50 conexi?es)")
+            print("✅ Pool de conexões PostgreSQL criado (3-20 conexões, timeout=10s)")
         except Exception as e:
             print(f"? Erro ao criar pool de conexi?es: {e}")
             raise
@@ -623,38 +626,62 @@ class DatabaseManager:
     
     def get_connection(self):
         """
-        Obti?m uma conexi?o do pool
+        Obtém uma conexão do pool com retry automático
         IMPORTANTE: SEMPRE devolva ao pool com return_to_pool(conn) quando terminar!
         Ou use o context manager get_db_connection() preferencialmente.
         """
-        try:
-            pool_obj = _get_connection_pool()
-            # Tentar obter conexão com timeout de 30 segundos
-            conn = pool_obj.getconn()
-            if conn:
-                conn.autocommit = True
-                # Verificar se a conexão está funcionando
-                cursor = conn.cursor()
-                cursor.execute("SELECT 1")
-                cursor.close()
-            return conn
-        except pool.PoolError as e:
-            print(f"⚠️ Pool esgotado! Tentando limpar conexões travadas...")
-            # Tentar fechar todas as conexões e recriar o pool
+        max_retries = 3
+        retry_delay = 0.5
+        
+        for attempt in range(max_retries):
             try:
-                pool_obj.closeall()
-            except:
-                pass
-            global _connection_pool
-            _connection_pool = None
-            # Tentar novamente
-            pool_obj = _get_connection_pool()
-            conn = pool_obj.getconn()
-            conn.autocommit = True
-            return conn
-        except Error as e:
-            print(f"❌ Erro ao obter conexi?o do pool: {e}")
-            raise
+                pool_obj = _get_connection_pool()
+                conn = pool_obj.getconn()
+                
+                if conn:
+                    conn.autocommit = True
+                    # Verificar se a conexão está funcionando
+                    try:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT 1")
+                        cursor.close()
+                        return conn
+                    except (OperationalError, InterfaceError) as e:
+                        # Conexão está morta, descartar e tentar novamente
+                        print(f"⚠️ Conexão morta detectada (tentativa {attempt + 1}/{max_retries}): {e}")
+                        try:
+                            pool_obj.putconn(conn, close=True)  # Fechar conexão morta
+                        except:
+                            pass
+                        if attempt < max_retries - 1:
+                            time.sleep(retry_delay)
+                            continue
+                        raise
+                        
+            except pool.PoolError as e:
+                print(f"⚠️ Pool esgotado! (tentativa {attempt + 1}/{max_retries})")
+                if attempt == max_retries - 1:
+                    # Última tentativa: recria pool
+                    print("🔄 Recriando pool de conexões...")
+                    try:
+                        pool_obj.closeall()
+                    except:
+                        pass
+                    global _connection_pool
+                    _connection_pool = None
+                    pool_obj = _get_connection_pool()
+                    conn = pool_obj.getconn()
+                    conn.autocommit = True
+                    return conn
+                time.sleep(retry_delay)
+                
+            except Error as e:
+                print(f"❌ Erro ao obter conexão do pool (tentativa {attempt + 1}/{max_retries}): {e}")
+                if attempt == max_retries - 1:
+                    raise
+                time.sleep(retry_delay)
+        
+        raise Error("Falha ao obter conexão após múltiplas tentativas")
     
     def criar_tabelas(self):
         """Cria as tabelas no banco de dados"""
