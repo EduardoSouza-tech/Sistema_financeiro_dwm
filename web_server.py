@@ -1860,17 +1860,59 @@ def listar_contas():
         
         contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
         
-        # Preparar resposta - usar saldo_inicial como saldo atual
-        # (o campo saldo_inicial já representa o saldo atual da conta)
+        # Preparar resposta - CALCULAR saldo real com base nos lançamentos pagos
         contas_com_saldo = []
         for c in contas:
+            # Calcular saldo real = saldo_inicial + receitas pagas - despesas pagas
+            saldo_real = float(c.saldo_inicial)
+            
+            try:
+                # Buscar lançamentos PAGOS desta conta
+                with db.get_db_connection(empresa_id=empresa_id) as conn:
+                    cursor = conn.cursor(cursor_factory=db.RealDictCursor)
+                    
+                    # Somar receitas pagas
+                    cursor.execute("""
+                        SELECT COALESCE(SUM(valor), 0) as total_receitas
+                        FROM lancamentos
+                        WHERE empresa_id = %s
+                        AND conta_bancaria = %s
+                        AND tipo = 'receita'
+                        AND status = 'pago'
+                    """, (empresa_id, c.nome))
+                    resultado_receitas = cursor.fetchone()
+                    total_receitas = float(resultado_receitas['total_receitas'] or 0)
+                    
+                    # Somar despesas pagas
+                    cursor.execute("""
+                        SELECT COALESCE(SUM(valor), 0) as total_despesas
+                        FROM lancamentos
+                        WHERE empresa_id = %s
+                        AND conta_bancaria = %s
+                        AND tipo = 'despesa'
+                        AND status = 'pago'
+                    """, (empresa_id, c.nome))
+                    resultado_despesas = cursor.fetchone()
+                    total_despesas = float(resultado_despesas['total_despesas'] or 0)
+                    
+                    cursor.close()
+                    
+                    # Calcular saldo real
+                    saldo_real = float(c.saldo_inicial) + total_receitas - total_despesas
+                    
+            except Exception as e:
+                print(f"⚠️ Erro ao calcular saldo real da conta {c.nome}: {e}")
+                # Em caso de erro, usar saldo_inicial
+                saldo_real = float(c.saldo_inicial)
+            
             contas_com_saldo.append({
                 'nome': c.nome,
                 'banco': c.banco,
                 'agencia': c.agencia,
                 'conta': c.conta,
                 'saldo_inicial': float(c.saldo_inicial),
-                'saldo': float(c.saldo_inicial),  # Usar saldo_inicial como saldo atual
+                'saldo': saldo_real,  # Saldo real calculado
+                'saldo_real': saldo_real,  # Alias para compatibilidade
                 'ativa': c.ativa if hasattr(c, 'ativa') else True
             })
         
