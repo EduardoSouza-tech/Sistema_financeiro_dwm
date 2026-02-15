@@ -11083,15 +11083,11 @@ def get_config_nfse():
             }), 400
         
         from nfse_functions import listar_municipios
+        from database_postgresql import POSTGRESQL_CONFIG
         
-        # Parâmetros de conexão ao banco
-        db_params = {
-            'host': os.getenv('PGHOST'),
-            'database': os.getenv('PGDATABASE'),
-            'user': os.getenv('PGUSER'),
-            'password': os.getenv('PGPASSWORD'),
-            'port': int(os.getenv('PGPORT', 5432))
-        }
+        # Usar configuração centralizada do banco
+        db_params = POSTGRESQL_CONFIG.copy()
+        db_params.pop('dsn', None)
         
         configs = listar_municipios(db_params, empresa_id)
         
@@ -11136,15 +11132,11 @@ def add_config_nfse():
                 }), 400
         
         from nfse_functions import adicionar_municipio
+        from database_postgresql import POSTGRESQL_CONFIG
         
-        # Parâmetros de conexão ao banco
-        db_params = {
-            'host': os.getenv('PGHOST'),
-            'database': os.getenv('PGDATABASE'),
-            'user': os.getenv('PGUSER'),
-            'password': os.getenv('PGPASSWORD'),
-            'port': int(os.getenv('PGPORT', 5432))
-        }
+        # Usar configuração centralizada do banco
+        db_params = POSTGRESQL_CONFIG.copy()
+        db_params.pop('dsn', None)
         
         sucesso, config_id, erro = adicionar_municipio(
             db_params=db_params,
@@ -11269,15 +11261,11 @@ def buscar_nfse():
         
         # Buscar certificado da empresa do banco de dados
         from nfse_functions import get_certificado_para_soap
+        from database_postgresql import POSTGRESQL_CONFIG
         
-        # Parâmetros de conexão ao banco
-        db_params = {
-            'host': os.getenv('PGHOST'),
-            'database': os.getenv('PGDATABASE'),
-            'user': os.getenv('PGUSER'),
-            'password': os.getenv('PGPASSWORD'),
-            'port': int(os.getenv('PGPORT', 5432))
-        }
+        # Usar configuração centralizada do banco
+        db_params = POSTGRESQL_CONFIG.copy()
+        db_params.pop('dsn', None)
         
         cert_data = get_certificado_para_soap(db_params, empresa_id)
         
