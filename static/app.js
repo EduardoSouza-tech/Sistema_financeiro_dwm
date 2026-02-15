@@ -6143,7 +6143,7 @@ window.abrirConciliacaoGeral = async function() {
             <div style="background: #ecf0f1; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <strong style="font-size: 16px;">${transacoes.length} transações encontradas</strong>
+                        <strong style="font-size: 16px;"><span id="conciliacao-count-visivel">${transacoes.length}</span> de ${transacoes.length} transações</strong>
                         <div style="color: #7f8c8d; font-size: 13px; margin-top: 5px;">
                             ${dataInicio && dataFim ? `Período: ${formatarData(dataInicio)} a ${formatarData(dataFim)}` : 'Todas as datas'}
                             ${conta ? ` | Conta: ${conta}` : ''}
@@ -6156,7 +6156,40 @@ window.abrirConciliacaoGeral = async function() {
                 </div>
             </div>
             
-            <div style="max-height: 500px; overflow-y: auto;">
+            <!-- Filtros da Conciliação Geral -->
+            <div style="background: #fff; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ddd; display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                <div style="flex: 0 0 140px;">
+                    <label style="display: block; font-size: 11px; font-weight: bold; color: #555; margin-bottom: 4px;">🔽 Tipo</label>
+                    <select id="filtro-tipo-conciliacao" onchange="filtrarConciliacaoGeral()" 
+                            style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                        <option value="">Todos</option>
+                        <option value="DEBITO">Débito</option>
+                        <option value="CREDITO">Crédito</option>
+                    </select>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="display: block; font-size: 11px; font-weight: bold; color: #555; margin-bottom: 4px;">🔍 Descrição</label>
+                    <input type="text" id="filtro-descricao-conciliacao" oninput="filtrarConciliacaoGeral()" placeholder="Buscar na descrição..."
+                           style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                </div>
+                <div style="flex: 0 0 140px;">
+                    <label style="display: block; font-size: 11px; font-weight: bold; color: #555; margin-bottom: 4px;">📅 Valor mín.</label>
+                    <input type="number" id="filtro-valor-min-conciliacao" oninput="filtrarConciliacaoGeral()" placeholder="0,00" step="0.01"
+                           style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                </div>
+                <div style="flex: 0 0 140px;">
+                    <label style="display: block; font-size: 11px; font-weight: bold; color: #555; margin-bottom: 4px;">📅 Valor máx.</label>
+                    <input type="number" id="filtro-valor-max-conciliacao" oninput="filtrarConciliacaoGeral()" placeholder="0,00" step="0.01"
+                           style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                </div>
+                <div style="flex: 0 0 auto;">
+                    <button onclick="limparFiltrosConciliacao()" style="padding: 6px 14px; background: #e74c3c; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">
+                        ✕ Limpar Filtros
+                    </button>
+                </div>
+            </div>
+            
+            <div style="max-height: 500px; overflow-y: auto;" id="conciliacao-tabela-container">
                 <table class="data-table" style="width: 100%; border-collapse: collapse;">
                     <thead style="position: sticky; top: 0; background: #34495e; color: white; z-index: 1;">
                         <tr>
@@ -6197,7 +6230,7 @@ window.abrirConciliacaoGeral = async function() {
             }
             
             html += `
-                <tr style="border-bottom: 1px solid #ecf0f1;">
+                <tr style="border-bottom: 1px solid #ecf0f1;" data-tipo="${isCredito ? 'CREDITO' : 'DEBITO'}" data-descricao="${(t.descricao || '').replace(/"/g, '&quot;').toUpperCase()}" data-valor="${Math.abs(parseFloat(t.valor || 0))}">
                     <td style="text-align: center;">
                         <input type="checkbox" class="checkbox-conciliacao" data-index="${index}" style="transform: scale(1.3);">
                     </td>
@@ -6320,9 +6353,87 @@ window.abrirConciliacaoGeral = async function() {
 };
 
 window.toggleTodasConciliacoes = function(checked) {
+    // Selecionar apenas as checkboxes das linhas VISÍVEIS
     document.querySelectorAll('.checkbox-conciliacao').forEach(cb => {
-        cb.checked = checked;
+        const row = cb.closest('tr');
+        if (row && row.style.display !== 'none') {
+            cb.checked = checked;
+        }
     });
+};
+
+// Filtrar transações da Conciliação Geral (client-side, preserva dados preenchidos)
+window.filtrarConciliacaoGeral = function() {
+    const filtroTipo = (document.getElementById('filtro-tipo-conciliacao')?.value || '').toUpperCase();
+    const filtroDescricao = (document.getElementById('filtro-descricao-conciliacao')?.value || '').toUpperCase().trim();
+    const filtroValorMin = parseFloat(document.getElementById('filtro-valor-min-conciliacao')?.value || '');
+    const filtroValorMax = parseFloat(document.getElementById('filtro-valor-max-conciliacao')?.value || '');
+    
+    const container = document.getElementById('conciliacao-tabela-container');
+    if (!container) return;
+    
+    const rows = container.querySelectorAll('tbody tr');
+    let visiveis = 0;
+    
+    rows.forEach(row => {
+        const tipo = row.getAttribute('data-tipo') || '';
+        const descricao = row.getAttribute('data-descricao') || '';
+        const valor = parseFloat(row.getAttribute('data-valor') || '0');
+        
+        let mostrar = true;
+        
+        // Filtro por tipo
+        if (filtroTipo && tipo !== filtroTipo) {
+            mostrar = false;
+        }
+        
+        // Filtro por descrição
+        if (filtroDescricao && !descricao.includes(filtroDescricao)) {
+            mostrar = false;
+        }
+        
+        // Filtro por valor mínimo
+        if (!isNaN(filtroValorMin) && valor < filtroValorMin) {
+            mostrar = false;
+        }
+        
+        // Filtro por valor máximo
+        if (!isNaN(filtroValorMax) && valor > filtroValorMax) {
+            mostrar = false;
+        }
+        
+        row.style.display = mostrar ? '' : 'none';
+        if (mostrar) visiveis++;
+    });
+    
+    // Atualizar contador
+    const countEl = document.getElementById('conciliacao-count-visivel');
+    if (countEl) {
+        countEl.textContent = visiveis;
+    }
+};
+
+// Limpar filtros da Conciliação Geral (preserva dados preenchidos pelo usuário)
+window.limparFiltrosConciliacao = function() {
+    const tipoSelect = document.getElementById('filtro-tipo-conciliacao');
+    const descInput = document.getElementById('filtro-descricao-conciliacao');
+    const valorMinInput = document.getElementById('filtro-valor-min-conciliacao');
+    const valorMaxInput = document.getElementById('filtro-valor-max-conciliacao');
+    
+    if (tipoSelect) tipoSelect.value = '';
+    if (descInput) descInput.value = '';
+    if (valorMinInput) valorMinInput.value = '';
+    if (valorMaxInput) valorMaxInput.value = '';
+    
+    // Mostrar todas as linhas
+    const container = document.getElementById('conciliacao-tabela-container');
+    if (container) {
+        const rows = container.querySelectorAll('tbody tr');
+        rows.forEach(row => { row.style.display = ''; });
+        
+        const countEl = document.getElementById('conciliacao-count-visivel');
+        if (countEl) countEl.textContent = rows.length;
+    }
 };
 
 window.carregarSubcategoriasConciliacao = function(transacaoId, categoria) {

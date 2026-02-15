@@ -140,7 +140,17 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
             transacoes = cursor.fetchall()
             cursor.close()
             
-            return [dict(t) for t in transacoes]
+            # Converter date/datetime/Decimal para tipos JSON-safe
+            result = []
+            for t in transacoes:
+                d = dict(t)
+                for key, val in d.items():
+                    if hasattr(val, 'isoformat'):
+                        d[key] = val.isoformat()
+                    elif isinstance(val, Decimal):
+                        d[key] = float(val)
+                result.append(d)
+            return result
         
     except Exception as e:
         log(f"Erro ao listar transacoes: {e}")
@@ -237,7 +247,16 @@ def sugerir_conciliacoes(database, empresa_id, transacao_id):
             sugestoes = cursor.fetchall()
             cursor.close()
             
-            return [dict(s) for s in sugestoes]
+            result = []
+            for s in sugestoes:
+                d = dict(s)
+                for key, val in d.items():
+                    if hasattr(val, 'isoformat'):
+                        d[key] = val.isoformat()
+                    elif isinstance(val, Decimal):
+                        d[key] = float(val)
+                result.append(d)
+            return result
         
     except Exception as e:
         log(f"Erro ao sugerir conciliacoes: {e}")
