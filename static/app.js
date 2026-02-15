@@ -7615,9 +7615,16 @@ window.carregarCertificadoNFSe = async function() {
 // Preencher formulário de município com dados do certificado
 window.preencherFormMunicipioComCertificado = function(cert) {
     console.log('📝 Preenchendo formulário com dados do certificado:', cert);
+    console.log('📊 DADOS DO CERTIFICADO:');
+    console.log('   - cnpj:', cert.cnpj);
+    console.log('   - codigo_municipio:', cert.codigo_municipio);
+    console.log('   - nome_municipio:', cert.nome_municipio);
+    console.log('   - uf:', cert.uf);
+    console.log('   - config_criada:', cert.config_criada);
     
     // Se config já foi criada automaticamente, avisar usuário
     if (cert.config_criada) {
+        console.warn('⚠️ Config já foi criada! Não preenchendo formulário.');
         showToast('ℹ️ Município já configurado! Se precisar editar, use os botões na lista de municípios abaixo.', 'info', 5000);
         // Scroll suave até a lista de municípios
         const listaMunicipios = document.getElementById('lista-municipios-nfse');
@@ -7627,62 +7634,86 @@ window.preencherFormMunicipioComCertificado = function(cert) {
         return; // Não preencher formulário se config já existe
     }
     
+    console.log('🔧 Preenchendo campos do formulário...');
+    
     // Preencher campos do formulário com dados do certificado
     if (cert.cnpj) {
         const cnpjInput = document.getElementById('config-cnpj');
+        console.log('   - Campo CNPJ:', cnpjInput ? '✅ Encontrado' : '❌ NÃO encontrado');
         if (cnpjInput) {
             cnpjInput.value = cert.cnpj;
             cnpjInput.style.background = '#e8f5e9'; // Verde claro para indicar auto-preenchido
             cnpjInput.readOnly = true; // Bloquear edição de dados vindos do certificado
+            console.log('   ✅ CNPJ preenchido:', cert.cnpj);
         }
+    } else {
+        console.warn('   ⚠️ CNPJ não disponível no certificado');
     }
     
     if (cert.codigo_municipio) {
         const codigoInput = document.getElementById('config-codigo-municipio');
+        console.log('   - Campo Código IBGE:', codigoInput ? '✅ Encontrado' : '❌ NÃO encontrado');
         if (codigoInput) {
             codigoInput.value = cert.codigo_municipio;
             codigoInput.style.background = '#e8f5e9';
             codigoInput.readOnly = true;
+            console.log('   ✅ Código IBGE preenchido:', cert.codigo_municipio);
         }
+    } else {
+        console.warn('   ⚠️ Código IBGE não disponível no certificado');
     }
     
     if (cert.nome_municipio) {
         const nomeInput = document.getElementById('config-nome-municipio');
+        console.log('   - Campo Nome Município:', nomeInput ? '✅ Encontrado' : '❌ NÃO encontrado');
         if (nomeInput) {
             nomeInput.value = cert.nome_municipio;
             nomeInput.style.background = '#e8f5e9';
             nomeInput.readOnly = true;
+            console.log('   ✅ Nome município preenchido:', cert.nome_municipio);
         }
+    } else {
+        console.warn('   ⚠️ Nome do município não disponível no certificado');
     }
     
     if (cert.uf) {
         const ufSelect = document.getElementById('config-uf');
+        console.log('   - Campo UF:', ufSelect ? '✅ Encontrado' : '❌ NÃO encontrado');
         if (ufSelect) {
             ufSelect.value = cert.uf;
             ufSelect.style.background = '#e8f5e9';
             ufSelect.disabled = true; // Desabilitar dropdown se veio do certificado
+            console.log('   ✅ UF preenchida:', cert.uf);
         }
+    } else {
+        console.warn('   ⚠️ UF não disponível no certificado');
     }
     
     // Selecionar provedor padrão (GINFES)
     const provedorSelect = document.getElementById('config-provedor');
+    console.log('   - Campo Provedor:', provedorSelect ? '✅ Encontrado' : '❌ NÃO encontrado');
     if (provedorSelect) {
         provedorSelect.value = 'GINFES';
         provedorSelect.style.background = '#e8f5e9';
+        console.log('   ✅ Provedor configurado: GINFES');
     }
     
     // Focar no campo Inscrição Municipal (único que usuário precisa preencher)
     const inscricaoInput = document.getElementById('config-inscricao-municipal');
+    console.log('   - Campo Inscrição Municipal:', inscricaoInput ? '✅ Encontrado' : '❌ NÃO encontrado');
     if (inscricaoInput) {
         inscricaoInput.value = ''; // Limpar qualquer valor
         inscricaoInput.focus();
         inscricaoInput.style.background = '#fff3cd'; // Amarelo claro para destacar
         inscricaoInput.style.borderColor = '#ffc107';
         inscricaoInput.style.borderWidth = '2px';
+        console.log('   ✅ Foco definido no campo Inscrição Municipal');
         
         // Scroll suave até o formulário
         inscricaoInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+    
+    console.log('✅ Preenchimento do formulário CONCLUÍDO!');
     
     // Adicionar mensagem informativa no formulário
     showToast('📝 Formulário preenchido automaticamente! Complete apenas a Inscrição Municipal e clique em Salvar.', 'info', 6000);
