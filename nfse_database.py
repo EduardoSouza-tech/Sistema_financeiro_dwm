@@ -39,15 +39,23 @@ class NFSeDatabase:
         """
         self.connection_params = connection_params
         self.conn = None
+        
+        # Debug: Log dos parâmetros (sem mostrar senha completa)
+        debug_params = connection_params.copy()
+        if 'password' in debug_params:
+            debug_params['password'] = '***' + str(debug_params['password'])[-4:] if debug_params.get('password') else 'None'
+        logger.debug(f"[NFSeDatabase.__init__] connection_params: {debug_params}")
     
     def conectar(self) -> bool:
         """Estabelece conexão com banco de dados"""
         try:
+            logger.debug(f"[NFSeDatabase.conectar] Tentando conectar com {len(self.connection_params)} parâmetros")
             self.conn = psycopg2.connect(**self.connection_params)
             logger.info("✅ Conectado ao banco de dados NFS-e")
             return True
         except Exception as e:
             logger.error(f"❌ Erro ao conectar: {e}")
+            logger.error(f"❌ Parâmetros usados: {list(self.connection_params.keys())}")
             return False
     
     def desconectar(self):
@@ -58,7 +66,8 @@ class NFSeDatabase:
     
     def __enter__(self):
         """Context manager: entrada"""
-        self.conectar()
+        if not self.conectar():
+            raise ConnectionError("Falha ao conectar ao banco de dados NFS-e")
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -122,6 +131,10 @@ class NFSeDatabase:
         Returns:
             Lista de configurações
         """
+        if not self.conn:
+            logger.error("❌ [get_config_nfse] Conexão não estabelecida!")
+            return []
+            
         try:
             with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 if codigo_municipio:
@@ -139,9 +152,12 @@ class NFSeDatabase:
                     cursor.execute(sql, (empresa_id,))
                 
                 configs = [dict(row) for row in cursor.fetchall()]
+                logger.debug(f"[get_config_nfse] Encontradas {len(configs)} configurações")
                 return configs
         except Exception as e:
             logger.error(f"❌ Erro ao buscar configs: {e}")
+            import traceback
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
             return []
     
     def atualizar_status_conexao(self, config_id: int, status: str, mensagem: Optional[str] = None):

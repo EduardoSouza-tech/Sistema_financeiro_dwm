@@ -337,6 +337,13 @@ def get_nfse_db_params() -> dict:
     """
     params = POSTGRESQL_CONFIG.copy()
     params.pop('dsn', None)  # Remover DSN se existir
+    
+    # Debug: Log dos parâmetros (sem mostrar senha completa)
+    debug_params = params.copy()
+    if 'password' in debug_params:
+        debug_params['password'] = '***' + debug_params['password'][-4:] if debug_params['password'] else 'None'
+    logger.debug(f"[get_nfse_db_params] Retornando: {debug_params}")
+    
     return params
 
 # Pool de conexões global para reutilização eficiente
