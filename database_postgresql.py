@@ -3478,6 +3478,24 @@ def listar_contas(empresa_id: int) -> List[ContaBancaria]:
     db = DatabaseManager()
     return db.listar_contas_por_empresa(empresa_id=empresa_id)
 
+def listar_contas_por_empresa(empresa_id: int) -> List[ContaBancaria]:
+    """
+    Alias para listar_contas - Lista contas bancárias da empresa
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+    
+    Returns:
+        List[ContaBancaria]: Lista de contas da empresa
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - retorna apenas contas da empresa
+    """
+    return listar_contas(empresa_id=empresa_id)
+
 def atualizar_conta(nome_antigo: str, conta: ContaBancaria) -> bool:
     db = DatabaseManager()
     return db.atualizar_conta(nome_antigo, conta)
