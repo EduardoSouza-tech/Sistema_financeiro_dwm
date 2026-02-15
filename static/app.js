@@ -7572,19 +7572,36 @@ window.uploadCertificadoNFSe = async function(event) {
         
         if (data.success) {
             const cert = data.certificado;
-            let msg = `✅ Certificado carregado com sucesso!\n\n`;
+            
+            // Usar mensagem do backend (inclui info sobre auto-configuração)
+            showToast(data.message, 'success', 6000);
+            
+            // Mostrar detalhes em alert
+            let msg = `✅ Certificado processado com sucesso!\n\n`;
             msg += `📋 CNPJ: ${cert.cnpj || '-'}\n`;
             msg += `🏢 ${cert.razao_social || '-'}\n`;
             msg += `🏙️ Município: ${cert.nome_municipio || '-'}/${cert.uf || '-'}\n`;
-            msg += `📅 Validade: ${cert.validade_fim ? new Date(cert.validade_fim).toLocaleDateString('pt-BR') : '-'}`;
+            msg += `📅 Validade: ${cert.validade_fim ? new Date(cert.validade_fim).toLocaleDateString('pt-BR') : '-'}\n`;
             
-            showToast(msg, 'success', 5000);
+            if (cert.config_criada) {
+                msg += `\n✅ Município configurado automaticamente!\n`;
+                msg += `⚠️ IMPORTANTE: Complete a Inscrição Municipal em "⚙️ Configurar Municípios"`;
+            } else if (cert.codigo_municipio) {
+                msg += `\n⚠️ Configure o município em "⚙️ Configurar Municípios"`;
+            }
+            
+            alert(msg);
             
             // Resetar form
             document.getElementById('form-upload-certificado').reset();
             
-            // Recarregar status do certificado
+            // Recarregar status e municípios
             await window.carregarCertificadoNFSe();
+            
+            // Se criou configuração, recarregar lista de municípios também
+            if (cert.config_criada && window.loadNFSeConfigs) {
+                await window.loadNFSeConfigs();
+            }
         } else {
             showToast(`❌ Erro: ${data.error}`, 'error');
         }
