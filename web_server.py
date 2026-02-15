@@ -2017,7 +2017,7 @@ def modificar_conta(nome):
     
     if request.method == 'GET':
         try:
-            contas = db.listar_contas(empresa_id=empresa_id)
+            contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
             for conta in contas:
                 if conta.nome == nome:
                     return jsonify({
@@ -2158,7 +2158,7 @@ def toggle_ativo_conta(nome):
         print(f"{'='*80}")
         
         # Buscar conta atual
-        contas = db.listar_contas(empresa_id=empresa_id)
+        contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
         conta_atual = None
         for c in contas:
             if c.nome == nome:
@@ -6466,7 +6466,7 @@ def dashboard():
         print(f"📅 Filtros: ano={ano}, mes={mes}")
         
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
-        contas = db.listar_contas(empresa_id=empresa_id)
+        contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
         print(f"📋 Total de lançamentos: {len(lancamentos)}")
         print(f"🏦 Total de contas: {len(contas)}")
         
@@ -6827,7 +6827,7 @@ def relatorio_fluxo_projetado():
         periodo_texto = f"PROJEÇÃO - PRÓXIMOS {dias} DIAS"
         
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
-        contas = db.listar_contas(empresa_id=empresa_id)
+        contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
         
         # Filtrar lançamentos por cliente se necessário
         usuario = request.usuario
@@ -8062,7 +8062,7 @@ def relatorio_indicadores():
     
     try:
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
-        contas = db.listar_contas(empresa_id=empresa_id)
+        contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
         
         # Obter filtros de data
         data_inicio_str = request.args.get('data_inicio')

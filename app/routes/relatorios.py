@@ -162,7 +162,7 @@ def dashboard():
         
         # 🔒 Passar empresa_id explicitamente
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
-        contas = db.listar_contas(empresa_id=empresa_id)
+        contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
         
         # Filtrar lançamentos por cliente se necessário
         usuario = request.usuario
@@ -425,7 +425,7 @@ def relatorio_fluxo_projetado():
         
         # 🔒 Passar empresa_id explicitamente
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
-        contas = db.listar_contas(empresa_id=empresa_id)
+        contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
         
         # Filtrar lançamentos por cliente se necessário
         usuario = request.usuario
@@ -913,7 +913,7 @@ def relatorio_indicadores():
     
     try:
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
-        contas = db.listar_contas(empresa_id=empresa_id)
+        contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
         
         # Obter filtros de data
         data_inicio_str = request.args.get('data_inicio')
