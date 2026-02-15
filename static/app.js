@@ -6523,6 +6523,23 @@ window.processarConciliacaoGeral = async function() {
             })
         });
         
+        if (!response.ok) {
+            // Erro HTTP (400, 500, etc)
+            const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+            console.error('❌ Erro HTTP na conciliação:', response.status, errorData);
+            
+            fecharConciliacaoGeral();
+            
+            const mensagemErro = errorData.error || errorData.message || `Erro ${response.status} ao processar conciliação`;
+            showToast(mensagemErro, 'error');
+            
+            // Recarregar extratos se a função existir
+            if (typeof window.loadExtratoTransacoes === 'function') {
+                await window.loadExtratoTransacoes();
+            }
+            return;
+        }
+        
         const result = await response.json();
         
         // Verificar se houve falha total (nenhuma conciliação bem-sucedida)
@@ -6537,7 +6554,11 @@ window.processarConciliacaoGeral = async function() {
             }
             
             showToast(mensagemErro, 'error');
-            await loadExtratos();
+            
+            // Recarregar extratos se a função existir
+            if (typeof window.loadExtratoTransacoes === 'function') {
+                await window.loadExtratoTransacoes();
+            }
             return;
         }
         
@@ -6554,7 +6575,11 @@ window.processarConciliacaoGeral = async function() {
         
         // Fechar modal e recarregar
         fecharConciliacaoGeral();
-        await loadExtratos();
+        
+        // Recarregar extratos se a função existir
+        if (typeof window.loadExtratoTransacoes === 'function') {
+            await window.loadExtratoTransacoes();
+        }
         
     } catch (error) {
         console.error('Erro ao processar conciliação:', error);
@@ -6565,7 +6590,13 @@ window.processarConciliacaoGeral = async function() {
         showToast(error.message || 'Erro ao processar conciliação', 'error');
         
         // Recarregar lista mesmo com erro
-        await loadExtratos();
+        if (typeof window.loadExtratoTransacoes === 'function') {
+            try {
+                await window.loadExtratoTransacoes();
+            } catch (reloadError) {
+                console.error('Erro ao recarregar extratos:', reloadError);
+            }
+        }
     }
 };
 
