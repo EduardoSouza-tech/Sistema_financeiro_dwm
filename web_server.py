@@ -11718,15 +11718,12 @@ def upload_certificado_nfse():
             return jsonify({'success': False, 'error': 'Arquivo muito grande (máximo 10MB)'}), 400
         
         from nfse_functions import upload_certificado, registrar_operacao
+        from database_postgresql import POSTGRESQL_CONFIG
         
-        # Parâmetros de conexão ao banco
-        db_params = {
-            'host': os.getenv('PGHOST'),
-            'database': os.getenv('PGDATABASE'),
-            'user': os.getenv('PGUSER'),
-            'password': os.getenv('PGPASSWORD'),
-            'port': int(os.getenv('PGPORT', 5432))
-        }
+        # Usar configuração centralizada do banco
+        db_params = POSTGRESQL_CONFIG.copy()
+        # Remover 'dsn' se existir (NFSeDatabase espera parâmetros individuais)
+        db_params.pop('dsn', None)
         
         sucesso, info, erro = upload_certificado(db_params, empresa_id, pfx_bytes, senha)
         
@@ -11781,14 +11778,11 @@ def get_certificado_nfse():
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
         
         from nfse_functions import get_certificado_info
+        from database_postgresql import POSTGRESQL_CONFIG
         
-        db_params = {
-            'host': os.getenv('PGHOST'),
-            'database': os.getenv('PGDATABASE'),
-            'user': os.getenv('PGUSER'),
-            'password': os.getenv('PGPASSWORD'),
-            'port': int(os.getenv('PGPORT', 5432))
-        }
+        # Usar configuração centralizada do banco
+        db_params = POSTGRESQL_CONFIG.copy()
+        db_params.pop('dsn', None)  # Remover DSN se existir
         
         cert = get_certificado_info(db_params, empresa_id)
         
