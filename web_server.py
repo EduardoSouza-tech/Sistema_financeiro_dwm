@@ -3232,6 +3232,8 @@ def listar_lancamentos():
                     'pessoa': l.pessoa,
                     'observacoes': l.observacoes,
                     'num_documento': getattr(l, 'num_documento', ''),
+                    'associacao': getattr(l, 'associacao', ''),
+                    'numero_documento': getattr(l, 'numero_documento', ''),
                     'recorrente': getattr(l, 'recorrente', False),
                     'frequencia_recorrencia': getattr(l, 'frequencia_recorrencia', ''),
                     'cliente_id': getattr(l, 'pessoa', None)
@@ -3405,7 +3407,9 @@ def obter_lancamento_route(lancamento_id):
                 'frequencia_recorrencia': lancamento.frequencia_recorrencia,
                 'dia_vencimento': lancamento.dia_vencimento,
                 'juros': float(getattr(lancamento, 'juros', 0)),
-                'desconto': float(getattr(lancamento, 'desconto', 0))
+                'desconto': float(getattr(lancamento, 'desconto', 0)),
+                'associacao': getattr(lancamento, 'associacao', ''),
+                'numero_documento': getattr(lancamento, 'numero_documento', '')
             }
             print(f"✅ Lançamento convertido para dict: {lancamento_dict}")
             print(f"{'='*80}\n")
