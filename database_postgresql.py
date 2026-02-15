@@ -2644,7 +2644,7 @@ class DatabaseManager:
             id, tipo, descricao, valor, data_vencimento, data_pagamento,
             categoria, subcategoria, conta_bancaria, cliente_fornecedor,
             pessoa, status, observacoes, anexo, recorrente,
-            frequencia_recorrencia, dia_vencimento, associacao
+            frequencia_recorrencia, dia_vencimento, associacao, numero_documento
         """
         
         query = f"SELECT {columns} FROM lancamentos WHERE 1=1"
@@ -2731,6 +2731,8 @@ class DatabaseManager:
                     dia_vencimento=row['dia_vencimento'] or 0,
                     associacao=row.get('associacao', '') or ''
                 )
+                # Adicionar numero_documento como atributo extra (para compatibilidade)
+                lancamento.numero_documento = row.get('numero_documento', '') or ''
                 lancamentos.append(lancamento)
             except Exception as e:
                 print(f"? Erro ao processar lani?amento ID {row.get('id', 'unknown')}: {e}")
@@ -2792,10 +2794,14 @@ class DatabaseManager:
             frequencia_recorrencia=row['frequencia_recorrencia'] or '',
             dia_vencimento=row['dia_vencimento'] or 0,
             juros=float(row.get('juros', 0)) if row.get('juros') is not None else 0,
-            desconto=float(row.get('desconto', 0)) if row.get('desconto') is not None else 0
+            desconto=float(row.get('desconto', 0)) if row.get('desconto') is not None else 0,
+            associacao=row.get('associacao', '') or ''
         )
         
-        print(f"? Lancamento criado com sucesso\n")
+        # Adicionar numero_documento como atributo extra (para compatibilidade)
+        lancamento.numero_documento = row.get('numero_documento', '') or ''
+        
+        print(f"✅ Lancamento criado com sucesso\n")
         cursor.close()
         return_to_pool(conn)  # Devolver ao pool
         return lancamento
