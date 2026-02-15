@@ -6526,11 +6526,27 @@ window.processarConciliacaoGeral = async function() {
         if (!response.ok) {
             // Erro HTTP (400, 500, etc)
             const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
-            console.error('❌ Erro HTTP na conciliação:', response.status, errorData);
+            console.error('❌ Erro HTTP na conciliação:', response.status);
+            console.error('📦 Dados do erro:', JSON.stringify(errorData, null, 2));
             
             fecharConciliacaoGeral();
             
-            const mensagemErro = errorData.error || errorData.message || `Erro ${response.status} ao processar conciliação`;
+            // Extrair mensagem de erro (pode vir em error, message, ou erros array)
+            let mensagemErro = '';
+            if (errorData.error) {
+                mensagemErro = errorData.error;
+            } else if (errorData.message) {
+                mensagemErro = errorData.message;
+            } else if (errorData.erros && Array.isArray(errorData.erros) && errorData.erros.length > 0) {
+                mensagemErro = errorData.erros.slice(0, 3).join('\n');
+                if (errorData.erros.length > 3) {
+                    mensagemErro += `\n\n... e mais ${errorData.erros.length - 3} erro(s)`;
+                }
+            } else {
+                mensagemErro = `Erro ${response.status} ao processar conciliação`;
+            }
+            
+            console.error('💬 Mensagem final:', mensagemErro);
             showToast(mensagemErro, 'error');
             
             // Recarregar extratos se a função existir
