@@ -14,8 +14,12 @@ import json
 import os
 import sys
 import time
+import logging
 from contextlib import contextmanager
 from urllib.parse import urlparse
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 
 # Importar session do Flask para obter empresa_id automaticamente
 try:
