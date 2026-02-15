@@ -2822,6 +2822,9 @@ class DatabaseManager:
         
         # 🔗 Sincronizar associacao ↔ numero_documento (mesmo valor)
         valor_sincronizado = getattr(lancamento, 'associacao', '') or ''
+        print(f"🔗 Sincronização bidirecional:")
+        print(f"   - lancamento.associacao RAW: '{getattr(lancamento, 'associacao', 'ATRIBUTO_NAO_EXISTE')}'")
+        print(f"   - valor_sincronizado FINAL: '{valor_sincronizado}' (tipo: {type(valor_sincronizado)})")
         
         query = """
             UPDATE lancamentos 

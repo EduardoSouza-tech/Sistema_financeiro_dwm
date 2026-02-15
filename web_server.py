@@ -3443,6 +3443,7 @@ def gerenciar_lancamento(lancamento_id):
             
             data = request.get_json()
             print(f"📥 Dados recebidos: {data}")
+            print(f"🔍 CAMPO CRÍTICO - associacao recebido: '{data.get('associacao', '')}' (tipo: {type(data.get('associacao', ''))})")
             
             # 🔒 VALIDAÇÃO DE SEGURANÇA
             empresa_id = session.get('empresa_id')
@@ -3496,6 +3497,10 @@ def gerenciar_lancamento(lancamento_id):
                 desconto=desconto_atual,
                 associacao=data.get('associacao', '')
             )
+            
+            print(f"✅ Objeto Lancamento criado:")
+            print(f"   - ID: {lancamento_atualizado.id}")
+            print(f"   - associacao: '{lancamento_atualizado.associacao}' (tipo: {type(lancamento_atualizado.associacao)})")
             
             # Atualizar no banco
             success = db.atualizar_lancamento(lancamento_atualizado)

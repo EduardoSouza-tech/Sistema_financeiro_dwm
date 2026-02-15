@@ -220,6 +220,7 @@ async function salvarReceita(event) {
     console.log(isEdicao ? '=== Atualizando Receita ===' : '=== Criando Nova Receita ===');
     console.log('📋 ID:', id);
     console.log('📦 Dados a enviar:', data);
+    console.log('🔍 CAMPO CRÍTICO - associacao:', data.associacao, 'tipo:', typeof data.associacao, 'length:', data.associacao?.length);
     
     try {
         const url = isEdicao ? `/api/lancamentos/${id}` : '/api/lancamentos';
@@ -566,6 +567,7 @@ async function salvarDespesa(event) {
     console.log(isEdicao ? '=== Atualizando Despesa ===' : '=== Criando Nova Despesa ===');
     console.log('📋 ID:', id);
     console.log('📦 Dados a enviar:', data);
+    console.log('🔍 CAMPO CRÍTICO - associacao:', data.associacao, 'tipo:', typeof data.associacao, 'length:', data.associacao?.length);
     
     try {
         const url = isEdicao ? `/api/lancamentos/${id}` : '/api/lancamentos';
