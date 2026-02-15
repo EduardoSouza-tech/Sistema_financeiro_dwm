@@ -7138,16 +7138,16 @@ def atualizar_associacao_lancamento(lancamento_id):
         data = request.get_json()
         nova_associacao = data.get('associacao', '')
         
-        # Atualizar apenas o campo associacao
+        # 🔗 Atualizar associacao E numero_documento simultaneamente (sincronização bidirecional)
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             
             cursor.execute("""
                 UPDATE lancamentos 
-                SET associacao = %s
+                SET associacao = %s, numero_documento = %s
                 WHERE id = %s AND empresa_id = %s
                 RETURNING id
-            """, (nova_associacao, lancamento_id, empresa_id))
+            """, (nova_associacao, nova_associacao, lancamento_id, empresa_id))
             
             resultado = cursor.fetchone()
             conn.commit()

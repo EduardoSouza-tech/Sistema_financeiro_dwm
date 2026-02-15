@@ -2580,13 +2580,16 @@ class DatabaseManager:
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             
+            # 🔗 Sincronizar associacao ↔ numero_documento (mesmo valor)
+            valor_sincronizado = lancamento.associacao or ''
+            
             cursor.execute("""
                 INSERT INTO lancamentos 
                 (tipo, descricao, valor, data_vencimento, data_pagamento,
                  categoria, subcategoria, conta_bancaria, cliente_fornecedor, pessoa,
                  status, observacoes, anexo, recorrente, frequencia_recorrencia, dia_vencimento, 
-                 associacao, proprietario_id, empresa_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 associacao, numero_documento, proprietario_id, empresa_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 lancamento.tipo.value,
@@ -2605,7 +2608,8 @@ class DatabaseManager:
                 lancamento.recorrente,
                 lancamento.frequencia_recorrencia,
                 lancamento.dia_vencimento,
-                lancamento.associacao,
+                valor_sincronizado,  # associacao
+                valor_sincronizado,  # numero_documento (sincronizado)
                 proprietario_id,
                 empresa_id
             ))
@@ -2816,6 +2820,9 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
         
+        # 🔗 Sincronizar associacao ↔ numero_documento (mesmo valor)
+        valor_sincronizado = getattr(lancamento, 'associacao', '') or ''
+        
         query = """
             UPDATE lancamentos 
             SET tipo = %s, descricao = %s, valor = %s, data_vencimento = %s,
@@ -2824,6 +2831,7 @@ class DatabaseManager:
                 status = %s, observacoes = %s, anexo = %s,
                 recorrente = %s, frequencia_recorrencia = %s, dia_vencimento = %s,
                 juros = %s, desconto = %s,
+                associacao = %s, numero_documento = %s,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
         """
@@ -2847,6 +2855,8 @@ class DatabaseManager:
             lancamento.dia_vencimento or 0,
             getattr(lancamento, 'juros', 0),
             getattr(lancamento, 'desconto', 0),
+            valor_sincronizado,  # associacao
+            valor_sincronizado,  # numero_documento (sincronizado)
             lancamento.id
         )
         
