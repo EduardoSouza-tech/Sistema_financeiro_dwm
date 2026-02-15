@@ -11179,6 +11179,83 @@ def add_config_nfse():
         }), 500
 
 
+@app.route('/api/nfse/config/<int:config_id>', methods=['PUT'])
+@require_auth
+@require_permission('nfse_config')
+def update_config_nfse(config_id):
+    """Atualiza configuração de município"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'Empresa não selecionada'
+            }), 400
+        
+        data = request.json
+        
+        # Validar campos obrigatórios
+        required_fields = ['cnpj_cpf', 'codigo_municipio', 'nome_municipio', 
+                          'uf', 'inscricao_municipal']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    'success': False,
+                    'error': f'Campo obrigatório: {field}'
+                }), 400
+        
+        from nfse_functions import atualizar_municipio
+        from database_postgresql import get_nfse_db_params
+        
+        # Usar configuração centralizada do banco
+        db_params = get_nfse_db_params()
+        
+        sucesso, erro = atualizar_municipio(
+            db_params=db_params,
+            empresa_id=empresa_id,
+            config_id=config_id,
+            cnpj_cpf=data['cnpj_cpf'],
+            codigo_municipio=data['codigo_municipio'],
+            nome_municipio=data['nome_municipio'],
+            uf=data['uf'],
+            inscricao_municipal=data['inscricao_municipal'],
+            provedor=data.get('provedor'),
+            url_customizada=data.get('url_customizada')
+        )
+        
+        if sucesso:
+            # Log de auditoria
+            from nfse_functions import registrar_operacao
+            registrar_operacao(
+                db_params=db_params,
+                empresa_id=empresa_id,
+                usuario_id=usuario['id'],
+                operacao='CONFIG_UPDATE',
+                detalhes={'municipio': data['nome_municipio'], 'config_id': config_id},
+                ip_address=request.remote_addr
+            )
+            
+            return jsonify({
+                'success': True,
+                'config_id': config_id,
+                'message': 'Município atualizado com sucesso'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': erro
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Erro ao atualizar config NFS-e: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/nfse/config/<int:config_id>', methods=['DELETE'])
 @require_auth
 @require_permission('nfse_config')

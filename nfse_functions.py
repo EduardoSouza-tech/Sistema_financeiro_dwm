@@ -98,6 +98,74 @@ def adicionar_municipio(
         return False, None, str(e)
 
 
+def atualizar_municipio(
+    db_params: Dict,
+    empresa_id: int,
+    config_id: int,
+    cnpj_cpf: str,
+    codigo_municipio: str,
+    nome_municipio: str,
+    uf: str,
+    inscricao_municipal: str,
+    provedor: Optional[str] = None,
+    url_customizada: Optional[str] = None
+) -> Tuple[bool, Optional[str]]:
+    """
+    Atualiza configuração de um município
+    
+    Args:
+        db_params: Parâmetros de conexão ao banco
+        empresa_id: ID da empresa
+        config_id: ID da configuração a ser atualizada
+        cnpj_cpf: CNPJ da empresa
+        codigo_municipio: Código IBGE (7 dígitos)
+        nome_municipio: Nome do município
+        uf: UF (2 letras)
+        inscricao_municipal: IM da empresa neste município
+        provedor: Provedor SOAP
+        url_customizada: URL específica (opcional)
+        
+    Returns:
+        Tuple (sucesso, mensagem_erro)
+    """
+    try:
+        # Tentar descobrir provedor automaticamente se não informado
+        if not provedor or not url_customizada:
+            info_municipio = descobrir_provedor(codigo_municipio)
+            if info_municipio:
+                provedor = provedor or info_municipio['provedor']
+                url_customizada = url_customizada or info_municipio['url']
+                logger.info(f"✅ Provedor detectado: {provedor}")
+        
+        # Atualizar configuração
+        config = {
+            'id': config_id,
+            'empresa_id': empresa_id,
+            'cnpj_cpf': cnpj_cpf,
+            'provedor': provedor,
+            'codigo_municipio': codigo_municipio,
+            'nome_municipio': nome_municipio,
+            'uf': uf,
+            'inscricao_municipal': inscricao_municipal,
+            'url_customizada': url_customizada,
+            'ativo': True
+        }
+        
+        # Salvar no banco
+        with NFSeDatabase(db_params) as db:
+            sucesso = db.atualizar_config_nfse(config)
+            
+            if sucesso:
+                logger.info(f"✅ Município atualizado: {nome_municipio} (ID: {config_id})")
+                return True, None
+            else:
+                return False, "Erro ao atualizar configuração no banco"
+                
+    except Exception as e:
+        logger.error(f"❌ Erro ao atualizar município: {e}")
+        return False, str(e)
+
+
 def listar_municipios(db_params: Dict, empresa_id: int) -> List[Dict]:
     """
     Lista todos os municípios configurados para uma empresa

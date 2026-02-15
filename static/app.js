@@ -7250,6 +7250,7 @@ window.carregarListaMunicipiosNFSe = async function() {
                     <td style="text-align: center;">${config.provedor || '-'}</td>
                     <td style="text-align: center;">${statusBadge}</td>
                     <td style="text-align: center;">
+                        <button onclick="editarMunicipioNFSe(${config.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; background: #3498db; margin-right: 5px;">✏️</button>
                         <button onclick="excluirMunicipioNFSe(${config.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; background: #e74c3c;">🗑️</button>
                     </td>
                 `;
@@ -7278,12 +7279,19 @@ window.salvarMunicipioNFSe = async function(event) {
         url_customizada: document.getElementById('config-url-customizada').value || null
     };
     
-    console.log('💾 Salvando novo município:', novoMunicipio);
-    showToast('⏳ Salvando configuração...', 'info');
+    // Verificar se está editando ou criando novo
+    const configIdEditando = window.nfseConfigIdEditando;
+    const isEdicao = configIdEditando !== undefined && configIdEditando !== null;
+    
+    console.log(isEdicao ? '✏️ Atualizando município:' : '💾 Salvando novo município:', novoMunicipio);
+    showToast(isEdicao ? '⏳ Atualizando configuração...' : '⏳ Salvando configuração...', 'info');
     
     try {
-        const response = await fetch('/api/nfse/config', {
-            method: 'POST',
+        const url = isEdicao ? `/api/nfse/config/${configIdEditando}` : '/api/nfse/config';
+        const method = isEdicao ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
             credentials: 'include',
             headers: {
                 'Content-Type': 'application/json'
@@ -7294,8 +7302,32 @@ window.salvarMunicipioNFSe = async function(event) {
         const data = await response.json();
         
         if (data.success) {
-            showToast('✅ Município configurado com sucesso!', 'success');
+            showToast(isEdicao ? '✅ Município atualizado com sucesso!' : '✅ Município configurado com sucesso!', 'success');
             document.getElementById('form-novo-municipio-nfse').reset();
+            
+            // Limpar modo de edição
+            window.nfseConfigIdEditando = null;
+            
+            // Restaurar aparência normal dos campos
+            ['config-cnpj', 'config-codigo-municipio', 'config-nome-municipio', 'config-inscricao-municipal'].forEach(id => {
+                const input = document.getElementById(id);
+                if (input) {
+                    input.style.background = '';
+                    input.style.borderColor = '';
+                    input.style.borderWidth = '';
+                    input.readOnly = false;
+                }
+            });
+            
+            const ufSelect = document.getElementById('config-uf');
+            if (ufSelect) {
+                ufSelect.style.background = '';
+                ufSelect.disabled = false;
+            }
+            
+            const provedorSelect = document.getElementById('config-provedor');
+            if (provedorSelect) provedorSelect.style.background = '';
+            
             await window.carregarListaMunicipiosNFSe();
             await window.carregarMunicipiosNFSe(); // Atualizar dropdown na seção principal
         } else {
@@ -7304,6 +7336,63 @@ window.salvarMunicipioNFSe = async function(event) {
     } catch (error) {
         console.error('❌ Erro ao salvar município:', error);
         showToast('❌ Erro ao salvar município', 'error');
+    }
+};
+
+// Editar município existente
+window.editarMunicipioNFSe = async function(configId) {
+    console.log('✏️ Editando município ID:', configId);
+    showToast('⏳ Carregando dados...', 'info');
+    
+    try {
+        // Buscar dados da config
+        const response = await fetch('/api/nfse/config', {
+            method: 'GET',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const config = data.configs.find(c => c.id === configId);
+            
+            if (!config) {
+                showToast('❌ Configuração não encontrada', 'error');
+                return;
+            }
+            
+            // Armazenar ID da config sendo editada
+            window.nfseConfigIdEditando = configId;
+            
+            // Preencher formulário com dados existentes
+            document.getElementById('config-cnpj').value = config.cnpj_cpf || '';
+            document.getElementById('config-codigo-municipio').value = config.codigo_municipio || '';
+            document.getElementById('config-nome-municipio').value = config.nome_municipio || '';
+            document.getElementById('config-uf').value = config.uf || '';
+            document.getElementById('config-inscricao-municipal').value = config.inscricao_municipal || '';
+            document.getElementById('config-provedor').value = config.provedor || '';
+            document.getElementById('config-url-customizada').value = config.url_customizada || '';
+            
+            // Destacar formulário
+            const form = document.getElementById('form-novo-municipio-nfse');
+            if (form) {
+                form.style.background = '#fff3cd';
+                form.style.border = '2px solid #ffc107';
+                form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            
+            // Focar no campo de inscrição municipal (geralmente o que precisa ser preenchido)
+            const inscricaoInput = document.getElementById('config-inscricao-municipal');
+            if (inscricaoInput) {
+                inscricaoInput.focus();
+                inscricaoInput.select();
+            }
+            
+            showToast('✏️ Editando município. Altere os dados e clique em Salvar.', 'info', 4000);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar dados do município:', error);
+        showToast('❌ Erro ao carregar dados', 'error');
     }
 };
 
@@ -7523,6 +7612,82 @@ window.carregarCertificadoNFSe = async function() {
 };
 
 // Upload de certificado digital
+// Preencher formulário de município com dados do certificado
+window.preencherFormMunicipioComCertificado = function(cert) {
+    console.log('📝 Preenchendo formulário com dados do certificado:', cert);
+    
+    // Se config já foi criada automaticamente, avisar usuário
+    if (cert.config_criada) {
+        showToast('ℹ️ Município já configurado! Se precisar editar, use os botões na lista de municípios abaixo.', 'info', 5000);
+        // Scroll suave até a lista de municípios
+        const listaMunicipios = document.getElementById('lista-municipios-nfse');
+        if (listaMunicipios) {
+            listaMunicipios.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        return; // Não preencher formulário se config já existe
+    }
+    
+    // Preencher campos do formulário com dados do certificado
+    if (cert.cnpj) {
+        const cnpjInput = document.getElementById('config-cnpj');
+        if (cnpjInput) {
+            cnpjInput.value = cert.cnpj;
+            cnpjInput.style.background = '#e8f5e9'; // Verde claro para indicar auto-preenchido
+            cnpjInput.readOnly = true; // Bloquear edição de dados vindos do certificado
+        }
+    }
+    
+    if (cert.codigo_municipio) {
+        const codigoInput = document.getElementById('config-codigo-municipio');
+        if (codigoInput) {
+            codigoInput.value = cert.codigo_municipio;
+            codigoInput.style.background = '#e8f5e9';
+            codigoInput.readOnly = true;
+        }
+    }
+    
+    if (cert.nome_municipio) {
+        const nomeInput = document.getElementById('config-nome-municipio');
+        if (nomeInput) {
+            nomeInput.value = cert.nome_municipio;
+            nomeInput.style.background = '#e8f5e9';
+            nomeInput.readOnly = true;
+        }
+    }
+    
+    if (cert.uf) {
+        const ufSelect = document.getElementById('config-uf');
+        if (ufSelect) {
+            ufSelect.value = cert.uf;
+            ufSelect.style.background = '#e8f5e9';
+            ufSelect.disabled = true; // Desabilitar dropdown se veio do certificado
+        }
+    }
+    
+    // Selecionar provedor padrão (GINFES)
+    const provedorSelect = document.getElementById('config-provedor');
+    if (provedorSelect) {
+        provedorSelect.value = 'GINFES';
+        provedorSelect.style.background = '#e8f5e9';
+    }
+    
+    // Focar no campo Inscrição Municipal (único que usuário precisa preencher)
+    const inscricaoInput = document.getElementById('config-inscricao-municipal');
+    if (inscricaoInput) {
+        inscricaoInput.value = ''; // Limpar qualquer valor
+        inscricaoInput.focus();
+        inscricaoInput.style.background = '#fff3cd'; // Amarelo claro para destacar
+        inscricaoInput.style.borderColor = '#ffc107';
+        inscricaoInput.style.borderWidth = '2px';
+        
+        // Scroll suave até o formulário
+        inscricaoInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    // Adicionar mensagem informativa no formulário
+    showToast('📝 Formulário preenchido automaticamente! Complete apenas a Inscrição Municipal e clique em Salvar.', 'info', 6000);
+};
+
 window.uploadCertificadoNFSe = async function(event) {
     event.preventDefault();
     
@@ -7602,6 +7767,9 @@ window.uploadCertificadoNFSe = async function(event) {
             if (cert.config_criada && window.loadNFSeConfigs) {
                 await window.loadNFSeConfigs();
             }
+            
+            // PREENCHER FORMULÁRIO AUTOMATICAMENTE COM DADOS DO CERTIFICADO
+            window.preencherFormMunicipioComCertificado(cert);
         } else {
             showToast(`❌ Erro: ${data.error}`, 'error');
         }

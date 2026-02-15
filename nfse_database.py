@@ -120,6 +120,50 @@ class NFSeDatabase:
             logger.error(f"❌ Erro ao adicionar config: {e}")
             return None
     
+    def atualizar_config_nfse(self, config: Dict) -> bool:
+        """
+        Atualiza configuração de município por ID
+        
+        Args:
+            config: Dict com dados da configuração (deve incluir 'id')
+            
+        Returns:
+            True se atualizado com sucesso, False caso contrário
+        """
+        try:
+            if 'id' not in config:
+                logger.error("❌ ID da configuração não fornecido")
+                return False
+                
+            with self.conn.cursor() as cursor:
+                sql = """
+                UPDATE nfse_config SET
+                    cnpj_cpf = %(cnpj_cpf)s,
+                    provedor = %(provedor)s,
+                    codigo_municipio = %(codigo_municipio)s,
+                    nome_municipio = %(nome_municipio)s,
+                    uf = %(uf)s,
+                    inscricao_municipal = %(inscricao_municipal)s,
+                    url_customizada = %(url_customizada)s,
+                    ativo = %(ativo)s,
+                    atualizado_em = CURRENT_TIMESTAMP
+                WHERE id = %(id)s AND empresa_id = %(empresa_id)s
+                """
+                cursor.execute(sql, config)
+                rows_affected = cursor.rowcount
+                self.conn.commit()
+                
+                if rows_affected > 0:
+                    logger.info(f"✅ Configuração atualizada: ID {config['id']}")
+                    return True
+                else:
+                    logger.warning(f"⚠️ Nenhuma configuração atualizada: ID {config['id']}")
+                    return False
+        except Exception as e:
+            self.conn.rollback()
+            logger.error(f"❌ Erro ao atualizar config: {e}")
+            return False
+    
     def get_config_nfse(self, empresa_id: int, codigo_municipio: Optional[str] = None) -> List[Dict]:
         """
         Busca configurações de municípios
