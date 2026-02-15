@@ -169,6 +169,51 @@ COMMENT ON COLUMN nsu_nfse.ult_nsu IS 'Último NSU processado para este informan
 
 -- ============================================================================
 
+-- TABELA 5: Certificados Digitais A1
+-- Armazena certificados digitais das empresas para assinatura de NFS-e
+CREATE TABLE IF NOT EXISTS nfse_certificados (
+    id SERIAL PRIMARY KEY,
+    empresa_id INTEGER NOT NULL,
+    pfx_data BYTEA NOT NULL,                     -- Binário do arquivo .pfx/.p12
+    senha_certificado VARCHAR(255) NOT NULL,     -- Senha criptografada (base64)
+    cnpj_extraido VARCHAR(14),                   -- CNPJ extraído do certificado
+    razao_social VARCHAR(255),                   -- Razão social extraída
+    emitente VARCHAR(255),                       -- AC emissora do certificado
+    serial_number VARCHAR(100),                  -- Número de série do certificado
+    validade_inicio TIMESTAMP,                   -- Data início validade
+    validade_fim TIMESTAMP,                      -- Data fim validade
+    codigo_municipio VARCHAR(7),                 -- Município identificado pelo CNPJ
+    nome_municipio VARCHAR(100),
+    uf VARCHAR(2),
+    ativo BOOLEAN DEFAULT TRUE,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE,
+    CONSTRAINT ck_cert_validade CHECK (validade_fim > validade_inicio)
+);
+
+-- Índices
+CREATE INDEX IF NOT EXISTS idx_cert_empresa ON nfse_certificados(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_cert_ativo ON nfse_certificados(ativo) WHERE ativo = TRUE;
+CREATE INDEX IF NOT EXISTS idx_cert_validade_fim ON nfse_certificados(validade_fim);
+CREATE INDEX IF NOT EXISTS idx_cert_cnpj ON nfse_certificados(cnpj_extraido);
+
+-- Comentários
+COMMENT ON TABLE nfse_certificados IS 'Certificados digitais A1 para assinatura de NFS-e';
+COMMENT ON COLUMN nfse_certificados.pfx_data IS 'Binário completo do certificado .pfx ou .p12';
+COMMENT ON COLUMN nfse_certificados.senha_certificado IS 'Senha do certificado codificada em base64';
+COMMENT ON COLUMN nfse_certificados.ativo IS 'Apenas um certificado ativo por empresa';
+
+-- Trigger para atualizar timestamp
+DROP TRIGGER IF EXISTS update_nfse_certificados_updated_at ON nfse_certificados;
+CREATE TRIGGER update_nfse_certificados_updated_at
+    BEFORE UPDATE ON nfse_certificados
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+
 -- VIEWS ÚTEIS
 -- View: Resumo de NFS-e por empresa
 CREATE OR REPLACE VIEW vw_nfse_resumo_empresa AS
@@ -364,7 +409,7 @@ COMMENT ON TABLE nfse_audit_log IS 'Log de auditoria de operações no sistema N
 COMMENT ON DATABASE postgres IS 'Sistema Financeiro DWM - Com módulo NFS-e';
 
 -- ✅ Migração concluída com sucesso!
--- Total de tabelas criadas: 5 (nfse_config, nfse_baixadas, rps, nsu_nfse, nfse_audit_log)
+-- Total de tabelas criadas: 6 (nfse_config, nfse_baixadas, rps, nsu_nfse, nfse_certificados, nfse_audit_log)
 -- Total de views: 3
 -- Total de funções: 2
--- Total de triggers: 4
+-- Total de triggers: 5
