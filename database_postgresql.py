@@ -2854,84 +2854,84 @@ class DatabaseManager:
         # 🔒 Usar get_db_connection com empresa_id para aplicar RLS
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
-        
-        # 🔗 Sincronizar associacao ↔ numero_documento (mesmo valor)
-        valor_sincronizado = getattr(lancamento, 'associacao', '') or ''
-        print(f"🔗 Sincronização bidirecional:")
-        print(f"   - lancamento.associacao RAW: '{getattr(lancamento, 'associacao', 'ATRIBUTO_NAO_EXISTE')}'")
-        print(f"   - valor_sincronizado FINAL: '{valor_sincronizado}' (tipo: {type(valor_sincronizado)})")
-        
-        query = """
-            UPDATE lancamentos 
-            SET tipo = %s, descricao = %s, valor = %s, data_vencimento = %s,
-                data_pagamento = %s, categoria = %s, subcategoria = %s,
-                conta_bancaria = %s, cliente_fornecedor = %s, pessoa = %s,
-                status = %s, observacoes = %s, anexo = %s,
-                recorrente = %s, frequencia_recorrencia = %s, dia_vencimento = %s,
-                juros = %s, desconto = %s,
-                associacao = %s, numero_documento = %s,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-        """
-        
-        params = (
-            lancamento.tipo.value if hasattr(lancamento.tipo, 'value') else str(lancamento.tipo),
-            lancamento.descricao,
-            float(lancamento.valor),
-            lancamento.data_vencimento,
-            lancamento.data_pagamento,
-            lancamento.categoria,
-            lancamento.subcategoria,
-            lancamento.conta_bancaria or '',
-            lancamento.cliente_fornecedor or '',
-            lancamento.pessoa or '',
-            lancamento.status.value if hasattr(lancamento.status, 'value') else str(lancamento.status),
-            lancamento.observacoes or '',
-            lancamento.anexo or '',
-            lancamento.recorrente,
-            lancamento.frequencia_recorrencia or '',
-            lancamento.dia_vencimento or 0,
-            getattr(lancamento, 'juros', 0),
-            getattr(lancamento, 'desconto', 0),
-            valor_sincronizado,  # associacao
-            valor_sincronizado,  # numero_documento (sincronizado)
-            lancamento.id
-        )
-        
-        print(f"📝 Query: {query}")
-        print(f"📋 Params ({len(params)} items):")
-        for i, p in enumerate(params):
-            if i == 18:  # associacao
-                print(f"   [{i}] associacao = '{p}' (tipo: {type(p)})")
-            elif i == 19:  # numero_documento
-                print(f"   [{i}] numero_documento = '{p}' (tipo: {type(p)})")
-            elif i == 20:  # id (WHERE)
-                print(f"   [{i}] id (WHERE) = {p}")
-        
-        try:
-            print(f"🔧 Executando UPDATE...")
-            cursor.execute(query, params)
-            sucesso = cursor.rowcount > 0
             
-            print(f"✅ Linhas afetadas: {cursor.rowcount}")
-            print(f"✅ Sucesso: {sucesso}")
-            print(f"✅ autocommit: {conn.autocommit}")
+            # 🔗 Sincronizar associacao ↔ numero_documento (mesmo valor)
+            valor_sincronizado = getattr(lancamento, 'associacao', '') or ''
+            print(f"🔗 Sincronização bidirecional:")
+            print(f"   - lancamento.associacao RAW: '{getattr(lancamento, 'associacao', 'ATRIBUTO_NAO_EXISTE')}'")
+            print(f"   - valor_sincronizado FINAL: '{valor_sincronizado}' (tipo: {type(valor_sincronizado)})")
             
-            # Verificar se o valor foi realmente atualizado
-            cursor.execute("SELECT associacao, numero_documento FROM lancamentos WHERE id = %s", (lancamento.id,))
-            verificacao = cursor.fetchone()
-            if verificacao:
-                print(f"🔍 VERIFICAÇÃO pós-UPDATE no banco:")
-                print(f"   - associacao no banco: '{verificacao.get('associacao', 'N/A')}'")
-                print(f"   - numero_documento no banco: '{verificacao.get('numero_documento', 'N/A')}'")
+            query = """
+                UPDATE lancamentos 
+                SET tipo = %s, descricao = %s, valor = %s, data_vencimento = %s,
+                    data_pagamento = %s, categoria = %s, subcategoria = %s,
+                    conta_bancaria = %s, cliente_fornecedor = %s, pessoa = %s,
+                    status = %s, observacoes = %s, anexo = %s,
+                    recorrente = %s, frequencia_recorrencia = %s, dia_vencimento = %s,
+                    juros = %s, desconto = %s,
+                    associacao = %s, numero_documento = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """
             
-        except Exception as e:
-            print(f"❌ ERRO no UPDATE: {e}")
-            import traceback
-            traceback.print_exc()
-            sucesso = False
+            params = (
+                lancamento.tipo.value if hasattr(lancamento.tipo, 'value') else str(lancamento.tipo),
+                lancamento.descricao,
+                float(lancamento.valor),
+                lancamento.data_vencimento,
+                lancamento.data_pagamento,
+                lancamento.categoria,
+                lancamento.subcategoria,
+                lancamento.conta_bancaria or '',
+                lancamento.cliente_fornecedor or '',
+                lancamento.pessoa or '',
+                lancamento.status.value if hasattr(lancamento.status, 'value') else str(lancamento.status),
+                lancamento.observacoes or '',
+                lancamento.anexo or '',
+                lancamento.recorrente,
+                lancamento.frequencia_recorrencia or '',
+                lancamento.dia_vencimento or 0,
+                getattr(lancamento, 'juros', 0),
+                getattr(lancamento, 'desconto', 0),
+                valor_sincronizado,  # associacao
+                valor_sincronizado,  # numero_documento (sincronizado)
+                lancamento.id
+            )
             
-            return sucesso
+            print(f"📝 Query: {query}")
+            print(f"📋 Params ({len(params)} items):")
+            for i, p in enumerate(params):
+                if i == 18:  # associacao
+                    print(f"   [{i}] associacao = '{p}' (tipo: {type(p)})")
+                elif i == 19:  # numero_documento
+                    print(f"   [{i}] numero_documento = '{p}' (tipo: {type(p)})")
+                elif i == 20:  # id (WHERE)
+                    print(f"   [{i}] id (WHERE) = {p}")
+            
+            try:
+                print(f"🔧 Executando UPDATE...")
+                cursor.execute(query, params)
+                sucesso = cursor.rowcount > 0
+                
+                print(f"✅ Linhas afetadas: {cursor.rowcount}")
+                print(f"✅ Sucesso: {sucesso}")
+                print(f"✅ autocommit: {conn.autocommit}")
+                
+                # Verificar se o valor foi realmente atualizado
+                cursor.execute("SELECT associacao, numero_documento FROM lancamentos WHERE id = %s", (lancamento.id,))
+                verificacao = cursor.fetchone()
+                if verificacao:
+                    print(f"🔍 VERIFICAÇÃO pós-UPDATE no banco:")
+                    print(f"   - associacao no banco: '{verificacao.get('associacao', 'N/A')}'")
+                    print(f"   - numero_documento no banco: '{verificacao.get('numero_documento', 'N/A')}'")
+                
+                return sucesso
+                
+            except Exception as e:
+                print(f"❌ ERRO no UPDATE: {e}")
+                import traceback
+                traceback.print_exc()
+                return False
     
     def pagar_lancamento(self, lancamento_id: int, conta: str = '', data_pagamento: date = None,
                         juros: float = 0, desconto: float = 0, observacoes: str = '',
