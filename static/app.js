@@ -2205,7 +2205,7 @@ async function loadContasReceber() {
                 <td><input type="checkbox" class="checkbox-receber" value="${lanc.id}"></td>
                 <td>${formatarData(lanc.data_vencimento)}</td>
                 <td>${lanc.pessoa || '-'}</td>
-                <td>${lanc.id || '-'}</td>
+                <td>${lanc.associacao || lanc.numero_documento || '-'}</td>
                 <td>${lanc.descricao}</td>
                 <td>${lanc.categoria || '-'}</td>
                 <td>${lanc.subcategoria || '-'}</td>
@@ -2272,7 +2272,7 @@ async function loadContasPagar() {
                 <td><input type="checkbox" class="checkbox-pagar" value="${lanc.id}"></td>
                 <td>${formatarData(lanc.data_vencimento)}</td>
                 <td>${lanc.pessoa || '-'}</td>
-                <td>${lanc.id || '-'}</td>
+                <td>${lanc.associacao || lanc.numero_documento || '-'}</td>
                 <td>${lanc.descricao}</td>
                 <td>${lanc.categoria || '-'}</td>
                 <td>${lanc.subcategoria || '-'}</td>
