@@ -282,6 +282,17 @@ async function editarReceita(id) {
         const response = await fetch(`${API_URL}/lancamentos/${id}`);
         const lancamento = await response.json();
         console.log('✅ Lançamento recebido:', lancamento);
+        console.log('🔍 DEBUG - Propriedades do lançamento:');
+        console.log('   - id:', lancamento.id);
+        console.log('   - pessoa:', lancamento.pessoa);
+        console.log('   - categoria:', lancamento.categoria);
+        console.log('   - subcategoria:', lancamento.subcategoria);
+        console.log('   - data_vencimento:', lancamento.data_vencimento);
+        console.log('   - associacao:', lancamento.associacao);
+        console.log('   - numero_documento:', lancamento.numero_documento);
+        console.log('   - descricao:', lancamento.descricao);
+        console.log('   - valor:', lancamento.valor);
+        console.log('   - observacoes:', lancamento.observacoes);
         
         if (lancamento) {
             console.log('🎨 Abrindo modal para edição...');
@@ -291,21 +302,57 @@ async function editarReceita(id) {
             console.log('📝 Preenchendo campo receita-id com:', lancamento.id);
             document.getElementById('receita-id').value = lancamento.id;
             console.log('✅ Campo receita-id preenchido. Valor atual:', document.getElementById('receita-id').value);
+            
+            console.log('📝 Preenchendo receita-cliente com:', lancamento.pessoa || '(vazio)');
             document.getElementById('receita-cliente').value = lancamento.pessoa || '';
+            console.log('✅ receita-cliente preenchido:', document.getElementById('receita-cliente').value);
+            
+            console.log('📝 Preenchendo receita-categoria com:', lancamento.categoria || '(vazio)');
             document.getElementById('receita-categoria').value = lancamento.categoria || '';
+            console.log('✅ receita-categoria preenchido:', document.getElementById('receita-categoria').value);
             
             // Aguardar subcategorias carregarem
+            console.log('🔄 Atualizando subcategorias...');
             await atualizarSubcategoriasReceita();
-            document.getElementById('receita-subcategoria').value = lancamento.subcategoria || '';
+            console.log('✅ Subcategorias atualizadas');
             
-            document.getElementById('receita-vencimento').value = lancamento.data_vencimento ? lancamento.data_vencimento.split('T')[0] : '';
-            document.getElementById('receita-documento').value = lancamento.associacao || lancamento.numero_documento || '';
+            console.log('📝 Preenchendo receita-subcategoria com:', lancamento.subcategoria || '(vazio)');
+            document.getElementById('receita-subcategoria').value = lancamento.subcategoria || '';
+            console.log('✅ receita-subcategoria preenchido:', document.getElementById('receita-subcategoria').value);
+            
+            const dataVencimento = lancamento.data_vencimento ? lancamento.data_vencimento.split('T')[0] : '';
+            console.log('📝 Preenchendo receita-vencimento com:', dataVencimento || '(vazio)');
+            document.getElementById('receita-vencimento').value = dataVencimento;
+            console.log('✅ receita-vencimento preenchido:', document.getElementById('receita-vencimento').value);
+            
+            const documento = lancamento.associacao || lancamento.numero_documento || '';
+            console.log('📝 Preenchendo receita-documento com:', documento || '(vazio)');
+            document.getElementById('receita-documento').value = documento;
+            console.log('✅ receita-documento preenchido:', document.getElementById('receita-documento').value);
+            
+            console.log('📝 Preenchendo receita-descricao com:', lancamento.descricao || '(vazio)');
             document.getElementById('receita-descricao').value = lancamento.descricao || '';
+            console.log('✅ receita-descricao preenchido:', document.getElementById('receita-descricao').value);
+            
+            console.log('📝 Preenchendo receita-valor com:', lancamento.valor || '(vazio)');
             document.getElementById('receita-valor').value = lancamento.valor || '';
+            console.log('✅ receita-valor preenchido:', document.getElementById('receita-valor').value);
+            
+            console.log('📝 Preenchendo receita-observacoes com:', lancamento.observacoes || '(vazio)');
             document.getElementById('receita-observacoes').value = lancamento.observacoes || '';
+            console.log('✅ receita-observacoes preenchido:', document.getElementById('receita-observacoes').value);
             
             console.log('🎯 Modal preenchido completamente');
-            console.log('🔍 Verificação final do ID:', document.getElementById('receita-id').value);
+            console.log('🔍 Verificação final:');
+            console.log('   - receita-id:', document.getElementById('receita-id').value);
+            console.log('   - receita-cliente:', document.getElementById('receita-cliente').value);
+            console.log('   - receita-categoria:', document.getElementById('receita-categoria').value);
+            console.log('   - receita-subcategoria:', document.getElementById('receita-subcategoria').value);
+            console.log('   - receita-vencimento:', document.getElementById('receita-vencimento').value);
+            console.log('   - receita-documento:', document.getElementById('receita-documento').value);
+            console.log('   - receita-descricao:', document.getElementById('receita-descricao').value);
+            console.log('   - receita-valor:', document.getElementById('receita-valor').value);
+            console.log('   - receita-observacoes:', document.getElementById('receita-observacoes').value);
             console.log('========== FIM EDITAR RECEITA ==========\n');
         }
     } catch (error) {
@@ -572,6 +619,17 @@ async function editarDespesa(id) {
         const response = await fetch(`${API_URL}/lancamentos/${id}`);
         const lancamento = await response.json();
         console.log('✅ Lançamento recebido:', lancamento);
+        console.log('🔍 DEBUG - Propriedades do lançamento:');
+        console.log('   - id:', lancamento.id);
+        console.log('   - pessoa:', lancamento.pessoa);
+        console.log('   - categoria:', lancamento.categoria);
+        console.log('   - subcategoria:', lancamento.subcategoria);
+        console.log('   - data_vencimento:', lancamento.data_vencimento);
+        console.log('   - associacao:', lancamento.associacao);
+        console.log('   - numero_documento:', lancamento.numero_documento);
+        console.log('   - descricao:', lancamento.descricao);
+        console.log('   - valor:', lancamento.valor);
+        console.log('   - observacoes:', lancamento.observacoes);
         
         if (lancamento) {
             console.log('🎨 Abrindo modal para edição...');
@@ -581,21 +639,57 @@ async function editarDespesa(id) {
             console.log('📝 Preenchendo campo despesa-id com:', lancamento.id);
             document.getElementById('despesa-id').value = lancamento.id;
             console.log('✅ Campo despesa-id preenchido. Valor atual:', document.getElementById('despesa-id').value);
+            
+            console.log('📝 Preenchendo despesa-fornecedor com:', lancamento.pessoa || '(vazio)');
             document.getElementById('despesa-fornecedor').value = lancamento.pessoa || '';
+            console.log('✅ despesa-fornecedor preenchido:', document.getElementById('despesa-fornecedor').value);
+            
+            console.log('📝 Preenchendo despesa-categoria com:', lancamento.categoria || '(vazio)');
             document.getElementById('despesa-categoria').value = lancamento.categoria || '';
+            console.log('✅ despesa-categoria preenchido:', document.getElementById('despesa-categoria').value);
             
             // Aguardar subcategorias carregarem
+            console.log('🔄 Atualizando subcategorias...');
             await atualizarSubcategoriasDespesa();
-            document.getElementById('despesa-subcategoria').value = lancamento.subcategoria || '';
+            console.log('✅ Subcategorias atualizadas');
             
-            document.getElementById('despesa-vencimento').value = lancamento.data_vencimento ? lancamento.data_vencimento.split('T')[0] : '';
-            document.getElementById('despesa-documento').value = lancamento.associacao || lancamento.numero_documento || '';
+            console.log('📝 Preenchendo despesa-subcategoria com:', lancamento.subcategoria || '(vazio)');
+            document.getElementById('despesa-subcategoria').value = lancamento.subcategoria || '';
+            console.log('✅ despesa-subcategoria preenchido:', document.getElementById('despesa-subcategoria').value);
+            
+            const dataVencimento = lancamento.data_vencimento ? lancamento.data_vencimento.split('T')[0] : '';
+            console.log('📝 Preenchendo despesa-vencimento com:', dataVencimento || '(vazio)');
+            document.getElementById('despesa-vencimento').value = dataVencimento;
+            console.log('✅ despesa-vencimento preenchido:', document.getElementById('despesa-vencimento').value);
+            
+            const documento = lancamento.associacao || lancamento.numero_documento || '';
+            console.log('📝 Preenchendo despesa-documento com:', documento || '(vazio)');
+            document.getElementById('despesa-documento').value = documento;
+            console.log('✅ despesa-documento preenchido:', document.getElementById('despesa-documento').value);
+            
+            console.log('📝 Preenchendo despesa-descricao com:', lancamento.descricao || '(vazio)');
             document.getElementById('despesa-descricao').value = lancamento.descricao || '';
+            console.log('✅ despesa-descricao preenchido:', document.getElementById('despesa-descricao').value);
+            
+            console.log('📝 Preenchendo despesa-valor com:', lancamento.valor || '(vazio)');
             document.getElementById('despesa-valor').value = lancamento.valor || '';
+            console.log('✅ despesa-valor preenchido:', document.getElementById('despesa-valor').value);
+            
+            console.log('📝 Preenchendo despesa-observacoes com:', lancamento.observacoes || '(vazio)');
             document.getElementById('despesa-observacoes').value = lancamento.observacoes || '';
+            console.log('✅ despesa-observacoes preenchido:', document.getElementById('despesa-observacoes').value);
             
             console.log('🎯 Modal preenchido completamente');
-            console.log('🔍 Verificação final do ID:', document.getElementById('despesa-id').value);
+            console.log('🔍 Verificação final:');
+            console.log('   - despesa-id:', document.getElementById('despesa-id').value);
+            console.log('   - despesa-fornecedor:', document.getElementById('despesa-fornecedor').value);
+            console.log('   - despesa-categoria:', document.getElementById('despesa-categoria').value);
+            console.log('   - despesa-subcategoria:', document.getElementById('despesa-subcategoria').value);
+            console.log('   - despesa-vencimento:', document.getElementById('despesa-vencimento').value);
+            console.log('   - despesa-documento:', document.getElementById('despesa-documento').value);
+            console.log('   - despesa-descricao:', document.getElementById('despesa-descricao').value);
+            console.log('   - despesa-valor:', document.getElementById('despesa-valor').value);
+            console.log('   - despesa-observacoes:', document.getElementById('despesa-observacoes').value);
             console.log('========== FIM EDITAR DESPESA ==========\n');
         }
     } catch (error) {
