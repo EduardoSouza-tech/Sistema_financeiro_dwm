@@ -208,6 +208,7 @@ async function salvarReceita(event) {
         subcategoria: document.getElementById('receita-subcategoria').value,
         data_vencimento: document.getElementById('receita-vencimento').value,
         descricao: document.getElementById('receita-descricao').value || document.getElementById('receita-documento').value || '',
+        associacao: document.getElementById('receita-documento').value || '',
         valor: typeof obterValorReal === 'function' ? obterValorReal(campoValor) : parseFloat(campoValor.value),
         observacoes: document.getElementById('receita-observacoes').value,
         conta_bancaria: '',
@@ -298,6 +299,7 @@ async function editarReceita(id) {
             document.getElementById('receita-subcategoria').value = lancamento.subcategoria || '';
             
             document.getElementById('receita-vencimento').value = lancamento.data_vencimento ? lancamento.data_vencimento.split('T')[0] : '';
+            document.getElementById('receita-documento').value = lancamento.associacao || lancamento.numero_documento || '';
             document.getElementById('receita-descricao').value = lancamento.descricao || '';
             document.getElementById('receita-valor').value = lancamento.valor || '';
             document.getElementById('receita-observacoes').value = lancamento.observacoes || '';
@@ -505,6 +507,7 @@ async function salvarDespesa(event) {
         subcategoria: document.getElementById('despesa-subcategoria').value,
         data_vencimento: document.getElementById('despesa-vencimento').value,
         descricao: document.getElementById('despesa-descricao').value || document.getElementById('despesa-documento').value || '',
+        associacao: document.getElementById('despesa-documento').value || '',
         valor: typeof obterValorReal === 'function' ? obterValorReal(campoValor) : parseFloat(campoValor.value),
         observacoes: document.getElementById('despesa-observacoes').value,
         conta_bancaria: '',
@@ -586,6 +589,7 @@ async function editarDespesa(id) {
             document.getElementById('despesa-subcategoria').value = lancamento.subcategoria || '';
             
             document.getElementById('despesa-vencimento').value = lancamento.data_vencimento ? lancamento.data_vencimento.split('T')[0] : '';
+            document.getElementById('despesa-documento').value = lancamento.associacao || lancamento.numero_documento || '';
             document.getElementById('despesa-descricao').value = lancamento.descricao || '';
             document.getElementById('despesa-valor').value = lancamento.valor || '';
             document.getElementById('despesa-observacoes').value = lancamento.observacoes || '';

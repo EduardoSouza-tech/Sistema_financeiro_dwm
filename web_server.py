@@ -3322,7 +3322,8 @@ def adicionar_lancamento():
                     conta_bancaria=data['conta_bancaria'] if data else '',
                     pessoa=data.get('pessoa', '') if data else '',
                     observacoes=data.get('observacoes', '') if data else '',
-                    subcategoria=data.get('subcategoria', '') if data else ''
+                    subcategoria=data.get('subcategoria', '') if data else '',
+                    associacao=data.get('associacao', '') if data else ''
                 )
                 
                 if data and data.get('status'):
@@ -3349,7 +3350,8 @@ def adicionar_lancamento():
                 conta_bancaria=data['conta_bancaria'] if data else '',
                 pessoa=data.get('pessoa', '') if data else '',
                 observacoes=data.get('observacoes', '') if data else '',
-                subcategoria=data.get('subcategoria', '') if data else ''
+                subcategoria=data.get('subcategoria', '') if data else '',
+                associacao=data.get('associacao', '') if data else ''
             )
             
             if data and data.get('status'):
@@ -3487,7 +3489,8 @@ def gerenciar_lancamento(lancamento_id):
                 frequencia_recorrencia=data.get('frequencia_recorrencia', ''),
                 dia_vencimento=data.get('dia_vencimento', 0),
                 juros=juros_atual,
-                desconto=desconto_atual
+                desconto=desconto_atual,
+                associacao=data.get('associacao', '')
             )
             
             # Atualizar no banco
