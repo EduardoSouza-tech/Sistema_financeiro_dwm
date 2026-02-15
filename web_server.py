@@ -1868,8 +1868,8 @@ def listar_contas():
             
             try:
                 # Buscar lançamentos PAGOS desta conta
-                with db.get_db_connection(empresa_id=empresa_id) as conn:
-                    cursor = conn.cursor(cursor_factory=db.RealDictCursor)
+                with get_db_connection(empresa_id=empresa_id) as conn:
+                    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                     
                     # Somar receitas pagas
                     cursor.execute("""
@@ -1902,6 +1902,8 @@ def listar_contas():
                     
             except Exception as e:
                 print(f"⚠️ Erro ao calcular saldo real da conta {c.nome}: {e}")
+                import traceback
+                traceback.print_exc()
                 # Em caso de erro, usar saldo_inicial
                 saldo_real = float(c.saldo_inicial)
             
