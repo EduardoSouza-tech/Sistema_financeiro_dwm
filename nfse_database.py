@@ -769,7 +769,7 @@ class NFSeDatabase:
                 
                 # Busca último NSU
                 sql = """
-                SELECT ultimo_nsu 
+                SELECT ult_nsu 
                 FROM nsu_nfse 
                 WHERE cnpj_informante = %s
                 ORDER BY atualizado_em DESC 
@@ -818,11 +818,11 @@ class NFSeDatabase:
                 
                 # Upsert (INSERT ... ON CONFLICT UPDATE)
                 sql = """
-                INSERT INTO nsu_nfse (cnpj_informante, ultimo_nsu, atualizado_em)
+                INSERT INTO nsu_nfse (cnpj_informante, ult_nsu, atualizado_em)
                 VALUES (%s, %s, NOW())
                 ON CONFLICT (cnpj_informante) 
                 DO UPDATE SET 
-                    ultimo_nsu = EXCLUDED.ultimo_nsu,
+                    ult_nsu = EXCLUDED.ult_nsu,
                     atualizado_em = NOW()
                 """
                 cursor.execute(sql, (cnpj_informante, nsu))
@@ -844,7 +844,7 @@ class NFSeDatabase:
                 CREATE TABLE IF NOT EXISTS nsu_nfse (
                     id SERIAL PRIMARY KEY,
                     cnpj_informante VARCHAR(14) NOT NULL UNIQUE,
-                    ultimo_nsu BIGINT NOT NULL DEFAULT 0,
+                    ult_nsu BIGINT NOT NULL DEFAULT 0,
                     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );

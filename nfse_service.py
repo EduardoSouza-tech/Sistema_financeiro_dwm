@@ -18,9 +18,10 @@ Data: 2026-02-13
 
 import requests
 try:
-    from requests_pkcs12 import post as post_pkcs12
+    from requests_pkcs12 import post as post_pkcs12, get as get_pkcs12
 except ImportError:
     post_pkcs12 = None
+    get_pkcs12 = None
 try:
     from lxml import etree
 except ImportError:
@@ -724,10 +725,9 @@ class NFSeAmbienteNacional:
                 'User-Agent': 'Sistema Financeiro DWM/1.0'
             }
             
-            # Requisição com certificado mTLS
-            response = post_pkcs12(
+            # Requisição GET com certificado mTLS
+            response = get_pkcs12(
                 endpoint,
-                data=b'',
                 headers=headers,
                 pkcs12_filename=self.certificado_path,
                 pkcs12_password=self.certificado_senha,
@@ -795,10 +795,9 @@ class NFSeAmbienteNacional:
                     'User-Agent': 'Sistema Financeiro DWM/1.0'
                 }
                 
-                # Requisição com certificado mTLS
-                response = post_pkcs12(
+                # Requisição GET com certificado mTLS
+                response = get_pkcs12(
                     endpoint,
-                    data=b'',
                     headers=headers,
                     pkcs12_filename=self.certificado_path,
                     pkcs12_password=self.certificado_senha,
