@@ -1633,31 +1633,131 @@ def buscar_nfse_ambiente_nacional(
                         cnpj_tomador = (
                             tree.findtext('.//nfse:toma//nfse:CNPJ', namespaces=ns) or
                             tree.findtext('.//Tomador//IdentificacaoTomador//CpfCnpj//Cnpj') or
+                            tree.findtext('.//TomadorServico//IdentificacaoTomador//CpfCnpj//Cnpj') or
+                            ""
+                        )
+                        
+                        razao_social_tomador = (
+                            tree.findtext('.//nfse:toma//nfse:xNome', namespaces=ns) or
+                            tree.findtext('.//Tomador//RazaoSocial') or
+                            tree.findtext('.//TomadorServico//RazaoSocial') or
                             ""
                         )
                         
                         codigo_municipio = (
                             tree.findtext('.//nfse:cMunPrestacao', namespaces=ns) or
                             tree.findtext('.//CodigoMunicipio') or
+                            tree.findtext('.//Servico//CodigoMunicipio') or
                             ""
                         )
+                        
+                        # Campos adicionais
+                        valor_iss = (
+                            tree.findtext('.//nfse:vISS', namespaces=ns) or
+                            tree.findtext('.//ValorIss') or
+                            tree.findtext('.//Valores//ValorIss') or
+                            "0"
+                        )
+                        
+                        valor_deducoes = (
+                            tree.findtext('.//nfse:vDeducao', namespaces=ns) or
+                            tree.findtext('.//ValorDeducoes') or
+                            tree.findtext('.//Valores//ValorDeducoes') or
+                            "0"
+                        )
+                        
+                        aliquota_iss = (
+                            tree.findtext('.//nfse:aliq', namespaces=ns) or
+                            tree.findtext('.//Aliquota') or
+                            tree.findtext('.//Valores//Aliquota') or
+                            "0"
+                        )
+                        
+                        codigo_servico = (
+                            tree.findtext('.//nfse:cListServ', namespaces=ns) or
+                            tree.findtext('.//ItemListaServico') or
+                            tree.findtext('.//Servico//ItemListaServico') or
+                            ""
+                        )
+                        
+                        discriminacao = (
+                            tree.findtext('.//nfse:xDescServ', namespaces=ns) or
+                            tree.findtext('.//Discriminacao') or
+                            tree.findtext('.//Servico//Discriminacao') or
+                            ""
+                        )
+                        
+                        codigo_verificacao = (
+                            tree.findtext('.//nfse:cVerif', namespaces=ns) or
+                            tree.findtext('.//CodigoVerificacao') or
+                            ""
+                        )
+                        
+                        numero_rps = (
+                            tree.findtext('.//nfse:nRps', namespaces=ns) or
+                            tree.findtext('.//IdentificacaoRps//Numero') or
+                            ""
+                        )
+                        
+                        serie_rps = (
+                            tree.findtext('.//nfse:serieRps', namespaces=ns) or
+                            tree.findtext('.//IdentificacaoRps//Serie') or
+                            ""
+                        )
+                        
+                        # Data de competência (pode ser igual à emissão)
+                        data_competencia = (
+                            tree.findtext('.//nfse:dCompetencia', namespaces=ns) or
+                            tree.findtext('.//Competencia') or
+                            data_emissao
+                        )
+                        
+                        # Converter valores
+                        try:
+                            valor_servicos_float = float(valor_servicos.replace(',', '.'))
+                            valor_iss_float = float(valor_iss.replace(',', '.'))
+                            valor_deducoes_float = float(valor_deducoes.replace(',', '.'))
+                            aliquota_iss_float = float(aliquota_iss.replace(',', '.'))
+                            valor_liquido = valor_servicos_float - valor_deducoes_float
+                        except:
+                            valor_servicos_float = 0
+                            valor_iss_float = 0
+                            valor_deducoes_float = 0
+                            aliquota_iss_float = 0
+                            valor_liquido = 0
                         
                         # Verificar se NFS-e já existe
                         nfse_existente = None
                         if codigo_municipio:
                             nfse_existente = db.get_nfse_by_numero(numero_nfse, codigo_municipio)
                         
-                        # Preparar dados para salvar
+                        # Preparar dados para salvar (TODOS os campos necessários)
                         nfse_data = {
                             'empresa_id': empresa_id,
                             'numero_nfse': numero_nfse,
-                            'codigo_municipio': codigo_municipio,
                             'cnpj_prestador': cnpj_prestador,
                             'cnpj_tomador': cnpj_tomador,
+                            'razao_social_tomador': razao_social_tomador,
                             'data_emissao': data_emissao,
-                            'valor_servico': float(valor_servicos.replace(',', '.')),
-                            'xml_content': xml_content,
-                            'tipo': tipo_doc
+                            'data_competencia': data_competencia,
+                            'valor_servico': valor_servicos_float,
+                            'valor_deducoes': valor_deducoes_float,
+                            'valor_iss': valor_iss_float,
+                            'aliquota_iss': aliquota_iss_float,
+                            'valor_liquido': valor_liquido,
+                            'codigo_servico': codigo_servico,
+                            'discriminacao': discriminacao,
+                            'provedor': 'AMBIENTE_NACIONAL',
+                            'codigo_municipio': codigo_municipio,
+                            'nome_municipio': '',  # Não disponível no XML
+                            'uf': '',  # Não disponível no XML
+                            'situacao': 'NORMAL',
+                            'numero_rps': numero_rps,
+                            'serie_rps': serie_rps,
+                            'protocolo': '',  # Não disponível no XML
+                            'codigo_verificacao': codigo_verificacao,
+                            'xml': xml_content,
+                            'xml_path': None
                         }
                         
                         # Salvar no banco
