@@ -7245,6 +7245,76 @@ window.excluirNFSe = async function(nfseId) {
     }
 };
 
+// Apagar TODAS as NFS-e do período selecionado
+window.apagarTodasNFSe = async function() {
+    // Pegar filtros atuais
+    const dataInicial = document.getElementById('nfse-data-inicial').value;
+    const dataFinal = document.getElementById('nfse-data-final').value;
+    const municipioCodigo = document.getElementById('nfse-municipio').value;
+    
+    if (!dataInicial || !dataFinal) {
+        showToast('⚠️ Selecione o período (Data Inicial e Final) antes de apagar', 'warning');
+        return;
+    }
+    
+    // Confirmação tripla com aviso severo
+    const msg1 = `⚠️⚠️⚠️ ATENÇÃO CRÍTICA! ⚠️⚠️⚠️\n\nVocê está prestes a APAGAR TODAS as NFS-e:\n\n📅 Período: ${dataInicial} a ${dataFinal}\n🏙️ Município: ${municipioCodigo || 'TODOS os municípios'}\n\nEsta ação irá:\n❌ EXCLUIR TODOS os registros no banco de dados\n❌ APAGAR TODOS os arquivos XML\n❌ APAGAR TODOS os arquivos PDF\n\n⚠️ ESTA AÇÃO NÃO PODE SER DESFEITA!\n\nDeseja continuar?`;
+    
+    if (!confirm(msg1)) {
+        return;
+    }
+    
+    // Segunda confirmação
+    const msg2 = `⚠️ SEGUNDA CONFIRMAÇÃO\n\nVocê tem ABSOLUTA CERTEZA que deseja apagar TODAS as NFS-e do período selecionado?\n\nEsta é sua ÚLTIMA CHANCE de cancelar!`;
+    
+    if (!confirm(msg2)) {
+        return;
+    }
+    
+    // Terceira confirmação - digitar "APAGAR TUDO"
+    const confirmacao = prompt('⚠️ CONFIRMAÇÃO FINAL\n\nPara confirmar a exclusão permanente, digite exatamente:\nAPAGAR TUDO');
+    
+    if (confirmacao !== 'APAGAR TUDO') {
+        showToast('❌ Operação cancelada - texto de confirmação incorreto', 'info');
+        return;
+    }
+    
+    console.log(`🗑️ Apagando TODAS as NFS-e do período: ${dataInicial} a ${dataFinal}`);
+    showToast('⏳ Apagando todas as NFS-e... Aguarde!', 'info');
+    
+    try {
+        const params = new URLSearchParams({
+            data_inicial: dataInicial,
+            data_final: dataFinal
+        });
+        
+        if (municipioCodigo) {
+            params.append('codigo_municipio', municipioCodigo);
+        }
+        
+        const response = await fetch(`/api/nfse/all?${params}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const total = data.total_excluidas || 0;
+            const arquivos = data.total_arquivos_excluidos || 0;
+            showToast(`✅ ${total} NFS-e(s) excluídas com sucesso! (${arquivos} arquivos removidos)`, 'success');
+            
+            // Atualizar lista de NFS-e
+            await window.consultarNFSeLocal();
+        } else {
+            showToast(`❌ Erro: ${data.error || 'Erro desconhecido'}`, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao apagar todas as NFS-e:', error);
+        showToast('❌ Erro ao apagar NFS-e', 'error');
+    }
+};
+
 // Mostrar modal de configuração de municípios
 window.mostrarConfigMunicipiosNFSe = async function() {
     document.getElementById('modal-config-municipios').style.display = 'block';
