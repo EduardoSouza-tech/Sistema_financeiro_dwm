@@ -38,6 +38,16 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # MAPEAMENTO DE PROVEDORES E URLS
 # ============================================================================
+# 
+# IMPORTANTE: Este módulo utiliza o PADRÃO NACIONAL ABRASF (Associação Brasileira
+# das Secretarias de Finanças das Capitais) para comunicação com webservices NFS-e.
+# 
+# O padrão ABRASF define layouts XML padronizados para consulta e emissão de NFS-e,
+# implementados por diversos provedores (GINFES, ISS.NET, e-ISS, etc).
+# 
+# URLs aqui são dos WEBSERVICES PADRÃO ABRASF de cada município, não das APIs
+# específicas das prefeituras.
+# ============================================================================
 
 PROVEDORES_NFSE = {
     'GINFES': {
@@ -78,6 +88,25 @@ PROVEDORES_NFSE = {
     }
 }
 
+# ============================================================================
+# URLS DOS MUNICÍPIOS (Webservices Padrão ABRASF Nacional)
+# ============================================================================
+# 
+# URLs dos webservices SOAP que seguem o padrão ABRASF nacional.
+# 
+# COMO DESCOBRIR A URL DE UM NOVO MUNICÍPIO:
+# 1. Acesse o site da prefeitura / Seção de NFS-e
+# 2. Procure "Documentação Webservice", "Manual Integração" ou "Desenvolvedores"
+# 3. Identifique o provedor (Ginfes, ISS.NET, e-ISS, etc)
+# 4. Busque pelo WSDL ou URL do endpoint SOAP
+# 5. URLs comuns:
+#    - Ginfes: https://[sistema].[cidade].gov.br/[ws]/ServiceGinfesImpl
+#    - ISS.NET: https://nfse.[cidade].gov.br/ws/nfse.asmx
+#    - e-ISS: https://[sistema].[cidade].gov.br/ws/nfse.asmx
+# 
+# TESTE: Acesse a URL no navegador - deve exibir descrição do webservice ou erro XML
+# ============================================================================
+
 # Mapeamento de municípios conhecidos
 URLS_MUNICIPIOS = {
     '5002704': {  # Campo Grande/MS
@@ -86,10 +115,10 @@ URLS_MUNICIPIOS = {
     },
     '3106200': {  # Belo Horizonte/MG
         'provedor': 'GINFES',
-        # NOTA: Site da prefeitura tem proteção GoCache contra bots
-        # Pode ser necessário whitelist do IP ou uso de credenciais especiais
-        'url': 'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse',
-        'url_alternativa': 'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse?wsdl'
+        # URL do webservice padrão ABRASF/GINFES nacional
+        'url': 'https://bhissdigital.pbh.gov.br/bhiss-ws/ServiceGinfesImpl',
+        'url_alternativa_1': 'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse',
+        'url_alternativa_2': 'https://bhiss.pbh.gov.br/bhiss-ws/nfse'
     },
     '3550308': {  # São Paulo/SP
         'provedor': 'ISSNET',
@@ -266,9 +295,13 @@ class NFSeService:
                 if response.status_code == 403:
                     erro_msg = (
                         f"Acesso bloqueado pelo servidor (HTTP 403). "
-                        f"Possíveis causas: 1) Proteção anti-bot (GoCache/Cloudflare), "
-                        f"2) IP do servidor bloqueado, 3) Certificado inválido ou não autorizado. "
-                        f"Entre em contato com a prefeitura para liberar acesso ao webservice."
+                        f"Possíveis causas: "
+                        f"1) URL do webservice incorreta (verifique se está usando o endpoint padrão ABRASF correto), "
+                        f"2) Proteção anti-bot/firewall (WAF, GoCache, Cloudflare), "
+                        f"3) Certificado não autorizado para este município, "
+                        f"4) IP do servidor bloqueado. "
+                        f"Solução: Verifique a URL do webservice na documentação oficial do município ou "
+                        f"entre em contato com o suporte técnico da prefeitura."
                     )
                     return False, [], erro_msg
                 
