@@ -6979,17 +6979,30 @@ window.buscarNFSeAPI = async function() {
         return;
     }
     
+    // Obter método de busca selecionado
+    const metodoSelect = document.getElementById('nfse-metodo');
+    const metodo = metodoSelect ? metodoSelect.value : 'ambiente_nacional';
+    
     // Mostrar loading
     const loading = document.getElementById('loading-nfse');
     loading.style.display = 'block';
     
     const tbody = document.getElementById('tbody-nfse');
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="font-size: 48px;">⏳</div><p>Buscando NFS-e via SOAP...</p><p style="color: #856404; font-size: 14px;">Isso pode levar vários minutos dependendo da quantidade de notas.</p></td></tr>';
+    
+    // Mensagem de loading baseada no método
+    let loadingMsg = '';
+    if (metodo === 'ambiente_nacional') {
+        loadingMsg = '<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="font-size: 48px;">🌐</div><p style="font-size: 18px; font-weight: bold; color: #27ae60;">Buscando via Ambiente Nacional...</p><p style="color: #856404; font-size: 14px;">API REST oficial do governo federal</p><p style="color: #7f8c8d; font-size: 13px;">Consulta incremental automática • Uma API para todos os municípios</p></td></tr>';
+    } else {
+        loadingMsg = '<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="font-size: 48px;">📡</div><p style="font-size: 18px; font-weight: bold;">Buscando via SOAP Municipal...</p><p style="color: #856404; font-size: 14px;">Isso pode levar vários minutos dependendo da quantidade de notas.</p></td></tr>';
+    }
+    tbody.innerHTML = loadingMsg;
     
     try {
         const body = {
             data_inicial: dataInicial,
-            data_final: dataFinal
+            data_final: dataFinal,
+            metodo: metodo  // ← NOVO: Envia método selecionado
         };
         
         if (codigoMunicipio) {

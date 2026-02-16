@@ -21,10 +21,126 @@ import os
 import re
 from nfse_database import NFSeDatabase
 from nfse_service import NFSeService, descobrir_provedor, testar_conexao
+from pathlib import Path
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# GERENCIAMENTO DE ARQUIVOS (XMLs e PDFs)
+# ============================================================================
+
+def salvar_pdf_nfse(
+    pdf_content: bytes,
+    numero_nfse: str,
+    cnpj_prestador: str,
+    codigo_municipio: str,
+    data_emissao: str,
+    storage_base: str = 'storage/nfse'
+) -> Optional[str]:
+    """
+    Salva PDF da NFS-e (DANFSe) no storage
+    
+    Estrutura de pastas:
+    storage/nfse/{CNPJ}/{CODIGO_MUNICIPIO}/{ANO}/{MES}/NFS-e_{NUMERO}.pdf
+    
+    Args:
+        pdf_content: Conteúdo binário do PDF
+        numero_nfse: Número da NFS-e
+        cnpj_prestador: CNPJ do prestador
+        codigo_municipio: Código IBGE do município
+        data_emissao: Data de emissão (ISO format ou datetime)
+        storage_base: Diretório base do storage
+    
+    Returns:
+        Caminho do arquivo salvo ou None se erro
+    """
+    try:
+        # Extrair ano e mês da data de emissão
+        if isinstance(data_emissao, str):
+            # Formato: 2026-02-15T10:30:00-03:00 ou 2026-02-15
+            data_parts = data_emissao.split('T')[0].split('-')
+            ano = data_parts[0] if len(data_parts) > 0 else datetime.now().year
+            mes = data_parts[1] if len(data_parts) > 1 else datetime.now().month
+        else:
+            ano = data_emissao.year
+            mes = f"{data_emissao.month:02d}"
+        
+        # Construir caminho da pasta
+        pasta = Path(storage_base) / cnpj_prestador / codigo_municipio / str(ano) / str(mes)
+        pasta.mkdir(parents=True, exist_ok=True)
+        
+        # Nome do arquivo
+        nome_arquivo = f"NFS-e_{numero_nfse}.pdf"
+        caminho_completo = pasta / nome_arquivo
+        
+        # Salvar PDF
+        with open(caminho_completo, 'wb') as f:
+            f.write(pdf_content)
+        
+        logger.debug(f"💾 PDF salvo: {caminho_completo}")
+        return str(caminho_completo)
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao salvar PDF: {e}")
+        return None
+
+
+def salvar_xml_nfse(
+    xml_content: str,
+    numero_nfse: str,
+    cnpj_prestador: str,
+    codigo_municipio: str,
+    data_emissao: str,
+    storage_base: str = 'storage/nfse'
+) -> Optional[str]:
+    """
+    Salva XML da NFS-e no storage
+    
+    Estrutura de pastas:
+    storage/nfse/{CNPJ}/{CODIGO_MUNICIPIO}/{ANO}/{MES}/NFS-e_{NUMERO}.xml
+    
+    Args:
+        xml_content: Conteúdo XML (string)
+        numero_nfse: Número da NFS-e
+        cnpj_prestador: CNPJ do prestador
+        codigo_municipio: Código IBGE do município
+        data_emissao: Data de emissão (ISO format ou datetime)
+        storage_base: Diretório base do storage
+    
+    Returns:
+        Caminho do arquivo salvo ou None se erro
+    """
+    try:
+        # Extrair ano e mês da data de emissão
+        if isinstance(data_emissao, str):
+            data_parts = data_emissao.split('T')[0].split('-')
+            ano = data_parts[0] if len(data_parts) > 0 else datetime.now().year
+            mes = data_parts[1] if len(data_parts) > 1 else datetime.now().month
+        else:
+            ano = data_emissao.year
+            mes = f"{data_emissao.month:02d}"
+        
+        # Construir caminho da pasta
+        pasta = Path(storage_base) / cnpj_prestador / codigo_municipio / str(ano) / str(mes)
+        pasta.mkdir(parents=True, exist_ok=True)
+        
+        # Nome do arquivo
+        nome_arquivo = f"NFS-e_{numero_nfse}.xml"
+        caminho_completo = pasta / nome_arquivo
+        
+        # Salvar XML
+        with open(caminho_completo, 'w', encoding='utf-8') as f:
+            f.write(xml_content)
+        
+        logger.debug(f"💾 XML salvo: {caminho_completo}")
+        return str(caminho_completo)
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao salvar XML: {e}")
+        return None
 
 # ============================================================================
 # CONFIGURAÇÃO DE MUNICÍPIOS
@@ -1558,6 +1674,20 @@ def buscar_nfse_ambiente_nacional(
                             resultado['total_nfse'] += 1
                             documentos_processados += 1
                             
+                            # Salvar XML no storage
+                            try:
+                                xml_path = salvar_xml_nfse(
+                                    xml_content=xml_content,
+                                    numero_nfse=numero_nfse,
+                                    cnpj_prestador=cnpj_prestador,
+                                    codigo_municipio=codigo_municipio,
+                                    data_emissao=data_emissao
+                                )
+                                if xml_path:
+                                    logger.debug(f"   💾 XML salvo: {xml_path}")
+                            except Exception as e_xml:
+                                logger.warning(f"   ⚠️ Erro ao salvar XML: {e_xml}")
+                            
                             # Tentar baixar DANFSe (PDF oficial)
                             try:
                                 # Extrair chave de acesso (formato: "NFS" + 50 dígitos)
@@ -1571,16 +1701,23 @@ def buscar_nfse_ambiente_nacional(
                                         pdf_content = cliente.consultar_danfse(chave_acesso, retry=2)
                                         
                                         if pdf_content:
-                                            # TODO: Salvar PDF no storage
-                                            # pdf_path = salvar_pdf_nfse(...)
-                                            # with open(pdf_path, 'wb') as f:
-                                            #     f.write(pdf_content)
-                                            logger.info(f"   ✅ DANFSe oficial obtido ({len(pdf_content):,} bytes)")
+                                            # Salvar PDF no storage
+                                            pdf_path = salvar_pdf_nfse(
+                                                pdf_content=pdf_content,
+                                                numero_nfse=numero_nfse,
+                                                cnpj_prestador=cnpj_prestador,
+                                                codigo_municipio=codigo_municipio,
+                                                data_emissao=data_emissao
+                                            )
+                                            if pdf_path:
+                                                logger.info(f"   ✅ DANFSe salvo: {pdf_path}")
+                                            else:
+                                                logger.warning(f"   ⚠️ Erro ao salvar DANFSe")
                                         else:
                                             logger.info(f"   ℹ️ DANFSe não disponível na API")
                             
                             except Exception as e_pdf:
-                                logger.debug(f"   ⚠️ Erro ao baixar PDF: {e_pdf}")
+                                logger.debug(f"   ⚠️ Erro ao baixar/salvar PDF: {e_pdf}")
                     
                     except Exception as e:
                         logger.error(f"❌ Erro ao processar NSU {doc_nsu}: {e}")
