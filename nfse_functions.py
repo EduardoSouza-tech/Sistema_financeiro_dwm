@@ -1543,7 +1543,7 @@ def buscar_nfse_ambiente_nacional(
                 ultimo_nsu = 0
                 logger.info("🔄 BUSCA COMPLETA: Iniciando do NSU=0")
             else:
-                ultimo_nsu = db.get_last_nsu_nfse(cnpj_informante) or 0
+                ultimo_nsu = db.get_last_nsu_nfse(empresa_id, cnpj_informante) or 0
                 logger.info(f"📍 BUSCA INCREMENTAL: Último NSU = {ultimo_nsu}")
             
             nsu_atual = max(ultimo_nsu + 1, 1)  # Começa do próximo (mínimo 1)
@@ -1829,7 +1829,7 @@ def buscar_nfse_ambiente_nacional(
             # Atualizar último NSU processado
             if resultado['total_nfse'] > 0:
                 maior_nsu = nsu_atual - 1
-                db.set_last_nsu_nfse(cnpj_informante, maior_nsu)
+                db.set_last_nsu_nfse(empresa_id, cnpj_informante, maior_nsu)
                 resultado['ultimo_nsu'] = maior_nsu
                 logger.info(f"💾 Último NSU atualizado: {maior_nsu}")
             

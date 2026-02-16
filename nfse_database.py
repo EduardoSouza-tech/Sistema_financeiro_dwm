@@ -740,12 +740,14 @@ class NFSeDatabase:
     # CONTROLE DE NSU (Ambiente Nacional)
     # ========================================================================
     
-    def get_last_nsu_nfse(self, cnpj_informante: str) -> Optional[int]:
+    def get_last_nsu_nfse(self, empresa_id: int, cnpj_informante: str, codigo_municipio: Optional[str] = None) -> Optional[int]:
         """
         Recupera último NSU processado para um CNPJ no Ambiente Nacional
         
         Args:
+            empresa_id: ID da empresa
             cnpj_informante: CNPJ do informante (certificado)
+            codigo_municipio: Código do município (opcional, None = todos)
         
         Returns:
             int: Último NSU processado ou None se não encontrado
@@ -768,34 +770,47 @@ class NFSeDatabase:
                     return None
                 
                 # Busca último NSU
-                sql = """
-                SELECT ult_nsu 
-                FROM nsu_nfse 
-                WHERE cnpj_informante = %s
-                ORDER BY atualizado_em DESC 
-                LIMIT 1
-                """
-                cursor.execute(sql, (cnpj_informante,))
+                if codigo_municipio:
+                    sql = """
+                    SELECT ult_nsu 
+                    FROM nsu_nfse 
+                    WHERE empresa_id = %s AND informante = %s AND codigo_municipio = %s
+                    ORDER BY atualizado_em DESC 
+                    LIMIT 1
+                    """
+                    cursor.execute(sql, (empresa_id, cnpj_informante, codigo_municipio))
+                else:
+                    sql = """
+                    SELECT ult_nsu 
+                    FROM nsu_nfse 
+                    WHERE empresa_id = %s AND informante = %s AND codigo_municipio IS NULL
+                    ORDER BY atualizado_em DESC 
+                    LIMIT 1
+                    """
+                    cursor.execute(sql, (empresa_id, cnpj_informante))
+                
                 resultado = cursor.fetchone()
                 
                 if resultado:
-                    logger.debug(f"📍 Último NSU para {cnpj_informante}: {resultado[0]}")
+                    logger.debug(f"📍 Último NSU para empresa {empresa_id}, informante {cnpj_informante}: {resultado[0]}")
                     return resultado[0]
                 else:
-                    logger.debug(f"📍 Nenhum NSU registrado para {cnpj_informante}")
+                    logger.debug(f"📍 Nenhum NSU registrado para empresa {empresa_id}, informante {cnpj_informante}")
                     return None
                     
         except Exception as e:
             logger.error(f"❌ Erro ao buscar último NSU: {e}")
             return None
     
-    def set_last_nsu_nfse(self, cnpj_informante: str, nsu: int) -> bool:
+    def set_last_nsu_nfse(self, empresa_id: int, cnpj_informante: str, nsu: int, codigo_municipio: Optional[str] = None) -> bool:
         """
         Atualiza último NSU processado para um CNPJ
         
         Args:
+            empresa_id: ID da empresa
             cnpj_informante: CNPJ do informante
             nsu: Número do NSU processado
+            codigo_municipio: Código do município (opcional, None = todos)
         
         Returns:
             bool: True se sucesso
@@ -818,17 +833,17 @@ class NFSeDatabase:
                 
                 # Upsert (INSERT ... ON CONFLICT UPDATE)
                 sql = """
-                INSERT INTO nsu_nfse (cnpj_informante, ult_nsu, atualizado_em)
-                VALUES (%s, %s, NOW())
-                ON CONFLICT (cnpj_informante) 
+                INSERT INTO nsu_nfse (empresa_id, informante, codigo_municipio, ult_nsu, atualizado_em)
+                VALUES (%s, %s, %s, %s, NOW())
+                ON CONFLICT (empresa_id, informante, codigo_municipio) 
                 DO UPDATE SET 
                     ult_nsu = EXCLUDED.ult_nsu,
                     atualizado_em = NOW()
                 """
-                cursor.execute(sql, (cnpj_informante, nsu))
+                cursor.execute(sql, (empresa_id, cnpj_informante, codigo_municipio, nsu))
                 self.conn.commit()
                 
-                logger.debug(f"💾 NSU atualizado para {cnpj_informante}: {nsu}")
+                logger.debug(f"💾 NSU atualizado para empresa {empresa_id}, informante {cnpj_informante}: {nsu}")
                 return True
                 
         except Exception as e:
@@ -837,20 +852,24 @@ class NFSeDatabase:
             return False
     
     def _criar_tabela_nsu(self):
-        """Cria tabela nsu_nfse se não existir"""
+        """Cria tabela nsu_nfse se não existir (conforme migration_nfse.sql)"""
         try:
             with self.conn.cursor() as cursor:
                 sql = """
                 CREATE TABLE IF NOT EXISTS nsu_nfse (
                     id SERIAL PRIMARY KEY,
-                    cnpj_informante VARCHAR(14) NOT NULL UNIQUE,
-                    ult_nsu BIGINT NOT NULL DEFAULT 0,
+                    empresa_id INTEGER NOT NULL,
+                    informante VARCHAR(14) NOT NULL,
+                    codigo_municipio VARCHAR(7),
+                    ult_nsu BIGINT DEFAULT 0,
                     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    
+                    FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE,
+                    CONSTRAINT uk_nsu_empresa_informante_municipio UNIQUE (empresa_id, informante, codigo_municipio)
                 );
                 
-                CREATE INDEX IF NOT EXISTS idx_nsu_nfse_cnpj 
-                ON nsu_nfse(cnpj_informante);
+                CREATE INDEX IF NOT EXISTS idx_nsu_empresa ON nsu_nfse(empresa_id);
+                CREATE INDEX IF NOT EXISTS idx_nsu_informante ON nsu_nfse(informante);
                 """
                 cursor.execute(sql)
                 self.conn.commit()
