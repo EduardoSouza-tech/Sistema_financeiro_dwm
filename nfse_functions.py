@@ -1470,7 +1470,7 @@ def buscar_nfse_ambiente_nacional(
     certificado_senha: str,
     ambiente: str = 'producao',
     busca_completa: bool = False,
-    max_documentos: int = 50
+    max_documentos: int = 1000
 ) -> Dict:
     """
     Busca NFS-e via Ambiente Nacional (API REST oficial)
@@ -1547,7 +1547,7 @@ def buscar_nfse_ambiente_nacional(
                 logger.info(f"📍 BUSCA INCREMENTAL: Último NSU = {ultimo_nsu}")
             
             nsu_atual = max(ultimo_nsu + 1, 1)  # Começa do próximo (mínimo 1)
-            max_tentativas_404 = 5  # Para após 5 NSUs seguidos sem retorno
+            max_tentativas_404 = 100  # Para após 100 NSUs seguidos sem retorno
             tentativas_404 = 0
             documentos_processados = 0
             
@@ -1869,6 +1869,13 @@ def buscar_nfse_ambiente_nacional(
                         continue
                 
                 nsu_atual += 1
+            
+            # Log do motivo da parada
+            if documentos_processados >= max_documentos:
+                logger.info(f"⏸️ Busca pausada: Limite de {max_documentos} documentos atingido")
+                logger.info(f"💡 Clique novamente em 'Baixar NFS-e' para continuar a busca")
+            elif tentativas_404 >= max_tentativas_404:
+                logger.info(f"⏹️ Busca finalizada: {max_tentativas_404} NSUs consecutivos sem retorno")
             
             # Atualizar último NSU processado
             if resultado['total_nfse'] > 0:
