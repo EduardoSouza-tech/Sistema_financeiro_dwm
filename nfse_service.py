@@ -115,10 +115,14 @@ URLS_MUNICIPIOS = {
     },
     '3106200': {  # Belo Horizonte/MG
         'provedor': 'GINFES',
-        # URL do webservice padrão ABRASF/GINFES nacional
-        'url': 'https://bhissdigital.pbh.gov.br/bhiss-ws/ServiceGinfesImpl',
-        'url_alternativa_1': 'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse',
-        'url_alternativa_2': 'https://bhiss.pbh.gov.br/bhiss-ws/nfse'
+        # URLs alternativas para tentar (ordem de prioridade)
+        'url': 'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse',
+        'url_alternativas': [
+            'https://bhissdigital.pbh.gov.br/bhiss-ws/ServiceGinfesImpl',
+            'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse.asmx',
+            'https://bhiss.pbh.gov.br/bhiss-ws/nfse',
+            'http://bhissdigital.pbh.gov.br/bhiss-ws/nfse'
+        ]
     },
     '3550308': {  # São Paulo/SP
         'provedor': 'ISSNET',
@@ -290,6 +294,10 @@ class NFSeService:
                     logger.error(f"   Resposta (truncada): {response.text[:500]}...")
                 else:
                     logger.error(f"   Resposta: {response.text}")
+                
+                # Erro 404 = endpoint não encontrado, retornar para tentar URL alternativa
+                if response.status_code == 404:
+                    return False, [], f"HTTP 404: Endpoint não encontrado. URL inválida: {url_webservice}"
                 
                 # Mensagem específica para erro 403 (Acesso Bloqueado)
                 if response.status_code == 403:

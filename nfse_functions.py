@@ -339,21 +339,52 @@ def buscar_nfse_periodo(
                         if info_municipio:
                             url_webservice = info_municipio['url']
                             provedor = provedor or info_municipio['provedor']
+                            # Guardar URLs alternativas se existirem
+                            urls_alternativas = info_municipio.get('url_alternativas', [])
                             logger.info(f"   ✅ URL descoberta: {url_webservice}")
                             logger.info(f"   ✅ Provedor: {provedor}")
                         else:
                             raise Exception(f"URL do webservice não configurada e não foi possível descobrir automaticamente para o município {codigo_municipio}")
+                    else:
+                        urls_alternativas = []
                     
-                    # Buscar NFS-e via SOAP
-                    sucesso, nfses, erro = service.buscar_nfse(
-                        cnpj_prestador=cnpj_prestador,
-                        inscricao_municipal=config['inscricao_municipal'],
-                        data_inicial=data_inicial,
-                        data_final=data_final,
-                        provedor=provedor,
-                        url_webservice=url_webservice,
-                        codigo_municipio=codigo_municipio
-                    )
+                    # Lista de URLs para tentar (principal + alternativas)
+                    urls_para_tentar = [url_webservice] + urls_alternativas
+                    
+                    # Tentar cada URL até encontrar uma que funcione
+                    sucesso = False
+                    nfses = []
+                    erro = None
+                    
+                    for idx, url_atual in enumerate(urls_para_tentar):
+                        if idx > 0:
+                            logger.info(f"   🔄 Tentando URL alternativa {idx}: {url_atual}")
+                        
+                        # Buscar NFS-e via SOAP
+                        sucesso, nfses, erro = service.buscar_nfse(
+                            cnpj_prestador=cnpj_prestador,
+                            inscricao_municipal=config['inscricao_municipal'],
+                            data_inicial=data_inicial,
+                            data_final=data_final,
+                            provedor=provedor,
+                            url_webservice=url_atual,
+                            codigo_municipio=codigo_municipio
+                        )
+                        
+                        # Se sucesso, sair do loop
+                        if sucesso:
+                            if idx > 0:
+                                logger.info(f"   ✅ URL alternativa funcionou! Salvando para uso futuro...")
+                                # TODO: Atualizar config no banco com URL que funcionou
+                            break
+                        
+                        # Se erro 404, tentar próxima URL
+                        if erro and "404" in erro:
+                            logger.warning(f"   ⚠️ URL não encontrada (404), tentando próxima...")
+                            continue
+                        else:
+                            # Outro erro, não tentar mais URLs
+                            break
                     
                     if sucesso:
                         resultado['municipios_sucesso'] += 1
@@ -391,16 +422,30 @@ def buscar_nfse_periodo(
                         logger.info(f"✅ {municipio_nome}: {len(nfses)} NFS-e encontradas")
                         
                     else:
+                        # Nenhuma URL funcionou
                         resultado['municipios_erro'] += 1
-                        resultado['erros'].append(f"{municipio_nome}: {erro}")
+                        
+                        # Se todas as URLs deram 404, dar dica de onde procurar a URL correta
+                        if erro and "404" in erro:
+                            erro_completo = (
+                                f"{erro}. "
+                                f"Nenhuma das URLs testadas funcionou. "
+                                f"Verifique a URL correta no site oficial da prefeitura "
+                                f"ou na documentação do webservice de NFS-e. "
+                                f"URLs tentadas: {', '.join(urls_para_tentar)}"
+                            )
+                        else:
+                            erro_completo = erro
+                        
+                        resultado['erros'].append(f"{municipio_nome}: {erro_completo}")
                         resultado['detalhes'].append({
                             'municipio': municipio_nome,
                             'codigo': codigo_municipio,
                             'sucesso': False,
-                            'erro': erro
+                            'erro': erro_completo
                         })
                         
-                        logger.error(f"❌ {municipio_nome}: {erro}")
+                        logger.error(f"❌ {municipio_nome}: {erro_completo}")
                 
                 except Exception as e:
                     resultado['municipios_erro'] += 1
