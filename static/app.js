@@ -7056,7 +7056,17 @@ window.exibirNFSe = function(nfses) {
         const tr = document.createElement('tr');
         
         // Formatações
-        const dataEmissao = nfse.data_emissao ? new Date(nfse.data_emissao + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+        let dataEmissao = '-';
+        if (nfse.data_emissao) {
+            try {
+                // Remove parte do horário se existir e pega só a data
+                const dataStr = nfse.data_emissao.split('T')[0];
+                const [ano, mes, dia] = dataStr.split('-');
+                dataEmissao = `${dia}/${mes}/${ano}`;
+            } catch (e) {
+                dataEmissao = '-';
+            }
+        }
         const valorServico = nfse.valor_servico ? parseFloat(nfse.valor_servico).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
         const valorIss = nfse.valor_iss ? parseFloat(nfse.valor_iss).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
         
@@ -7581,7 +7591,19 @@ window.verDetalhesNFSe = async function(nfseId) {
             // Preencher dados
             document.getElementById('det-numero').textContent = nfse.numero_nfse || '-';
             document.getElementById('det-codigo-verificacao').textContent = nfse.codigo_verificacao || '-';
-            document.getElementById('det-data-emissao').textContent = nfse.data_emissao ? new Date(nfse.data_emissao + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+            
+            // Formatar data de emissão
+            let dataEmissao = '-';
+            if (nfse.data_emissao) {
+                try {
+                    const dataStr = nfse.data_emissao.split('T')[0];
+                    const [ano, mes, dia] = dataStr.split('-');
+                    dataEmissao = `${dia}/${mes}/${ano}`;
+                } catch (e) {
+                    dataEmissao = '-';
+                }
+            }
+            document.getElementById('det-data-emissao').textContent = dataEmissao;
             
             let situacaoHtml = '';
             switch (nfse.situacao) {

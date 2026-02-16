@@ -11591,12 +11591,12 @@ def excluir_nfse(nfse_id):
                 arquivos_nao_encontrados = []
                 
                 # Montar caminhos dos arquivos
-                # Formato: storage/nfse/{CNPJ}/{ANO}/{MES}/
+                # Formato: storage/nfse/{CNPJ}/{CODIGO_MUNICIPIO}/{ANO}/{MES}/
                 if data_emissao:
                     ano = data_emissao.year if hasattr(data_emissao, 'year') else data_emissao[:4]
                     mes = f"{data_emissao.month:02d}" if hasattr(data_emissao, 'month') else data_emissao[5:7]
                     
-                    base_dir = f"storage/nfse/{cnpj_prestador}/{ano}/{mes}"
+                    base_dir = f"storage/nfse/{cnpj_prestador}/{codigo_municipio}/{ano}/{mes}"
                     
                     # Nome dos arquivos
                     xml_filename = f"NFS-e_{numero_nfse}.xml"
@@ -11737,7 +11737,7 @@ def apagar_todas_nfse():
                                 ano = data_emissao.year if hasattr(data_emissao, 'year') else data_emissao[:4]
                                 mes = f"{data_emissao.month:02d}" if hasattr(data_emissao, 'month') else data_emissao[5:7]
                                 
-                                base_dir = f"storage/nfse/{cnpj_prestador}/{ano}/{mes}"
+                                base_dir = f"storage/nfse/{cnpj_prestador}/{codigo_mun}/{ano}/{mes}"
                                 xml_full_path = os.path.join(base_dir, f"NFS-e_{numero_nfse}.xml")
                                 pdf_full_path = os.path.join(base_dir, f"NFS-e_{numero_nfse}.pdf")
                                 
