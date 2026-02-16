@@ -86,7 +86,10 @@ URLS_MUNICIPIOS = {
     },
     '3106200': {  # Belo Horizonte/MG
         'provedor': 'GINFES',
-        'url': 'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse'
+        # NOTA: Site da prefeitura tem proteção GoCache contra bots
+        # Pode ser necessário whitelist do IP ou uso de credenciais especiais
+        'url': 'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse',
+        'url_alternativa': 'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse?wsdl'
     },
     '3550308': {  # São Paulo/SP
         'provedor': 'ISSNET',
@@ -230,7 +233,13 @@ class NFSeService:
             # Fazer requisição SOAP com certificado A1
             headers = {
                 'Content-Type': 'application/soap+xml; charset=utf-8',
-                'SOAPAction': 'http://www.ginfes.com.br/servico_consultar_nfse'
+                'SOAPAction': 'http://www.ginfes.com.br/servico_consultar_nfse',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'application/soap+xml, application/dime, multipart/related, text/*',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive'
             }
             
             response = post_pkcs12(
@@ -239,11 +248,31 @@ class NFSeService:
                 headers=headers,
                 pkcs12_filename=self.certificado_path,
                 pkcs12_password=self.certificado_senha,
-                timeout=30
+                timeout=30,
+                verify=True  # Verificar SSL
             )
             
             if response.status_code != 200:
-                return False, [], f"Erro HTTP {response.status_code}: {response.text}"
+                logger.error(f"❌ Resposta HTTP {response.status_code}")
+                logger.error(f"   URL: {url_webservice}")
+                logger.error(f"   Headers enviados: {headers}")
+                # Não logar todo o response.text se for HTML grande
+                if len(response.text) > 500:
+                    logger.error(f"   Resposta (truncada): {response.text[:500]}...")
+                else:
+                    logger.error(f"   Resposta: {response.text}")
+                
+                # Mensagem específica para erro 403 (Acesso Bloqueado)
+                if response.status_code == 403:
+                    erro_msg = (
+                        f"Acesso bloqueado pelo servidor (HTTP 403). "
+                        f"Possíveis causas: 1) Proteção anti-bot (GoCache/Cloudflare), "
+                        f"2) IP do servidor bloqueado, 3) Certificado inválido ou não autorizado. "
+                        f"Entre em contato com a prefeitura para liberar acesso ao webservice."
+                    )
+                    return False, [], erro_msg
+                
+                return False, [], f"Erro HTTP {response.status_code}: {response.text[:200]}"
             
             # Processar resposta XML
             nfses = self._processar_resposta_ginfes(response.text, codigo_municipio)
@@ -391,7 +420,13 @@ class NFSeService:
             
             headers = {
                 'Content-Type': 'text/xml; charset=utf-8',
-                'SOAPAction': '"http://www.issnetonline.com.br/webserviceabrasf/homologacao/servicos.asmx/ConsultarNfse"'
+                'SOAPAction': '"http://www.issnetonline.com.br/webserviceabrasf/homologacao/servicos.asmx/ConsultarNfse"',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/xml, application/soap+xml, application/dime, multipart/related, text/*',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive'
             }
             
             response = post_pkcs12(
@@ -400,7 +435,8 @@ class NFSeService:
                 headers=headers,
                 pkcs12_filename=self.certificado_path,
                 pkcs12_password=self.certificado_senha,
-                timeout=30
+                timeout=30,
+                verify=True
             )
             
             if response.status_code != 200:
@@ -517,13 +553,25 @@ def testar_conexao(url_webservice: str, certificado_path: str, certificado_senha
         Tuple (sucesso, mensagem)
     """
     try:
+        # Headers para evitar bloqueio por firewall/WAF
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/xml, application/soap+xml, application/xml, text/*',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'pt-BR,pt;q=0.9',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive'
+        }
+        
         # Fazer requisição simples para verificar conectividade
         response = post_pkcs12(
             url_webservice,
             data=b'',
+            headers=headers,
             pkcs12_filename=certificado_path,
             pkcs12_password=certificado_senha,
-            timeout=10
+            timeout=10,
+            verify=True
         )
         
         if response.status_code in [200, 500]:  # 500 é esperado sem XML válido
