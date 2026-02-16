@@ -115,14 +115,21 @@ URLS_MUNICIPIOS = {
     },
     '3106200': {  # Belo Horizonte/MG
         'provedor': 'GINFES',
-        # URLs alternativas para tentar (ordem de prioridade)
-        'url': 'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse',
+        # ⚠️ ATENÇÃO: URLs testadas abaixo NÃO funcionam (retornam 404)
+        # URL correta deve ser obtida na documentação oficial:
+        # https://prefeitura.pbh.gov.br/fazenda/nfse
+        # 
+        # Configure manualmente via interface após descobrir URL correta
+        'url': None,  # URL padrão desconhecida - configurar manualmente
         'url_alternativas': [
+            # URLs testadas automaticamente - TODAS RETORNAM 404:
+            'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse',
             'https://bhissdigital.pbh.gov.br/bhiss-ws/ServiceGinfesImpl',
             'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse.asmx',
-            'https://bhiss.pbh.gov.br/bhiss-ws/nfse',
-            'http://bhissdigital.pbh.gov.br/bhiss-ws/nfse'
-        ]
+            # 'https://bhiss.pbh.gov.br/bhiss-ws/nfse',  # DNS não existe
+            # 'http://bhissdigital.pbh.gov.br/bhiss-ws/nfse'  # HTTP não seguro
+        ],
+        'nota': 'Requer configuração manual. Consulte documentação oficial da prefeitura.'
     },
     '3550308': {  # São Paulo/SP
         'provedor': 'ISSNET',

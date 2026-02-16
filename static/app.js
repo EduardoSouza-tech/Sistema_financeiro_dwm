@@ -7269,6 +7269,25 @@ window.carregarListaMunicipiosNFSe = async function() {
 window.salvarMunicipioNFSe = async function(event) {
     event.preventDefault();
     
+    const codigoMunicipio = document.getElementById('config-codigo-municipio').value;
+    const urlCustomizada = document.getElementById('config-url-customizada').value;
+    
+    // Validação específica para Belo Horizonte (código 3106200)
+    if (codigoMunicipio === '3106200' && !urlCustomizada) {
+        if (!confirm(
+            '⚠️ ATENÇÃO: Belo Horizonte\n\n' +
+            'A URL do webservice de BH não é conhecida automaticamente.\n\n' +
+            '❌ Sem a URL customizada, as buscas de NFS-e FALHARÃO.\n\n' +
+            '📋 Você precisa:\n' +
+            '1. Acessar o site da prefeitura de BH\n' +
+            '2. Obter a URL correta do webservice\n' +
+            '3. Preencher o campo "URL Customizada"\n\n' +
+            'Deseja salvar mesmo assim? (NÃO RECOMENDADO)'
+        )) {
+            return;
+        }
+    }
+    
     const novoMunicipio = {
         cnpj_cpf: document.getElementById('config-cnpj').value.replace(/\D/g, ''),
         codigo_municipio: document.getElementById('config-codigo-municipio').value,

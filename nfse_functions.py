@@ -427,13 +427,28 @@ def buscar_nfse_periodo(
                         
                         # Se todas as URLs deram 404, dar dica de onde procurar a URL correta
                         if erro and "404" in erro:
-                            erro_completo = (
-                                f"{erro}. "
-                                f"Nenhuma das URLs testadas funcionou. "
-                                f"Verifique a URL correta no site oficial da prefeitura "
-                                f"ou na documentação do webservice de NFS-e. "
-                                f"URLs tentadas: {', '.join(urls_para_tentar)}"
-                            )
+                            # Mensagem específica para Belo Horizonte
+                            if codigo_municipio == '3106200':
+                                erro_completo = (
+                                    f"❌ Nenhuma URL do webservice de Belo Horizonte funcionou (todas retornam 404). "
+                                    f"\n\n📋 COMO RESOLVER:\n"
+                                    f"1. Acesse: https://prefeitura.pbh.gov.br/fazenda/nfse\n"
+                                    f"2. Procure: 'Manual de Integração' ou 'Documentação Técnica'\n"
+                                    f"3. Encontre a URL correta do webservice SOAP/ABRASF\n"
+                                    f"4. No sistema: Clique em ✏️ Editar no município → Cole a URL no campo 'URL Customizada'\n"
+                                    f"5. Tente buscar novamente\n\n"
+                                    f"💡 Exemplo de URL: https://[sistema].pbh.gov.br/[caminho]/ServiceGinfesImpl ou .../nfse\n\n"
+                                    f"📞 Suporte PBH: Entre em contato com suporte técnico NFS-e da prefeitura\n\n"
+                                    f"URLs tentadas sem sucesso: {', '.join(urls_para_tentar)}"
+                                )
+                            else:
+                                erro_completo = (
+                                    f"{erro}. "
+                                    f"Nenhuma das URLs testadas funcionou. "
+                                    f"Verifique a URL correta no site oficial da prefeitura "
+                                    f"ou na documentação do webservice de NFS-e. "
+                                    f"URLs tentadas: {', '.join(urls_para_tentar)}"
+                                )
                         else:
                             erro_completo = erro
                         
