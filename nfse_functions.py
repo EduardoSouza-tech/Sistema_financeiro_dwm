@@ -328,14 +328,30 @@ def buscar_nfse_periodo(
                 logger.info(f"🏙️ Buscando em {municipio_nome}...")
                 
                 try:
+                    # Garantir que temos URL do webservice
+                    url_webservice = config.get('url_customizada')
+                    provedor = config.get('provedor')
+                    
+                    # Se não tem URL, tentar descobrir automaticamente
+                    if not url_webservice:
+                        logger.info(f"   ⚠️ URL não configurada, tentando descobrir automaticamente...")
+                        info_municipio = descobrir_provedor(codigo_municipio)
+                        if info_municipio:
+                            url_webservice = info_municipio['url']
+                            provedor = provedor or info_municipio['provedor']
+                            logger.info(f"   ✅ URL descoberta: {url_webservice}")
+                            logger.info(f"   ✅ Provedor: {provedor}")
+                        else:
+                            raise Exception(f"URL do webservice não configurada e não foi possível descobrir automaticamente para o município {codigo_municipio}")
+                    
                     # Buscar NFS-e via SOAP
                     sucesso, nfses, erro = service.buscar_nfse(
                         cnpj_prestador=cnpj_prestador,
                         inscricao_municipal=config['inscricao_municipal'],
                         data_inicial=data_inicial,
                         data_final=data_final,
-                        provedor=config['provedor'],
-                        url_webservice=config['url_customizada'],
+                        provedor=provedor,
+                        url_webservice=url_webservice,
                         codigo_municipio=codigo_municipio
                     )
                     
@@ -868,15 +884,29 @@ def upload_certificado(db_params: Dict, empresa_id: int, pfx_bytes: bytes, senha
             # 4. Criar configuração do município automaticamente se identificado
             if info.get('codigo_municipio') and info.get('cnpj'):
                 try:
+                    # Descobrir provedor e URL automaticamente
+                    codigo_municipio = info['codigo_municipio']
+                    provedor_padrao = 'GINFES'
+                    url_padrao = None
+                    
+                    info_provedor = descobrir_provedor(codigo_municipio)
+                    if info_provedor:
+                        provedor_padrao = info_provedor['provedor']
+                        url_padrao = info_provedor['url']
+                        logger.info(f"✅ Provedor descoberto automaticamente: {provedor_padrao}")
+                        logger.info(f"✅ URL detectada: {url_padrao}")
+                    else:
+                        logger.warning(f"⚠️ Provedor não encontrado para município {codigo_municipio}, usando GINFES como padrão")
+                    
                     config = {
                         'empresa_id': empresa_id,
                         'cnpj_cpf': info['cnpj'],
-                        'provedor': 'GINFES',  # Provedor padrão, usuário pode alterar depois
-                        'codigo_municipio': info['codigo_municipio'],
+                        'provedor': provedor_padrao,
+                        'codigo_municipio': codigo_municipio,
                         'nome_municipio': info.get('nome_municipio', ''),
                         'uf': info.get('uf', ''),
                         'inscricao_municipal': '',  # Usuário deve preencher
-                        'url_customizada': None,
+                        'url_customizada': url_padrao,
                         'ativo': True
                     }
                     

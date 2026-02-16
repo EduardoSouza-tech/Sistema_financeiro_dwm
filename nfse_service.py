@@ -84,6 +84,10 @@ URLS_MUNICIPIOS = {
         'provedor': 'GINFES',
         'url': 'http://issdigital.pmcg.ms.gov.br/nfse/ServiceGinfesImpl'
     },
+    '3106200': {  # Belo Horizonte/MG
+        'provedor': 'GINFES',
+        'url': 'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse'
+    },
     '3550308': {  # São Paulo/SP
         'provedor': 'ISSNET',
         'url': 'https://nfe.prefeitura.sp.gov.br/ws/lotenfe.asmx'
