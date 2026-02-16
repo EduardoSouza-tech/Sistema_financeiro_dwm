@@ -11535,6 +11535,125 @@ def get_nfse_detalhes(nfse_id):
         }), 500
 
 
+@app.route('/api/nfse/<int:nfse_id>', methods=['DELETE'])
+@require_auth
+@require_permission('nfse_delete')
+def excluir_nfse(nfse_id):
+    """Exclui uma NFS-e (banco de dados + arquivos XML e PDF)"""
+    try:
+        from nfse_database import NFSeDatabase
+        from database_postgresql import get_nfse_db_params
+        import os
+        
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'Empresa não selecionada'
+            }), 403
+        
+        # Usar configuração centralizada do banco
+        db_params = get_nfse_db_params()
+        
+        with NFSeDatabase(db_params) as db:
+            # Buscar informações da NFS-e antes de excluir (para deletar arquivos)
+            sql_select = """
+                SELECT xml_path, numero_nfse, cnpj_prestador, codigo_municipio, data_emissao
+                FROM nfse_baixadas 
+                WHERE id = %s AND empresa_id = %s
+            """
+            
+            with db.conn.cursor() as cursor:
+                cursor.execute(sql_select, (nfse_id, empresa_id))
+                nfse_data = cursor.fetchone()
+                
+                if not nfse_data:
+                    return jsonify({
+                        'success': False,
+                        'error': 'NFS-e não encontrada ou não pertence à empresa atual'
+                    }), 404
+                
+                xml_path, numero_nfse, cnpj_prestador, codigo_municipio, data_emissao = nfse_data
+                
+                # Excluir do banco de dados
+                success = db.excluir_nfse(nfse_id, empresa_id)
+                
+                if not success:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Erro ao excluir NFS-e do banco de dados'
+                    }), 500
+                
+                # Tentar excluir arquivos XML e PDF
+                arquivos_excluidos = []
+                arquivos_nao_encontrados = []
+                
+                # Montar caminhos dos arquivos
+                # Formato: storage/nfse/{CNPJ}/{ANO}/{MES}/
+                if data_emissao:
+                    ano = data_emissao.year if hasattr(data_emissao, 'year') else data_emissao[:4]
+                    mes = f"{data_emissao.month:02d}" if hasattr(data_emissao, 'month') else data_emissao[5:7]
+                    
+                    base_dir = f"storage/nfse/{cnpj_prestador}/{ano}/{mes}"
+                    
+                    # Nome dos arquivos
+                    xml_filename = f"NFS-e_{numero_nfse}.xml"
+                    pdf_filename = f"NFS-e_{numero_nfse}.pdf"
+                    
+                    xml_full_path = os.path.join(base_dir, xml_filename)
+                    pdf_full_path = os.path.join(base_dir, pdf_filename)
+                    
+                    # Tentar excluir XML
+                    if os.path.exists(xml_full_path):
+                        try:
+                            os.remove(xml_full_path)
+                            arquivos_excluidos.append(xml_filename)
+                            logger.info(f"🗑️ XML excluído: {xml_full_path}")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Erro ao excluir XML: {e}")
+                    else:
+                        arquivos_nao_encontrados.append(xml_filename)
+                        logger.warning(f"⚠️ XML não encontrado: {xml_full_path}")
+                    
+                    # Tentar excluir PDF
+                    if os.path.exists(pdf_full_path):
+                        try:
+                            os.remove(pdf_full_path)
+                            arquivos_excluidos.append(pdf_filename)
+                            logger.info(f"🗑️ PDF excluído: {pdf_full_path}")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Erro ao excluir PDF: {e}")
+                    else:
+                        arquivos_nao_encontrados.append(pdf_filename)
+                        logger.warning(f"⚠️ PDF não encontrado: {pdf_full_path}")
+        
+        mensagem = f"NFS-e {numero_nfse} excluída com sucesso!"
+        if arquivos_excluidos:
+            mensagem += f" Arquivos removidos: {', '.join(arquivos_excluidos)}."
+        if arquivos_nao_encontrados:
+            mensagem += f" Arquivos não encontrados: {', '.join(arquivos_nao_encontrados)}."
+        
+        logger.info(f"✅ {mensagem}")
+        
+        return jsonify({
+            'success': True,
+            'message': mensagem,
+            'arquivos_excluidos': arquivos_excluidos,
+            'arquivos_nao_encontrados': arquivos_nao_encontrados
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao excluir NFS-e: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/nfse/resumo-mensal', methods=['POST'])
 @require_auth
 @require_permission('nfse_view')

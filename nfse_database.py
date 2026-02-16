@@ -424,6 +424,39 @@ class NFSeDatabase:
             logger.error(f"❌ Erro ao cancelar NFS-e: {e}")
             return False
     
+    def excluir_nfse(self, nfse_id: int, empresa_id: int) -> bool:
+        """
+        Exclui permanentemente uma NFS-e do banco de dados
+        
+        Args:
+            nfse_id: ID da NFS-e
+            empresa_id: ID da empresa (para validação de segurança)
+            
+        Returns:
+            True se excluído com sucesso
+        """
+        try:
+            with self.conn.cursor() as cursor:
+                sql = """
+                DELETE FROM nfse_baixadas 
+                WHERE id = %s AND empresa_id = %s
+                """
+                cursor.execute(sql, (nfse_id, empresa_id))
+                rows_affected = cursor.rowcount
+                self.conn.commit()
+                
+                if rows_affected > 0:
+                    logger.info(f"✅ NFS-e excluída do banco: ID {nfse_id} (empresa {empresa_id})")
+                    return True
+                else:
+                    logger.warning(f"⚠️ NFS-e não encontrada ou não pertence à empresa: ID {nfse_id}")
+                    return False
+                    
+        except Exception as e:
+            self.conn.rollback()
+            logger.error(f"❌ Erro ao excluir NFS-e: {e}")
+            return False
+    
     def get_resumo_mensal(self, empresa_id: int, ano: int, mes: int) -> Dict:
         """
         Retorna resumo mensal de NFS-e

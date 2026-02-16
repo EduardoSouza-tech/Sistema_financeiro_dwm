@@ -7087,6 +7087,7 @@ window.exibirNFSe = function(nfses) {
             <td style="text-align: center;">
                 <button onclick="verDetalhesNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; background: #3498db;" title="Ver Detalhes">👁️</button>
                 <button onclick="gerarPdfNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; background: #e74c3c; margin-left: 4px;" title="Gerar PDF">📄</button>
+                <button onclick="excluirNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; background: #c0392b; margin-left: 4px;" title="Excluir NFS-e">🗑️</button>
             </td>
         `;
         
@@ -7210,6 +7211,37 @@ window.exportarNFSeXMLs = async function() {
     } catch (error) {
         console.error('❌ Erro ao exportar XMLs:', error);
         showToast('❌ Erro ao exportar XMLs', 'error');
+    }
+};
+
+// Excluir NFS-e (arquivo XML,PDF e registro do banco)
+window.excluirNFSe = async function(nfseId) {
+    if (!confirm('⚠️ ATENÇÃO!\n\nEsta ação irá excluir permanentemente:\n• O registro da NFS-e no banco de dados\n• O arquivo XML salvo\n• O arquivo PDF salvo\n\nDeseja realmente excluir esta NFS-e?')) {
+        return;
+    }
+    
+    console.log(`🗑️ Excluindo NFS-e ID: ${nfseId}`);
+    showToast('⏳ Excluindo NFS-e...', 'info');
+    
+    try {
+        const response = await fetch(`/api/nfse/${nfseId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('✅ NFS-e excluída com sucesso!', 'success');
+            
+            // Atualizar lista de NFS-e
+            await window.consultarNFSeLocal();
+        } else {
+            showToast(`❌ Erro: ${data.error || 'Erro desconhecido'}`, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao excluir NFS-e:', error);
+        showToast('❌ Erro ao excluir NFS-e', 'error');
     }
 };
 
