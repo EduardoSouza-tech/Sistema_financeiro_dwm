@@ -6860,18 +6860,27 @@ window.municipiosNFSe = [];
 window.loadNFSeSection = async function() {
     console.log('📄 Carregando seção NFS-e...');
     
-    // Definir período padrão (mês atual)
+    // Data inicial: Carregar preferência salva ou usar 01/01/2020 como padrão
+    const dataInicialSalva = localStorage.getItem('nfse_data_inicial');
+    const dataInicial = dataInicialSalva || '2020-01-01';
+    
+    // Data final: Sempre usar o último dia do mês atual
     const hoje = new Date();
-    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
     const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
     
-    document.getElementById('nfse-data-inicial').value = primeiroDia.toISOString().split('T')[0];
+    document.getElementById('nfse-data-inicial').value = dataInicial;
     document.getElementById('nfse-data-final').value = ultimoDia.toISOString().split('T')[0];
+    
+    // Salvar preferência quando usuário alterar a data inicial
+    document.getElementById('nfse-data-inicial').addEventListener('change', function(e) {
+        localStorage.setItem('nfse_data_inicial', e.target.value);
+        console.log(`💾 Data inicial salva: ${e.target.value}`);
+    });
     
     // Carregar lista de municípios configurados
     await window.carregarMunicipiosNFSe();
     
-    // Auto-carregar NFS-e do mês atual
+    // Auto-carregar NFS-e do período
     await window.consultarNFSeLocal();
 };
 
