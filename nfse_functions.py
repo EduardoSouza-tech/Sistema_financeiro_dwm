@@ -1601,7 +1601,7 @@ def buscar_nfse_ambiente_nacional(
                             'nfse2': 'http://www.portalfiscal.inf.br/nfse'
                         }
                         
-                        # Tentar extrair dados (estrutura pode variar)
+                        # Tentar extrair dados (estrutura padrão Nacional NFS-e)
                         numero_nfse = (
                             tree.findtext('.//nfse:nNFSe', namespaces=ns) or
                             tree.findtext('.//nfse2:Numero', namespaces=ns) or
@@ -1610,10 +1610,13 @@ def buscar_nfse_ambiente_nacional(
                             f"NSU_{doc_nsu}"
                         )
                         
+                        # Data de emissão - está dentro de DPS/infDPS/dhEmi
                         data_emissao = (
+                            tree.findtext('.//nfse:DPS//nfse:infDPS//nfse:dhEmi', namespaces=ns) or
                             tree.findtext('.//nfse:dhEmi', namespaces=ns) or
                             tree.findtext('.//nfse2:DataEmissao', namespaces=ns) or
                             tree.findtext('.//DataEmissao') or
+                            tree.findtext('.//dhEmi') or
                             datetime.now().isoformat()
                         )
                         
@@ -1625,12 +1628,14 @@ def buscar_nfse_ambiente_nacional(
                         )
                         
                         cnpj_prestador = (
+                            tree.findtext('.//nfse:emit//nfse:CNPJ', namespaces=ns) or
                             tree.findtext('.//nfse:prest//nfse:CNPJ', namespaces=ns) or
                             tree.findtext('.//Prestador//Cnpj') or
                             cnpj_informante
                         )
                         
                         cnpj_tomador = (
+                            tree.findtext('.//nfse:DPS//nfse:infDPS//nfse:toma//nfse:CNPJ', namespaces=ns) or
                             tree.findtext('.//nfse:toma//nfse:CNPJ', namespaces=ns) or
                             tree.findtext('.//Tomador//IdentificacaoTomador//CpfCnpj//Cnpj') or
                             tree.findtext('.//TomadorServico//IdentificacaoTomador//CpfCnpj//Cnpj') or
@@ -1638,21 +1643,46 @@ def buscar_nfse_ambiente_nacional(
                         )
                         
                         razao_social_tomador = (
+                            tree.findtext('.//nfse:DPS//nfse:infDPS//nfse:toma//nfse:xNome', namespaces=ns) or
                             tree.findtext('.//nfse:toma//nfse:xNome', namespaces=ns) or
                             tree.findtext('.//Tomador//RazaoSocial') or
                             tree.findtext('.//TomadorServico//RazaoSocial') or
                             ""
                         )
                         
+                        # Código do município - cLocEmi ou cLocIncid
                         codigo_municipio = (
+                            tree.findtext('.//nfse:DPS//nfse:infDPS//nfse:cLocEmi', namespaces=ns) or
+                            tree.findtext('.//nfse:cLocIncid', namespaces=ns) or
+                            tree.findtext('.//nfse:cLocEmi', namespaces=ns) or
+                            tree.findtext('.//nfse:emit//nfse:enderNac//nfse:cMun', namespaces=ns) or
                             tree.findtext('.//nfse:cMunPrestacao', namespaces=ns) or
                             tree.findtext('.//CodigoMunicipio') or
                             tree.findtext('.//Servico//CodigoMunicipio') or
                             ""
                         )
                         
+                        # Nome do município
+                        nome_municipio = (
+                            tree.findtext('.//nfse:xLocEmi', namespaces=ns) or
+                            tree.findtext('.//nfse:xLocIncid', namespaces=ns) or
+                            tree.findtext('.//CidadePrestador') or
+                            ""
+                        )
+                        
+                        # UF
+                        uf = (
+                            tree.findtext('.//nfse:emit//nfse:enderNac//nfse:UF', namespaces=ns) or
+                            tree.findtext('.//UF') or
+                            tree.findtext('.//UfPrestador') or
+                            ""
+                        )
+                        
                         # Campos adicionais
+                        # Valor ISS - vISSQN (padrão nacional) ou vISS
                         valor_iss = (
+                            tree.findtext('.//nfse:valores//nfse:vISSQN', namespaces=ns) or
+                            tree.findtext('.//nfse:vISSQN', namespaces=ns) or
                             tree.findtext('.//nfse:vISS', namespaces=ns) or
                             tree.findtext('.//ValorIss') or
                             tree.findtext('.//Valores//ValorIss') or
@@ -1660,27 +1690,37 @@ def buscar_nfse_ambiente_nacional(
                         )
                         
                         valor_deducoes = (
+                            tree.findtext('.//nfse:vDescCondIncond', namespaces=ns) or
                             tree.findtext('.//nfse:vDeducao', namespaces=ns) or
                             tree.findtext('.//ValorDeducoes') or
                             tree.findtext('.//Valores//ValorDeducoes') or
                             "0"
                         )
                         
+                        # Alíquota - pAliq ou pAliqAplic
                         aliquota_iss = (
+                            tree.findtext('.//nfse:valores//nfse:pAliqAplic', namespaces=ns) or
+                            tree.findtext('.//nfse:DPS//nfse:infDPS//nfse:valores//nfse:trib//nfse:tribMun//nfse:pAliq', namespaces=ns) or
+                            tree.findtext('.//nfse:pAliq', namespaces=ns) or
                             tree.findtext('.//nfse:aliq', namespaces=ns) or
                             tree.findtext('.//Aliquota') or
                             tree.findtext('.//Valores//Aliquota') or
                             "0"
                         )
                         
+                        # Código do serviço - cTribNac ou cTribMun
                         codigo_servico = (
+                            tree.findtext('.//nfse:DPS//nfse:infDPS//nfse:serv//nfse:cServ//nfse:cTribNac', namespaces=ns) or
+                            tree.findtext('.//nfse:DPS//nfse:infDPS//nfse:serv//nfse:cServ//nfse:cTribMun', namespaces=ns) or
                             tree.findtext('.//nfse:cListServ', namespaces=ns) or
                             tree.findtext('.//ItemListaServico') or
                             tree.findtext('.//Servico//ItemListaServico') or
                             ""
                         )
                         
+                        # Discriminação/Descrição do serviço
                         discriminacao = (
+                            tree.findtext('.//nfse:DPS//nfse:infDPS//nfse:serv//nfse:cServ//nfse:xDescServ', namespaces=ns) or
                             tree.findtext('.//nfse:xDescServ', namespaces=ns) or
                             tree.findtext('.//Discriminacao') or
                             tree.findtext('.//Servico//Discriminacao') or
@@ -1693,20 +1733,24 @@ def buscar_nfse_ambiente_nacional(
                             ""
                         )
                         
+                        # RPS - dentro de DPS/infDPS
                         numero_rps = (
+                            tree.findtext('.//nfse:DPS//nfse:infDPS//nfse:nDPS', namespaces=ns) or
                             tree.findtext('.//nfse:nRps', namespaces=ns) or
                             tree.findtext('.//IdentificacaoRps//Numero') or
                             ""
                         )
                         
                         serie_rps = (
+                            tree.findtext('.//nfse:DPS//nfse:infDPS//nfse:serie', namespaces=ns) or
                             tree.findtext('.//nfse:serieRps', namespaces=ns) or
                             tree.findtext('.//IdentificacaoRps//Serie') or
                             ""
                         )
                         
-                        # Data de competência (pode ser igual à emissão)
+                        # Data de competência - dCompet (padrão nacional)
                         data_competencia = (
+                            tree.findtext('.//nfse:DPS//nfse:infDPS//nfse:dCompet', namespaces=ns) or
                             tree.findtext('.//nfse:dCompetencia', namespaces=ns) or
                             tree.findtext('.//Competencia') or
                             data_emissao
@@ -1749,8 +1793,8 @@ def buscar_nfse_ambiente_nacional(
                             'discriminacao': discriminacao,
                             'provedor': 'AMBIENTE_NACIONAL',
                             'codigo_municipio': codigo_municipio,
-                            'nome_municipio': '',  # Não disponível no XML
-                            'uf': '',  # Não disponível no XML
+                            'nome_municipio': nome_municipio,
+                            'uf': uf,
                             'situacao': 'NORMAL',
                             'numero_rps': numero_rps,
                             'serie_rps': serie_rps,
