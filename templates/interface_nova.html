@@ -970,6 +970,20 @@
                 padding: 2px 6px !important;
             }
         }
+        
+        /* Estilos para headers clicáveis da tabela NFS-e */
+        #table-nfse thead th[onclick] {
+            transition: background-color 0.2s ease;
+        }
+        
+        #table-nfse thead th[onclick]:hover {
+            background-color: #34495e !important;
+            color: white !important;
+        }
+        
+        #table-nfse thead th[onclick]:active {
+            background-color: #2c3e50 !important;
+        }
     </style>
     
     <!-- FullCalendar CSS e JS -->
@@ -3864,14 +3878,14 @@
                     <table id="table-nfse">
                         <thead>
                             <tr>
-                                <th style="width: 100px;">Número</th>
-                                <th style="width: 120px;">Data Emissão</th>
-                                <th style="width: 250px;">Tomador</th>
-                                <th style="width: 180px;">Município</th>
-                                <th style="width: 120px;">Valor Serviço</th>
-                                <th style="width: 100px;">ISS</th>
-                                <th style="width: 100px;">Situação</th>
-                                <th style="width: 100px;">Ações</th>
+                                <th onclick="ordenarNFSe('numero_nfse')" style="width: 100px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">Número <span id="sort-numero_nfse"></span></th>
+                                <th onclick="ordenarNFSe('data_emissao')" style="width: 120px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">Data Emissão <span id="sort-data_emissao"></span></th>
+                                <th onclick="ordenarNFSe('razao_social_tomador')" style="width: 250px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">Tomador <span id="sort-razao_social_tomador"></span></th>
+                                <th onclick="ordenarNFSe('nome_municipio')" style="width: 180px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">Município <span id="sort-nome_municipio"></span></th>
+                                <th onclick="ordenarNFSe('valor_servico')" style="width: 120px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">Valor Serviço <span id="sort-valor_servico"></span></th>
+                                <th onclick="ordenarNFSe('valor_iss')" style="width: 100px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">ISS <span id="sort-valor_iss"></span></th>
+                                <th onclick="ordenarNFSe('situacao')" style="width: 100px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">Situação <span id="sort-situacao"></span></th>
+                                <th style="width: 100px; font-size: 14px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="tbody-nfse">

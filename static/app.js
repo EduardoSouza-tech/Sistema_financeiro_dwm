@@ -7127,6 +7127,70 @@ window.atualizarResumoNFSe = function(nfses) {
     document.getElementById('municipios-nfse').textContent = municipiosUnicos;
 };
 
+// Controle de ordenação
+window.nfseOrdenacao = {
+    campo: null,
+    ascendente: true
+};
+
+// Ordenar NFS-e por campo
+window.ordenarNFSe = function(campo) {
+    // Se clicar no mesmo campo, inverte a ordem
+    if (window.nfseOrdenacao.campo === campo) {
+        window.nfseOrdenacao.ascendente = !window.nfseOrdenacao.ascendente;
+    } else {
+        // Novo campo, sempre começa ascendente
+        window.nfseOrdenacao.campo = campo;
+        window.nfseOrdenacao.ascendente = true;
+    }
+    
+    // Limpar todos os indicadores de ordenação
+    ['numero_nfse', 'data_emissao', 'razao_social_tomador', 'nome_municipio', 'valor_servico', 'valor_iss', 'situacao'].forEach(c => {
+        const el = document.getElementById(`sort-${c}`);
+        if (el) el.textContent = '';
+    });
+    
+    // Adicionar indicador no campo atual
+    const indicador = document.getElementById(`sort-${campo}`);
+    if (indicador) {
+        indicador.textContent = window.nfseOrdenacao.ascendente ? ' ▲' : ' ▼';
+    }
+    
+    // Ordenar o array
+    window.nfsesCarregadas.sort((a, b) => {
+        let valorA = a[campo];
+        let valorB = b[campo];
+        
+        // Tratar valores nulos
+        if (valorA === null || valorA === undefined) valorA = '';
+        if (valorB === null || valorB === undefined) valorB = '';
+        
+        // Ordenação numérica para valores
+        if (campo === 'valor_servico' || campo === 'valor_iss') {
+            valorA = parseFloat(valorA) || 0;
+            valorB = parseFloat(valorB) || 0;
+        }
+        
+        // Ordenação de data
+        if (campo === 'data_emissao') {
+            valorA = new Date(valorA || '1900-01-01');
+            valorB = new Date(valorB || '1900-01-01');
+        }
+        
+        // Comparação
+        let comparacao = 0;
+        if (valorA < valorB) comparacao = -1;
+        if (valorA > valorB) comparacao = 1;
+        
+        return window.nfseOrdenacao.ascendente ? comparacao : -comparacao;
+    });
+    
+    // Atualizar exibição
+    window.exibirNFSe(window.nfsesCarregadas);
+    
+    console.log(`📊 Ordenado por ${campo} (${window.nfseOrdenacao.ascendente ? 'crescente' : 'decrescente'})`);
+};
+
 // Exportar NFS-e para Excel (CSV)
 window.exportarNFSeExcel = async function() {
     const dataInicial = document.getElementById('nfse-data-inicial').value;
