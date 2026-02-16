@@ -632,6 +632,299 @@ def testar_conexao(url_webservice: str, certificado_path: str, certificado_senha
 
 
 # ============================================================================
+# AMBIENTE NACIONAL DE NFS-e (API REST)
+# ============================================================================
+# 
+# O Ambiente Nacional (ADN) é a solução OFICIAL do governo federal para
+# consulta de NFS-e via certificado digital, similar ao sistema de NF-e e CT-e.
+# 
+# Substitui a necessidade de integrar com APIs SOAP de cada município
+# individualmente. Usa protocolo REST moderno com autenticação mTLS.
+# 
+# URLs OFICIAIS:
+# - Produção:     https://adn.nfse.gov.br
+# - Homologação:  https://adn.producaorestrita.nfse.gov.br
+# 
+# ENDPOINTS PRINCIPAIS:
+# - GET /contribuintes/DFe/{NSU} - Consulta incremental por NSU
+# - GET /danfse/{chave}           - Download de DANFSe (PDF oficial)
+# ============================================================================
+
+class NFSeAmbienteNacional:
+    """
+    Cliente para o Ambiente Nacional de NFS-e (API REST oficial do governo)
+    
+    Implementa consulta incremental via NSU (Número Sequencial Único),
+    similar ao sistema de NF-e e CT-e.
+    
+    Características:
+    - Autenticação mTLS com certificado digital A1
+    - Respostas em JSON com XMLs compactados (Base64 + gzip)
+    - Rate limit: ~1 req/segundo
+    - Namespace: http://www.sped.fazenda.gov.br/nfse
+    """
+    
+    def __init__(self, certificado_path: str, certificado_senha: str, ambiente: str = 'producao'):
+        """
+        Inicializa cliente do Ambiente Nacional de NFS-e
+        
+        Args:
+            certificado_path: Caminho para arquivo .pfx do certificado A1
+            certificado_senha: Senha do certificado
+            ambiente: 'producao' ou 'homologacao'
+        """
+        self.certificado_path = certificado_path
+        self.certificado_senha = certificado_senha
+        self.ambiente = ambiente
+        
+        # URLs oficiais do Ambiente Nacional
+        if ambiente == 'producao':
+            self.url_base = "https://adn.nfse.gov.br"
+        else:
+            self.url_base = "https://adn.producaorestrita.nfse.gov.br"
+        
+        logger.info(f"🌐 Cliente Ambiente Nacional inicializado: {self.url_base}")
+    
+    def consultar_nsu(self, nsu: int, timeout: int = 45) -> Optional[Dict]:
+        """
+        Consulta documento por NSU (Número Sequencial Único)
+        
+        Endpoint: GET /contribuintes/DFe/{NSU}
+        
+        Args:
+            nsu: Número Sequencial Único (15 dígitos)
+            timeout: Timeout da requisição em segundos
+        
+        Returns:
+            dict: Resposta JSON da API ou None se não encontrado
+            
+        Formato da resposta:
+        {
+            "StatusProcessamento": "OK",
+            "LoteDFe": [
+                {
+                    "NSU": "000000000001234",
+                    "ChaveAcesso": "31062001213891738000138250000000157825012270096818",
+                    "ArquivoXml": "H4sIAAAAAAAA..."  // Base64 + gzip
+                }
+            ],
+            "ultNSU": "000000000001234",
+            "maxNSU": "000000000009999"
+        }
+        """
+        import time
+        
+        endpoint = f"{self.url_base}/contribuintes/DFe/{nsu}"
+        
+        try:
+            # Headers para API REST
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'User-Agent': 'Sistema Financeiro DWM/1.0'
+            }
+            
+            # Requisição com certificado mTLS
+            response = post_pkcs12(
+                endpoint,
+                data=b'',
+                headers=headers,
+                pkcs12_filename=self.certificado_path,
+                pkcs12_password=self.certificado_senha,
+                timeout=timeout,
+                verify=True
+            )
+            
+            # NSU não encontrado (esperado quando atingir o fim)
+            if response.status_code == 404:
+                logger.debug(f"📭 NSU {nsu} não encontrado")
+                return None
+            
+            # Rate limit (aguardar e tentar novamente)
+            if response.status_code == 429:
+                logger.warning(f"⏱️ Rate limit atingido no NSU {nsu}, aguardando 2s...")
+                time.sleep(2)
+                return None
+            
+            # Outros erros HTTP
+            if response.status_code != 200:
+                logger.error(f"❌ Erro HTTP {response.status_code} ao consultar NSU {nsu}")
+                logger.error(f"   Resposta: {response.text[:200]}")
+                return None
+            
+            # Parse JSON
+            resultado = response.json()
+            logger.debug(f"✅ NSU {nsu}: JSON recebido")
+            return resultado
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao consultar NSU {nsu}: {e}")
+            return None
+    
+    def consultar_danfse(self, chave_acesso: str, retry: int = 3, timeout: int = 45) -> Optional[bytes]:
+        """
+        Consulta DANFSe (PDF oficial da NFS-e) por chave de acesso
+        
+        Este é o PDF OFICIAL gerado pelo Ambiente Nacional, equivalente ao
+        DANFE da NF-e. Contém layout padronizado com brasão, QR Code e todas
+        as informações fiscais.
+        
+        Endpoint: GET /danfse/{chave}
+        
+        Args:
+            chave_acesso: Chave de acesso da NFS-e (50 dígitos, sem prefixo "NFS")
+            retry: Número de tentativas em caso de erro temporário
+            timeout: Timeout da requisição em segundos
+        
+        Returns:
+            bytes: Conteúdo do PDF oficial ou None se não disponível
+        """
+        import time
+        
+        endpoint = f"{self.url_base}/danfse/{chave_acesso}"
+        
+        for tentativa in range(1, retry + 1):
+            try:
+                if tentativa > 1:
+                    logger.info(f"   🔄 Tentativa {tentativa}/{retry} para chave {chave_acesso[:20]}...")
+                    time.sleep(2)  # Aguarda entre tentativas
+                
+                # Headers para API REST
+                headers = {
+                    'Accept': 'application/pdf',
+                    'User-Agent': 'Sistema Financeiro DWM/1.0'
+                }
+                
+                # Requisição com certificado mTLS
+                response = post_pkcs12(
+                    endpoint,
+                    data=b'',
+                    headers=headers,
+                    pkcs12_filename=self.certificado_path,
+                    pkcs12_password=self.certificado_senha,
+                    timeout=timeout,
+                    verify=True
+                )
+                
+                # PDF encontrado
+                if response.status_code == 200:
+                    content_type = response.headers.get('Content-Type', '')
+                    
+                    # Valida se é realmente um PDF
+                    if 'application/pdf' in content_type or response.content.startswith(b'%PDF'):
+                        logger.info(f"✅ DANFSe oficial obtido ({len(response.content):,} bytes)")
+                        return response.content
+                    else:
+                        logger.warning(f"⚠️ Resposta não é PDF (Content-Type: {content_type})")
+                        continue
+                
+                # Erros temporários do servidor - tentar novamente
+                if response.status_code in [502, 503, 504]:
+                    logger.warning(f"⚠️ Servidor temporariamente indisponível ({response.status_code})")
+                    if tentativa < retry:
+                        continue
+                
+                # PDF não disponível (404)
+                if response.status_code == 404:
+                    logger.warning(f"📭 DANFSe não disponível para chave {chave_acesso[:20]}...")
+                    return None
+                
+                # Outros erros
+                logger.error(f"❌ Erro HTTP {response.status_code} ao consultar DANFSe")
+                return None
+                
+            except Exception as e:
+                logger.error(f"❌ Erro ao consultar DANFSe: {e}")
+                if tentativa < retry:
+                    continue
+                return None
+        
+        # Todas as tentativas falharam
+        logger.error(f"❌ Falha ao obter DANFSe após {retry} tentativas")
+        return None
+    
+    def extrair_documentos(self, resultado: Optional[Dict]) -> List[Tuple[str, str, str]]:
+        """
+        Extrai documentos XML do resultado da consulta NSU
+        
+        Args:
+            resultado: dict JSON retornado por consultar_nsu()
+        
+        Returns:
+            Lista de tuplas (nsu, xml_content, tipo_documento)
+        """
+        import base64
+        import gzip
+        
+        if not resultado:
+            return []
+        
+        documentos = []
+        
+        try:
+            lote_dfe = resultado.get('LoteDFe', [])
+            
+            if not lote_dfe:
+                logger.debug(f"📭 Resposta sem documentos no lote")
+                return []
+            
+            # Processa cada documento do lote
+            for doc in lote_dfe:
+                try:
+                    doc_nsu = str(doc.get('NSU', '')).zfill(15)  # Padroniza para 15 dígitos
+                    xml_base64 = doc.get('ArquivoXml', '')
+                    chave_acesso = doc.get('ChaveAcesso', '')
+                    
+                    if not xml_base64:
+                        logger.warning(f"⚠️ NSU {doc_nsu}: sem ArquivoXml")
+                        continue
+                    
+                    # Decodifica Base64 e descomprime gzip
+                    xml_comprimido = base64.b64decode(xml_base64)
+                    xml = gzip.decompress(xml_comprimido).decode('utf-8')
+                    
+                    # Determina tipo de documento
+                    if '<Nfse' in xml or '<NFSe' in xml or '<nfse' in xml or '<CompNfse' in xml:
+                        tipo = 'NFS-e'
+                    elif '<eventoCancelamento' in xml:
+                        tipo = 'Cancelamento'
+                    elif '<eventoSubstituicao' in xml:
+                        tipo = 'Substituicao'
+                    else:
+                        tipo = 'Desconhecido'
+                    
+                    documentos.append((doc_nsu, xml, tipo))
+                    logger.debug(f"✅ NSU {doc_nsu}: {tipo} extraído")
+                    
+                except Exception as e:
+                    logger.warning(f"⚠️ Erro ao processar documento do lote: {e}")
+                    continue
+            
+            return documentos
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao extrair documentos: {e}")
+            return []
+    
+    def validar_xml(self, xml_content: str) -> bool:
+        """
+        Valida estrutura básica do XML da NFS-e
+        
+        Args:
+            xml_content: Conteúdo XML (string)
+        
+        Returns:
+            bool: True se válido, False caso contrário
+        """
+        try:
+            tree = etree.fromstring(xml_content.encode('utf-8'))
+            return True
+        except Exception as e:
+            logger.error(f"❌ XML inválido: {e}")
+            return False
+
+
+# ============================================================================
 # EXEMPLO DE USO
 # ============================================================================
 

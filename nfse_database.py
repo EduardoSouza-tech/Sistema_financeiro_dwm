@@ -736,6 +736,130 @@ class NFSeDatabase:
             logger.error(f"❌ Erro ao excluir certificado: {e}")
             raise
 
+    # ========================================================================
+    # CONTROLE DE NSU (Ambiente Nacional)
+    # ========================================================================
+    
+    def get_last_nsu_nfse(self, cnpj_informante: str) -> Optional[int]:
+        """
+        Recupera último NSU processado para um CNPJ no Ambiente Nacional
+        
+        Args:
+            cnpj_informante: CNPJ do informante (certificado)
+        
+        Returns:
+            int: Último NSU processado ou None se não encontrado
+        """
+        try:
+            with self.conn.cursor() as cursor:
+                # Verifica se tabela existe
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'nsu_nfse'
+                    )
+                """)
+                tabela_existe = cursor.fetchone()[0]
+                
+                if not tabela_existe:
+                    logger.warning("⚠️ Tabela nsu_nfse não existe, criando...")
+                    self._criar_tabela_nsu()
+                    return None
+                
+                # Busca último NSU
+                sql = """
+                SELECT ultimo_nsu 
+                FROM nsu_nfse 
+                WHERE cnpj_informante = %s
+                ORDER BY atualizado_em DESC 
+                LIMIT 1
+                """
+                cursor.execute(sql, (cnpj_informante,))
+                resultado = cursor.fetchone()
+                
+                if resultado:
+                    logger.debug(f"📍 Último NSU para {cnpj_informante}: {resultado[0]}")
+                    return resultado[0]
+                else:
+                    logger.debug(f"📍 Nenhum NSU registrado para {cnpj_informante}")
+                    return None
+                    
+        except Exception as e:
+            logger.error(f"❌ Erro ao buscar último NSU: {e}")
+            return None
+    
+    def set_last_nsu_nfse(self, cnpj_informante: str, nsu: int) -> bool:
+        """
+        Atualiza último NSU processado para um CNPJ
+        
+        Args:
+            cnpj_informante: CNPJ do informante
+            nsu: Número do NSU processado
+        
+        Returns:
+            bool: True se sucesso
+        """
+        try:
+            with self.conn.cursor() as cursor:
+                # Verifica se tabela existe
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'nsu_nfse'
+                    )
+                """)
+                tabela_existe = cursor.fetchone()[0]
+                
+                if not tabela_existe:
+                    logger.warning("⚠️ Tabela nsu_nfse não existe, criando...")
+                    self._criar_tabela_nsu()
+                
+                # Upsert (INSERT ... ON CONFLICT UPDATE)
+                sql = """
+                INSERT INTO nsu_nfse (cnpj_informante, ultimo_nsu, atualizado_em)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (cnpj_informante) 
+                DO UPDATE SET 
+                    ultimo_nsu = EXCLUDED.ultimo_nsu,
+                    atualizado_em = NOW()
+                """
+                cursor.execute(sql, (cnpj_informante, nsu))
+                self.conn.commit()
+                
+                logger.debug(f"💾 NSU atualizado para {cnpj_informante}: {nsu}")
+                return True
+                
+        except Exception as e:
+            self.conn.rollback()
+            logger.error(f"❌ Erro ao atualizar NSU: {e}")
+            return False
+    
+    def _criar_tabela_nsu(self):
+        """Cria tabela nsu_nfse se não existir"""
+        try:
+            with self.conn.cursor() as cursor:
+                sql = """
+                CREATE TABLE IF NOT EXISTS nsu_nfse (
+                    id SERIAL PRIMARY KEY,
+                    cnpj_informante VARCHAR(14) NOT NULL UNIQUE,
+                    ultimo_nsu BIGINT NOT NULL DEFAULT 0,
+                    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_nsu_nfse_cnpj 
+                ON nsu_nfse(cnpj_informante);
+                """
+                cursor.execute(sql)
+                self.conn.commit()
+                logger.info("✅ Tabela nsu_nfse criada com sucesso")
+        except Exception as e:
+            self.conn.rollback()
+            logger.error(f"❌ Erro ao criar tabela nsu_nfse: {e}")
+            raise
+
 
 # ============================================================================
 # EXEMPLO DE USO

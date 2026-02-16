@@ -11357,9 +11357,6 @@ def buscar_nfse():
                     'error': 'Certificado A1 não configurado. Faça o upload do certificado digital nas Configurações da NFS-e.'
                 }), 400
         
-        from nfse_functions import buscar_nfse_periodo
-        from datetime import datetime
-        
         # Converter datas
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
         data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
@@ -11367,17 +11364,51 @@ def buscar_nfse():
         # Municípios específicos ou todos
         codigos_municipios = data.get('codigos_municipios')
         
-        # Buscar NFS-e
-        resultado = buscar_nfse_periodo(
-            db_params=db_params,
-            empresa_id=empresa_id,
-            cnpj_prestador=cnpj_prestador,
-            data_inicial=data_inicial,
-            data_final=data_final,
-            certificado_path=certificado_path,
-            certificado_senha=certificado_senha,
-            codigos_municipios=codigos_municipios
-        )
+        # Verificar método de busca (SOAP municipal ou Ambiente Nacional)
+        metodo = data.get('metodo', 'soap')  # Padrão: SOAP municipal
+        
+        if metodo == 'ambiente_nacional':
+            # 🌐 BUSCA VIA AMBIENTE NACIONAL (API REST)
+            # Usa consulta incremental por NSU, similar a NF-e e CT-e
+            # Vantagem: uma única API para todos os municípios
+            from nfse_functions import buscar_nfse_ambiente_nacional
+            
+            logger.info("🌐 Usando Ambiente Nacional (API REST) para busca de NFS-e")
+            
+            resultado = buscar_nfse_ambiente_nacional(
+                db_params=db_params,
+                empresa_id=empresa_id,
+                cnpj_informante=cnpj_prestador,
+                certificado_path=certificado_path,
+                certificado_senha=certificado_senha,
+                ambiente=data.get('ambiente', 'producao'),
+                busca_completa=data.get('busca_completa', False),
+                max_documentos=data.get('max_documentos', 50)
+            )
+        else:
+            # 📡 BUSCA VIA SOAP MUNICIPAL (método tradicional)
+            # Requer configuração de URL para cada município
+            from nfse_functions import buscar_nfse_periodo
+            
+            logger.info("📡 Usando APIs SOAP municipais para busca de NFS-e")
+            
+            resultado = buscar_nfse_periodo(
+                db_params=db_params,
+                empresa_id=empresa_id,
+                cnpj_prestador=cnpj_prestador,
+                data_inicial=data_inicial,
+                data_final=data_final,
+                certificado_path=certificado_path,
+                certificado_senha=certificado_senha,
+                codigos_municipios=codigos_municipios
+            )
+        
+        # Limpar arquivo temporário de certificado se foi criado
+        if cert_data and os.path.exists(certificado_path):
+            try:
+                os.unlink(certificado_path)
+            except:
+                pass
         
         # Log de auditoria
         from nfse_functions import registrar_operacao

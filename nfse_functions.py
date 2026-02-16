@@ -1340,3 +1340,275 @@ def _gerar_pdf_minimal(nfse: Dict) -> bytes:
     buf.write(b'%%EOF\n')
     
     return buf.getvalue()
+
+
+# ============================================================================
+# BUSCA VIA AMBIENTE NACIONAL (API REST)
+# ============================================================================
+
+def buscar_nfse_ambiente_nacional(
+    db_params: Dict,
+    empresa_id: int,
+    cnpj_informante: str,
+    certificado_path: str,
+    certificado_senha: str,
+    ambiente: str = 'producao',
+    busca_completa: bool = False,
+    max_documentos: int = 50
+) -> Dict:
+    """
+    Busca NFS-e via Ambiente Nacional (API REST oficial)
+    
+    Usa consulta incremental por NSU, similar ao sistema de NF-e e CT-e.
+    Substitui a necessidade de configurar URLs de cada município.
+    
+    Vantagens:
+    - Uma única API para todos os municípios
+    - Baseada em NSU (busca incremental automática)
+    - Autenticação mTLS com certificado digital
+    - PDFs oficiais (DANFSe) disponíveis via API
+    - Protocolo REST moderno (não SOAP)
+    
+    Args:
+        db_params: Parâmetros de conexão ao banco
+        empresa_id: ID da empresa
+        cnpj_informante: CNPJ do certificado (informante)
+        certificado_path: Caminho do arquivo .pfx
+        certificado_senha: Senha do certificado
+        ambiente: 'producao' ou 'homologacao'
+        busca_completa: Se True, inicia do NSU=0 (busca completa)
+        max_documentos: Limite de documentos por execução
+    
+    Returns:
+        Dict com resultado:
+        {
+            'sucesso': bool,
+            'total_nfse': int,
+            'nfse_novas': int,
+            'nfse_atualizadas': int,
+            'ultimo_nsu': int,
+            'erros': list,
+            'detalhes': list
+        }
+    """
+    from nfse_service import NFSeAmbienteNacional
+    from lxml import etree
+    import time
+    
+    resultado = {
+        'sucesso': False,
+        'total_nfse': 0,
+        'nfse_novas': 0,
+        'nfse_atualizadas': 0,
+        'ultimo_nsu': 0,
+        'erros': [],
+        'detalhes': []
+    }
+    
+    try:
+        logger.info("=" * 70)
+        logger.info("🌐 BUSCA NFS-e VIA AMBIENTE NACIONAL")
+        logger.info("=" * 70)
+        logger.info(f"Método: Consulta incremental por NSU (REST API)")
+        logger.info(f"Ambiente: {ambiente}")
+        logger.info(f"CNPJ: {cnpj_informante}")
+        logger.info("=" * 70)
+        
+        # Criar cliente do Ambiente Nacional
+        cliente = NFSeAmbienteNacional(
+            certificado_path=certificado_path,
+            certificado_senha=certificado_senha,
+            ambiente=ambiente
+        )
+        
+        with NFSeDatabase(db_params) as db:
+            # Recuperar último NSU processado
+            if busca_completa:
+                ultimo_nsu = 0
+                logger.info("🔄 BUSCA COMPLETA: Iniciando do NSU=0")
+            else:
+                ultimo_nsu = db.get_last_nsu_nfse(cnpj_informante) or 0
+                logger.info(f"📍 BUSCA INCREMENTAL: Último NSU = {ultimo_nsu}")
+            
+            nsu_atual = max(ultimo_nsu + 1, 1)  # Começa do próximo (mínimo 1)
+            max_tentativas_404 = 5  # Para após 5 NSUs seguidos sem retorno
+            tentativas_404 = 0
+            documentos_processados = 0
+            
+            logger.info(f"🔍 Buscando a partir do NSU {nsu_atual}")
+            
+            # Loop de consulta incremental
+            while tentativas_404 < max_tentativas_404 and documentos_processados < max_documentos:
+                # Delay para respeitar rate limit (~1 req/segundo)
+                if nsu_atual > ultimo_nsu + 1:
+                    time.sleep(1)
+                
+                # Consultar NSU atual
+                resposta = cliente.consultar_nsu(nsu_atual)
+                
+                if resposta is None:
+                    # NSU não encontrado (404) ou rate limit (429)
+                    tentativas_404 += 1
+                    nsu_atual += 1
+                    continue
+                
+                # Reset contador de 404 (encontrou algo)
+                tentativas_404 = 0
+                
+                # Extrair documentos do JSON
+                documentos = cliente.extrair_documentos(resposta)
+                
+                if not documentos:
+                    logger.debug(f"📭 NSU {nsu_atual}: sem documentos")
+                    nsu_atual += 1
+                    continue
+                
+                # Processar cada documento
+                for doc_nsu, xml_content, tipo_doc in documentos:
+                    try:
+                        # Validar XML
+                        if not cliente.validar_xml(xml_content):
+                            logger.warning(f"⚠️ NSU {doc_nsu}: XML inválido, pulando")
+                            continue
+                        
+                        # Processar apenas NFS-e (ignorar eventos)
+                        if tipo_doc != 'NFS-e':
+                            logger.info(f"ℹ️ NSU {doc_nsu}: {tipo_doc} (ignorado)")
+                            continue
+                        
+                        # Extrair informações da NFS-e
+                        tree = etree.fromstring(xml_content.encode('utf-8'))
+                        
+                        # Namespaces comuns
+                        ns = {
+                            'nfse': 'http://www.sped.fazenda.gov.br/nfse',
+                            'nfse2': 'http://www.portalfiscal.inf.br/nfse'
+                        }
+                        
+                        # Tentar extrair dados (estrutura pode variar)
+                        numero_nfse = (
+                            tree.findtext('.//nfse:nNFSe', namespaces=ns) or
+                            tree.findtext('.//nfse2:Numero', namespaces=ns) or
+                            tree.findtext('.//Numero') or
+                            tree.findtext('.//NumeroNfse') or
+                            f"NSU_{doc_nsu}"
+                        )
+                        
+                        data_emissao = (
+                            tree.findtext('.//nfse:dhEmi', namespaces=ns) or
+                            tree.findtext('.//nfse2:DataEmissao', namespaces=ns) or
+                            tree.findtext('.//DataEmissao') or
+                            datetime.now().isoformat()
+                        )
+                        
+                        valor_servicos = (
+                            tree.findtext('.//nfse:vServ', namespaces=ns) or
+                            tree.findtext('.//nfse2:ValorServicos', namespaces=ns) or
+                            tree.findtext('.//ValorServicos') or
+                            "0"
+                        )
+                        
+                        cnpj_prestador = (
+                            tree.findtext('.//nfse:prest//nfse:CNPJ', namespaces=ns) or
+                            tree.findtext('.//Prestador//Cnpj') or
+                            cnpj_informante
+                        )
+                        
+                        cnpj_tomador = (
+                            tree.findtext('.//nfse:toma//nfse:CNPJ', namespaces=ns) or
+                            tree.findtext('.//Tomador//IdentificacaoTomador//CpfCnpj//Cnpj') or
+                            ""
+                        )
+                        
+                        codigo_municipio = (
+                            tree.findtext('.//nfse:cMunPrestacao', namespaces=ns) or
+                            tree.findtext('.//CodigoMunicipio') or
+                            ""
+                        )
+                        
+                        # Verificar se NFS-e já existe
+                        nfse_existente = None
+                        if codigo_municipio:
+                            nfse_existente = db.get_nfse_by_numero(numero_nfse, codigo_municipio)
+                        
+                        # Preparar dados para salvar
+                        nfse_data = {
+                            'empresa_id': empresa_id,
+                            'numero_nfse': numero_nfse,
+                            'codigo_municipio': codigo_municipio,
+                            'cnpj_prestador': cnpj_prestador,
+                            'cnpj_tomador': cnpj_tomador,
+                            'data_emissao': data_emissao,
+                            'valor_servico': float(valor_servicos.replace(',', '.')),
+                            'xml_content': xml_content,
+                            'tipo': tipo_doc
+                        }
+                        
+                        # Salvar no banco
+                        nfse_id = db.salvar_nfse(nfse_data)
+                        
+                        if nfse_id:
+                            if nfse_existente:
+                                resultado['nfse_atualizadas'] += 1
+                                logger.info(f"✅ NSU {doc_nsu}: NFS-e {numero_nfse} atualizada")
+                            else:
+                                resultado['nfse_novas'] += 1
+                                logger.info(f"✅ NSU {doc_nsu}: NFS-e {numero_nfse} salva (R$ {valor_servicos})")
+                            
+                            resultado['total_nfse'] += 1
+                            documentos_processados += 1
+                            
+                            # Tentar baixar DANFSe (PDF oficial)
+                            try:
+                                # Extrair chave de acesso (formato: "NFS" + 50 dígitos)
+                                inf_nfse = tree.find('.//nfse:infNFSe', namespaces=ns)
+                                if inf_nfse is not None:
+                                    chave_id = inf_nfse.get('Id', '')
+                                    if chave_id and chave_id.startswith('NFS'):
+                                        chave_acesso = chave_id[3:]  # Remove prefixo "NFS"
+                                        
+                                        logger.info(f"   📄 Baixando DANFSe oficial...")
+                                        pdf_content = cliente.consultar_danfse(chave_acesso, retry=2)
+                                        
+                                        if pdf_content:
+                                            # TODO: Salvar PDF no storage
+                                            # pdf_path = salvar_pdf_nfse(...)
+                                            # with open(pdf_path, 'wb') as f:
+                                            #     f.write(pdf_content)
+                                            logger.info(f"   ✅ DANFSe oficial obtido ({len(pdf_content):,} bytes)")
+                                        else:
+                                            logger.info(f"   ℹ️ DANFSe não disponível na API")
+                            
+                            except Exception as e_pdf:
+                                logger.debug(f"   ⚠️ Erro ao baixar PDF: {e_pdf}")
+                    
+                    except Exception as e:
+                        logger.error(f"❌ Erro ao processar NSU {doc_nsu}: {e}")
+                        resultado['erros'].append(f"NSU {doc_nsu}: {str(e)}")
+                        continue
+                
+                nsu_atual += 1
+            
+            # Atualizar último NSU processado
+            if resultado['total_nfse'] > 0:
+                maior_nsu = nsu_atual - 1
+                db.set_last_nsu_nfse(cnpj_informante, maior_nsu)
+                resultado['ultimo_nsu'] = maior_nsu
+                logger.info(f"💾 Último NSU atualizado: {maior_nsu}")
+            
+            resultado['sucesso'] = True
+            
+            logger.info("=" * 70)
+            logger.info(f"✅ BUSCA CONCLUÍDA")
+            logger.info(f"Total de NFS-e: {resultado['total_nfse']}")
+            logger.info(f"Novas: {resultado['nfse_novas']} | Atualizadas: {resultado['nfse_atualizadas']}")
+            logger.info(f"Último NSU: {resultado['ultimo_nsu']}")
+            logger.info("=" * 70)
+    
+    except Exception as e:
+        logger.error(f"❌ Erro na busca via Ambiente Nacional: {e}")
+        resultado['erros'].append(str(e))
+        import traceback
+        traceback.print_exc()
+    
+    return resultado
