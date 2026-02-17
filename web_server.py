@@ -13186,6 +13186,163 @@ def exportar_razao_contabil_api():
 
 
 # =============================================================================
+# SPED ECD - FASE 4 SPEED
+# =============================================================================
+
+@app.route('/api/sped/ecd/gerar', methods=['POST'])
+@require_auth
+def sped_ecd_gerar():
+    """
+    Gera arquivo SPED ECD (Escrituração Contábil Digital)
+    
+    Body:
+    {
+        "data_inicio": "YYYY-MM-DD",
+        "data_fim": "YYYY-MM-DD",
+        "versao_plano_id": <opcional>
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "total_linhas": 1234,
+        "hash": "ABC123...",
+        "data_geracao": "17/02/2026 10:30:00",
+        "periodo": "01012026 a 31122026",
+        "preview": "primeiras 50 linhas do arquivo"
+    }
+    """
+    try:
+        from sped_ecd_functions import gerar_arquivo_ecd
+        
+        data = request.get_json()
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        # Validações
+        data_inicio = data.get('data_inicio')
+        data_fim = data.get('data_fim')
+        versao_plano_id = data.get('versao_plano_id')
+        
+        if not data_inicio or not data_fim:
+            return jsonify({
+                'success': False,
+                'error': 'data_inicio e data_fim são obrigatórios'
+            }), 400
+        
+        # Gerar ECD
+        resultado = gerar_arquivo_ecd(
+            empresa_id=empresa_id,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            versao_plano_id=versao_plano_id
+        )
+        
+        if not resultado['success']:
+            return jsonify(resultado), 400
+        
+        # Retornar preview (primeiras 50 linhas)
+        linhas = resultado['conteudo'].split('\n')
+        preview = '\n'.join(linhas[:50])
+        if len(linhas) > 50:
+            preview += f"\n\n... (mais {len(linhas) - 50} linhas)"
+        
+        return jsonify({
+            'success': True,
+            'total_linhas': resultado['total_linhas'],
+            'hash': resultado['hash'],
+            'data_geracao': resultado['data_geracao'],
+            'periodo': resultado['periodo'],
+            'preview': preview
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar ECD: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/sped/ecd/exportar', methods=['POST'])
+@require_auth
+def sped_ecd_exportar():
+    """
+    Exporta arquivo SPED ECD completo
+    
+    Body:
+    {
+        "data_inicio": "YYYY-MM-DD",
+        "data_fim": "YYYY-MM-DD",
+        "versao_plano_id": <opcional>
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "conteudo": "conteúdo completo do arquivo TXT",
+        "total_linhas": 1234,
+        "hash": "ABC123...",
+        "nome_arquivo": "ECD_CNPJ_AAAAMMDD.txt"
+    }
+    """
+    try:
+        from sped_ecd_functions import gerar_arquivo_ecd
+        from database_postgresql import get_connection
+        
+        data = request.get_json()
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        # Validações
+        data_inicio = data.get('data_inicio')
+        data_fim = data.get('data_fim')
+        versao_plano_id = data.get('versao_plano_id')
+        
+        if not data_inicio or not data_fim:
+            return jsonify({
+                'success': False,
+                'error': 'data_inicio e data_fim são obrigatórios'
+            }), 400
+        
+        # Gerar ECD
+        resultado = gerar_arquivo_ecd(
+            empresa_id=empresa_id,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            versao_plano_id=versao_plano_id
+        )
+        
+        if not resultado['success']:
+            return jsonify(resultado), 400
+        
+        # Buscar CNPJ para nome do arquivo
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT cnpj FROM empresas WHERE id = %s", (empresa_id,))
+            empresa = cursor.fetchone()
+            cnpj_limpo = ''.join(filter(str.isdigit, empresa[0] if empresa and empresa[0] else '00000000000000'))
+        finally:
+            cursor.close()
+            conn.close()
+        
+        # Nome do arquivo: ECD_CNPJ_AAAAMMDD.txt
+        data_ref = data_fim.replace('-', '')[:8]  # AAAAMMDD
+        nome_arquivo = f"ECD_{cnpj_limpo}_{data_ref}.txt"
+        
+        return jsonify({
+            'success': True,
+            'conteudo': resultado['conteudo'],
+            'total_linhas': resultado['total_linhas'],
+            'hash': resultado['hash'],
+            'nome_arquivo': nome_arquivo,
+            'data_geracao': resultado['data_geracao']
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao exportar ECD: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
 # INTEGRA CONTADOR - API SERPRO
 # =============================================================================
 
