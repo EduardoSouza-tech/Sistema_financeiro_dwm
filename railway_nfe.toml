@@ -1,0 +1,12 @@
+# railway.toml - Configuração do Microserviço NF-e/CT-e
+
+[build]
+builder = "nixpacks"
+buildCommand = "pip install -r requirements_nfe.txt"
+
+[deploy]
+startCommand = "gunicorn app_nfe:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
