@@ -13343,6 +13343,273 @@ def sped_ecd_exportar():
 
 
 # =============================================================================
+# SPED EFD-CONTRIBUIÇÕES - FASE 5 SPEED
+# =============================================================================
+
+@app.route('/api/sped/efd-contribuicoes/calcular', methods=['POST'])
+@require_auth
+def sped_efd_contribuicoes_calcular():
+    """
+    Calcula apuração mensal de PIS/COFINS sem gerar arquivo
+    
+    Body:
+    {
+        "mes": 1-12,
+        "ano": 2026
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "periodo": "01/2026",
+        "regime": "Lucro Presumido (Cumulativo)",
+        "receitas": {
+            "total": 100000.00,
+            "tributavel": 100000.00
+        },
+        "pis": {
+            "aliquota": 0.65,
+            "base_calculo": 100000.00,
+            "valor": 650.00
+        },
+        "cofins": {
+            "aliquota": 3.0,
+            "base_calculo": 100000.00,
+            "valor": 3000.00
+        },
+        "total_tributos": 3650.00
+    }
+    """
+    try:
+        from sped_efd_contribuicoes_functions import calcular_apuracao_mensal
+        
+        data = request.get_json()
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        # Validações
+        mes = data.get('mes')
+        ano = data.get('ano')
+        
+        if not mes or not ano:
+            return jsonify({
+                'success': False,
+                'error': 'mes e ano são obrigatórios'
+            }), 400
+        
+        if not isinstance(mes, int) or mes < 1 or mes > 12:
+            return jsonify({
+                'success': False,
+                'error': 'mes deve estar entre 1 e 12'
+            }), 400
+        
+        if not isinstance(ano, int) or ano < 2000 or ano > 2100:
+            return jsonify({
+                'success': False,
+                'error': 'ano inválido'
+            }), 400
+        
+        # Calcular apuração
+        resultado = calcular_apuracao_mensal(
+            empresa_id=empresa_id,
+            mes=mes,
+            ano=ano
+        )
+        
+        if not resultado['success']:
+            return jsonify(resultado), 400
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        logger.error(f"Erro ao calcular PIS/COFINS: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/sped/efd-contribuicoes/gerar', methods=['POST'])
+@require_auth
+def sped_efd_contribuicoes_gerar():
+    """
+    Gera arquivo EFD-Contribuições com preview
+    
+    Body:
+    {
+        "mes": 1-12,
+        "ano": 2026
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "total_linhas": 450,
+        "hash": "ABC123...",
+        "data_geracao": "17/02/2026 14:30:00",
+        "periodo": "01/2026",
+        "totais": {
+            "receitas": 100000.00,
+            "pis": 650.00,
+            "cofins": 3000.00,
+            "total_tributos": 3650.00
+        },
+        "preview": "primeiras 50 linhas do arquivo"
+    }
+    """
+    try:
+        from sped_efd_contribuicoes_functions import gerar_arquivo_efd_contribuicoes
+        
+        data = request.get_json()
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        # Validações
+        mes = data.get('mes')
+        ano = data.get('ano')
+        
+        if not mes or not ano:
+            return jsonify({
+                'success': False,
+                'error': 'mes e ano são obrigatórios'
+            }), 400
+        
+        if not isinstance(mes, int) or mes < 1 or mes > 12:
+            return jsonify({
+                'success': False,
+                'error': 'mes deve estar entre 1 e 12'
+            }), 400
+        
+        if not isinstance(ano, int) or ano < 2000 or ano > 2100:
+            return jsonify({
+                'success': False,
+                'error': 'ano inválido'
+            }), 400
+        
+        # Gerar EFD-Contribuições
+        resultado = gerar_arquivo_efd_contribuicoes(
+            empresa_id=empresa_id,
+            mes=mes,
+            ano=ano
+        )
+        
+        if not resultado['success']:
+            return jsonify(resultado), 400
+        
+        # Retornar preview (primeiras 50 linhas)
+        linhas = resultado['conteudo'].split('\n')
+        preview = '\n'.join(linhas[:50])
+        if len(linhas) > 50:
+            preview += f"\n\n... (mais {len(linhas) - 50} linhas)"
+        
+        return jsonify({
+            'success': True,
+            'total_linhas': resultado['total_linhas'],
+            'hash': resultado['hash'],
+            'data_geracao': resultado['data_geracao'],
+            'periodo': resultado['periodo'],
+            'totais': resultado['totais'],
+            'preview': preview
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar EFD-Contribuições: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/sped/efd-contribuicoes/exportar', methods=['POST'])
+@require_auth
+def sped_efd_contribuicoes_exportar():
+    """
+    Exporta arquivo EFD-Contribuições completo
+    
+    Body:
+    {
+        "mes": 1-12,
+        "ano": 2026
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "conteudo": "conteúdo completo do arquivo TXT",
+        "total_linhas": 450,
+        "hash": "ABC123...",
+        "nome_arquivo": "EFD_Contribuicoes_CNPJ_AAAAMM.txt",
+        "totais": {
+            "receitas": 100000.00,
+            "pis": 650.00,
+            "cofins": 3000.00
+        }
+    }
+    """
+    try:
+        from sped_efd_contribuicoes_functions import gerar_arquivo_efd_contribuicoes
+        from database_postgresql import get_connection
+        
+        data = request.get_json()
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        # Validações
+        mes = data.get('mes')
+        ano = data.get('ano')
+        
+        if not mes or not ano:
+            return jsonify({
+                'success': False,
+                'error': 'mes e ano são obrigatórios'
+            }), 400
+        
+        if not isinstance(mes, int) or mes < 1 or mes > 12:
+            return jsonify({
+                'success': False,
+                'error': 'mes deve estar entre 1 e 12'
+            }), 400
+        
+        if not isinstance(ano, int) or ano < 2000 or ano > 2100:
+            return jsonify({
+                'success': False,
+                'error': 'ano inválido'
+            }), 400
+        
+        # Gerar EFD-Contribuições
+        resultado = gerar_arquivo_efd_contribuicoes(
+            empresa_id=empresa_id,
+            mes=mes,
+            ano=ano
+        )
+        
+        if not resultado['success']:
+            return jsonify(resultado), 400
+        
+        # Buscar CNPJ para nome do arquivo
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT cnpj FROM empresas WHERE id = %s", (empresa_id,))
+            empresa = cursor.fetchone()
+            cnpj_limpo = ''.join(filter(str.isdigit, empresa[0] if empresa and empresa[0] else '00000000000000'))
+        finally:
+            cursor.close()
+            conn.close()
+        
+        # Nome do arquivo: EFD_Contribuicoes_CNPJ_AAAAMM.txt
+        nome_arquivo = f"EFD_Contribuicoes_{cnpj_limpo}_{ano}{mes:02d}.txt"
+        
+        return jsonify({
+            'success': True,
+            'conteudo': resultado['conteudo'],
+            'total_linhas': resultado['total_linhas'],
+            'hash': resultado['hash'],
+            'nome_arquivo': nome_arquivo,
+            'data_geracao': resultado['data_geracao'],
+            'totais': resultado['totais']
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao exportar EFD-Contribuições: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
 # INTEGRA CONTADOR - API SERPRO
 # =============================================================================
 
