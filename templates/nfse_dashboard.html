@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFS-e Consulta - API Service</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .provider-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            margin: 2px;
+            background: #e3f2fd;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card">
+                    <div class="card-body text-center p-5">
+                        <h1 class="mb-4">📋 API NFS-e Consulta</h1>
+                        <p class="lead text-muted mb-4">
+                            Microserviço de consulta de Notas Fiscais de Serviço Eletrônicas via SOAP
+                        </p>
+                        
+                        <div class="alert alert-success">
+                            <strong>✅ Serviço Ativo</strong>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6>Provedores Suportados:</h6>
+                                <div class="mt-2">
+                                    <span class="provider-badge">GINFES (500+)</span>
+                                    <span class="provider-badge">ISS.NET (200+)</span>
+                                    <span class="provider-badge">BETHA (1000+)</span>
+                                    <span class="provider-badge">e-ISS (150+)</span>
+                                    <span class="provider-badge">WebISS (50+)</span>
+                                    <span class="provider-badge">SimplISS (300+)</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Padrão ABRASF:</h6>
+                                <p class="text-muted">Versões 1.00, 2.00, 2.02</p>
+                            </div>
+                        </div>
+                        
+                        <h5 class="mt-4 mb-3">Endpoints Disponíveis:</h5>
+                        <div class="list-group text-start">
+                            <div class="list-group-item">
+                                <code>GET /health</code> - Health check
+                            </div>
+                            <div class="list-group-item">
+                                <code>GET /api/nfse/config</code> - Listar configurações de municípios
+                            </div>
+                            <div class="list-group-item">
+                                <code>POST /api/nfse/config</code> - Cadastrar município
+                            </div>
+                            <div class="list-group-item">
+                                <code>POST /api/nfse/buscar</code> - Buscar NFS-e por período
+                            </div>
+                            <div class="list-group-item">
+                                <code>POST /api/nfse/consultar</code> - Consultar por número
+                            </div>
+                            <div class="list-group-item">
+                                <code>GET /api/nfse</code> - Listar NFS-e (paginado)
+                            </div>
+                            <div class="list-group-item">
+                                <code>GET /api/nfse/:id/pdf</code> - Download PDF (DANFSe)
+                            </div>
+                            <div class="list-group-item">
+                                <code>GET /api/nfse/:id/xml</code> - Download XML
+                            </div>
+                            <div class="list-group-item">
+                                <code>POST /api/nfse/export/excel</code> - Exportar Excel
+                            </div>
+                            <div class="list-group-item">
+                                <code>POST /api/nfse/certificado/upload</code> - Upload certificado A1
+                            </div>
+                            <div class="list-group-item">
+                                <code>GET /api/nfse/provedores</code> - Listar provedores
+                            </div>
+                            <div class="list-group-item">
+                                <code>POST /api/nfse/testar-conexao</code> - Testar webservice
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <a href="/health" class="btn btn-primary me-2">Verificar Status</a>
+                            <a href="/api/nfse/provedores" class="btn btn-outline-primary">Ver Provedores</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

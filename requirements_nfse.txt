@@ -1,0 +1,20 @@
+# Dependências do Microserviço - NFS-e Consulta
+
+# Web Framework
+Flask==3.0.0
+flask-cors==4.0.0
+gunicorn==21.2.0
+
+# Banco de Dados
+psycopg2-binary==2.9.9
+
+# NFS-e SOAP Specific
+lxml==5.1.0
+cryptography==42.0.0
+requests==2.31.0
+requests-pkcs12==1.24
+openpyxl==3.1.0
+zeep==4.2.1
+
+# Utilities
+python-dotenv==1.0.0
