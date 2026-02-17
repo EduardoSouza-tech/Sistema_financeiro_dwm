@@ -436,3 +436,312 @@ def validar_lancamentos_exportacao(lancamentos: List[Dict]) -> Dict:
         'avisos': avisos
     }
 
+
+# ============================================================================
+# EXPORTAÇÃO DE RELATÓRIOS CONTÁBEIS - FASE 3
+# ============================================================================
+
+def exportar_balancete_speed_txt(balancete_data: Dict) -> str:
+    """
+    Exporta Balancete de Verificação no formato TXT para Speed
+    
+    Formato: CODIGO|DESCRICAO|SALDO_ANT|TIPO_SALDO_ANT|DEBITO|CREDITO|SALDO_ATUAL|TIPO_SALDO_ATUAL
+    
+    Args:
+        balancete_data: Dicionário com dados do balancete
+        
+    Returns:
+        String no formato TXT para importação no Speed
+    """
+    linhas = []
+    
+    # Cabeçalho
+    periodo = balancete_data.get('periodo', {})
+    linhas.append(f"# BALANCETE DE VERIFICAÇÃO")
+    linhas.append(f"# Período: {periodo.get('data_inicio')} a {periodo.get('data_fim')}")
+    linhas.append(f"# Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+    linhas.append("")
+    linhas.append("CODIGO|DESCRICAO|SALDO_ANTERIOR|TIPO_SALDO_ANT|DEBITO_PERIODO|CREDITO_PERIODO|SALDO_ATUAL|TIPO_SALDO_ATUAL")
+    
+    # Itens do balancete
+    for item in balancete_data.get('balancete', []):
+        linha = (
+            f"{item['codigo']}|"
+            f"{item['descricao']}|"
+            f"{item['saldo_anterior']:.2f}|"
+            f"{item['tipo_saldo_anterior'][0].upper()}|"  # D ou C
+            f"{item['debito_periodo']:.2f}|"
+            f"{item['credito_periodo']:.2f}|"
+            f"{item['saldo_atual']:.2f}|"
+            f"{item['tipo_saldo_atual'][0].upper()}"
+        )
+        linhas.append(linha)
+    
+    # Totais
+    totais = balancete_data.get('totais', {})
+    linhas.append("")
+    linhas.append(f"TOTAL DÉBITOS|{totais.get('total_debito_periodo', 0):.2f}")
+    linhas.append(f"TOTAL CRÉDITOS|{totais.get('total_credito_periodo', 0):.2f}")
+    linhas.append(f"TOTAL SALDO DEVEDOR|{totais.get('total_saldo_devedor', 0):.2f}")
+    linhas.append(f"TOTAL SALDO CREDOR|{totais.get('total_saldo_credor', 0):.2f}")
+    
+    return "\n".join(linhas)
+
+
+def exportar_balancete_speed_csv(balancete_data: Dict) -> str:
+    """
+    Exporta Balancete em formato CSV (Excel)
+    
+    Args:
+        balancete_data: Dicionário com dados do balancete
+        
+    Returns:
+        String no formato CSV
+    """
+    linhas = []
+    
+    # Cabeçalho CSV
+    linhas.append("Código;Descrição;Saldo Anterior;Tipo;Débito Período;Crédito Período;Saldo Atual;Tipo")
+    
+    # Itens
+    for item in balancete_data.get('balancete', []):
+        linha = (
+            f"{item['codigo']};"
+            f"{item['descricao']};"
+            f"{item['saldo_anterior']:.2f};"
+            f"{item['tipo_saldo_anterior']};"
+            f"{item['debito_periodo']:.2f};"
+            f"{item['credito_periodo']:.2f};"
+            f"{item['saldo_atual']:.2f};"
+            f"{item['tipo_saldo_atual']}"
+        )
+        linhas.append(linha)
+    
+    # Totais
+    totais = balancete_data.get('totais', {})
+    linhas.append("")
+    linhas.append(f"TOTAL DÉBITOS;;;{totais.get('total_debito_periodo', 0):.2f};;;")
+    linhas.append(f"TOTAL CRÉDITOS;;;;{totais.get('total_credito_periodo', 0):.2f};;")
+    
+    return "\n".join(linhas)
+
+
+def exportar_dre_speed_txt(dre_data: Dict) -> str:
+    """
+    Exporta DRE no formato TXT para Speed
+    
+    Args:
+        dre_data: Dicionário com dados da DRE
+        
+    Returns:
+        String no formato TXT estruturado
+    """
+    linhas = []
+    dre = dre_data.get('dre', {})
+    periodo = dre_data.get('periodo', {})
+    indicadores = dre_data.get('indicadores', {})
+    
+    # Cabeçalho
+    linhas.append("=" * 80)
+    linhas.append("DEMONSTRATIVO DE RESULTADO DO EXERCÍCIO - DRE")
+    linhas.append(f"Período: {periodo.get('data_inicio')} a {periodo.get('data_fim')}")
+    linhas.append("=" * 80)
+    linhas.append("")
+    
+    # RECEITAS
+    linhas.append("RECEITA BRUTA")
+    for item in dre.get('receitas', {}).get('itens', []):
+        linhas.append(f"  {item['codigo']} - {item['descricao']}: R$ {item['valor']:,.2f}")
+    linhas.append(f"TOTAL RECEITA BRUTA: R$ {dre.get('receitas', {}).get('total', 0):,.2f}")
+    linhas.append("")
+    
+    # CUSTOS
+    linhas.append("(-) CUSTOS DOS SERVIÇOS/PRODUTOS")
+    for item in dre.get('custos', {}).get('itens', []):
+        linhas.append(f"  {item['codigo']} - {item['descricao']}: R$ ({item['valor']:,.2f})")
+    linhas.append(f"TOTAL CUSTOS: R$ ({dre.get('custos', {}).get('total', 0):,.2f})")
+    linhas.append("")
+    
+    # LUCRO BRUTO
+    linhas.append("=" * 80)
+    linhas.append(f"LUCRO BRUTO: R$ {dre.get('lucro_bruto', 0):,.2f}")
+    linhas.append(f"Margem Bruta: {indicadores.get('margem_bruta', 0):.2f}%")
+    linhas.append("=" * 80)
+    linhas.append("")
+    
+    # DESPESAS OPERACIONAIS
+    linhas.append("(-) DESPESAS OPERACIONAIS")
+    for item in dre.get('despesas_operacionais', {}).get('itens', []):
+        linhas.append(f"  {item['codigo']} - {item['descricao']}: R$ ({item['valor']:,.2f})")
+    linhas.append(f"TOTAL DESPESAS OPERACIONAIS: R$ ({dre.get('despesas_operacionais', {}).get('total', 0):,.2f})")
+    linhas.append("")
+    
+    # RESULTADO OPERACIONAL
+    linhas.append("=" * 80)
+    linhas.append(f"RESULTADO OPERACIONAL: R$ {dre.get('resultado_operacional', 0):,.2f}")
+    linhas.append(f"Margem Operacional: {indicadores.get('margem_operacional', 0):.2f}%")
+    linhas.append("=" * 80)
+    linhas.append("")
+    
+    # OUTRAS RECEITAS/DESPESAS
+    if dre.get('outras_receitas_despesas', {}).get('itens'):
+        linhas.append("(-) OUTRAS RECEITAS/DESPESAS")
+        for item in dre.get('outras_receitas_despesas', {}).get('itens', []):
+            linhas.append(f"  {item['codigo']} - {item['descricao']}: R$ ({item['valor']:,.2f})")
+        linhas.append(f"TOTAL OUTRAS: R$ ({dre.get('outras_receitas_despesas', {}).get('total', 0):,.2f})")
+        linhas.append("")
+    
+    # RESULTADO LÍQUIDO
+    linhas.append("=" * 80)
+    linhas.append(f"RESULTADO LÍQUIDO DO PERÍODO: R$ {dre.get('resultado_liquido', 0):,.2f}")
+    linhas.append(f"Margem Líquida: {indicadores.get('margem_liquida', 0):.2f}%")
+    linhas.append("=" * 80)
+    
+    return "\n".join(linhas)
+
+
+def exportar_balanco_patrimonial_speed_txt(balanco_data: Dict) -> str:
+    """
+    Exporta Balanço Patrimonial no formato TXT para Speed
+    
+    Args:
+        balanco_data: Dicionário com dados do balanço
+        
+    Returns:
+        String no formato TXT estruturado
+    """
+    linhas = []
+    balanco = balanco_data.get('balanco', {})
+    data_ref = balanco_data.get('data_referencia', '')
+    validacao = balanco_data.get('validacao', {})
+    
+    # Cabeçalho
+    linhas.append("=" * 100)
+    linhas.append("BALANÇO PATRIMONIAL")
+    linhas.append(f"Data de Referência: {data_ref}")
+    linhas.append("=" * 100)
+    linhas.append("")
+    
+    # ATIVO
+    ativo = balanco.get('ativo', {})
+    linhas.append("ATIVO" + " " * 70 + f"R$ {ativo.get('total', 0):,.2f}")
+    linhas.append("-" * 100)
+    
+    # Ativo Circulante
+    linhas.append("ATIVO CIRCULANTE" + " " * 58 + f"R$ {ativo.get('circulante', {}).get('total', 0):,.2f}")
+    for item in ativo.get('circulante', {}).get('itens', []):
+        if item['saldo'] > 0:
+            espacos = " " * (70 - len(f"  {item['codigo']} - {item['descricao']}"))
+            linhas.append(f"  {item['codigo']} - {item['descricao']}{espacos}R$ {item['saldo']:,.2f}")
+    linhas.append("")
+    
+    # Ativo Não Circulante
+    if ativo.get('nao_circulante', {}).get('total', 0) > 0:
+        linhas.append("ATIVO NÃO CIRCULANTE" + " " * 54 + f"R$ {ativo.get('nao_circulante', {}).get('total', 0):,.2f}")
+        for item in ativo.get('nao_circulante', {}).get('itens', []):
+            if item['saldo'] > 0:
+                espacos = " " * (70 - len(f"  {item['codigo']} - {item['descricao']}"))
+                linhas.append(f"  {item['codigo']} - {item['descricao']}{espacos}R$ {item['saldo']:,.2f}")
+        linhas.append("")
+    
+    linhas.append("=" * 100)
+    linhas.append("")
+    
+    # PASSIVO
+    passivo = balanco.get('passivo', {})
+    linhas.append("PASSIVO" + " " * 68 + f"R$ {passivo.get('total', 0):,.2f}")
+    linhas.append("-" * 100)
+    
+    # Passivo Circulante
+    linhas.append("PASSIVO CIRCULANTE" + " " * 56 + f"R$ {passivo.get('circulante', {}).get('total', 0):,.2f}")
+    for item in passivo.get('circulante', {}).get('itens', []):
+        if item['saldo'] > 0:
+            espacos = " " * (70 - len(f"  {item['codigo']} - {item['descricao']}"))
+            linhas.append(f"  {item['codigo']} - {item['descricao']}{espacos}R$ {item['saldo']:,.2f}")
+    linhas.append("")
+    
+    # Passivo Não Circulante
+    if passivo.get('nao_circulante', {}).get('total', 0) > 0:
+        linhas.append("PASSIVO NÃO CIRCULANTE" + " " * 52 + f"R$ {passivo.get('nao_circulante', {}).get('total', 0):,.2f}")
+        for item in passivo.get('nao_circulante', {}).get('itens', []):
+            if item['saldo'] > 0:
+                espacos = " " * (70 - len(f"  {item['codigo']} - {item['descricao']}"))
+                linhas.append(f"  {item['codigo']} - {item['descricao']}{espacos}R$ {item['saldo']:,.2f}")
+        linhas.append("")
+    
+    linhas.append("-" * 100)
+    
+    # PATRIMÔNIO LÍQUIDO
+    pl = balanco.get('patrimonio_liquido', {})
+    linhas.append("PATRIMÔNIO LÍQUIDO" + " " * 56 + f"R$ {pl.get('total', 0):,.2f}")
+    for item in pl.get('itens', []):
+        if item['saldo'] > 0:
+            espacos = " " * (70 - len(f"  {item['codigo']} - {item['descricao']}"))
+            linhas.append(f"  {item['codigo']} - {item['descricao']}{espacos}R$ {item['saldo']:,.2f}")
+    linhas.append("")
+    
+    linhas.append("=" * 100)
+    linhas.append(f"TOTAL PASSIVO + PL" + " " * 56 + f"R$ {balanco.get('total_passivo_pl', 0):,.2f}")
+    linhas.append("=" * 100)
+    linhas.append("")
+    
+    # Validação
+    linhas.append("VALIDAÇÃO DO BALANÇO:")
+    linhas.append(validacao.get('formula', ''))
+    if validacao.get('balanco_fechado'):
+        linhas.append("✅ Balanço fechado corretamente!")
+    else:
+        linhas.append(f"⚠️ Diferença encontrada: R$ {validacao.get('diferenca', 0):.2f}")
+    
+    return "\n".join(linhas)
+
+
+def exportar_razao_contabil_speed_txt(razao_data: Dict) -> str:
+    """
+    Exporta Razão Contábil no formato TXT para Speed
+    
+    Args:
+        razao_data: Dicionário com dados do razão
+        
+    Returns:
+        String no formato TXT estruturado
+    """
+    linhas = []
+    conta = razao_data.get('conta', {})
+    periodo = razao_data.get('periodo', {})
+    
+    # Cabeçalho
+    linhas.append("=" * 120)
+    linhas.append("RAZÃO CONTÁBIL")
+    linhas.append(f"Conta: {conta.get('codigo')} - {conta.get('descricao')}")
+    linhas.append(f"Período: {periodo.get('data_inicio')} a {periodo.get('data_fim')}")
+    linhas.append("=" * 120)
+    linhas.append("")
+    
+    linhas.append(f"Saldo Anterior: R$ {razao_data.get('saldo_anterior', 0):,.2f}")
+    linhas.append("")
+    
+    # Cabeçalho da tabela
+    linhas.append(f"{'Data':<12} {'Nº Lançamento':<15} {'Histórico':<50} {'Débito':>15} {'Crédito':>15} {'Saldo':>15}")
+    linhas.append("-" * 120)
+    
+    # Movimentações
+    for mov in razao_data.get('movimentacoes', []):
+        historico = mov['historico'][:48] + '..' if len(mov['historico']) > 50 else mov['historico']
+        linha = (
+            f"{mov['data']:<12} "
+            f"{mov['numero_lancamento']:<15} "
+            f"{historico:<50} "
+            f"{mov['debito']:>15,.2f} "
+            f"{mov['credito']:>15,.2f} "
+            f"{mov['saldo']:>15,.2f}"
+        )
+        linhas.append(linha)
+    
+    linhas.append("-" * 120)
+    linhas.append(f"Saldo Final: R$ {razao_data.get('saldo_atual', 0):,.2f}")
+    linhas.append(f"Total de Movimentações: {razao_data.get('total_movimentacoes', 0)}")
+    linhas.append("=" * 120)
+    
+    return "\n".join(linhas)
+

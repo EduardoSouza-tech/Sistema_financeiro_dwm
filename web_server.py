@@ -12844,6 +12844,348 @@ def exportar_lancamentos_speed_api():
 
 
 # =============================================================================
+# RELATÓRIOS CONTÁBEIS - FASE 3 SPEED
+# =============================================================================
+
+@app.route('/api/relatorios/balancete', methods=['POST'])
+@require_auth
+def gerar_balancete_api():
+    """Gera Balancete de Verificação"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        data = request.get_json()
+        
+        # Validar campos obrigatórios
+        if not data.get('data_inicio') or not data.get('data_fim'):
+            return jsonify({'success': False, 'error': 'Período é obrigatório'}), 400
+        
+        # Converter datas
+        from datetime import datetime
+        data_inicio = datetime.strptime(data['data_inicio'], '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data['data_fim'], '%Y-%m-%d').date()
+        
+        from relatorios_contabeis_functions import gerar_balancete_verificacao
+        
+        conn = get_db_connection()
+        resultado = gerar_balancete_verificacao(
+            conn=conn,
+            empresa_id=empresa_id,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            versao_plano_id=data.get('versao_plano_id'),
+            nivel_minimo=data.get('nivel_minimo'),
+            nivel_maximo=data.get('nivel_maximo'),
+            classificacao=data.get('classificacao'),
+            apenas_com_movimento=data.get('apenas_com_movimento', False)
+        )
+        conn.close()
+        
+        return jsonify(resultado)
+    except Exception as e:
+        logger.error(f"Erro ao gerar balancete: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/relatorios/dre', methods=['POST'])
+@require_auth
+def gerar_dre_api():
+    """Gera DRE (Demonstrativo de Resultado do Exercício)"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        data = request.get_json()
+        
+        # Validar campos obrigatórios
+        if not data.get('data_inicio') or not data.get('data_fim'):
+            return jsonify({'success': False, 'error': 'Período é obrigatório'}), 400
+        
+        # Converter datas
+        from datetime import datetime
+        data_inicio = datetime.strptime(data['data_inicio'], '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data['data_fim'], '%Y-%m-%d').date()
+        
+        from relatorios_contabeis_functions import gerar_dre
+        
+        conn = get_db_connection()
+        resultado = gerar_dre(
+            conn=conn,
+            empresa_id=empresa_id,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            versao_plano_id=data.get('versao_plano_id')
+        )
+        conn.close()
+        
+        return jsonify(resultado)
+    except Exception as e:
+        logger.error(f"Erro ao gerar DRE: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/relatorios/balanco-patrimonial', methods=['POST'])
+@require_auth
+def gerar_balanco_patrimonial_api():
+    """Gera Balanço Patrimonial"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        data = request.get_json()
+        
+        # Validar campos obrigatórios
+        if not data.get('data_referencia'):
+            return jsonify({'success': False, 'error': 'Data de referência é obrigatória'}), 400
+        
+        # Converter data
+        from datetime import datetime
+        data_referencia = datetime.strptime(data['data_referencia'], '%Y-%m-%d').date()
+        
+        from relatorios_contabeis_functions import gerar_balanco_patrimonial
+        
+        conn = get_db_connection()
+        resultado = gerar_balanco_patrimonial(
+            conn=conn,
+            empresa_id=empresa_id,
+            data_referencia=data_referencia,
+            versao_plano_id=data.get('versao_plano_id')
+        )
+        conn.close()
+        
+        return jsonify(resultado)
+    except Exception as e:
+        logger.error(f"Erro ao gerar balanço patrimonial: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/relatorios/razao-contabil', methods=['POST'])
+@require_auth
+def gerar_razao_contabil_api():
+    """Gera Razão Contábil (extrato de uma conta)"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        data = request.get_json()
+        
+        # Validar campos obrigatórios
+        if not data.get('conta_id'):
+            return jsonify({'success': False, 'error': 'ID da conta é obrigatório'}), 400
+        if not data.get('data_inicio') or not data.get('data_fim'):
+            return jsonify({'success': False, 'error': 'Período é obrigatório'}), 400
+        
+        # Converter datas
+        from datetime import datetime
+        data_inicio = datetime.strptime(data['data_inicio'], '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data['data_fim'], '%Y-%m-%d').date()
+        
+        from relatorios_contabeis_functions import gerar_razao_contabil
+        
+        conn = get_db_connection()
+        resultado = gerar_razao_contabil(
+            conn=conn,
+            empresa_id=empresa_id,
+            conta_id=data['conta_id'],
+            data_inicio=data_inicio,
+            data_fim=data_fim
+        )
+        conn.close()
+        
+        return jsonify(resultado)
+    except Exception as e:
+        logger.error(f"Erro ao gerar razão contábil: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/relatorios/balancete/exportar', methods=['POST'])
+@require_auth
+def exportar_balancete_api():
+    """Exporta Balancete em TXT ou CSV"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        data = request.get_json()
+        formato = data.get('formato', 'txt')  # 'txt' ou 'csv'
+        
+        # Gerar balancete
+        from datetime import datetime
+        data_inicio = datetime.strptime(data['data_inicio'], '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data['data_fim'], '%Y-%m-%d').date()
+        
+        from relatorios_contabeis_functions import gerar_balancete_verificacao
+        from speed_integration import exportar_balancete_speed_txt, exportar_balancete_speed_csv
+        
+        conn = get_db_connection()
+        balancete = gerar_balancete_verificacao(
+            conn=conn,
+            empresa_id=empresa_id,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            versao_plano_id=data.get('versao_plano_id'),
+            nivel_minimo=data.get('nivel_minimo'),
+            nivel_maximo=data.get('nivel_maximo'),
+            classificacao=data.get('classificacao'),
+            apenas_com_movimento=data.get('apenas_com_movimento', False)
+        )
+        conn.close()
+        
+        if not balancete['success']:
+            return jsonify(balancete), 400
+        
+        # Exportar no formato escolhido
+        if formato == 'csv':
+            conteudo = exportar_balancete_speed_csv(balancete)
+        else:
+            conteudo = exportar_balancete_speed_txt(balancete)
+        
+        return jsonify({
+            'success': True,
+            'conteudo': conteudo,
+            'formato': formato,
+            'total_contas': balancete.get('total_contas', 0)
+        })
+    except Exception as e:
+        logger.error(f"Erro ao exportar balancete: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/relatorios/dre/exportar', methods=['POST'])
+@require_auth
+def exportar_dre_api():
+    """Exporta DRE em TXT"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        data = request.get_json()
+        
+        # Gerar DRE
+        from datetime import datetime
+        data_inicio = datetime.strptime(data['data_inicio'], '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data['data_fim'], '%Y-%m-%d').date()
+        
+        from relatorios_contabeis_functions import gerar_dre
+        from speed_integration import exportar_dre_speed_txt
+        
+        conn = get_db_connection()
+        dre = gerar_dre(
+            conn=conn,
+            empresa_id=empresa_id,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            versao_plano_id=data.get('versao_plano_id')
+        )
+        conn.close()
+        
+        if not dre['success']:
+            return jsonify(dre), 400
+        
+        # Exportar em TXT
+        conteudo = exportar_dre_speed_txt(dre)
+        
+        return jsonify({
+            'success': True,
+            'conteudo': conteudo,
+            'formato': 'txt',
+            'resultado_liquido': dre.get('dre', {}).get('resultado_liquido', 0)
+        })
+    except Exception as e:
+        logger.error(f"Erro ao exportar DRE: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/relatorios/balanco-patrimonial/exportar', methods=['POST'])
+@require_auth
+def exportar_balanco_patrimonial_api():
+    """Exporta Balanço Patrimonial em TXT"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        data = request.get_json()
+        
+        # Gerar Balanço
+        from datetime import datetime
+        data_referencia = datetime.strptime(data['data_referencia'], '%Y-%m-%d').date()
+        
+        from relatorios_contabeis_functions import gerar_balanco_patrimonial
+        from speed_integration import exportar_balanco_patrimonial_speed_txt
+        
+        conn = get_db_connection()
+        balanco = gerar_balanco_patrimonial(
+            conn=conn,
+            empresa_id=empresa_id,
+            data_referencia=data_referencia,
+            versao_plano_id=data.get('versao_plano_id')
+        )
+        conn.close()
+        
+        if not balanco['success']:
+            return jsonify(balanco), 400
+        
+        # Exportar em TXT
+        conteudo = exportar_balanco_patrimonial_speed_txt(balanco)
+        
+        return jsonify({
+            'success': True,
+            'conteudo': conteudo,
+            'formato': 'txt',
+            'balanco_fechado': balanco.get('validacao', {}).get('balanco_fechado', False)
+        })
+    except Exception as e:
+        logger.error(f"Erro ao exportar balanço: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/relatorios/razao-contabil/exportar', methods=['POST'])
+@require_auth
+def exportar_razao_contabil_api():
+    """Exporta Razão Contábil em TXT"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        data = request.get_json()
+        
+        # Gerar Razão
+        from datetime import datetime
+        data_inicio = datetime.strptime(data['data_inicio'], '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data['data_fim'], '%Y-%m-%d').date()
+        
+        from relatorios_contabeis_functions import gerar_razao_contabil
+        from speed_integration import exportar_razao_contabil_speed_txt
+        
+        conn = get_db_connection()
+        razao = gerar_razao_contabil(
+            conn=conn,
+            empresa_id=empresa_id,
+            conta_id=data['conta_id'],
+            data_inicio=data_inicio,
+            data_fim=data_fim
+        )
+        conn.close()
+        
+        if not razao['success']:
+            return jsonify(razao), 400
+        
+        # Exportar em TXT
+        conteudo = exportar_razao_contabil_speed_txt(razao)
+        
+        return jsonify({
+            'success': True,
+            'conteudo': conteudo,
+            'formato': 'txt',
+            'total_movimentacoes': razao.get('total_movimentacoes', 0)
+        })
+    except Exception as e:
+        logger.error(f"Erro ao exportar razão: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
 # INTEGRA CONTADOR - API SERPRO
 # =============================================================================
 
