@@ -12574,6 +12574,276 @@ def exportar_mapeamento_referencial():
 
 
 # =============================================================================
+# LANÇAMENTOS CONTÁBEIS - FASE 2 SPEED
+# =============================================================================
+
+@app.route('/api/lancamentos-contabeis', methods=['GET'])
+@require_auth
+def listar_lancamentos_contabeis():
+    """Lista lançamentos contábeis com filtros"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        # Parâmetros de filtro
+        data_inicio = request.args.get('data_inicio')
+        data_fim = request.args.get('data_fim')
+        tipo_lancamento = request.args.get('tipo_lancamento')
+        origem = request.args.get('origem')
+        busca = request.args.get('busca')
+        limit = int(request.args.get('limit', 100))
+        offset = int(request.args.get('offset', 0))
+        
+        # Converter datas
+        from datetime import datetime
+        if data_inicio:
+            data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        if data_fim:
+            data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+        
+        # Importar função
+        from lancamentos_functions import listar_lancamentos
+        
+        conn = get_db_connection()
+        resultado = listar_lancamentos(
+            conn=conn,
+            empresa_id=empresa_id,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            tipo_lancamento=tipo_lancamento,
+            origem=origem,
+            busca=busca,
+            limit=limit,
+            offset=offset
+        )
+        conn.close()
+        
+        return jsonify(resultado)
+    except Exception as e:
+        logger.error(f"Erro ao listar lançamentos: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/lancamentos-contabeis/<int:lancamento_id>', methods=['GET'])
+@require_auth
+def obter_lancamento_detalhado_api(lancamento_id):
+    """Obtém detalhes completos de um lançamento"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        from lancamentos_functions import obter_lancamento_detalhado
+        
+        conn = get_db_connection()
+        resultado = obter_lancamento_detalhado(conn, lancamento_id, empresa_id)
+        conn.close()
+        
+        return jsonify(resultado)
+    except Exception as e:
+        logger.error(f"Erro ao obter lançamento: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/lancamentos-contabeis', methods=['POST'])
+@require_auth
+def criar_lancamento_api():
+    """Cria novo lançamento contábil"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        user_id = user.get('id')
+        
+        data = request.get_json()
+        
+        # Validar campos obrigatórios
+        if not data.get('data_lancamento'):
+            return jsonify({'success': False, 'error': 'Data do lançamento é obrigatória'}), 400
+        if not data.get('historico'):
+            return jsonify({'success': False, 'error': 'Histórico é obrigatório'}), 400
+        if not data.get('itens') or len(data['itens']) < 2:
+            return jsonify({'success': False, 'error': 'Lançamento deve ter pelo menos 2 itens'}), 400
+        
+        # Converter data
+        from datetime import datetime
+        data_lancamento = datetime.strptime(data['data_lancamento'], '%Y-%m-%d').date()
+        
+        from lancamentos_functions import criar_lancamento
+        
+        conn = get_db_connection()
+        resultado = criar_lancamento(
+            conn=conn,
+            empresa_id=empresa_id,
+            data_lancamento=data_lancamento,
+            historico=data['historico'],
+            itens=data['itens'],
+            tipo_lancamento=data.get('tipo_lancamento', 'manual'),
+            origem=data.get('origem'),
+            origem_id=data.get('origem_id'),
+            versao_plano_id=data.get('versao_plano_id'),
+            observacoes=data.get('observacoes'),
+            created_by=user_id
+        )
+        conn.close()
+        
+        if resultado['success']:
+            return jsonify(resultado), 201
+        else:
+            return jsonify(resultado), 400
+    except Exception as e:
+        logger.error(f"Erro ao criar lançamento: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/lancamentos-contabeis/<int:lancamento_id>/estornar', methods=['POST'])
+@require_auth
+def estornar_lancamento_api(lancamento_id):
+    """Estorna um lançamento criando lançamento inverso"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        user_id = user.get('id')
+        
+        data = request.get_json()
+        historico_estorno = data.get('historico_estorno', 'Estorno de lançamento')
+        
+        from lancamentos_functions import estornar_lancamento
+        
+        conn = get_db_connection()
+        resultado = estornar_lancamento(
+            conn=conn,
+            lancamento_id=lancamento_id,
+            empresa_id=empresa_id,
+            historico_estorno=historico_estorno,
+            created_by=user_id
+        )
+        conn.close()
+        
+        return jsonify(resultado)
+    except Exception as e:
+        logger.error(f"Erro ao estornar lançamento: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/lancamentos-contabeis/<int:lancamento_id>', methods=['DELETE'])
+@require_auth
+def deletar_lancamento_api(lancamento_id):
+    """Deleta um lançamento contábil"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        from lancamentos_functions import deletar_lancamento
+        
+        conn = get_db_connection()
+        resultado = deletar_lancamento(conn, lancamento_id, empresa_id)
+        conn.close()
+        
+        return jsonify(resultado)
+    except Exception as e:
+        logger.error(f"Erro ao deletar lançamento: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/lancamentos-contabeis/estatisticas', methods=['GET'])
+@require_auth
+def estatisticas_lancamentos_api():
+    """Obtém estatísticas dos lançamentos"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        ano = request.args.get('ano', type=int)
+        
+        from lancamentos_functions import obter_estatisticas_lancamentos
+        
+        conn = get_db_connection()
+        resultado = obter_estatisticas_lancamentos(conn, empresa_id, ano)
+        conn.close()
+        
+        return jsonify(resultado)
+    except Exception as e:
+        logger.error(f"Erro ao obter estatísticas: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/lancamentos-contabeis/exportar-speed', methods=['POST'])
+@require_auth
+def exportar_lancamentos_speed_api():
+    """Exporta lançamentos para formato Speed (TXT ou XML)"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        data = request.get_json()
+        formato = data.get('formato', 'txt')  # 'txt' ou 'xml'
+        data_inicio = data.get('data_inicio')
+        data_fim = data.get('data_fim')
+        
+        # Converter datas
+        from datetime import datetime
+        if data_inicio:
+            data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        if data_fim:
+            data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+        
+        # Buscar lançamentos com itens detalhados
+        from lancamentos_functions import listar_lancamentos, obter_lancamento_detalhado
+        
+        conn = get_db_connection()
+        
+        # Listar todos os lançamentos do período
+        resultado_lista = listar_lancamentos(
+            conn=conn,
+            empresa_id=empresa_id,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            limit=10000  # Limite alto para exportação
+        )
+        
+        if not resultado_lista['success']:
+            conn.close()
+            return jsonify(resultado_lista), 400
+        
+        # Buscar detalhes de cada lançamento (incluindo itens)
+        lancamentos_completos = []
+        for lanc in resultado_lista['lancamentos']:
+            detalhe = obter_lancamento_detalhado(conn, lanc['id'], empresa_id)
+            if detalhe['success']:
+                lancamentos_completos.append(detalhe['lancamento'])
+        
+        conn.close()
+        
+        # Validar antes de exportar
+        from speed_integration import validar_lancamentos_exportacao, exportar_lancamentos_speed, exportar_lancamentos_speed_xml
+        
+        validacao = validar_lancamentos_exportacao(lancamentos_completos)
+        
+        if not validacao['valido']:
+            return jsonify({
+                'success': False,
+                'error': 'Validação falhou',
+                'validacao': validacao
+            }), 400
+        
+        # Exportar no formato escolhido
+        if formato == 'xml':
+            conteudo = exportar_lancamentos_speed_xml(lancamentos_completos)
+        else:
+            conteudo = exportar_lancamentos_speed(lancamentos_completos)
+        
+        return jsonify({
+            'success': True,
+            'conteudo': conteudo,
+            'formato': formato,
+            'total_lancamentos': len(lancamentos_completos),
+            'validacao': validacao
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao exportar lançamentos: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
 # INTEGRA CONTADOR - API SERPRO
 # =============================================================================
 

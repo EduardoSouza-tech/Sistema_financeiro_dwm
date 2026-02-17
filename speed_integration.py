@@ -218,3 +218,221 @@ def estatisticas_mapeamento(contas: List[Dict]) -> Dict:
         'mapeamento_completo': completo,
         'percentual_completo': round((completo / total * 100) if total > 0 else 0, 1)
     }
+
+
+# ============================================================================
+# EXPORTAÇÃO DE LANÇAMENTOS CONTÁBEIS - FASE 2
+# ============================================================================
+
+def exportar_lancamentos_speed(lancamentos: List[Dict]) -> str:
+    """
+    Exporta lançamentos contábeis no formato TXT para Speed Contábil
+    
+    Formato: TIPO|DATA|NUMERO|HISTORICO|CONTA_DEBITO|VALOR_DEBITO|CONTA_CREDITO|VALOR_CREDITO
+    
+    Args:
+        lancamentos: Lista de dicionários com lançamentos e seus itens
+        
+    Returns:
+        String no formato TXT para importação no Speed
+    """
+    linhas = []
+    
+    # Cabeçalho
+    linhas.append("TIPO|DATA|NUMERO|HISTORICO|CONTA_DEBITO|VALOR_DEBITO|CONTA_CREDITO|VALOR_CREDITO")
+    
+    # Processar cada lançamento
+    for lanc in lancamentos:
+        # Agrupar itens por tipo
+        debitos = [i for i in lanc.get('itens', []) if i['tipo'] == 'debito']
+        creditos = [i for i in lanc.get('itens', []) if i['tipo'] == 'credito']
+        
+        # Formatar data
+        data_lancamento = lanc.get('data_lancamento', '')
+        if isinstance(data_lancamento, str):
+            try:
+                data_obj = datetime.fromisoformat(data_lancamento.split('T')[0])
+                data_formatada = data_obj.strftime('%d/%m/%Y')
+            except:
+                data_formatada = data_lancamento
+        else:
+            data_formatada = data_lancamento.strftime('%d/%m/%Y') if data_lancamento else ''
+        
+        numero = lanc.get('numero_lancamento', '')
+        historico = lanc.get('historico', '').replace('|', '-').replace('\n', ' ')
+        
+        # Se houver apenas 1 débito e 1 crédito (lançamento simples)
+        if len(debitos) == 1 and len(creditos) == 1:
+            deb = debitos[0]
+            cred = creditos[0]
+            
+            linha = (
+                f"L|{data_formatada}|{numero}|{historico}|"
+                f"{deb['conta_codigo']}|{deb['valor']:.2f}|"
+                f"{cred['conta_codigo']}|{cred['valor']:.2f}"
+            )
+            linhas.append(linha)
+        
+        # Lançamento composto (múltiplos débitos ou créditos)
+        else:
+            # Linha principal com totais
+            total_debito = sum(d['valor'] for d in debitos)
+            total_credito = sum(c['valor'] for c in creditos)
+            
+            linha_principal = (
+                f"LC|{data_formatada}|{numero}|{historico}|"
+                f"DIVERSOS|{total_debito:.2f}|DIVERSOS|{total_credito:.2f}"
+            )
+            linhas.append(linha_principal)
+            
+            # Linhas de detalhamento (débitos)
+            for deb in debitos:
+                hist_complementar = deb.get('historico_complementar', '')
+                hist_item = f"{historico} - {hist_complementar}" if hist_complementar else historico
+                hist_item = hist_item.replace('|', '-').replace('\n', ' ')
+                
+                linha_deb = (
+                    f"D|{data_formatada}|{numero}|{hist_item}|"
+                    f"{deb['conta_codigo']}|{deb['valor']:.2f}||"
+                )
+                linhas.append(linha_deb)
+            
+            # Linhas de detalhamento (créditos)
+            for cred in creditos:
+                hist_complementar = cred.get('historico_complementar', '')
+                hist_item = f"{historico} - {hist_complementar}" if hist_complementar else historico
+                hist_item = hist_item.replace('|', '-').replace('\n', ' ')
+                
+                linha_cred = (
+                    f"C|{data_formatada}|{numero}|{hist_item}|"
+                    f"||{cred['conta_codigo']}|{cred['valor']:.2f}"
+                )
+                linhas.append(linha_cred)
+    
+    return "\n".join(linhas)
+
+
+def exportar_lancamentos_speed_xml(lancamentos: List[Dict]) -> str:
+    """
+    Exporta lançamentos no formato XML para Speed (alternativa ao TXT)
+    
+    Args:
+        lancamentos: Lista de dicionários com lançamentos e seus itens
+        
+    Returns:
+        String no formato XML para importação no Speed
+    """
+    xml_lines = ['<?xml version="1.0" encoding="UTF-8"?>']
+    xml_lines.append('<LancamentosContabeis>')
+    
+    for lanc in lancamentos:
+        data_lancamento = lanc.get('data_lancamento', '')
+        if isinstance(data_lancamento, str):
+            try:
+                data_obj = datetime.fromisoformat(data_lancamento.split('T')[0])
+                data_formatada = data_obj.strftime('%d/%m/%Y')
+            except:
+                data_formatada = data_lancamento
+        else:
+            data_formatada = data_lancamento.strftime('%d/%m/%Y') if data_lancamento else ''
+        
+        numero = lanc.get('numero_lancamento', '')
+        historico = lanc.get('historico', '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        valor_total = lanc.get('valor_total', 0)
+        
+        xml_lines.append(f'  <Lancamento>')
+        xml_lines.append(f'    <Numero>{numero}</Numero>')
+        xml_lines.append(f'    <Data>{data_formatada}</Data>')
+        xml_lines.append(f'    <Historico>{historico}</Historico>')
+        xml_lines.append(f'    <ValorTotal>{valor_total:.2f}</ValorTotal>')
+        xml_lines.append(f'    <Itens>')
+        
+        for item in lanc.get('itens', []):
+            tipo = item['tipo'].upper()
+            conta_codigo = item['conta_codigo']
+            conta_nome = item.get('conta_nome', '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            valor = item['valor']
+            hist_comp = item.get('historico_complementar', '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            
+            xml_lines.append(f'      <Item>')
+            xml_lines.append(f'        <Tipo>{tipo}</Tipo>')
+            xml_lines.append(f'        <ContaCodigo>{conta_codigo}</ContaCodigo>')
+            xml_lines.append(f'        <ContaNome>{conta_nome}</ContaNome>')
+            xml_lines.append(f'        <Valor>{valor:.2f}</Valor>')
+            if hist_comp:
+                xml_lines.append(f'        <HistoricoComplementar>{hist_comp}</HistoricoComplementar>')
+            xml_lines.append(f'      </Item>')
+        
+        xml_lines.append(f'    </Itens>')
+        xml_lines.append(f'  </Lancamento>')
+    
+    xml_lines.append('</LancamentosContabeis>')
+    
+    return '\n'.join(xml_lines)
+
+
+def validar_lancamentos_exportacao(lancamentos: List[Dict]) -> Dict:
+    """
+    Valida lançamentos antes da exportação para Speed
+    
+    Args:
+        lancamentos: Lista de lançamentos a validar
+        
+    Returns:
+        Dicionário com resultado da validação e erros encontrados
+    """
+    erros = []
+    avisos = []
+    
+    for idx, lanc in enumerate(lancamentos):
+        num_lanc = lanc.get('numero_lancamento', f'#{idx+1}')
+        
+        # Validar partidas dobradas
+        itens = lanc.get('itens', [])
+        if not itens or len(itens) < 2:
+            erros.append(f"{num_lanc}: Lançamento deve ter pelo menos 2 itens")
+            continue
+        
+        total_debito = sum(i['valor'] for i in itens if i['tipo'] == 'debito')
+        total_credito = sum(i['valor'] for i in itens if i['tipo'] == 'credito')
+        
+        if abs(total_debito - total_credito) > 0.01:  # Tolerância de 1 centavo
+            erros.append(
+                f"{num_lanc}: Partidas não estão dobradas - "
+                f"Débito: {total_debito:.2f}, Crédito: {total_credito:.2f}"
+            )
+        
+        # Validar códigos das contas
+        for item in itens:
+            if not item.get('conta_codigo'):
+                avisos.append(f"{num_lanc}: Item sem código de conta")
+            
+            # Avisar se não tem código Speed mapeado
+            conta_codigo = item.get('conta_codigo', '')
+            if not conta_codigo or conta_codigo == 'N/A':
+                avisos.append(
+                    f"{num_lanc}: Conta '{item.get('conta_nome', '...')}' "
+                    f"não possui código Speed mapeado"
+                )
+        
+        # Validar data
+        if not lanc.get('data_lancamento'):
+            erros.append(f"{num_lanc}: Data do lançamento não informada")
+        
+        # Validar histórico
+        if not lanc.get('historico'):
+            avisos.append(f"{num_lanc}: Histórico vazio")
+    
+    total = len(lancamentos)
+    validos = total - len([e for e in erros if ':' in e])
+    
+    return {
+        'valido': len(erros) == 0,
+        'total_lancamentos': total,
+        'lancamentos_validos': validos,
+        'total_erros': len(erros),
+        'total_avisos': len(avisos),
+        'erros': erros,
+        'avisos': avisos
+    }
+
