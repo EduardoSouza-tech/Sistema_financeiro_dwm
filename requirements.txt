@@ -35,3 +35,7 @@ fpdf2==2.8.1
 # NFS-e SOAP (certificado A1)
 requests-pkcs12==1.24
 lxml==5.1.0
+
+# NF-e/CT-e Module (FASE 5.2)
+requests>=2.28.0  # HTTP requests para SEFAZ
+openpyxl>=3.1.0  # Exportação Excel
