@@ -6191,43 +6191,84 @@ window.exportarFluxoCaixaExcel = function() {
     const dados = window.fluxoCaixaDados || {};
     const transacoes = window.fluxoCaixaTransacoes;
     
-    // Cabeçalho com resumo
-    let csv = '\ufeff'; // BOM para UTF-8
-    csv += 'FLUXO DE CAIXA - RELATÓRIO DETALHADO\n';
-    csv += `Período:;${formatarData(dados.dataInicio)};até;${formatarData(dados.dataFim)}\n`;
-    csv += `Conta:;${dados.banco || 'Todas as contas'}\n`;
-    csv += `Emissão:;${new Date().toLocaleString('pt-BR')}\n`;
-    csv += '\n';
-    csv += 'RESUMO FINANCEIRO\n';
-    csv += `Total de Entradas:;${formatarMoeda(dados.totalEntradas || 0)}\n`;
-    csv += `Total de Saídas:;${formatarMoeda(dados.totalSaidas || 0)}\n`;
-    csv += `Saldo do Período:;${formatarMoeda(dados.saldoPeriodo || 0)}\n`;
-    csv += '\n';
+    // Criar HTML que o Excel pode abrir com formatação
+    let html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel">\n';
+    html += '<head>\n';
+    html += '<meta charset="UTF-8">\n';
+    html += '<style>\n';
+    html += 'table { border-collapse: collapse; width: 100%; font-family: Arial; font-size: 11pt; }\n';
+    html += 'th { background-color: #34495e; color: white; padding: 10px; text-align: left; font-weight: bold; border: 1px solid #000; }\n';
+    html += 'td { padding: 8px; border: 1px solid #ddd; }\n';
+    html += '.header { background-color: #f8f9fa; font-weight: bold; padding: 5px; margin: 10px 0; }\n';
+    html += '.resumo { background-color: #ecf0f1; padding: 10px; margin: 10px 0; }\n';
+    html += '.receita { color: #27ae60; font-weight: bold; }\n';
+    html += '.despesa { color: #e74c3c; font-weight: bold; }\n';
+    html += '.right { text-align: right; }\n';
+    html += '</style>\n';
+    html += '</head>\n';
+    html += '<body>\n';
     
-    // Cabeçalho da tabela
-    csv += 'Data;Descrição;Categoria;Subcategoria;Tipo;Valor;Conta;Associação\n';
+    // Cabeçalho com resumo
+    html += '<div class="header">\n';
+    html += '<h2>FLUXO DE CAIXA - RELATÓRIO DETALHADO</h2>\n';
+    html += `<p><strong>Período:</strong> ${formatarData(dados.dataInicio)} até ${formatarData(dados.dataFim)}</p>\n`;
+    html += `<p><strong>Conta:</strong> ${dados.banco || 'Todas as contas'}</p>\n`;
+    html += `<p><strong>Emissão:</strong> ${new Date().toLocaleString('pt-BR')}</p>\n`;
+    html += '</div>\n';
+    
+    html += '<div class="resumo">\n';
+    html += '<h3>RESUMO FINANCEIRO</h3>\n';
+    html += `<p><strong>Total de Entradas:</strong> <span style="color: #27ae60;">${formatarMoeda(dados.totalEntradas || 0)}</span></p>\n`;
+    html += `<p><strong>Total de Saídas:</strong> <span style="color: #e74c3c;">${formatarMoeda(dados.totalSaidas || 0)}</span></p>\n`;
+    html += `<p><strong>Saldo do Período:</strong> ${formatarMoeda(dados.saldoPeriodo || 0)}</p>\n`;
+    html += '</div>\n';
+    
+    // Tabela de transações
+    html += '<table>\n';
+    html += '<thead>\n';
+    html += '<tr>\n';
+    html += '<th>Data</th>\n';
+    html += '<th>Descrição</th>\n';
+    html += '<th>Categoria</th>\n';
+    html += '<th>Subcategoria</th>\n';
+    html += '<th>Tipo</th>\n';
+    html += '<th style="text-align: right;">Valor</th>\n';
+    html += '<th>Conta</th>\n';
+    html += '<th>Associação</th>\n';
+    html += '</tr>\n';
+    html += '</thead>\n';
+    html += '<tbody>\n';
     
     // Dados
     transacoes.forEach(t => {
-        const linha = [
-            formatarData(t.data_pagamento),
-            (t.descricao || '-').replace(/;/g, ','),
-            (t.categoria || '-').replace(/;/g, ','),
-            (t.subcategoria || '-').replace(/;/g, ','),
-            t.tipo === 'receita' ? 'ENTRADA' : 'SAÍDA',
-            t.valor || 0,
-            (t.conta_bancaria || '-').replace(/;/g, ','),
-            (t.associacao || '-').replace(/;/g, ',')
-        ].join(';');
-        csv += linha + '\n';
+        const isReceita = t.tipo === 'receita';
+        const valor = parseFloat(t.valor || 0);
+        const valorFormatado = isReceita ? formatarMoeda(valor) : `- ${formatarMoeda(valor)}`;
+        const classeValor = isReceita ? 'receita' : 'despesa';
+        
+        html += '<tr>\n';
+        html += `<td>${formatarData(t.data_pagamento)}</td>\n`;
+        html += `<td>${escapeHtml(t.descricao || '-')}</td>\n`;
+        html += `<td>${escapeHtml(t.categoria || '-')}</td>\n`;
+        html += `<td>${escapeHtml(t.subcategoria || '-')}</td>\n`;
+        html += `<td>${isReceita ? 'ENTRADA' : 'SAÍDA'}</td>\n`;
+        html += `<td class="right ${classeValor}">${valorFormatado}</td>\n`;
+        html += `<td>${escapeHtml(t.conta_bancaria || '-')}</td>\n`;
+        html += `<td>${escapeHtml(t.associacao || '-')}</td>\n`;
+        html += '</tr>\n';
     });
     
-    // Download
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    html += '</tbody>\n';
+    html += '</table>\n';
+    html += '</body>\n';
+    html += '</html>';
+    
+    // Download do arquivo
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `fluxo_caixa_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `fluxo_caixa_${new Date().toISOString().split('T')[0]}.xls`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -6235,6 +6276,13 @@ window.exportarFluxoCaixaExcel = function() {
     
     showToast('✅ Planilha Excel exportada com sucesso!', 'success');
 };
+
+// Função auxiliar para escapar HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
 // === CONCILIAÇÃO GERAL DE EXTRATO ===
 window.abrirConciliacaoGeral = async function() {
