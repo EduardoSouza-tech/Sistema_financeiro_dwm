@@ -5731,10 +5731,48 @@ window.carregarFluxoCaixa = async function() {
         const cardEntradas = document.getElementById('card-total-entradas');
         const cardSaidas = document.getElementById('card-total-saidas');
         const cardSaldo = document.getElementById('card-saldo-periodo');
+        const cardSaldoAtual = document.getElementById('card-saldo-atual');
+        const cardSaldoAtualLabel = document.getElementById('card-saldo-atual-label');
         
         if (cardEntradas) cardEntradas.textContent = formatarMoeda(totalEntradas);
         if (cardSaidas) cardSaidas.textContent = formatarMoeda(totalSaidas);
         if (cardSaldo) cardSaldo.textContent = formatarMoeda(saldoPeriodo);
+        
+        // Buscar saldo atual do banco
+        try {
+            const responseContas = await fetch('/api/contas', {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': window.csrfToken || ''
+                }
+            });
+            
+            if (responseContas.ok) {
+                const resultContas = await responseContas.json();
+                const contas = resultContas.data || resultContas;
+                
+                let saldoAtual = 0;
+                let labelSaldo = 'Saldo em conta';
+                
+                if (banco && Array.isArray(contas)) {
+                    // Filtro específico - mostrar saldo do banco selecionado
+                    const contaFiltrada = contas.find(c => c.nome === banco);
+                    if (contaFiltrada) {
+                        saldoAtual = parseFloat(contaFiltrada.saldo || 0);
+                        labelSaldo = `Saldo em ${banco}`;
+                    }
+                } else if (Array.isArray(contas)) {
+                    // Todos os bancos - somar saldo total
+                    saldoAtual = contas.reduce((sum, c) => sum + parseFloat(c.saldo || 0), 0);
+                    labelSaldo = 'Saldo total em contas';
+                }
+                
+                if (cardSaldoAtual) cardSaldoAtual.textContent = formatarMoeda(saldoAtual);
+                if (cardSaldoAtualLabel) cardSaldoAtualLabel.textContent = labelSaldo;
+            }
+        } catch (error) {
+            console.error('Erro ao buscar saldo atual:', error);
+        }
         
         // Armazenar dados para exportação
         window.fluxoCaixaDados = {
