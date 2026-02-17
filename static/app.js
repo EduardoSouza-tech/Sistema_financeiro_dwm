@@ -5718,9 +5718,6 @@ window.carregarFluxoCaixa = async function() {
         const dadosRealizado = await responseRealizado.json();
         const dadosProjetado = await responseProjetado.json();
         
-        // Renderizar tabela de fluxo
-        const content = document.getElementById('fluxo-caixa-content');
-        
         // Carregar transações primeiro para calcular totais reais
         await carregarTransacoesDetalhadas(dataInicio, dataFim, banco);
         
@@ -5730,63 +5727,14 @@ window.carregarFluxoCaixa = async function() {
         const totalSaidas = transacoes.filter(t => t.tipo === 'despesa').reduce((sum, t) => sum + parseFloat(t.valor || 0), 0);
         const saldoPeriodo = totalEntradas - totalSaidas;
         
-        let html = `
-            <!-- Botões de Exportação -->
-            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 15px;">
-                <button onclick="exportarFluxoCaixaPDF()" style="padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                    📄 Exportar PDF
-                </button>
-                <button onclick="exportarFluxoCaixaExcel()" style="padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                    📊 Exportar Excel
-                </button>
-            </div>
-            
-            <!-- Cards de Resumo -->
-            <div style="margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-                <div style="background: linear-gradient(135deg, #27ae60, #229954); color: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">💰 Total de Entradas</div>
-                    <div style="font-size: 28px; font-weight: bold; margin-bottom: 5px;">${formatarMoeda(totalEntradas)}</div>
-                    <div style="font-size: 12px; opacity: 0.85;">Receitas recebidas no período</div>
-                </div>
-                <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">💸 Total de Saídas</div>
-                    <div style="font-size: 28px; font-weight: bold; margin-bottom: 5px;">${formatarMoeda(totalSaidas)}</div>
-                    <div style="font-size: 12px; opacity: 0.85;">Despesas pagas no período</div>
-                </div>
-                <div style="background: linear-gradient(135deg, ${saldoPeriodo >= 0 ? '#3498db, #2980b9' : '#e67e22, #d35400'}); color: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">📊 Saldo do Período</div>
-                    <div style="font-size: 28px; font-weight: bold; margin-bottom: 5px;">${formatarMoeda(saldoPeriodo)}</div>
-                    <div style="font-size: 12px; opacity: 0.85;">${saldoPeriodo >= 0 ? 'Resultado positivo' : 'Resultado negativo'}</div>
-                </div>
-            </div>
-            
-            <!-- Transações Detalhadas -->
-            <div id="conteudo-transacoes">
-                <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <table class="data-table" id="tabela-transacoes-fluxo">
-                        <thead>
-                            <tr>
-                                <th>Data</th>
-                                <th>Descrição</th>
-                                <th>Categoria</th>
-                                <th>Subcategoria</th>
-                                <th style="text-align: right; color: #27ae60;">Entrada</th>
-                                <th style="text-align: right; color: #e74c3c;">Saída</th>
-                                <th>Conta</th>
-                                <th style="width: 200px;">Associação</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-transacoes-fluxo">
-                            <tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">Carregando transações...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div style="margin-top: 10px; padding: 10px; background: #ecf0f1; border-radius: 5px; color: #7f8c8d; font-size: 13px;">
-                    📌 <strong>Transações Detalhadas:</strong> Mostra cada lançamento pago individualmente. Digite no campo "Associação" para adicionar observações personalizadas (salva automaticamente).
-                </div>
-            </div>`;
+        // Atualizar valores dos cards
+        const cardEntradas = document.getElementById('card-total-entradas');
+        const cardSaidas = document.getElementById('card-total-saidas');
+        const cardSaldo = document.getElementById('card-saldo-periodo');
         
-        content.innerHTML = html;
+        if (cardEntradas) cardEntradas.textContent = formatarMoeda(totalEntradas);
+        if (cardSaidas) cardSaidas.textContent = formatarMoeda(totalSaidas);
+        if (cardSaldo) cardSaldo.textContent = formatarMoeda(saldoPeriodo);
         
         // Armazenar dados para exportação
         window.fluxoCaixaDados = {
@@ -5802,8 +5750,10 @@ window.carregarFluxoCaixa = async function() {
         
     } catch (error) {
         console.error('❌ Erro ao carregar fluxo de caixa:', error);
-        const content = document.getElementById('fluxo-caixa-content');
-        content.innerHTML = '<div style="text-align: center; padding: 40px; color: #e74c3c;">❌ Erro ao carregar dados do fluxo de caixa</div>';
+        const tbody = document.getElementById('tbody-transacoes-fluxo');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;">❌ Erro ao carregar dados do fluxo de caixa</td></tr>';
+        }
         showToast('Erro ao carregar fluxo de caixa', 'error');
     }
 };
@@ -5839,6 +5789,11 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
         window.fluxoCaixaTransacoes = transacoes;
         
         const tbody = document.getElementById('tbody-transacoes-fluxo');
+        
+        if (!tbody) {
+            console.error('Elemento tbody-transacoes-fluxo não encontrado!');
+            return;
+        }
         
         if (transacoes.length === 0) {
             tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">Nenhuma transação paga encontrada no período</td></tr>';
@@ -5880,7 +5835,9 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
     } catch (error) {
         console.error('Erro ao carregar transações detalhadas:', error);
         const tbody = document.getElementById('tbody-transacoes-fluxo');
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;">❌ Erro ao carregar transações</td></tr>';
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;">❌ Erro ao carregar transações</td></tr>';
+        }
     }
 }
 
@@ -5989,10 +5946,11 @@ window.carregarBancosFluxo = async function() {
         
         if (!response.ok) throw new Error('Erro ao carregar contas');
         
-        const contas = await response.json();
+        const result = await response.json();
+        const contas = result.data || result; // Suporta formato {data: [...]} ou array direto
         const select = document.getElementById('filter-banco-fluxo');
         
-        if (select) {
+        if (select && Array.isArray(contas)) {
             select.innerHTML = '<option value="">Todos</option>';
             contas.forEach(conta => {
                 select.innerHTML += `<option value="${conta.nome}">${conta.nome}</option>`;

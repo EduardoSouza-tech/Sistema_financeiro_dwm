@@ -3494,8 +3494,8 @@
                     <div style="display: flex; gap: 10px;">
                         <button class="btn btn-success" onclick="openModalTransferencia()" style="padding: 8px 16px; font-size: 13px; background: #3498db;">🔄 Transferência entre Contas</button>
                         <button class="btn btn-primary" onclick="gerarDRE()" style="padding: 8px 16px; font-size: 13px; background: #3498db;">📈 GERAR DRE</button>
-                        <button class="btn btn-primary" onclick="exportarFluxoPDF()" style="padding: 8px 16px; font-size: 13px; background: #e74c3c;">📝 PDF</button>
-                        <button class="btn btn-primary" onclick="exportarFluxoExcel()" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📊 Excel</button>
+                        <button class="btn btn-primary" onclick="exportarFluxoCaixaPDF()" style="padding: 8px 16px; font-size: 13px; background: #e74c3c;">📝 PDF</button>
+                        <button class="btn btn-primary" onclick="exportarFluxoCaixaExcel()" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📊 Excel</button>
                     </div>
                 </div>
                 
@@ -3558,10 +3558,57 @@
                     </div>
                 </div>
                 
-                <div id="fluxo-caixa-content" style="text-align: center; padding: 60px 20px; color: #7f8c8d;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">📊</div>
-                    <h3 style="color: #34495e; margin-bottom: 10px;">Fluxo de Caixa</h3>
-                    <p style="margin: 0; font-size: 14px;">Selecione o período acima e clique em <strong>🔍 Gerar Fluxo de Caixa</strong> para visualizar a movimentação financeira.</p>
+                <div id="fluxo-caixa-content">
+                    <!-- Cards de Resumo -->
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;" id="cards-resumo-fluxo">
+                        <div style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(39,174,96,0.3); color: white;">
+                            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;">💰 Total Entradas</div>
+                            <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;" id="card-total-entradas">R$ 0,00</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Receitas do período</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(231,76,60,0.3); color: white;">
+                            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;">💸 Total Saídas</div>
+                            <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;" id="card-total-saidas">R$ 0,00</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Despesas do período</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(52,152,219,0.3); color: white;">
+                            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;">📊 Saldo do Período</div>
+                            <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;" id="card-saldo-periodo">R$ 0,00</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Entradas - Saídas</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tabela de Transações Detalhadas -->
+                    <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <div style="padding: 20px; background: #f8f9fa; border-bottom: 2px solid #e0e0e0;">
+                            <h3 style="margin: 0; color: #2c3e50; font-size: 18px;">📋 Transações Detalhadas</h3>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="background: #34495e; color: white;">
+                                        <th style="padding: 12px; text-align: left; font-weight: 600;">Data</th>
+                                        <th style="padding: 12px; text-align: left; font-weight: 600;">Descrição</th>
+                                        <th style="padding: 12px; text-align: left; font-weight: 600;">Categoria</th>
+                                        <th style="padding: 12px; text-align: left; font-weight: 600;">Subcategoria</th>
+                                        <th style="padding: 12px; text-align: right; font-weight: 600;">Entrada</th>
+                                        <th style="padding: 12px; text-align: right; font-weight: 600;">Saída</th>
+                                        <th style="padding: 12px; text-align: left; font-weight: 600;">Conta</th>
+                                        <th style="padding: 12px; text-align: left; font-weight: 600; min-width: 200px;">Associação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-transacoes-fluxo">
+                                    <tr>
+                                        <td colspan="8" style="text-align: center; padding: 60px 20px; color: #7f8c8d;">
+                                            <div style="font-size: 48px; margin-bottom: 20px;">📊</div>
+                                            <h3 style="color: #34495e; margin-bottom: 10px;">Fluxo de Caixa</h3>
+                                            <p style="margin: 0; font-size: 14px;">Selecione o período acima e clique em <strong>🔍 Pesquisar</strong> para visualizar as transações.</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
