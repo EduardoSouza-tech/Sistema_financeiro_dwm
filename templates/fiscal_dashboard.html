@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentos Fiscais - API Service</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #43e97b 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        .badge-module {
+            font-size: 0.9rem;
+            padding: 8px 12px;
+            margin: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card">
+                    <div class="card-body text-center p-5">
+                        <h1 class="mb-3">📊 API Documentos Fiscais</h1>
+                        <p class="lead text-muted mb-4">
+                            Microserviço unificado para gestão de documentos fiscais eletrônicos
+                        </p>
+                        
+                        <div class="alert alert-success mb-4">
+                            <strong>✅ Serviço Ativo</strong>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h5 class="mb-3">Módulos Integrados:</h5>
+                            <span class="badge bg-primary badge-module">🧾 NF-e (Nota Fiscal Eletrônica)</span>
+                            <span class="badge bg-info badge-module">🚚 CT-e (Conhecimento de Transporte)</span>
+                            <span class="badge bg-success badge-module">📋 NFS-e (Nota Fiscal de Serviço)</span>
+                        </div>
+                        
+                        <div class="row text-start mb-4">
+                            <div class="col-md-6">
+                                <h6 class="mb-2">NF-e/CT-e (SEFAZ):</h6>
+                                <ul class="list-unstyled small">
+                                    <li>✓ Busca automática por NSU</li>
+                                    <li>✓ Consulta por chave de acesso</li>
+                                    <li>✓ Download de XML</li>
+                                    <li>✓ Certificado A1 obrigatório</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="mb-2">NFS-e (6 Provedores):</h6>
+                                <ul class="list-unstyled small">
+                                    <li>✓ GINFES (500+ municípios)</li>
+                                    <li>✓ ISS.NET, BETHA, e-ISS</li>
+                                    <li>✓ Padrão ABRASF 1.00/2.00/2.02</li>
+                                    <li>✓ Download de PDF e XML</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <h5 class="mt-4 mb-3">Endpoints Disponíveis:</h5>
+                        
+                        <div class="accordion" id="accordionAPI">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#nfe">
+                                        NF-e / CT-e (11 endpoints)
+                                    </button>
+                                </h2>
+                                <div id="nfe" class="accordion-collapse collapse show" data-bs-parent="#accordionAPI">
+                                    <div class="accordion-body text-start">
+                                        <code>GET /api/nfe/certificados</code> - Listar certificados<br>
+                                        <code>POST /api/nfe/certificados/novo</code> - Cadastrar certificado<br>
+                                        <code>POST /api/nfe/buscar-documentos</code> - Busca automática<br>
+                                        <code>POST /api/nfe/consultar-chave</code> - Consultar por chave<br>
+                                        <code>GET /api/nfe/documentos</code> - Listar documentos<br>
+                                        <code>GET /api/nfe/documento/:id/xml</code> - Download XML<br>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#nfse">
+                                        NFS-e (9 endpoints)
+                                    </button>
+                                </h2>
+                                <div id="nfse" class="accordion-collapse collapse" data-bs-parent="#accordionAPI">
+                                    <div class="accordion-body text-start">
+                                        <code>GET /api/nfse/config</code> - Listar municípios<br>
+                                        <code>POST /api/nfse/config</code> - Cadastrar município<br>
+                                        <code>POST /api/nfse/buscar</code> - Buscar por período<br>
+                                        <code>GET /api/nfse</code> - Listar NFS-e<br>
+                                        <code>GET /api/nfse/:id/pdf</code> - Download PDF<br>
+                                        <code>GET /api/nfse/provedores</code> - Listar provedores<br>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#geral">
+                                        Gerais (3 endpoints)
+                                    </button>
+                                </h2>
+                                <div id="geral" class="accordion-collapse collapse" data-bs-parent="#accordionAPI">
+                                    <div class="accordion-body text-start">
+                                        <code>GET /health</code> - Health check<br>
+                                        <code>POST /api/fiscal/exportar-excel</code> - Exportar Excel<br>
+                                        <code>GET /api/fiscal/estatisticas</code> - Estatísticas gerais<br>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <a href="/health" class="btn btn-primary me-2">Verificar Status</a>
+                            <a href="/api/nfse/provedores" class="btn btn-outline-primary">Ver Provedores NFS-e</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
