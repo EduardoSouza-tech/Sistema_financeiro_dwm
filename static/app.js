@@ -8799,3 +8799,277 @@ window.exportarPlanoContas = async function() {
 };
 
 // FIM MÓDULO CONTABILIDADE
+
+// =============================================================================
+// MÓDULO INTEGRA CONTADOR - API SERPRO
+// =============================================================================
+
+// Variável global para armazenar o tipo de operação selecionado
+window.integraContadorState = {
+    tipoOperacao: null
+};
+
+/**
+ * Função para selecionar o tipo de operação (Apoiar, Consultar, Declarar, Emitir, Monitorar)
+ */
+window.selecionarTipoOperacao = function(tipo) {
+    window.integraContadorState.tipoOperacao = tipo;
+    
+    // Atualizar UI
+    document.getElementById('tipo-operacao-selecionado').textContent = tipo;
+    document.getElementById('form-integra-contador').style.display = 'block';
+    document.getElementById('integra-empty-state').style.display = 'none';
+    document.getElementById('resposta-integra-contador').style.display = 'none';
+    
+    showToast(`✅ Tipo de operação selecionado: ${tipo}`, 'success');
+};
+
+/**
+ * Limpa o formulário
+ */
+window.limparFormIntegra = function() {
+    document.getElementById('ic-contratante-numero').value = '';
+    document.getElementById('ic-autor-numero').value = '';
+    document.getElementById('ic-contribuinte-numero').value = '';
+    document.getElementById('ic-id-sistema').value = '';
+    document.getElementById('ic-id-servico').value = '';
+    document.getElementById('ic-versao-sistema').value = '1.0';
+    document.getElementById('ic-dados-json').value = '';
+    
+    document.getElementById('resposta-integra-contador').style.display = 'none';
+    
+    showToast('Formulário limpo', 'info');
+};
+
+/**
+ * Valida os campos do formulário
+ */
+function validarFormulario() {
+    const contratanteNumero = document.getElementById('ic-contratante-numero').value.trim();
+    const autorNumero = document.getElementById('ic-autor-numero').value.trim();
+    const contribuinteNumero = document.getElementById('ic-contribuinte-numero').value.trim();
+    const idSistema = document.getElementById('ic-id-sistema').value.trim();
+    const idServico = document.getElementById('ic-id-servico').value.trim();
+    const versaoSistema = document.getElementById('ic-versao-sistema').value.trim();
+    const dadosJson = document.getElementById('ic-dados-json').value.trim();
+    
+    if (!contratanteNumero || contratanteNumero.length !== 14) {
+        showToast('❌ CNPJ do Contratante deve ter 14 dígitos', 'error');
+        return false;
+    }
+    
+    if (!autorNumero) {
+        showToast('❌ Número do Autor do Pedido é obrigatório', 'error');
+        return false;
+    }
+    
+    const autorTipo = parseInt(document.getElementById('ic-autor-tipo').value);
+    if (autorTipo === 1 && autorNumero.length !== 11) {
+        showToast('❌ CPF do Autor deve ter 11 dígitos', 'error');
+        return false;
+    }
+    if (autorTipo === 2 && autorNumero.length !== 14) {
+        showToast('❌ CNPJ do Autor deve ter 14 dígitos', 'error');
+        return false;
+    }
+    
+    if (!contribuinteNumero) {
+        showToast('❌ Número do Contribuinte é obrigatório', 'error');
+        return false;
+    }
+    
+    const contribuinteTipo = parseInt(document.getElementById('ic-contribuinte-tipo').value);
+    if (contribuinteTipo === 1 && contribuinteNumero.length !== 11) {
+        showToast('❌ CPF do Contribuinte deve ter 11 dígitos', 'error');
+        return false;
+    }
+    if (contribuinteTipo === 2 && contribuinteNumero.length !== 14) {
+        showToast('❌ CNPJ do Contribuinte deve ter 14 dígitos', 'error');
+        return false;
+    }
+    
+    if (!idSistema) {
+        showToast('❌ ID Sistema é obrigatório', 'error');
+        return false;
+    }
+    
+    if (!idServico) {
+        showToast('❌ ID Serviço é obrigatório', 'error');
+        return false;
+    }
+    
+    if (!versaoSistema) {
+        showToast('❌ Versão do Sistema é obrigatória', 'error');
+        return false;
+    }
+    
+    if (!dadosJson) {
+        showToast('❌ Dados (JSON) é obrigatório', 'error');
+        return false;
+    }
+    
+    // Validar se dados é um JSON válido
+    try {
+        JSON.parse(dadosJson);
+    } catch (e) {
+        showToast('❌ Dados (JSON) está em formato inválido', 'error');
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Envia a requisição para a API Integra Contador
+ */
+window.enviarRequisicaoIntegra = async function() {
+    if (!window.integraContadorState.tipoOperacao) {
+        showToast('❌ Selecione um tipo de operação primeiro', 'error');
+        return;
+    }
+    
+    if (!validarFormulario()) {
+        return;
+    }
+    
+    try {
+        // Coletar dados do formulário
+        const contratanteNumero = document.getElementById('ic-contratante-numero').value.trim();
+        const contratanteTipo = parseInt(document.getElementById('ic-contratante-tipo').value);
+        
+        const autorNumero = document.getElementById('ic-autor-numero').value.trim();
+        const autorTipo = parseInt(document.getElementById('ic-autor-tipo').value);
+        
+        const contribuinteNumero = document.getElementById('ic-contribuinte-numero').value.trim();
+        const contribuinteTipo = parseInt(document.getElementById('ic-contribuinte-tipo').value);
+        
+        const idSistema = document.getElementById('ic-id-sistema').value.trim();
+        const idServico = document.getElementById('ic-id-servico').value.trim();
+        const versaoSistema = document.getElementById('ic-versao-sistema').value.trim();
+        const dadosJson = document.getElementById('ic-dados-json').value.trim();
+        
+        // Parsear JSON dos dados
+        const dadosObj = JSON.parse(dadosJson);
+        
+        // Montar payload
+        const payload = {
+            contratante: {
+                numero: contratanteNumero,
+                tipo: contratanteTipo
+            },
+            autorPedidoDados: {
+                numero: autorNumero,
+                tipo: autorTipo
+            },
+            contribuinte: {
+                numero: contribuinteNumero,
+                tipo: contribuinteTipo
+            },
+            pedidoDados: {
+                idSistema: idSistema,
+                idServico: idServico,
+                versaoSistema: versaoSistema,
+                dados: dadosObj
+            }
+        };
+        
+        // Enviar para backend
+        showToast('⏳ Enviando requisição...', 'info');
+        
+        const response = await fetch('/api/integra-contador/enviar', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken || ''
+            },
+            body: JSON.stringify({
+                tipoOperacao: window.integraContadorState.tipoOperacao,
+                payload: payload
+            })
+        });
+        
+        const data = await response.json();
+        
+        // Exibir resposta
+        const respostaDiv = document.getElementById('resposta-integra-contador');
+        const respostaJson = document.getElementById('resposta-integra-json');
+        
+        respostaJson.textContent = JSON.stringify(data, null, 2);
+        respostaDiv.style.display = 'block';
+        
+        // Scroll para a resposta
+        respostaDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        if (data.success) {
+            showToast('✅ Requisição enviada com sucesso!', 'success');
+        } else {
+            showToast(`❌ Erro: ${data.error}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Erro ao enviar requisição:', error);
+        showToast(`❌ Erro: ${error.message}`, 'error');
+    }
+};
+
+/**
+ * Copia a resposta para a área de transferência
+ */
+window.copiarResposta = function() {
+    const respostaJson = document.getElementById('resposta-integra-json').textContent;
+    
+    navigator.clipboard.writeText(respostaJson).then(() => {
+        showToast('✅ Resposta copiada!', 'success');
+    }).catch(err => {
+        console.error('Erro ao copiar:', err);
+        showToast('❌ Erro ao copiar', 'error');
+    });
+};
+
+/**
+ * Faz download da resposta como arquivo JSON
+ */
+window.downloadResposta = function() {
+    const respostaJson = document.getElementById('resposta-integra-json').textContent;
+    const blob = new Blob([respostaJson], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `integra-contador-${new Date().toISOString()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    showToast('✅ Download iniciado!', 'success');
+};
+
+/**
+ * Testa conexão com a API
+ */
+window.testarConexaoIntegra = async function() {
+    try {
+        showToast('⏳ Testando conexão...', 'info');
+        
+        const response = await fetch('/api/integra-contador/testar', {
+            credentials: 'include',
+            headers: {
+                'X-CSRFToken': window.csrfToken || ''
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(`✅ ${data.message}`, 'success');
+        } else {
+            showToast(`❌ Erro: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao testar conexão:', error);
+        showToast('❌ Erro ao testar conexão', 'error');
+    }
+};
+
+// FIM MÓDULO INTEGRA CONTADOR

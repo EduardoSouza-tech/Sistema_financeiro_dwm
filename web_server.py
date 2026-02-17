@@ -12471,6 +12471,86 @@ def exportar_plano_contas():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# =============================================================================
+# INTEGRA CONTADOR - API SERPRO
+# =============================================================================
+
+@app.route('/api/integra-contador/enviar', methods=['POST'])
+@require_auth
+def integra_contador_enviar():
+    """Envia requisição para a API Integra Contador do SERPRO"""
+    try:
+        data = request.get_json()
+        
+        tipo_operacao = data.get('tipoOperacao')
+        payload = data.get('payload')
+        
+        if not tipo_operacao or not payload:
+            return jsonify({
+                'success': False,
+                'error': 'tipoOperacao e payload são obrigatórios'
+            }), 400
+        
+        # Importar funções
+        from integra_contador_functions import enviar_requisicao, validar_payload
+        
+        # Validar payload
+        valido, mensagem = validar_payload(payload)
+        if not valido:
+            return jsonify({
+                'success': False,
+                'error': f'Validação falhou: {mensagem}'
+            }), 400
+        
+        # Enviar requisição
+        resultado = enviar_requisicao(tipo_operacao, payload)
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        logger.error(f"Erro ao enviar requisição Integra Contador: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/integra-contador/testar', methods=['GET'])
+@require_auth
+def integra_contador_testar():
+    """Testa conexão com a API Integra Contador"""
+    try:
+        from integra_contador_functions import testar_conexao
+        resultado = testar_conexao()
+        return jsonify(resultado)
+    except Exception as e:
+        logger.error(f"Erro ao testar conexão: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/integra-contador/token', methods=['GET'])
+@require_auth
+def integra_contador_token():
+    """Obtém token de acesso (apenas para debug)"""
+    try:
+        from integra_contador_functions import obter_token
+        token = obter_token()
+        return jsonify({
+            'success': True,
+            'token': token[:50] + '...',  # Mostrar apenas primeiros 50 caracteres
+            'message': 'Token obtido com sucesso'
+        })
+    except Exception as e:
+        logger.error(f"Erro ao obter token: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 if __name__ == '__main__':
     # Inicializar tabelas de importação
     try:

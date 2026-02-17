@@ -1317,6 +1317,7 @@
             </button>
             <div class="submenu" id="submenu-contabilidade" style="display: none;">
                 <button class="submenu-button" onclick="showSection('plano-contas')" data-permission="lancamentos_view">📊 Plano de Contas</button>
+                <button class="submenu-button" onclick="showSection('integra-contador')" data-permission="lancamentos_view">🔗 Integra Contador</button>
             </div>
             
             <!-- Menu de Relatórios com Submenu -->
@@ -3614,6 +3615,165 @@
                             </table>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Integra Contador SERPRO -->
+            <div id="integra-contador-section" class="content-card hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">🔗 Integra Contador - API SERPRO</h2>
+                </div>
+
+                <!-- Informações da API -->
+                <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="color: #1976d2; margin: 0 0 10px 0; font-size: 16px;">ℹ️ Sobre o Integra Contador</h3>
+                    <p style="margin: 5px 0; font-size: 13px; color: #424242;">API do SERPRO para integração com sistemas governamentais de contabilidade e obrigações fiscais.</p>
+                    <p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Base URL:</strong> https://gateway.apiserpro.serpro.gov.br/integra-contador/v1/</p>
+                </div>
+
+                <!-- Seletor de Tipo de Operação -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 16px;">📋 Selecione o Tipo de Operação</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <button onclick="selecionarTipoOperacao('Apoiar')" class="btn btn-primary" style="padding: 15px; background: #3498db; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                            <span style="font-size: 24px;">🛠️</span>
+                            <span>Apoiar</span>
+                            <span style="font-size: 11px; opacity: 0.9;">Serviços auxiliares</span>
+                        </button>
+                        <button onclick="selecionarTipoOperacao('Consultar')" class="btn btn-primary" style="padding: 15px; background: #27ae60; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                            <span style="font-size: 24px;">🔍</span>
+                            <span>Consultar</span>
+                            <span style="font-size: 11px; opacity: 0.9;">Consultas</span>
+                        </button>
+                        <button onclick="selecionarTipoOperacao('Declarar')" class="btn btn-primary" style="padding: 15px; background: #e74c3c; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                            <span style="font-size: 24px;">📄</span>
+                            <span>Declarar</span>
+                            <span style="font-size: 11px; opacity: 0.9;">Transmitir declaração</span>
+                        </button>
+                        <button onclick="selecionarTipoOperacao('Emitir')" class="btn btn-primary" style="padding: 15px; background: #9b59b6; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                            <span style="font-size: 24px;">📃</span>
+                            <span>Emitir</span>
+                            <span style="font-size: 11px; opacity: 0.9;">Emitir documentos</span>
+                        </button>
+                        <button onclick="selecionarTipoOperacao('Monitorar')" class="btn btn-primary" style="padding: 15px; background: #f39c12; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                            <span style="font-size: 24px;">📊</span>
+                            <span>Monitorar</span>
+                            <span style="font-size: 11px; opacity: 0.9;">Monitoração</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Formulário de Requisição -->
+                <div id="form-integra-contador" style="display: none;">
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px;">
+                        <h3 style="color: #2c3e50; margin: 0 0 15px 0; font-size: 16px;">🔗 Tipo Selecionado: <span id="tipo-operacao-selecionado" style="color: #3498db;"></span></h3>
+                        
+                        <!-- Dados do Contratante -->
+                        <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                            <h4 style="margin: 0 0 10px 0; color: #555; font-size: 14px;">👤 Contratante</h4>
+                            <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 10px;">
+                                <div>
+                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">CNPJ (14 dígitos):</label>
+                                    <input type="text" id="ic-contratante-numero" placeholder="00000000000000" maxlength="14" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Tipo:</label>
+                                    <select id="ic-contratante-tipo" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                                        <option value="2" selected>2 - CNPJ</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dados do Autor do Pedido -->
+                        <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                            <h4 style="margin: 0 0 10px 0; color: #555; font-size: 14px;">✍️ Autor do Pedido</h4>
+                            <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 10px;">
+                                <div>
+                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">CPF/CNPJ:</label>
+                                    <input type="text" id="ic-autor-numero" placeholder="CPF (11) ou CNPJ (14)" maxlength="14" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Tipo:</label>
+                                    <select id="ic-autor-tipo" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                                        <option value="1">1 - CPF</option>
+                                        <option value="2">2 - CNPJ</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dados do Contribuinte -->
+                        <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                            <h4 style="margin: 0 0 10px 0; color: #555; font-size: 14px;">🏢 Contribuinte</h4>
+                            <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 10px;">
+                                <div>
+                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">CPF/CNPJ:</label>
+                                    <input type="text" id="ic-contribuinte-numero" placeholder="CPF (11) ou CNPJ (14)" maxlength="14" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Tipo:</label>
+                                    <select id="ic-contribuinte-tipo" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                                        <option value="1">1 - CPF</option>
+                                        <option value="2">2 - CNPJ</option>
+                                        <option value="3">3 - Lista PF</option>
+                                        <option value="4">4 - Lista PJ</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dados da Requisição -->
+                        <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                            <h4 style="margin: 0 0 10px 0; color: #555; font-size: 14px;">📋 Pedido de Dados</h4>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">ID Sistema:</label>
+                                    <input type="text" id="ic-id-sistema" placeholder="Ex: eSocial" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">ID Serviço:</label>
+                                    <input type="text" id="ic-id-servico" placeholder="Ex: consultar-folha" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Versão:</label>
+                                    <input type="text" id="ic-versao-sistema" placeholder="Ex: 1.0" value="1.0" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Dados (JSON):</label>
+                                <textarea id="ic-dados-json" placeholder='{"cnpjBasico": "23478643", "pa": "202001"}' rows="4" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; font-family: monospace;"></textarea>
+                                <small style="color: #666; font-size: 11px;">⚠️ Será convertido para escaped string automaticamente</small>
+                            </div>
+                        </div>
+
+                        <!-- Botões de Ação -->
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button onclick="limparFormIntegra()" class="btn btn-secondary" style="padding: 10px 20px; background: #95a5a6;">🔄 Limpar</button>
+                            <button onclick="enviarRequisicaoIntegra()" class="btn btn-primary" style="padding: 10px 20px; background: #27ae60;">🚀 Enviar Requisição</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resposta da API -->
+                <div id="resposta-integra-contador" style="display: none;">
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h3 style="color: #2c3e50; margin: 0 0 15px 0; font-size: 16px;">📥 Resposta da API</h3>
+                        <div style="background: #f5f5f5; padding: 15px; border-radius: 6px; border: 1px solid #e0e0e0; overflow-x: auto;">
+                            <pre id="resposta-integra-json" style="margin: 0; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-wrap: break-word;"></pre>
+                        </div>
+                        <div style="margin-top: 15px; display: flex; gap: 10px;">
+                            <button onclick="copiarResposta()" class="btn btn-secondary" style="padding: 8px 16px; background: #3498db;">📋 Copiar</button>
+                            <button onclick="downloadResposta()" class="btn btn-secondary" style="padding: 8px 16px; background: #27ae60;">💾 Download JSON</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estado Inicial -->
+                <div id="integra-empty-state" style="text-align: center; padding: 60px 20px; color: #7f8c8d;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">🔗</div>
+                    <h3 style="color: #34495e; margin-bottom: 10px;">Integra Contador - API SERPRO</h3>
+                    <p style="margin: 0; font-size: 14px;">Selecione um <strong>Tipo de Operação</strong> acima para começar.</p>
                 </div>
             </div>
 
@@ -6311,6 +6471,9 @@
             } else if (sectionId === 'plano-contas') {
                 console.log('  ➡️ loadPlanoContas:', typeof loadPlanoContas);
                 if (typeof loadPlanoContas === 'function') loadPlanoContas();
+            } else if (sectionId === 'integra-contador') {
+                console.log('  ➡️ Integra Contador: Seção carregada');
+                // Não precisa carregar dados iniciais, apenas mostrar a tela
             } else if (sectionId === 'tipos-sessao') {
                 console.log('  ➡️ loadTiposSessao:', typeof loadTiposSessao);
                 if (typeof loadTiposSessao === 'function') loadTiposSessao();
