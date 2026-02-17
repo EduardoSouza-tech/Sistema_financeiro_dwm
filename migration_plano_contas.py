@@ -5,6 +5,13 @@ import psycopg2
 import os
 import sys
 
+# Carregar variáveis de ambiente do .env
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 def run_migration():
     """Cria as tabelas plano_contas_versao e plano_contas no PostgreSQL"""
     
