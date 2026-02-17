@@ -13519,40 +13519,6 @@ def sped_efd_contribuicoes_gerar():
     except Exception as e:
         logger.error(f"Erro ao gerar EFD-Contribuições: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
-            return jsonify({
-                'success': False,
-                'error': 'ano inválido'
-            }), 400
-        
-        # Gerar EFD-Contribuições
-        resultado = gerar_arquivo_efd_contribuicoes(
-            empresa_id=empresa_id,
-            mes=mes,
-            ano=ano
-        )
-        
-        if not resultado['success']:
-            return jsonify(resultado), 400
-        
-        # Retornar preview (primeiras 50 linhas)
-        linhas = resultado['conteudo'].split('\n')
-        preview = '\n'.join(linhas[:50])
-        if len(linhas) > 50:
-            preview += f"\n\n... (mais {len(linhas) - 50} linhas)"
-        
-        return jsonify({
-            'success': True,
-            'total_linhas': resultado['total_linhas'],
-            'hash': resultado['hash'],
-            'data_geracao': resultado['data_geracao'],
-            'periodo': resultado['periodo'],
-            'totais': resultado['totais'],
-            'preview': preview
-        })
-        
-    except Exception as e:
-        logger.error(f"Erro ao gerar EFD-Contribuições: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/sped/efd-contribuicoes/exportar', methods=['POST'])
