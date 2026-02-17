@@ -7139,10 +7139,10 @@ window.exibirNFSe = function(nfses) {
             <td style="text-align: right; font-weight: bold; color: #27ae60;">${valorServico}</td>
             <td style="text-align: right; font-weight: bold; color: #3498db;">${valorIss}</td>
             <td style="text-align: center;">${badgeSituacao}</td>
-            <td style="text-align: center;">
-                <button onclick="verDetalhesNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; background: #3498db;" title="Ver Detalhes">👁️</button>
-                <button onclick="gerarPdfNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; background: #e74c3c; margin-left: 4px;" title="Gerar PDF">📄</button>
-                <button onclick="excluirNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; background: #c0392b; margin-left: 4px;" title="Excluir NFS-e">🗑️</button>
+            <td style="text-align: center; white-space: nowrap;">
+                <button onclick="verDetalhesNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; background: #3498db;" title="Ver Detalhes">👁️</button>
+                <button onclick="gerarPdfNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; background: #e74c3c; margin-left: 2px;" title="Gerar PDF">📄</button>
+                <button onclick="excluirNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; background: #c0392b; margin-left: 2px;" title="Excluir NFS-e">🗑️</button>
             </td>
         `;
         
