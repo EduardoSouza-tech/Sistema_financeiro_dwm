@@ -14238,6 +14238,603 @@ def resumo_dirf():
         }), 500
 
 
+# ============================================================================
+# RELATÓRIOS FISCAIS - NF-e / CT-e
+# ============================================================================
+
+@app.route('/relatorios/fiscal')
+@require_auth
+@require_permission('relatorios.nfe.visualizar')
+def relatorios_fiscal():
+    """Dashboard de relatórios fiscais (NF-e, CT-e)"""
+    return render_template('relatorios_fiscais.html')
+
+
+# ===== GERENCIAMENTO DE CERTIFICADOS DIGITAIS =====
+
+@app.route('/api/relatorios/certificados', methods=['GET'])
+@require_auth
+@require_permission('relatorios.certificados.visualizar')
+def listar_certificados():
+    """Lista todos os certificados digitais da empresa"""
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        cursor.execute("""
+            SELECT 
+                id, cnpj, nome_certificado, ambiente, ativo,
+                ultimo_nsu, max_nsu, data_ultima_busca,
+                valido_de, valido_ate,
+                total_documentos_baixados, total_nfes, total_ctes, total_eventos,
+                criado_em, atualizado_em
+            FROM certificados_digitais
+            WHERE empresa_id = %s
+            ORDER BY ativo DESC, criado_em DESC
+        """, (empresa_id,))
+        
+        certificados = cursor.fetchall()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'certificados': certificados
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao listar certificados: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/relatorios/certificados/novo', methods=['POST'])
+@require_auth
+@require_permission('relatorios.certificados.criar')
+def cadastrar_certificado():
+    """Cadastra um novo certificado digital"""
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        
+        # Validação
+        required = ['cnpj', 'nome_certificado', 'pfx_base64', 'senha', 'cuf']
+        missing = [f for f in required if not data.get(f)]
+        if missing:
+            return jsonify({
+                'success': False,
+                'error': f'Campos obrigatórios faltando: {", ".join(missing)}'
+            }), 400
+        
+        # Importa módulo de API
+        from relatorios.nfe import nfe_api
+        
+        # Salva certificado
+        resultado = nfe_api.salvar_certificado(
+            empresa_id=empresa_id,
+            cnpj=data['cnpj'],
+            nome_certificado=data['nome_certificado'],
+            pfx_base64=data['pfx_base64'],
+            senha=data['senha'],
+            cuf=int(data['cuf']),
+            ambiente=data.get('ambiente', 'producao'),
+            usuario_id=usuario['id']
+        )
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        logger.error(f"Erro ao cadastrar certificado: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/relatorios/certificados/<int:certificado_id>/desativar', methods=['POST'])
+@require_auth
+@require_permission('relatorios.certificados.editar')
+def desativar_certificado(certificado_id):
+    """Desativa um certificado digital"""
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE certificados_digitais
+            SET ativo = FALSE,
+                atualizado_em = NOW(),
+                atualizado_por = %s
+            WHERE id = %s AND empresa_id = %s
+        """, (usuario['id'], certificado_id, empresa_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Certificado desativado com sucesso'
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao desativar certificado: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+# ===== BUSCA E PROCESSAMENTO DE DOCUMENTOS =====
+
+@app.route('/api/relatorios/buscar-documentos', methods=['POST'])
+@require_auth
+@require_permission('relatorios.nfe.buscar')
+def buscar_documentos():
+    """Inicia busca automática de documentos na SEFAZ"""
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        certificado_id = data.get('certificado_id')
+        
+        if not certificado_id:
+            return jsonify({
+                'success': False,
+                'error': 'certificado_id é obrigatório'
+            }), 400
+        
+        # Importa módulo de API
+        from relatorios.nfe import nfe_api
+        
+        # Executa busca
+        resultado = nfe_api.buscar_e_processar_novos_documentos(
+            certificado_id=certificado_id,
+            usuario_id=usuario['id'],
+            limite_docs=data.get('limite', 100)
+        )
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar documentos: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/relatorios/consultar-chave', methods=['POST'])
+@require_auth
+@require_permission('relatorios.nfe.buscar')
+def consultar_por_chave():
+    """Consulta uma NF-e específica por chave de acesso"""
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        chave = data.get('chave')
+        certificado_id = data.get('certificado_id')
+        
+        if not chave or not certificado_id:
+            return jsonify({
+                'success': False,
+                'error': 'chave e certificado_id são obrigatórios'
+            }), 400
+        
+        # Importa módulos
+        from relatorios.nfe import nfe_api, nfe_busca
+        
+        # Carrega certificado
+        cert = nfe_api.obter_certificado(certificado_id)
+        if not cert:
+            return jsonify({
+                'success': False,
+                'error': 'Certificado não encontrado ou inválido'
+            }), 404
+        
+        # Consulta por chave
+        resultado = nfe_busca.consultar_nfe_por_chave(
+            certificado=cert,
+            chave=chave,
+            ambiente=data.get('ambiente', 'producao')
+        )
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        logger.error(f"Erro ao consultar chave: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+# ===== LISTAGEM E CONSULTA DE DOCUMENTOS =====
+
+@app.route('/api/relatorios/documentos', methods=['GET'])
+@require_auth
+@require_permission('relatorios.nfe.visualizar')
+def listar_documentos():
+    """Lista documentos fiscais com filtros"""
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        # Parâmetros de filtro
+        data_inicio = request.args.get('data_inicio')
+        data_fim = request.args.get('data_fim')
+        tipo = request.args.get('tipo')  # NFe, CTe, Evento
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Query base
+        sql = """
+            SELECT 
+                id, nsu, chave, tipo_documento, schema_name,
+                numero_documento, serie, valor_total,
+                cnpj_emitente, nome_emitente,
+                cnpj_destinatario, nome_destinatario,
+                data_emissao, data_busca, processado
+            FROM documentos_fiscais_log
+            WHERE empresa_id = %s
+        """
+        
+        params = [empresa_id]
+        
+        # Filtros opcionais
+        if data_inicio:
+            sql += " AND data_busca >= %s"
+            params.append(data_inicio)
+        
+        if data_fim:
+            sql += " AND data_busca <= %s"
+            params.append(data_fim)
+        
+        if tipo:
+            sql += " AND tipo_documento = %s"
+            params.append(tipo)
+        
+        # Paginação
+        sql += " ORDER BY data_busca DESC"
+        sql += " LIMIT %s OFFSET %s"
+        params.extend([per_page, (page - 1) * per_page])
+        
+        cursor.execute(sql, params)
+        documentos = cursor.fetchall()
+        
+        # Total de registros
+        sql_count = """
+            SELECT COUNT(*)
+            FROM documentos_fiscais_log
+            WHERE empresa_id = %s
+        """
+        count_params = [empresa_id]
+        
+        if data_inicio:
+            sql_count += " AND data_busca >= %s"
+            count_params.append(data_inicio)
+        
+        if data_fim:
+            sql_count += " AND data_busca <= %s"
+            count_params.append(data_fim)
+        
+        if tipo:
+            sql_count += " AND tipo_documento = %s"
+            count_params.append(tipo)
+        
+        cursor.execute(sql_count, count_params)
+        total = cursor.fetchone()['count']
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'documentos': documentos,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao listar documentos: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/relatorios/documento/<int:doc_id>', methods=['GET'])
+@require_auth
+@require_permission('relatorios.nfe.visualizar')
+def obter_documento(doc_id):
+    """Obtém detalhes de um documento específico"""
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        cursor.execute("""
+            SELECT *
+            FROM documentos_fiscais_log
+            WHERE id = %s AND empresa_id = %s
+        """, (doc_id, empresa_id))
+        
+        documento = cursor.fetchone()
+        conn.close()
+        
+        if not documento:
+            return jsonify({
+                'success': False,
+                'error': 'Documento não encontrado'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'documento': documento
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao obter documento: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/relatorios/documento/<int:doc_id>/xml', methods=['GET'])
+@require_auth
+@require_permission('relatorios.nfe.visualizar')
+def download_xml(doc_id):
+    """Download do XML de um documento"""
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT chave, caminho_xml, tipo_documento
+            FROM documentos_fiscais_log
+            WHERE id = %s AND empresa_id = %s
+        """, (doc_id, empresa_id))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if not row:
+            return jsonify({
+                'success': False,
+                'error': 'Documento não encontrado'
+            }), 404
+        
+        chave, caminho_xml, tipo_doc = row
+        
+        # Lê o arquivo XML
+        if os.path.exists(caminho_xml):
+            from flask import send_file
+            return send_file(
+                caminho_xml,
+                mimetype='application/xml',
+                as_attachment=True,
+                download_name=f'{tipo_doc}_{chave}.xml'
+            )
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Arquivo XML não encontrado no storage'
+            }), 404
+        
+    except Exception as e:
+        logger.error(f"Erro ao fazer download do XML: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+# ===== ESTATÍSTICAS E DASHBOARDS =====
+
+@app.route('/api/relatorios/estatisticas', methods=['GET'])
+@require_auth
+@require_permission('relatorios.nfe.visualizar')
+def obter_estatisticas():
+    """Obtém estatísticas de documentos fiscais da empresa"""
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        from relatorios.nfe import nfe_api
+        
+        stats = nfe_api.obter_estatisticas_empresa(empresa_id)
+        
+        return jsonify({
+            'success': True,
+            'estatisticas': stats
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao obter estatísticas: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/relatorios/nsu-status', methods=['GET'])
+@require_auth
+@require_permission('relatorios.nfe.visualizar')
+def obter_nsu_status():
+    """Obtém status dos NSUs de todos os certificados"""
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        cursor.execute("""
+            SELECT 
+                id, nome_certificado, cnpj, ambiente,
+                ultimo_nsu, max_nsu, data_ultima_busca,
+                total_documentos_baixados,
+                CASE 
+                    WHEN max_nsu IS NOT NULL AND ultimo_nsu::BIGINT < max_nsu::BIGINT 
+                    THEN (max_nsu::BIGINT - ultimo_nsu::BIGINT)
+                    ELSE 0
+                END as nsus_pendentes
+            FROM certificados_digitais
+            WHERE empresa_id = %s AND ativo = TRUE
+            ORDER BY data_ultima_busca DESC NULLS LAST
+        """, (empresa_id,))
+        
+        certificados = cursor.fetchall()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'certificados': certificados
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao obter status NSU: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+# ===== EXPORTAÇÃO =====
+
+@app.route('/api/relatorios/exportar-excel', methods=['POST'])
+@require_auth
+@require_permission('relatorios.nfe.exportar')
+def exportar_excel():
+    """Exporta documentos fiscais para Excel"""
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        data_inicio = data.get('data_inicio')
+        data_fim = data.get('data_fim')
+        tipo = data.get('tipo')
+        
+        from relatorios.nfe import nfe_api
+        
+        # Lista documentos
+        documentos = nfe_api.listar_documentos_periodo(
+            empresa_id=empresa_id,
+            data_inicio=datetime.fromisoformat(data_inicio) if data_inicio else datetime.now() - timedelta(days=30),
+            data_fim=datetime.fromisoformat(data_fim) if data_fim else datetime.now(),
+            tipo=tipo
+        )
+        
+        # Gera Excel
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill
+        from io import BytesIO
+        
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Documentos Fiscais"
+        
+        # Cabeçalho
+        headers = ['NSU', 'Chave', 'Tipo', 'Número', 'Série', 'Valor', 
+                  'Emitente CNPJ', 'Emitente Nome', 'Destinatário CNPJ', 
+                  'Destinatário Nome', 'Data Emissão', 'Data Busca']
+        
+        ws.append(headers)
+        
+        # Estilos do cabeçalho
+        header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
+        header_font = Font(color='FFFFFF', bold=True)
+        
+        for cell in ws[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        
+        # Dados
+        for doc in documentos:
+            ws.append([
+                doc.get('nsu'),
+                doc.get('chave'),
+                doc.get('tipo'),
+                doc.get('numero'),
+                doc.get('serie'),
+                doc.get('valor'),
+                doc.get('emitente_cnpj'),
+                doc.get('emitente_nome'),
+                doc.get('destinatario_cnpj'),
+                doc.get('destinatario_nome'),
+                doc.get('data_emissao'),
+                doc.get('data_busca')
+            ])
+        
+        # Ajusta largura das colunas
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws.column_dimensions[column].width = adjusted_width
+        
+        # Salva em BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Envia arquivo
+        from flask import send_file
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'documentos_fiscais_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        )
+        
+    except Exception as e:
+        logger.error(f"Erro ao exportar Excel: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
 # ===== INTERFACE WEB SPED =====
 
 @app.route('/sped')

@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatórios Fiscais - NF-e e CT-e | Sistema Financeiro</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- DataTables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+            border: none;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-header {
+            background-color: #fff;
+            border-bottom: 2px solid #e9ecef;
+            font-weight: 600;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-card.success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        
+        .stat-card.warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .stat-card.info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .stat-card h3 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .stat-card p {
+            margin: 0;
+            opacity: 0.9;
+        }
+        
+        .badge-custom {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .table-actions button {
+            margin-right: 0.25rem;
+        }
+        
+        .certificado-card {
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s;
+        }
+        
+        .certificado-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+        }
+        
+        .certificado-card.inativo {
+            opacity: 0.6;
+            border-left-color: #dc3545;
+        }
+        
+        .modal-header {
+            background-color: #667eea;
+            color: white;
+        }
+        
+        .btn-primary {
+            background-color: #667eea;
+            border-color: #667eea;
+        }
+        
+        .btn-primary:hover {
+            background-color: #5568d3;
+            border-color: #5568d3;
+        }
+        
+        .tab-content {
+            padding: 1.5rem 0;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .loading-overlay.show {
+            display: flex;
+        }
+        
+        .spinner-border-lg {
+            width: 4rem;
+            height: 4rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="text-center text-white">
+            <div class="spinner-border spinner-border-lg" role="status"></div>
+            <p class="mt-3 h5">Processando...</p>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-file-earmark-text"></i> Sistema Financeiro
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="bi bi-house"></i> Início
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/relatorios/fiscal">
+                            <i class="bi bi-file-earmark-bar-graph"></i> Relatórios Fiscais
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">
+                    <i class="bi bi-file-earmark-bar-graph"></i>
+                    Relatórios Fiscais - NF-e e CT-e
+                </h1>
+            </div>
+        </div>
+
+        <!-- Estatísticas -->
+        <div class="row" id="statsContainer">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <p>Total de Documentos</p>
+                    <h3 id="statTotalDocs">-</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card success">
+                    <p>NF-e Baixadas</p>
+                    <h3 id="statTotalNFes">-</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card warning">
+                    <p>Valor Total NF-e</p>
+                    <h3 id="statValorTotal">R$ 0,00</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card info">
+                    <p>Certificados Ativos</p>
+                    <h3 id="statCertificados">-</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="certificados-tab" data-bs-toggle="tab" 
+                        data-bs-target="#certificados" type="button">
+                    <i class="bi bi-shield-check"></i> Certificados Digitais
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="busca-tab" data-bs-toggle="tab" 
+                        data-bs-target="#busca" type="button">
+                    <i class="bi bi-search"></i> Buscar Documentos
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="documentos-tab" data-bs-toggle="tab" 
+                        data-bs-target="#documentos" type="button">
+                    <i class="bi bi-file-earmark-text"></i> Documentos
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="nsu-tab" data-bs-toggle="tab" 
+                        data-bs-target="#nsu" type="button">
+                    <i class="bi bi-graph-up"></i> Status NSU
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="mainTabsContent">
+            <!-- Tab: Certificados Digitais -->
+            <div class="tab-pane fade show active" id="certificados" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Certificados Digitais Cadastrados</span>
+                        <button class="btn btn-primary btn-sm" onclick="abrirModalNovoCertificado()">
+                            <i class="bi bi-plus-circle"></i> Novo Certificado
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="certificadosContainer">
+                            <div class="col-12 text-center text-muted">
+                                <p>Carregando certificados...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Buscar Documentos -->
+            <div class="tab-pane fade" id="busca" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <i class="bi bi-cloud-download"></i> Busca Automática (NSU)
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">
+                                    Busca incremental de documentos na SEFAZ usando o último NSU processado.
+                                </p>
+                                <div class="mb-3">
+                                    <label class="form-label">Certificado</label>
+                                    <select class="form-select" id="busca AutoCertificado">
+                                        <option value="">Selecione um certificado...</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Limite de Documentos</label>
+                                    <input type="number" class="form-control" id="buscaAutoLimite" 
+                                           value="100" min="1" max="500">
+                                    <small class="text-muted">Máximo: 500 documentos por busca</small>
+                                </div>
+                                <button class="btn btn-primary w-100" onclick="executarBuscaAutomatica()">
+                                    <i class="bi bi-cloud-download"></i> Iniciar Busca Automática
+                                </button>
+                                <div id="buscaAutoResultado" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <i class="bi bi-search"></i> Consultar por Chave
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">
+                                    Consulta uma NF-e específica pela chave de acesso de 44 dígitos.
+                                </p>
+                                <div class="mb-3">
+                                    <label class="form-label">Certificado</label>
+                                    <select class="form-select" id="buscaChaveCertificado">
+                                        <option value="">Selecione um certificado...</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Chave de Acesso (44 dígitos)</label>
+                                    <input type="text" class="form-control" id="buscaChave" 
+                                           maxlength="44" placeholder="35260112345678000190550010000001001123456781">
+                                    <small class="text-muted">Digite os 44 dígitos da chave</small>
+                                </div>
+                                <button class="btn btn-primary w-100" onclick="consultarPorChave()">
+                                    <i class="bi bi-search"></i> Consultar Chave
+                                </button>
+                                <div id="buscaChaveResultado" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Documentos -->
+            <div class="tab-pane fade" id="documentos" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Documentos Fiscais</span>
+                        <div>
+                            <button class="btn btn-success btn-sm" onclick="exportarExcel()">
+                                <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Filtros -->
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Data Início</label>
+                                <input type="date" class="form-control" id="filtroDataInicio">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Data Fim</label>
+                                <input type="date" class="form-control" id="filtroDataFim">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo</label>
+                                <select class="form-select" id="filtroTipo">
+                                    <option value="">Todos</option>
+                                    <option value="NFe">NF-e</option>
+                                    <option value="CTe">CT-e</option>
+                                    <option value="Evento">Eventos</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-primary w-100" onclick="carregarDocumentos()">
+                                    <i class="bi bi-filter"></i> Filtrar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Tabela -->
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="tabelaDocumentos">
+                                <thead>
+                                    <tr>
+                                        <th>NSU</th>
+                                        <th>Chave</th>
+                                        <th>Tipo</th>
+                                        <th>Número</th>
+                                        <th>Série</th>
+                                        <th>Valor</th>
+                                        <th>Emitente</th>
+                                        <th>Data Emissão</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaDocumentosBody">
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted">
+                                            Carregue os documentos usando os filtros acima
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Status NSU -->
+            <div class="tab-pane fade" id="nsu" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-graph-up"></i> Status de NSU dos Certificados
+                    </div>
+                    <div class="card-body">
+                        <div id="nsuStatusContainer">
+                            <p class="text-muted">Carregando status...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Novo Certificado -->
+    <div class="modal fade" id="modalNovoCertificado" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-shield-check"></i> Cadastrar Certificado Digital
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formNovoCertificado">
+                        <div class="mb-3">
+                            <label class="form-label">Nome do Certificado</label>
+                            <input type="text" class="form-control" id="certNome" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">CNPJ</label>
+                            <input type="text" class="form-control" id="certCNPJ" 
+                                   maxlength="14" required>
+                            <small class="text-muted">Apenas números (14 dígitos)</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Arquivo .PFX</label>
+                            <input type="file" class="form-control" id="certArquivo" 
+                                   accept=".pfx,.p12" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Senha do Certificado</label>
+                            <input type="password" class="form-control" id="certSenha" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">UF (Código)</label>
+                            <select class="form-select" id="certCUF" required>
+                                <option value="35">São Paulo (35)</option>
+                                <option value="33">Rio de Janeiro (33)</option>
+                                <option value="31">Minas Gerais (31)</option>
+                                <option value="41">Paraná (41)</option>
+                                <option value="43">Rio Grande do Sul (43)</option>
+                                <option value="52">Goiás (52)</option>
+                                <option value="53">Distrito Federal (53)</option>
+                                <!-- Adicione mais UFs conforme necessário -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ambiente</label>
+                            <select class="form-select" id="certAmbiente" required>
+                                <option value="producao">Produção</option>
+                                <option value="homologacao">Homologação</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="salvarCertificado()">
+                        <i class="bi bi-check-circle"></i> Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    
+    <!-- Bootstrap 5 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- DataTables -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <script>
+        // ===== INICIALIZAÇÃO =====
+        $(document).ready(function() {
+            carregarEstatisticas();
+            carregarCertificados();
+            carregarNSUStatus();
+            
+            // Preenche selects de certificados nas outras tabs
+            preencherSelectsCertificados();
+        });
+
+        // ===== FUNÇÕES AUXILIARES =====
+        function showLoading() {
+            $('#loadingOverlay').addClass('show');
+        }
+
+        function hideLoading() {
+            $('#loadingOverlay').removeClass('show');
+        }
+
+        function showToast(message, type = 'success') {
+            alert(message); // Simplificado - pode usar bibliotecas como Toastify
+        }
+
+        function formatarMoeda(valor) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(valor || 0);
+        }
+
+        function formatarData(data) {
+            if (!data) return '-';
+            return new Date(data).toLocaleDateString('pt-BR');
+        }
+
+        // ===== ESTATÍSTICAS =====
+        function carregarEstatisticas() {
+            $.get('/api/relatorios/estatisticas', function(response) {
+                if (response.success) {
+                    const stats = response.estatisticas;
+                    $('#statTotalDocs').text(stats.total_documentos || 0);
+                    $('#statTotalNFes').text(stats.total_nfes || 0);
+                    $('#statValorTotal').text(formatarMoeda(stats.valor_total_nfes));
+                    $('#statCertificados').text(stats.certificados_ativos || 0);
+                }
+            }).fail(function() {
+                console.error('Erro ao carregar estatísticas');
+            });
+        }
+
+        // ===== CERTIFICADOS =====
+        function carregarCertificados() {
+            $.get('/api/relatorios/certificados', function(response) {
+                if (response.success) {
+                    const certificados = response.certificados;
+                    let html = '';
+
+                    if (certificados.length === 0) {
+                        html = `<div class="col-12 text-center text-muted">
+                                  <p>Nenhum certificado cadastrado.</p>
+                                  <button class="btn btn-primary" onclick="abrirModalNovoCertificado()">
+                                      Cadastrar Primeiro Certificado
+                                  </button>
+                                </div>`;
+                    } else {
+                        certificados.forEach(cert => {
+                            const ativo = cert.ativo ? '' : 'inativo';
+                            const badgeAtivo = cert.ativo 
+                                ? '<span class="badge bg-success">Ativo</span>' 
+                                : '<span class="badge bg-danger">Inativo</span>';
+                            
+                            const ultimaBusca = cert.data_ultima_busca 
+                                ? formatarData(cert.data_ultima_busca)
+                                : 'Nunca';
+
+                            html += `
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="card certificado-card ${ativo}">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <h5 class="card-title">${cert.nome_certificado}</h5>
+                                                ${badgeAtivo}
+                                            </div>
+                                            <p class="card-text">
+                                                <strong>CNPJ:</strong> ${cert.cnpj}<br>
+                                                <strong>Ambiente:</strong> ${cert.ambiente}<br>
+                                                <strong>Última Busca:</strong> ${ultimaBusca}<br>
+                                                <strong>NSU Atual:</strong> ${cert.ultimo_nsu || '000000000000000'}<br>
+                                                <strong>Docs Baixados:</strong> ${cert.total_documentos_baixados || 0}
+                                            </p>
+                                            ${cert.ativo ? `
+                                                <button class="btn btn-sm btn-danger" 
+                                                        onclick="desativarCertificado(${cert.id})">
+                                                    <i class="bi bi-x-circle"></i> Desativar
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+
+                    $('#certificadosContainer').html(html);
+                    preencherSelectsCertificados();
+                }
+            }).fail(function() {
+                $('#certificadosContainer').html(`
+                    <div class="col-12 alert alert-danger">
+                        Erro ao carregar certificados.
+                    </div>
+                `);
+            });
+        }
+
+        function preencherSelectsCertificados() {
+            $.get('/api/relatorios/certificados', function(response) {
+                if (response.success) {
+                    const certificados = response.certificados.filter(c => c.ativo);
+                    let options = '<option value="">Selecione um certificado...</option>';
+                    
+                    certificados.forEach(cert => {
+                        options += `<option value="${cert.id}">${cert.nome_certificado} (${cert.cnpj})</option>`;
+                    });
+                    
+                    $('#buscaAutoCertificado, #buscaChaveCertificado').html(options);
+                }
+            });
+        }
+
+        function abrirModalNovoCertificado() {
+            $('#formNovoCertificado')[0].reset();
+            new bootstrap.Modal($('#modalNovoCertificado')).show();
+        }
+
+        function salvarCertificado() {
+            const arquivo = $('#certArquivo')[0].files[0];
+            
+            if (!arquivo) {
+                showToast('Selecione um arquivo .PFX', 'error');
+                return;
+            }
+
+            showLoading();
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result.split(',')[1];
+                
+                const dados = {
+                    nome_certificado: $('#certNome').val(),
+                    cnpj: $('#certCNPJ').val(),
+                    pfx_base64: base64,
+                    senha: $('#certSenha').val(),
+                    cuf: parseInt($('#certCUF').val()),
+                    ambiente: $('#certAmbiente').val()
+                };
+
+                $.ajax({
+                    url: '/api/relatorios/certificados/novo',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(dados),
+                    success: function(response) {
+                        hideLoading();
+                        if (response.sucesso) {
+                            showToast('Certificado cadastrado com sucesso!');
+                            bootstrap.Modal.getInstance($('#modalNovoCertificado')).hide();
+                            carregarCertificados();
+                            carregarEstatisticas();
+                        } else {
+                            showToast('Erro: ' + response.erro, 'error');
+                        }
+                    },
+                    error: function() {
+                        hideLoading();
+                        showToast('Erro ao cadastrar certificado', 'error');
+                    }
+                });
+            };
+            
+            reader.readAsDataURL(arquivo);
+        }
+
+        function desativarCertificado(id) {
+            if (!confirm('Deseja realmente desativar este certificado?')) return;
+
+            showLoading();
+            $.ajax({
+                url: `/api/relatorios/certificate/${id}/desativar`,
+                method: 'POST',
+                success: function(response) {
+                    hideLoading();
+                    if (response.success) {
+                        showToast('Certificado desativado!');
+                        carregarCertificados();
+                        carregarEstatisticas();
+                    }
+                },
+                error: function() {
+                    hideLoading();
+                    showToast('Erro ao desativar certificado', 'error');
+                }
+            });
+        }
+
+        // ===== BUSCAR DOCUMENTOS =====
+        function executarBuscaAutomatica() {
+            const certificadoId = $('#buscaAutoCertificado').val();
+            const limite = parseInt($('#buscaAutoLimite').val());
+
+            if (!certificadoId) {
+                showToast('Selecione um certificado', 'error');
+                return;
+            }
+
+            showLoading();
+            $('#buscaAutoResultado').html('');
+
+            $.ajax({
+                url: '/api/relatorios/buscar-documentos',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    certificado_id: parseInt(certificadoId),
+                    limite: limite
+                }),
+                success: function(response) {
+                    hideLoading();
+                    
+                    if (response.sucesso) {
+                        const html = `
+                            <div class="alert alert-success">
+                                <h6><i class="bi bi-check-circle"></i> Busca concluída!</h6>
+                                <ul class="mb-0">
+                                    <li>Documentos baixados: <strong>${response.total_baixados || 0}</strong></li>
+                                    <li>NF-es processadas: <strong>${response.nfes_processadas || 0}</strong></li>
+                                    <li>Eventos processados: <strong>${response.eventos_processados || 0}</strong></li>
+                                    <li>Erros: <strong>${response.erros || 0}</strong></li>
+                                    <li>Novo NSU: <strong>${response.novo_nsu}</strong></li>
+                                </ul>
+                            </div>
+                        `;
+                        $('#buscaAutoResultado').html(html);
+                        carregarEstatisticas();
+                        carregarCertificados();
+                    } else {
+                        $('#buscaAutoResultado').html(`
+                            <div class="alert alert-danger">
+                                <strong>Erro:</strong> ${response.erro}
+                            </div>
+                        `);
+                    }
+                },
+                error: function() {
+                    hideLoading();
+                    showToast('Erro ao executar busca', 'error');
+                }
+            });
+        }
+
+        function consultarPorChave() {
+            const certificadoId = $('#buscaChaveCertificado').val();
+            const chave = $('#buscaChave').val().trim();
+
+            if (!certificadoId || !chave) {
+                showToast('Preencha todos os campos', 'error');
+                return;
+            }
+
+            if (chave.length !== 44) {
+                showToast('A chave deve ter 44 dígitos', 'error');
+                return;
+            }
+
+            showLoading();
+            $('#buscaChaveResultado').html('');
+
+            $.ajax({
+                url: '/api/relatorios/consultar-chave',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    certificado_id: parseInt(certificadoId),
+                    chave: chave
+                }),
+                success: function(response) {
+                    hideLoading();
+                    
+                    if (response.sucesso) {
+                        const html = `
+                            <div class="alert alert-success">
+                                <h6><i class="bi bi-check-circle"></i> NF-e Encontrada!</h6>
+                                <ul class="mb-0">
+                                    <li>Chave: <strong>${response.chave}</strong></li>
+                                    <li>Situação: <strong>${response.situacao}</strong></li>
+                                    <li>Código SEFAZ: <strong>${response.codigo_sefaz}</strong></li>
+                                    <li>Mensagem: <strong>${response.mensagem_sefaz}</strong></li>
+                                </ul>
+                            </div>
+                        `;
+                        $('#buscaChaveResultado').html(html);
+                    } else {
+                        $('#buscaChaveResultado').html(`
+                            <div class="alert alert-danger">
+                                <strong>Erro:</strong> ${response.erro || response.mensagem_sefaz}
+                            </div>
+                        `);
+                    }
+                },
+                error: function() {
+                    hideLoading();
+                    showToast('Erro ao consultar chave', 'error');
+                }
+            });
+        }
+
+        // ===== DOCUMENTOS =====
+        function carregarDocumentos() {
+            const dataInicio = $('#filtroDataInicio').val();
+            const dataFim = $('#filtroDataFim').val();
+            const tipo = $('#filtroTipo').val();
+
+            let url = '/api/relatorios/documentos?';
+            if (dataInicio) url += `data_inicio=${dataInicio}&`;
+            if (dataFim) url += `data_fim=${dataFim}&`;
+            if (tipo) url += `tipo=${tipo}&`;
+
+            showLoading();
+
+            $.get(url, function(response) {
+                hideLoading();
+                
+                if (response.success) {
+                    const docs = response.documentos;
+                    let html = '';
+
+                    if (docs.length === 0) {
+                        html = '<tr><td colspan="9" class="text-center text-muted">Nenhum documento encontrado</td></tr>';
+                    } else {
+                        docs.forEach(doc => {
+                            html += `
+                                <tr>
+                                    <td>${doc.nsu}</td>
+                                    <td><small class="font-monospace">${doc.chave || '-'}</small></td>
+                                    <td><span class="badge bg-primary">${doc.tipo_documento}</span></td>
+                                    <td>${doc.numero_documento || '-'}</td>
+                                    <td>${doc.serie || '-'}</td>
+                                    <td>${formatarMoeda(doc.valor_total)}</td>
+                                    <td><small>${doc.nome_emitente || '-'}</small></td>
+                                    <td>${formatarData(doc.data_emissao)}</td>
+                                    <td class="table-actions">
+                                        <button class="btn btn-sm btn-info" 
+                                                onclick="verDetalhes(${doc.id})" 
+                                                title="Ver Detalhes">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <a href="/api/relatorios/documento/${doc.id}/xml" 
+                                           class="btn btn-sm btn-success" 
+                                           title="Download XML">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    }
+
+                    $('#tabelaDocumentosBody').html(html);
+                }
+            }).fail(function() {
+                hideLoading();
+                showToast('Erro ao carregar documentos', 'error');
+            });
+        }
+
+        function verDetalhes(id) {
+            // Implementar modal com detalhes completos
+            alert('Funcionalidade de detalhes em desenvolvimento. ID: ' + id);
+        }
+
+        function exportarExcel() {
+            const dataInicio = $('#filtroDataInicio').val();
+            const dataFim = $('#filtroDataFim').val();
+            const tipo = $('#filtroTipo').val();
+
+            showLoading();
+
+            $.ajax({
+                url: '/api/relatorios/exportar-excel',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    data_inicio: dataInicio,
+                    data_fim: dataFim,
+                    tipo: tipo
+                }),
+                xhrFields: {
+                    responseType: 'blob'
+                },
+                success: function(data) {
+                    hideLoading();
+                    
+                    const blob = new Blob([data], {
+                        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    });
+                    
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `documentos_fiscais_${new Date().getTime()}.xlsx`;
+                    a.click();
+                    
+                    showToast('Excel exportado com sucesso!');
+                },
+                error: function() {
+                    hideLoading();
+                    showToast('Erro ao exportar Excel', 'error');
+                }
+            });
+        }
+
+        // ===== STATUS NSU =====
+        function carregarNSUStatus() {
+            $.get('/api/relatorios/nsu-status', function(response) {
+                if (response.success) {
+                    const certificados = response.certificados;
+                    let html = '';
+
+                    if (certificados.length === 0) {
+                        html = '<p class="text-muted">Nenhum certificado ativo.</p>';
+                    } else {
+                        html = '<div class="table-responsive"><table class="table table-hover">';
+                        html += '<thead><tr>' +
+                                '<th>Certificado</th>' +
+                                '<th>CNPJ</th>' +
+                                '<th>Ambiente</th>' +
+                                '<th>Último NSU</th>' +
+                                '<th>Máximo NSU</th>' +
+                                '<th>NSUs Pendentes</th>' +
+                                '<th>Última Busca</th>' +
+                                '<th>Docs Baixados</th>' +
+                                '</tr></thead><tbody>';
+
+                        certificados.forEach(cert => {
+                            const pendentes = cert.nsus_pendentes || 0;
+                            const badgePendentes = pendentes > 0 
+                                ? `<span class="badge bg-warning text-dark">${pendentes}</span>`
+                                : `<span class="badge bg-success">0</span>`;
+
+                            html += `
+                                <tr>
+                                    <td><strong>${cert.nome_certificado}</strong></td>
+                                    <td>${cert.cnpj}</td>
+                                    <td><span class="badge bg-secondary">${cert.ambiente}</span></td>
+                                    <td>${cert.ultimo_nsu || '000000000000000'}</td>
+                                    <td>${cert.max_nsu || '-'}</td>
+                                    <td>${badgePendentes}</td>
+                                    <td>${formatarData(cert.data_ultima_busca)}</td>
+                                    <td>${cert.total_documentos_baixados || 0}</td>
+                                </tr>
+                            `;
+                        });
+
+                        html += '</tbody></table></div>';
+                    }
+
+                    $('#nsuStatusContainer').html(html);
+                }
+            }).fail(function() {
+                $('#nsuStatusContainer').html(`
+                    <div class="alert alert-danger">
+                        Erro ao carregar status dos NSUs.
+                    </div>
+                `);
+            });
+        }
+    </script>
+</body>
+</html>
