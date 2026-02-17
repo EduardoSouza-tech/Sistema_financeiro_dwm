@@ -5184,6 +5184,19 @@ window.showContratoTab = showContratoTab;
 window.editarComissao = editarComissao;
 window.excluirComissao = excluirComissao;
 
+// Função de carregamento do Fluxo de Caixa
+async function loadFluxoCaixa() {
+    console.log('📈 Inicializando seção Fluxo de Caixa...');
+    await carregarBancosFluxo();
+    // Definir mês atual nos filtros
+    const hoje = new Date();
+    const anoAtual = hoje.getFullYear();
+    const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
+    document.getElementById('filter-ano-fluxo').value = anoAtual;
+    document.getElementById('filter-mes-fluxo').value = mesAtual;
+    await carregarFluxoCaixa();
+}
+
 // Funções de Carregamento
 window.loadDashboard = loadDashboard;
 window.loadContas = loadContas;
@@ -5705,68 +5718,50 @@ window.carregarFluxoCaixa = async function() {
         const dadosRealizado = await responseRealizado.json();
         const dadosProjetado = await responseProjetado.json();
         
-        // Calcular totais projetados (realizado + pendente)
-        const receitasRealizadas = dadosRealizado.totais?.receitas || 0;
-        const despesasRealizadas = dadosRealizado.totais?.despesas || 0;
-        const saldoRealizado = dadosRealizado.totais?.saldo || 0;
-        
-        const contasReceber = dadosProjetado.total_receber || 0;
-        const contasPagar = dadosProjetado.total_pagar || 0;
-        const saldoProjetado = saldoRealizado + contasReceber - contasPagar;
-        
         // Renderizar tabela de fluxo
         const content = document.getElementById('fluxo-caixa-content');
         
+        // Carregar transações primeiro para calcular totais reais
+        await carregarTransacoesDetalhadas(dataInicio, dataFim, banco);
+        
+        // Calcular totais das transações carregadas
+        const transacoes = window.fluxoCaixaTransacoes || [];
+        const totalEntradas = transacoes.filter(t => t.tipo === 'receita').reduce((sum, t) => sum + parseFloat(t.valor || 0), 0);
+        const totalSaidas = transacoes.filter(t => t.tipo === 'despesa').reduce((sum, t) => sum + parseFloat(t.valor || 0), 0);
+        const saldoPeriodo = totalEntradas - totalSaidas;
+        
         let html = `
+            <!-- Botões de Exportação -->
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 15px;">
+                <button onclick="exportarFluxoCaixaPDF()" style="padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                    📄 Exportar PDF
+                </button>
+                <button onclick="exportarFluxoCaixaExcel()" style="padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                    📊 Exportar Excel
+                </button>
+            </div>
+            
             <!-- Cards de Resumo -->
-            <div style="margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                <div style="background: linear-gradient(135deg, #27ae60, #229954); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">💰 Receitas Realizadas</div>
-                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(receitasRealizadas)}</div>
-                    <div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">✅ Já recebido</div>
+            <div style="margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                <div style="background: linear-gradient(135deg, #27ae60, #229954); color: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">💰 Total de Entradas</div>
+                    <div style="font-size: 28px; font-weight: bold; margin-bottom: 5px;">${formatarMoeda(totalEntradas)}</div>
+                    <div style="font-size: 12px; opacity: 0.85;">Receitas recebidas no período</div>
                 </div>
-                <div style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">📅 Contas a Receber</div>
-                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(contasReceber)}</div>
-                    <div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">⏳ Pendente</div>
+                <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">💸 Total de Saídas</div>
+                    <div style="font-size: 28px; font-weight: bold; margin-bottom: 5px;">${formatarMoeda(totalSaidas)}</div>
+                    <div style="font-size: 12px; opacity: 0.85;">Despesas pagas no período</div>
                 </div>
-                <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">💸 Despesas Realizadas</div>
-                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(despesasRealizadas)}</div>
-                    <div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">✅ Já pago</div>
-                </div>
-                <div style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">📅 Contas a Pagar</div>
-                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(contasPagar)}</div>
-                    <div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">⏳ Pendente</div>
-                </div>
-                <div style="background: linear-gradient(135deg, ${saldoRealizado >= 0 ? '#16a085, #138d75' : '#c0392b, #a93226'}); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">📊 Saldo Realizado</div>
-                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(saldoRealizado)}</div>
-                    <div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">✅ Efetivo</div>
-                </div>
-                <div style="background: linear-gradient(135deg, ${saldoProjetado >= 0 ? '#8e44ad, #7d3c98' : '#e74c3c, #c0392b'}); color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">🔮 Saldo Projetado</div>
-                    <div style="font-size: 24px; font-weight: bold;">${formatarMoeda(saldoProjetado)}</div>
-                    <div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">📊 Com pendentes</div>
+                <div style="background: linear-gradient(135deg, ${saldoPeriodo >= 0 ? '#3498db, #2980b9' : '#e67e22, #d35400'}); color: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">📊 Saldo do Período</div>
+                    <div style="font-size: 28px; font-weight: bold; margin-bottom: 5px;">${formatarMoeda(saldoPeriodo)}</div>
+                    <div style="font-size: 12px; opacity: 0.85;">${saldoPeriodo >= 0 ? 'Resultado positivo' : 'Resultado negativo'}</div>
                 </div>
             </div>
             
-            <!-- Abas -->
-            <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ecf0f1;">
-                <button onclick="mostrarAbaFluxo('transacoes')" id="aba-transacoes" class="aba-fluxo aba-ativa" style="padding: 12px 24px; border: none; background: none; cursor: pointer; font-weight: bold; color: #2c3e50; border-bottom: 3px solid #2c3e50;">
-                    📋 Transações Detalhadas
-                </button>
-                <button onclick="mostrarAbaFluxo('realizado')" id="aba-realizado" class="aba-fluxo" style="padding: 12px 24px; border: none; background: none; cursor: pointer; font-weight: bold; color: #95a5a6; border-bottom: 3px solid transparent;">
-                    ✅ Fluxo Realizado
-                </button>
-                <button onclick="mostrarAbaFluxo('projetado')" id="aba-projetado" class="aba-fluxo" style="padding: 12px 24px; border: none; background: none; cursor: pointer; font-weight: bold; color: #95a5a6; border-bottom: 3px solid transparent;">
-                    🔮 Fluxo Projetado
-                </button>
-            </div>
-            
-            <!-- Conteúdo Transações Detalhadas -->
-            <div id="conteudo-transacoes" class="conteudo-aba-fluxo">
+            <!-- Transações Detalhadas -->
+            <div id="conteudo-transacoes">
                 <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     <table class="data-table" id="tabela-transacoes-fluxo">
                         <thead>
@@ -5789,114 +5784,18 @@ window.carregarFluxoCaixa = async function() {
                 <div style="margin-top: 10px; padding: 10px; background: #ecf0f1; border-radius: 5px; color: #7f8c8d; font-size: 13px;">
                     📌 <strong>Transações Detalhadas:</strong> Mostra cada lançamento pago individualmente. Digite no campo "Associação" para adicionar observações personalizadas (salva automaticamente).
                 </div>
-            </div>
-            
-            <!-- Conteúdo Fluxo Realizado -->
-            <div id="conteudo-realizado" class="conteudo-aba-fluxo" style="display: none;">
-                <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Período</th>
-                                <th style="text-align: right; color: #27ae60;">Receitas</th>
-                                <th style="text-align: right; color: #e74c3c;">Despesas</th>
-                                <th style="text-align: right; color: #3498db;">Saldo</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-        
-        if (dadosRealizado.evolucao && dadosRealizado.evolucao.length > 0) {
-            dadosRealizado.evolucao.forEach(item => {
-                html += `
-                    <tr>
-                        <td><strong>${item.periodo}</strong></td>
-                        <td style="text-align: right; color: #27ae60; font-weight: bold;">${formatarMoeda(item.receitas)}</td>
-                        <td style="text-align: right; color: #e74c3c; font-weight: bold;">${formatarMoeda(item.despesas)}</td>
-                        <td style="text-align: right; color: ${item.saldo >= 0 ? '#3498db' : '#e67e22'}; font-weight: bold;">${formatarMoeda(item.saldo)}</td>
-                    </tr>`;
-            });
-        } else {
-            html += '<tr><td colspan="4" style="text-align: center; padding: 40px; color: #999;">Nenhum lançamento pago encontrado no período</td></tr>';
-        }
-        
-        html += `
-                        </tbody>
-                    </table>
-                </div>
-                <div style="margin-top: 10px; padding: 10px; background: #ecf0f1; border-radius: 5px; color: #7f8c8d; font-size: 13px;">
-                    📌 <strong>Fluxo Realizado:</strong> Mostra apenas receitas e despesas já pagas/recebidas (lançamentos com status "Pago").
-                </div>
-            </div>
-            
-            <!-- Conteúdo Fluxo Projetado -->
-            <div id="conteudo-projetado" class="conteudo-aba-fluxo" style="display: none;">
-                <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Período</th>
-                                <th style="text-align: right; color: #27ae60;">Receitas (Pagas)</th>
-                                <th style="text-align: right; color: #3498db;">A Receber</th>
-                                <th style="text-align: right; color: #e74c3c;">Despesas (Pagas)</th>
-                                <th style="text-align: right; color: #e67e22;">A Pagar</th>
-                                <th style="text-align: right; color: #8e44ad;">Saldo Projetado</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-        
-        if (dadosRealizado.evolucao && dadosRealizado.evolucao.length > 0) {
-            dadosRealizado.evolucao.forEach(item => {
-                const saldoProj = item.saldo + (contasReceber / dadosRealizado.evolucao.length) - (contasPagar / dadosRealizado.evolucao.length);
-                html += `
-                    <tr>
-                        <td><strong>${item.periodo}</strong></td>
-                        <td style="text-align: right; color: #27ae60; font-weight: bold;">${formatarMoeda(item.receitas)}</td>
-                        <td style="text-align: right; color: #3498db;">${formatarMoeda(contasReceber / dadosRealizado.evolucao.length)}</td>
-                        <td style="text-align: right; color: #e74c3c; font-weight: bold;">${formatarMoeda(item.despesas)}</td>
-                        <td style="text-align: right; color: #e67e22;">${formatarMoeda(contasPagar / dadosRealizado.evolucao.length)}</td>
-                        <td style="text-align: right; color: ${saldoProj >= 0 ? '#8e44ad' : '#c0392b'}; font-weight: bold;">${formatarMoeda(saldoProj)}</td>
-                    </tr>`;
-            });
-        } else {
-            html += '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #999;">Nenhum dado disponível</td></tr>';
-        }
-        
-        html += `
-                        </tbody>
-                    </table>
-                </div>
-                <div style="margin-top: 10px; padding: 10px; background: #ecf0f1; border-radius: 5px; color: #7f8c8d; font-size: 13px;">
-                    📌 <strong>Fluxo Projetado:</strong> Inclui valores já pagos/recebidos + contas a pagar e receber pendentes. Os valores pendentes são distribuídos proporcionalmente nos meses.
-                </div>
-                <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
-                        <div style="font-weight: bold; color: #856404; margin-bottom: 5px;">⚠️ Contas Vencidas a Receber</div>
-                        <div style="font-size: 20px; color: #856404;">${formatarMoeda(dadosProjetado.receber_vencidos || 0)}</div>
-                    </div>
-                    <div style="background: #f8d7da; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545;">
-                        <div style="font-weight: bold; color: #721c24; margin-bottom: 5px;">⚠️ Contas Vencidas a Pagar</div>
-                        <div style="font-size: 20px; color: #721c24;">${formatarMoeda(dadosProjetado.pagar_vencidos || 0)}</div>
-                    </div>
-                </div>
             </div>`;
         
         content.innerHTML = html;
         
-        // Carregar transações detalhadas
-        await carregarTransacoesDetalhadas(dataInicio, dataFim, banco);
-        
         // Armazenar dados para exportação
         window.fluxoCaixaDados = {
-            ...dadosRealizado,
-            projetado: dadosProjetado,
-            totais: {
-                receitas: receitasRealizadas,
-                despesas: despesasRealizadas,
-                saldo: saldoRealizado,
-                contasReceber,
-                contasPagar,
-                saldoProjetado
-            }
+            totalEntradas,
+            totalSaidas,
+            saldoPeriodo,
+            dataInicio,
+            dataFim,
+            banco: banco || 'Todas as contas'
         };
         
         showToast('Fluxo de Caixa carregado com sucesso!', 'success');
@@ -5909,30 +5808,7 @@ window.carregarFluxoCaixa = async function() {
     }
 };
 
-window.mostrarAbaFluxo = function(aba) {
-    // Atualizar botões
-    document.querySelectorAll('.aba-fluxo').forEach(btn => {
-        btn.style.color = '#95a5a6';
-        btn.style.borderBottom = '3px solid transparent';
-    });
-    
-    const botaoAtivo = document.getElementById(`aba-${aba}`);
-    if (botaoAtivo) {
-        botaoAtivo.style.borderBottom = aba === 'transacoes' ? '3px solid #2c3e50' : (aba === 'realizado' ? '3px solid #27ae60' : '3px solid #8e44ad');
-        botaoAtivo.style.color = aba === 'transacoes' ? '#2c3e50' : (aba === 'realizado' ? '#27ae60' : '#8e44ad');
-    }
-    
-    // Ocultar todos os conteúdos
-    document.querySelectorAll('.conteudo-aba-fluxo').forEach(div => {
-        div.style.display = 'none';
-    });
-    
-    // Mostrar conteúdo selecionado
-    const conteudo = document.getElementById(`conteudo-${aba}`);
-    if (conteudo) {
-        conteudo.style.display = 'block';
-    }
-};
+// Função removida - abas Realizado e Projetado foram excluídas
 
 // Função para carregar transações detalhadas
 async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
@@ -6250,6 +6126,120 @@ window.salvarTransferencia = async function() {
         showToast(error.message || 'Erro ao realizar transferência', 'error');
     }
 };
+
+// ============================================================================
+// EXPORTAÇÃO FLUXO DE CAIXA - PDF E EXCEL
+// ============================================================================
+
+window.exportarFluxoCaixaPDF = function() {
+    if (!window.fluxoCaixaTransacoes || window.fluxoCaixaTransacoes.length === 0) {
+        showToast('⚠️ Nenhuma transação para exportar', 'warning');
+        return;
+    }
+    
+    const dados = window.fluxoCaixaDados || {};
+    const transacoes = window.fluxoCaixaTransacoes;
+    
+    // Preparar conteúdo do PDF
+    let conteudo = `
+FLUXO DE CAIXA - RELATÓRIO DETALHADO
+=====================================
+
+Período: ${formatarData(dados.dataInicio)} até ${formatarData(dados.dataFim)}
+Conta: ${dados.banco || 'Todas as contas'}
+Data de emissão: ${new Date().toLocaleString('pt-BR')}
+
+RESUMO FINANCEIRO
+-----------------
+💰 Total de Entradas:  ${formatarMoeda(dados.totalEntradas || 0)}
+💸 Total de Saídas:    ${formatarMoeda(dados.totalSaidas || 0)}
+📊 Saldo do Período:   ${formatarMoeda(dados.saldoPeriodo || 0)}
+
+TRANSAÇÕES DETALHADAS
+---------------------
+`;
+    
+    transacoes.forEach((t, index) => {
+        const tipo = t.tipo === 'receita' ? 'ENTRADA' : 'SAÍDA';
+        conteudo += `
+${index + 1}. ${formatarData(t.data_pagamento)} - ${tipo}
+   Descrição: ${t.descricao || '-'}
+   Categoria: ${t.categoria || '-'}
+   Subcategoria: ${t.subcategoria || '-'}
+   Valor: ${formatarMoeda(t.valor)}
+   Conta: ${t.conta_bancaria || '-'}
+   Associação: ${t.associacao || '-'}
+   `;
+    });
+    
+    // Criar blob e download
+    const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fluxo_caixa_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    showToast('✅ Relatório PDF exportado com sucesso!', 'success');
+};
+
+window.exportarFluxoCaixaExcel = function() {
+    if (!window.fluxoCaixaTransacoes || window.fluxoCaixaTransacoes.length === 0) {
+        showToast('⚠️ Nenhuma transação para exportar', 'warning');
+        return;
+    }
+    
+    const dados = window.fluxoCaixaDados || {};
+    const transacoes = window.fluxoCaixaTransacoes;
+    
+    // Cabeçalho com resumo
+    let csv = '\ufeff'; // BOM para UTF-8
+    csv += 'FLUXO DE CAIXA - RELATÓRIO DETALHADO\n';
+    csv += `Período:;${formatarData(dados.dataInicio)};até;${formatarData(dados.dataFim)}\n`;
+    csv += `Conta:;${dados.banco || 'Todas as contas'}\n`;
+    csv += `Emissão:;${new Date().toLocaleString('pt-BR')}\n`;
+    csv += '\n';
+    csv += 'RESUMO FINANCEIRO\n';
+    csv += `Total de Entradas:;${formatarMoeda(dados.totalEntradas || 0)}\n`;
+    csv += `Total de Saídas:;${formatarMoeda(dados.totalSaidas || 0)}\n`;
+    csv += `Saldo do Período:;${formatarMoeda(dados.saldoPeriodo || 0)}\n`;
+    csv += '\n';
+    
+    // Cabeçalho da tabela
+    csv += 'Data;Descrição;Categoria;Subcategoria;Tipo;Valor;Conta;Associação\n';
+    
+    // Dados
+    transacoes.forEach(t => {
+        const linha = [
+            formatarData(t.data_pagamento),
+            (t.descricao || '-').replace(/;/g, ','),
+            (t.categoria || '-').replace(/;/g, ','),
+            (t.subcategoria || '-').replace(/;/g, ','),
+            t.tipo === 'receita' ? 'ENTRADA' : 'SAÍDA',
+            t.valor || 0,
+            (t.conta_bancaria || '-').replace(/;/g, ','),
+            (t.associacao || '-').replace(/;/g, ',')
+        ].join(';');
+        csv += linha + '\n';
+    });
+    
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fluxo_caixa_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    showToast('✅ Planilha Excel exportada com sucesso!', 'success');
+};
+
 // === CONCILIAÇÃO GERAL DE EXTRATO ===
 window.abrirConciliacaoGeral = async function() {
     console.log('🔄 [APP.JS] Abrindo Conciliação Geral...');
