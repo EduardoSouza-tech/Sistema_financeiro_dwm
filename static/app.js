@@ -8798,6 +8798,53 @@ window.exportarPlanoContas = async function() {
     }
 };
 
+window.importarPlanoPadrao = async function() {
+    // Confirmar com o usuário
+    const anoFiscal = new Date().getFullYear();
+    const confirmar = confirm(
+        `📦 Importar Plano de Contas Padrão?\n\n` +
+        `Será criada uma nova versão do plano de contas com a estrutura padrão brasileira.\n\n` +
+        `Ano Fiscal: ${anoFiscal}\n` +
+        `Total de contas: ~100\n\n` +
+        `Você poderá editar, excluir e incluir contas após a importação.\n\n` +
+        `Confirma?`
+    );
+    
+    if (!confirmar) return;
+    
+    try {
+        showToast('⏳ Importando plano de contas padrão...', 'info');
+        
+        const response = await fetch('/api/contabilidade/plano-contas/importar-padrao', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ ano_fiscal: anoFiscal })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(
+                `✅ Plano de contas padrão importado com sucesso!\n\n` +
+                `${data.contas_criadas} contas criadas` +
+                (data.erros && data.erros.length > 0 ? `\n${data.erros.length} erros encontrados` : ''),
+                'success'
+            );
+            
+            // Recarregar versões e selecionar a nova
+            await carregarVersoes();
+            document.getElementById('pcVersaoFiltro').value = data.versao_id;
+            await carregarPlanoContas();
+        } else {
+            showToast('❌ ' + (data.error || 'Erro ao importar plano padrão'), 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao importar plano padrão:', error);
+        showToast('❌ Erro ao importar plano padrão', 'error');
+    }
+};
+
 // FIM MÓDULO CONTABILIDADE
 
 // =============================================================================

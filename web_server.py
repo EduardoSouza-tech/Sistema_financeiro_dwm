@@ -12471,6 +12471,33 @@ def exportar_plano_contas():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/contabilidade/plano-contas/importar-padrao', methods=['POST'])
+@require_auth
+def importar_plano_padrao_route():
+    """Importa o plano de contas padrão para a empresa"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        dados = request.get_json() or {}
+        ano_fiscal = dados.get('ano_fiscal')
+        
+        from contabilidade_functions import importar_plano_padrao
+        resultado = importar_plano_padrao(empresa_id, ano_fiscal)
+        
+        return jsonify({
+            'success': True,
+            'versao_id': resultado['versao_id'],
+            'contas_criadas': resultado['contas_criadas'],
+            'erros': resultado['erros']
+        })
+    except Exception as e:
+        logger.error(f"Erro ao importar plano padrão: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # =============================================================================
 # INTEGRA CONTADOR - API SERPRO
 # =============================================================================

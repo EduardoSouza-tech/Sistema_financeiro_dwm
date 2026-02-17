@@ -500,3 +500,126 @@ def obter_versao_ativa(empresa_id):
                 'observacoes': row[5]
             }
         return None
+
+
+def importar_plano_padrao(empresa_id, ano_fiscal=None):
+    """
+    Importa o plano de contas padrão para uma empresa
+    Cria uma nova versão e adiciona todas as contas padrão
+    
+    Args:
+        empresa_id: ID da empresa
+        ano_fiscal: Ano fiscal (default: ano corrente)
+    
+    Returns:
+        dict com versao_id, contas_criadas e erros
+    """
+    from plano_contas_padrao import obter_plano_contas_padrao
+    from datetime import datetime
+    
+    if not ano_fiscal:
+        ano_fiscal = datetime.now().year
+    
+    try:
+        # Criar versão para o plano padrão
+        versao_dados = {
+            'nome_versao': f'Plano Padrão {ano_fiscal}',
+            'exercicio_fiscal': ano_fiscal,
+            'data_inicio': f'{ano_fiscal}-01-01',
+            'data_fim': f'{ano_fiscal}-12-31',
+            'is_ativa': True,
+            'observacoes': 'Plano de contas padrão importado automaticamente'
+        }
+        
+        versao_id = criar_versao(empresa_id, versao_dados)
+        logger.info(f"Versão {versao_id} criada para empresa {empresa_id}")
+        
+        # Obter contas padrão
+        contas_padrao = obter_plano_contas_padrao()
+        
+        # Mapa para resolver parent_id
+        mapa_codigos = {}  # codigo -> id
+        contas_criadas = 0
+        erros = []
+        
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            # Inserir contas em ordem (já vêm na ordem correta)
+            for conta in contas_padrao:
+                try:
+                    # Resolver parent_id
+                    parent_id = None
+                    if conta['parent_codigo']:
+                        parent_id = mapa_codigos.get(conta['parent_codigo'])
+                        if not parent_id:
+                            erros.append(f"Conta {conta['codigo']}: parent {conta['parent_codigo']} não encontrado")
+                            continue
+                    
+                    # Determinar tipo_conta (sintética ou analítica)
+                    # Se há contas que a referenciam como parent, é sintética
+                    tipo_conta = 'sintetica' if any(c['parent_codigo'] == conta['codigo'] for c in contas_padrao) else 'analitica'
+                    
+                    # Determinar natureza baseada na classificação
+                    if conta['classificacao'] in ['ativo', 'despesa']:
+                        natureza = 'devedora'
+                    elif conta['classificacao'] in ['passivo', 'patrimonio_liquido', 'receita']:
+                        natureza = 'credora'
+                    else:
+                        natureza = 'devedora'
+                    
+                    # Calcular ordem
+                    cursor.execute("""
+                        SELECT COALESCE(MAX(ordem), 0) + 1 FROM plano_contas
+                        WHERE empresa_id = %s AND versao_id = %s 
+                          AND parent_id IS NOT DISTINCT FROM %s AND deleted_at IS NULL
+                    """, (empresa_id, versao_id, parent_id))
+                    ordem = cursor.fetchone()[0]
+                    
+                    # Inserir conta
+                    cursor.execute("""
+                        INSERT INTO plano_contas 
+                            (empresa_id, versao_id, codigo, descricao, parent_id, nivel, ordem,
+                             tipo_conta, classificacao, natureza, is_bloqueada, 
+                             requer_centro_custo, permite_lancamento)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id
+                    """, (
+                        empresa_id,
+                        versao_id,
+                        conta['codigo'],
+                        conta['nome'],
+                        parent_id,
+                        conta['nivel'],
+                        ordem,
+                        tipo_conta,
+                        conta['classificacao'],
+                        natureza,
+                        False,  # is_bloqueada
+                        False,  # requer_centro_custo
+                        tipo_conta == 'analitica'  # permite_lancamento apenas para analíticas
+                    ))
+                    
+                    conta_id = cursor.fetchone()[0]
+                    mapa_codigos[conta['codigo']] = conta_id
+                    contas_criadas += 1
+                    
+                except Exception as e:
+                    erros.append(f"Erro ao criar conta {conta['codigo']}: {str(e)}")
+                    logger.error(f"Erro ao criar conta {conta['codigo']}: {str(e)}")
+                    logger.error(traceback.format_exc())
+            
+            cursor.close()
+        
+        logger.info(f"Plano padrão importado: {contas_criadas} contas criadas, {len(erros)} erros")
+        
+        return {
+            'versao_id': versao_id,
+            'contas_criadas': contas_criadas,
+            'erros': erros
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao importar plano padrão: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise
