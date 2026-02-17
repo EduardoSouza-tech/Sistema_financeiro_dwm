@@ -13435,7 +13435,8 @@ def sped_efd_contribuicoes_gerar():
     Body:
     {
         "mes": 1-12,
-        "ano": 2026
+        "ano": 2026,
+        "usar_creditos_reais": true  # Opcional, padrão: true
     }
     
     Returns:
@@ -13445,11 +13446,14 @@ def sped_efd_contribuicoes_gerar():
         "hash": "ABC123...",
         "data_geracao": "17/02/2026 14:30:00",
         "periodo": "01/2026",
+        "modo": "creditos_reais" ou "simplificado",
         "totais": {
             "receitas": 100000.00,
             "pis": 650.00,
             "cofins": 3000.00,
-            "total_tributos": 3650.00
+            "total_tributos": 3650.00,
+            "credito_pis": 150.00,
+            "credito_cofins": 690.00
         },
         "preview": "primeiras 50 linhas do arquivo"
     }
@@ -13464,6 +13468,7 @@ def sped_efd_contribuicoes_gerar():
         # Validações
         mes = data.get('mes')
         ano = data.get('ano')
+        usar_creditos_reais = data.get('usar_creditos_reais', True)
         
         if not mes or not ano:
             return jsonify({
@@ -13478,6 +13483,42 @@ def sped_efd_contribuicoes_gerar():
             }), 400
         
         if not isinstance(ano, int) or ano < 2000 or ano > 2100:
+            return jsonify({
+                'success': False,
+                'error': 'ano inválido'
+            }), 400
+        
+        # Gerar EFD-Contribuições
+        resultado = gerar_arquivo_efd_contribuicoes(
+            empresa_id=empresa_id,
+            mes=mes,
+            ano=ano,
+            usar_creditos_reais=usar_creditos_reais
+        )
+        
+        if not resultado['success']:
+            return jsonify(resultado), 400
+        
+        # Retornar preview (primeiras 50 linhas)
+        linhas = resultado['conteudo'].split('\n')
+        preview = '\n'.join(linhas[:50])
+        if len(linhas) > 50:
+            preview += f"\n\n... (mais {len(linhas) - 50} linhas)"
+        
+        return jsonify({
+            'success': True,
+            'total_linhas': resultado['total_linhas'],
+            'hash': resultado['hash'],
+            'data_geracao': resultado['data_geracao'],
+            'periodo': resultado['periodo'],
+            'modo': resultado.get('modo', 'simplificado'),
+            'totais': resultado['totais'],
+            'preview': preview
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar EFD-Contribuições: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
             return jsonify({
                 'success': False,
                 'error': 'ano inválido'
@@ -13523,7 +13564,8 @@ def sped_efd_contribuicoes_exportar():
     Body:
     {
         "mes": 1-12,
-        "ano": 2026
+        "ano": 2026,
+        "usar_creditos_reais": true  # Opcional, padrão: true
     }
     
     Returns:
@@ -13533,6 +13575,7 @@ def sped_efd_contribuicoes_exportar():
         "total_linhas": 450,
         "hash": "ABC123...",
         "nome_arquivo": "EFD_Contribuicoes_CNPJ_AAAAMM.txt",
+        "modo": "creditos_reais" ou "simplificado",
         "totais": {
             "receitas": 100000.00,
             "pis": 650.00,
@@ -13551,6 +13594,7 @@ def sped_efd_contribuicoes_exportar():
         # Validações
         mes = data.get('mes')
         ano = data.get('ano')
+        usar_creditos_reais = data.get('usar_creditos_reais', True)
         
         if not mes or not ano:
             return jsonify({
@@ -13574,7 +13618,8 @@ def sped_efd_contribuicoes_exportar():
         resultado = gerar_arquivo_efd_contribuicoes(
             empresa_id=empresa_id,
             mes=mes,
-            ano=ano
+            ano=ano,
+            usar_creditos_reais=usar_creditos_reais
         )
         
         if not resultado['success']:
@@ -13601,6 +13646,7 @@ def sped_efd_contribuicoes_exportar():
             'hash': resultado['hash'],
             'nome_arquivo': nome_arquivo,
             'data_geracao': resultado['data_geracao'],
+            'modo': resultado.get('modo', 'simplificado'),
             'totais': resultado['totais']
         })
         
@@ -13687,6 +13733,552 @@ def integra_contador_token():
             'success': False,
             'error': str(e)
         }), 500
+
+
+# ===== NOTAS FISCAIS (NF-e / NFS-e) =====
+
+@app.route('/api/notas-fiscais/importar', methods=['POST'])
+@require_auth
+def importar_nota_fiscal():
+    """
+    Importa XML de NF-e ou NFS-e
+    
+    Body: {
+        "tipo": "NFE" ou "NFSE",
+        "xml_content": "conteúdo do XML"
+    }
+    """
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        tipo = data.get('tipo', '').upper()
+        xml_content = data.get('xml_content', '')
+        
+        if not xml_content:
+            return jsonify({
+                'success': False,
+                'error': 'XML não fornecido'
+            }), 400
+        
+        # Importar função apropriada
+        from nfe_import_functions import importar_xml_nfe, importar_xml_nfse
+        
+        if tipo == 'NFE':
+            resultado = importar_xml_nfe(empresa_id, xml_content, usuario['id'])
+        elif tipo == 'NFSE':
+            resultado = importar_xml_nfse(empresa_id, xml_content, usuario['id'])
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Tipo inválido. Use NFE ou NFSE'
+            }), 400
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        logger.error(f"Erro ao importar nota fiscal: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/notas-fiscais/upload', methods=['POST'])
+@require_auth
+def upload_xml_nota_fiscal():
+    """
+    Upload de arquivo XML de NF-e ou NFS-e
+    
+    Form-data:
+        file: arquivo XML
+        tipo: NFE ou NFSE
+    """
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        # Verificar se foi enviado arquivo
+        if 'file' not in request.files:
+            return jsonify({
+                'success': False,
+                'error': 'Nenhum arquivo enviado'
+            }), 400
+        
+        file = request.files['file']
+        tipo = request.form.get('tipo', '').upper()
+        
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'error': 'Nome de arquivo vazio'
+            }), 400
+        
+        # Ler conteúdo do XML
+        xml_content = file.read().decode('utf-8')
+        
+        # Importar função apropriada
+        from nfe_import_functions import importar_xml_nfe, importar_xml_nfse
+        
+        if tipo == 'NFE':
+            resultado = importar_xml_nfe(empresa_id, xml_content, usuario['id'])
+        elif tipo == 'NFSE':
+            resultado = importar_xml_nfse(empresa_id, xml_content, usuario['id'])
+        else:
+            # Tentar detectar automaticamente
+            if 'NFe' in xml_content or 'nfe:' in xml_content:
+                resultado = importar_xml_nfe(empresa_id, xml_content, usuario['id'])
+            else:
+                resultado = importar_xml_nfse(empresa_id, xml_content, usuario['id'])
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        logger.error(f"Erro ao fazer upload de nota fiscal: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/notas-fiscais/listar', methods=['POST'])
+@require_auth
+def listar_notas_fiscais():
+    """
+    Lista notas fiscais da empresa
+    
+    Body: {
+        "tipo": "NFE" ou "NFSE" (opcional),
+        "data_inicio": "2026-01-01" (opcional),
+        "data_fim": "2026-01-31" (opcional),
+        "limit": 100 (opcional)
+    }
+    """
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        tipo = data.get('tipo')
+        data_inicio = data.get('data_inicio')
+        data_fim = data.get('data_fim')
+        limit = data.get('limit', 100)
+        
+        from nfe_import_functions import listar_notas_fiscais
+        notas = listar_notas_fiscais(empresa_id, tipo, data_inicio, data_fim, limit)
+        
+        return jsonify({
+            'success': True,
+            'notas': notas,
+            'quantidade': len(notas)
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao listar notas fiscais: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/notas-fiscais/<int:nota_id>', methods=['GET'])
+@require_auth
+def obter_nota_fiscal(nota_id):
+    """Obtém detalhes completos de uma nota fiscal"""
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        from nfe_import_functions import obter_detalhes_nota_fiscal
+        detalhes = obter_detalhes_nota_fiscal(nota_id)
+        
+        if not detalhes:
+            return jsonify({
+                'success': False,
+                'error': 'Nota fiscal não encontrada'
+            }), 404
+        
+        # Verificar se a nota pertence à empresa
+        if detalhes['nota']['empresa_id'] != empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'Acesso negado'
+            }), 403
+        
+        return jsonify({
+            'success': True,
+            **detalhes
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao obter detalhes da nota fiscal: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/notas-fiscais/totais', methods=['POST'])
+@require_auth
+def calcular_totais_notas():
+    """
+    Calcula totais de notas fiscais no período
+    
+    Body: {
+        "data_inicio": "2026-01-01",
+        "data_fim": "2026-01-31"
+    }
+    """
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        data_inicio = data.get('data_inicio')
+        data_fim = data.get('data_fim')
+        
+        if not data_inicio or not data_fim:
+            return jsonify({
+                'success': False,
+                'error': 'data_inicio e data_fim são obrigatórios'
+            }), 400
+        
+        from nfe_import_functions import calcular_totais_periodo
+        totais = calcular_totais_periodo(empresa_id, data_inicio, data_fim)
+        
+        return jsonify({
+            'success': True,
+            'periodo': {
+                'data_inicio': data_inicio,
+                'data_fim': data_fim
+            },
+            'totais': totais
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao calcular totais de notas: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+# ===== CRÉDITOS TRIBUTÁRIOS =====
+
+@app.route('/api/creditos-tributarios/calcular', methods=['POST'])
+@require_auth
+def calcular_creditos_tributarios():
+    """
+    Calcula créditos tributários de PIS/COFINS
+    
+    Body: {
+        "mes": 1,
+        "ano": 2026,
+        "tipos": ["INSUMOS", "ENERGIA", "ALUGUEL"] (opcional - calcula todos se não informado)
+    }
+    """
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        mes = data.get('mes')
+        ano = data.get('ano')
+        tipos = data.get('tipos', [])
+        
+        if not mes or not ano:
+            return jsonify({
+                'success': False,
+                'error': 'mes e ano são obrigatórios'
+            }), 400
+        
+        from creditos_tributarios_functions import (
+            calcular_todos_creditos,
+            calcular_creditos_insumos,
+            calcular_creditos_energia,
+            calcular_creditos_aluguel
+        )
+        
+        # Se não especificou tipos, calcular todos
+        if not tipos:
+            resultado = calcular_todos_creditos(empresa_id, mes, ano)
+        else:
+            # Calcular apenas os tipos especificados
+            resultados = {}
+            total_pis = 0
+            total_cofins = 0
+            
+            if 'INSUMOS' in tipos:
+                r = calcular_creditos_insumos(empresa_id, mes, ano)
+                if r.get('success'):
+                    resultados['insumos'] = r
+                    total_pis += r.get('credito_pis', 0)
+                    total_cofins += r.get('credito_cofins', 0)
+            
+            if 'ENERGIA' in tipos:
+                r = calcular_creditos_energia(empresa_id, mes, ano)
+                if r.get('success'):
+                    resultados['energia'] = r
+                    total_pis += r.get('credito_pis', 0)
+                    total_cofins += r.get('credito_cofins', 0)
+            
+            if 'ALUGUEL' in tipos:
+                r = calcular_creditos_aluguel(empresa_id, mes, ano)
+                if r.get('success'):
+                    resultados['aluguel'] = r
+                    total_pis += r.get('credito_pis', 0)
+                    total_cofins += r.get('credito_cofins', 0)
+            
+            resultado = {
+                'success': True,
+                'mes': mes,
+                'ano': ano,
+                'detalhamento': resultados,
+                'resumo': {
+                    'total_credito_pis': total_pis,
+                    'total_credito_cofins': total_cofins,
+                    'total_geral': total_pis + total_cofins
+                }
+            }
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        logger.error(f"Erro ao calcular créditos tributários: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/creditos-tributarios/listar', methods=['POST'])
+@require_auth
+def listar_creditos_tributarios():
+    """
+    Lista créditos tributários calculados
+    
+    Body: {
+        "mes": 1,
+        "ano": 2026,
+        "tributo": "PIS" ou "COFINS" (opcional)
+    }
+    """
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        mes = data.get('mes')
+        ano = data.get('ano')
+        tributo = data.get('tributo')
+        
+        if not mes or not ano:
+            return jsonify({
+                'success': False,
+                'error': 'mes e ano são obrigatórios'
+            }), 400
+        
+        from creditos_tributarios_functions import listar_creditos_periodo
+        creditos = listar_creditos_periodo(empresa_id, mes, ano, tributo)
+        
+        return jsonify({
+            'success': True,
+            'mes': mes,
+            'ano': ano,
+            'creditos': creditos,
+            'quantidade': len(creditos)
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao listar créditos tributários: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/creditos-tributarios/resumo', methods=['POST'])
+@require_auth
+def resumo_creditos_tributarios():
+    """
+    Obtém resumo dos créditos tributários
+    
+    Body: {
+        "mes": 1,
+        "ano": 2026
+    }
+    """
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        mes = data.get('mes')
+        ano = data.get('ano')
+        
+        if not mes or not ano:
+            return jsonify({
+                'success': False,
+                'error': 'mes e ano são obrigatórios'
+            }), 400
+        
+        from creditos_tributarios_functions import obter_resumo_creditos
+        resumo = obter_resumo_creditos(empresa_id, mes, ano)
+        
+        return jsonify({
+            'success': True,
+            'mes': mes,
+            'ano': ano,
+            **resumo
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao obter resumo de créditos: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+# ===== DCTF (Declaração de Débitos Federais) =====
+
+@app.route('/api/dctf/gerar', methods=['POST'])
+@require_auth
+def gerar_dctf():
+    """
+    Gera arquivo DCTF mensal
+    
+    Body: {
+        "mes": 1,
+        "ano": 2026
+    }
+    """
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        mes = data.get('mes')
+        ano = data.get('ano')
+        
+        if not mes or not ano:
+            return jsonify({
+                'success': False,
+                'error': 'mes e ano são obrigatórios'
+            }), 400
+        
+        from dctf_functions import gerar_arquivo_dctf
+        resultado = gerar_arquivo_dctf(empresa_id, mes, ano)
+        
+        if resultado.get('success'):
+            logger.info(f"DCTF gerado para empresa {empresa_id}: {mes}/{ano}")
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar DCTF: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+# ===== DIRF (Declaração de IR Retido na Fonte) =====
+
+@app.route('/api/dirf/gerar', methods=['POST'])
+@require_auth
+def gerar_dirf():
+    """
+    Gera arquivo DIRF anual
+    
+    Body: {
+        "ano": 2025
+    }
+    """
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        ano = data.get('ano')
+        
+        if not ano:
+            return jsonify({
+                'success': False,
+                'error': 'ano é obrigatório'
+            }), 400
+        
+        from dirf_functions import gerar_arquivo_dirf
+        resultado = gerar_arquivo_dirf(empresa_id, ano)
+        
+        if resultado.get('success'):
+            logger.info(f"DIRF gerado para empresa {empresa_id}: {ano}")
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar DIRF: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/dirf/resumo', methods=['POST'])
+@require_auth
+def resumo_dirf():
+    """
+    Obtém resumo da DIRF antes de gerar
+    
+    Body: {
+        "ano": 2025
+    }
+    """
+    try:
+        empresa_id, usuario = get_usuario_logado()
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        ano = data.get('ano')
+        
+        if not ano:
+            return jsonify({
+                'success': False,
+                'error': 'ano é obrigatório'
+            }), 400
+        
+        from dirf_functions import obter_resumo_dirf
+        resultado = obter_resumo_dirf(empresa_id, ano)
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        logger.error(f"Erro ao obter resumo DIRF: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
+# ===== INTERFACE WEB SPED =====
+
+@app.route('/sped')
+@require_auth
+def sped_interface():
+    """Interface web para geração de arquivos SPED"""
+    return render_template('sped_interface.html')
 
 
 if __name__ == '__main__':
