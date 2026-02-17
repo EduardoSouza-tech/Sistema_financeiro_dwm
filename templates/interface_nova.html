@@ -2735,13 +2735,14 @@
                                 <th style="width: 130px;">Valor Líquido NF</th>
                                 <th style="width: 130px;">Custo do Evento</th>
                                 <th style="width: 120px;">Margem</th>
+                                <th style="width: 100px;">Lucro em %</th>
                                 <th style="width: 130px;">Tipo de Evento</th>
                                 <th style="width: 110px;">Status</th>
                                 <th style="width: 150px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="tbody-eventos">
-                            <tr><td colspan="9" class="loading">Carregando...</td></tr>
+                            <tr><td colspan="10" class="loading">Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -8328,6 +8329,14 @@
                                 <td>${evt.valor_liquido_nf ? formatarMoeda(evt.valor_liquido_nf) : '-'}</td>
                                 <td>${evt.custo_evento ? formatarMoeda(evt.custo_evento) : '-'}</td>
                                 <td>${evt.margem ? formatarMoeda(evt.margem) : '-'}</td>
+                                <td>${(() => {
+                                    if (evt.valor_liquido_nf && evt.custo_evento && evt.valor_liquido_nf > 0) {
+                                        const lucroPercent = ((evt.valor_liquido_nf - evt.custo_evento) / evt.valor_liquido_nf) * 100;
+                                        const cor = lucroPercent >= 0 ? '#27ae60' : '#e74c3c';
+                                        return `<span style="color: ${cor}; font-weight: bold;">${lucroPercent.toFixed(2)}%</span>`;
+                                    }
+                                    return '-';
+                                })()}</td>
                                 <td>${evt.tipo_evento || '-'}</td>
                                 <td>${statusBadge[evt.status] || evt.status}</td>
                                 <td>
@@ -8339,11 +8348,11 @@
                         `;
                     }).join('');
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 30px; color: #999;">Nenhum evento encontrado</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 30px; color: #999;">Nenhum evento encontrado</td></tr>';
                 }
             } catch (error) {
                 console.error('Erro ao carregar eventos:', error);
-                document.getElementById('tbody-eventos').innerHTML = '<tr><td colspan="9" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>';
+                document.getElementById('tbody-eventos').innerHTML = '<tr><td colspan="10" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>';
             }
         }
 
