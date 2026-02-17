@@ -6244,7 +6244,7 @@ window.exportarFluxoCaixaExcel = function() {
         const isReceita = t.tipo === 'receita';
         const valor = parseFloat(t.valor || 0);
         const valorFormatado = isReceita ? formatarMoeda(valor) : `- ${formatarMoeda(valor)}`;
-        const classeValor = isReceita ? 'receita' : 'despesa';
+        const corValor = isReceita ? '#27ae60' : '#e74c3c';
         
         html += '<tr>\n';
         html += `<td>${formatarData(t.data_pagamento)}</td>\n`;
@@ -6252,7 +6252,7 @@ window.exportarFluxoCaixaExcel = function() {
         html += `<td>${escapeHtml(t.categoria || '-')}</td>\n`;
         html += `<td>${escapeHtml(t.subcategoria || '-')}</td>\n`;
         html += `<td>${isReceita ? 'ENTRADA' : 'SAÍDA'}</td>\n`;
-        html += `<td class="right ${classeValor}">${valorFormatado}</td>\n`;
+        html += `<td style="text-align: right; color: ${corValor}; font-weight: bold;">${valorFormatado}</td>\n`;
         html += `<td>${escapeHtml(t.conta_bancaria || '-')}</td>\n`;
         html += `<td>${escapeHtml(t.associacao || '-')}</td>\n`;
         html += '</tr>\n';
