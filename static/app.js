@@ -5774,6 +5774,7 @@ window.carregarFluxoCaixa = async function() {
                                 <th>Data</th>
                                 <th>Descrição</th>
                                 <th>Categoria</th>
+                                <th>Subcategoria</th>
                                 <th style="text-align: right; color: #27ae60;">Entrada</th>
                                 <th style="text-align: right; color: #e74c3c;">Saída</th>
                                 <th>Conta</th>
@@ -5781,7 +5782,7 @@ window.carregarFluxoCaixa = async function() {
                             </tr>
                         </thead>
                         <tbody id="tbody-transacoes-fluxo">
-                            <tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">Carregando transações...</td></tr>
+                            <tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">Carregando transações...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -5964,7 +5965,7 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
         const tbody = document.getElementById('tbody-transacoes-fluxo');
         
         if (transacoes.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">Nenhuma transação paga encontrada no período</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">Nenhuma transação paga encontrada no período</td></tr>';
             return;
         }
         
@@ -5979,6 +5980,7 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
                 <td>${formatarData(transacao.data_pagamento)}</td>
                 <td>${transacao.descricao || '-'}</td>
                 <td>${transacao.categoria || '-'}</td>
+                <td>${transacao.subcategoria || '-'}</td>
                 <td style="text-align: right; color: #27ae60; font-weight: bold;">${entrada}</td>
                 <td style="text-align: right; color: #e74c3c; font-weight: bold;">${saida}</td>
                 <td>${transacao.conta_bancaria || '-'}</td>
@@ -6002,7 +6004,7 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
     } catch (error) {
         console.error('Erro ao carregar transações detalhadas:', error);
         const tbody = document.getElementById('tbody-transacoes-fluxo');
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #e74c3c;">❌ Erro ao carregar transações</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;">❌ Erro ao carregar transações</td></tr>';
     }
 }
 
