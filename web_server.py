@@ -12498,6 +12498,81 @@ def importar_plano_padrao_route():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/contabilidade/plano-contas/exportar-speed', methods=['GET'])
+@require_auth
+def exportar_plano_speed():
+    """Exporta plano de contas no formato Speed (TXT)"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        versao_id = request.args.get('versao_id', type=int)
+        if not versao_id:
+            return jsonify({'success': False, 'error': 'versao_id é obrigatório'}), 400
+        
+        from contabilidade_functions import listar_contas
+        from speed_integration import exportar_plano_contas_speed, estatisticas_mapeamento
+        
+        contas = listar_contas(empresa_id, versao_id=versao_id)
+        
+        if not contas:
+            return jsonify({'success': False, 'error': 'Nenhuma conta encontrada'}), 404
+        
+        # Gerar arquivo TXT
+        conteudo_txt = exportar_plano_contas_speed(contas)
+        
+        # Estatísticas
+        stats = estatisticas_mapeamento(contas)
+        
+        return jsonify({
+            'success': True,
+            'conteudo': conteudo_txt,
+            'formato': 'txt',
+            'total_contas': len(contas),
+            'estatisticas': stats
+        })
+    except Exception as e:
+        logger.error(f"Erro ao exportar para Speed: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/contabilidade/plano-contas/mapeamento-referencial', methods=['GET'])
+@require_auth
+def exportar_mapeamento_referencial():
+    """Exporta mapeamento com Referencial Contábil (CSV)"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        versao_id = request.args.get('versao_id', type=int)
+        if not versao_id:
+            return jsonify({'success': False, 'error': 'versao_id é obrigatório'}), 400
+        
+        from contabilidade_functions import listar_contas
+        from speed_integration import exportar_plano_contas_referencial
+        
+        contas = listar_contas(empresa_id, versao_id=versao_id)
+        
+        if not contas:
+            return jsonify({'success': False, 'error': 'Nenhuma conta encontrada'}), 404
+        
+        # Gerar CSV com mapeamento
+        conteudo_csv = exportar_plano_contas_referencial(contas)
+        
+        return jsonify({
+            'success': True,
+            'conteudo': conteudo_csv,
+            'formato': 'csv'
+        })
+    except Exception as e:
+        logger.error(f"Erro ao exportar mapeamento: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # =============================================================================
 # INTEGRA CONTADOR - API SERPRO
 # =============================================================================

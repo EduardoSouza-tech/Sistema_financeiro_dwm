@@ -135,7 +135,8 @@ def listar_contas(empresa_id, versao_id=None, classificacao=None, tipo_conta=Non
             SELECT pc.id, pc.codigo, pc.descricao, pc.parent_id, pc.nivel, pc.ordem,
                    pc.tipo_conta, pc.classificacao, pc.natureza,
                    pc.is_bloqueada, pc.requer_centro_custo, pc.permite_lancamento,
-                   pc.versao_id, pc.created_at, pc.updated_at
+                   pc.versao_id, pc.codigo_speed, pc.codigo_referencial, pc.natureza_sped,
+                   pc.created_at, pc.updated_at
             FROM plano_contas pc
             WHERE pc.empresa_id = %s AND pc.deleted_at IS NULL
         """
@@ -230,8 +231,9 @@ def criar_conta(empresa_id, dados):
             INSERT INTO plano_contas 
                 (empresa_id, versao_id, codigo, descricao, parent_id, nivel, ordem,
                  tipo_conta, classificacao, natureza, is_bloqueada, 
-                 requer_centro_custo, permite_lancamento)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 requer_centro_custo, permite_lancamento, codigo_speed, 
+                 codigo_referencial, natureza_sped)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             empresa_id,
@@ -246,7 +248,10 @@ def criar_conta(empresa_id, dados):
             dados.get('natureza', 'devedora'),
             dados.get('is_bloqueada', False),
             dados.get('requer_centro_custo', False),
-            dados.get('permite_lancamento', True)
+            dados.get('permite_lancamento', True),
+            dados.get('codigo_speed'),
+            dados.get('codigo_referencial'),
+            dados.get('natureza_sped', '01')
         ))
         conta_id = cursor.fetchone()[0]
         cursor.close()
@@ -286,6 +291,9 @@ def atualizar_conta(empresa_id, conta_id, dados):
                 is_bloqueada = %s,
                 requer_centro_custo = %s,
                 permite_lancamento = %s,
+                codigo_speed = %s,
+                codigo_referencial = %s,
+                natureza_sped = %s,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %s AND empresa_id = %s
         """, (
@@ -297,6 +305,9 @@ def atualizar_conta(empresa_id, conta_id, dados):
             dados.get('is_bloqueada', False),
             dados.get('requer_centro_custo', False),
             dados.get('permite_lancamento', True),
+            dados.get('codigo_speed'),
+            dados.get('codigo_referencial'),
+            dados.get('natureza_sped', '01'),
             conta_id,
             empresa_id
         ))

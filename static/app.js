@@ -8425,6 +8425,10 @@ window.abrirModalConta = function(parentId) {
     document.getElementById('contaBloqueada').checked = false;
     document.getElementById('contaCentroCusto').checked = false;
     document.getElementById('contaPermiteLancamento').checked = true;
+    // Campos Speed
+    document.getElementById('contaCodigoSpeed').value = '';
+    document.getElementById('contaCodigoReferencial').value = '';
+    document.getElementById('contaNaturezaSped').value = '01';
     
     // Carregar contas sintéticas como possíveis pais
     carregarListaPais(parentId);
@@ -8466,6 +8470,10 @@ window.editarConta = async function(contaId) {
     document.getElementById('contaBloqueada').checked = conta.is_bloqueada;
     document.getElementById('contaCentroCusto').checked = conta.requer_centro_custo;
     document.getElementById('contaPermiteLancamento').checked = conta.permite_lancamento;
+    // Campos Speed
+    document.getElementById('contaCodigoSpeed').value = conta.codigo_speed || '';
+    document.getElementById('contaCodigoReferencial').value = conta.codigo_referencial || '';
+    document.getElementById('contaNaturezaSped').value = conta.natureza_sped || '01';
     
     await carregarListaPais(conta.parent_id);
     
@@ -8492,7 +8500,11 @@ window.salvarConta = async function() {
         parent_id: document.getElementById('contaParentId').value ? parseInt(document.getElementById('contaParentId').value) : null,
         is_bloqueada: document.getElementById('contaBloqueada').checked,
         requer_centro_custo: document.getElementById('contaCentroCusto').checked,
-        permite_lancamento: document.getElementById('contaPermiteLancamento').checked
+        permite_lancamento: document.getElementById('contaPermiteLancamento').checked,
+        // Campos Speed
+        codigo_speed: document.getElementById('contaCodigoSpeed').value.trim() || null,
+        codigo_referencial: document.getElementById('contaCodigoReferencial').value.trim() || null,
+        natureza_sped: document.getElementById('contaNaturezaSped').value
     };
     
     if (!dados.codigo || !dados.descricao) {
