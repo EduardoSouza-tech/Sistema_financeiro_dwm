@@ -138,7 +138,8 @@
                 'comissoes': 'loadComissoes',
                 'funcionarios': 'loadFuncionariosRH',
                 'remessa-pagamento': 'loadRemessaPagamento',
-                'nfse': 'loadNFSeSection'
+                'nfse': 'loadNFSeSection',
+                'plano-contas': 'loadPlanoContas'
             };
             
             const loadFunctionName = loadFunctions[sectionId];
@@ -1308,6 +1309,14 @@
                 <button class="submenu-button" onclick="showSection('contas-pagar')" data-permission="lancamentos_view">💳 Contas a Pagar</button>
                 <button class="submenu-button" onclick="showSection('remessa-pagamento')" data-permission="remessa_view">📤 Remessa Pagamentos</button>
                 <button class="submenu-button" onclick="showSection('extrato-bancario')" data-permission="lancamentos_view">🏦 Extrato Bancário</button>
+            </div>
+            
+            <!-- Menu Contabilidade com Submenu -->
+            <button class="nav-button" onclick="toggleSubmenu('contabilidade')" id="btn-contabilidade" data-permission="lancamentos_view">
+                📒 Contabilidade ▼
+            </button>
+            <div class="submenu" id="submenu-contabilidade" style="display: none;">
+                <button class="submenu-button" onclick="showSection('plano-contas')" data-permission="lancamentos_view">📊 Plano de Contas</button>
             </div>
             
             <!-- Menu de Relatórios com Submenu -->
@@ -3799,6 +3808,229 @@
                 </div>
             </div>
 
+            <!-- ================================================================= -->
+            <!-- CONTABILIDADE - PLANO DE CONTAS -->
+            <!-- ================================================================= -->
+            <div id="plano-contas-section" class="content-card hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">📒 Plano de Contas</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-secondary" onclick="abrirModalVersaoPlano()" style="padding: 8px 16px; font-size: 13px; background: #95a5a6;">📋 Versões</button>
+                        <button class="btn btn-primary" onclick="importarPlanoContas()" style="padding: 8px 16px; font-size: 13px; background: #3498db;">📥 Importar CSV</button>
+                        <button class="btn btn-primary" onclick="exportarPlanoContas()" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📤 Exportar</button>
+                        <button class="btn btn-primary" onclick="abrirModalConta()" style="padding: 8px 16px; font-size: 13px; background: #2980b9;">➕ Nova Conta</button>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="font-size: 12px; font-weight: 600; color: #555;">Versão:</label>
+                        <select id="pcVersaoFiltro" onchange="carregarPlanoContas()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                            <option value="">-- Selecione --</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 180px;">
+                        <label style="font-size: 12px; font-weight: 600; color: #555;">Classificação:</label>
+                        <select id="pcClassificacaoFiltro" onchange="carregarPlanoContas()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                            <option value="">Todas</option>
+                            <option value="ativo">Ativo</option>
+                            <option value="passivo">Passivo</option>
+                            <option value="patrimonio_liquido">Patrimônio Líquido</option>
+                            <option value="receita">Receita</option>
+                            <option value="despesa">Despesa</option>
+                            <option value="compensacao">Compensação</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 180px;">
+                        <label style="font-size: 12px; font-weight: 600; color: #555;">Tipo:</label>
+                        <select id="pcTipoFiltro" onchange="carregarPlanoContas()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                            <option value="">Todos</option>
+                            <option value="sintetica">Sintética</option>
+                            <option value="analitica">Analítica</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="font-size: 12px; font-weight: 600; color: #555;">Buscar:</label>
+                        <input type="text" id="pcBusca" placeholder="Código ou descrição..." 
+                               onkeyup="if(event.key==='Enter') carregarPlanoContas()"
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: flex-end; padding-top: 18px;">
+                        <button onclick="carregarPlanoContas()" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">🔍 Filtrar</button>
+                        <button onclick="toggleVisualizacao()" id="btnToggleViz" style="padding: 8px 16px; background: #8e44ad; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">🌲 Árvore</button>
+                    </div>
+                </div>
+
+                <!-- Estatísticas -->
+                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                    <div style="flex: 1; background: #e8f4fd; padding: 12px 16px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 22px; font-weight: 700; color: #2980b9;" id="pcTotalContas">0</div>
+                        <div style="font-size: 12px; color: #555;">Total de Contas</div>
+                    </div>
+                    <div style="flex: 1; background: #fef3e2; padding: 12px 16px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 22px; font-weight: 700; color: #e67e22;" id="pcTotalSinteticas">0</div>
+                        <div style="font-size: 12px; color: #555;">Sintéticas</div>
+                    </div>
+                    <div style="flex: 1; background: #e8f8e8; padding: 12px 16px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 22px; font-weight: 700; color: #27ae60;" id="pcTotalAnaliticas">0</div>
+                        <div style="font-size: 12px; color: #555;">Analíticas</div>
+                    </div>
+                    <div style="flex: 1; background: #fde8e8; padding: 12px 16px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 22px; font-weight: 700; color: #e74c3c;" id="pcTotalBloqueadas">0</div>
+                        <div style="font-size: 12px; color: #555;">Bloqueadas</div>
+                    </div>
+                </div>
+
+                <!-- Visualização em Lista (padrão) -->
+                <div id="pcVisualizacaoLista" style="display: block;">
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                            <thead>
+                                <tr style="background: #2c3e50; color: white;">
+                                    <th style="padding: 10px 12px; text-align: left; cursor: pointer;" onclick="ordenarPlanoContas('codigo')">Código</th>
+                                    <th style="padding: 10px 12px; text-align: left; cursor: pointer;" onclick="ordenarPlanoContas('descricao')">Descrição</th>
+                                    <th style="padding: 10px 12px; text-align: center; cursor: pointer;" onclick="ordenarPlanoContas('tipo_conta')">Tipo</th>
+                                    <th style="padding: 10px 12px; text-align: center; cursor: pointer;" onclick="ordenarPlanoContas('classificacao')">Classificação</th>
+                                    <th style="padding: 10px 12px; text-align: center; cursor: pointer;" onclick="ordenarPlanoContas('natureza')">Natureza</th>
+                                    <th style="padding: 10px 12px; text-align: center;">Status</th>
+                                    <th style="padding: 10px 12px; text-align: center; width: 120px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pcTabelaBody">
+                                <tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">Selecione uma versão para visualizar o plano de contas</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Visualização em Árvore -->
+                <div id="pcVisualizacaoArvore" style="display: none;">
+                    <div id="pcArvoreContainer" style="background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; min-height: 200px;">
+                        <p style="text-align: center; color: #999;">Selecione uma versão para visualizar a árvore</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Nova Conta / Editar Conta -->
+            <div id="modalConta" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+                <div style="background: white; border-radius: 12px; padding: 30px; width: 550px; max-width: 95vw; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 id="modalContaTitulo" style="margin: 0;">➕ Nova Conta</h3>
+                        <button onclick="fecharModalConta()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">✕</button>
+                    </div>
+                    <input type="hidden" id="contaEditId">
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                        <div style="display: flex; gap: 15px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 12px; font-weight: 600; color: #555;">Código *</label>
+                                <input type="text" id="contaCodigo" placeholder="Ex: 1.1.2.03" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                            </div>
+                            <div style="flex: 2;">
+                                <label style="font-size: 12px; font-weight: 600; color: #555;">Descrição *</label>
+                                <input type="text" id="contaDescricao" placeholder="Nome da conta" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 15px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 12px; font-weight: 600; color: #555;">Tipo de Conta *</label>
+                                <select id="contaTipoConta" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                    <option value="analitica">Analítica (Movimentável)</option>
+                                    <option value="sintetica">Sintética (Agrupadora)</option>
+                                </select>
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 12px; font-weight: 600; color: #555;">Classificação *</label>
+                                <select id="contaClassificacao" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                    <option value="ativo">Ativo</option>
+                                    <option value="passivo">Passivo</option>
+                                    <option value="patrimonio_liquido">Patrimônio Líquido</option>
+                                    <option value="receita">Receita</option>
+                                    <option value="despesa">Despesa</option>
+                                    <option value="compensacao">Compensação</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 15px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 12px; font-weight: 600; color: #555;">Natureza *</label>
+                                <select id="contaNatureza" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                    <option value="devedora">Devedora</option>
+                                    <option value="credora">Credora</option>
+                                </select>
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 12px; font-weight: 600; color: #555;">Conta Pai</label>
+                                <select id="contaParentId" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                    <option value="">-- Raiz (Nível 1) --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 15px;">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="contaBloqueada"> Bloqueada
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="contaCentroCusto"> Requer Centro de Custo
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="contaPermiteLancamento" checked> Permite Lançamento
+                            </label>
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+                            <button onclick="fecharModalConta()" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Cancelar</button>
+                            <button onclick="salvarConta()" style="padding: 10px 20px; background: #2980b9; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">💾 Salvar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Versões -->
+            <div id="modalVersoes" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+                <div style="background: white; border-radius: 12px; padding: 30px; width: 600px; max-width: 95vw; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0;">📋 Versões do Plano de Contas</h3>
+                        <button onclick="fecharModalVersoes()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">✕</button>
+                    </div>
+                    
+                    <!-- Form Nova Versão -->
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 10px 0; font-size: 14px;">Nova Versão</h4>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <input type="text" id="novaVersaoNome" placeholder="Nome (ex: Plano 2026)" style="flex: 2; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                            <input type="number" id="novaVersaoExercicio" placeholder="Exercício" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                            <button onclick="criarVersaoPlano()" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">➕ Criar</button>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Versões -->
+                    <div id="listaVersoes" style="min-height: 100px;">
+                        <p style="text-align: center; color: #999; padding: 20px;">Carregando...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Importar CSV -->
+            <div id="modalImportar" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+                <div style="background: white; border-radius: 12px; padding: 30px; width: 500px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0;">📥 Importar Plano de Contas (CSV)</h3>
+                        <button onclick="fecharModalImportar()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">✕</button>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <p style="font-size: 13px; color: #555; margin-bottom: 10px;">
+                            O CSV deve ter as colunas:<br>
+                            <strong>codigo, descricao, tipo_conta, classificacao, natureza</strong>
+                        </p>
+                        <input type="file" id="csvImportFile" accept=".csv" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button onclick="fecharModalImportar()" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer;">Cancelar</button>
+                        <button onclick="processarImportCSV()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer;">📥 Importar</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- NFS-e - Notas Fiscais de Serviço Eletrônica -->
             <div id="nfse-section" class="content-card hidden">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -6024,6 +6256,9 @@
             } else if (sectionId === 'nfse') {
                 console.log('  ➡️ loadNFSeSection:', typeof loadNFSeSection);
                 if (typeof loadNFSeSection === 'function') loadNFSeSection();
+            } else if (sectionId === 'plano-contas') {
+                console.log('  ➡️ loadPlanoContas:', typeof loadPlanoContas);
+                if (typeof loadPlanoContas === 'function') loadPlanoContas();
             } else if (sectionId === 'tipos-sessao') {
                 console.log('  ➡️ loadTiposSessao:', typeof loadTiposSessao);
                 if (typeof loadTiposSessao === 'function') loadTiposSessao();

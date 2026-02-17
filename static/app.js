@@ -8110,3 +8110,656 @@ window.gerarPdfNFSe = async function(nfseId) {
 };
 
 // FIM MÓDULO NFS-e
+
+// ============================================================================
+// MÓDULO CONTABILIDADE - PLANO DE CONTAS
+// ============================================================================
+
+// Estado do módulo
+window.pcContas = [];
+window.pcVisualizacao = 'lista'; // 'lista' ou 'arvore'
+window.pcOrdenacao = { campo: 'codigo', direcao: 'asc' };
+
+// Carregar seção (chamada pelo showSection)
+window.loadPlanoContas = async function() {
+    console.log('📒 Carregando módulo Plano de Contas...');
+    await carregarVersoesDropdown();
+};
+
+// Carregar dropdown de versões
+async function carregarVersoesDropdown() {
+    try {
+        const response = await fetch('/api/contabilidade/versoes', { credentials: 'include' });
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.getElementById('pcVersaoFiltro');
+            const valorAtual = select.value;
+            select.innerHTML = '<option value="">-- Selecione --</option>';
+            
+            let versaoAtiva = null;
+            data.versoes.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v.id;
+                opt.textContent = `${v.nome_versao} (${v.exercicio_fiscal})${v.is_ativa ? ' ★' : ''}`;
+                select.appendChild(opt);
+                if (v.is_ativa) versaoAtiva = v.id;
+            });
+            
+            // Restaurar seleção ou selecionar ativa
+            if (valorAtual) {
+                select.value = valorAtual;
+            } else if (versaoAtiva) {
+                select.value = versaoAtiva;
+            }
+            
+            if (select.value) {
+                carregarPlanoContas();
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao carregar versões:', error);
+    }
+}
+
+// Carregar contas do plano
+window.carregarPlanoContas = async function() {
+    const versaoId = document.getElementById('pcVersaoFiltro').value;
+    if (!versaoId) {
+        document.getElementById('pcTabelaBody').innerHTML = 
+            '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">Selecione uma versão</td></tr>';
+        return;
+    }
+    
+    const classificacao = document.getElementById('pcClassificacaoFiltro').value;
+    const tipo = document.getElementById('pcTipoFiltro').value;
+    const busca = document.getElementById('pcBusca').value;
+    
+    let url = `/api/contabilidade/plano-contas?versao_id=${versaoId}`;
+    if (classificacao) url += `&classificacao=${classificacao}`;
+    if (tipo) url += `&tipo_conta=${tipo}`;
+    if (busca) url += `&busca=${encodeURIComponent(busca)}`;
+    
+    try {
+        const response = await fetch(url, { credentials: 'include' });
+        const data = await response.json();
+        
+        if (data.success) {
+            window.pcContas = data.contas;
+            atualizarEstatisticasPC(data.contas);
+            
+            if (window.pcVisualizacao === 'arvore') {
+                renderizarArvorePC(versaoId);
+            } else {
+                renderizarTabelaPC(data.contas);
+            }
+        } else {
+            showToast('❌ ' + (data.error || 'Erro ao carregar contas'), 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao carregar plano de contas:', error);
+        showToast('❌ Erro ao carregar plano de contas', 'error');
+    }
+};
+
+// Atualizar estatísticas
+function atualizarEstatisticasPC(contas) {
+    document.getElementById('pcTotalContas').textContent = contas.length;
+    document.getElementById('pcTotalSinteticas').textContent = contas.filter(c => c.tipo_conta === 'sintetica').length;
+    document.getElementById('pcTotalAnaliticas').textContent = contas.filter(c => c.tipo_conta === 'analitica').length;
+    document.getElementById('pcTotalBloqueadas').textContent = contas.filter(c => c.is_bloqueada).length;
+}
+
+// Labels para classificação
+const classificacaoLabels = {
+    'ativo': '🟦 Ativo',
+    'passivo': '🟥 Passivo',
+    'patrimonio_liquido': '🟨 Patr. Líquido',
+    'receita': '🟩 Receita',
+    'despesa': '🟧 Despesa',
+    'compensacao': '⬜ Compensação'
+};
+
+const classificacaoCores = {
+    'ativo': '#3498db',
+    'passivo': '#e74c3c',
+    'patrimonio_liquido': '#f39c12',
+    'receita': '#27ae60',
+    'despesa': '#e67e22',
+    'compensacao': '#95a5a6'
+};
+
+// Renderizar tabela
+function renderizarTabelaPC(contas) {
+    const tbody = document.getElementById('pcTabelaBody');
+    
+    if (!contas || contas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">Nenhuma conta encontrada</td></tr>';
+        return;
+    }
+    
+    // Ordenar
+    const { campo, direcao } = window.pcOrdenacao;
+    contas.sort((a, b) => {
+        let va = a[campo] || '';
+        let vb = b[campo] || '';
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return direcao === 'asc' ? -1 : 1;
+        if (va > vb) return direcao === 'asc' ? 1 : -1;
+        return 0;
+    });
+    
+    tbody.innerHTML = contas.map(c => {
+        const indent = (c.nivel - 1) * 20;
+        const isSintetica = c.tipo_conta === 'sintetica';
+        const classCor = classificacaoCores[c.classificacao] || '#333';
+        const bloqueadaBadge = c.is_bloqueada ? '<span style="background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px;">🔒</span>' : '<span style="background: #27ae60; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px;">✅</span>';
+        
+        return `<tr style="border-bottom: 1px solid #eee; ${isSintetica ? 'background: #f8f9fa; font-weight: 600;' : ''}">
+            <td style="padding: 8px 12px; font-family: monospace; font-size: 13px; padding-left: ${12 + indent}px;">
+                ${isSintetica ? '📁' : '📄'} ${c.codigo}
+            </td>
+            <td style="padding: 8px 12px;">${c.descricao}</td>
+            <td style="padding: 8px 12px; text-align: center;">
+                <span style="background: ${isSintetica ? '#e8e8e8' : '#e8f4fd'}; padding: 3px 8px; border-radius: 4px; font-size: 12px;">
+                    ${isSintetica ? 'Sintética' : 'Analítica'}
+                </span>
+            </td>
+            <td style="padding: 8px 12px; text-align: center;">
+                <span style="color: ${classCor}; font-weight: 500; font-size: 13px;">${classificacaoLabels[c.classificacao] || c.classificacao}</span>
+            </td>
+            <td style="padding: 8px 12px; text-align: center; font-size: 13px;">
+                ${c.natureza === 'devedora' ? '📉 Devedora' : '📈 Credora'}
+            </td>
+            <td style="padding: 8px 12px; text-align: center;">${bloqueadaBadge}</td>
+            <td style="padding: 8px 12px; text-align: center;">
+                <button onclick="editarConta(${c.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
+                <button onclick="excluirContaPC(${c.id}, '${c.codigo}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// Ordenar tabela
+window.ordenarPlanoContas = function(campo) {
+    if (window.pcOrdenacao.campo === campo) {
+        window.pcOrdenacao.direcao = window.pcOrdenacao.direcao === 'asc' ? 'desc' : 'asc';
+    } else {
+        window.pcOrdenacao.campo = campo;
+        window.pcOrdenacao.direcao = 'asc';
+    }
+    renderizarTabelaPC(window.pcContas);
+};
+
+// Toggle visualização Lista/Árvore
+window.toggleVisualizacao = function() {
+    const btn = document.getElementById('btnToggleViz');
+    if (window.pcVisualizacao === 'lista') {
+        window.pcVisualizacao = 'arvore';
+        document.getElementById('pcVisualizacaoLista').style.display = 'none';
+        document.getElementById('pcVisualizacaoArvore').style.display = 'block';
+        btn.textContent = '📋 Lista';
+        const versaoId = document.getElementById('pcVersaoFiltro').value;
+        if (versaoId) renderizarArvorePC(versaoId);
+    } else {
+        window.pcVisualizacao = 'lista';
+        document.getElementById('pcVisualizacaoLista').style.display = 'block';
+        document.getElementById('pcVisualizacaoArvore').style.display = 'none';
+        btn.textContent = '🌲 Árvore';
+        renderizarTabelaPC(window.pcContas);
+    }
+};
+
+// Renderizar árvore
+async function renderizarArvorePC(versaoId) {
+    const container = document.getElementById('pcArvoreContainer');
+    container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Carregando árvore...</p>';
+    
+    try {
+        const response = await fetch(`/api/contabilidade/plano-contas/tree?versao_id=${versaoId}`, { credentials: 'include' });
+        const data = await response.json();
+        
+        if (data.success && data.tree.length > 0) {
+            container.innerHTML = renderizarNodoArvore(data.tree);
+        } else {
+            container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Nenhuma conta encontrada nesta versão</p>';
+        }
+    } catch (error) {
+        container.innerHTML = '<p style="text-align: center; color: #e74c3c;">Erro ao carregar árvore</p>';
+    }
+}
+
+function renderizarNodoArvore(nodos, nivel = 0) {
+    if (!nodos || nodos.length === 0) return '';
+    
+    return nodos.map(n => {
+        const isSintetica = n.tipo_conta === 'sintetica';
+        const hasChildren = n.children && n.children.length > 0;
+        const cor = classificacaoCores[n.classificacao] || '#333';
+        const nodeId = `tree-node-${n.id}`;
+        
+        return `
+        <div style="margin-left: ${nivel * 24}px; margin-bottom: 2px;">
+            <div style="display: flex; align-items: center; padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: background 0.2s;"
+                 onmouseover="this.style.background='#f0f4f8'" onmouseout="this.style.background='transparent'"
+                 onclick="${hasChildren ? `toggleTreeNode('${nodeId}')` : ''}">
+                <span style="width: 20px; text-align: center; color: #999; font-size: 12px;">
+                    ${hasChildren ? `<span id="${nodeId}-icon">▶</span>` : '•'}
+                </span>
+                <span style="font-family: monospace; font-size: 12px; color: ${cor}; margin-right: 8px; font-weight: 600;">${n.codigo}</span>
+                <span style="flex: 1; font-size: 13px; ${isSintetica ? 'font-weight: 600;' : ''}">${isSintetica ? '📁' : '📄'} ${n.descricao}</span>
+                <span style="font-size: 11px; color: #999; margin-right: 8px;">${n.natureza === 'devedora' ? 'D' : 'C'}</span>
+                ${n.is_bloqueada ? '<span style="font-size: 11px;">🔒</span>' : ''}
+                <button onclick="event.stopPropagation(); editarConta(${n.id})" style="background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px;">✏️</button>
+                <button onclick="event.stopPropagation(); excluirContaPC(${n.id}, '${n.codigo}')" style="background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px;">🗑️</button>
+            </div>
+            ${hasChildren ? `<div id="${nodeId}" style="display: none;">${renderizarNodoArvore(n.children, nivel + 1)}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+window.toggleTreeNode = function(nodeId) {
+    const node = document.getElementById(nodeId);
+    const icon = document.getElementById(nodeId + '-icon');
+    if (node) {
+        if (node.style.display === 'none') {
+            node.style.display = 'block';
+            if (icon) icon.textContent = '▼';
+        } else {
+            node.style.display = 'none';
+            if (icon) icon.textContent = '▶';
+        }
+    }
+};
+
+// ========================
+// CRUD Contas
+// ========================
+
+// Abrir modal para nova conta
+window.abrirModalConta = function(parentId) {
+    document.getElementById('modalContaTitulo').textContent = '➕ Nova Conta';
+    document.getElementById('contaEditId').value = '';
+    document.getElementById('contaCodigo').value = '';
+    document.getElementById('contaDescricao').value = '';
+    document.getElementById('contaTipoConta').value = 'analitica';
+    document.getElementById('contaClassificacao').value = 'ativo';
+    document.getElementById('contaNatureza').value = 'devedora';
+    document.getElementById('contaBloqueada').checked = false;
+    document.getElementById('contaCentroCusto').checked = false;
+    document.getElementById('contaPermiteLancamento').checked = true;
+    
+    // Carregar contas sintéticas como possíveis pais
+    carregarListaPais(parentId);
+    
+    document.getElementById('modalConta').style.display = 'flex';
+};
+
+window.fecharModalConta = function() {
+    document.getElementById('modalConta').style.display = 'none';
+};
+
+// Carregar lista de contas pai (sintéticas)
+async function carregarListaPais(selectedParentId) {
+    const select = document.getElementById('contaParentId');
+    select.innerHTML = '<option value="">-- Raiz (Nível 1) --</option>';
+    
+    const sinteticas = window.pcContas.filter(c => c.tipo_conta === 'sintetica');
+    sinteticas.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.codigo} - ${c.descricao}`;
+        if (selectedParentId && c.id == selectedParentId) opt.selected = true;
+        select.appendChild(opt);
+    });
+}
+
+// Editar conta existente
+window.editarConta = async function(contaId) {
+    const conta = window.pcContas.find(c => c.id === contaId);
+    if (!conta) { showToast('❌ Conta não encontrada', 'error'); return; }
+    
+    document.getElementById('modalContaTitulo').textContent = '✏️ Editar Conta';
+    document.getElementById('contaEditId').value = conta.id;
+    document.getElementById('contaCodigo').value = conta.codigo;
+    document.getElementById('contaDescricao').value = conta.descricao;
+    document.getElementById('contaTipoConta').value = conta.tipo_conta;
+    document.getElementById('contaClassificacao').value = conta.classificacao;
+    document.getElementById('contaNatureza').value = conta.natureza;
+    document.getElementById('contaBloqueada').checked = conta.is_bloqueada;
+    document.getElementById('contaCentroCusto').checked = conta.requer_centro_custo;
+    document.getElementById('contaPermiteLancamento').checked = conta.permite_lancamento;
+    
+    await carregarListaPais(conta.parent_id);
+    
+    document.getElementById('modalConta').style.display = 'flex';
+};
+
+// Salvar conta (nova ou edição)
+window.salvarConta = async function() {
+    const editId = document.getElementById('contaEditId').value;
+    const versaoId = document.getElementById('pcVersaoFiltro').value;
+    
+    if (!versaoId) {
+        showToast('⚠️ Selecione uma versão primeiro', 'warning');
+        return;
+    }
+    
+    const dados = {
+        versao_id: parseInt(versaoId),
+        codigo: document.getElementById('contaCodigo').value.trim(),
+        descricao: document.getElementById('contaDescricao').value.trim(),
+        tipo_conta: document.getElementById('contaTipoConta').value,
+        classificacao: document.getElementById('contaClassificacao').value,
+        natureza: document.getElementById('contaNatureza').value,
+        parent_id: document.getElementById('contaParentId').value ? parseInt(document.getElementById('contaParentId').value) : null,
+        is_bloqueada: document.getElementById('contaBloqueada').checked,
+        requer_centro_custo: document.getElementById('contaCentroCusto').checked,
+        permite_lancamento: document.getElementById('contaPermiteLancamento').checked
+    };
+    
+    if (!dados.codigo || !dados.descricao) {
+        showToast('⚠️ Código e Descrição são obrigatórios', 'warning');
+        return;
+    }
+    
+    try {
+        let url = '/api/contabilidade/plano-contas';
+        let method = 'POST';
+        
+        if (editId) {
+            url += `/${editId}`;
+            method = 'PUT';
+        }
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(dados)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(`✅ Conta ${editId ? 'atualizada' : 'criada'} com sucesso!`, 'success');
+            fecharModalConta();
+            carregarPlanoContas();
+        } else {
+            showToast('❌ ' + (data.error || 'Erro ao salvar'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar conta:', error);
+        showToast('❌ Erro ao salvar conta', 'error');
+    }
+};
+
+// Excluir conta
+window.excluirContaPC = async function(contaId, codigo) {
+    if (!confirm(`⚠️ Deseja excluir a conta ${codigo} e todas as suas subcontas?\n\nEsta ação não pode ser desfeita.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/contabilidade/plano-contas/${contaId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(`✅ ${data.message}`, 'success');
+            carregarPlanoContas();
+        } else {
+            showToast('❌ ' + (data.error || 'Erro ao excluir'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir conta:', error);
+        showToast('❌ Erro ao excluir conta', 'error');
+    }
+};
+
+// ========================
+// Versões
+// ========================
+
+window.abrirModalVersaoPlano = async function() {
+    document.getElementById('modalVersoes').style.display = 'flex';
+    await carregarListaVersoes();
+};
+
+window.fecharModalVersoes = function() {
+    document.getElementById('modalVersoes').style.display = 'none';
+};
+
+async function carregarListaVersoes() {
+    const container = document.getElementById('listaVersoes');
+    container.innerHTML = '<p style="text-align: center; color: #999;">Carregando...</p>';
+    
+    try {
+        const response = await fetch('/api/contabilidade/versoes', { credentials: 'include' });
+        const data = await response.json();
+        
+        if (data.success && data.versoes.length > 0) {
+            container.innerHTML = data.versoes.map(v => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee;">
+                    <div>
+                        <strong>${v.nome_versao}</strong> 
+                        <span style="color: #999; font-size: 13px;">(Exercício: ${v.exercicio_fiscal})</span>
+                        ${v.is_ativa ? '<span style="background: #27ae60; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px;">ATIVA</span>' : ''}
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        ${!v.is_ativa ? `<button onclick="ativarVersao(${v.id})" style="background: #27ae60; color: white; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Ativar</button>` : ''}
+                        <button onclick="excluirVersaoPlano(${v.id}, '${v.nome_versao}')" style="background: #e74c3c; color: white; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Nenhuma versão cadastrada</p>';
+        }
+    } catch (error) {
+        container.innerHTML = '<p style="text-align: center; color: #e74c3c;">Erro ao carregar versões</p>';
+    }
+}
+
+window.criarVersaoPlano = async function() {
+    const nome = document.getElementById('novaVersaoNome').value.trim();
+    const exercicio = document.getElementById('novaVersaoExercicio').value;
+    
+    if (!nome || !exercicio) {
+        showToast('⚠️ Preencha nome e exercício fiscal', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/contabilidade/versoes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                nome_versao: nome,
+                exercicio_fiscal: parseInt(exercicio),
+                is_ativa: true
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('✅ Versão criada com sucesso!', 'success');
+            document.getElementById('novaVersaoNome').value = '';
+            document.getElementById('novaVersaoExercicio').value = '';
+            await carregarListaVersoes();
+            await carregarVersoesDropdown();
+        } else {
+            showToast('❌ ' + (data.error || 'Erro ao criar versão'));
+        }
+    } catch (error) {
+        showToast('❌ Erro ao criar versão', 'error');
+    }
+};
+
+window.ativarVersao = async function(versaoId) {
+    try {
+        const response = await fetch(`/api/contabilidade/versoes/${versaoId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ is_ativa: true, nome_versao: '', exercicio_fiscal: 0 })
+        });
+        
+        // Recarregar para obter dados completos
+        const resp2 = await fetch('/api/contabilidade/versoes', { credentials: 'include' });
+        const data2 = await resp2.json();
+        if (data2.success) {
+            const versao = data2.versoes.find(v => v.id === versaoId);
+            if (versao) {
+                await fetch(`/api/contabilidade/versoes/${versaoId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        nome_versao: versao.nome_versao,
+                        exercicio_fiscal: versao.exercicio_fiscal,
+                        is_ativa: true,
+                        observacoes: versao.observacoes || ''
+                    })
+                });
+            }
+        }
+        
+        showToast('✅ Versão ativada!', 'success');
+        await carregarListaVersoes();
+        await carregarVersoesDropdown();
+    } catch (error) {
+        showToast('❌ Erro ao ativar versão', 'error');
+    }
+};
+
+window.excluirVersaoPlano = async function(versaoId, nome) {
+    if (!confirm(`⚠️ Excluir versão "${nome}"?\n\nTodas as contas desta versão serão removidas!`)) return;
+    
+    try {
+        const response = await fetch(`/api/contabilidade/versoes/${versaoId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('✅ Versão excluída', 'success');
+            await carregarListaVersoes();
+            await carregarVersoesDropdown();
+        } else {
+            showToast('❌ ' + (data.error || 'Erro ao excluir'));
+        }
+    } catch (error) {
+        showToast('❌ Erro ao excluir versão', 'error');
+    }
+};
+
+// ========================
+// Import / Export
+// ========================
+
+window.importarPlanoContas = function() {
+    const versaoId = document.getElementById('pcVersaoFiltro').value;
+    if (!versaoId) {
+        showToast('⚠️ Selecione uma versão primeiro', 'warning');
+        return;
+    }
+    document.getElementById('modalImportar').style.display = 'flex';
+};
+
+window.fecharModalImportar = function() {
+    document.getElementById('modalImportar').style.display = 'none';
+};
+
+window.processarImportCSV = async function() {
+    const fileInput = document.getElementById('csvImportFile');
+    const file = fileInput.files[0];
+    if (!file) { showToast('⚠️ Selecione um arquivo CSV', 'warning'); return; }
+    
+    const versaoId = document.getElementById('pcVersaoFiltro').value;
+    
+    const text = await file.text();
+    const linhas = text.split('\n').filter(l => l.trim());
+    
+    if (linhas.length < 2) { showToast('⚠️ CSV vazio ou sem dados', 'warning'); return; }
+    
+    // Parsear cabeçalho
+    const separador = linhas[0].includes(';') ? ';' : ',';
+    const headers = linhas[0].split(separador).map(h => h.trim().toLowerCase().replace(/"/g, ''));
+    
+    const dados = [];
+    for (let i = 1; i < linhas.length; i++) {
+        const valores = linhas[i].split(separador).map(v => v.trim().replace(/"/g, ''));
+        const obj = {};
+        headers.forEach((h, idx) => { obj[h] = valores[idx] || ''; });
+        if (obj.codigo && obj.descricao) {
+            dados.push(obj);
+        }
+    }
+    
+    if (dados.length === 0) { showToast('⚠️ Nenhum dado válido no CSV', 'warning'); return; }
+    
+    try {
+        const response = await fetch('/api/contabilidade/plano-contas/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ versao_id: parseInt(versaoId), linhas: dados })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(`✅ ${data.importadas} contas importadas!${data.erros && data.erros.length > 0 ? ` (${data.erros.length} erros)` : ''}`, 'success');
+            fecharModalImportar();
+            fileInput.value = '';
+            carregarPlanoContas();
+        } else {
+            showToast('❌ ' + (data.error || 'Erro na importação'));
+        }
+    } catch (error) {
+        showToast('❌ Erro ao importar CSV', 'error');
+    }
+};
+
+window.exportarPlanoContas = async function() {
+    const versaoId = document.getElementById('pcVersaoFiltro').value;
+    if (!versaoId) { showToast('⚠️ Selecione uma versão primeiro', 'warning'); return; }
+    
+    try {
+        const response = await fetch(`/api/contabilidade/plano-contas/export?versao_id=${versaoId}`, { credentials: 'include' });
+        const data = await response.json();
+        
+        if (data.success && data.contas.length > 0) {
+            // Gerar CSV
+            const headers = ['codigo', 'descricao', 'tipo_conta', 'classificacao', 'natureza', 'nivel', 'is_bloqueada', 'requer_centro_custo'];
+            const csv = [
+                headers.join(';'),
+                ...data.contas.map(c => headers.map(h => `"${c[h] || ''}"`).join(';'))
+            ].join('\n');
+            
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `plano_contas_export.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            showToast(`✅ ${data.contas.length} contas exportadas!`, 'success');
+        } else {
+            showToast('⚠️ Nenhuma conta para exportar', 'warning');
+        }
+    } catch (error) {
+        showToast('❌ Erro ao exportar', 'error');
+    }
+};
+
+// FIM MÓDULO CONTABILIDADE

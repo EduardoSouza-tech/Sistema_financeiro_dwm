@@ -12198,6 +12198,278 @@ def gerar_pdf_nfse_route(nfse_id):
         logger.error(f"Erro ao gerar PDF NFS-e: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# ============================================================================
+# ROTAS CONTABILIDADE - PLANO DE CONTAS
+# ============================================================================
+
+@app.route('/api/contabilidade/versoes', methods=['GET'])
+@require_auth
+def listar_versoes_plano():
+    """Lista versões do plano de contas"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        from contabilidade_functions import listar_versoes
+        versoes = listar_versoes(empresa_id)
+        return jsonify({'success': True, 'versoes': versoes})
+    except Exception as e:
+        logger.error(f"Erro ao listar versões: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/contabilidade/versoes', methods=['POST'])
+@require_auth
+def criar_versao_plano():
+    """Cria nova versão do plano de contas"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        dados = request.get_json()
+        if not dados or not dados.get('nome_versao') or not dados.get('exercicio_fiscal'):
+            return jsonify({'success': False, 'error': 'nome_versao e exercicio_fiscal são obrigatórios'}), 400
+        
+        from contabilidade_functions import criar_versao
+        versao_id = criar_versao(empresa_id, dados)
+        return jsonify({'success': True, 'id': versao_id, 'message': 'Versão criada com sucesso'})
+    except Exception as e:
+        logger.error(f"Erro ao criar versão: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/contabilidade/versoes/<int:versao_id>', methods=['PUT'])
+@require_auth
+def atualizar_versao_plano(versao_id):
+    """Atualiza versão do plano de contas"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        dados = request.get_json()
+        from contabilidade_functions import atualizar_versao
+        atualizar_versao(empresa_id, versao_id, dados)
+        return jsonify({'success': True, 'message': 'Versão atualizada'})
+    except Exception as e:
+        logger.error(f"Erro ao atualizar versão: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/contabilidade/versoes/<int:versao_id>', methods=['DELETE'])
+@require_auth
+def excluir_versao_plano(versao_id):
+    """Exclui versão do plano de contas"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        from contabilidade_functions import excluir_versao
+        excluir_versao(empresa_id, versao_id)
+        return jsonify({'success': True, 'message': 'Versão excluída'})
+    except Exception as e:
+        logger.error(f"Erro ao excluir versão: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/contabilidade/plano-contas', methods=['GET'])
+@require_auth
+def listar_plano_contas():
+    """Lista contas do plano com filtros"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        versao_id = request.args.get('versao_id', type=int)
+        classificacao = request.args.get('classificacao')
+        tipo_conta = request.args.get('tipo_conta')
+        busca = request.args.get('busca')
+        
+        from contabilidade_functions import listar_contas
+        contas = listar_contas(empresa_id, versao_id=versao_id, classificacao=classificacao,
+                               tipo_conta=tipo_conta, busca=busca)
+        return jsonify({'success': True, 'contas': contas, 'total': len(contas)})
+    except Exception as e:
+        logger.error(f"Erro ao listar plano de contas: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/contabilidade/plano-contas/tree', methods=['GET'])
+@require_auth
+def arvore_plano_contas():
+    """Retorna plano de contas em estrutura de árvore"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        versao_id = request.args.get('versao_id', type=int)
+        if not versao_id:
+            # Tentar versão ativa
+            from contabilidade_functions import obter_versao_ativa
+            versao_ativa = obter_versao_ativa(empresa_id)
+            if versao_ativa:
+                versao_id = versao_ativa['id']
+            else:
+                return jsonify({'success': True, 'tree': [], 'message': 'Nenhuma versão encontrada'})
+        
+        from contabilidade_functions import obter_arvore_contas
+        tree = obter_arvore_contas(empresa_id, versao_id)
+        return jsonify({'success': True, 'tree': tree, 'versao_id': versao_id})
+    except Exception as e:
+        logger.error(f"Erro ao obter árvore: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/contabilidade/plano-contas', methods=['POST'])
+@require_auth
+def criar_conta_plano():
+    """Cria nova conta no plano"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        dados = request.get_json()
+        if not dados or not dados.get('codigo') or not dados.get('descricao'):
+            return jsonify({'success': False, 'error': 'código e descrição são obrigatórios'}), 400
+        if not dados.get('versao_id'):
+            return jsonify({'success': False, 'error': 'versao_id é obrigatório'}), 400
+        if not dados.get('classificacao'):
+            return jsonify({'success': False, 'error': 'classificacao é obrigatória'}), 400
+        
+        from contabilidade_functions import criar_conta
+        conta_id = criar_conta(empresa_id, dados)
+        return jsonify({'success': True, 'id': conta_id, 'message': 'Conta criada com sucesso'})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Erro ao criar conta: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/contabilidade/plano-contas/<int:conta_id>', methods=['PUT'])
+@require_auth
+def atualizar_conta_plano(conta_id):
+    """Atualiza conta do plano"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        dados = request.get_json()
+        from contabilidade_functions import atualizar_conta
+        atualizar_conta(empresa_id, conta_id, dados)
+        return jsonify({'success': True, 'message': 'Conta atualizada'})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Erro ao atualizar conta: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/contabilidade/plano-contas/<int:conta_id>', methods=['DELETE'])
+@require_auth
+def excluir_conta_plano(conta_id):
+    """Soft delete da conta e subcontas"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        from contabilidade_functions import excluir_conta
+        deleted = excluir_conta(empresa_id, conta_id)
+        return jsonify({'success': True, 'message': f'{deleted} conta(s) excluída(s)'})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Erro ao excluir conta: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/contabilidade/plano-contas/mover', methods=['POST'])
+@require_auth
+def mover_conta_plano():
+    """Move conta para outro pai (drag-and-drop)"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        dados = request.get_json()
+        conta_id = dados.get('conta_id')
+        novo_parent_id = dados.get('novo_parent_id')  # None = raiz
+        
+        from contabilidade_functions import mover_conta
+        mover_conta(empresa_id, conta_id, novo_parent_id)
+        return jsonify({'success': True, 'message': 'Conta movida com sucesso'})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Erro ao mover conta: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/contabilidade/plano-contas/import', methods=['POST'])
+@require_auth
+def importar_plano_contas():
+    """Importa contas de CSV"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        dados = request.get_json()
+        versao_id = dados.get('versao_id')
+        linhas = dados.get('linhas', [])
+        
+        if not versao_id or not linhas:
+            return jsonify({'success': False, 'error': 'versao_id e linhas são obrigatórios'}), 400
+        
+        from contabilidade_functions import importar_contas_csv
+        resultado = importar_contas_csv(empresa_id, versao_id, linhas)
+        return jsonify({'success': True, **resultado})
+    except Exception as e:
+        logger.error(f"Erro ao importar: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/contabilidade/plano-contas/export', methods=['GET'])
+@require_auth
+def exportar_plano_contas():
+    """Exporta contas em JSON (para CSV/Excel no frontend)"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+        
+        versao_id = request.args.get('versao_id', type=int)
+        if not versao_id:
+            return jsonify({'success': False, 'error': 'versao_id é obrigatório'}), 400
+        
+        from contabilidade_functions import exportar_contas
+        contas = exportar_contas(empresa_id, versao_id)
+        return jsonify({'success': True, 'contas': contas})
+    except Exception as e:
+        logger.error(f"Erro ao exportar: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     # Inicializar tabelas de importação
