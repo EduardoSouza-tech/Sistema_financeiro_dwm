@@ -14858,6 +14858,99 @@ def validar_certificado():
         })
 
 
+@app.route('/api/relatorios/certificados/extrair-dados', methods=['POST'])
+@require_auth
+@require_permission('relatorios.certificados.criar')
+def extrair_dados_certificado():
+    """Extrai dados automaticamente do arquivo .pfx (CNPJ, nome, validades)"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'sucesso': False, 'erro': 'Empresa não identificada'}), 403
+        
+        data = request.get_json()
+        
+        if not data.get('pfx_base64') or not data.get('senha'):
+            return jsonify({
+                'sucesso': False,
+                'erro': 'PFX e senha são obrigatórios'
+            }), 400
+        
+        # Importa módulo de busca (onde está CertificadoA1)
+        from relatorios.nfe import nfe_busca
+        
+        # Tenta carregar o certificado
+        try:
+            cert = nfe_busca.CertificadoA1(
+                pfx_base64=data['pfx_base64'],
+                senha=data['senha']
+            )
+            
+            if not cert.esta_valido():
+                return jsonify({
+                    'sucesso': False,
+                    'erro': 'Certificado fora do prazo de validade',
+                    'valido_de': cert.cert_data.get('valido_de').isoformat() if cert.cert_data.get('valido_de') else None,
+                    'valido_ate': cert.cert_data.get('valido_ate').isoformat() if cert.cert_data.get('valido_ate') else None
+                })
+            
+            # Busca dados da empresa para preencher campos
+            with get_db_connection(empresa_id=empresa_id) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT razao_social, cnpj, uf
+                    FROM empresas
+                    WHERE id = %s
+                """, (empresa_id,))
+                empresa = cursor.fetchone()
+            
+            # Mapa de UF para código
+            uf_para_codigo = {
+                'AC': '12', 'AL': '27', 'AP': '16', 'AM': '13', 'BA': '29',
+                'CE': '23', 'DF': '53', 'ES': '32', 'GO': '52', 'MA': '21',
+                'MT': '51', 'MS': '50', 'MG': '31', 'PA': '15', 'PB': '25',
+                'PR': '41', 'PE': '26', 'PI': '22', 'RJ': '33', 'RN': '24',
+                'RS': '43', 'RO': '11', 'RR': '14', 'SC': '42', 'SP': '35',
+                'SE': '28', 'TO': '17'
+            }
+            
+            empresa_dict = dict(zip(['razao_social', 'cnpj', 'uf'], empresa)) if empresa else {}
+            
+            # Extrai CNPJ do certificado (subject DN geralmente contém)
+            cnpj_cert = cert.cert_data.get('cnpj', '')
+            
+            resultado = {
+                'sucesso': True,
+                'dados': {
+                    'cnpj': cnpj_cert or (empresa_dict.get('cnpj', '').replace('.', '').replace('/', '').replace('-', '')),
+                    'nome_certificado': empresa_dict.get('razao_social', 'Certificado Digital'),
+                    'valido_de': cert.cert_data.get('valido_de').isoformat() if cert.cert_data.get('valido_de') else None,
+                    'valido_ate': cert.cert_data.get('valido_ate').isoformat() if cert.cert_data.get('valido_ate') else None,
+                    'cuf': uf_para_codigo.get(empresa_dict.get('uf', 'MG'), '31'),  # Default MG
+                    'subject': cert.cert_data.get('subject', ''),
+                    'issuer': cert.cert_data.get('issuer', '')
+                }
+            }
+            
+            return jsonify(resultado)
+            
+        except Exception as e:
+            return jsonify({
+                'sucesso': False,
+                'erro': f'Erro ao ler certificado: {str(e)}'
+            })
+        
+    except Exception as e:
+        logger.error(f"Erro ao extrair dados do certificado: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'sucesso': False,
+            'erro': f'Erro no servidor: {str(e)}'
+        }), 500
+
+
 @app.route('/api/relatorios/certificados/novo', methods=['POST'])
 @require_auth
 @require_permission('relatorios.certificados.criar')

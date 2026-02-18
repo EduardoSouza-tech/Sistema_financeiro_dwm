@@ -4478,41 +4478,41 @@
                     </div>
                     <div class="modal-body">
                         <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Arquivo .PFX *</label>
+                            <input type="file" id="fiscal-certArquivo" accept=".pfx,.p12" onchange="extrairDadosCertificado()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <small class="text-muted">Selecione o arquivo do certificado digital</small>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Senha do Certificado *</label>
+                            <input type="password" id="fiscal-certSenha" onchange="extrairDadosCertificado()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <small class="text-muted">Digite a senha e aguarde o preenchimento automático</small>
+                        </div>
+                        <div id="fiscal-cert-loading" style="display: none; padding: 10px; background: #e3f2fd; border-radius: 4px; margin-bottom: 15px; text-align: center;">
+                            <span style="color: #1976d2;">⏳ Extraindo dados do certificado...</span>
+                        </div>
+                        <div style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nome do Certificado</label>
-                            <input type="text" id="fiscal-certNome" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="text" id="fiscal-certNome" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f5f5f5;">
+                            <small class="text-muted">Preenchido automaticamente</small>
                         </div>
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: 600;">CNPJ</label>
-                            <input type="text" id="fiscal-certCNPJ" maxlength="14" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <small class="text-muted">Apenas números (14 dígitos)</small>
-                        </div>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Arquivo .PFX</label>
-                            <input type="file" id="fiscal-certArquivo" accept=".pfx,.p12" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Senha do Certificado</label>
-                            <input type="password" id="fiscal-certSenha" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="text" id="fiscal-certCNPJ" readonly maxlength="14" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f5f5f5;">
+                            <small class="text-muted">Extraído do certificado</small>
                         </div>
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: 600;">UF (Código)</label>
-                            <select id="fiscal-certCUF" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                <option value="35">São Paulo (35)</option>
-                                <option value="33">Rio de Janeiro (33)</option>
-                                <option value="31">Minas Gerais (31)</option>
-                                <option value="41">Paraná (41)</option>
-                                <option value="43">Rio Grande do Sul (43)</option>
-                                <option value="52">Goiás (52)</option>
-                                <option value="53">Distrito Federal (53)</option>
-                            </select>
+                            <input type="text" id="fiscal-certCUF" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f5f5f5;">
+                            <small class="text-muted">Código da UF da empresa</small>
                         </div>
                         <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Ambiente</label>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Ambiente *</label>
                             <select id="fiscal-certAmbiente" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                 <option value="producao">Produção</option>
                                 <option value="homologacao">Homologação</option>
                             </select>
                         </div>
+                        <div id="fiscal-cert-info" style="display: none; padding: 10px; background: #d4edda; border-radius: 4px; margin-top: 10px; font-size: 13px;"></div>
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-secondary" onclick="fecharModalNovoCertificadoFiscal()">Cancelar</button>
@@ -12834,11 +12834,89 @@
             document.getElementById('modal-novo-certificado-fiscal').classList.remove('show');
         }
 
+        // Extrair dados do certificado automaticamente
+        window.extrairDadosCertificado = async function() {
+            const arquivo = document.getElementById('fiscal-certArquivo').files[0];
+            const senha = document.getElementById('fiscal-certSenha').value;
+            
+            if (!arquivo || !senha) {
+                return; // Precisa de ambos para extrair
+            }
+            
+            // Mostra loading
+            document.getElementById('fiscal-cert-loading').style.display = 'block';
+            document.getElementById('fiscal-cert-info').style.display = 'none';
+            
+            try {
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const base64 = e.target.result.split(',')[1];
+                    
+                    const response = await fetch('/api/relatorios/certificados/extrair-dados', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            pfx_base64: base64,
+                            senha: senha
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    document.getElementById('fiscal-cert-loading').style.display = 'none';
+                    
+                    if (data.sucesso) {
+                        // Preenche campos automaticamente
+                        document.getElementById('fiscal-certNome').value = data.dados.nome_certificado || '';
+                        document.getElementById('fiscal-certCNPJ').value = data.dados.cnpj || '';
+                        document.getElementById('fiscal-certCUF').value = data.dados.cuf || '31';
+                        
+                        // Mostra informações do certificado
+                        const valido_de = data.dados.valido_de ? new Date(data.dados.valido_de).toLocaleDateString('pt-BR') : 'N/A';
+                        const valido_ate = data.dados.valido_ate ? new Date(data.dados.valido_ate).toLocaleDateString('pt-BR') : 'N/A';
+                        
+                        document.getElementById('fiscal-cert-info').innerHTML = `
+                            ✅ Certificado válido<br>
+                            <strong>Válido de:</strong> ${valido_de}<br>
+                            <strong>Válido até:</strong> ${valido_ate}
+                        `;
+                        document.getElementById('fiscal-cert-info').style.display = 'block';
+                        
+                        showToastFiscal('✅ Dados do certificado extraídos com sucesso!', 'success');
+                    } else {
+                        document.getElementById('fiscal-cert-info').innerHTML = `❌ ${data.erro}`;
+                        document.getElementById('fiscal-cert-info').style.background = '#f8d7da';
+                        document.getElementById('fiscal-cert-info').style.display = 'block';
+                        showToastFiscal('Erro ao extrair dados: ' + data.erro, 'error');
+                    }
+                };
+                
+                reader.readAsDataURL(arquivo);
+            } catch (error) {
+                document.getElementById('fiscal-cert-loading').style.display = 'none';
+                showToastFiscal('Erro ao processar certificado', 'error');
+            }
+        };
+
         function salvarCertificadoFiscal() {
             const arquivo = document.getElementById('fiscal-certArquivo').files[0];
+            const senha = document.getElementById('fiscal-certSenha').value;
+            const nome = document.getElementById('fiscal-certNome').value;
+            const cnpj = document.getElementById('fiscal-certCNPJ').value;
+            const cuf = document.getElementById('fiscal-certCUF').value;
             
             if (!arquivo) {
                 showToastFiscal('Selecione um arquivo .PFX', 'error');
+                return;
+            }
+            
+            if (!senha) {
+                showToastFiscal('Digite a senha do certificado', 'error');
+                return;
+            }
+            
+            if (!nome || !cnpj || !cuf) {
+                showToastFiscal('Aguarde a extração automática dos dados do certificado', 'warning');
                 return;
             }
 
@@ -12847,11 +12925,11 @@
                 const base64 = e.target.result.split(',')[1];
                 
                 const dados = {
-                    nome_certificado: document.getElementById('fiscal-certNome').value,
-                    cnpj: document.getElementById('fiscal-certCNPJ').value,
+                    nome_certificado: nome,
+                    cnpj: cnpj,
                     pfx_base64: base64,
-                    senha: document.getElementById('fiscal-certSenha').value,
-                    cuf: parseInt(document.getElementById('fiscal-certCUF').value),
+                    senha: senha,
+                    cuf: parseInt(cuf),
                     ambiente: document.getElementById('fiscal-certAmbiente').value
                 };
 
@@ -12875,6 +12953,24 @@
             };
             
             reader.readAsDataURL(arquivo);
+        }
+
+        function abrirModalNovoCertificadoFiscal() {
+            // Limpa campos
+            document.getElementById('fiscal-certArquivo').value = '';
+            document.getElementById('fiscal-certSenha').value = '';
+            document.getElementById('fiscal-certNome').value = '';
+            document.getElementById('fiscal-certCNPJ').value = '';
+            document.getElementById('fiscal-certCUF').value = '31';
+            document.getElementById('fiscal-certAmbiente').value = 'producao';
+            document.getElementById('fiscal-cert-loading').style.display = 'none';
+            document.getElementById('fiscal-cert-info').style.display = 'none';
+            
+            document.getElementById('modal-novo-certificado-fiscal').style.display = 'flex';
+        }
+
+        function fecharModalNovoCertificadoFiscal() {
+            document.getElementById('modal-novo-certificado-fiscal').style.display = 'none';
         }
 
         function abrirModalRecadastrarCertificado(certificadoId) {
