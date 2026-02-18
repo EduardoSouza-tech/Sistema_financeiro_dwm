@@ -14851,8 +14851,8 @@ def consultar_por_chave():
                 'error': 'Certificado não encontrado ou inválido'
             }), 404
         
-        # Consulta por chave
-        resultado = nfe_busca.consultar_nfe_por_chave(
+        # Consulta por chave (auto-detecta NF-e/CT-e pelo modelo na chave)
+        resultado = nfe_busca.consultar_documento_por_chave(
             certificado=cert,
             chave=chave,
             ambiente=data.get('ambiente', 'producao')
@@ -14894,60 +14894,60 @@ def listar_documentos():
             # Query base
             sql = """
                 SELECT 
-                id, nsu, chave, tipo_documento, schema_name,
-                numero_documento, serie, valor_total,
-                cnpj_emitente, nome_emitente,
-                cnpj_destinatario, nome_destinatario,
-                data_emissao, data_busca, processado
-            FROM documentos_fiscais_log
-            WHERE empresa_id = %s
-        """
-        
-        params = [empresa_id]
-        
-        # Filtros opcionais
-        if data_inicio:
-            sql += " AND data_busca >= %s"
-            params.append(data_inicio)
-        
-        if data_fim:
-            sql += " AND data_busca <= %s"
-            params.append(data_fim)
-        
-        if tipo:
-            sql += " AND tipo_documento = %s"
-            params.append(tipo)
-        
-        # Paginação
-        sql += " ORDER BY data_busca DESC"
-        sql += " LIMIT %s OFFSET %s"
-        params.extend([per_page, (page - 1) * per_page])
-        
-        cursor.execute(sql, params)
-        documentos = cursor.fetchall()
-        
-        # Total de registros
-        sql_count = """
-            SELECT COUNT(*)
-            FROM documentos_fiscais_log
-            WHERE empresa_id = %s
-        """
-        count_params = [empresa_id]
-        
-        if data_inicio:
-            sql_count += " AND data_busca >= %s"
-            count_params.append(data_inicio)
-        
-        if data_fim:
-            sql_count += " AND data_busca <= %s"
-            count_params.append(data_fim)
-        
-        if tipo:
-            sql_count += " AND tipo_documento = %s"
-            count_params.append(tipo)
-        
+                    id, nsu, chave, tipo_documento, schema_name,
+                    numero_documento, serie, valor_total,
+                    cnpj_emitente, nome_emitente,
+                    cnpj_destinatario, nome_destinatario,
+                    data_emissao, data_busca, processado
+                FROM documentos_fiscais_log
+                WHERE empresa_id = %s
+            """
+            
+            params = [empresa_id]
+            
+            # Filtros opcionais
+            if data_inicio:
+                sql += " AND data_busca >= %s"
+                params.append(data_inicio)
+            
+            if data_fim:
+                sql += " AND data_busca <= %s"
+                params.append(data_fim)
+            
+            if tipo:
+                sql += " AND tipo_documento = %s"
+                params.append(tipo)
+            
+            # Paginação
+            sql += " ORDER BY data_busca DESC"
+            sql += " LIMIT %s OFFSET %s"
+            params.extend([per_page, (page - 1) * per_page])
+            
+            cursor.execute(sql, params)
+            documentos = cursor.fetchall()
+            
+            # Total de registros
+            sql_count = """
+                SELECT COUNT(*) as total
+                FROM documentos_fiscais_log
+                WHERE empresa_id = %s
+            """
+            count_params = [empresa_id]
+            
+            if data_inicio:
+                sql_count += " AND data_busca >= %s"
+                count_params.append(data_inicio)
+            
+            if data_fim:
+                sql_count += " AND data_busca <= %s"
+                count_params.append(data_fim)
+            
+            if tipo:
+                sql_count += " AND tipo_documento = %s"
+                count_params.append(tipo)
+            
             cursor.execute(sql_count, count_params)
-            total = cursor.fetchone()['count']
+            total = cursor.fetchone()['total']
         
         return jsonify({
             'success': True,

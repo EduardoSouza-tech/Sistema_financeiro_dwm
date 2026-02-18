@@ -103,10 +103,12 @@ def validar_chave_nfe(chave: str) -> Tuple[bool, str]:
     except ValueError:
         return False, "Chave inválida: formato de data incorreto"
     
-    # Valida modelo (posições 20-21, deve ser 55 para NFe ou 65 para NFCe)
+    # Valida modelo (posições 20-21)
+    # 55 = NF-e, 57 = CT-e, 65 = NFC-e, 67 = CT-e OS
     modelo = chave[20:22]
-    if modelo not in ['55', '65']:
-        return False, f"Chave inválida: modelo {modelo} não é NFe (55) ou NFCe (65)"
+    modelos_validos = ['55', '57', '65', '67']
+    if modelo not in modelos_validos:
+        return False, f"Chave inválida: modelo {modelo} não é NF-e (55), CT-e (57), NFC-e (65) ou CT-e OS (67)"
     
     return True, "Chave válida"
 
@@ -158,6 +160,22 @@ def detectar_schema_nfe(xml_content: str) -> Dict[str, any]:
         elif tag_raiz == 'resEvento':
             tipo = 'resEvento'
             categoria = 'Evento'
+        # CT-e schemas
+        elif tag_raiz == 'cteProc':
+            tipo = 'procCTe'
+            categoria = 'CTe'
+        elif tag_raiz == 'CTeOS':
+            tipo = 'procCTeOS'
+            categoria = 'CTe'
+        elif tag_raiz == 'resCTe':
+            tipo = 'resCTe'
+            categoria = 'CTe'
+        elif tag_raiz == 'procEventoCTe':
+            tipo = 'procEventoCTe'
+            categoria = 'Evento'
+        elif 'CTe' in tag_raiz or 'cte' in tag_raiz:
+            tipo = 'CTe'
+            categoria = 'CTe'
         elif 'NFe' in tag_raiz:
             tipo = 'NFe'
             categoria = 'NFe'
@@ -220,8 +238,12 @@ def extrair_dados_nfe(xml_content: str, cnpj_empresa: str) -> Dict[str, any]:
             return _extrair_procnfe(root, cnpj_empresa)
         elif tipo_xml == 'resNFe':
             return _extrair_resnfe(root, cnpj_empresa)
-        elif tipo_xml in ['procEvento', 'evento', 'resEvento']:
+        elif tipo_xml in ['procEvento', 'evento', 'resEvento', 'procEventoCTe']:
             return _extrair_evento(root, cnpj_empresa)
+        elif tipo_xml in ['procCTe', 'procCTeOS', 'CTe']:
+            return _extrair_proccte(root, cnpj_empresa)
+        elif tipo_xml == 'resCTe':
+            return _extrair_rescte(root, cnpj_empresa)
         else:
             return {
                 'sucesso': False,
@@ -532,6 +554,280 @@ def _extrair_evento(root: etree._Element, cnpj_empresa: str) -> Dict[str, any]:
         return {
             'sucesso': False,
             'erro': f'Erro ao extrair evento: {str(e)}'
+        }
+
+
+# ============================================================================
+# EXTRAÇÃO DE DADOS - CT-e (CONHECIMENTO DE TRANSPORTE)
+# ============================================================================
+
+def _extrair_proccte(root: etree._Element, cnpj_empresa: str) -> Dict[str, any]:
+    """Extrai dados de cteProc (CT-e completo com protocolo)"""
+    try:
+        ns = {'cte': 'http://www.portalfiscal.inf.br/cte'}
+        
+        # Localiza elementos principais
+        cte = root.find('.//cte:CTe', ns)
+        if cte is None:
+            # Tenta sem namespace
+            cte = root.find('.//CTe')
+        
+        infcte = None
+        if cte is not None:
+            infcte = cte.find('.//cte:infCte', ns)
+            if infcte is None:
+                infcte = cte.find('.//infCte')
+        
+        if infcte is None:
+            # Tenta busca direta
+            infcte = root.find('.//{http://www.portalfiscal.inf.br/cte}infCte')
+            if infcte is None:
+                return {'sucesso': False, 'erro': 'Elemento infCte não encontrado'}
+        
+        # Chave de acesso
+        chave = infcte.get('Id', '').replace('CTe', '')
+        
+        # Validar chave
+        if chave and len(chave) == 44:
+            valido, msg_validacao = validar_chave_nfe(chave)
+        else:
+            valido = False
+            msg_validacao = "Chave não encontrada"
+        
+        # Identificação
+        ide = infcte.find('cte:ide', ns)
+        if ide is None:
+            ide = infcte.find('{http://www.portalfiscal.inf.br/cte}ide')
+        
+        numero = None
+        serie = None
+        modelo = '57'
+        cfop = None
+        natureza = None
+        data_emissao = None
+        
+        if ide is not None:
+            # Tentar com namespace
+            nCT = ide.find('cte:nCT', ns) or ide.find('{http://www.portalfiscal.inf.br/cte}nCT')
+            serie_elem = ide.find('cte:serie', ns) or ide.find('{http://www.portalfiscal.inf.br/cte}serie')
+            mod_elem = ide.find('cte:mod', ns) or ide.find('{http://www.portalfiscal.inf.br/cte}mod')
+            cfop_elem = ide.find('cte:CFOP', ns) or ide.find('{http://www.portalfiscal.inf.br/cte}CFOP')
+            natOp_elem = ide.find('cte:natOp', ns) or ide.find('{http://www.portalfiscal.inf.br/cte}natOp')
+            dhEmi_elem = ide.find('cte:dhEmi', ns) or ide.find('{http://www.portalfiscal.inf.br/cte}dhEmi')
+            
+            numero = nCT.text if nCT is not None else None
+            serie = serie_elem.text if serie_elem is not None else None
+            modelo = mod_elem.text if mod_elem is not None else '57'
+            cfop = cfop_elem.text if cfop_elem is not None else None
+            natureza = natOp_elem.text if natOp_elem is not None else None
+            
+            if dhEmi_elem is not None:
+                try:
+                    data_emissao = datetime.fromisoformat(dhEmi_elem.text.replace('Z', '+00:00'))
+                except:
+                    pass
+        
+        # Emitente
+        emit = infcte.find('cte:emit', ns) or infcte.find('{http://www.portalfiscal.inf.br/cte}emit')
+        emit_cnpj = None
+        emit_nome = None
+        emit_uf = None
+        if emit is not None:
+            cnpj_elem = emit.find('cte:CNPJ', ns) or emit.find('{http://www.portalfiscal.inf.br/cte}CNPJ')
+            nome_elem = emit.find('cte:xNome', ns) or emit.find('{http://www.portalfiscal.inf.br/cte}xNome')
+            uf_elem = emit.find('.//cte:UF', ns) or emit.find('.//{http://www.portalfiscal.inf.br/cte}UF')
+            emit_cnpj = cnpj_elem.text if cnpj_elem is not None else None
+            emit_nome = nome_elem.text if nome_elem is not None else None
+            emit_uf = uf_elem.text if uf_elem is not None else None
+        
+        # Tomador (destinatário no CT-e)
+        # O tomador pode estar em <rem>, <dest>, ou <toma>
+        dest_cnpj = None
+        dest_nome = None
+        dest_uf = None
+        
+        # Tenta pegar o remetente
+        rem = infcte.find('cte:rem', ns) or infcte.find('{http://www.portalfiscal.inf.br/cte}rem')
+        if rem is not None:
+            cnpj_elem = rem.find('cte:CNPJ', ns) or rem.find('{http://www.portalfiscal.inf.br/cte}CNPJ')
+            nome_elem = rem.find('cte:xNome', ns) or rem.find('{http://www.portalfiscal.inf.br/cte}xNome')
+            uf_elem = rem.find('.//cte:UF', ns) or rem.find('.//{http://www.portalfiscal.inf.br/cte}UF')
+            dest_cnpj = cnpj_elem.text if cnpj_elem is not None else None
+            dest_nome = nome_elem.text if nome_elem is not None else None
+            dest_uf = uf_elem.text if uf_elem is not None else None
+        
+        # Se remetente = emitente, pega o destinatário
+        if dest_cnpj == emit_cnpj:
+            dest_node = infcte.find('cte:dest', ns) or infcte.find('{http://www.portalfiscal.inf.br/cte}dest')
+            if dest_node is not None:
+                cnpj_elem = dest_node.find('cte:CNPJ', ns) or dest_node.find('{http://www.portalfiscal.inf.br/cte}CNPJ')
+                nome_elem = dest_node.find('cte:xNome', ns) or dest_node.find('{http://www.portalfiscal.inf.br/cte}xNome')
+                uf_elem = dest_node.find('.//cte:UF', ns) or dest_node.find('.//{http://www.portalfiscal.inf.br/cte}UF')
+                dest_cnpj = cnpj_elem.text if cnpj_elem is not None else dest_cnpj
+                dest_nome = nome_elem.text if nome_elem is not None else dest_nome
+                dest_uf = uf_elem.text if uf_elem is not None else dest_uf
+        
+        # Valores
+        vPrest = infcte.find('cte:vPrest', ns) or infcte.find('{http://www.portalfiscal.inf.br/cte}vPrest')
+        valor_total = 0.0
+        valor_receber = 0.0
+        if vPrest is not None:
+            vTPrest = vPrest.find('cte:vTPrest', ns) or vPrest.find('{http://www.portalfiscal.inf.br/cte}vTPrest')
+            vRec = vPrest.find('cte:vRec', ns) or vPrest.find('{http://www.portalfiscal.inf.br/cte}vRec')
+            valor_total = float(vTPrest.text) if vTPrest is not None else 0.0
+            valor_receber = float(vRec.text) if vRec is not None else 0.0
+        
+        # ICMS
+        imp = infcte.find('.//cte:imp', ns) or infcte.find('.//{http://www.portalfiscal.inf.br/cte}imp')
+        valor_icms = 0.0
+        base_icms = 0.0
+        if imp is not None:
+            # ICMS pode estar em vários sub-elementos (ICMS00, ICMS20, ICMS45, etc.)
+            for icms_tag in ['ICMS00', 'ICMS20', 'ICMS45', 'ICMS60', 'ICMS90', 'ICMSOutraUF', 'ICMSSN']:
+                icms_elem = imp.find(f'cte:{icms_tag}', ns) or imp.find(f'{{http://www.portalfiscal.inf.br/cte}}{icms_tag}')
+                if icms_elem is None:
+                    icms_elem = imp.find(f'.//cte:{icms_tag}', ns) or imp.find(f'.//{{http://www.portalfiscal.inf.br/cte}}{icms_tag}')
+                if icms_elem is not None:
+                    vBC_elem = icms_elem.find('cte:vBC', ns) or icms_elem.find('{http://www.portalfiscal.inf.br/cte}vBC')
+                    vICMS_elem = icms_elem.find('cte:vICMS', ns) or icms_elem.find('{http://www.portalfiscal.inf.br/cte}vICMS')
+                    base_icms = float(vBC_elem.text) if vBC_elem is not None else 0.0
+                    valor_icms = float(vICMS_elem.text) if vICMS_elem is not None else 0.0
+                    break
+        
+        # Protocolo
+        prot_inf = root.find('.//cte:protCTe/cte:infProt', ns) or root.find('.//{http://www.portalfiscal.inf.br/cte}protCTe/{http://www.portalfiscal.inf.br/cte}infProt')
+        numero_protocolo = None
+        data_autorizacao = None
+        if prot_inf is not None:
+            nProt = prot_inf.find('cte:nProt', ns) or prot_inf.find('{http://www.portalfiscal.inf.br/cte}nProt')
+            numero_protocolo = nProt.text if nProt is not None else None
+            dhRecbto = prot_inf.find('cte:dhRecbto', ns) or prot_inf.find('{http://www.portalfiscal.inf.br/cte}dhRecbto')
+            if dhRecbto is not None:
+                try:
+                    data_autorizacao = datetime.fromisoformat(dhRecbto.text.replace('Z', '+00:00'))
+                except:
+                    pass
+        
+        # Direção
+        direcao = determinar_direcao_nfe(emit_cnpj, dest_cnpj, cnpj_empresa)
+        
+        resultado = {
+            'sucesso': True,
+            'tipo_xml': 'procCTe',
+            'chave': chave,
+            'chave_valida': valido,
+            'numero': numero,
+            'serie': serie,
+            'modelo': modelo,
+            'tipo_documento': 'CTe',
+            'natureza_operacao': natureza,
+            'cfop': cfop,
+            
+            # Emitente
+            'cnpj_emitente': emit_cnpj,
+            'nome_emitente': emit_nome,
+            'uf_emitente': emit_uf,
+            
+            # Destinatário/Tomador
+            'cnpj_destinatario': dest_cnpj,
+            'nome_destinatario': dest_nome,
+            'uf_destinatario': dest_uf,
+            
+            # Valores
+            'valor_total': valor_total,
+            'valor_receber': valor_receber,
+            'base_calculo_icms': base_icms,
+            'valor_icms': valor_icms,
+            
+            # Datas
+            'data_emissao': data_emissao,
+            'data_autorizacao': data_autorizacao,
+            
+            # Protocolo
+            'numero_protocolo': numero_protocolo,
+            'situacao': 'Autorizada',
+            
+            # Direção
+            'direcao': direcao,
+        }
+        
+        return resultado
+        
+    except Exception as e:
+        return {
+            'sucesso': False,
+            'erro': f'Erro ao extrair procCTe: {str(e)}'
+        }
+
+
+def _extrair_rescte(root: etree._Element, cnpj_empresa: str) -> Dict[str, any]:
+    """Extrai dados de resCTe (resumo de CT-e da Distribuição DFe)"""
+    try:
+        ns = {'cte': 'http://www.portalfiscal.inf.br/cte'}
+        
+        # Chave
+        chave_elem = root.find('cte:chCTe', ns) or root.find('{http://www.portalfiscal.inf.br/cte}chCTe')
+        chave = chave_elem.text if chave_elem is not None else None
+        
+        if not chave:
+            return {'sucesso': False, 'erro': 'Chave não encontrada no resCTe'}
+        
+        # Validar chave
+        if len(chave) == 44:
+            valido, msg_validacao = validar_chave_nfe(chave)
+        else:
+            valido = False
+        
+        # Dados limitados do resumo
+        cnpj_elem = root.find('cte:CNPJ', ns) or root.find('{http://www.portalfiscal.inf.br/cte}CNPJ')
+        nome_elem = root.find('cte:xNome', ns) or root.find('{http://www.portalfiscal.inf.br/cte}xNome')
+        cnpj_emitente = cnpj_elem.text if cnpj_elem is not None else None
+        nome_emitente = nome_elem.text if nome_elem is not None else None
+        
+        # Valor
+        valor_total = 0.0
+        vNF_elem = root.find('cte:vNF', ns) or root.find('{http://www.portalfiscal.inf.br/cte}vNF')
+        if vNF_elem is not None:
+            valor_total = float(vNF_elem.text)
+        
+        # Data
+        data_emissao = None
+        dhEmi = root.find('cte:dhEmi', ns) or root.find('{http://www.portalfiscal.inf.br/cte}dhEmi')
+        if dhEmi is not None:
+            try:
+                data_emissao = datetime.fromisoformat(dhEmi.text.replace('Z', '+00:00'))
+            except:
+                pass
+        
+        # Direção
+        direcao = 'ENTRADA' if cnpj_emitente != cnpj_empresa else 'SAIDA'
+        
+        resultado = {
+            'sucesso': True,
+            'tipo_xml': 'resCTe',
+            'chave': chave,
+            'chave_valida': valido if chave else False,
+            'tipo_documento': 'CTe',
+            
+            'cnpj_emitente': cnpj_emitente,
+            'nome_emitente': nome_emitente,
+            'cnpj_destinatario': None,
+            'nome_destinatario': None,
+            
+            'valor_total': valor_total,
+            'data_emissao': data_emissao,
+            'situacao': 'Autorizada',
+            'direcao': direcao,
+            
+            'aviso': 'Dados limitados - XML é um resumo (resCTe)',
+        }
+        
+        return resultado
+        
+    except Exception as e:
+        return {
+            'sucesso': False,
+            'erro': f'Erro ao extrair resCTe: {str(e)}'
         }
 
 

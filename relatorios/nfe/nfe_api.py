@@ -414,6 +414,18 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
                     
                     stats['documentos_detalhes'].append(resultado_proc)
                     
+                elif schema_info['categoria'] == 'CTe':
+                    resultado_proc = _processar_cte(
+                        empresa_id, certificado_id, cnpj, nsu, schema,
+                        xml_content, usuario_id, cursor
+                    )
+                    if resultado_proc['sucesso']:
+                        stats['ctes_processados'] += 1
+                    else:
+                        stats['erros'] += 1
+                    
+                    stats['documentos_detalhes'].append(resultado_proc)
+                    
                 elif schema_info['categoria'] == 'Evento':
                     resultado_proc = _processar_evento(
                         empresa_id, certificado_id, nsu, schema,
@@ -509,6 +521,72 @@ def _processar_nfe(empresa_id: int, certificado_id: int, cnpj_empresa: str,
             'numero': dados.get('numero'),
             'valor': dados.get('valor_total'),
             'direção': dados.get('direcao')
+        }
+        
+    except Exception as e:
+        return {'sucesso': False, 'erro': str(e)}
+
+
+def _processar_cte(empresa_id: int, certificado_id: int, cnpj_empresa: str,
+                  nsu: str, schema: str, xml_content: str,
+                  usuario_id: int, cursor) -> Dict[str, any]:
+    """Processa um CT-e e salva no banco."""
+    try:
+        # Extrai dados
+        dados = nfe_processor.extrair_dados_nfe(xml_content, cnpj_empresa)
+        
+        if not dados['sucesso']:
+            return {'sucesso': False, 'erro': dados['erro']}
+        
+        chave = dados.get('chave', '')
+        
+        # Salva XML no storage (reutiliza o storage de NF-e)
+        resultado_storage = nfe_storage.salvar_xml_nfe(
+            cnpj_certificado=cnpj_empresa,
+            chave=chave,
+            xml_content=xml_content,
+            tipo_xml=dados.get('tipo_xml', 'procCTe'),
+            data_emissao=dados.get('data_emissao')
+        )
+        
+        if not resultado_storage['sucesso']:
+            return {'sucesso': False, 'erro': 'Erro ao salvar XML do CT-e'}
+        
+        # Salva log no banco
+        cursor.execute("""
+            INSERT INTO documentos_fiscais_log 
+            (empresa_id, certificado_id, nsu, chave, tipo_documento, schema_name,
+             numero_documento, serie, valor_total, cnpj_emitente, nome_emitente,
+             cnpj_destinatario, nome_destinatario, data_emissao, 
+             caminho_xml, tamanho_bytes, hash_md5, busca_por, processado)
+            VALUES 
+            (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+            ON CONFLICT (certificado_id, nsu) DO NOTHING
+        """, (
+            empresa_id, certificado_id, nsu, chave, 'CTe', schema,
+            dados.get('numero'), dados.get('serie'), dados.get('valor_total'),
+            dados.get('cnpj_emitente'), dados.get('nome_emitente'),
+            dados.get('cnpj_destinatario'), dados.get('nome_destinatario'),
+            dados.get('data_emissao'),
+            resultado_storage['caminho'], resultado_storage['tamanho'],
+            resultado_storage['hash_md5'], usuario_id
+        ))
+        
+        # Atualiza contadores do certificado
+        cursor.execute("""
+            UPDATE certificados_digitais
+            SET total_documentos_baixados = total_documentos_baixados + 1,
+                total_ctes = total_ctes + 1
+            WHERE id = %s
+        """, (certificado_id,))
+        
+        return {
+            'sucesso': True,
+            'chave': chave,
+            'numero': dados.get('numero'),
+            'valor': dados.get('valor_total'),
+            'direção': dados.get('direcao'),
+            'tipo': 'CTe'
         }
         
     except Exception as e:

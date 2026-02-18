@@ -36,17 +36,20 @@ from cryptography.hazmat.backends import default_backend
 # URLs dos webservices SEFAZ (Produção - AN - Ambiente Nacional)
 WEBSERVICES_PRODUCAO = {
     'NFeDistribuicaoDFe': 'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
-    'NfeConsultaProtocolo': 'https://www.nfe.fazenda.gov.br/NFeAutorizacao4/NFeRetAutorizacao4.asmx',
+    'NfeConsultaProtocolo': 'https://www.nfe.fazenda.gov.br/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx',
+    'CTeConsultaProtocolo': 'https://www1.cte.fazenda.gov.br/CTeWS/CTeConsultaV4.asmx',
 }
 
 # URLs dos webservices SEFAZ (Homologação - AN)
 WEBSERVICES_HOMOLOGACAO = {
     'NFeDistribuicaoDFe': 'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
-    'NfeConsultaProtocolo': 'https://hom.nfe.fazenda.gov.br/NFeAutorizacao4/NFeRetAutorizacao4.asmx',
+    'NfeConsultaProtocolo': 'https://hom.nfe.fazenda.gov.br/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx',
+    'CTeConsultaProtocolo': 'https://hom1.cte.fazenda.gov.br/CTeWS/CTeConsultaV4.asmx',
 }
 
-# Namespace do webservice
+# Namespaces dos webservices
 NAMESPACE_NFE = 'http://www.portalfiscal.inf.br/nfe'
+NAMESPACE_CTE = 'http://www.portalfiscal.inf.br/cte'
 
 # Número máximo de NSUs por consulta (limitado pela SEFAZ)
 MAX_NSUS_POR_CONSULTA = 50
@@ -189,7 +192,7 @@ def consultar_ultimo_nsu_sefaz(certificado: CertificadoA1, cnpj: str, cuf: int,
     <soap:Body>
         <nfe:nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe">
             <nfeDist versao="1.01">
-                <tpAmb>{1 if ambiente == 'homologacao' else 1}</tpAmb>
+                <tpAmb>{2 if ambiente == 'homologacao' else 1}</tpAmb>
                 <cUFAutor>{cuf}</cUFAutor>
                 <CNPJ>{cnpj}</CNPJ>
                 <distNSU>
@@ -498,10 +501,121 @@ def consultar_nfe_por_chave(certificado: CertificadoA1, chave: str,
         return {'sucesso': False, 'erro': f'Erro ao consultar chave: {str(e)}'}
 
 
+def consultar_cte_por_chave(certificado: CertificadoA1, chave: str,
+                            ambiente: str = 'producao') -> Dict[str, any]:
+    """
+    Consulta um CT-e específico pela chave de acesso.
+    
+    Args:
+        certificado: Certificado digital A1
+        chave: Chave de acesso de 44 dígitos (modelo 57 ou 67)
+        ambiente: 'producao' ou 'homologacao'
+        
+    Returns:
+        Dict com dados da consulta
+    """
+    try:
+        if not chave or len(chave) != 44:
+            return {'sucesso': False, 'erro': 'Chave de acesso inválida'}
+        
+        # Monta XML SOAP para CT-e
+        soap_body = f'''<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:cte="http://www.portalfiscal.inf.br/cte/wsdl/CTeConsultaV4">
+    <soap:Header/>
+    <soap:Body>
+        <cte:cteConsultaCT xmlns="http://www.portalfiscal.inf.br/cte">
+            <consSitCTe versao="4.00">
+                <tpAmb>{2 if ambiente == 'homologacao' else 1}</tpAmb>
+                <xServ>CONSULTAR</xServ>
+                <chCTe>{chave}</chCTe>
+            </consSitCTe>
+        </cte:cteConsultaCT>
+    </soap:Body>
+</soap:Envelope>'''
+        
+        url = WEBSERVICES_HOMOLOGACAO['CTeConsultaProtocolo'] if ambiente == 'homologacao' else WEBSERVICES_PRODUCAO['CTeConsultaProtocolo']
+        
+        headers = {
+            'Content-Type': 'application/soap+xml; charset=utf-8'
+        }
+        
+        session = certificado.get_session_requests()
+        response = session.post(url, data=soap_body.encode('utf-8'), headers=headers, timeout=60)
+        
+        if response.status_code != 200:
+            return {'sucesso': False, 'erro': f'Erro HTTP {response.status_code}'}
+        
+        root = etree.fromstring(response.content)
+        ns = {'cte': NAMESPACE_CTE}
+        
+        ret_cons = root.find('.//cte:retConsSitCTe', ns)
+        if ret_cons is None:
+            return {'sucesso': False, 'erro': 'Resposta inválida do SEFAZ para CT-e'}
+        
+        c_stat = ret_cons.find('cte:cStat', ns)
+        x_motivo = ret_cons.find('cte:xMotivo', ns)
+        
+        if c_stat is None:
+            return {'sucesso': False, 'erro': 'Status não encontrado na resposta'}
+        
+        status_code = c_stat.text
+        motivo = x_motivo.text if x_motivo is not None else ''
+        
+        if status_code != '100':
+            return {
+                'sucesso': False,
+                'codigo_sefaz': status_code,
+                'mensagem_sefaz': motivo,
+                'situacao': 'Não autorizada'
+            }
+        
+        prot_cte = ret_cons.find('.//cte:protCTe', ns)
+        
+        resultado = {
+            'sucesso': True,
+            'chave': chave,
+            'tipo_documento': 'CTe',
+            'codigo_sefaz': status_code,
+            'mensagem_sefaz': motivo,
+            'situacao': 'Autorizada'
+        }
+        
+        if prot_cte is not None:
+            xml_prot = etree.tostring(prot_cte, encoding='utf-8', xml_declaration=True).decode('utf-8')
+            resultado['xml_protocolo'] = xml_prot
+        
+        return resultado
+        
+    except Exception as e:
+        return {'sucesso': False, 'erro': f'Erro ao consultar CT-e: {str(e)}'}
+
+
+def consultar_documento_por_chave(certificado: CertificadoA1, chave: str,
+                                  ambiente: str = 'producao') -> Dict[str, any]:
+    """
+    Consulta um documento (NF-e ou CT-e) pela chave - detecta automaticamente.
+    
+    Identifica o modelo pelo dígito 21-22 da chave:
+    - 55: NF-e
+    - 57: CT-e
+    - 65: NFC-e
+    - 67: CT-e OS
+    """
+    if not chave or len(chave) != 44:
+        return {'sucesso': False, 'erro': 'Chave de acesso inválida'}
+    
+    modelo = chave[20:22]
+    
+    if modelo in ('57', '67'):
+        return consultar_cte_por_chave(certificado, chave, ambiente)
+    else:
+        return consultar_nfe_por_chave(certificado, chave, ambiente)
+
+
 def buscar_multiplas_chaves(certificado: CertificadoA1, chaves: List[str], 
                             ambiente: str = 'producao') -> List[Dict]:
     """
-    Busca múltiplas NF-es por chave de acesso.
+    Busca múltiplas NF-es/CT-es por chave de acesso.
     
     Args:
         certificado: Certificado digital A1
@@ -514,7 +628,7 @@ def buscar_multiplas_chaves(certificado: CertificadoA1, chaves: List[str],
     resultados = []
     
     for chave in chaves:
-        resultado = consultar_nfe_por_chave(certificado, chave, ambiente)
+        resultado = consultar_documento_por_chave(certificado, chave, ambiente)
         resultado['chave'] = chave
         resultados.append(resultado)
     
