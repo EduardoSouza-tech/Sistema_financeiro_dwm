@@ -9374,13 +9374,16 @@
                 const selectCategoria = document.getElementById('fornecedor-select-categoria');
                 selectCategoria.innerHTML = '<option value="">Selecione...</option>';
                 
-                if (result.categorias && result.categorias.length > 0) {
-                    result.categorias.forEach(categoria => {
+                // ✅ FIX: API retorna 'data', não 'categorias'
+                if (result.success && result.data && result.data.length > 0) {
+                    result.data.forEach(categoria => {
                         const option = document.createElement('option');
-                        option.value = categoria.id;
+                        option.value = categoria.id; // ✅ Usar ID numérico
                         option.textContent = categoria.nome;
                         selectCategoria.appendChild(option);
                     });
+                } else {
+                    console.warn('Nenhuma categoria encontrada');
                 }
             } catch (error) {
                 console.error('Erro ao carregar categorias:', error);
@@ -9397,16 +9400,17 @@
                 return;
             }
             
+            // ✅ FIX: Fazer requisição à API de subcategorias
             try {
                 const response = await fetch(`/api/subcategorias?categoria_id=${categoriaId}`, {
                     credentials: 'include'
                 });
                 const result = await response.json();
                 
-                if (result.subcategorias && result.subcategorias.length > 0) {
+                if (result.success && result.subcategorias && result.subcategorias.length > 0) {
                     result.subcategorias.forEach(subcategoria => {
                         const option = document.createElement('option');
-                        option.value = subcategoria.id;
+                        option.value = subcategoria.id; // ✅ Usar ID numérico
                         option.textContent = subcategoria.nome;
                         selectSubcategoria.appendChild(option);
                     });

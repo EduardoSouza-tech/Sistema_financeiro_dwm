@@ -2300,6 +2300,7 @@ def listar_categorias():
             print(f'   [{i+1}] {c.nome} (tipo: {c.tipo.value}, empresa_id: {getattr(c, "empresa_id", "N/A")})')
         
         resultado = [{
+            'id': c.id,  # ✅ Adicionar ID da categoria
             'nome': c.nome,
             'tipo': c.tipo.value,
             'subcategorias': c.subcategorias,
@@ -6660,6 +6661,39 @@ def remover_fornecedor_evento(fornecedor_evento_id):
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/subcategorias', methods=['GET'])
+@require_permission('categorias_view')
+def listar_subcategorias():
+    """Lista subcategorias de uma categoria específica"""
+    try:
+        categoria_id = request.args.get('categoria_id')
+        
+        if not categoria_id:
+            return jsonify({'success': False, 'error': 'categoria_id é obrigatório'}), 400
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id, nome, categoria_id, ativa
+            FROM subcategorias
+            WHERE categoria_id = %s AND ativa = TRUE
+            ORDER BY nome
+        """, (int(categoria_id),))
+        
+        subcategorias = cursor.fetchall()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'subcategorias': subcategorias
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao listar subcategorias: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # === ROTAS DE RELATÓRIOS ===
