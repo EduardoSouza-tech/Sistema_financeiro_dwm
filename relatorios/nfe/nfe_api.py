@@ -14,9 +14,14 @@ Data: Janeiro 2026
 
 import os
 import sys
+import logging
+import traceback
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from cryptography.fernet import Fernet
+
+# Logger
+logger = logging.getLogger(__name__)
 
 # Adiciona path do sistema
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -146,6 +151,7 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
             if certificado_existente:
                 # Atualiza certificado existente
                 certificado_id = certificado_existente[0]
+                logger.info(f"[CERTIFICADO] Atualizando certificado existente ID {certificado_id}")
                 cursor.execute("""
                     UPDATE certificados_digitais
                     SET nome_certificado = %s,
@@ -155,13 +161,13 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
                         ambiente = %s,
                         valido_de = %s,
                         valido_ate = %s,
-                        ativo = TRUE,
-                        atualizado_em = CURRENT_TIMESTAMP
+                        ativo = TRUE
                     WHERE id = %s
                 """, (nome_certificado, pfx_base64, senha_cripto, cuf, ambiente,
                       valido_de, valido_ate, certificado_id))
             else:
                 # Desativa outros certificados ativos da mesma empresa
+                logger.info(f"[CERTIFICADO] Inserindo novo certificado para empresa {empresa_id}")
                 cursor.execute("""
                     UPDATE certificados_digitais
                     SET ativo = FALSE
@@ -190,9 +196,12 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
         }
         
     except Exception as e:
+        logger.error(f"[CERTIFICADO] Erro ao salvar certificado: {type(e).__name__}")
+        logger.error(f"[CERTIFICADO] Detalhes: {repr(e)}")
+        logger.error(f"[CERTIFICADO] Traceback:\n{traceback.format_exc()}")
         return {
             'sucesso': False,
-            'erro': f'Erro ao salvar certificado: {str(e)}'
+            'erro': f'Erro ao salvar certificado: {type(e).__name__}: {str(e)}'
         }
 
 
