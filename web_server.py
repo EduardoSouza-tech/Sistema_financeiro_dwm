@@ -6463,8 +6463,10 @@ def remover_funcionario_evento(alocacao_id):
 def listar_fornecedores_evento(evento_id):
     """Listar fornecedores vinculados ao evento"""
     try:
+        from psycopg2.extras import RealDictCursor
+        
         conn = db.get_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         cursor.execute("""
             SELECT 
@@ -6668,13 +6670,15 @@ def remover_fornecedor_evento(fornecedor_evento_id):
 def listar_subcategorias():
     """Lista subcategorias de uma categoria específica"""
     try:
+        from psycopg2.extras import RealDictCursor
+        
         categoria_id = request.args.get('categoria_id')
         
         if not categoria_id:
             return jsonify({'success': False, 'error': 'categoria_id é obrigatório'}), 400
         
         conn = db.get_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         cursor.execute("""
             SELECT id, nome, categoria_id, ativa
