@@ -13715,7 +13715,8 @@ def importar_nota_fiscal():
     }
     """
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -13763,7 +13764,8 @@ def upload_xml_nota_fiscal():
         tipo: NFE ou NFSE
     """
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -13824,7 +13826,8 @@ def listar_notas_fiscais():
     }
     """
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -13856,7 +13859,8 @@ def listar_notas_fiscais():
 def obter_nota_fiscal(nota_id):
     """Obtém detalhes completos de uma nota fiscal"""
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -13901,7 +13905,8 @@ def calcular_totais_notas():
     }
     """
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -13950,7 +13955,8 @@ def calcular_creditos_tributarios():
     }
     """
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14037,7 +14043,8 @@ def listar_creditos_tributarios():
     }
     """
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14083,7 +14090,8 @@ def resumo_creditos_tributarios():
     }
     """
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14129,7 +14137,8 @@ def gerar_dctf():
     }
     """
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14172,7 +14181,8 @@ def gerar_dirf():
     }
     """
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14212,7 +14222,8 @@ def resumo_dirf():
     }
     """
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14258,7 +14269,8 @@ def relatorios_fiscal():
 def listar_certificados():
     """Lista todos os certificados digitais da empresa"""
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14356,7 +14368,8 @@ def validar_certificado():
 def cadastrar_certificado():
     """Cadastra um novo certificado digital"""
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14402,7 +14415,8 @@ def cadastrar_certificado():
 def desativar_certificado(certificado_id):
     """Desativa um certificado digital"""
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14441,7 +14455,8 @@ def desativar_certificado(certificado_id):
 def buscar_documentos():
     """Inicia busca automática de documentos na SEFAZ"""
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14480,7 +14495,8 @@ def buscar_documentos():
 def consultar_por_chave():
     """Consulta uma NF-e específica por chave de acesso"""
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14530,7 +14546,8 @@ def consultar_por_chave():
 def listar_documentos():
     """Lista documentos fiscais com filtros"""
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14627,7 +14644,8 @@ def listar_documentos():
 def obter_documento(doc_id):
     """Obtém detalhes de um documento específico"""
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14668,7 +14686,8 @@ def obter_documento(doc_id):
 def download_xml(doc_id):
     """Download do XML de um documento"""
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14723,7 +14742,8 @@ def download_xml(doc_id):
 def obter_estatisticas():
     """Obtém estatísticas de documentos fiscais da empresa"""
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14750,7 +14770,8 @@ def obter_estatisticas():
 def obter_nsu_status():
     """Obtém status dos NSUs de todos os certificados"""
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
@@ -14796,7 +14817,8 @@ def obter_nsu_status():
 def exportar_excel():
     """Exporta documentos fiscais para Excel"""
     try:
-        empresa_id, usuario = get_usuario_logado()
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
