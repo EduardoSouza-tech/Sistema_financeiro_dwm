@@ -135,27 +135,51 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             
-            # Desativa certificados anteriores da mesma empresa
+            # Verifica se já existe certificado com esse CNPJ para essa empresa
             cursor.execute("""
-                UPDATE certificados_digitais
-                SET ativo = FALSE
-                WHERE empresa_id = %s AND ativo = TRUE
-            """, (empresa_id,))
+                SELECT id FROM certificados_digitais
+                WHERE empresa_id = %s AND cnpj = %s
+            """, (empresa_id, cnpj))
             
-            sql = """
-                INSERT INTO certificados_digitais 
-                (empresa_id, cnpj, nome_certificado, pfx_base64, senha_pfx, 
-                 cuf, ambiente, valido_de, valido_ate, criado_por, ativo)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
-                RETURNING id
-            """
+            certificado_existente = cursor.fetchone()
             
-            cursor.execute(sql, (
-                empresa_id, cnpj, nome_certificado, pfx_base64, senha_cripto,
-                cuf, ambiente, valido_de, valido_ate, usuario_id
-            ))
+            if certificado_existente:
+                # Atualiza certificado existente
+                certificado_id = certificado_existente[0]
+                cursor.execute("""
+                    UPDATE certificados_digitais
+                    SET nome_certificado = %s,
+                        pfx_base64 = %s,
+                        senha_pfx = %s,
+                        cuf = %s,
+                        ambiente = %s,
+                        valido_de = %s,
+                        valido_ate = %s,
+                        ativo = TRUE,
+                        atualizado_em = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                """, (nome_certificado, pfx_base64, senha_cripto, cuf, ambiente,
+                      valido_de, valido_ate, certificado_id))
+            else:
+                # Desativa outros certificados ativos da mesma empresa
+                cursor.execute("""
+                    UPDATE certificados_digitais
+                    SET ativo = FALSE
+                    WHERE empresa_id = %s AND ativo = TRUE
+                """, (empresa_id,))
+                
+                # Insere novo certificado
+                cursor.execute("""
+                    INSERT INTO certificados_digitais 
+                    (empresa_id, cnpj, nome_certificado, pfx_base64, senha_pfx, 
+                     cuf, ambiente, valido_de, valido_ate, criado_por, ativo)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+                    RETURNING id
+                """, (empresa_id, cnpj, nome_certificado, pfx_base64, senha_cripto,
+                      cuf, ambiente, valido_de, valido_ate, usuario_id))
+                
+                certificado_id = cursor.fetchone()[0]
             
-            certificado_id = cursor.fetchone()[0]
             conn.commit()
         
         return {
