@@ -14279,7 +14279,7 @@ def listar_certificados():
             
             cursor.execute("""
                 SELECT 
-                    id, cnpj, nome_certificado, ambiente, ativo,
+                    id, cnpj, nome_certificado, cuf, ambiente, ativo,
                     ultimo_nsu, max_nsu, data_ultima_busca,
                     valido_de, valido_ate,
                     total_documentos_baixados, total_nfes, total_ctes, total_eventos,
