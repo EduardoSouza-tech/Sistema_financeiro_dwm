@@ -14559,12 +14559,12 @@ def listar_documentos():
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 50))
         
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        
-        # Query base
-        sql = """
-            SELECT 
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            # Query base
+            sql = """
+                SELECT 
                 id, nsu, chave, tipo_documento, schema_name,
                 numero_documento, serie, valor_total,
                 cnpj_emitente, nome_emitente,
@@ -14617,10 +14617,8 @@ def listar_documentos():
             sql_count += " AND tipo_documento = %s"
             count_params.append(tipo)
         
-        cursor.execute(sql_count, count_params)
-        total = cursor.fetchone()['count']
-        
-        conn.close()
+            cursor.execute(sql_count, count_params)
+            total = cursor.fetchone()['count']
         
         return jsonify({
             'success': True,
@@ -14650,17 +14648,16 @@ def obter_documento(doc_id):
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        
-        cursor.execute("""
-            SELECT *
-            FROM documentos_fiscais_log
-            WHERE id = %s AND empresa_id = %s
-        """, (doc_id, empresa_id))
-        
-        documento = cursor.fetchone()
-        conn.close()
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            cursor.execute("""
+                SELECT *
+                FROM documentos_fiscais_log
+                WHERE id = %s AND empresa_id = %s
+            """, (doc_id, empresa_id))
+            
+            documento = cursor.fetchone()
         
         if not documento:
             return jsonify({
@@ -14692,17 +14689,16 @@ def download_xml(doc_id):
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT chave, caminho_xml, tipo_documento
-            FROM documentos_fiscais_log
-            WHERE id = %s AND empresa_id = %s
-        """, (doc_id, empresa_id))
-        
-        row = cursor.fetchone()
-        conn.close()
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT chave, caminho_xml, tipo_documento
+                FROM documentos_fiscais_log
+                WHERE id = %s AND empresa_id = %s
+            """, (doc_id, empresa_id))
+            
+            row = cursor.fetchone()
         
         if not row:
             return jsonify({
@@ -14776,26 +14772,25 @@ def obter_nsu_status():
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        
-        cursor.execute("""
-            SELECT 
-                id, nome_certificado, cnpj, ambiente,
-                ultimo_nsu, max_nsu, data_ultima_busca,
-                total_documentos_baixados,
-                CASE 
-                    WHEN max_nsu IS NOT NULL AND ultimo_nsu::BIGINT < max_nsu::BIGINT 
-                    THEN (max_nsu::BIGINT - ultimo_nsu::BIGINT)
-                    ELSE 0
-                END as nsus_pendentes
-            FROM certificados_digitais
-            WHERE empresa_id = %s AND ativo = TRUE
-            ORDER BY data_ultima_busca DESC NULLS LAST
-        """, (empresa_id,))
-        
-        certificados = cursor.fetchall()
-        conn.close()
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            cursor.execute("""
+                SELECT 
+                    id, nome_certificado, cnpj, ambiente,
+                    ultimo_nsu, max_nsu, data_ultima_busca,
+                    total_documentos_baixados,
+                    CASE 
+                        WHEN max_nsu IS NOT NULL AND ultimo_nsu::BIGINT < max_nsu::BIGINT 
+                        THEN (max_nsu::BIGINT - ultimo_nsu::BIGINT)
+                        ELSE 0
+                    END as nsus_pendentes
+                FROM certificados_digitais
+                WHERE empresa_id = %s AND ativo = TRUE
+                ORDER BY data_ultima_busca DESC NULLS LAST
+            """, (empresa_id,))
+            
+            certificados = cursor.fetchall()
         
         return jsonify({
             'success': True,
