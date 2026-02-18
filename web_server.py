@@ -14283,13 +14283,40 @@ def listar_certificados():
                     ultimo_nsu, max_nsu, data_ultima_busca,
                     valido_de, valido_ate,
                     total_documentos_baixados, total_nfes, total_ctes, total_eventos,
-                    criado_em, atualizado_em
+                    criado_em, atualizado_em, senha_pfx
                 FROM certificados_digitais
                 WHERE empresa_id = %s
                 ORDER BY ativo DESC, criado_em DESC
             """, (empresa_id,))
             
             certificados = cursor.fetchall()
+            
+            # ✅ Valida se a senha pode ser descriptografada
+            from relatorios.nfe import nfe_api
+            import os
+            chave_cripto = os.environ.get('FERNET_KEY', '').encode('utf-8')
+            
+            for cert in certificados:
+                # Verifica se a senha está em formato válido
+                senha_cripto = cert.get('senha_pfx', '')
+                if len(senha_cripto) < 50:
+                    cert['senha_valida'] = False
+                    cert['erro_senha'] = 'Certificado precisa ser recadastrado (senha em formato inválido)'
+                else:
+                    try:
+                        # Tenta descriptografar para validar
+                        if chave_cripto:
+                            nfe_api.descriptografar_senha(senha_cripto, chave_cripto)
+                            cert['senha_valida'] = True
+                        else:
+                            cert['senha_valida'] = False
+                            cert['erro_senha'] = 'Chave de criptografia não configurada'
+                    except Exception as e:
+                        cert['senha_valida'] = False
+                        cert['erro_senha'] = 'Certificado precisa ser recadastrado'
+                
+                # Remove senha_pfx do retorno (segurança)
+                cert.pop('senha_pfx', None)
         
         return jsonify({
             'success': True,

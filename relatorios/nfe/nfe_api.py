@@ -67,11 +67,31 @@ def criptografar_senha(senha: str, chave: bytes) -> str:
 
 
 def descriptografar_senha(senha_cripto: str, chave: bytes) -> str:
-    """Descriptografa a senha do certificado."""
-    f = Fernet(chave)
-    senha_cripto_bytes = senha_cripto.encode('utf-8')
-    senha_bytes = f.decrypt(senha_cripto_bytes)
-    return senha_bytes.decode('utf-8')
+    """
+    Descriptografa a senha do certificado.
+    
+    Raises:
+        ValueError: Se a senha não estiver no formato Fernet válido
+    """
+    # ✅ VALIDAÇÃO: Verifica se a senha tem tamanho mínimo de token Fernet
+    # Tokens Fernet têm pelo menos 72 caracteres base64-encoded
+    if len(senha_cripto) < 50:
+        raise ValueError(
+            "Senha do certificado em formato inválido (possivelmente salva em texto plano). "
+            "Por favor, recadastre o certificado com a senha correta."
+        )
+    
+    try:
+        f = Fernet(chave)
+        senha_cripto_bytes = senha_cripto.encode('utf-8')
+        senha_bytes = f.decrypt(senha_cripto_bytes)
+        return senha_bytes.decode('utf-8')
+    except Exception as e:
+        raise ValueError(
+            f"Erro ao descriptografar senha do certificado: {str(e)}. "
+            "O certificado pode ter sido cadastrado com uma chave diferente. "
+            "Por favor, recadastre o certificado."
+        )
 
 
 # ============================================================================
@@ -262,7 +282,13 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
                     return None
             
             logger.info(f"[CERT] Descriptografando senha...")
-            senha = descriptografar_senha(senha_cripto, chave_cripto)
+            try:
+                senha = descriptografar_senha(senha_cripto, chave_cripto)
+            except ValueError as ve:
+                # Senha em formato inválido (texto plano ou corrompida)
+                logger.error(f"[CERT] Senha em formato inválido: {str(ve)}")
+                logger.error("[CERT] ⚠️ AÇÃO NECESSÁRIA: Recadastre o certificado com a senha correta")
+                return None
             
             # Cria certificado
             logger.info(f"[CERT] Criando objeto CertificadoA1...")
@@ -271,6 +297,9 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
             logger.info(f"[CERT] Certificado ID {certificado_id} carregado com sucesso")
             return cert
         
+    except ValueError:
+        # Já tratado acima, apenas re-lança
+        return None
     except Exception as e:
         logger.error(f"[CERT] Erro ao obter certificado ID {certificado_id}: {type(e).__name__}: {str(e)}")
         logger.error(f"[CERT] Traceback: {traceback.format_exc()}")

@@ -12443,8 +12443,18 @@
                                 const corBadge = cert.ativo ? '#27ae60' : '#e74c3c';
                                 const ultimaBusca = cert.data_ultima_busca ? formatarDataFiscal(cert.data_ultima_busca) : 'Nunca';
                                 
+                                // ✅ Verificação de senha inválida
+                                const senhaInvalida = cert.senha_valida === false;
+                                const borderColor = senhaInvalida ? '#e74c3c' : '#e0e0e0';
+                                const bgColor = senhaInvalida ? '#fff5f5' : 'white';
+                                
                                 return `
-                                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
+                                    <div style="background: ${bgColor}; padding: 15px; border-radius: 8px; border: 2px solid ${borderColor};">
+                                        ${senhaInvalida ? `
+                                            <div style="background: #e74c3c; color: white; padding: 8px; border-radius: 4px; margin-bottom: 10px; font-size: 12px;">
+                                                <strong>⚠️ ATENÇÃO:</strong> ${cert.erro_senha || 'Certificado precisa ser recadastrado'}
+                                            </div>
+                                        ` : ''}
                                         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
                                             <h4 style="margin: 0; font-size: 16px;">${cert.nome_certificado}</h4>
                                             <span style="background: ${corBadge}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px;">${ativo}</span>
@@ -12456,11 +12466,18 @@
                                             <strong>NSU Atual:</strong> ${cert.ultimo_nsu || '000000000000000'}<br>
                                             <strong>Docs Baixados:</strong> ${cert.total_documentos_baixados || 0}
                                         </p>
-                                        ${cert.ativo ? `
-                                            <button class="btn btn-danger btn-sm" onclick="desativarCertificadoFiscal(${cert.id})" style="margin-top: 10px; font-size: 12px;">
-                                                ❌ Desativar
-                                            </button>
-                                        ` : ''}
+                                        <div style="margin-top: 10px;">
+                                            ${senhaInvalida ? `
+                                                <button class="btn btn-warning btn-sm" onclick="abrirModalRecadastrarCertificado(${cert.id})" style="margin-right: 5px; font-size: 12px;">
+                                                    🔄 Recadastrar Certificado
+                                                </button>
+                                            ` : ''}
+                                            ${cert.ativo ? `
+                                                <button class="btn btn-danger btn-sm" onclick="desativarCertificadoFiscal(${cert.id})" style="font-size: 12px;">
+                                                    ❌ Desativar
+                                                </button>
+                                            ` : ''}
+                                        </div>
                                     </div>
                                 `;
                             }).join('');
@@ -12477,12 +12494,17 @@
                 .then(r => r.json())
                 .then(response => {
                     if (response.success) {
-                        const certificados = response.certificados.filter(c => c.ativo);
+                        // ✅ Filtra apenas certificados ativos E com senha válida
+                        const certificados = response.certificados.filter(c => c.ativo && c.senha_valida !== false);
                         let options = '<option value="">Selecione um certificado...</option>';
                         
-                        certificados.forEach(cert => {
-                            options += `<option value="${cert.id}">${cert.nome_certificado} (${cert.cnpj})</option>`;
-                        });
+                        if (certificados.length === 0) {
+                            options = '<option value="">Nenhum certificado válido disponível</option>';
+                        } else {
+                            certificados.forEach(cert => {
+                                options += `<option value="${cert.id}">${cert.nome_certificado} (${cert.cnpj})</option>`;
+                            });
+                        }
                         
                         document.getElementById('fiscal-buscaAutoCertificado').innerHTML = options;
                         document.getElementById('fiscal-buscaChaveCertificado').innerHTML = options;
@@ -12540,6 +12562,14 @@
             };
             
             reader.readAsDataURL(arquivo);
+        }
+
+        function abrirModalRecadastrarCertificado(certificadoId) {
+            // Abre o modal de novo certificado
+            abrirModalNovoCertificadoFiscal();
+            
+            // Mostra mensagem de recadastramento
+            showToastFiscal('⚠️ Recadastre o certificado com o arquivo .PFX e senha corretos', 'warning');
         }
 
         function desativarCertificadoFiscal(id) {
