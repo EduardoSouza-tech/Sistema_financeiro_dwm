@@ -193,6 +193,18 @@
             display: none !important;
         }
 
+        .fiscal-tab-content {
+            display: block;
+        }
+
+        .fiscal-tab-content.hidden {
+            display: none !important;
+        }
+
+        .modal-overlay.show {
+            display: flex !important;
+        }
+
         /* Estilos de status de lançamentos */
         .status-pago {
             color: #27ae60;
@@ -1330,7 +1342,7 @@
                 <button class="submenu-button" onclick="showSection('comparativo-periodos')" data-permission="relatorios_view">📉 Comparativo de Períodos</button>
                 <button class="submenu-button" onclick="showSection('indicadores')" data-permission="relatorios_view">🎯 Indicadores Financeiros</button>
                 <button class="submenu-button" onclick="showSection('inadimplencia')" data-permission="relatorios_view">⚠️ Inadimplência <span id="badge-inadimplencia" class="badge-inadimplencia">0</span></button>
-                <button class="submenu-button" onclick="window.location.href='/relatorios/fiscal'" data-permission="relatorios_view">📑 NF-e e CT-e - Documentos Fiscais</button>
+                <button class="submenu-button" onclick="showSection('fiscal')" data-permission="relatorios_view">📑 NF-e e CT-e - Documentos Fiscais</button>
                 <button class="submenu-button" onclick="showSection('nfse')" data-permission="nfse_view">📄 NFS-e - Notas Fiscais</button>
             </div>
             
@@ -4003,6 +4015,227 @@
                     <div style="font-size: 48px; margin-bottom: 20px;">🎯</div>
                     <h3 style="color: #34495e; margin-bottom: 10px;">Indicadores Financeiros</h3>
                     <p style="margin: 0; font-size: 14px;">Selecione o período acima para visualizar os principais indicadores de desempenho financeiro.</p>
+                </div>
+            </div>
+
+            <!-- NF-e e CT-e - Documentos Fiscais -->
+            <div id="fiscal-section" class="content-card hidden">
+                <h2 style="margin-bottom: 20px;">📑 Relatórios Fiscais - NF-e e CT-e</h2>
+
+                <!-- Estatísticas -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; color: white;">
+                        <p style="margin: 0; opacity: 0.9; font-size: 13px;">Total de Documentos</p>
+                        <h3 id="fiscal-statTotalDocs" style="margin: 10px 0 0 0; font-size: 28px; font-weight: 700;">-</h3>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 10px; color: white;">
+                        <p style="margin: 0; opacity: 0.9; font-size: 13px;">NF-e Baixadas</p>
+                        <h3 id="fiscal-statTotalNFes" style="margin: 10px 0 0 0; font-size: 28px; font-weight: 700;">-</h3>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 10px; color: white;">
+                        <p style="margin: 0; opacity: 0.9; font-size: 13px;">Valor Total NF-e</p>
+                        <h3 id="fiscal-statValorTotal" style="margin: 10px 0 0 0; font-size: 28px; font-weight: 700;">R$ 0,00</h3>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); padding: 20px; border-radius: 10px; color: white;">
+                        <p style="margin: 0; opacity: 0.9; font-size: 13px;">Certificados Ativos</p>
+                        <h3 id="fiscal-statCertificados" style="margin: 10px 0 0 0; font-size: 28px; font-weight: 700;">-</h3>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div style="border-bottom: 2px solid #e0e0e0; margin-bottom: 20px;">
+                    <button class="tab-button active" onclick="showFiscalTab('certificados')" id="fiscal-tab-certificados">
+                        🔐 Certificados Digitais
+                    </button>
+                    <button class="tab-button" onclick="showFiscalTab('busca')" id="fiscal-tab-busca">
+                        🔍 Buscar Documentos
+                    </button>
+                    <button class="tab-button" onclick="showFiscalTab('documentos')" id="fiscal-tab-documentos">
+                        📄 Documentos
+                    </button>
+                    <button class="tab-button" onclick="showFiscalTab('nsu')" id="fiscal-tab-nsu">
+                        📊 Status NSU
+                    </button>
+                </div>
+
+                <!-- Tab Content: Certificados -->
+                <div id="fiscal-content-certificados" class="fiscal-tab-content">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3>Certificados Cadastrados</h3>
+                        <button class="btn btn-primary" onclick="abrirModalNovoCertificadoFiscal()">
+                            ➕ Novo Certificado
+                        </button>
+                    </div>
+                    <div id="fiscal-certificadosContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 15px;">
+                        <p class="text-muted">Carregando certificados...</p>
+                    </div>
+                </div>
+
+                <!-- Tab Content: Busca -->
+                <div id="fiscal-content-busca" class="fiscal-tab-content hidden">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+                        <!-- Busca Automática -->
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                            <h4>🔄 Busca Automática (NSU)</h4>
+                            <p class="text-muted" style="font-size: 13px;">Busca incremental de documentos na SEFAZ usando o último NSU processado.</p>
+                            <div style="margin: 15px 0;">
+                                <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600;">Certificado</label>
+                                <select id="fiscal-buscaAutoCertificado" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">Selecione um certificado...</option>
+                                </select>
+                            </div>
+                            <div style="margin: 15px 0;">
+                                <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600;">Limite de Documentos</label>
+                                <input type="number" id="fiscal-buscaAutoLimite" value="100" min="1" max="500" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <small class="text-muted">Máximo: 500 documentos por busca</small>
+                            </div>
+                            <button class="btn btn-primary" onclick="executarBuscaAutomaticaFiscal()" style="width: 100%;">
+                                🔄 Iniciar Busca Automática
+                            </button>
+                            <div id="fiscal-buscaAutoResultado" style="margin-top: 15px;"></div>
+                        </div>
+
+                        <!-- Consultar por Chave -->
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                            <h4>🔍 Consultar por Chave</h4>
+                            <p class="text-muted" style="font-size: 13px;">Consulta uma NF-e específica pela chave de acesso de 44 dígitos.</p>
+                            <div style="margin: 15px 0;">
+                                <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600;">Certificado</label>
+                                <select id="fiscal-buscaChaveCertificado" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">Selecione um certificado...</option>
+                                </select>
+                            </div>
+                            <div style="margin: 15px 0;">
+                                <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600;">Chave de Acesso (44 dígitos)</label>
+                                <input type="text" id="fiscal-buscaChave" maxlength="44" placeholder="35260112345678000190550010000001001123456781" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
+                            </div>
+                            <button class="btn btn-primary" onclick="consultarPorChaveFiscal()" style="width: 100%;">
+                                🔍 Consultar Chave
+                            </button>
+                            <div id="fiscal-buscaChaveResultado" style="margin-top: 15px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Content: Documentos -->
+                <div id="fiscal-content-documentos" class="fiscal-tab-content hidden">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3>Documentos Fiscais</h3>
+                        <button class="btn btn-success" onclick="exportarExcelFiscal()">
+                            📊 Exportar Excel
+                        </button>
+                    </div>
+                    
+                    <!-- Filtros -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600;">Data Início</label>
+                            <input type="date" id="fiscal-filtroDataInicio" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600;">Data Fim</label>
+                            <input type="date" id="fiscal-filtroDataFim" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600;">Tipo</label>
+                            <select id="fiscal-filtroTipo" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">Todos</option>
+                                <option value="NFe">NF-e</option>
+                                <option value="CTe">CT-e</option>
+                                <option value="Evento">Eventos</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600;">&nbsp;</label>
+                            <button class="btn btn-primary" onclick="carregarDocumentosFiscais()">
+                                🔍 Filtrar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tabela -->
+                    <div class="table-scroll-container">
+                        <table id="fiscal-tabelaDocumentos">
+                            <thead>
+                                <tr>
+                                    <th>NSU</th>
+                                    <th>Chave</th>
+                                    <th>Tipo</th>
+                                    <th>Número</th>
+                                    <th>Série</th>
+                                    <th>Valor</th>
+                                    <th>Emitente</th>
+                                    <th>Data Emissão</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fiscal-tabelaDocumentosBody">
+                                <tr>
+                                    <td colspan="9" style="text-align: center; color: #999;">Carregue os documentos usando os filtros acima</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab Content: NSU Status -->
+                <div id="fiscal-content-nsu" class="fiscal-tab-content hidden">
+                    <h3>Status de NSU dos Certificados</h3>
+                    <div id="fiscal-nsuStatusContainer" style="margin-top: 15px;">
+                        <p class="text-muted">Carregando status...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: Novo Certificado Fiscal -->
+            <div id="modal-novo-certificado-fiscal" class="modal-overlay" onclick="fecharModalNovoCertificadoFiscal()">
+                <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3>🔐 Cadastrar Certificado Digital</h3>
+                        <button class="close-modal" onclick="fecharModalNovoCertificadoFiscal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nome do Certificado</label>
+                            <input type="text" id="fiscal-certNome" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">CNPJ</label>
+                            <input type="text" id="fiscal-certCNPJ" maxlength="14" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <small class="text-muted">Apenas números (14 dígitos)</small>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Arquivo .PFX</label>
+                            <input type="file" id="fiscal-certArquivo" accept=".pfx,.p12" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Senha do Certificado</label>
+                            <input type="password" id="fiscal-certSenha" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">UF (Código)</label>
+                            <select id="fiscal-certCUF" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="35">São Paulo (35)</option>
+                                <option value="33">Rio de Janeiro (33)</option>
+                                <option value="31">Minas Gerais (31)</option>
+                                <option value="41">Paraná (41)</option>
+                                <option value="43">Rio Grande do Sul (43)</option>
+                                <option value="52">Goiás (52)</option>
+                                <option value="53">Distrito Federal (53)</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Ambiente</label>
+                            <select id="fiscal-certAmbiente" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="producao">Produção</option>
+                                <option value="homologacao">Homologação</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="fecharModalNovoCertificadoFiscal()">Cancelar</button>
+                        <button class="btn btn-primary" onclick="salvarCertificadoFiscal()">💾 Salvar</button>
+                    </div>
                 </div>
             </div>
 
@@ -11894,6 +12127,441 @@
         }
 
         // NFS-e: Módulo movido para app.js (window.loadNFSeSection, etc.)
+
+        // ============================================
+        // NF-e / CT-e - DOCUMENTOS FISCAIS
+        // ============================================
+
+        // Controle de Tabs Fiscais
+        function showFiscalTab(tabName) {
+            // Ocultar todos os conteúdos
+            document.querySelectorAll('.fiscal-tab-content').forEach(el => el.classList.add('hidden'));
+            
+            // Remover active de todos os botões
+            document.querySelectorAll('[id^="fiscal-tab-"]').forEach(btn => btn.classList.remove('active'));
+            
+            // Mostrar conteúdo selecionado
+            document.getElementById(`fiscal-content-${tabName}`).classList.remove('hidden');
+            document.getElementById(`fiscal-tab-${tabName}`).classList.add('active');
+            
+            // Carregar dados específicos da tab
+            if (tabName === 'certificados') carregarCertificadosFiscais();
+            if (tabName === 'documentos') carregarDocumentosFiscais();
+            if (tabName === 'nsu') carregarNSUStatusFiscal();
+        }
+
+        // Inicializar seção fiscal quando exibida
+        const originalShowSection = window.showSection || showSection;
+        window.showSection = function(sectionId) {
+            if (typeof originalShowSection === 'function') {
+                originalShowSection(sectionId);
+            }
+            
+            if (sectionId === 'fiscal') {
+                carregarEstatisticasFiscais();
+                carregarCertificadosFiscais();
+                preencherSelectsCertificadosFiscais();
+            }
+        };
+
+        // Funções auxiliares
+        function formatarMoedaFiscal(valor) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(valor || 0);
+        }
+
+        function formatarDataFiscal(data) {
+            if (!data) return '-';
+            return new Date(data).toLocaleDateString('pt-BR');
+        }
+
+        function showToastFiscal(message, type = 'success') {
+            alert(message);
+        }
+
+        // Estatísticas
+        function carregarEstatisticasFiscais() {
+            fetch('/api/relatorios/estatisticas')
+                .then(r => r.json())
+                .then(response => {
+                    if (response.success && response.estatisticas) {
+                        const stats = response.estatisticas;
+                        document.getElementById('fiscal-statTotalDocs').textContent = stats.total_documentos || 0;
+                        document.getElementById('fiscal-statTotalNFes').textContent = stats.total_nfes || 0;
+                        document.getElementById('fiscal-statValorTotal').textContent = formatarMoedaFiscal(stats.valor_total_nfes);
+                        document.getElementById('fiscal-statCertificados').textContent = stats.certificados_ativos || 0;
+                    }
+                })
+                .catch(err => console.error('Erro ao carregar estatísticas fiscais:', err));
+        }
+
+        // Certificados
+        function carregarCertificadosFiscais() {
+            fetch('/api/relatorios/certificados')
+                .then(r => r.json())
+                .then(response => {
+                    if (response.success) {
+                        const certificados = response.certificados;
+                        const container = document.getElementById('fiscal-certificadosContainer');
+                        
+                        if (certificados.length === 0) {
+                            container.innerHTML = `
+                                <div style="grid-column: 1/-1; text-align: center; padding: 40px;">
+                                    <p style="color: #999; margin-bottom: 15px;">Nenhum certificado cadastrado.</p>
+                                    <button class="btn btn-primary" onclick="abrirModalNovoCertificadoFiscal()">
+                                        Cadastrar Primeiro Certificado
+                                    </button>
+                                </div>
+                            `;
+                        } else {
+                            container.innerHTML = certificados.map(cert => {
+                                const ativo = cert.ativo ? 'Ativo' : 'Inativo';
+                                const corBadge = cert.ativo ? '#27ae60' : '#e74c3c';
+                                const ultimaBusca = cert.data_ultima_busca ? formatarDataFiscal(cert.data_ultima_busca) : 'Nunca';
+                                
+                                return `
+                                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
+                                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                                            <h4 style="margin: 0; font-size: 16px;">${cert.nome_certificado}</h4>
+                                            <span style="background: ${corBadge}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px;">${ativo}</span>
+                                        </div>
+                                        <p style="margin: 0; font-size: 13px; color: #666; line-height: 1.6;">
+                                            <strong>CNPJ:</strong> ${cert.cnpj}<br>
+                                            <strong>Ambiente:</strong> ${cert.ambiente}<br>
+                                            <strong>Última Busca:</strong> ${ultimaBusca}<br>
+                                            <strong>NSU Atual:</strong> ${cert.ultimo_nsu || '000000000000000'}<br>
+                                            <strong>Docs Baixados:</strong> ${cert.total_documentos_baixados || 0}
+                                        </p>
+                                        ${cert.ativo ? `
+                                            <button class="btn btn-danger btn-sm" onclick="desativarCertificadoFiscal(${cert.id})" style="margin-top: 10px; font-size: 12px;">
+                                                ❌ Desativar
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                `;
+                            }).join('');
+                        }
+                        
+                        preencherSelectsCertificadosFiscais();
+                    }
+                })
+                .catch(err => console.error('Erro ao carregar certificados:', err));
+        }
+
+        function preencherSelectsCertificadosFiscais() {
+            fetch('/api/relatorios/certificados')
+                .then(r => r.json())
+                .then(response => {
+                    if (response.success) {
+                        const certificados = response.certificados.filter(c => c.ativo);
+                        let options = '<option value="">Selecione um certificado...</option>';
+                        
+                        certificados.forEach(cert => {
+                            options += `<option value="${cert.id}">${cert.nome_certificado} (${cert.cnpj})</option>`;
+                        });
+                        
+                        document.getElementById('fiscal-buscaAutoCertificado').innerHTML = options;
+                        document.getElementById('fiscal-buscaChaveCertificado').innerHTML = options;
+                    }
+                });
+        }
+
+        // Modal Certificado
+        function abrirModalNovoCertificadoFiscal() {
+            document.getElementById('modal-novo-certificado-fiscal').classList.add('show');
+        }
+
+        function fecharModalNovoCertificadoFiscal() {
+            document.getElementById('modal-novo-certificado-fiscal').classList.remove('show');
+        }
+
+        function salvarCertificadoFiscal() {
+            const arquivo = document.getElementById('fiscal-certArquivo').files[0];
+            
+            if (!arquivo) {
+                showToastFiscal('Selecione um arquivo .PFX', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result.split(',')[1];
+                
+                const dados = {
+                    nome_certificado: document.getElementById('fiscal-certNome').value,
+                    cnpj: document.getElementById('fiscal-certCNPJ').value,
+                    pfx_base64: base64,
+                    senha: document.getElementById('fiscal-certSenha').value,
+                    cuf: parseInt(document.getElementById('fiscal-certCUF').value),
+                    ambiente: document.getElementById('fiscal-certAmbiente').value
+                };
+
+                fetch('/api/relatorios/certificados/novo', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(dados)
+                })
+                .then(r => r.json())
+                .then(response => {
+                    if (response.sucesso) {
+                        showToastFiscal('Certificado cadastrado com sucesso!');
+                        fecharModalNovoCertificadoFiscal();
+                        carregarCertificadosFiscais();
+                        carregarEstatisticasFiscais();
+                    } else {
+                        showToastFiscal('Erro: ' + response.erro, 'error');
+                    }
+                })
+                .catch(err => showToastFiscal('Erro ao cadastrar certificado', 'error'));
+            };
+            
+            reader.readAsDataURL(arquivo);
+        }
+
+        function desativarCertificadoFiscal(id) {
+            if (!confirm('Deseja realmente desativar este certificado?')) return;
+
+            fetch(`/api/relatorios/certificate/${id}/desativar`, {method: 'POST'})
+                .then(r => r.json())
+                .then(response => {
+                    if (response.success) {
+                        showToastFiscal('Certificado desativado!');
+                        carregarCertificadosFiscais();
+                        carregarEstatisticasFiscais();
+                    }
+                })
+                .catch(err => showToastFiscal('Erro ao desativar certificado', 'error'));
+        }
+
+        // Buscar Documentos
+        function executarBuscaAutomaticaFiscal() {
+            const certificadoId = document.getElementById('fiscal-buscaAutoCertificado').value;
+            const limite = parseInt(document.getElementById('fiscal-buscaAutoLimite').value);
+
+            if (!certificadoId) {
+                showToastFiscal('Selecione um certificado', 'error');
+                return;
+            }
+
+            document.getElementById('fiscal-buscaAutoResultado').innerHTML = '<p style="color: #3498db;">⏳ Buscando documentos...</p>';
+
+            fetch('/api/relatorios/buscar-documentos', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    certificado_id: parseInt(certificadoId),
+                    limite: limite
+                })
+            })
+            .then(r => r.json())
+            .then(response => {
+                if (response.sucesso) {
+                    const html = `
+                        <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 6px; margin-top: 10px;">
+                            <h6 style="margin: 0 0 10px 0;">✅ Busca concluída!</h6>
+                            <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
+                                <li>Documentos baixados: <strong>${response.total_baixados || 0}</strong></li>
+                                <li>NF-es processadas: <strong>${response.nfes_processadas || 0}</strong></li>
+                                <li>Eventos processados: <strong>${response.eventos_processados || 0}</strong></li>
+                                <li>Erros: <strong>${response.erros || 0}</strong></li>
+                                <li>Novo NSU: <strong>${response.novo_nsu}</strong></li>
+                            </ul>
+                        </div>
+                    `;
+                    document.getElementById('fiscal-buscaAutoResultado').innerHTML = html;
+                    carregarEstatisticasFiscais();
+                    carregarCertificadosFiscais();
+                } else {
+                    document.getElementById('fiscal-buscaAutoResultado').innerHTML = `
+                        <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 6px; margin-top: 10px;">
+                            <strong>Erro:</strong> ${response.erro}
+                        </div>
+                    `;
+                }
+            })
+            .catch(err => {
+                document.getElementById('fiscal-buscaAutoResultado').innerHTML = '<p style="color: #e74c3c;">❌ Erro ao executar busca</p>';
+            });
+        }
+
+        function consultarPorChaveFiscal() {
+            const certificadoId = document.getElementById('fiscal-buscaChaveCertificado').value;
+            const chave = document.getElementById('fiscal-buscaChave').value.trim();
+
+            if (!certificadoId || !chave) {
+                showToastFiscal('Preencha todos os campos', 'error');
+                return;
+            }
+
+            if (chave.length !== 44) {
+                showToastFiscal('A chave deve ter 44 dígitos', 'error');
+                return;
+            }
+
+            document.getElementById('fiscal-buscaChaveResultado').innerHTML = '<p style="color: #3498db;">⏳ Consultando chave...</p>';
+
+            fetch('/api/relatorios/consultar-chave', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    certificado_id: parseInt(certificadoId),
+                    chave: chave
+                })
+            })
+            .then(r => r.json())
+            .then(response => {
+                if (response.sucesso) {
+                    const html = `
+                        <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 6px; margin-top: 10px;">
+                            <h6 style="margin: 0 0 10px 0;">✅ NF-e Encontrada!</h6>
+                            <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
+                                <li>Chave: <strong>${response.chave}</strong></li>
+                                <li>Situação: <strong>${response.situacao}</strong></li>
+                                <li>Código SEFAZ: <strong>${response.codigo_sefaz}</strong></li>
+                                <li>Mensagem: <strong>${response.mensagem_sefaz}</strong></li>
+                            </ul>
+                        </div>
+                    `;
+                    document.getElementById('fiscal-buscaChaveResultado').innerHTML = html;
+                } else {
+                    document.getElementById('fiscal-buscaChaveResultado').innerHTML = `
+                        <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 6px; margin-top: 10px;">
+                            <strong>Erro:</strong> ${response.erro || response.mensagem_sefaz}
+                        </div>
+                    `;
+                }
+            })
+            .catch(err => {
+                document.getElementById('fiscal-buscaChaveResultado').innerHTML = '<p style="color: #e74c3c;">❌ Erro ao consultar chave</p>';
+            });
+        }
+
+        // Documentos
+        function carregarDocumentosFiscais() {
+            const dataInicio = document.getElementById('fiscal-filtroDataInicio').value;
+            const dataFim = document.getElementById('fiscal-filtroDataFim').value;
+            const tipo = document.getElementById('fiscal-filtroTipo').value;
+
+            let url = '/api/relatorios/documentos?';
+            if (dataInicio) url += `data_inicio=${dataInicio}&`;
+            if (dataFim) url += `data_fim=${dataFim}&`;
+            if (tipo) url += `tipo=${tipo}&`;
+
+            fetch(url)
+                .then(r => r.json())
+                .then(response => {
+                    if (response.success) {
+                        const docs = response.documentos;
+                        const tbody = document.getElementById('fiscal-tabelaDocumentosBody');
+                        
+                        if (docs.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #999;">Nenhum documento encontrado</td></tr>';
+                        } else {
+                            tbody.innerHTML = docs.map(doc => `
+                                <tr>
+                                    <td>${doc.nsu}</td>
+                                    <td style="font-family: monospace; font-size: 11px;">${doc.chave || '-'}</td>
+                                    <td><span style="background: #3498db; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">${doc.tipo_documento}</span></td>
+                                    <td>${doc.numero_documento || '-'}</td>
+                                    <td>${doc.serie || '-'}</td>
+                                    <td>${formatarMoedaFiscal(doc.valor_total)}</td>
+                                    <td style="font-size: 12px;">${doc.nome_emitente || '-'}</td>
+                                    <td>${formatarDataFiscal(doc.data_emissao)}</td>
+                                    <td>
+                                        <a href="/api/relatorios/documento/${doc.id}/xml" class="btn btn-sm btn-success" title="Download XML" style="padding: 4px 8px; font-size: 11px;">
+                                            📥 XML
+                                        </a>
+                                    </td>
+                                </tr>
+                            `).join('');
+                        }
+                    }
+                })
+                .catch(err => console.error('Erro ao carregar documentos:', err));
+        }
+
+        function exportarExcelFiscal() {
+            const dataInicio = document.getElementById('fiscal-filtroDataInicio').value;
+            const dataFim = document.getElementById('fiscal-filtroDataFim').value;
+            const tipo = document.getElementById('fiscal-filtroTipo').value;
+
+            fetch('/api/relatorios/exportar-excel', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    data_inicio: dataInicio,
+                    data_fim: dataFim,
+                    tipo: tipo
+                })
+            })
+            .then(r => r.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `documentos_fiscais_${new Date().getTime()}.xlsx`;
+                a.click();
+                showToastFiscal('Excel exportado com sucesso!');
+            })
+            .catch(err => showToastFiscal('Erro ao exportar Excel', 'error'));
+        }
+
+        // Status NSU
+        function carregarNSUStatusFiscal() {
+            fetch('/api/relatorios/nsu-status')
+                .then(r => r.json())
+                .then(response => {
+                    if (response.success) {
+                        const certificados = response.certificados;
+                        const container = document.getElementById('fiscal-nsuStatusContainer');
+                        
+                        if (certificados.length === 0) {
+                            container.innerHTML = '<p style="color: #999;">Nenhum certificado ativo.</p>';
+                        } else {
+                            container.innerHTML = `
+                                <div class="table-scroll-container">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Certificado</th>
+                                                <th>CNPJ</th>
+                                                <th>Ambiente</th>
+                                                <th>Último NSU</th>
+                                                <th>Máximo NSU</th>
+                                                <th>NSUs Pendentes</th>
+                                                <th>Última Busca</th>
+                                                <th>Docs Baixados</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${certificados.map(cert => {
+                                                const pendentes = cert.nsus_pendentes || 0;
+                                                const corBadge = pendentes > 0 ? '#f39c12' : '#27ae60';
+                                                
+                                                return `
+                                                    <tr>
+                                                        <td><strong>${cert.nome_certificado}</strong></td>
+                                                        <td>${cert.cnpj}</td>
+                                                        <td><span style="background: #95a5a6; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">${cert.ambiente}</span></td>
+                                                        <td>${cert.ultimo_nsu || '000000000000000'}</td>
+                                                        <td>${cert.max_nsu || '-'}</td>
+                                                        <td><span style="background: ${corBadge}; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px;">${pendentes}</span></td>
+                                                        <td>${formatarDataFiscal(cert.data_ultima_busca)}</td>
+                                                        <td>${cert.total_documentos_baixados || 0}</td>
+                                                    </tr>
+                                                `;
+                                            }).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            `;
+                        }
+                    }
+                })
+                .catch(err => console.error('Erro ao carregar NSU status:', err));
+        }
 
     </script>
     
