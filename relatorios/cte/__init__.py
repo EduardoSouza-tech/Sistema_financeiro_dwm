@@ -11,49 +11,55 @@ Componentes:
 
 Autor: Sistema Financeiro DWM
 Data: 2026-02-17
+
+NOTA: Módulos comentados temporariamente até implementação dos arquivos .py
 """
 
 __version__ = '1.0.0'
 
-from .cte_busca import (
-    consultar_ultimo_nsu_sefaz_cte,
-    baixar_documentos_dfe_cte,
-    consultar_cte_por_chave,
-    buscar_multiplas_chaves_cte
-)
+# TODO: Descomentar quando os módulos forem criados
+# from .cte_busca import (
+#     consultar_ultimo_nsu_sefaz_cte,
+#     baixar_documentos_dfe_cte,
+#     consultar_cte_por_chave,
+#     buscar_multiplas_chaves_cte
+# )
 
-from .cte_processor import (
-    extrair_dados_cte,
-    detectar_schema_cte,
-    validar_chave_cte,
-    extrair_resumo_cte,
-    determinar_direcao_cte
-)
+# from .cte_processor import (
+#     extrair_dados_cte,
+#     detectar_schema_cte,
+#     validar_chave_cte,
+#     extrair_resumo_cte,
+#     determinar_direcao_cte
+# )
 
-from .cte_storage import (
-    salvar_xml_cte,
-    recuperar_xml_cte,
-    existe_xml_cte,
-    listar_xmls_periodo_cte
-)
+# from .cte_storage import (
+#     salvar_xml_cte,
+#     recuperar_xml_cte,
+#     existe_xml_cte,
+#     listar_xmls_periodo_cte
+# )
 
-__all__ = [
-    # Busca
-    'consultar_ultimo_nsu_sefaz_cte',
-    'baixar_documentos_dfe_cte',
-    'consultar_cte_por_chave',
-    'buscar_multiplas_chaves_cte',
-    
-    # Processamento
-    'extrair_dados_cte',
-    'detectar_schema_cte',
-    'validar_chave_cte',
-    'extrair_resumo_cte',
-    'determinar_direcao_cte',
-    
-    # Armazenamento
-    'salvar_xml_cte',
-    'recuperar_xml_cte',
-    'existe_xml_cte',
-    'listar_xmls_periodo_cte'
-]
+__all__ = []
+
+# TODO: Descomentar quando os módulos forem criados
+# __all__ = [
+#     # Busca
+#     'consultar_ultimo_nsu_sefaz_cte',
+#     'baixar_documentos_dfe_cte',
+#     'consultar_cte_por_chave',
+#     'buscar_multiplas_chaves_cte',
+#     
+#     # Processamento
+#     'extrair_dados_cte',
+#     'detectar_schema_cte',
+#     'validar_chave_cte',
+#     'extrair_resumo_cte',
+#     'determinar_direcao_cte',
+#     
+#     # Armazenamento
+#     'salvar_xml_cte',
+#     'recuperar_xml_cte',
+#     'existe_xml_cte',
+#     'listar_xmls_periodo_cte'
+# ]
