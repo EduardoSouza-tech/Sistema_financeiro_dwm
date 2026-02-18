@@ -7258,6 +7258,82 @@ window.atualizarResumoNFSe = function(nfses) {
     document.getElementById('municipios-nfse').textContent = municipiosUnicos;
 };
 
+// Diagnóstico de omissões
+window.diagnosticarOmissoesNFSe = async function() {
+    const dataInicial = document.getElementById('nfse-data-inicial').value;
+    const dataFinal = document.getElementById('nfse-data-final').value;
+    const codigoMunicipio = document.getElementById('nfse-municipio').value;
+    
+    if (!dataInicial || !dataFinal) {
+        showToast('⚠️ Selecione o período (data inicial e final)', 'warning');
+        return;
+    }
+    
+    console.log('🔍 Executando diagnóstico de NFS-e...');
+    
+    try {
+        const body = {
+            data_inicial: dataInicial,
+            data_final: dataFinal
+        };
+        
+        if (codigoMunicipio) {
+            body.codigo_municipio = codigoMunicipio;
+        }
+        
+        const response = await fetch('/api/nfse/diagnostico', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            let mensagem = `📊 DIAGNÓSTICO DE NFS-e\n\n`;
+            mensagem += `📦 Total no Banco: ${data.total_banco} notas\n`;
+            mensagem += `✅ Exibidas (NORMAL): ${data.total_interface} notas\n`;
+            
+            if (data.total_omitidas > 0) {
+                mensagem += `\n⚠️ OMITIDAS: ${data.total_omitidas} notas\n\n`;
+                mensagem += `📋 Detalhamento por situação:\n`;
+                
+                data.por_situacao.forEach(sit => {
+                    const valor = sit.valor_total ? sit.valor_total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}) : 'R$ 0,00';
+                    mensagem += `   ${sit.situacao}: ${sit.total} notas (${valor})\n`;
+                });
+                
+                if (data.exemplos_omitidas.length > 0) {
+                    mensagem += `\n🔍 Exemplos de notas omitidas:\n`;
+                    data.exemplos_omitidas.slice(0, 5).forEach(nota => {
+                        const valor = parseFloat(nota.valor_servico).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+                        mensagem += `   • ${nota.numero_nfse} - ${nota.data_emissao} - ${valor} - ${nota.situacao}\n`;
+                    });
+                }
+                
+                mensagem += `\nℹ️ A interface só exibe notas com situação "NORMAL".\n`;
+                mensagem += `Para ver todas as notas (incluindo CANCELADAS/SUBSTITUÍDAS),\n`;
+                mensagem += `será necessário remover o filtro de situação no código.`;
+                
+                alert(mensagem);
+                showToast(`⚠️ ${data.total_omitidas} notas omitidas (${data.total_interface} exibidas de ${data.total_banco} no banco)`, 'warning');
+            } else {
+                mensagem += `\n✅ Não há omissões! Todas as ${data.total_interface} notas são NORMAIS.`;
+                alert(mensagem);
+                showToast('✅ Sem omissões - todas as notas estão sendo exibidas', 'success');
+            }
+        } else {
+            showToast(`❌ Erro: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao executar diagnóstico:', error);
+        showToast('❌ Erro ao executar diagnóstico', 'error');
+    }
+};
+
 // Controle de ordenação
 window.nfseOrdenacao = {
     campo: null,

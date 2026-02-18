@@ -11798,6 +11798,172 @@ def consultar_nfse():
         }), 500
 
 
+@app.route('/api/nfse/diagnostico', methods=['POST'])
+@require_auth
+@require_permission('nfse_view')
+def diagnostico_nfse():
+    """Diagnóstico detalhado de NFS-e para identificar omissões"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        
+        if not empresa_id:
+            return jsonify({
+                'success': False,
+                'error': 'Empresa não selecionada'
+            }), 400
+        
+        data = request.json
+        
+        from datetime import datetime
+        from database_postgresql import get_nfse_db_params
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        db_params = get_nfse_db_params()
+        
+        # Converter datas
+        data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
+        data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
+        codigo_municipio = data.get('codigo_municipio')
+        
+        conn = psycopg2.connect(**db_params)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 1. Total por situação
+        sql = """
+            SELECT 
+                situacao,
+                COUNT(*) as total,
+                SUM(valor_servico) as valor_total,
+                SUM(valor_iss) as iss_total
+            FROM nfse_baixadas
+            WHERE empresa_id = %s
+            AND data_competencia BETWEEN %s AND %s
+        """
+        params = [empresa_id, data_inicial, data_final]
+        
+        if codigo_municipio:
+            sql += " AND codigo_municipio = %s"
+            params.append(codigo_municipio)
+        
+        sql += " GROUP BY situacao ORDER BY total DESC"
+        
+        cursor.execute(sql, tuple(params))
+        por_situacao = [dict(row) for row in cursor.fetchall()]
+        
+        # 2. Total geral SEM filtro de situação
+        sql_total = """
+            SELECT 
+                COUNT(*) as total,
+                SUM(valor_servico) as valor_total,
+                SUM(valor_iss) as iss_total
+            FROM nfse_baixadas
+            WHERE empresa_id = %s
+            AND data_competencia BETWEEN %s AND %s
+        """
+        params_total = [empresa_id, data_inicial, data_final]
+        
+        if codigo_municipio:
+            sql_total += " AND codigo_municipio = %s"
+            params_total.append(codigo_municipio)
+        
+        cursor.execute(sql_total, tuple(params_total))
+        total_geral = dict(cursor.fetchone())
+        
+        # 3. Total APENAS NORMAL (o que a interface mostra)
+        sql_normal = """
+            SELECT 
+                COUNT(*) as total,
+                SUM(valor_servico) as valor_total,
+                SUM(valor_iss) as iss_total
+            FROM nfse_baixadas
+            WHERE empresa_id = %s
+            AND data_competencia BETWEEN %s AND %s
+            AND situacao = 'NORMAL'
+        """
+        params_normal = [empresa_id, data_inicial, data_final]
+        
+        if codigo_municipio:
+            sql_normal += " AND codigo_municipio = %s"
+            params_normal.append(codigo_municipio)
+        
+        cursor.execute(sql_normal, tuple(params_normal))
+        total_normal = dict(cursor.fetchone())
+        
+        # 4. Mostrar notas CANCELADAS/SUBSTITUÍDAS se houver
+        sql_outras = """
+            SELECT 
+                numero_nfse,
+                data_emissao,
+                razao_social_tomador,
+                valor_servico,
+                situacao
+            FROM nfse_baixadas
+            WHERE empresa_id = %s
+            AND data_competencia BETWEEN %s AND %s
+            AND situacao != 'NORMAL'
+            ORDER BY data_emissao DESC
+            LIMIT 20
+        """
+        params_outras = [empresa_id, data_inicial, data_final]
+        
+        if codigo_municipio:
+            sql_outras += " AND codigo_municipio = %s"
+            params_outras.append(codigo_municipio)
+        
+        cursor.execute(sql_outras, tuple(params_outras))
+        notas_outras_situacoes = [dict(row) for row in cursor.fetchall()]
+        
+        cursor.close()
+        conn.close()
+        
+        # Converter valores Decimal para float
+        for item in por_situacao:
+            for key, value in item.items():
+                if isinstance(value, Decimal):
+                    item[key] = float(value)
+        
+        for key, value in total_geral.items():
+            if isinstance(value, Decimal):
+                total_geral[key] = float(value)
+        
+        for key, value in total_normal.items():
+            if isinstance(value, Decimal):
+                total_normal[key] = float(value)
+        
+        for nota in notas_outras_situacoes:
+            for key, value in nota.items():
+                if isinstance(value, (datetime, date)):
+                    nota[key] = value.isoformat()
+                elif isinstance(value, Decimal):
+                    nota[key] = float(value)
+        
+        omitidas = total_geral['total'] - total_normal['total']
+        
+        resultado = {
+            'success': True,
+            'total_banco': total_geral['total'],
+            'total_interface': total_normal['total'],
+            'total_omitidas': omitidas,
+            'por_situacao': por_situacao,
+            'total_geral': total_geral,
+            'total_normal': total_normal,
+            'exemplos_omitidas': notas_outras_situacoes if omitidas > 0 else []
+        }
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        logger.error(f"Erro no diagnóstico: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/nfse/<int:nfse_id>', methods=['GET'])
 @require_auth
 @require_permission('nfse_view')
