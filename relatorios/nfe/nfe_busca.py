@@ -115,8 +115,8 @@ class CertificadoA1:
             self.cert_data = {
                 'subject': certificate.subject.rfc4514_string(),
                 'issuer': certificate.issuer.rfc4514_string(),
-                'valido_de': certificate.not_valid_before,
-                'valido_ate': certificate.not_valid_after,
+                'valido_de': certificate.not_valid_before_utc,
+                'valido_ate': certificate.not_valid_after_utc,
                 'serial_number': certificate.serial_number,
             }
             
