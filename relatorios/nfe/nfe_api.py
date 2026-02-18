@@ -33,7 +33,7 @@ else:
 
 # Importação condicional do banco
 try:
-    from database_postgresql import obter_conexao
+    from database_postgresql import get_db_connection
     DATABASE_AVAILABLE = True
 except (ImportError, ValueError) as e:
     DATABASE_AVAILABLE = False
@@ -97,7 +97,6 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
     Returns:
         Dict com sucesso e id do certificado
     """
-    conn = None
     try:
         # Valida certificado
         try:
@@ -133,24 +132,24 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
         senha_cripto = criptografar_senha(senha, chave_cripto)
         
         # Salva no banco
-        conn = obter_conexao()
-        cursor = conn.cursor()
-        
-        sql = """
-            INSERT INTO certificados_digitais 
-            (empresa_id, cnpj, nome_certificado, pfx_base64, senha_pfx, 
-             cuf, ambiente, valido_de, valido_ate, criado_por, ativo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
-            RETURNING id
-        """
-        
-        cursor.execute(sql, (
-            empresa_id, cnpj, nome_certificado, pfx_base64, senha_cripto,
-            cuf, ambiente, valido_de, valido_ate, usuario_id
-        ))
-        
-        certificado_id = cursor.fetchone()[0]
-        conn.commit()
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            sql = """
+                INSERT INTO certificados_digitais 
+                (empresa_id, cnpj, nome_certificado, pfx_base64, senha_pfx, 
+                 cuf, ambiente, valido_de, valido_ate, criado_por, ativo)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+                RETURNING id
+            """
+            
+            cursor.execute(sql, (
+                empresa_id, cnpj, nome_certificado, pfx_base64, senha_cripto,
+                cuf, ambiente, valido_de, valido_ate, usuario_id
+            ))
+            
+            certificado_id = cursor.fetchone()[0]
+            conn.commit()
         
         return {
             'sucesso': True,
@@ -160,15 +159,10 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
         }
         
     except Exception as e:
-        if conn:
-            conn.rollback()
         return {
             'sucesso': False,
             'erro': f'Erro ao salvar certificado: {str(e)}'
         }
-    finally:
-        if conn:
-            conn.close()
 
 
 def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Optional[nfe_busca.CertificadoA1]:
@@ -182,43 +176,41 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
     Returns:
         Objeto CertificadoA1 ou None
     """
-    conn = None
     try:
-        conn = obter_conexao()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT pfx_base64, senha_pfx, ativo
-            FROM certificados_digitais
-            WHERE id = %s
-        """, (certificado_id,))
-        
-        row = cursor.fetchone()
-        if not row:
-            return None
-        
-        pfx_base64, senha_cripto, ativo = row
-        
-        if not ativo:
-            return None
-        
-        # Descriptografa senha
-        if not chave_cripto:
-            chave_cripto = os.environ.get('FERNET_KEY', '').encode('utf-8')
-        
-        senha = descriptografar_senha(senha_cripto, chave_cripto)
-        
-        # Cria certificado
-        cert = nfe_busca.CertificadoA1(pfx_base64=pfx_base64, senha=senha)
-        
-        return cert
+        # Primeiro busca os dados para saber a empresa_id
+        # Como não sabemos a empresa aqui, precisamos buscar sem RLS
+        with get_db_connection(allow_global=True) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT pfx_base64, senha_pfx, ativo
+                FROM certificados_digitais
+                WHERE id = %s
+            """, (certificado_id,))
+            
+            row = cursor.fetchone()
+            if not row:
+                return None
+            
+            pfx_base64, senha_cripto, ativo = row
+            
+            if not ativo:
+                return None
+            
+            # Descriptografa senha
+            if not chave_cripto:
+                chave_cripto = os.environ.get('FERNET_KEY', '').encode('utf-8')
+            
+            senha = descriptografar_senha(senha_cripto, chave_cripto)
+            
+            # Cria certificado
+            cert = nfe_busca.CertificadoA1(pfx_base64=pfx_base64, senha=senha)
+            
+            return cert
         
     except Exception as e:
         print(f"Erro ao obter certificado: {e}")
         return None
-    finally:
-        if conn:
-            conn.close()
 
 
 # ============================================================================
@@ -247,28 +239,27 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
     Returns:
         Dict com estatísticas da busca
     """
-    conn = None
     try:
         # Carrega certificado
         cert = obter_certificado(certificado_id)
         if not cert:
             return {'sucesso': False, 'erro': 'Certificado não encontrado ou inválido'}
         
-        # Busca dados do certificado no banco
-        conn = obter_conexao()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT empresa_id, cnpj, ultimo_nsu, cuf, ambiente
-            FROM certificados_digitais
-            WHERE id = %s
-        """, (certificado_id,))
-        
-        row = cursor.fetchone()
-        if not row:
-            return {'sucesso': False, 'erro': 'Certificado não encontrado'}
-        
-        empresa_id, cnpj, ultimo_nsu, cuf, ambiente = row
+        # Busca dados do certificado no banco (allow_global pois buscamos cert diretamente)
+        with get_db_connection(allow_global=True) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT empresa_id, cnpj, ultimo_nsu, cuf, ambiente
+                FROM certificados_digitais
+                WHERE id = %s
+            """, (certificado_id,))
+            
+            row = cursor.fetchone()
+            if not row:
+                return {'sucesso': False, 'erro': 'Certificado não encontrado'}
+            
+            empresa_id, cnpj, ultimo_nsu, cuf, ambiente = row
         
         # Busca documentos na SEFAZ
         resultado_busca = nfe_busca.baixar_documentos_dfe(
@@ -298,60 +289,64 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
         documentos = resultado_busca.get('documentos', [])
         novo_nsu = resultado_busca.get('ultNSU', ultimo_nsu)
         
-        # Processa cada documento
-        for doc in documentos[:limite_docs]:
-            nsu = doc['nsu']
-            schema = doc['schema']
-            xml_content = doc.get('xml')
+        # Processa cada documento usando uma conexão com empresa_id
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
             
-            if not xml_content:
-                stats['erros'] += 1
-                continue
-            
-            # Detecta schema
-            schema_info = nfe_processor.detectar_schema_nfe(xml_content)
-            
-            if not schema_info['sucesso']:
-                stats['erros'] += 1
-                continue
-            
-            # Processa de acordo com o tipo
-            if schema_info['categoria'] == 'NFe':
-                resultado_proc = _processar_nfe(
-                    empresa_id, certificado_id, cnpj, nsu, schema, 
-                    xml_content, usuario_id, cursor
-                )
-                if resultado_proc['sucesso']:
-                    stats['nfes_processadas'] += 1
-                else:
-                    stats['erros'] += 1
+            # Processa cada documento
+            for doc in documentos[:limite_docs]:
+                nsu = doc['nsu']
+                schema = doc['schema']
+                xml_content = doc.get('xml')
                 
-                stats['documentos_detalhes'].append(resultado_proc)
-                
-            elif schema_info['categoria'] == 'Evento':
-                resultado_proc = _processar_evento(
-                    empresa_id, certificado_id, nsu, schema,
-                    xml_content, usuario_id, cursor
-                )
-                if resultado_proc['sucesso']:
-                    stats['eventos_processados'] += 1
-                else:
+                if not xml_content:
                     stats['erros'] += 1
+                    continue
+                
+                # Detecta schema
+                schema_info = nfe_processor.detectar_schema_nfe(xml_content)
+                
+                if not schema_info['sucesso']:
+                    stats['erros'] += 1
+                    continue
+                
+                # Processa de acordo com o tipo
+                if schema_info['categoria'] == 'NFe':
+                    resultado_proc = _processar_nfe(
+                        empresa_id, certificado_id, cnpj, nsu, schema, 
+                        xml_content, usuario_id, cursor
+                    )
+                    if resultado_proc['sucesso']:
+                        stats['nfes_processadas'] += 1
+                    else:
+                        stats['erros'] += 1
+                    
+                    stats['documentos_detalhes'].append(resultado_proc)
+                    
+                elif schema_info['categoria'] == 'Evento':
+                    resultado_proc = _processar_evento(
+                        empresa_id, certificado_id, nsu, schema,
+                        xml_content, usuario_id, cursor
+                    )
+                    if resultado_proc['sucesso']:
+                        stats['eventos_processados'] += 1
+                    else:
+                        stats['erros'] += 1
+                
+                stats['total_baixados'] += 1
             
-            stats['total_baixados'] += 1
-        
-        # Atualiza NSU do certificado
-        cursor.execute("""
-            UPDATE certificados_digitais
-            SET ultimo_nsu = %s,
-                max_nsu = %s,
-                data_ultima_busca = NOW(),
-                atualizado_em = NOW(),
-                atualizado_por = %s
-            WHERE id = %s
-        """, (novo_nsu, resultado_busca.get('maxNSU'), usuario_id, certificado_id))
-        
-        conn.commit()
+            # Atualiza NSU do certificado
+            cursor.execute("""
+                UPDATE certificados_digitais
+                SET ultimo_nsu = %s,
+                    max_nsu = %s,
+                    data_ultima_busca = NOW(),
+                    atualizado_em = NOW(),
+                    atualizado_por = %s
+                WHERE id = %s
+            """, (novo_nsu, resultado_busca.get('maxNSU'), usuario_id, certificado_id))
+            
+            conn.commit()
         
         stats['sucesso'] = True
         stats['novo_nsu'] = novo_nsu
@@ -360,15 +355,10 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
         return stats
         
     except Exception as e:
-        if conn:
-            conn.rollback()
         return {
             'sucesso': False,
             'erro': f'Erro ao buscar documentos: {str(e)}'
         }
-    finally:
-        if conn:
-            conn.close()
 
 
 def _processar_nfe(empresa_id: int, certificado_id: int, cnpj_empresa: str,
@@ -493,61 +483,57 @@ def listar_documentos_periodo(empresa_id: int, data_inicio: datetime,
     Returns:
         Lista de documentos
     """
-    conn = None
     try:
-        conn = obter_conexao()
-        cursor = conn.cursor()
-        
-        sql = """
-            SELECT 
-                id, nsu, chave, tipo_documento, numero_documento, serie,
-                valor_total, cnpj_emitente, nome_emitente,
-                cnpj_destinatario, nome_destinatario, data_emissao,
-                caminho_xml, data_busca
-            FROM documentos_fiscais_log
-            WHERE empresa_id = %s
-              AND data_busca BETWEEN %s AND %s
-        """
-        
-        params = [empresa_id, data_inicio, data_fim]
-        
-        if tipo:
-            sql += " AND tipo_documento = %s"
-            params.append(tipo)
-        
-        sql += " ORDER BY data_busca DESC"
-        
-        cursor.execute(sql, params)
-        
-        rows = cursor.fetchall()
-        
-        documentos = []
-        for row in rows:
-            documentos.append({
-                'id': row[0],
-                'nsu': row[1],
-                'chave': row[2],
-                'tipo': row[3],
-                'numero': row[4],
-                'serie': row[5],
-                'valor': float(row[6]) if row[6] else 0.0,
-                'emitente_cnpj': row[7],
-                'emitente_nome': row[8],
-                'destinatario_cnpj': row[9],
-                'destinatario_nome': row[10],
-                'data_emissao': row[11],
-                'caminho_xml': row[12],
-                'data_busca': row[13]
-            })
-        
-        return documentos
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            sql = """
+                SELECT 
+                    id, nsu, chave, tipo_documento, numero_documento, serie,
+                    valor_total, cnpj_emitente, nome_emitente,
+                    cnpj_destinatario, nome_destinatario, data_emissao,
+                    caminho_xml, data_busca
+                FROM documentos_fiscais_log
+                WHERE empresa_id = %s
+                  AND data_busca BETWEEN %s AND %s
+            """
+            
+            params = [empresa_id, data_inicio, data_fim]
+            
+            if tipo:
+                sql += " AND tipo_documento = %s"
+                params.append(tipo)
+            
+            sql += " ORDER BY data_busca DESC"
+            
+            cursor.execute(sql, params)
+            
+            rows = cursor.fetchall()
+            
+            documentos = []
+            for row in rows:
+                documentos.append({
+                    'id': row[0],
+                    'nsu': row[1],
+                    'chave': row[2],
+                    'tipo': row[3],
+                    'numero': row[4],
+                    'serie': row[5],
+                    'valor': float(row[6]) if row[6] else 0.0,
+                    'emitente_cnpj': row[7],
+                    'emitente_nome': row[8],
+                    'destinatario_cnpj': row[9],
+                    'destinatario_nome': row[10],
+                    'data_emissao': row[11],
+                    'caminho_xml': row[12],
+                    'data_busca': row[13]
+                })
+            
+            return documentos
         
     except Exception as e:
         print(f"Erro ao listar documentos: {e}")
         return []
-    finally:
-        if conn:
-            conn.close()
 
 
 def obter_estatisticas_empresa(empresa_id: int) -> Dict[str, any]:
@@ -560,50 +546,46 @@ def obter_estatisticas_empresa(empresa_id: int) -> Dict[str, any]:
     Returns:
         Dict com estatísticas
     """
-    conn = None
     try:
-        conn = obter_conexao()
-        cursor = conn.cursor()
-        
-        # Total de documentos
-        cursor.execute("""
-            SELECT 
-                COUNT(*) as total,
-                COUNT(CASE WHEN tipo_documento = 'NFe' THEN 1 END) as total_nfes,
-                COUNT(CASE WHEN tipo_documento = 'CTe' THEN 1 END) as total_ctes,
-                COUNT(CASE WHEN tipo_documento = 'Evento' THEN 1 END) as total_eventos,
-                SUM(CASE WHEN tipo_documento = 'NFe' THEN valor_total ELSE 0 END) as valor_total_nfes
-            FROM documentos_fiscais_log
-            WHERE empresa_id = %s
-        """, (empresa_id,))
-        
-        row = cursor.fetchone()
-        
-        stats = {
-            'total_documentos': row[0] or 0,
-            'total_nfes': row[1] or 0,
-            'total_ctes': row[2] or 0,
-            'total_eventos': row[3] or 0,
-            'valor_total_nfes': float(row[4]) if row[4] else 0.0
-        }
-        
-        # Certificados ativos
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM certificados_digitais
-            WHERE empresa_id = %s AND ativo = TRUE
-        """, (empresa_id,))
-        
-        stats['certificados_ativos'] = cursor.fetchone()[0]
-        
-        return stats
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            # Total de documentos
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total,
+                    COUNT(CASE WHEN tipo_documento = 'NFe' THEN 1 END) as total_nfes,
+                    COUNT(CASE WHEN tipo_documento = 'CTe' THEN 1 END) as total_ctes,
+                    COUNT(CASE WHEN tipo_documento = 'Evento' THEN 1 END) as total_eventos,
+                    SUM(CASE WHEN tipo_documento = 'NFe' THEN valor_total ELSE 0 END) as valor_total_nfes
+                FROM documentos_fiscais_log
+                WHERE empresa_id = %s
+            """, (empresa_id,))
+            
+            row = cursor.fetchone()
+            
+            stats = {
+                'total_documentos': row[0] or 0,
+                'total_nfes': row[1] or 0,
+                'total_ctes': row[2] or 0,
+                'total_eventos': row[3] or 0,
+                'valor_total_nfes': float(row[4]) if row[4] else 0.0
+            }
+            
+            # Certificados ativos
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM certificados_digitais
+                WHERE empresa_id = %s AND ativo = TRUE
+            """, (empresa_id,))
+            
+            stats['certificados_ativos'] = cursor.fetchone()[0]
+            
+            return stats
         
     except Exception as e:
         print(f"Erro ao obter estatísticas: {e}")
         return {}
-    finally:
-        if conn:
-            conn.close()
 
 
 # ============================================================================

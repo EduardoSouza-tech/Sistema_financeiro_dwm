@@ -14274,23 +14274,22 @@ def listar_certificados():
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        
-        cursor.execute("""
-            SELECT 
-                id, cnpj, nome_certificado, ambiente, ativo,
-                ultimo_nsu, max_nsu, data_ultima_busca,
-                valido_de, valido_ate,
-                total_documentos_baixados, total_nfes, total_ctes, total_eventos,
-                criado_em, atualizado_em
-            FROM certificados_digitais
-            WHERE empresa_id = %s
-            ORDER BY ativo DESC, criado_em DESC
-        """, (empresa_id,))
-        
-        certificados = cursor.fetchall()
-        conn.close()
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            cursor.execute("""
+                SELECT 
+                    id, cnpj, nome_certificado, ambiente, ativo,
+                    ultimo_nsu, max_nsu, data_ultima_busca,
+                    valido_de, valido_ate,
+                    total_documentos_baixados, total_nfes, total_ctes, total_eventos,
+                    criado_em, atualizado_em
+                FROM certificados_digitais
+                WHERE empresa_id = %s
+                ORDER BY ativo DESC, criado_em DESC
+            """, (empresa_id,))
+            
+            certificados = cursor.fetchall()
         
         return jsonify({
             'success': True,
@@ -14421,19 +14420,18 @@ def desativar_certificado(certificado_id):
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            UPDATE certificados_digitais
-            SET ativo = FALSE,
-                atualizado_em = NOW(),
-                atualizado_por = %s
-            WHERE id = %s AND empresa_id = %s
-        """, (usuario['id'], certificado_id, empresa_id))
-        
-        conn.commit()
-        conn.close()
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                UPDATE certificados_digitais
+                SET ativo = FALSE,
+                    atualizado_em = NOW(),
+                    atualizado_por = %s
+                WHERE id = %s AND empresa_id = %s
+            """, (usuario['id'], certificado_id, empresa_id))
+            
+            conn.commit()
         
         return jsonify({
             'success': True,
