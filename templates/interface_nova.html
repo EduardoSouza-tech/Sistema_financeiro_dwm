@@ -12911,7 +12911,83 @@
             // Preencher CNPJ automaticamente
             const cnpj = document.getElementById('empresa-cnpj').textContent.replace(/\D/g, '');
             
+            // Adicionar listener para validar certificado ao selecionar arquivo
+            const inputArquivo = document.getElementById('cert-emp-arquivo');
+            const inputSenha = document.getElementById('cert-emp-senha');
+            
+            inputArquivo.onchange = () => validarCertificadoAoSelecionar();
+            inputSenha.onblur = () => validarCertificadoAoSelecionar();
+            inputSenha.onkeypress = (e) => {
+                if (e.key === 'Enter') validarCertificadoAoSelecionar();
+            };
+            
             document.getElementById('modal-certificado-empresa').classList.add('show');
+        }
+
+        function validarCertificadoAoSelecionar() {
+            const arquivo = document.getElementById('cert-emp-arquivo').files[0];
+            const senha = document.getElementById('cert-emp-senha').value;
+            
+            // Só valida se tiver arquivo E senha
+            if (!arquivo || !senha) {
+                return;
+            }
+            
+            // Mostrar indicador de carregamento
+            const inputNome = document.getElementById('cert-emp-nome');
+            inputNome.value = '⏳ Validando certificado...';
+            inputNome.disabled = true;
+            
+            // Ler arquivo
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result.split(',')[1];
+                
+                fetch('/api/certificado/validar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        pfx_base64: base64,
+                        senha: senha
+                    })
+                })
+                .then(r => r.json())
+                .then(response => {
+                    if (response.sucesso && response.certificado) {
+                        const cert = response.certificado;
+                        
+                        // Preencher nome automaticamente com razão social
+                        if (cert.razao_social) {
+                            inputNome.value = cert.razao_social;
+                        } else {
+                            inputNome.value = 'Certificado ' + (cert.cnpj || 'Digital');
+                        }
+                        
+                        inputNome.disabled = false;
+                        
+                        // Mostrar informações do certificado
+                        const validade = cert.validade_fim ? new Date(cert.validade_fim).toLocaleDateString('pt-BR') : '-';
+                        console.log('✅ Certificado validado:', {
+                            razao_social: cert.razao_social,
+                            cnpj: cert.cnpj,
+                            validade: validade,
+                            emitente: cert.emitente
+                        });
+                    } else {
+                        inputNome.value = '';
+                        inputNome.disabled = false;
+                        alert('❌ ' + (response.erro || 'Erro ao validar certificado'));
+                    }
+                })
+                .catch(err => {
+                    inputNome.value = '';
+                    inputNome.disabled = false;
+                    alert('❌ Erro ao validar certificado');
+                    console.error(err);
+                });
+            };
+            
+            reader.readAsDataURL(arquivo);
         }
 
         function fecharModalCertificadoEmpresa() {

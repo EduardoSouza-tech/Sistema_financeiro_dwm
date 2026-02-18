@@ -14293,6 +14293,63 @@ def listar_certificados():
         }), 500
 
 
+@app.route('/api/certificado/validar', methods=['POST'])
+@require_auth
+def validar_certificado():
+    """Valida e extrai informações de um certificado digital"""
+    try:
+        dados = request.get_json()
+        pfx_base64 = dados.get('pfx_base64')
+        senha = dados.get('senha')
+        
+        if not pfx_base64 or not senha:
+            return jsonify({
+                'sucesso': False,
+                'erro': 'Arquivo e senha são obrigatórios'
+            })
+        
+        # Decodificar base64
+        import base64
+        pfx_bytes = base64.b64decode(pfx_base64)
+        
+        # Processar certificado usando função do NFS-e
+        from nfse_functions import processar_certificado
+        info = processar_certificado(pfx_bytes, senha)
+        
+        if not info.get('success'):
+            return jsonify({
+                'sucesso': False,
+                'erro': info.get('error', 'Erro ao processar certificado')
+            })
+        
+        # Retornar informações extraídas
+        return jsonify({
+            'sucesso': True,
+            'certificado': {
+                'cnpj': info.get('cnpj'),
+                'razao_social': info.get('razao_social'),
+                'emitente': info.get('emitente'),
+                'validade_inicio': info.get('validade_inicio'),
+                'validade_fim': info.get('validade_fim'),
+                'serial_number': info.get('serial_number')
+            }
+        })
+        
+    except ValueError as e:
+        return jsonify({
+            'sucesso': False,
+            'erro': 'Senha incorreta ou arquivo inválido'
+        })
+    except Exception as e:
+        print(f"Erro ao validar certificado: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'sucesso': False,
+            'erro': f'Erro ao processar certificado: {str(e)}'
+        })
+
+
 @app.route('/api/relatorios/certificados/novo', methods=['POST'])
 @require_auth
 @require_permission('relatorios.certificados.criar')
