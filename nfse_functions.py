@@ -876,7 +876,7 @@ if __name__ == "__main__":
 def processar_certificado(pfx_bytes: bytes, senha: str) -> Dict:
     """
     Extrai informações do certificado digital A1 (.pfx / .p12).
-    Retorna CNPJ, razão social, emitente, validade, serial number.
+    Retorna CNPJ, razão social, emitente, validade, serial number, UF.
     """
     from cryptography.hazmat.primitives.serialization import pkcs12
     from cryptography.x509 import oid as x509_oid
@@ -898,7 +898,8 @@ def processar_certificado(pfx_bytes: bytes, senha: str) -> Dict:
             'serial_number': str(certificate.serial_number),
             'cnpj': None,
             'razao_social': None,
-            'emitente': None
+            'emitente': None,
+            'uf': None
         }
         
         # Extrair dados do Subject
@@ -913,6 +914,14 @@ def processar_certificado(pfx_bytes: bytes, senha: str) -> Dict:
             cnpj_match = re.search(r'(\d{14})', cn.replace('.', '').replace('/', '').replace('-', ''))
             if cnpj_match:
                 info['cnpj'] = cnpj_match.group(1)
+        
+        # Extrair UF (Estado) do Subject
+        st_list = subject.get_attributes_for_oid(x509_oid.NameOID.STATE_OR_PROVINCE_NAME)
+        if st_list:
+            uf = st_list[0].value.strip().upper()
+            # Validar se é uma UF válida (2 letras)
+            if len(uf) == 2 and uf.isalpha():
+                info['uf'] = uf
         
         # OID ICP-Brasil para CNPJ: 2.16.76.1.3.3
         OID_CNPJ_ICPBRASIL = '2.16.76.1.3.3'

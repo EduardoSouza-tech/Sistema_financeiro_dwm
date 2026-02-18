@@ -4169,14 +4169,14 @@
 
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nome/Identificação do Certificado</label>
-                            <input type="text" id="cert-emp-nome" placeholder="Ex: Certificado Matriz 2026" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-                            <small style="color: #666;">Um nome para identificar este certificado</small>
+                            <input type="text" id="cert-emp-nome" placeholder="Será preenchido automaticamente..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                            <small style="color: #4caf50;">✨ Preenchido automaticamente a partir do certificado</small>
                         </div>
 
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: 600;">Arquivo Certificado (.PFX ou .P12)</label>
                             <input type="file" id="cert-emp-arquivo" accept=".pfx,.p12" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-                            <small style="color: #666;">Selecione o arquivo do certificado digital</small>
+                            <small style="color: #666;">Selecione o arquivo do certificado digital A1</small>
                         </div>
 
                         <div style="margin-bottom: 15px;">
@@ -4217,7 +4217,7 @@
                                 <option value="52">Goiás (52)</option>
                                 <option value="53">Distrito Federal (53)</option>
                             </select>
-                            <small style="color: #666;">Estado de autorização da NF-e/CT-e</small>
+                            <small style="color: #4caf50;">✨ Preenchido automaticamente a partir do certificado</small>
                         </div>
 
                         <div style="margin-bottom: 15px;">
@@ -12902,10 +12902,22 @@
 
         function abrirModalCertificadoEmpresa() {
             // Limpar campos
-            document.getElementById('cert-emp-nome').value = '';
+            const inputNome = document.getElementById('cert-emp-nome');
+            const inputCuf = document.getElementById('cert-emp-cuf');
+            
+            inputNome.value = '';
+            inputNome.readOnly = false;
+            inputNome.style.background = '';
+            inputNome.style.borderColor = '';
+            
             document.getElementById('cert-emp-arquivo').value = '';
             document.getElementById('cert-emp-senha').value = '';
-            document.getElementById('cert-emp-cuf').value = '35';
+            
+            inputCuf.value = '35';
+            inputCuf.disabled = false;
+            inputCuf.style.background = '';
+            inputCuf.style.borderColor = '';
+            
             document.getElementById('cert-emp-ambiente').value = 'producao';
             
             // Preencher CNPJ automaticamente
@@ -12933,8 +12945,19 @@
                 return;
             }
             
+            // Mapeamento de UF (sigla) para código IBGE
+            const ufParaCuf = {
+                'RO': '11', 'AC': '12', 'AM': '13', 'RR': '14', 'PA': '15', 'AP': '16', 'TO': '17',
+                'MA': '21', 'PI': '22', 'CE': '23', 'RN': '24', 'PB': '25', 'PE': '26', 'AL': '27', 'SE': '28', 'BA': '29',
+                'MG': '31', 'ES': '32', 'RJ': '33', 'SP': '35',
+                'PR': '41', 'SC': '42', 'RS': '43',
+                'MS': '50', 'MT': '51', 'GO': '52', 'DF': '53'
+            };
+            
             // Mostrar indicador de carregamento
             const inputNome = document.getElementById('cert-emp-nome');
+            const inputCuf = document.getElementById('cert-emp-cuf');
+            
             inputNome.value = '⏳ Validando certificado...';
             inputNome.disabled = true;
             
@@ -12956,20 +12979,33 @@
                     if (response.sucesso && response.certificado) {
                         const cert = response.certificado;
                         
-                        // Preencher nome automaticamente com razão social
+                        // ✅ Preencher nome automaticamente com razão social
                         if (cert.razao_social) {
                             inputNome.value = cert.razao_social;
                         } else {
                             inputNome.value = 'Certificado ' + (cert.cnpj || 'Digital');
                         }
                         
-                        inputNome.disabled = false;
+                        // ✅ Preencher UF automaticamente (se disponível)
+                        if (cert.uf && ufParaCuf[cert.uf]) {
+                            inputCuf.value = ufParaCuf[cert.uf];
+                            inputCuf.style.background = '#e8f5e9';
+                            inputCuf.style.borderColor = '#4caf50';
+                        }
+                        
+                        // ✅ Tornar campos readonly (preenchidos automaticamente)
+                        inputNome.readOnly = true;
+                        inputNome.style.background = '#e8f5e9';
+                        inputNome.style.borderColor = '#4caf50';
+                        inputCuf.disabled = true;
                         
                         // Mostrar informações do certificado
                         const validade = cert.validade_fim ? new Date(cert.validade_fim).toLocaleDateString('pt-BR') : '-';
                         console.log('✅ Certificado validado:', {
                             razao_social: cert.razao_social,
                             cnpj: cert.cnpj,
+                            uf: cert.uf,
+                            cuf: ufParaCuf[cert.uf] || '-',
                             validade: validade,
                             emitente: cert.emitente
                         });

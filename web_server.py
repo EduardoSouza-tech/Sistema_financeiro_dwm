@@ -14343,7 +14343,8 @@ def validar_certificado():
                 'emitente': info.get('emitente'),
                 'validade_inicio': info.get('validade_inicio'),
                 'validade_fim': info.get('validade_fim'),
-                'serial_number': info.get('serial_number')
+                'serial_number': info.get('serial_number'),
+                'uf': info.get('uf')
             }
         })
         
