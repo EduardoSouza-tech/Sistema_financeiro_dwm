@@ -6465,8 +6465,29 @@ def listar_fornecedores_evento(evento_id):
     try:
         from psycopg2.extras import RealDictCursor
         
+        logger.info(f"🏢 GET /api/eventos/{evento_id}/fornecedores")
+        
         conn = db.get_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Verificar se a tabela existe
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'evento_fornecedores'
+            );
+        """)
+        
+        tabela_existe = cursor.fetchone()['exists']
+        
+        if not tabela_existe:
+            logger.warning("   ⚠️  Tabela evento_fornecedores não existe - Retornando lista vazia")
+            cursor.close()
+            return jsonify({
+                'success': True,
+                'fornecedores': [],
+                'warning': 'Tabela evento_fornecedores não existe. Execute a migração.'
+            }), 200
         
         cursor.execute("""
             SELECT 
@@ -6491,16 +6512,18 @@ def listar_fornecedores_evento(evento_id):
         fornecedores = cursor.fetchall()
         cursor.close()
         
+        logger.info(f"   📊 Retornando {len(fornecedores)} fornecedores")
+        
         return jsonify({
             'success': True,
             'fornecedores': fornecedores
         }), 200
     
     except Exception as e:
-        logger.error(f"Erro ao listar fornecedores do evento: {e}")
+        logger.error(f"❌ Erro ao listar fornecedores do evento: {e}")
         import traceback
-        traceback.print_exc(file=sys.stderr)
-        return jsonify({'error': str(e)}), 500
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/eventos/<int:evento_id>/fornecedores', methods=['POST'])
@@ -6674,21 +6697,46 @@ def listar_subcategorias():
         
         categoria_id = request.args.get('categoria_id')
         
+        logger.info(f"📋 GET /api/subcategorias - categoria_id={categoria_id}")
+        
         if not categoria_id:
             return jsonify({'success': False, 'error': 'categoria_id é obrigatório'}), 400
         
         conn = db.get_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
+        # Verificar se a coluna 'ativa' existe
         cursor.execute("""
-            SELECT id, nome, categoria_id, ativa
-            FROM subcategorias
-            WHERE categoria_id = %s AND ativa = TRUE
-            ORDER BY nome
-        """, (int(categoria_id),))
+            SELECT EXISTS (
+                SELECT FROM information_schema.columns 
+                WHERE table_name = 'subcategorias' 
+                AND column_name = 'ativa'
+            );
+        """)
+        
+        coluna_ativa_existe = cursor.fetchone()['exists']
+        
+        if coluna_ativa_existe:
+            logger.info("   ✅ Coluna 'ativa' existe, filtrando por ativa=TRUE")
+            cursor.execute("""
+                SELECT id, nome, categoria_id, ativa
+                FROM subcategorias
+                WHERE categoria_id = %s AND ativa = TRUE
+                ORDER BY nome
+            """, (int(categoria_id),))
+        else:
+            logger.warning("   ⚠️  Coluna 'ativa' não existe, listando todas")
+            cursor.execute("""
+                SELECT id, nome, categoria_id
+                FROM subcategorias
+                WHERE categoria_id = %s
+                ORDER BY nome
+            """, (int(categoria_id),))
         
         subcategorias = cursor.fetchall()
         cursor.close()
+        
+        logger.info(f"   📊 Retornando {len(subcategorias)} subcategorias")
         
         return jsonify({
             'success': True,
@@ -6696,7 +6744,9 @@ def listar_subcategorias():
         }), 200
     
     except Exception as e:
-        logger.error(f"Erro ao listar subcategorias: {e}")
+        logger.error(f"❌ Erro ao listar subcategorias: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
