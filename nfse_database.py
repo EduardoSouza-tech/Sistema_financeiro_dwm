@@ -322,7 +322,7 @@ class NFSeDatabase:
             data_final: Data final
             codigo_municipio: Código do município (opcional)
             situacao: NORMAL, CANCELADA, SUBSTITUIDA (opcional)
-            limit: Limite de registros (opcional, padrão=1000)
+            limit: Limite de registros (opcional, None=sem limite)
             offset: Deslocamento para paginação (opcional)
             
         Returns:
@@ -347,12 +347,8 @@ class NFSeDatabase:
                 
                 sql += " ORDER BY data_emissao DESC"
                 
-                # Adicionar limite padrão de 1000 registros se não especificado
-                if limit is None:
-                    limit = 1000
-                    logger.warning(f"⚠️ Aplicando limite padrão de {limit} NFS-e")
-                
-                if limit > 0:
+                # Aplicar limite apenas se especificado (sem limite padrão)
+                if limit is not None and limit > 0:
                     sql += " LIMIT %s OFFSET %s"
                     params.extend([limit, offset])
                 

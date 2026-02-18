@@ -616,7 +616,7 @@ def consultar_nfse_periodo(
         data_inicial: Data inicial
         data_final: Data final
         codigo_municipio: Código do município (None = todos)
-        limit: Limite de registros (opcional, padrão=1000)
+        limit: Limite de registros (opcional, None=sem limite)
         offset: Deslocamento para paginação
         
     Returns:

@@ -6965,6 +6965,14 @@ window.consultarNFSeLocal = async function() {
     
     console.log('🔍 Consultando NFS-e localmente:', { dataInicial, dataFinal, codigoMunicipio });
     
+    // Resetar paginação
+    window.nfsePaginacao = {
+        paginaAtual: 1,
+        registrosPorPagina: parseInt(document.getElementById('nfse-registros-por-pagina').value) || 100,
+        totalRegistros: 0,
+        totalPaginas: 0
+    };
+    
     // Mostrar loading
     const tbody = document.getElementById('tbody-nfse');
     tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="font-size: 24px;">⏳</div><p>Consultando banco de dados...</p></td></tr>';
@@ -6972,9 +6980,8 @@ window.consultarNFSeLocal = async function() {
     try {
         const body = {
             data_inicial: dataInicial,
-            data_final: dataFinal,
-            limit: 1000,  // Limite padrão de 1000 registros
-            offset: 0
+            data_final: dataFinal
+            // NÃO enviar limit - API retorna TODOS os registros
         };
         
         if (codigoMunicipio) {
@@ -6994,31 +7001,14 @@ window.consultarNFSeLocal = async function() {
         
         if (data.success) {
             window.nfsesCarregadas = data.nfses || [];
-            window.exibirNFSe(window.nfsesCarregadas);
-            window.atualizarResumoNFSe(window.nfsesCarregadas);
+            window.nfsePaginacao.totalRegistros = window.nfsesCarregadas.length;
+            window.nfsePaginacao.totalPaginas = Math.ceil(window.nfsePaginacao.totalRegistros / window.nfsePaginacao.registrosPorPagina);
             
-            // Verificar se atingiu o limite
-            if (data.tem_mais) {
-                showToast(`⚠️ Mostrando primeiras ${data.limit} NFS-e de ${data.total}+\n💡 Refine o período para ver todas`, 'warning', 5000);
-                
-                // Adicionar aviso na tabela
-                const avisoDiv = document.createElement('div');
-                avisoDiv.className = 'alert alert-warning';
-                avisoDiv.style = 'margin: 15px 0; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px;';
-                avisoDiv.innerHTML = `
-                    <strong>⚠️ Limite de registros atingido!</strong><br>
-                    Mostrando as <strong>${data.total} primeiras NFS-e</strong> do período.<br>
-                    <small>💡 Para visualizar todas, selecione um período menor (ex: 1 mês) ou refine por município.</small>
-                `;
-                
-                const container = document.getElementById('nfse-section');
-                const tabela = container.querySelector('table');
-                if (tabela) {
-                    tabela.parentNode.insertBefore(avisoDiv, tabela);
-                }
-            } else {
-                showToast(`✅ ${window.nfsesCarregadas.length} NFS-e encontradas`, 'success');
-            }
+            window.exibirNFSePaginado();
+            window.atualizarResumoNFSe(window.nfsesCarregadas);
+            window.atualizarControlesPaginacao();
+            
+            showToast(`✅ ${window.nfsesCarregadas.length} NFS-e encontradas`, 'success');
         } else {
             tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro ao Consultar</h3><p>${data.error}</p></td></tr>`;
             showToast(`❌ Erro: ${data.error}`, 'error');
@@ -7174,6 +7164,87 @@ window.exibirNFSe = function(nfses) {
     });
 };
 
+// Exibir NFS-e com paginação no frontend
+window.exibirNFSePaginado = function() {
+    if (!window.nfsesCarregadas || window.nfsesCarregadas.length === 0) {
+        window.exibirNFSe([]);
+        document.getElementById('nfse-paginacao').style.display = 'none';
+        return;
+    }
+    
+    const { paginaAtual, registrosPorPagina } = window.nfsePaginacao;
+    const inicio = (paginaAtual - 1) * registrosPorPagina;
+    const fim = inicio + registrosPorPagina;
+    const nfsesPagina = window.nfsesCarregadas.slice(inicio, fim);
+    
+    window.exibirNFSe(nfsesPagina);
+    
+    // Mostrar controles de paginação se houver mais de uma página
+    if (window.nfsePaginacao.totalPaginas > 1) {
+        document.getElementById('nfse-paginacao').style.display = 'block';
+    } else {
+        document.getElementById('nfse-paginacao').style.display = 'none';
+    }
+};
+
+// Atualizar controles de paginação
+window.atualizarControlesPaginacao = function() {
+    if (!window.nfsePaginacao) return;
+    
+    const { paginaAtual, totalPaginas, totalRegistros, registrosPorPagina } = window.nfsePaginacao;
+    
+    // Atualizar texto
+    const inicio = (paginaAtual - 1) * registrosPorPagina + 1;
+    const fim = Math.min(paginaAtual * registrosPorPagina, totalRegistros);
+    document.getElementById('nfse-info-pagina').textContent = 
+        `Página ${paginaAtual} de ${totalPaginas} (${inicio}-${fim} de ${totalRegistros})`;
+    
+    // Habilitar/desabilitar botões
+    document.getElementById('nfse-primeira-pagina').disabled = paginaAtual === 1;
+    document.getElementById('nfse-pagina-anterior').disabled = paginaAtual === 1;
+    document.getElementById('nfse-proxima-pagina').disabled = paginaAtual === totalPaginas;
+    document.getElementById('nfse-ultima-pagina').disabled = paginaAtual === totalPaginas;
+};
+
+// Mudar página (relativo)
+window.mudarPaginaNFSe = function(direcao) {
+    if (!window.nfsePaginacao) return;
+    
+    const novaPagina = window.nfsePaginacao.paginaAtual + direcao;
+    if (novaPagina >= 1 && novaPagina <= window.nfsePaginacao.totalPaginas) {
+        window.nfsePaginacao.paginaAtual = novaPagina;
+        window.exibirNFSePaginado();
+        window.atualizarControlesPaginacao();
+    }
+};
+
+// Ir para página específica
+window.irPaginaNFSe = function(pagina) {
+    if (!window.nfsePaginacao) return;
+    
+    if (pagina === 'ultima') {
+        pagina = window.nfsePaginacao.totalPaginas;
+    }
+    
+    if (pagina >= 1 && pagina <= window.nfsePaginacao.totalPaginas) {
+        window.nfsePaginacao.paginaAtual = pagina;
+        window.exibirNFSePaginado();
+        window.atualizarControlesPaginacao();
+    }
+};
+
+// Atualizar registros por página
+window.atualizarRegistrosPorPagina = function() {
+    if (!window.nfsePaginacao || !window.nfsesCarregadas) return;
+    
+    window.nfsePaginacao.registrosPorPagina = parseInt(document.getElementById('nfse-registros-por-pagina').value) || 100;
+    window.nfsePaginacao.totalPaginas = Math.ceil(window.nfsePaginacao.totalRegistros / window.nfsePaginacao.registrosPorPagina);
+    window.nfsePaginacao.paginaAtual = 1; // Resetar para primeira página
+    
+    window.exibirNFSePaginado();
+    window.atualizarControlesPaginacao();
+};
+
 // Atualizar cards de resumo
 window.atualizarResumoNFSe = function(nfses) {
     const totalNotas = nfses.length;
@@ -7245,8 +7316,10 @@ window.ordenarNFSe = function(campo) {
         return window.nfseOrdenacao.ascendente ? comparacao : -comparacao;
     });
     
-    // Atualizar exibição
-    window.exibirNFSe(window.nfsesCarregadas);
+    // Atualizar exibição com paginação
+    window.nfsePaginacao.paginaAtual = 1; // Resetar para primeira página após ordenar
+    window.exibirNFSePaginado();
+    window.atualizarControlesPaginacao();
     
     console.log(`📊 Ordenado por ${campo} (${window.nfseOrdenacao.ascendente ? 'crescente' : 'decrescente'})`);
 };

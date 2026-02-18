@@ -4823,6 +4823,16 @@
                             </select>
                         </div>
                         <div>
+                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Registros por página:</label>
+                            <select id="nfse-registros-por-pagina" onchange="atualizarRegistrosPorPagina()" style="padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; height: 38px; min-width: 120px;">
+                                <option value="50">50</option>
+                                <option value="100" selected>100</option>
+                                <option value="500">500</option>
+                                <option value="1000">1000</option>
+                                <option value="10000">10000</option>
+                            </select>
+                        </div>
+                        <div>
                             <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Método de Busca:</label>
                             <select id="nfse-metodo" style="padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; height: 38px; min-width: 250px;">
                                 <option value="ambiente_nacional" selected>🌐 Ambiente Nacional (Recomendado)</option>
@@ -4865,6 +4875,17 @@
                     <div style="font-size: 24px; margin-bottom: 10px;">⏳</div>
                     <p style="margin: 0; color: #856404; font-weight: 500;">Buscando NFS-e...</p>
                     <p style="margin: 5px 0 0 0; color: #856404; font-size: 14px;">Isso pode levar alguns minutos dependendo da quantidade de notas.</p>
+                </div>
+
+                <!-- Paginação -->
+                <div id="nfse-paginacao" style="display: none; margin-bottom: 20px; text-align: center;">
+                    <div style="display: inline-flex; gap: 10px; align-items: center; background: #f8f9fa; padding: 10px 20px; border-radius: 8px;">
+                        <button id="nfse-primeira-pagina" onclick="irPaginaNFSe(1)" class="btn btn-secondary" style="padding: 6px 12px;">⏮️</button>
+                        <button id="nfse-pagina-anterior" onclick="mudarPaginaNFSe(-1)" class="btn btn-secondary" style="padding: 6px 12px;">◀️</button>
+                        <span id="nfse-info-pagina" style="font-size: 14px; font-weight: 500; color: #2c3e50; min-width: 200px;">Página 1 de 1</span>
+                        <button id="nfse-proxima-pagina" onclick="mudarPaginaNFSe(1)" class="btn btn-secondary" style="padding: 6px 12px;">▶️</button>
+                        <button id="nfse-ultima-pagina" onclick="irPaginaNFSe('ultima')" class="btn btn-secondary" style="padding: 6px 12px;">⏭️</button>
+                    </div>
                 </div>
 
                 <!-- Tabela de Resultados -->
