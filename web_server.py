@@ -14388,6 +14388,7 @@ def cadastrar_certificado():
         from relatorios.nfe import nfe_api
         
         # Salva certificado
+        logger.info(f"[CERTIFICADO] Salvando certificado para empresa {empresa_id}, CNPJ {data['cnpj']}")
         resultado = nfe_api.salvar_certificado(
             empresa_id=empresa_id,
             cnpj=data['cnpj'],
@@ -14399,6 +14400,7 @@ def cadastrar_certificado():
             usuario_id=usuario['id']
         )
         
+        logger.info(f"[CERTIFICADO] Resultado: {resultado}")
         return jsonify(resultado)
         
     except Exception as e:

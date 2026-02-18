@@ -161,8 +161,8 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
         return {
             'sucesso': True,
             'certificado_id': certificado_id,
-            'valido_de': valido_de,
-            'valido_ate': valido_ate
+            'valido_de': valido_de.isoformat() if hasattr(valido_de, 'isoformat') else str(valido_de),
+            'valido_ate': valido_ate.isoformat() if hasattr(valido_ate, 'isoformat') else str(valido_ate)
         }
         
     except Exception as e:
