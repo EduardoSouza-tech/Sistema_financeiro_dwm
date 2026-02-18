@@ -11761,13 +11761,19 @@ def consultar_nfse():
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
         data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
         
+        # Parâmetros de paginação
+        limit = data.get('limit', 1000)  # Padrão: 1000 registros
+        offset = data.get('offset', 0)
+        
         # Consultar banco local
         nfses = consultar_nfse_periodo(
             db_params=db_params,
             empresa_id=empresa_id,
             data_inicial=data_inicial,
             data_final=data_final,
-            codigo_municipio=data.get('codigo_municipio')
+            codigo_municipio=data.get('codigo_municipio'),
+            limit=limit,
+            offset=offset
         )
         
         # Converter objetos datetime para string (JSON serialization)
@@ -11778,10 +11784,16 @@ def consultar_nfse():
                 elif isinstance(value, Decimal):
                     nfse[key] = float(value)
         
+        # Verificar se há mais registros (para paginação)
+        tem_mais = len(nfses) == limit
+        
         return jsonify({
             'success': True,
             'nfses': nfses,
-            'total': len(nfses)
+            'total': len(nfses),
+            'tem_mais': tem_mais,
+            'limit': limit,
+            'offset': offset
         })
         
     except Exception as e:

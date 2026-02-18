@@ -6972,7 +6972,9 @@ window.consultarNFSeLocal = async function() {
     try {
         const body = {
             data_inicial: dataInicial,
-            data_final: dataFinal
+            data_final: dataFinal,
+            limit: 1000,  // Limite padrão de 1000 registros
+            offset: 0
         };
         
         if (codigoMunicipio) {
@@ -6994,7 +6996,29 @@ window.consultarNFSeLocal = async function() {
             window.nfsesCarregadas = data.nfses || [];
             window.exibirNFSe(window.nfsesCarregadas);
             window.atualizarResumoNFSe(window.nfsesCarregadas);
-            showToast(`✅ ${window.nfsesCarregadas.length} NFS-e encontradas`, 'success');
+            
+            // Verificar se atingiu o limite
+            if (data.tem_mais) {
+                showToast(`⚠️ Mostrando primeiras ${data.limit} NFS-e de ${data.total}+\n💡 Refine o período para ver todas`, 'warning', 5000);
+                
+                // Adicionar aviso na tabela
+                const avisoDiv = document.createElement('div');
+                avisoDiv.className = 'alert alert-warning';
+                avisoDiv.style = 'margin: 15px 0; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px;';
+                avisoDiv.innerHTML = `
+                    <strong>⚠️ Limite de registros atingido!</strong><br>
+                    Mostrando as <strong>${data.total} primeiras NFS-e</strong> do período.<br>
+                    <small>💡 Para visualizar todas, selecione um período menor (ex: 1 mês) ou refine por município.</small>
+                `;
+                
+                const container = document.getElementById('nfse-section');
+                const tabela = container.querySelector('table');
+                if (tabela) {
+                    tabela.parentNode.insertBefore(avisoDiv, tabela);
+                }
+            } else {
+                showToast(`✅ ${window.nfsesCarregadas.length} NFS-e encontradas`, 'success');
+            }
         } else {
             tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro ao Consultar</h3><p>${data.error}</p></td></tr>`;
             showToast(`❌ Erro: ${data.error}`, 'error');

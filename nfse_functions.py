@@ -603,7 +603,9 @@ def consultar_nfse_periodo(
     empresa_id: int,
     data_inicial: date,
     data_final: date,
-    codigo_municipio: Optional[str] = None
+    codigo_municipio: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: int = 0
 ) -> List[Dict]:
     """
     Consulta NFS-e armazenadas localmente (sem buscar via API)
@@ -614,6 +616,8 @@ def consultar_nfse_periodo(
         data_inicial: Data inicial
         data_final: Data final
         codigo_municipio: Código do município (None = todos)
+        limit: Limite de registros (opcional, padrão=1000)
+        offset: Deslocamento para paginação
         
     Returns:
         Lista de NFS-e
@@ -625,7 +629,9 @@ def consultar_nfse_periodo(
                 data_inicial=data_inicial,
                 data_final=data_final,
                 codigo_municipio=codigo_municipio,
-                situacao='NORMAL'
+                situacao='NORMAL',
+                limit=limit,
+                offset=offset
             )
             logger.info(f"✅ Consulta local: {len(nfses)} NFS-e")
             return nfses

@@ -309,7 +309,9 @@ class NFSeDatabase:
         data_inicial: date, 
         data_final: date,
         codigo_municipio: Optional[str] = None,
-        situacao: Optional[str] = None
+        situacao: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: int = 0
     ) -> List[Dict]:
         """
         Busca NFS-e por período
@@ -320,6 +322,8 @@ class NFSeDatabase:
             data_final: Data final
             codigo_municipio: Código do município (opcional)
             situacao: NORMAL, CANCELADA, SUBSTITUIDA (opcional)
+            limit: Limite de registros (opcional, padrão=1000)
+            offset: Deslocamento para paginação (opcional)
             
         Returns:
             Lista de NFS-e
@@ -343,9 +347,42 @@ class NFSeDatabase:
                 
                 sql += " ORDER BY data_emissao DESC"
                 
+                # Adicionar limite padrão de 1000 registros se não especificado
+                if limit is None:
+                    limit = 1000
+                    logger.warning(f"⚠️ Aplicando limite padrão de {limit} NFS-e")
+                
+                if limit > 0:
+                    sql += " LIMIT %s OFFSET %s"
+                    params.extend([limit, offset])
+                
                 cursor.execute(sql, tuple(params))
                 nfses = [dict(row) for row in cursor.fetchall()]
-                logger.info(f"✅ Encontradas {len(nfses)} NFS-e")
+                
+                # Contar total sem limite
+                sql_count = """
+                SELECT COUNT(*) as total FROM nfse_baixadas
+                WHERE empresa_id = %s
+                AND data_competencia BETWEEN %s AND %s
+                """
+                params_count = [empresa_id, data_inicial, data_final]
+                
+                if codigo_municipio:
+                    sql_count += " AND codigo_municipio = %s"
+                    params_count.append(codigo_municipio)
+                
+                if situacao:
+                    sql_count += " AND situacao = %s"
+                    params_count.append(situacao)
+                
+                cursor.execute(sql_count, tuple(params_count))
+                total = cursor.fetchone()['total']
+                
+                if total > len(nfses):
+                    logger.warning(f"⚠️ Mostrando {len(nfses)} de {total} NFS-e (limite aplicado)")
+                else:
+                    logger.info(f"✅ Encontradas {len(nfses)} NFS-e")
+                
                 return nfses
         except Exception as e:
             logger.error(f"❌ Erro ao buscar NFS-e: {e}")
