@@ -13284,13 +13284,18 @@
             const inputCuf = document.getElementById('cert-emp-cuf');
             const btnSalvar = document.getElementById('btn-salvar-cert-empresa');
             
-            inputNome.value = '⏳ Validando certificado...';
+            // ✅ NÃO colocar texto de validação no input (evita salvar por engano)
+            inputNome.value = '';
+            inputNome.placeholder = '⏳ Validando certificado...';
             inputNome.disabled = true;
+            inputNome.style.background = '#fff3cd';
+            inputNome.style.borderColor = '#ffc107';
             
             // ✅ Desabilitar botão de salvar durante validação
             if (btnSalvar) {
                 btnSalvar.disabled = true;
                 btnSalvar.style.opacity = '0.5';
+                btnSalvar.innerHTML = '⏳ Aguarde validação...';
             }
             
             // Ler arquivo
@@ -13318,6 +13323,10 @@
                             inputNome.value = 'Certificado ' + (cert.cnpj || 'Digital');
                         }
                         
+                        // ✅ Limpar placeholder e habilitar input
+                        inputNome.placeholder = '';
+                        inputNome.disabled = false;
+                        
                         // ✅ Preencher UF automaticamente (se disponível)
                         if (cert.uf && ufParaCuf[cert.uf]) {
                             inputCuf.value = ufParaCuf[cert.uf];
@@ -13335,6 +13344,7 @@
                         if (btnSalvar) {
                             btnSalvar.disabled = false;
                             btnSalvar.style.opacity = '1';
+                            btnSalvar.innerHTML = '💾 Salvar Certificado';
                         }
                         
                         // Mostrar informações do certificado
@@ -13348,26 +13358,36 @@
                             emitente: cert.emitente
                         });
                     } else {
+                        // ✅ Resetar estado do campo
                         inputNome.value = '';
+                        inputNome.placeholder = '';
                         inputNome.disabled = false;
+                        inputNome.style.background = '';
+                        inputNome.style.borderColor = '#e74c3c';
                         
                         // ✅ Reabilitar botão de salvar após erro de validação
                         if (btnSalvar) {
                             btnSalvar.disabled = false;
                             btnSalvar.style.opacity = '1';
+                            btnSalvar.innerHTML = '💾 Salvar Certificado';
                         }
                         
                         alert('❌ ' + (response.erro || 'Erro ao validar certificado'));
                     }
                 })
                 .catch(err => {
+                    // ✅ Resetar estado do campo
                     inputNome.value = '';
+                    inputNome.placeholder = '';
                     inputNome.disabled = false;
+                    inputNome.style.background = '';
+                    inputNome.style.borderColor = '#e74c3c';
                     
                     // ✅ Reabilitar botão de salvar após erro de rede
                     if (btnSalvar) {
                         btnSalvar.disabled = false;
                         btnSalvar.style.opacity = '1';
+                        btnSalvar.innerHTML = '💾 Salvar Certificado';
                     }
                     
                     alert('❌ Erro ao validar certificado');
@@ -13388,6 +13408,13 @@
             const senha = document.getElementById('cert-emp-senha').value;
             const cuf = document.getElementById('cert-emp-cuf').value;
             const ambiente = document.getElementById('cert-emp-ambiente').value;
+            const btnSalvar = document.getElementById('btn-salvar-cert-empresa');
+
+            // ✅ PROTEÇÃO 1: Verificar se validação ainda está em andamento
+            if (btnSalvar && btnSalvar.disabled) {
+                alert('⚠️ Aguarde a validação do certificado concluir antes de salvar.');
+                return;
+            }
 
             // Validações
             if (!nome) {
@@ -13395,8 +13422,15 @@
                 return;
             }
 
-            // ✅ PROTEÇÃO: Impedir salvar enquanto validação está em andamento
+            // ✅ PROTEÇÃO 2: Impedir salvar com texto de loading
             if (nome.includes('⏳') || nome.includes('Validando')) {
+                alert('⚠️ Aguarde a validação do certificado concluir antes de salvar.');
+                return;
+            }
+            
+            // ✅ PROTEÇÃO 3: Verificar se o placeholder ainda está ativo
+            const inputNome = document.getElementById('cert-emp-nome');
+            if (inputNome.placeholder.includes('Validando')) {
                 alert('⚠️ Aguarde a validação do certificado concluir antes de salvar.');
                 return;
             }
