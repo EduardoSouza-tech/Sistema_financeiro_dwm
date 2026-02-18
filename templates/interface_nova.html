@@ -4364,17 +4364,12 @@
                         <!-- Busca Automática -->
                         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
                             <h4>🔄 Busca Automática (NSU)</h4>
-                            <p class="text-muted" style="font-size: 13px;">Busca incremental de documentos na SEFAZ usando o último NSU processado.</p>
+                            <p class="text-muted" style="font-size: 13px;">Busca incremental de documentos na SEFAZ usando o último NSU processado. A SEFAZ controla automaticamente quantos documentos retornar.</p>
                             <div style="margin: 15px 0;">
                                 <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600;">Certificado</label>
                                 <select id="fiscal-buscaAutoCertificado" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                     <option value="">Selecione um certificado...</option>
                                 </select>
-                            </div>
-                            <div style="margin: 15px 0;">
-                                <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600;">Limite de Documentos</label>
-                                <input type="number" id="fiscal-buscaAutoLimite" value="100" min="1" max="500" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                <small class="text-muted">Máximo: 500 documentos por busca</small>
                             </div>
                             <button class="btn btn-primary" onclick="executarBuscaAutomaticaFiscal()" style="width: 100%;">
                                 🔄 Iniciar Busca Automática
