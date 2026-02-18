@@ -1342,6 +1342,7 @@
                 <button class="submenu-button" onclick="showSection('comparativo-periodos')" data-permission="relatorios_view">📉 Comparativo de Períodos</button>
                 <button class="submenu-button" onclick="showSection('indicadores')" data-permission="relatorios_view">🎯 Indicadores Financeiros</button>
                 <button class="submenu-button" onclick="showSection('inadimplencia')" data-permission="relatorios_view">⚠️ Inadimplência <span id="badge-inadimplencia" class="badge-inadimplencia">0</span></button>
+                <button class="submenu-button" onclick="showSection('empresa')" data-permission="relatorios_view">🏢 Empresa - Certificado Digital</button>
                 <button class="submenu-button" onclick="showSection('fiscal')" data-permission="relatorios_view">📑 NF-e e CT-e - Documentos Fiscais</button>
                 <button class="submenu-button" onclick="showSection('nfse')" data-permission="nfse_view">📄 NFS-e - Notas Fiscais</button>
             </div>
@@ -4015,6 +4016,151 @@
                     <div style="font-size: 48px; margin-bottom: 20px;">🎯</div>
                     <h3 style="color: #34495e; margin-bottom: 10px;">Indicadores Financeiros</h3>
                     <p style="margin: 0; font-size: 14px;">Selecione o período acima para visualizar os principais indicadores de desempenho financeiro.</p>
+                </div>
+            </div>
+
+            <!-- Empresa - Certificado Digital -->
+            <div id="empresa-section" class="content-card hidden">
+                <h2 style="margin-bottom: 20px;">🏢 Dados da Empresa e Certificado Digital</h2>
+
+                <!-- Dados da Empresa -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 10px; color: white; margin-bottom: 25px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <h3 style="margin: 0 0 15px 0; font-size: 24px;">📊 <span id="empresa-razao-social">Carregando...</span></h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; font-size: 14px;">
+                                <div>
+                                    <strong style="opacity: 0.8;">CNPJ:</strong><br>
+                                    <span id="empresa-cnpj" style="font-size: 16px;">-</span>
+                                </div>
+                                <div>
+                                    <strong style="opacity: 0.8;">Email:</strong><br>
+                                    <span id="empresa-email" style="font-size: 16px;">-</span>
+                                </div>
+                                <div>
+                                    <strong style="opacity: 0.8;">Telefone:</strong><br>
+                                    <span id="empresa-telefone" style="font-size: 16px;">-</span>
+                                </div>
+                                <div>
+                                    <strong style="opacity: 0.8;">Plano:</strong><br>
+                                    <span id="empresa-plano" style="font-size: 16px; text-transform: uppercase;">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Certificado Digital -->
+                <div style="background: white; padding: 25px; border-radius: 10px; border: 2px solid #e0e0e0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0;">🔐 Certificado Digital A1 (Padrão Brasil)</h3>
+                        <button class="btn btn-primary" onclick="abrirModalCertificadoEmpresa()" id="btn-adicionar-certificado">
+                            ➕ Cadastrar Certificado
+                        </button>
+                    </div>
+
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <p style="margin: 0; font-size: 13px; color: #666; line-height: 1.6;">
+                            <strong>ℹ️ Sobre o Certificado Digital:</strong><br>
+                            O certificado A1 será utilizado para buscar automaticamente suas NF-e, CT-e e NFS-e diretamente da SEFAZ e prefeituras.<br>
+                            • <strong>Formato:</strong> Arquivo .PFX ou .P12<br>
+                            • <strong>Validade:</strong> 1 ano<br>
+                            • <strong>Segurança:</strong> Criptografado no banco de dados<br>
+                            • <strong>Uso:</strong> Consulta automática de documentos fiscais
+                        </p>
+                    </div>
+
+                    <!-- Certificado Cadastrado -->
+                    <div id="empresa-cert-container">
+                        <p style="text-align: center; color: #999; padding: 40px 0;">
+                            <span style="font-size: 48px; display: block; margin-bottom: 10px;">🔒</span>
+                            Nenhum certificado cadastrado.<br>
+                            <small>Cadastre um certificado A1 para começar a importar documentos fiscais.</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: Certificado Empresa -->
+            <div id="modal-certificado-empresa" class="modal-overlay" onclick="fecharModalCertificadoEmpresa()">
+                <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h3>🔐 Cadastrar Certificado Digital A1</h3>
+                        <button class="close-modal" onclick="fecharModalCertificadoEmpresa()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 12px; margin-bottom: 20px; border-radius: 4px;">
+                            <small style="color: #1565c0; line-height: 1.5;">
+                                <strong>📌 Importante:</strong> Este certificado será vinculado à sua empresa e usado para buscar NF-e, CT-e e NFS-e.
+                            </small>
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nome/Identificação do Certificado</label>
+                            <input type="text" id="cert-emp-nome" placeholder="Ex: Certificado Matriz 2026" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                            <small style="color: #666;">Um nome para identificar este certificado</small>
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Arquivo Certificado (.PFX ou .P12)</label>
+                            <input type="file" id="cert-emp-arquivo" accept=".pfx,.p12" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                            <small style="color: #666;">Selecione o arquivo do certificado digital</small>
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Senha do Certificado</label>
+                            <input type="password" id="cert-emp-senha" placeholder="Digite a senha do certificado" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                            <small style="color: #666;">Senha definida ao gerar o certificado</small>
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">UF (Estado)</label>
+                            <select id="cert-emp-cuf" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">Selecione o estado...</option>
+                                <option value="11">Rondônia (11)</option>
+                                <option value="12">Acre (12)</option>
+                                <option value="13">Amazonas (13)</option>
+                                <option value="14">Roraima (14)</option>
+                                <option value="15">Pará (15)</option>
+                                <option value="16">Amapá (16)</option>
+                                <option value="17">Tocantins (17)</option>
+                                <option value="21">Maranhão (21)</option>
+                                <option value="22">Piauí (22)</option>
+                                <option value="23">Ceará (23)</option>
+                                <option value="24">Rio Grande do Norte (24)</option>
+                                <option value="25">Paraíba (25)</option>
+                                <option value="26">Pernambuco (26)</option>
+                                <option value="27">Alagoas (27)</option>
+                                <option value="28">Sergipe (28)</option>
+                                <option value="29">Bahia (29)</option>
+                                <option value="31">Minas Gerais (31)</option>
+                                <option value="32">Espírito Santo (32)</option>
+                                <option value="33">Rio de Janeiro (33)</option>
+                                <option value="35" selected>São Paulo (35)</option>
+                                <option value="41">Paraná (41)</option>
+                                <option value="42">Santa Catarina (42)</option>
+                                <option value="43">Rio Grande do Sul (43)</option>
+                                <option value="50">Mato Grosso do Sul (50)</option>
+                                <option value="51">Mato Grosso (51)</option>
+                                <option value="52">Goiás (52)</option>
+                                <option value="53">Distrito Federal (53)</option>
+                            </select>
+                            <small style="color: #666;">Estado de autorização da NF-e/CT-e</small>
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Ambiente</label>
+                            <select id="cert-emp-ambiente" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="producao" selected>✅ Produção (Documentos Reais)</option>
+                                <option value="homologacao">🧪 Homologação (Testes)</option>
+                            </select>
+                            <small style="color: #666;">Selecione Produção para documentos reais</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="fecharModalCertificadoEmpresa()">Cancelar</button>
+                        <button class="btn btn-primary" onclick="salvarCertificadoEmpresa()">💾 Salvar Certificado</button>
+                    </div>
                 </div>
             </div>
 
@@ -12150,7 +12296,7 @@
             if (tabName === 'nsu') carregarNSUStatusFiscal();
         }
 
-        // Inicializar seção fiscal quando exibida
+        // Inicializar seção fiscal e empresa quando exibidas
         const originalShowSection = window.showSection || showSection;
         window.showSection = function(sectionId) {
             if (typeof originalShowSection === 'function') {
@@ -12161,6 +12307,10 @@
                 carregarEstatisticasFiscais();
                 carregarCertificadosFiscais();
                 preencherSelectsCertificadosFiscais();
+            }
+            
+            if (sectionId === 'empresa') {
+                carregarDadosEmpresa();
             }
         };
 
@@ -12561,6 +12711,241 @@
                     }
                 })
                 .catch(err => console.error('Erro ao carregar NSU status:', err));
+        }
+
+        // ============================================
+        // EMPRESA - CERTIFICADO DIGITAL
+        // ============================================
+
+        function carregarDadosEmpresa() {
+            // Obter empresa_id da sessão (window.currentEmpresaId é definido no login)
+            const empresaId = window.currentEmpresaId || sessionStorage.getItem('empresa_id');
+            
+            if (!empresaId) {
+                console.error('empresa_id não encontrado');
+                return;
+            }
+
+            // Carregar dados da empresa
+            fetch(`/api/empresas/${empresaId}`)
+                .then(r => r.json())
+                .then(response => {
+                    if (response.success && response.empresa) {
+                        const emp = response.empresa;
+                        document.getElementById('empresa-razao-social').textContent = emp.razao_social || '-';
+                        document.getElementById('empresa-cnpj').textContent = emp.cnpj ? formatarCNPJ(emp.cnpj) : '-';
+                        document.getElementById('empresa-email').textContent = emp.email || '-';
+                        document.getElementById('empresa-telefone').textContent = emp.telefone || '-';
+                        document.getElementById('empresa-plano').textContent = emp.plano || '-';
+                    }
+                })
+                .catch(err => console.error('Erro ao carregar empresa:', err));
+
+            // Carregar certificado da empresa
+            carregarCertificadoEmpresa();
+        }
+
+        function formatarCNPJ(cnpj) {
+            if (!cnpj) return '-';
+            const num = cnpj.replace(/\D/g, '');
+            return num.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+        }
+
+        function carregarCertificadoEmpresa() {
+            fetch('/api/relatorios/certificados')
+                .then(r => r.json())
+                .then(response => {
+                    if (response.success && response.certificados) {
+                        const cert = response.certificados.find(c => c.ativo);
+                        const container = document.getElementById('empresa-cert-container');
+                        
+                        if (cert) {
+                            const validade = cert.validade_fim ? new Date(cert.validade_fim).toLocaleDateString('pt-BR') : 'Não informado';
+                            const diasRestantes = cert.validade_fim ? Math.ceil((new Date(cert.validade_fim) - new Date()) / (1000 * 60 * 60 * 24)) : 0;
+                            const corValidade = diasRestantes > 30 ? '#27ae60' : diasRestantes > 7 ? '#f39c12' : '#e74c3c';
+                            
+                            container.innerHTML = `
+                                <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); padding: 20px; border-radius: 10px; color: white;">
+                                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                                        <div>
+                                            <h4 style="margin: 0 0 15px 0;">✅ Certificado Ativo</h4>
+                                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 14px;">
+                                                <div>
+                                                    <strong style="opacity: 0.8;">Nome:</strong><br>
+                                                    <span style="font-size: 15px;">${cert.nome_certificado}</span>
+                                                </div>
+                                                <div>
+                                                    <strong style="opacity: 0.8;">CNPJ:</strong><br>
+                                                    <span style="font-size: 15px;">${formatarCNPJ(cert.cnpj)}</span>
+                                                </div>
+                                                <div>
+                                                    <strong style="opacity: 0.8;">Ambiente:</strong><br>
+                                                    <span style="font-size: 15px; text-transform: uppercase;">${cert.ambiente}</span>
+                                                </div>
+                                                <div>
+                                                    <strong style="opacity: 0.8;">Validade:</strong><br>
+                                                    <span style="font-size: 15px;">${validade}</span>
+                                                </div>
+                                                <div>
+                                                    <strong style="opacity: 0.8;">UF:</strong><br>
+                                                    <span style="font-size: 15px;">Código ${cert.cuf}</span>
+                                                </div>
+                                                <div>
+                                                    <strong style="opacity: 0.8;">Status:</strong><br>
+                                                    <span style="font-size: 15px;">${diasRestantes > 0 ? `${diasRestantes} dias` : 'Vencido'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3);">
+                                        <strong>📊 Uso:</strong> Este certificado está sendo usado para buscar NF-e, CT-e e NFS-e automaticamente.
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-top: 15px; text-align: center;">
+                                    <button class="btn btn-danger" onclick="desativarCertificadoEmpresa(${cert.id})" style="margin-right: 10px;">
+                                        ❌ Desativar Certificado
+                                    </button>
+                                    <button class="btn btn-primary" onclick="abrirModalCertificadoEmpresa()">
+                                        🔄 Atualizar Certificado
+                                    </button>
+                                </div>
+                            `;
+                            
+                            document.getElementById('btn-adicionar-certificado').textContent = '🔄 Atualizar Certificado';
+                        } else {
+                            container.innerHTML = `
+                                <p style="text-align: center; color: #999; padding: 40px 0;">
+                                    <span style="font-size: 48px; display: block; margin-bottom: 10px;">🔒</span>
+                                    Nenhum certificado cadastrado.<br>
+                                    <small>Cadastre um certificado A1 para começar a importar documentos fiscais.</small>
+                                </p>
+                            `;
+                            document.getElementById('btn-adicionar-certificado').textContent = '➕ Cadastrar Certificado';
+                        }
+                    }
+                })
+                .catch(err => console.error('Erro ao carregar certificado:', err));
+        }
+
+        function abrirModalCertificadoEmpresa() {
+            // Limpar campos
+            document.getElementById('cert-emp-nome').value = '';
+            document.getElementById('cert-emp-arquivo').value = '';
+            document.getElementById('cert-emp-senha').value = '';
+            document.getElementById('cert-emp-cuf').value = '35';
+            document.getElementById('cert-emp-ambiente').value = 'producao';
+            
+            // Preencher CNPJ automaticamente
+            const cnpj = document.getElementById('empresa-cnpj').textContent.replace(/\D/g, '');
+            
+            document.getElementById('modal-certificado-empresa').classList.add('show');
+        }
+
+        function fecharModalCertificadoEmpresa() {
+            document.getElementById('modal-certificado-empresa').classList.remove('show');
+        }
+
+        function salvarCertificadoEmpresa() {
+            const nome = document.getElementById('cert-emp-nome').value.trim();
+            const arquivo = document.getElementById('cert-emp-arquivo').files[0];
+            const senha = document.getElementById('cert-emp-senha').value;
+            const cuf = document.getElementById('cert-emp-cuf').value;
+            const ambiente = document.getElementById('cert-emp-ambiente').value;
+
+            // Validações
+            if (!nome) {
+                alert('❌ Digite um nome para o certificado');
+                return;
+            }
+
+            if (!arquivo) {
+                alert('❌ Selecione o arquivo do certificado (.PFX ou .P12)');
+                return;
+            }
+
+            if (!senha) {
+                alert('❌ Digite a senha do certificado');
+                return;
+            }
+
+            if (!cuf) {
+                alert('❌ Selecione o estado (UF)');
+                return;
+            }
+
+            // Obter CNPJ da empresa
+            const cnpj = document.getElementById('empresa-cnpj').textContent.replace(/\D/g, '');
+
+            // Ler arquivo
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result.split(',')[1];
+                
+                const dados = {
+                    nome_certificado: nome,
+                    cnpj: cnpj,
+                    pfx_base64: base64,
+                    senha: senha,
+                    cuf: parseInt(cuf),
+                    ambiente: ambiente
+                };
+
+                // Mostrar loading
+                const btnSalvar = event.target;
+                const textoOriginal = btnSalvar.textContent;
+                btnSalvar.textContent = '⏳ Salvando...';
+                btnSalvar.disabled = true;
+
+                fetch('/api/relatorios/certificados/novo', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(dados)
+                })
+                .then(r => r.json())
+                .then(response => {
+                    btnSalvar.textContent = textoOriginal;
+                    btnSalvar.disabled = false;
+
+                    if (response.sucesso) {
+                        alert('✅ Certificado cadastrado com sucesso!');
+                        fecharModalCertificadoEmpresa();
+                        carregarCertificadoEmpresa();
+                        carregarEstatisticasFiscais();
+                    } else {
+                        alert('❌ Erro: ' + response.erro);
+                    }
+                })
+                .catch(err => {
+                    btnSalvar.textContent = textoOriginal;
+                    btnSalvar.disabled = false;
+                    alert('❌ Erro ao cadastrar certificado');
+                    console.error(err);
+                });
+            };
+            
+            reader.readAsDataURL(arquivo);
+        }
+
+        function desativarCertificadoEmpresa(id) {
+            if (!confirm('⚠️ Deseja realmente desativar este certificado?\n\nIsso impedirá a busca automática de NF-e, CT-e e NFS-e até que um novo certificado seja cadastrado.')) {
+                return;
+            }
+
+            fetch(`/api/relatorios/certificate/${id}/desativar`, {method: 'POST'})
+                .then(r => r.json())
+                .then(response => {
+                    if (response.success) {
+                        alert('✅ Certificado desativado com sucesso!');
+                        carregarCertificadoEmpresa();
+                    } else {
+                        alert('❌ Erro ao desativar certificado');
+                    }
+                })
+                .catch(err => {
+                    alert('❌ Erro ao desativar certificado');
+                    console.error(err);
+                });
         }
 
     </script>
