@@ -146,11 +146,17 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
                 WHERE empresa_id = %s AND cnpj = %s
             """, (empresa_id, cnpj))
             
-            certificado_existente = cursor.fetchone()
+            resultado = cursor.fetchone()
+            logger.info(f"[CERTIFICADO] Resultado da busca: {resultado}, tipo: {type(resultado)}")
             
-            if certificado_existente:
+            if resultado:
                 # Atualiza certificado existente
-                certificado_id = certificado_existente[0]
+                # Suporta tanto tupla quanto dict (RealDictCursor)
+                if isinstance(resultado, dict):
+                    certificado_id = resultado['id']
+                else:
+                    certificado_id = resultado[0]
+                    
                 logger.info(f"[CERTIFICADO] Atualizando certificado existente ID {certificado_id}")
                 cursor.execute("""
                     UPDATE certificados_digitais
@@ -184,7 +190,13 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
                 """, (empresa_id, cnpj, nome_certificado, pfx_base64, senha_cripto,
                       cuf, ambiente, valido_de, valido_ate, usuario_id))
                 
-                certificado_id = cursor.fetchone()[0]
+                resultado_insert = cursor.fetchone()
+                if isinstance(resultado_insert, dict):
+                    certificado_id = resultado_insert['id']
+                else:
+                    certificado_id = resultado_insert[0]
+                    
+                logger.info(f"[CERTIFICADO] Novo certificado criado com ID {certificado_id}")
             
             conn.commit()
         
