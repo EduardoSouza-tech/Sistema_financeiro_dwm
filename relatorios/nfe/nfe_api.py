@@ -135,6 +135,13 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             
+            # Desativa certificados anteriores da mesma empresa
+            cursor.execute("""
+                UPDATE certificados_digitais
+                SET ativo = FALSE
+                WHERE empresa_id = %s AND ativo = TRUE
+            """, (empresa_id,))
+            
             sql = """
                 INSERT INTO certificados_digitais 
                 (empresa_id, cnpj, nome_certificado, pfx_base64, senha_pfx, 

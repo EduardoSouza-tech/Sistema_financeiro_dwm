@@ -12545,7 +12545,7 @@
         function desativarCertificadoFiscal(id) {
             if (!confirm('Deseja realmente desativar este certificado?')) return;
 
-            fetch(`/api/relatorios/certificate/${id}/desativar`, {method: 'POST'})
+            fetch(`/api/relatorios/certificados/${id}/desativar`, {method: 'POST'})
                 .then(r => r.json())
                 .then(response => {
                     if (response.success) {
@@ -13116,7 +13116,7 @@
                 return;
             }
 
-            fetch(`/api/relatorios/certificate/${id}/desativar`, {method: 'POST'})
+            fetch(`/api/relatorios/certificados/${id}/desativar`, {method: 'POST'})
                 .then(r => r.json())
                 .then(response => {
                     if (response.success) {

@@ -21,7 +21,7 @@ import base64
 import gzip
 import os
 from lxml import etree
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
@@ -138,7 +138,7 @@ class CertificadoA1:
         if not self.cert_data:
             return False
         
-        agora = datetime.now()
+        agora = datetime.now(timezone.utc)
         return (self.cert_data['valido_de'] <= agora <= self.cert_data['valido_ate'])
     
     def get_session_requests(self) -> requests.Session:
