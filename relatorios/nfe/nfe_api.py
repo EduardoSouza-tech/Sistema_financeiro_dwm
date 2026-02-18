@@ -229,6 +229,8 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
         Objeto CertificadoA1 ou None
     """
     try:
+        logger.info(f"[CERT] Obtendo certificado ID {certificado_id}")
+        
         # Primeiro busca os dados para saber a empresa_id
         # Como não sabemos a empresa aqui, precisamos buscar sem RLS
         with get_db_connection(allow_global=True) as conn:
@@ -242,26 +244,36 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
             
             row = cursor.fetchone()
             if not row:
+                logger.error(f"[CERT] Certificado ID {certificado_id} não encontrado no banco")
                 return None
             
             pfx_base64, senha_cripto, ativo = row
+            logger.info(f"[CERT] Certificado encontrado, ativo={ativo}")
             
             if not ativo:
+                logger.warning(f"[CERT] Certificado ID {certificado_id} está inativo")
                 return None
             
             # Descriptografa senha
             if not chave_cripto:
                 chave_cripto = os.environ.get('FERNET_KEY', '').encode('utf-8')
+                if not chave_cripto:
+                    logger.error("[CERT] FERNET_KEY não configurada no ambiente")
+                    return None
             
+            logger.info(f"[CERT] Descriptografando senha...")
             senha = descriptografar_senha(senha_cripto, chave_cripto)
             
             # Cria certificado
+            logger.info(f"[CERT] Criando objeto CertificadoA1...")
             cert = nfe_busca.CertificadoA1(pfx_base64=pfx_base64, senha=senha)
             
+            logger.info(f"[CERT] Certificado ID {certificado_id} carregado com sucesso")
             return cert
         
     except Exception as e:
-        print(f"Erro ao obter certificado: {e}")
+        logger.error(f"[CERT] Erro ao obter certificado ID {certificado_id}: {type(e).__name__}: {str(e)}")
+        logger.error(f"[CERT] Traceback: {traceback.format_exc()}")
         return None
 
 
@@ -392,11 +404,9 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
                 UPDATE certificados_digitais
                 SET ultimo_nsu = %s,
                     max_nsu = %s,
-                    data_ultima_busca = NOW(),
-                    atualizado_em = NOW(),
-                    atualizado_por = %s
+                    data_ultima_busca = NOW()
                 WHERE id = %s
-            """, (novo_nsu, resultado_busca.get('maxNSU'), usuario_id, certificado_id))
+            """, (novo_nsu, resultado_busca.get('maxNSU'), certificado_id))
             
             conn.commit()
         
