@@ -288,6 +288,10 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
                 # Senha em formato inválido (texto plano ou corrompida)
                 logger.error(f"[CERT] Senha em formato inválido: {str(ve)}")
                 logger.error("[CERT] ⚠️ AÇÃO NECESSÁRIA: Recadastre o certificado com a senha correta")
+                logger.error("[CERT] 💡 Vá em: Relatórios Fiscais > Aba '🔐 Certificados Digitais' > Desativar certificado antigo > Cadastrar novo")
+                return None
+            except Exception as e:
+                logger.error(f"[CERT] Erro ao descriptografar senha: {str(e)}")
                 return None
             
             # Cria certificado
@@ -334,7 +338,10 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
         # Carrega certificado
         cert = obter_certificado(certificado_id)
         if not cert:
-            return {'sucesso': False, 'erro': 'Certificado não encontrado ou inválido'}
+            return {
+                'sucesso': False, 
+                'erro': 'Certificado não encontrado ou senha em formato inválido. Por favor, recadastre o certificado na aba "🔐 Certificados Digitais".'
+            }
         
         # Busca dados do certificado no banco (allow_global pois buscamos cert diretamente)
         with get_db_connection(allow_global=True) as conn:
