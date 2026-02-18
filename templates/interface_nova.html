@@ -2924,10 +2924,11 @@
                             </div>
                         </div>
 
-                        <!-- Abas: Individual / Em Massa / Assinatura -->
+                        <!-- Abas: Individual / Em Massa / Fornecedores / Assinatura / Credenciamento -->
                         <div style="margin-bottom: 20px; display: flex; gap: 10px; border-bottom: 2px solid #ddd;">
                             <button id="tab-individual" onclick="trocarAbaEquipe('individual')" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-bottom: 3px solid #3498db; cursor: pointer; font-weight: bold;">👤 Individual</button>
                             <button id="tab-massa" onclick="trocarAbaEquipe('massa')" style="padding: 10px 20px; background: #ecf0f1; color: #555; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-weight: bold;">👥 Em Massa</button>
+                            <button id="tab-fornecedores" onclick="trocarAbaEquipe('fornecedores')" style="padding: 10px 20px; background: #ecf0f1; color: #555; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-weight: bold;">🏢 Fornecedores</button>
                             <button id="tab-assinatura" onclick="trocarAbaEquipe('assinatura')" style="padding: 10px 20px; background: #ecf0f1; color: #555; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-weight: bold;">✍️ Assinatura</button>
                             <button id="tab-credenciamento" onclick="trocarAbaEquipe('credenciamento')" style="padding: 10px 20px; background: #ecf0f1; color: #555; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-weight: bold;">🎫 Credenciamento</button>
                         </div>
@@ -3060,6 +3061,74 @@
                                     </div>
                                 </div>
                             </form>
+                        </div>
+
+                        <!-- Formulário Fornecedores -->
+                        <div id="form-container-fornecedores" style="display: none; background: #fff; padding: 20px; border: 2px dashed #f39c12; border-radius: 8px; margin-bottom: 20px;">
+                            <h4 style="margin: 0 0 15px 0; color: #2c3e50;">🏢 Adicionar Fornecedor ao Evento</h4>
+                            <form id="form-adicionar-fornecedor-evento" onsubmit="adicionarFornecedorEvento(event); return false;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Fornecedor: <span style="color: red;">*</span></label>
+                                        <select id="fornecedor-select-fornecedor" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <option value="">Selecione...</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Categoria:</label>
+                                        <select id="fornecedor-select-categoria" onchange="carregarSubcategoriasFornecedorEvento()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <option value="">Selecione...</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Subcategoria:</label>
+                                        <select id="fornecedor-select-subcategoria" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <option value="">Selecione...</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 15px; margin-bottom: 15px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Valor (R$): <span style="color: red;">*</span></label>
+                                        <input type="number" id="fornecedor-valor" step="0.01" min="0" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Observação:</label>
+                                        <input type="text" id="fornecedor-observacao" placeholder="Descrição do serviço..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="padding: 10px 30px; background: #f39c12;">➕ Adicionar Fornecedor</button>
+                            </form>
+
+                            <!-- Lista de Fornecedores do Evento -->
+                            <div style="margin-top: 30px;">
+                                <h4 style="margin: 0 0 15px 0; color: #2c3e50;">🏢 Fornecedores do Evento</h4>
+                                <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                                    <table style="width: 100%;">
+                                        <thead>
+                                            <tr style="background: #f8f9fa;">
+                                                <th style="padding: 10px; text-align: left;">Fornecedor</th>
+                                                <th style="padding: 10px; text-align: left;">Categoria</th>
+                                                <th style="padding: 10px; text-align: left;">Subcategoria</th>
+                                                <th style="padding: 10px; text-align: right;">Valor</th>
+                                                <th style="padding: 10px; text-align: left;">Observação</th>
+                                                <th style="padding: 10px; text-align: center; width: 80px;">Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbody-fornecedores-evento">
+                                            <tr><td colspan="6" style="text-align: center; padding: 30px; color: #999;">Nenhum fornecedor adicionado</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Total de Fornecedores -->
+                            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #f39c12;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <strong style="font-size: 16px; color: #2c3e50;">💰 Custo Total com Fornecedores:</strong>
+                                    <strong style="font-size: 20px; color: #f39c12;" id="fornecedores-custo-total">R$ 0,00</strong>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Aba Assinatura -->
@@ -9203,21 +9272,23 @@
         function trocarAbaEquipe(aba) {
             const tabIndividual = document.getElementById('tab-individual');
             const tabMassa = document.getElementById('tab-massa');
+            const tabFornecedores = document.getElementById('tab-fornecedores');
             const tabAssinatura = document.getElementById('tab-assinatura');
             const tabCredenciamento = document.getElementById('tab-credenciamento');
             const formIndividual = document.getElementById('form-container-individual');
             const formMassa = document.getElementById('form-container-massa');
+            const formFornecedores = document.getElementById('form-container-fornecedores');
             const formAssinatura = document.getElementById('form-container-assinatura');
             const formCredenciamento = document.getElementById('form-container-credenciamento');
 
             // Reset todos
-            [tabIndividual, tabMassa, tabAssinatura, tabCredenciamento].forEach(tab => {
+            [tabIndividual, tabMassa, tabFornecedores, tabAssinatura, tabCredenciamento].forEach(tab => {
                 tab.style.background = '#ecf0f1';
                 tab.style.color = '#555';
                 tab.style.borderBottom = '3px solid transparent';
             });
 
-            [formIndividual, formMassa, formAssinatura, formCredenciamento].forEach(form => {
+            [formIndividual, formMassa, formFornecedores, formAssinatura, formCredenciamento].forEach(form => {
                 form.style.display = 'none';
             });
 
@@ -9232,6 +9303,12 @@
                 tabMassa.style.color = 'white';
                 tabMassa.style.borderBottom = '3px solid #9b59b6';
                 formMassa.style.display = 'block';
+            } else if (aba === 'fornecedores') {
+                tabFornecedores.style.background = '#f39c12';
+                tabFornecedores.style.color = 'white';
+                tabFornecedores.style.borderBottom = '3px solid #f39c12';
+                formFornecedores.style.display = 'block';
+                carregarFornecedoresEvento(); // Carregar fornecedores do evento
             } else if (aba === 'assinatura') {
                 tabAssinatura.style.background = '#e67e22';
                 tabAssinatura.style.color = 'white';
@@ -9248,6 +9325,214 @@
                 carregarCredenciamento(eventoId); // Carregar credenciamento APENAS do evento atual
             }
         }
+
+        // ============================================================================
+        // FUNÇÕES PARA GERENCIAR FORNECEDORES DO EVENTO
+        // ============================================================================
+
+        async function carregarFornecedoresEvento() {
+            const eventoId = document.getElementById('equipe-evento-id').value;
+            
+            try {
+                // Carregar lista de fornecedores cadastrados no sistema
+                const responseFornecedores = await fetch('/api/fornecedores?ativos=true', {
+                    credentials: 'include'
+                });
+                const resultFornecedores = await responseFornecedores.json();
+                
+                const selectFornecedor = document.getElementById('fornecedor-select-fornecedor');
+                selectFornecedor.innerHTML = '<option value="">Selecione...</option>';
+                
+                if (resultFornecedores.success && resultFornecedores.data) {
+                    resultFornecedores.data.forEach(fornecedor => {
+                        const option = document.createElement('option');
+                        option.value = fornecedor.id;
+                        option.textContent = fornecedor.nome;
+                        selectFornecedor.appendChild(option);
+                    });
+                }
+                
+                // Carregar categorias
+                await carregarCategoriasFornecedorEvento();
+                
+                // Carregar fornecedores já vinculados ao evento
+                await carregarFornecedoresDoEvento(eventoId);
+                
+            } catch (error) {
+                console.error('Erro ao carregar fornecedores:', error);
+                showToast('❌ Erro ao carregar fornecedores', 'error');
+            }
+        }
+
+        async function carregarCategoriasFornecedorEvento() {
+            try {
+                const response = await fetch('/api/categorias', {
+                    credentials: 'include'
+                });
+                const result = await response.json();
+                
+                const selectCategoria = document.getElementById('fornecedor-select-categoria');
+                selectCategoria.innerHTML = '<option value="">Selecione...</option>';
+                
+                if (result.categorias && result.categorias.length > 0) {
+                    result.categorias.forEach(categoria => {
+                        const option = document.createElement('option');
+                        option.value = categoria.id;
+                        option.textContent = categoria.nome;
+                        selectCategoria.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar categorias:', error);
+            }
+        }
+
+        async function carregarSubcategoriasFornecedorEvento() {
+            const categoriaId = document.getElementById('fornecedor-select-categoria').value;
+            const selectSubcategoria = document.getElementById('fornecedor-select-subcategoria');
+            
+            selectSubcategoria.innerHTML = '<option value="">Selecione...</option>';
+            
+            if (!categoriaId) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/subcategorias?categoria_id=${categoriaId}`, {
+                    credentials: 'include'
+                });
+                const result = await response.json();
+                
+                if (result.subcategorias && result.subcategorias.length > 0) {
+                    result.subcategorias.forEach(subcategoria => {
+                        const option = document.createElement('option');
+                        option.value = subcategoria.id;
+                        option.textContent = subcategoria.nome;
+                        selectSubcategoria.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar subcategorias:', error);
+            }
+        }
+
+        async function carregarFornecedoresDoEvento(eventoId) {
+            try {
+                const response = await fetch(`/api/eventos/${eventoId}/fornecedores`, {
+                    credentials: 'include'
+                });
+                const result = await response.json();
+                
+                const tbody = document.getElementById('tbody-fornecedores-evento');
+                
+                if (result.success && result.fornecedores && result.fornecedores.length > 0) {
+                    tbody.innerHTML = result.fornecedores.map(fornecedor => `
+                        <tr>
+                            <td style="padding: 10px;">${fornecedor.fornecedor_nome}</td>
+                            <td style="padding: 10px;">${fornecedor.categoria_nome || '-'}</td>
+                            <td style="padding: 10px;">${fornecedor.subcategoria_nome || '-'}</td>
+                            <td style="padding: 10px; text-align: right; font-weight: bold; color: #f39c12;">${formatarMoeda(fornecedor.valor)}</td>
+                            <td style="padding: 10px; color: #666;">${fornecedor.observacao || '-'}</td>
+                            <td style="padding: 10px; text-align: center;">
+                                <button onclick="removerFornecedorEvento(${fornecedor.id})" class="btn btn-sm btn-danger" title="Remover">🗑️</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    
+                    // Calcular total
+                    const total = result.fornecedores.reduce((sum, f) => sum + parseFloat(f.valor || 0), 0);
+                    document.getElementById('fornecedores-custo-total').textContent = formatarMoeda(total);
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; color: #999;">Nenhum fornecedor adicionado</td></tr>';
+                    document.getElementById('fornecedores-custo-total').textContent = 'R$ 0,00';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar fornecedores do evento:', error);
+                showToast('❌ Erro ao carregar fornecedores do evento', 'error');
+            }
+        }
+
+        async function adicionarFornecedorEvento(event) {
+            event.preventDefault();
+            
+            const eventoId = document.getElementById('equipe-evento-id').value;
+            const fornecedorId = document.getElementById('fornecedor-select-fornecedor').value;
+            const categoriaId = document.getElementById('fornecedor-select-categoria').value;
+            const subcategoriaId = document.getElementById('fornecedor-select-subcategoria').value;
+            const valor = parseFloat(document.getElementById('fornecedor-valor').value);
+            const observacao = document.getElementById('fornecedor-observacao').value;
+            
+            if (!fornecedorId || !valor) {
+                showToast('⚠️ Preencha os campos obrigatórios (Fornecedor e Valor)', 'warning');
+                return;
+            }
+            
+            try {
+                const dados = {
+                    fornecedor_id: parseInt(fornecedorId),
+                    valor: valor
+                };
+                
+                if (categoriaId) dados.categoria_id = parseInt(categoriaId);
+                if (subcategoriaId) dados.subcategoria_id = parseInt(subcategoriaId);
+                if (observacao) dados.observacao = observacao;
+                
+                const response = await fetch(`/api/eventos/${eventoId}/fornecedores`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dados)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast('✅ Fornecedor adicionado ao evento!', 'success');
+                    document.getElementById('form-adicionar-fornecedor-evento').reset();
+                    await carregarFornecedoresDoEvento(eventoId);
+                    await loadEventos(); // Atualizar tabela principal
+                } else {
+                    showToast(`❌ ${result.error || 'Erro ao adicionar fornecedor'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao adicionar fornecedor:', error);
+                showToast('❌ Erro ao adicionar fornecedor', 'error');
+            }
+        }
+
+        async function removerFornecedorEvento(fornecedorEventoId) {
+            if (!confirm('Deseja remover este fornecedor do evento?')) {
+                return;
+            }
+            
+            const eventoId = document.getElementById('equipe-evento-id').value;
+            
+            try {
+                const response = await fetch(`/api/eventos/fornecedores/${fornecedorEventoId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast('✅ Fornecedor removido do evento!', 'success');
+                    await carregarFornecedoresDoEvento(eventoId);
+                    await loadEventos(); // Atualizar tabela principal
+                } else {
+                    showToast(`❌ ${result.error || 'Erro ao remover fornecedor'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao remover fornecedor:', error);
+                showToast('❌ Erro ao remover fornecedor', 'error');
+            }
+        }
+
+        // ============================================================================
+        // FIM DAS FUNÇÕES DE FORNECEDORES
+        // ============================================================================
 
         function carregarListaAssinatura() {
             const eventoNome = document.getElementById('equipe-evento-nome').textContent;

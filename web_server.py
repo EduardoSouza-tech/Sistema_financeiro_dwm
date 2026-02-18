@@ -6453,6 +6453,215 @@ def remover_funcionario_evento(alocacao_id):
         return jsonify({'error': str(e)}), 500
 
 
+# ============================================================================
+# ROTAS DE FORNECEDORES DO EVENTO
+# ============================================================================
+
+@app.route('/api/eventos/<int:evento_id>/fornecedores', methods=['GET'])
+@require_permission('eventos_view')
+def listar_fornecedores_evento(evento_id):
+    """Listar fornecedores vinculados ao evento"""
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                ef.id,
+                ef.fornecedor_id,
+                f.nome as fornecedor_nome,
+                ef.categoria_id,
+                c.nome as categoria_nome,
+                ef.subcategoria_id,
+                sc.nome as subcategoria_nome,
+                ef.valor,
+                ef.observacao,
+                ef.created_at
+            FROM evento_fornecedores ef
+            JOIN fornecedores f ON ef.fornecedor_id = f.id
+            LEFT JOIN categorias c ON ef.categoria_id = c.id
+            LEFT JOIN subcategorias sc ON ef.subcategoria_id = sc.id
+            WHERE ef.evento_id = %s
+            ORDER BY ef.created_at DESC
+        """, (evento_id,))
+        
+        fornecedores = cursor.fetchall()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'fornecedores': fornecedores
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao listar fornecedores do evento: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/eventos/<int:evento_id>/fornecedores', methods=['POST'])
+@require_permission('eventos_edit')
+def adicionar_fornecedor_evento(evento_id):
+    """Adicionar fornecedor ao evento"""
+    try:
+        dados = request.json
+        fornecedor_id = dados.get('fornecedor_id')
+        categoria_id = dados.get('categoria_id')
+        subcategoria_id = dados.get('subcategoria_id')
+        valor = dados.get('valor', 0)
+        observacao = dados.get('observacao')
+        
+        if not fornecedor_id:
+            return jsonify({'error': 'fornecedor_id é obrigatório'}), 400
+        
+        usuario = get_usuario_logado()
+        usuario_id = usuario.get('id') if usuario else None
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se fornecedor já está vinculado ao evento
+        cursor.execute("""
+            SELECT id FROM evento_fornecedores
+            WHERE evento_id = %s AND fornecedor_id = %s
+        """, (evento_id, fornecedor_id))
+        
+        if cursor.fetchone():
+            cursor.close()
+            return jsonify({'error': 'Fornecedor já está vinculado a este evento'}), 400
+        
+        # Inserir fornecedor no evento
+        cursor.execute("""
+            INSERT INTO evento_fornecedores 
+            (evento_id, fornecedor_id, categoria_id, subcategoria_id, valor, observacao, created_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (evento_id, fornecedor_id, categoria_id, subcategoria_id, valor, observacao, usuario_id))
+        
+        fornecedor_evento_id = cursor.fetchone()['id']
+        
+        # Recalcular custo total do evento (equipe + fornecedores)
+        cursor.execute("""
+            SELECT 
+                COALESCE(SUM(ef.valor), 0) as custo_equipe,
+                COALESCE((SELECT SUM(valor) FROM evento_fornecedores WHERE evento_id = %s), 0) as custo_fornecedores
+            FROM evento_funcionarios ef
+            WHERE ef.evento_id = %s
+        """, (evento_id, evento_id))
+        
+        custos = cursor.fetchone()
+        custo_equipe = float(custos['custo_equipe'])
+        custo_fornecedores = float(custos['custo_fornecedores'])
+        custo_total = custo_equipe + custo_fornecedores
+        
+        # Buscar valor_liquido_nf para recalcular margem
+        cursor.execute("""
+            SELECT valor_liquido_nf
+            FROM eventos
+            WHERE id = %s
+        """, (evento_id,))
+        
+        evento_row = cursor.fetchone()
+        valor_liquido = evento_row['valor_liquido_nf'] if evento_row and evento_row['valor_liquido_nf'] else 0
+        
+        # Calcular margem: Valor Líquido - Custo Total (Equipe + Fornecedores)
+        margem = float(valor_liquido) - custo_total
+        
+        # Atualizar custo do evento E margem
+        cursor.execute("""
+            UPDATE eventos
+            SET custo_evento = %s, margem = %s
+            WHERE id = %s
+        """, (custo_total, margem, evento_id))
+        
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Fornecedor adicionado ao evento',
+            'id': fornecedor_evento_id,
+            'custo_total': custo_total
+        }), 201
+    
+    except Exception as e:
+        logger.error(f"Erro ao adicionar fornecedor: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/eventos/fornecedores/<int:fornecedor_evento_id>', methods=['DELETE'])
+@require_permission('eventos_delete')
+def remover_fornecedor_evento(fornecedor_evento_id):
+    """Remover fornecedor do evento"""
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Buscar evento_id antes de deletar
+        cursor.execute("SELECT evento_id FROM evento_fornecedores WHERE id = %s", (fornecedor_evento_id,))
+        row = cursor.fetchone()
+        if not row:
+            cursor.close()
+            return jsonify({'error': 'Vínculo não encontrado'}), 404
+        
+        evento_id = row['evento_id']
+        
+        # Deletar vínculo
+        cursor.execute("DELETE FROM evento_fornecedores WHERE id = %s", (fornecedor_evento_id,))
+        
+        # Recalcular custo total do evento (equipe + fornecedores)
+        cursor.execute("""
+            SELECT 
+                COALESCE(SUM(ef.valor), 0) as custo_equipe,
+                COALESCE((SELECT SUM(valor) FROM evento_fornecedores WHERE evento_id = %s), 0) as custo_fornecedores
+            FROM evento_funcionarios ef
+            WHERE ef.evento_id = %s
+        """, (evento_id, evento_id))
+        
+        custos = cursor.fetchone()
+        custo_equipe = float(custos['custo_equipe'])
+        custo_fornecedores = float(custos['custo_fornecedores'])
+        custo_total = custo_equipe + custo_fornecedores
+        
+        # Buscar valor_liquido_nf para recalcular margem
+        cursor.execute("""
+            SELECT valor_liquido_nf
+            FROM eventos
+            WHERE id = %s
+        """, (evento_id,))
+        
+        evento_row = cursor.fetchone()
+        valor_liquido = evento_row['valor_liquido_nf'] if evento_row and evento_row['valor_liquido_nf'] else 0
+        
+        # Calcular margem: Valor Líquido - Custo Total (Equipe + Fornecedores)
+        margem = float(valor_liquido) - custo_total
+        
+        # Atualizar custo do evento E margem
+        cursor.execute("""
+            UPDATE eventos
+            SET custo_evento = %s, margem = %s
+            WHERE id = %s
+        """, (custo_total, margem, evento_id))
+        
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Fornecedor removido do evento',
+            'custo_total': custo_total
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao remover fornecedor: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
 # === ROTAS DE RELATÓRIOS ===
 # Todos os relatórios movidos para app/routes/relatorios.py
 # - dashboard, dashboard-completo, fluxo-projetado
