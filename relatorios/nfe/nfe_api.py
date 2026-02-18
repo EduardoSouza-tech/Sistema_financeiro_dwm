@@ -281,8 +281,7 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
 # BUSCA E PROCESSAMENTO DE DOCUMENTOS
 # ============================================================================
 
-def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = None,
-                                       limite_docs: int = 100) -> Dict[str, any]:
+def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = None) -> Dict[str, any]:
     """
     Busca novos documentos na SEFAZ e processa.
     
@@ -298,7 +297,6 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
     Args:
         certificado_id: ID do certificado
         usuario_id: ID do usuário (para auditoria)
-        limite_docs: Máximo de documentos a processar
         
     Returns:
         Dict com estatísticas da busca
@@ -357,8 +355,8 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             
-            # Processa cada documento
-            for doc in documentos[:limite_docs]:
+            # Processa todos os documentos retornados pela SEFAZ (sem limite artificial)
+            for doc in documentos:
                 nsu = doc['nsu']
                 schema = doc['schema']
                 xml_content = doc.get('xml')

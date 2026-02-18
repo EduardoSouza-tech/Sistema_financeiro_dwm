@@ -14473,11 +14473,10 @@ def buscar_documentos():
         # Importa módulo de API
         from relatorios.nfe import nfe_api
         
-        # Executa busca
+        # Executa busca (sem limite: SEFAZ define quantos documentos retornar)
         resultado = nfe_api.buscar_e_processar_novos_documentos(
             certificado_id=certificado_id,
-            usuario_id=usuario['id'],
-            limite_docs=data.get('limite', 100)
+            usuario_id=usuario['id']
         )
         
         return jsonify(resultado)

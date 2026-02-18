@@ -4231,7 +4231,7 @@
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-secondary" onclick="fecharModalCertificadoEmpresa()">Cancelar</button>
-                        <button class="btn btn-primary" onclick="salvarCertificadoEmpresa()">💾 Salvar Certificado</button>
+                        <button id="btn-salvar-cert-empresa" class="btn btn-primary" onclick="salvarCertificadoEmpresa()">💾 Salvar Certificado</button>
                     </div>
                 </div>
             </div>
@@ -12560,7 +12560,6 @@
         // Buscar Documentos
         function executarBuscaAutomaticaFiscal() {
             const certificadoId = document.getElementById('fiscal-buscaAutoCertificado').value;
-            const limite = parseInt(document.getElementById('fiscal-buscaAutoLimite').value);
 
             if (!certificadoId) {
                 showToastFiscal('Selecione um certificado', 'error');
@@ -12573,8 +12572,7 @@
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    certificado_id: parseInt(certificadoId),
-                    limite: limite
+                    certificado_id: parseInt(certificadoId)
                 })
             })
             .then(r => r.json())
@@ -12965,9 +12963,16 @@
             // Mostrar indicador de carregamento
             const inputNome = document.getElementById('cert-emp-nome');
             const inputCuf = document.getElementById('cert-emp-cuf');
+            const btnSalvar = document.getElementById('btn-salvar-cert-empresa');
             
             inputNome.value = '⏳ Validando certificado...';
             inputNome.disabled = true;
+            
+            // ✅ Desabilitar botão de salvar durante validação
+            if (btnSalvar) {
+                btnSalvar.disabled = true;
+                btnSalvar.style.opacity = '0.5';
+            }
             
             // Ler arquivo
             const reader = new FileReader();
@@ -13007,6 +13012,12 @@
                         inputNome.style.borderColor = '#4caf50';
                         inputCuf.disabled = true;
                         
+                        // ✅ Reabilitar botão de salvar após validação bem-sucedida
+                        if (btnSalvar) {
+                            btnSalvar.disabled = false;
+                            btnSalvar.style.opacity = '1';
+                        }
+                        
                         // Mostrar informações do certificado
                         const validade = cert.validade_fim ? new Date(cert.validade_fim).toLocaleDateString('pt-BR') : '-';
                         console.log('✅ Certificado validado:', {
@@ -13020,12 +13031,26 @@
                     } else {
                         inputNome.value = '';
                         inputNome.disabled = false;
+                        
+                        // ✅ Reabilitar botão de salvar após erro de validação
+                        if (btnSalvar) {
+                            btnSalvar.disabled = false;
+                            btnSalvar.style.opacity = '1';
+                        }
+                        
                         alert('❌ ' + (response.erro || 'Erro ao validar certificado'));
                     }
                 })
                 .catch(err => {
                     inputNome.value = '';
                     inputNome.disabled = false;
+                    
+                    // ✅ Reabilitar botão de salvar após erro de rede
+                    if (btnSalvar) {
+                        btnSalvar.disabled = false;
+                        btnSalvar.style.opacity = '1';
+                    }
+                    
                     alert('❌ Erro ao validar certificado');
                     console.error(err);
                 });
@@ -13048,6 +13073,12 @@
             // Validações
             if (!nome) {
                 alert('❌ Digite um nome para o certificado');
+                return;
+            }
+
+            // ✅ PROTEÇÃO: Impedir salvar enquanto validação está em andamento
+            if (nome.includes('⏳') || nome.includes('Validando')) {
+                alert('⚠️ Aguarde a validação do certificado concluir antes de salvar.');
                 return;
             }
 
