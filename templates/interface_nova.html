@@ -1402,6 +1402,7 @@
             <div class="submenu" id="submenu-contabilidade" style="display: none;">
                 <button class="submenu-button" onclick="showSection('plano-contas')" data-permission="lancamentos_view">📊 Plano de Contas</button>
                 <button class="submenu-button" onclick="showSection('integra-contador')" data-permission="lancamentos_view">🔗 Integra Contador</button>
+                <button class="submenu-button" onclick="gerarDRE()" data-permission="lancamentos_view">📈 DRE (Demonstração do Resultado)</button>
             </div>
             
             <!-- Menu de Relatórios com Submenu -->
@@ -3650,7 +3651,6 @@
                     <!-- Botões de Exportação -->
                     <div style="display: flex; gap: 10px;">
                         <button class="btn btn-success" onclick="openModalTransferencia()" style="padding: 8px 16px; font-size: 13px; background: #3498db;">🔄 Transferência entre Contas</button>
-                        <button class="btn btn-primary" onclick="gerarDRE()" style="padding: 8px 16px; font-size: 13px; background: #3498db;">📈 GERAR DRE</button>
                         <button class="btn btn-primary" onclick="exportarFluxoCaixaPDF()" style="padding: 8px 16px; font-size: 13px; background: #e74c3c;">📝 PDF</button>
                         <button class="btn btn-primary" onclick="exportarFluxoCaixaExcel()" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📊 Excel</button>
                     </div>

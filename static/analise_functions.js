@@ -42,10 +42,13 @@ async function carregarResumoParceiros() {
         content.innerHTML = '<div class="loading">Carregando dados...</div>';
         
         // Buscar receitas e despesas
-        const [receitas, despesas] = await Promise.all([
+        const [resReceitas, resDespesas] = await Promise.all([
             fetch('/api/lancamentos?tipo=RECEITA').then(r => r.json()),
             fetch('/api/lancamentos?tipo=DESPESA').then(r => r.json())
         ]);
+        
+        const receitas = resReceitas.data || [];
+        const despesas = resDespesas.data || [];
         
         console.log('📊 Receitas totais:', receitas.length);
         console.log('📊 Despesas totais:', despesas.length);
@@ -244,10 +247,13 @@ async function carregarAnaliseCategorias() {
         content.innerHTML = '<div class="loading">Carregando dados...</div>';
         
         // Buscar receitas e despesas
-        const [receitas, despesas] = await Promise.all([
+        const [resReceitas, resDespesas] = await Promise.all([
             fetch('/api/lancamentos?tipo=RECEITA').then(r => r.json()),
             fetch('/api/lancamentos?tipo=DESPESA').then(r => r.json())
         ]);
+        
+        const receitas = resReceitas.data || [];
+        const despesas = resDespesas.data || [];
         
         console.log('📊 Receitas totais:', receitas.length);
         console.log('📊 Despesas totais:', despesas.length);
