@@ -228,7 +228,8 @@ def criar_conta(empresa_id, dados):
             WHERE empresa_id = %s AND versao_id = %s AND parent_id IS NOT DISTINCT FROM %s
               AND deleted_at IS NULL
         """, (empresa_id, dados['versao_id'], parent_id))
-        ordem = cursor.fetchone()[0]
+        resultado_ordem = cursor.fetchone()
+        ordem = resultado_ordem['coalesce'] if isinstance(resultado_ordem, dict) else resultado_ordem[0]
         
         cursor.execute("""
             INSERT INTO plano_contas 
@@ -256,7 +257,8 @@ def criar_conta(empresa_id, dados):
             dados.get('codigo_referencial'),
             dados.get('natureza_sped', '01')
         ))
-        conta_id = cursor.fetchone()[0]
+        resultado_conta = cursor.fetchone()
+        conta_id = resultado_conta['id'] if isinstance(resultado_conta, dict) else resultado_conta[0]
         cursor.close()
         return conta_id
 
@@ -507,12 +509,22 @@ def obter_versao_ativa(empresa_id):
         row = cursor.fetchone()
         cursor.close()
         if row:
-            return {
-                'id': row[0], 'nome_versao': row[1], 'exercicio_fiscal': row[2],
-                'data_inicio': row[3].isoformat() if row[3] else None,
-                'data_fim': row[4].isoformat() if row[4] else None,
-                'observacoes': row[5]
-            }
+            if isinstance(row, dict):
+                return {
+                    'id': row['id'],
+                    'nome_versao': row['nome_versao'],
+                    'exercicio_fiscal': row['exercicio_fiscal'],
+                    'data_inicio': row['data_inicio'].isoformat() if row.get('data_inicio') else None,
+                    'data_fim': row['data_fim'].isoformat() if row.get('data_fim') else None,
+                    'observacoes': row.get('observacoes')
+                }
+            else:
+                return {
+                    'id': row[0], 'nome_versao': row[1], 'exercicio_fiscal': row[2],
+                    'data_inicio': row[3].isoformat() if row[3] else None,
+                    'data_fim': row[4].isoformat() if row[4] else None,
+                    'observacoes': row[5]
+                }
         return None
 
 
@@ -535,6 +547,34 @@ def importar_plano_padrao(empresa_id, ano_fiscal=None):
         ano_fiscal = datetime.now().year
     
     try:
+        # Verificar se já existe versão com este nome
+        versao_existente = None
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, nome_versao, is_ativa
+                FROM plano_contas_versao
+                WHERE empresa_id = %s AND nome_versao = %s
+                LIMIT 1
+            """, (empresa_id, f'Plano Padrão {ano_fiscal}'))
+            row = cursor.fetchone()
+            if row:
+                versao_existente = {
+                    'id': row['id'] if isinstance(row, dict) else row[0],
+                    'nome_versao': row['nome_versao'] if isinstance(row, dict) else row[1],
+                    'is_ativa': row['is_ativa'] if isinstance(row, dict) else row[2]
+                }
+            cursor.close()
+        
+        if versao_existente:
+            logger.info(f"Versão '{versao_existente['nome_versao']}' já existe para empresa {empresa_id}. Reutilizando.")
+            return {
+                'success': True,
+                'versao_id': versao_existente['id'],
+                'contas_importadas': 0,
+                'message': f"Versão '{versao_existente['nome_versao']}' já existe. Nenhuma ação necessária."
+            }
+        
         # Criar versão para o plano padrão
         versao_dados = {
             'nome_versao': f'Plano Padrão {ano_fiscal}',
@@ -588,7 +628,8 @@ def importar_plano_padrao(empresa_id, ano_fiscal=None):
                         WHERE empresa_id = %s AND versao_id = %s 
                           AND parent_id IS NOT DISTINCT FROM %s AND deleted_at IS NULL
                     """, (empresa_id, versao_id, parent_id))
-                    ordem = cursor.fetchone()[0]
+                    resultado_ordem = cursor.fetchone()
+                    ordem = resultado_ordem['coalesce'] if isinstance(resultado_ordem, dict) else resultado_ordem[0]
                     
                     # Inserir conta
                     cursor.execute("""
@@ -614,7 +655,8 @@ def importar_plano_padrao(empresa_id, ano_fiscal=None):
                         tipo_conta == 'analitica'  # permite_lancamento apenas para analíticas
                     ))
                     
-                    conta_id = cursor.fetchone()[0]
+                    resultado_conta = cursor.fetchone()
+                    conta_id = resultado_conta['id'] if isinstance(resultado_conta, dict) else resultado_conta[0]
                     mapa_codigos[conta['codigo']] = conta_id
                     contas_criadas += 1
                     
@@ -628,8 +670,9 @@ def importar_plano_padrao(empresa_id, ano_fiscal=None):
         logger.info(f"Plano padrão importado: {contas_criadas} contas criadas, {len(erros)} erros")
         
         return {
+            'success': True,
             'versao_id': versao_id,
-            'contas_criadas': contas_criadas,
+            'contas_importadas': contas_criadas,
             'erros': erros
         }
         

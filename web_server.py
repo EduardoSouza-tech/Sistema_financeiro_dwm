@@ -13009,11 +13009,17 @@ def importar_plano_padrao_route():
         from contabilidade_functions import importar_plano_padrao
         resultado = importar_plano_padrao(empresa_id, ano_fiscal)
         
+        # Se a função já retorna success, apenas retornar o resultado
+        if resultado.get('success'):
+            return jsonify(resultado)
+        
+        # Formato antigo (retrocompatibilidade)
         return jsonify({
             'success': True,
-            'versao_id': resultado['versao_id'],
-            'contas_criadas': resultado['contas_criadas'],
-            'erros': resultado['erros']
+            'versao_id': resultado.get('versao_id'),
+            'contas_importadas': resultado.get('contas_importadas', resultado.get('contas_criadas', 0)),
+            'erros': resultado.get('erros', []),
+            'message': resultado.get('message')
         })
     except Exception as e:
         logger.error(f"Erro ao importar plano padrão: {e}")
