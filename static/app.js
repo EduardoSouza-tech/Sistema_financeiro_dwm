@@ -8341,32 +8341,45 @@ window.loadPlanoContas = async function() {
 // Carregar dropdown de versões
 async function carregarVersoesDropdown() {
     try {
+        console.log('🔄 Carregando versões do dropdown...');
         const response = await fetch('/api/contabilidade/versoes', { credentials: 'include' });
         const data = await response.json();
+        console.log('📦 Versões recebidas:', data);
         
         if (data.success) {
             const select = document.getElementById('pcVersaoFiltro');
             const valorAtual = select.value;
+            console.log('🔍 Valor atual do select:', valorAtual);
             select.innerHTML = '<option value="">-- Selecione --</option>';
             
             let versaoAtiva = null;
             data.versoes.forEach(v => {
+                console.log('➕ Adicionando versão:', v.id, '-', v.nome_versao);
                 const opt = document.createElement('option');
                 opt.value = v.id;
                 opt.textContent = `${v.nome_versao} (${v.exercicio_fiscal})${v.is_ativa ? ' ★' : ''}`;
                 select.appendChild(opt);
                 if (v.is_ativa) versaoAtiva = v.id;
             });
+            console.log('⭐ Versão ativa encontrada:', versaoAtiva);
+            console.log('⭐ Versão ativa encontrada:', versaoAtiva);
             
             // Restaurar seleção ou selecionar ativa
             if (valorAtual) {
                 select.value = valorAtual;
+                console.log('✅ Restaurado valor anterior:', valorAtual);
             } else if (versaoAtiva) {
                 select.value = versaoAtiva;
+                console.log('✅ Selecionada versão ativa:', versaoAtiva);
             }
             
+            console.log('🎯 Valor final do select:', select.value);
+            
             if (select.value) {
+                console.log('🚀 Chamando carregarPlanoContas()...');
                 carregarPlanoContas();
+            } else {
+                console.warn('⚠️ Nenhuma versão selecionada automaticamente');
             }
         }
     } catch (error) {
@@ -8377,9 +8390,12 @@ async function carregarVersoesDropdown() {
 // Carregar contas do plano
 window.carregarPlanoContas = async function() {
     const versaoId = document.getElementById('pcVersaoFiltro').value;
-    if (!versaoId) {
+    console.log('🔍 carregarPlanoContas - versaoId:', versaoId, 'tipo:', typeof versaoId);
+    
+    if (!versaoId || versaoId === '' || versaoId === 'id') {
+        console.warn('⚠️ versaoId inválido:', versaoId);
         document.getElementById('pcTabelaBody').innerHTML = 
-            '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">Selecione uma versão</td></tr>';
+            '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">Selecione uma versão válida</td></tr>';
         return;
     }
     
@@ -8388,6 +8404,7 @@ window.carregarPlanoContas = async function() {
     const busca = document.getElementById('pcBusca').value;
     
     let url = `/api/contabilidade/plano-contas?versao_id=${versaoId}`;
+    console.log('🌐 Fazendo requisição para URL:', url);
     if (classificacao) url += `&classificacao=${classificacao}`;
     if (tipo) url += `&tipo_conta=${tipo}`;
     if (busca) url += `&busca=${encodeURIComponent(busca)}`;
