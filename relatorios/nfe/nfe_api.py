@@ -147,14 +147,20 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
         
         # Criptografa senha
         if not chave_cripto:
-            chave_cripto = os.environ.get('FERNET_KEY', '').encode('utf-8')
-            if not chave_cripto:
+            chave_cripto_str = os.environ.get('FERNET_KEY', '')
+            logger.info(f"[CERTIFICADO] FERNET_KEY para salvar: {'✅ Presente (' + str(len(chave_cripto_str)) + ' chars)' if chave_cripto_str else '❌ Ausente'}")
+            
+            if not chave_cripto_str:
                 return {
                     'sucesso': False,
-                    'erro': 'Chave de criptografia não configurada (FERNET_KEY)'
+                    'erro': 'Chave de criptografia não configurada (FERNET_KEY). Configure a variável de ambiente FERNET_KEY.'
                 }
+            
+            chave_cripto = chave_cripto_str.encode('utf-8')
         
+        logger.info(f"[CERTIFICADO] Criptografando senha de {len(senha)} caracteres...")
         senha_cripto = criptografar_senha(senha, chave_cripto)
+        logger.info(f"[CERTIFICADO] ✅ Senha criptografada: {len(senha_cripto)} chars")
         
         # Salva no banco
         with get_db_connection(empresa_id=empresa_id) as conn:
@@ -276,22 +282,34 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
             
             # Descriptografa senha
             if not chave_cripto:
-                chave_cripto = os.environ.get('FERNET_KEY', '').encode('utf-8')
-                if not chave_cripto:
-                    logger.error("[CERT] FERNET_KEY não configurada no ambiente")
+                chave_cripto_str = os.environ.get('FERNET_KEY', '')
+                logger.info(f"[CERT] FERNET_KEY lida do ambiente: {'SIM (' + str(len(chave_cripto_str)) + ' chars)' if chave_cripto_str else 'NÃO (vazia)'}")
+                
+                if not chave_cripto_str:
+                    logger.error("[CERT] ❌ FERNET_KEY não configurada no ambiente")
+                    logger.error("[CERT] Configure a variável FERNET_KEY no Railway ou .env")
                     return None
+                
+                chave_cripto = chave_cripto_str.encode('utf-8')
             
-            logger.info(f"[CERT] Descriptografando senha...")
+            logger.info(f"[CERT] Descriptografando senha (tamanho senha_cripto: {len(senha_cripto)} chars)...")
             try:
                 senha = descriptografar_senha(senha_cripto, chave_cripto)
+                logger.info(f"[CERT] ✅ Senha descriptografada com sucesso")
             except ValueError as ve:
                 # Senha em formato inválido (texto plano ou corrompida)
-                logger.error(f"[CERT] Senha em formato inválido: {str(ve)}")
+                logger.error(f"[CERT] ❌ Senha em formato inválido: {str(ve)}")
+                logger.error(f"[CERT] Tamanho da senha_cripto recebida: {len(senha_cripto)} chars")
+                logger.error("[CERT] Possíveis causas:")
+                logger.error("[CERT]   1. Certificado salvo ANTES da criptografia estar implementada")
+                logger.error("[CERT]   2. FERNET_KEY diferente entre salvar e recuperar")
+                logger.error("[CERT]   3. Senha corrompida no banco de dados")
                 logger.error("[CERT] ⚠️ AÇÃO NECESSÁRIA: Recadastre o certificado com a senha correta")
                 logger.error("[CERT] 💡 Vá em: Relatórios Fiscais > Aba '🔐 Certificados Digitais' > Desativar certificado antigo > Cadastrar novo")
                 return None
             except Exception as e:
-                logger.error(f"[CERT] Erro ao descriptografar senha: {str(e)}")
+                logger.error(f"[CERT] ❌ Erro ao descriptografar senha: {str(e)}")
+                logger.error(f"[CERT] Tipo do erro: {type(e).__name__}")
                 return None
             
             # Cria certificado
