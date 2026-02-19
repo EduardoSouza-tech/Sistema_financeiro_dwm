@@ -10366,26 +10366,46 @@ def atualizar_empresa_api(empresa_id):
     print(f"\n✏️ [atualizar_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
     try:
         usuario = get_usuario_logado()
-        
-        # Admin pode editar qualquer empresa
-        # Usuário comum não pode editar
-        if usuario['tipo'] != 'admin':
-            return jsonify({'error': 'Acesso negado'}), 403
-        
         dados = request.json
         
         if not dados:
             return jsonify({'error': 'Dados não fornecidos'}), 400
+        
+        # 🔒 POLÍTICA DE ACESSO:
+        # - Admin pode editar QUALQUER campo de QUALQUER empresa
+        # - Usuário comum pode editar APENAS o campo 'estado' da PRÓPRIA empresa
+        
+        if usuario['tipo'] != 'admin':
+            # Verifica se tem acesso à empresa
+            from auth_functions import verificar_acesso_empresa
+            tem_acesso = verificar_acesso_empresa(usuario['id'], empresa_id, auth_db)
+            
+            if not tem_acesso:
+                return jsonify({'error': 'Acesso negado'}), 403
+            
+            # Permite editar APENAS o campo 'estado' (UF)
+            campos_permitidos = ['estado']
+            campos_enviados = set(dados.keys())
+            campos_proibidos = campos_enviados - set(campos_permitidos)
+            
+            if campos_proibidos:
+                return jsonify({
+                    'error': f'Usuário comum só pode editar os campos: {", ".join(campos_permitidos)}. ' +
+                             f'Campos não permitidos: {", ".join(campos_proibidos)}'
+                }), 403
+            
+            print(f"✅ [atualizar_empresa_api] Usuário comum editando campo permitido: {list(dados.keys())}")
         
         resultado = database.atualizar_empresa(empresa_id, dados)
         
         if resultado['success']:
             # Registrar log
             try:
+                campos_alterados = ', '.join(dados.keys())
                 auth_db.registrar_log_acesso(
                     usuario_id=usuario['id'],
                     acao='atualizar_empresa',
-                    descricao=f"Empresa {empresa_id} atualizada",
+                    descricao=f"Empresa {empresa_id} - campos atualizados: {campos_alterados}",
                     sucesso=True
                 )
             except:
@@ -14907,6 +14927,11 @@ def extrair_dados_certificado():
             
             empresa_dict = dict(zip(['razao_social', 'cnpj', 'estado'], empresa)) if empresa else {}
             
+            # 🔍 DEBUG: Log dos dados da empresa
+            logger.info(f"[CERTIFICADO DEBUG] Empresa ID: {empresa_id}")
+            logger.info(f"[CERTIFICADO DEBUG] Dados empresa: {empresa_dict}")
+            logger.info(f"[CERTIFICADO DEBUG] Estado bruto: '{empresa_dict.get('estado')}'")
+            
             # Extrai CNPJ do certificado (subject DN geralmente contém)
             cnpj_cert = cert.cert_data.get('cnpj', '')
             
@@ -14924,8 +14949,12 @@ def extrair_dados_certificado():
             }
             
             # Busca UF da empresa e converte para código IBGE
-            estado_empresa = empresa_dict.get('estado', '').upper()
+            estado_empresa = (empresa_dict.get('estado') or '').strip().upper()
             cuf_empresa = uf_para_codigo.get(estado_empresa, '31')  # Default MG se não encontrar
+            
+            # 🔍 DEBUG: Log do mapeamento
+            logger.info(f"[CERTIFICADO DEBUG] Estado normalizado: '{estado_empresa}'")
+            logger.info(f"[CERTIFICADO DEBUG] Código UF mapeado: {cuf_empresa}")
             
             resultado = {
                 'sucesso': True,

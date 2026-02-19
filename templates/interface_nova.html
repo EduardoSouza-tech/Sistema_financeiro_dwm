@@ -4175,6 +4175,11 @@
                                     <span id="empresa-cnpj" style="font-size: 16px;">-</span>
                                 </div>
                                 <div>
+                                    <strong style="opacity: 0.8;">UF/Estado:</strong><br>
+                                    <span id="empresa-estado" style="font-size: 16px; text-transform: uppercase;">-</span>
+                                    <button onclick="editarEstadoEmpresa()" style="margin-left: 8px; padding: 2px 8px; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.2); color: white; border-radius: 4px; cursor: pointer; font-size: 11px;" title="Editar UF">✏️ Editar</button>
+                                </div>
+                                <div>
                                     <strong style="opacity: 0.8;">Email:</strong><br>
                                     <span id="empresa-email" style="font-size: 16px;">-</span>
                                 </div>
@@ -13256,6 +13261,20 @@
                         document.getElementById('empresa-email').textContent = emp.email || '-';
                         document.getElementById('empresa-telefone').textContent = emp.telefone || '-';
                         document.getElementById('empresa-plano').textContent = emp.plano || '-';
+                        
+                        // 🆕 Mostra UF/Estado
+                        const estadoSpan = document.getElementById('empresa-estado');
+                        if (emp.estado) {
+                            estadoSpan.textContent = emp.estado.toUpperCase();
+                            estadoSpan.style.color = '#fff';
+                        } else {
+                            estadoSpan.textContent = 'NÃO CADASTRADO';
+                            estadoSpan.style.color = '#ffeb3b';
+                            estadoSpan.title = 'Clique em Editar para cadastrar o UF';
+                        }
+                        
+                        // Salva dados globalmente para uso posterior
+                        window.currentEmpresaData = emp;
                     }
                 })
                 .catch(err => console.error('Erro ao carregar empresa:', err));
@@ -13530,6 +13549,79 @@
 
         function fecharModalCertificadoEmpresa() {
             document.getElementById('modal-certificado-empresa').classList.remove('show');
+        }
+
+        // ============================================
+        // EDIÇÃO DO UF/ESTADO DA EMPRESA
+        // ============================================
+        
+        function editarEstadoEmpresa() {
+            const empresaId = window.currentEmpresaId || sessionStorage.getItem('empresa_id');
+            const empresaData = window.currentEmpresaData || {};
+            const ufAtual = empresaData.estado || '';
+            
+            const ufsValidos = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
+                               'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
+                               'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
+            
+            const novoUF = prompt(
+                `🌎 EDITAR ESTADO/UF DA EMPRESA\n\n` +
+                `UF atual: ${ufAtual || 'NÃO CADASTRADO'}\n\n` +
+                `Digite o novo UF (sigla com 2 letras):\n` +
+                `Exemplos: MG, SP, RJ, RS, PR, etc.\n\n` +
+                `Estados válidos:\n${ufsValidos.join(', ')}`,
+                ufAtual
+            );
+            
+            if (novoUF === null) {
+                // Usuário cancelou
+                return;
+            }
+            
+            const novoUFUpper = novoUF.trim().toUpperCase();
+            
+            if (novoUFUpper.length !== 2) {
+                alert('❌ UF deve ter exatamente 2 letras! Exemplo: MG');
+                return;
+            }
+            
+            if (!ufsValidos.includes(novoUFUpper)) {
+                alert(`❌ "${novoUFUpper}" não é um UF válido!\n\nUse uma das siglas:\n${ufsValidos.join(', ')}`);
+                return;
+            }
+            
+            if (novoUFUpper === ufAtual) {
+                alert('ℹ️ O UF informado já é o atual.');
+                return;
+            }
+            
+            // Confirma alteração
+            if (!confirm(`Confirma alteração do UF de "${ufAtual}" para "${novoUFUpper}"?`)) {
+                return;
+            }
+            
+            // Envia para o backend
+            fetch(`/api/empresas/${empresaId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    estado: novoUFUpper
+                })
+            })
+            .then(r => r.json())
+            .then(response => {
+                if (response.success) {
+                    alert(`✅ UF atualizado com sucesso para ${novoUFUpper}!\n\n💡 Agora você pode recadastrar o certificado digital e ele usará o UF correto automaticamente.`);
+                    // Recarrega dados da empresa
+                    carregarDadosEmpresa();
+                } else {
+                    alert(`❌ Erro ao atualizar UF: ${response.error || 'Erro desconhecido'}`);
+                }
+            })
+            .catch(err => {
+                console.error('Erro ao atualizar UF:', err);
+                alert('❌ Erro ao comunicar com servidor');
+            });
         }
 
         function salvarCertificadoEmpresa() {
