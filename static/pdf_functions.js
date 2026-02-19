@@ -19,7 +19,8 @@ async function exportarContasPagarPDF() {
         
         // Buscar lançamentos
         const response = await fetch('/api/lancamentos?tipo=despesa');
-        const todosLancamentos = await response.json();
+        const resultado = await response.json();
+        const todosLancamentos = resultado.data || [];
         
         console.log('Total de lançamentos recebidos:', todosLancamentos.length);
         
@@ -346,7 +347,8 @@ async function exportarContasReceberPDF() {
         
         // Buscar lançamentos
         const response = await fetch('/api/lancamentos?tipo=receita');
-        const todosLancamentos = await response.json();
+        const resultado = await response.json();
+        const todosLancamentos = resultado.data || [];
         
         console.log('Total de lançamentos recebidos:', todosLancamentos.length);
         
