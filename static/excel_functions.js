@@ -9,6 +9,11 @@ async function exportarContasPagarExcel() {
     try {
         console.log('=== INÍCIO EXPORTAÇÃO CONTAS A PAGAR EXCEL ===');
         
+        // Mostrar loading
+        if (typeof showToast === 'function') {
+            showToast('⏳ Gerando arquivo Excel...', 'info');
+        }
+        
         // Obter filtros atuais
         const filtros = {
             status: document.getElementById('filter-status-pagar')?.value || '',
@@ -189,6 +194,11 @@ async function exportarContasReceberExcel() {
     try {
         console.log('=== INÍCIO EXPORTAÇÃO CONTAS A RECEBER EXCEL ===');
         
+        // Mostrar loading
+        if (typeof showToast === 'function') {
+            showToast('⏳ Gerando arquivo Excel...', 'info');
+        }
+        
         // Obter filtros atuais
         const filtros = {
             status: document.getElementById('filter-status-receber')?.value || '',
@@ -358,9 +368,18 @@ async function exportarContasReceberExcel() {
         
         console.log('Excel exportado com sucesso:', nomeArquivo);
         
+        // Mostrar sucesso
+        if (typeof showToast === 'function') {
+            showToast(`✅ Arquivo Excel gerado: ${nomeArquivo}`, 'success');
+        }
+        
     } catch (erro) {
         console.error('Erro ao gerar Excel:', erro);
-        alert('Erro ao gerar arquivo Excel: ' + erro.message);
+        if (typeof showToast === 'function') {
+            showToast('❌ Erro ao gerar arquivo Excel: ' + erro.message, 'error');
+        } else {
+            alert('Erro ao gerar arquivo Excel: ' + erro.message);
+        }
     }
 }
 // ========== EXPORTAÇÃO DE CLIENTES EXCEL ==========
@@ -392,3 +411,16 @@ async function exportarFornecedoresExcel() {
         showToast('Erro ao gerar Excel de fornecedores: ' + error.message, 'error');
     }
 }
+
+// ========== EXPOR FUNÇÕES GLOBALMENTE ==========
+window.exportarContasPagarExcel = exportarContasPagarExcel;
+window.exportarContasReceberExcel = exportarContasReceberExcel;
+window.exportarClientesExcel = exportarClientesExcel;
+window.exportarFornecedoresExcel = exportarFornecedoresExcel;
+
+console.log('✅ Funções Excel expostas globalmente:', {
+    exportarContasPagarExcel: typeof window.exportarContasPagarExcel,
+    exportarContasReceberExcel: typeof window.exportarContasReceberExcel,
+    exportarClientesExcel: typeof window.exportarClientesExcel,
+    exportarFornecedoresExcel: typeof window.exportarFornecedoresExcel
+});
