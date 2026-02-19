@@ -6136,52 +6136,290 @@ window.exportarFluxoCaixaPDF = function() {
     const dados = window.fluxoCaixaDados || {};
     const transacoes = window.fluxoCaixaTransacoes;
     
-    // Preparar conteúdo do PDF
-    let conteudo = `
-FLUXO DE CAIXA - RELATÓRIO DETALHADO
-=====================================
-
-Período: ${formatarData(dados.dataInicio)} até ${formatarData(dados.dataFim)}
-Conta: ${dados.banco || 'Todas as contas'}
-Data de emissão: ${new Date().toLocaleString('pt-BR')}
-
-RESUMO FINANCEIRO
------------------
-💰 Total de Entradas:  ${formatarMoeda(dados.totalEntradas || 0)}
-💸 Total de Saídas:    ${formatarMoeda(dados.totalSaidas || 0)}
-📊 Saldo do Período:   ${formatarMoeda(dados.saldoPeriodo || 0)}
-
-TRANSAÇÕES DETALHADAS
----------------------
-`;
+    // Abrir janela de impressão para gerar PDF
+    const win = window.open('', '_blank');
+    if (!win) {
+        alert('Bloqueador de pop-up ativo. Por favor, permita pop-ups para este site.');
+        return;
+    }
     
-    transacoes.forEach((t, index) => {
-        const tipo = t.tipo === 'receita' ? 'ENTRADA' : 'SAÍDA';
-        conteudo += `
-${index + 1}. ${formatarData(t.data_pagamento)} - ${tipo}
-   Descrição: ${t.descricao || '-'}
-   Categoria: ${t.categoria || '-'}
-   Subcategoria: ${t.subcategoria || '-'}
-   Valor: ${formatarMoeda(t.valor)}
-   Conta: ${t.conta_bancaria || '-'}
-   Associação: ${t.associacao || '-'}
-   `;
+    win.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Fluxo de Caixa</title>
+    <style>
+        @page { size: landscape; margin: 15mm; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; font-size: 10pt; color: #333; }
+        
+        .cabecalho {
+            text-align: center;
+            border-bottom: 3px solid #2c3e50;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+        .cabecalho h1 {
+            font-size: 24pt;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+        .cabecalho .periodo {
+            font-size: 12pt;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        .cabecalho .info {
+            font-size: 9pt;
+            color: #888;
+        }
+        
+        .resumo {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+        }
+        .resumo-item {
+            text-align: center;
+        }
+        .resumo-item .label {
+            font-size: 9pt;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .resumo-item .valor {
+            font-size: 14pt;
+            font-weight: bold;
+        }
+        .resumo-item.entrada .valor { color: #27ae60; }
+        .resumo-item.saida .valor { color: #e74c3c; }
+        .resumo-item.saldo .valor { color: #3498db; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th {
+            background: #34495e;
+            color: white;
+            padding: 10px 8px;
+            text-align: left;
+            font-size: 9pt;
+            font-weight: bold;
+        }
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+            font-size: 9pt;
+        }
+        tbody tr:nth-child(odd) { background: #f9f9f9; }
+        tbody tr:nth-child(even) { background: white; }
+        
+        .valor { text-align: right; font-weight: 500; }
+        .tipo-receita { color: #27ae60; font-weight: bold; }
+        .tipo-despesa { color: #e74c3c; font-weight: bold; }
+        
+        @media print {
+            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+    <div class="cabecalho">
+        <h1>FLUXO DE CAIXA</h1>
+        <div class="periodo">Período: ${formatarData(dados.dataInicio)} até ${formatarData(dados.dataFim)}</div>
+        <div class="info">Conta: ${dados.banco || 'Todas as contas'} • Gerado em ${new Date().toLocaleString('pt-BR')} • ${transacoes.length} transação(ões)</div>
+    </div>
+    
+    <div class="resumo">
+        <div class="resumo-item entrada">
+            <div class="label">💰 Total de Entradas</div>
+            <div class="valor">R$ ${(dados.totalEntradas || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+        </div>
+        <div class="resumo-item saida">
+            <div class="label">💸 Total de Saídas</div>
+            <div class="valor">R$ ${(dados.totalSaidas || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+        </div>
+        <div class="resumo-item saldo">
+            <div class="label">📊 Saldo do Período</div>
+            <div class="valor">R$ ${(dados.saldoPeriodo || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+        </div>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 10%;">Data</th>
+                <th style="width: 8%;">Tipo</th>
+                <th style="width: 20%;">Descrição</th>
+                <th style="width: 14%;">Categoria</th>
+                <th style="width: 14%;">Subcategoria</th>
+                <th style="width: 12%;">Valor</th>
+                <th style="width: 12%;">Conta</th>
+                <th style="width: 10%;">Associação</th>
+            </tr>
+        </thead>
+        <tbody>
+`);
+    
+    // Linhas de dados
+    transacoes.forEach(t => {
+        const data = t.data_pagamento ? new Date(t.data_pagamento).toLocaleDateString('pt-BR') : '-';
+        const tipo = (t.tipo || '').toLowerCase() === 'receita' ? 'ENTRADA' : 'SAÍDA';
+        const tipoClass = (t.tipo || '').toLowerCase() === 'receita' ? 'tipo-receita' : 'tipo-despesa';
+        const valor = parseFloat(t.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        
+        win.document.write(`
+        <tr>
+            <td>${data}</td>
+            <td class="${tipoClass}">${tipo}</td>
+            <td>${t.descricao || '-'}</td>
+            <td>${t.categoria || '-'}</td>
+            <td>${t.subcategoria || '-'}</td>
+            <td class="valor">R$ ${valor}</td>
+            <td>${t.conta_bancaria || '-'}</td>
+            <td>${t.associacao || '-'}</td>
+        </tr>`);
     });
     
-    // Criar blob e download
-    const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `fluxo_caixa_${new Date().toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    win.document.write(`
+        </tbody>
+    </table>
+</body>
+</html>`);
     
-    showToast('✅ Relatório PDF exportado com sucesso!', 'success');
+    win.document.close();
+    setTimeout(() => win.print(), 250);
+    
+    showToast('✅ Relatório PDF gerado com sucesso!', 'success');
 };
 
+// ========== MODAL TRANSFERÊNCIA ENTRE CONTAS ==========
+window.openModalTransferencia = async function() {
+    const modal = document.getElementById('modal-transferencia');
+    if (!modal) {
+        console.error('Modal de transferência não encontrado');
+        return;
+    }
+    
+    // Carregar contas bancárias nos selects
+    try {
+        const response = await fetch('/api/contas');
+        const data = await response.json();
+        const contas = data.contas || data;
+        
+        const selectOrigem = document.getElementById('transferencia-origem');
+        const selectDestino = document.getElementById('transferencia-destino');
+        
+        // Limpar selects
+        selectOrigem.innerHTML = '<option value="">Selecione a conta de origem</option>';
+        selectDestino.innerHTML = '<option value="">Selecione a conta de destino</option>';
+        
+        // Preencher com contas ativas
+        contas
+            .filter(c => c.ativa !== false)
+            .forEach(conta => {
+                const saldo = parseFloat(conta.saldo_atual || conta.saldo_inicial || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                const option = `<option value="${conta.id}">${conta.nome} - ${conta.agencia}/${conta.numero} - R$ ${saldo}</option>`;
+                selectOrigem.innerHTML += option;
+                selectDestino.innerHTML += option;
+            });
+        
+        // Definir data atual
+        document.getElementById('transferencia-data').valueAsDate = new Date();
+        
+        // Limpar campos
+        document.getElementById('transferencia-valor').value = '';
+        document.getElementById('transferencia-observacoes').value = '';
+        
+        // Mostrar modal
+        modal.style.display = 'flex';
+    } catch (error) {
+        console.error('Erro ao carregar contas:', error);
+        showToast('❌ Erro ao carregar contas bancárias', 'error');
+    }
+};
+
+window.closeModalTransferencia = function() {
+    const modal = document.getElementById('modal-transferencia');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+};
+
+window.salvarTransferencia = async function() {
+    try {
+        // Validar campos
+        const contaOrigem = document.getElementById('transferencia-origem').value;
+        const contaDestino = document.getElementById('transferencia-destino').value;
+        const valor = parseFloat(document.getElementById('transferencia-valor').value);
+        const data = document.getElementById('transferencia-data').value;
+        const observacoes = document.getElementById('transferencia-observacoes').value;
+        
+        if (!contaOrigem) {
+            showToast('⚠️ Selecione a conta de origem', 'warning');
+            return;
+        }
+        
+        if (!contaDestino) {
+            showToast('⚠️ Selecione a conta de destino', 'warning');
+            return;
+        }
+        
+        if (contaOrigem === contaDestino) {
+            showToast('⚠️ As contas de origem e destino não podem ser iguais', 'warning');
+            return;
+        }
+        
+        if (!valor || valor <= 0) {
+            showToast('⚠️ Informe um valor válido', 'warning');
+            return;
+        }
+        
+        if (!data) {
+            showToast('⚠️ Informe a data da transferência', 'warning');
+            return;
+        }
+        
+        // Enviar para o backend
+        const response = await fetch('/api/transferencias', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                conta_origem: contaOrigem,
+                conta_destino: contaDestino,
+                valor: valor,
+                data: data,
+                observacoes: observacoes
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('✅ Transferência realizada com sucesso!', 'success');
+            closeModalTransferencia();
+            // Recarregar fluxo de caixa se estiver na tela
+            if (typeof carregarFluxoCaixa === 'function') {
+                carregarFluxoCaixa();
+            }
+        } else {
+            showToast('❌ ' + (result.error || 'Erro ao realizar transferência'), 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar transferência:', error);
+        showToast('❌ Erro ao realizar transferência', 'error');
+    }
+};
+
+// ========== EXPORTAÇÃO FLUXO DE CAIXA EXCEL ==========
 window.exportarFluxoCaixaExcel = function() {
     if (!window.fluxoCaixaTransacoes || window.fluxoCaixaTransacoes.length === 0) {
         showToast('⚠️ Nenhuma transação para exportar', 'warning');
