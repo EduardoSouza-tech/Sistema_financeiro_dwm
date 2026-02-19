@@ -4282,7 +4282,7 @@
                                 <option value="31">Minas Gerais (31)</option>
                                 <option value="32">Espírito Santo (32)</option>
                                 <option value="33">Rio de Janeiro (33)</option>
-                                <option value="35" selected>São Paulo (35)</option>
+                                <option value="35">São Paulo (35)</option>
                                 <option value="41">Paraná (41)</option>
                                 <option value="42">Santa Catarina (42)</option>
                                 <option value="43">Rio Grande do Sul (43)</option>
@@ -13387,7 +13387,30 @@
             document.getElementById('cert-emp-arquivo').value = '';
             document.getElementById('cert-emp-senha').value = '';
             
-            inputCuf.value = '35';
+            // 🔥 BUSCAR UF DA EMPRESA ao invés de hardcode '35'
+            const empresaData = window.currentEmpresaData || {};
+            const estadoEmpresa = (empresaData.estado || '').toUpperCase();
+            
+            // Mapa de UF para código IBGE
+            const ufParaCuf = {
+                'AC': '12', 'AL': '27', 'AP': '16', 'AM': '13', 'BA': '29',
+                'CE': '23', 'DF': '53', 'ES': '32', 'GO': '52', 'MA': '21',
+                'MT': '51', 'MS': '50', 'MG': '31', 'PA': '15', 'PB': '25',
+                'PR': '41', 'PE': '26', 'PI': '22', 'RJ': '33', 'RN': '24',
+                'RS': '43', 'RO': '11', 'RR': '14', 'SC': '42', 'SP': '35',
+                'SE': '28', 'TO': '17'
+            };
+            
+            const cufEmpresa = ufParaCuf[estadoEmpresa] || '';
+            
+            if (cufEmpresa) {
+                inputCuf.value = cufEmpresa;  // UF da empresa
+                console.log(`✅ UF da empresa: ${estadoEmpresa} (código ${cufEmpresa})`);
+            } else {
+                inputCuf.value = '';  // Vazio se não encontrar
+                console.warn(`⚠️ UF da empresa não cadastrado ou inválido: "${estadoEmpresa}"`);
+            }
+            
             inputCuf.disabled = false;
             inputCuf.style.background = '';
             inputCuf.style.borderColor = '';
@@ -13631,6 +13654,14 @@
             const cuf = document.getElementById('cert-emp-cuf').value;
             const ambiente = document.getElementById('cert-emp-ambiente').value;
             const btnSalvar = document.getElementById('btn-salvar-cert-empresa');
+            
+            console.log('🔍 salvarCertificadoEmpresa - Valores capturados:', {
+                nome, 
+                arquivo: arquivo ? arquivo.name : 'Nenhum', 
+                senha: senha ? '***' : 'Vazia',
+                cuf,
+                ambiente
+            });
 
             // ✅ PROTEÇÃO 1: Verificar se validação ainda está em andamento
             if (btnSalvar && btnSalvar.disabled) {
@@ -13685,15 +13716,24 @@
                     cnpj: cnpj,
                     pfx_base64: base64,
                     senha: senha,
-                    cuf: parseInt(cuf),
+                    cuf: parseInt(cuf),  // parseInt extrai apenas o número de "31 (MG)"
                     ambiente: ambiente
                 };
+                
+                console.log('📤 Enviando dados para backend:', {
+                    nome_certificado: dados.nome_certificado,
+                    cnpj: dados.cnpj,
+                    cuf: dados.cuf,
+                    ambiente: dados.ambiente,
+                    pfx_size: base64.length + ' chars',
+                    senha: '***'
+                });
 
                 // Mostrar loading
-                const btnSalvar = event.target;
-                const textoOriginal = btnSalvar.textContent;
-                btnSalvar.textContent = '⏳ Salvando...';
-                btnSalvar.disabled = true;
+                const btnSalvarRef = document.getElementById('btn-salvar-cert-empresa');
+                const textoOriginal = btnSalvarRef.textContent;
+                btnSalvarRef.textContent = '⏳ Salvando...';
+                btnSalvarRef.disabled = true;
 
                 fetch('/api/relatorios/certificados/novo', {
                     method: 'POST',
@@ -13702,8 +13742,10 @@
                 })
                 .then(r => r.json())
                 .then(response => {
-                    btnSalvar.textContent = textoOriginal;
-                    btnSalvar.disabled = false;
+                    console.log('📥 Resposta do backend:', response);
+                    
+                    btnSalvarRef.textContent = textoOriginal;
+                    btnSalvarRef.disabled = false;
 
                     if (response.sucesso) {
                         alert('✅ Certificado cadastrado com sucesso!');
@@ -13715,10 +13757,10 @@
                     }
                 })
                 .catch(err => {
-                    btnSalvar.textContent = textoOriginal;
-                    btnSalvar.disabled = false;
+                    console.error('❌ Erro ao cadastrar certificado:', err);
+                    btnSalvarRef.textContent = textoOriginal;
+                    btnSalvarRef.disabled = false;
                     alert('❌ Erro ao cadastrar certificado');
-                    console.error(err);
                 });
             };
             
