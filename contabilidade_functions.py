@@ -257,12 +257,12 @@ def criar_conta(empresa_id, dados):
         
         # Calcular ordem
         cursor.execute("""
-            SELECT COALESCE(MAX(ordem), 0) + 1 FROM plano_contas
+            SELECT COALESCE(MAX(ordem), 0) + 1 as proxima FROM plano_contas
             WHERE empresa_id = %s AND versao_id = %s AND parent_id IS NOT DISTINCT FROM %s
               AND deleted_at IS NULL
         """, (empresa_id, dados['versao_id'], parent_id))
         resultado_ordem = cursor.fetchone()
-        ordem = resultado_ordem['coalesce'] if isinstance(resultado_ordem, dict) else resultado_ordem[0]
+        ordem = resultado_ordem['proxima'] if isinstance(resultado_ordem, dict) else resultado_ordem[0]
         
         cursor.execute("""
             INSERT INTO plano_contas 
@@ -675,12 +675,12 @@ def importar_plano_padrao(empresa_id, ano_fiscal=None):
                     
                     # Calcular ordem
                     cursor.execute("""
-                        SELECT COALESCE(MAX(ordem), 0) + 1 FROM plano_contas
+                        SELECT COALESCE(MAX(ordem), 0) + 1 as proxima FROM plano_contas
                         WHERE empresa_id = %s AND versao_id = %s 
                           AND parent_id IS NOT DISTINCT FROM %s AND deleted_at IS NULL
                     """, (empresa_id, versao_id, parent_id))
                     resultado_ordem = cursor.fetchone()
-                    ordem = resultado_ordem['coalesce'] if isinstance(resultado_ordem, dict) else resultado_ordem[0]
+                    ordem = resultado_ordem['proxima'] if isinstance(resultado_ordem, dict) else resultado_ordem[0]
                     
                     # Inserir conta
                     cursor.execute("""
