@@ -600,26 +600,44 @@ def importar_plano_padrao(empresa_id, ano_fiscal=None):
             cursor.close()
         
         if versao_existente:
-            logger.info(f"Versão '{versao_existente['nome_versao']}' já existe para empresa {empresa_id}. Reutilizando.")
-            return {
-                'success': True,
-                'versao_id': versao_existente['id'],
-                'contas_importadas': 0,
-                'message': f"Versão '{versao_existente['nome_versao']}' já existe. Nenhuma ação necessária."
+            # Verificar se a versão já tem contas
+            with get_db_connection(empresa_id=empresa_id) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT COUNT(*) as total
+                    FROM plano_contas
+                    WHERE empresa_id = %s AND versao_id = %s AND deleted_at IS NULL
+                """, (empresa_id, versao_existente['id']))
+                resultado = cursor.fetchone()
+                total_contas = resultado['total'] if isinstance(resultado, dict) else resultado[0]
+                cursor.close()
+            
+            # Se já tem contas, não fazer nada
+            if total_contas > 0:
+                logger.info(f"Versão '{versao_existente['nome_versao']}' já existe com {total_contas} contas. Reutilizando.")
+                return {
+                    'success': True,
+                    'versao_id': versao_existente['id'],
+                    'contas_importadas': 0,
+                    'message': f"Versão '{versao_existente['nome_versao']}' já existe com {total_contas} contas."
+                }
+            
+            # Se está vazia, popular
+            logger.info(f"Versão '{versao_existente['nome_versao']}' existe mas está VAZIA. Populando...")
+            versao_id = versao_existente['id']
+        else:
+            # Criar versão para o plano padrão
+            versao_dados = {
+                'nome_versao': f'Plano Padrão {ano_fiscal}',
+                'exercicio_fiscal': ano_fiscal,
+                'data_inicio': f'{ano_fiscal}-01-01',
+                'data_fim': f'{ano_fiscal}-12-31',
+                'is_ativa': True,
+                'observacoes': 'Plano de contas padrão importado automaticamente'
             }
-        
-        # Criar versão para o plano padrão
-        versao_dados = {
-            'nome_versao': f'Plano Padrão {ano_fiscal}',
-            'exercicio_fiscal': ano_fiscal,
-            'data_inicio': f'{ano_fiscal}-01-01',
-            'data_fim': f'{ano_fiscal}-12-31',
-            'is_ativa': True,
-            'observacoes': 'Plano de contas padrão importado automaticamente'
-        }
-        
-        versao_id = criar_versao(empresa_id, versao_dados)
-        logger.info(f"Versão {versao_id} criada para empresa {empresa_id}")
+            
+            versao_id = criar_versao(empresa_id, versao_dados)
+            logger.info(f"Versão {versao_id} criada para empresa {empresa_id}")
         
         # Obter contas padrão
         contas_padrao = obter_plano_contas_padrao()
