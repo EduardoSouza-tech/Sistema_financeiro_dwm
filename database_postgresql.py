@@ -7449,6 +7449,24 @@ def criar_empresa(dados):
             conn.autocommit = True  # Religar autocommit
             
             log(f"Empresa criada: ID={empresa_id}, Razao Social={dados['razao_social']}")
+            
+            # Aplicar Plano de Contas Padrão automaticamente para a nova empresa
+            try:
+                from contabilidade_functions import importar_plano_padrao
+                from datetime import datetime
+                
+                ano_fiscal = datetime.now().year
+                resultado_plano = importar_plano_padrao(empresa_id, ano_fiscal)
+                
+                if resultado_plano.get('success'):
+                    contas_importadas = resultado_plano.get('contas_importadas', 0)
+                    log(f"Plano de Contas Padrão aplicado automaticamente: {contas_importadas} contas | Empresa ID={empresa_id}")
+                else:
+                    log(f"AVISO: Erro ao aplicar Plano de Contas Padrão: {resultado_plano.get('error')} | Empresa ID={empresa_id}")
+                    
+            except Exception as e:
+                log(f"AVISO: Exceção ao aplicar Plano de Contas Padrão: {e} | Empresa ID={empresa_id}")
+            
             return {'success': True, 'empresa_id': empresa_id}
         
     except Exception as e:

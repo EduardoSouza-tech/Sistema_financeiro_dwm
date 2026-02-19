@@ -57,7 +57,10 @@ def criar_versao(empresa_id, dados):
             dados.get('is_ativa', False),
             dados.get('observacoes', '')
         ))
-        versao_id = cursor.fetchone()[0]
+        
+        resultado = cursor.fetchone()
+        # Compatível com dict e tuple cursor
+        versao_id = resultado['id'] if isinstance(resultado, dict) else resultado[0]
         
         # Se esta versão é ativa, desativar as outras
         if dados.get('is_ativa'):
