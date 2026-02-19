@@ -35,15 +35,39 @@ def listar_versoes(empresa_id):
         versoes = []
         for i, row in enumerate(rows):
             logger.info(f"🔍 Linha {i}: {row}")
-            v = dict(zip(colunas, row))
+            logger.info(f"🔍 Tipo da linha: {type(row)}")
+            
+            # Criar dict
+            if isinstance(row, dict):
+                v = row
+                logger.info(f"🔍 Row já é dict")
+            else:
+                v = dict(zip(colunas, row))
+            
             logger.info(f"🔍 Dict criado: {v}")
+            
+            # VALIDAÇÃO CRÍTICA: Verificar se não são nomes de colunas
+            if v.get('id') == 'id' or v.get('nome_versao') == 'nome_versao':
+                logger.error(f"❌ LINHA CORROMPIDA DETECTADA: {v}")
+                logger.error(f"   Pulando linha {i} - contém nomes de colunas como valores!")
+                continue
+            
+            # Validar se id é numérico
+            try:
+                v['id'] = int(v['id']) if v.get('id') else None
+                v['exercicio_fiscal'] = int(v['exercicio_fiscal']) if v.get('exercicio_fiscal') else None
+            except (ValueError, TypeError) as e:
+                logger.error(f"❌ ERRO ao converter tipos na linha {i}: {e}")
+                logger.error(f"   Dados: {v}")
+                continue
+            
             # Converter datas para string
             for key in ['data_inicio', 'data_fim', 'created_at']:
                 if v.get(key):
                     v[key] = v[key].isoformat() if hasattr(v[key], 'isoformat') else str(v[key])
             versoes.append(v)
         
-        logger.info(f"✅ Total de versões processadas: {len(versoes)}")
+        logger.info(f"✅ Total de versões processadas (válidas): {len(versoes)}")
         cursor.close()
         return versoes
 

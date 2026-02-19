@@ -1,4 +1,4 @@
 This file forces Railway to reload all Python modules
-Timestamp: 2026-02-19 19:15:00
-Fix: carregarVersoes() → carregarVersoesDropdown()
-Debug: Logs backend + frontend para diagnosticar versao_id=id
+Timestamp: 2026-02-19 20:30:00
+Fix: Adicionar validação para filtrar linhas corrompidas no plano de contas
+Detecta e pula registros com valores "id", "nome_versao" (nomes de colunas)
