@@ -12736,6 +12736,13 @@ def listar_versoes_plano():
         
         from contabilidade_functions import listar_versoes
         versoes = listar_versoes(empresa_id)
+        
+        logger.info(f"📊 Versões para empresa {empresa_id}: {len(versoes)} encontrada(s)")
+        if versoes:
+            logger.info(f"   📦 Primeira versão: {versoes[0]}")
+        else:
+            logger.warning(f"   ⚠️ Nenhuma versão encontrada para empresa {empresa_id}")
+        
         return jsonify({'success': True, 'versoes': versoes})
     except Exception as e:
         logger.error(f"Erro ao listar versões: {e}")

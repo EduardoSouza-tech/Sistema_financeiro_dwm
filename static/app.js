@@ -8345,6 +8345,11 @@ async function carregarVersoesDropdown() {
         const response = await fetch('/api/contabilidade/versoes', { credentials: 'include' });
         const data = await response.json();
         console.log('📦 Versões recebidas:', data);
+        console.log('📦 data.versoes é array?', Array.isArray(data.versoes));
+        console.log('📦 data.versoes.length:', data.versoes ? data.versoes.length : 'undefined');
+        if (data.versoes && data.versoes.length > 0) {
+            console.log('📦 Primeira versão:', JSON.stringify(data.versoes[0]));
+        }
         
         if (data.success) {
             const select = document.getElementById('pcVersaoFiltro');
@@ -9038,7 +9043,7 @@ window.importarPlanoPadrao = async function() {
             );
             
             // Recarregar versões e selecionar a nova
-            await carregarVersoes();
+            await carregarVersoesDropdown();
             document.getElementById('pcVersaoFiltro').value = data.versao_id;
             await carregarPlanoContas();
         } else {

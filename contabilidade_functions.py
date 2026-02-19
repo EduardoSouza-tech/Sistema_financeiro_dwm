@@ -27,14 +27,23 @@ def listar_versoes(empresa_id):
         """, (empresa_id,))
         
         colunas = [desc[0] for desc in cursor.description]
+        logger.info(f"🔍 Colunas retornadas: {colunas}")
+        
+        rows = cursor.fetchall()
+        logger.info(f"🔍 Total de linhas retornadas: {len(rows)}")
+        
         versoes = []
-        for row in cursor.fetchall():
+        for i, row in enumerate(rows):
+            logger.info(f"🔍 Linha {i}: {row}")
             v = dict(zip(colunas, row))
+            logger.info(f"🔍 Dict criado: {v}")
             # Converter datas para string
             for key in ['data_inicio', 'data_fim', 'created_at']:
                 if v.get(key):
                     v[key] = v[key].isoformat() if hasattr(v[key], 'isoformat') else str(v[key])
             versoes.append(v)
+        
+        logger.info(f"✅ Total de versões processadas: {len(versoes)}")
         cursor.close()
         return versoes
 
