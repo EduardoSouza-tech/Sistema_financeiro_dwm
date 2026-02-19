@@ -14895,17 +14895,17 @@ def extrair_dados_certificado():
                     'valido_ate': cert.cert_data.get('valido_ate').isoformat() if cert.cert_data.get('valido_ate') else None
                 })
             
-            # Busca dados da empresa para preencher campos
+            # Busca dados da empresa para preencher campos (incluindo estado/UF)
             with get_db_connection(empresa_id=empresa_id) as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT razao_social, cnpj
+                    SELECT razao_social, cnpj, estado
                     FROM empresas
                     WHERE id = %s
                 """, (empresa_id,))
                 empresa = cursor.fetchone()
             
-            empresa_dict = dict(zip(['razao_social', 'cnpj'], empresa)) if empresa else {}
+            empresa_dict = dict(zip(['razao_social', 'cnpj', 'estado'], empresa)) if empresa else {}
             
             # Extrai CNPJ do certificado (subject DN geralmente contém)
             cnpj_cert = cert.cert_data.get('cnpj', '')
@@ -14913,9 +14913,7 @@ def extrair_dados_certificado():
             # CNPJ do certificado tem prioridade; se não extrair, usa o da empresa
             cnpj_final = cnpj_cert if cnpj_cert else (empresa_dict.get('cnpj', '').replace('.', '').replace('/', '').replace('-', ''))
             
-            # Tenta determinar UF pelo 9º dígito do CNPJ (código da UF de registro)
-            # Isso não é 100% preciso, mas é uma aproximação razoável
-            # Mapa de UF para código IBGE
+            # Mapa de UF (sigla) para código IBGE (cUF)
             uf_para_codigo = {
                 'AC': '12', 'AL': '27', 'AP': '16', 'AM': '13', 'BA': '29',
                 'CE': '23', 'DF': '53', 'ES': '32', 'GO': '52', 'MA': '21',
@@ -14925,8 +14923,9 @@ def extrair_dados_certificado():
                 'SE': '28', 'TO': '17'
             }
             
-            # Usa um valor padrão de MG (código 31) - usuário poderá alterar se necessário
-            cuf_padrao = '31'
+            # Busca UF da empresa e converte para código IBGE
+            estado_empresa = empresa_dict.get('estado', '').upper()
+            cuf_empresa = uf_para_codigo.get(estado_empresa, '31')  # Default MG se não encontrar
             
             resultado = {
                 'sucesso': True,
@@ -14935,7 +14934,8 @@ def extrair_dados_certificado():
                     'nome_certificado': empresa_dict.get('razao_social', 'Certificado Digital'),
                     'valido_de': cert.cert_data.get('valido_de').isoformat() if cert.cert_data.get('valido_de') else None,
                     'valido_ate': cert.cert_data.get('valido_ate').isoformat() if cert.cert_data.get('valido_ate') else None,
-                    'cuf': cuf_padrao,  # Padrão MG - usuário seleciona manualmente
+                    'cuf': cuf_empresa,  # UF da empresa convertido para código IBGE
+                    'uf_sigla': estado_empresa,  # Sigla do estado para referência
                     'subject': cert.cert_data.get('subject', ''),
                     'issuer': cert.cert_data.get('issuer', '')
                 }
