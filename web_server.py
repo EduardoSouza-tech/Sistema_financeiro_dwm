@@ -8259,6 +8259,8 @@ def relatorio_analise_categorias():
 def relatorio_comparativo_periodos():
     """Relatório comparativo entre períodos"""
     try:
+        print(f"[COMPARATIVO] Iniciando comparativo de períodos")
+        
         # Período 1
         data_inicio1 = request.args.get('data_inicio1')
         data_fim1 = request.args.get('data_fim1')
@@ -8266,6 +8268,10 @@ def relatorio_comparativo_periodos():
         # Período 2
         data_inicio2 = request.args.get('data_inicio2')
         data_fim2 = request.args.get('data_fim2')
+        
+        print(f"[COMPARATIVO] Parâmetros recebidos:")
+        print(f"  Período 1: {data_inicio1} até {data_fim1}")
+        print(f"  Período 2: {data_inicio2} até {data_fim2}")
         
         if not all([data_inicio1, data_fim1, data_inicio2, data_fim2]):
             return jsonify({'error': 'Parâmetros de datas obrigatórios'}), 400
@@ -8275,14 +8281,23 @@ def relatorio_comparativo_periodos():
         if not empresa_id:
             return jsonify({'erro': 'Empresa não selecionada'}), 403
         
-        data_inicio1 = datetime.fromisoformat(data_inicio1).date()
-        data_fim1 = datetime.fromisoformat(data_fim1).date()
-        data_inicio2 = datetime.fromisoformat(data_inicio2).date()
-        data_fim2 = datetime.fromisoformat(data_fim2).date()
+        print(f"[COMPARATIVO] Empresa ID: {empresa_id}")
         
+        try:
+            data_inicio1 = datetime.fromisoformat(data_inicio1).date()
+            data_fim1 = datetime.fromisoformat(data_fim1).date()
+            data_inicio2 = datetime.fromisoformat(data_inicio2).date()
+            data_fim2 = datetime.fromisoformat(data_fim2).date()
+        except ValueError as e:
+            print(f"[COMPARATIVO] Erro ao converter datas: {e}")
+            return jsonify({'error': 'Formato de data inválido'}), 400
+        
+        print(f"[COMPARATIVO] Buscando lançamentos...")
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
+        print(f"[COMPARATIVO] Total de lançamentos: {len(lancamentos)}")
         
         def calcular_periodo(data_ini, data_fim):
+            print(f"[COMPARATIVO] Calculando período: {data_ini} até {data_fim}")
             receitas = Decimal('0')
             despesas = Decimal('0')
             receitas_por_categoria = {}
@@ -8291,22 +8306,26 @@ def relatorio_comparativo_periodos():
             despesas_por_subcategoria = {}
             
             for l in lancamentos:
-                if l.status == StatusLancamento.PAGO and l.data_pagamento and l.tipo != TipoLancamento.TRANSFERENCIA:
-                    data_pag = l.data_pagamento.date() if hasattr(l.data_pagamento, 'date') else l.data_pagamento
-                    if data_ini <= data_pag <= data_fim:
-                        valor = Decimal(str(l.valor))
-                        categoria = l.categoria or 'Sem categoria'
-                        subcategoria = l.subcategoria or 'Sem subcategoria'
-                        chave_completa = f"{categoria} > {subcategoria}"
-                        
-                        if l.tipo == TipoLancamento.RECEITA:
-                            receitas += valor
-                            receitas_por_categoria[categoria] = receitas_por_categoria.get(categoria, Decimal('0')) + valor
-                            receitas_por_subcategoria[chave_completa] = receitas_por_subcategoria.get(chave_completa, Decimal('0')) + valor
-                        else:
-                            despesas += valor
-                            despesas_por_categoria[categoria] = despesas_por_categoria.get(categoria, Decimal('0')) + valor
-                            despesas_por_subcategoria[chave_completa] = despesas_por_subcategoria.get(chave_completa, Decimal('0')) + valor
+                try:
+                    if l.status == StatusLancamento.PAGO and l.data_pagamento and l.tipo != TipoLancamento.TRANSFERENCIA:
+                        data_pag = l.data_pagamento.date() if hasattr(l.data_pagamento, 'date') else l.data_pagamento
+                        if data_ini <= data_pag <= data_fim:
+                            valor = Decimal(str(l.valor))
+                            categoria = l.categoria or 'Sem categoria'
+                            subcategoria = l.subcategoria or 'Sem subcategoria'
+                            chave_completa = f"{categoria} > {subcategoria}"
+                            
+                            if l.tipo == TipoLancamento.RECEITA:
+                                receitas += valor
+                                receitas_por_categoria[categoria] = receitas_por_categoria.get(categoria, Decimal('0')) + valor
+                                receitas_por_subcategoria[chave_completa] = receitas_por_subcategoria.get(chave_completa, Decimal('0')) + valor
+                            else:
+                                despesas += valor
+                                despesas_por_categoria[categoria] = despesas_por_categoria.get(categoria, Decimal('0')) + valor
+                                despesas_por_subcategoria[chave_completa] = despesas_por_subcategoria.get(chave_completa, Decimal('0')) + valor
+                except Exception as e:
+                    print(f"[COMPARATIVO] Erro ao processar lançamento {l.id}: {e}")
+                    continue
             
             # Encontrar maiores por categoria
             maior_receita_cat = max(receitas_por_categoria.items(), key=lambda x: x[1]) if receitas_por_categoria else ('Nenhuma', Decimal('0'))
@@ -8334,15 +8353,22 @@ def relatorio_comparativo_periodos():
                 'qtd_categorias_despesas': len(despesas_por_categoria)
             }
         
+        print(f"[COMPARATIVO] Calculando período 1...")
         periodo1 = calcular_periodo(data_inicio1, data_fim1)
+        print(f"[COMPARATIVO] Período 1 calculado - Receitas: {periodo1['receitas']}, Despesas: {periodo1['despesas']}")
+        
+        print(f"[COMPARATIVO] Calculando período 2...")
         periodo2 = calcular_periodo(data_inicio2, data_fim2)
+        print(f"[COMPARATIVO] Período 2 calculado - Receitas: {periodo2['receitas']}, Despesas: {periodo2['despesas']}")
         
         # Calcular variações
         variacao_receitas = ((periodo2['receitas'] - periodo1['receitas']) / periodo1['receitas'] * 100) if periodo1['receitas'] > 0 else 0
         variacao_despesas = ((periodo2['despesas'] - periodo1['despesas']) / periodo1['despesas'] * 100) if periodo1['despesas'] > 0 else 0
         variacao_saldo = ((periodo2['saldo'] - periodo1['saldo']) / abs(periodo1['saldo']) * 100) if periodo1['saldo'] != 0 else 0
         
-        return jsonify({
+        print(f"[COMPARATIVO] Variações calculadas - Receitas: {variacao_receitas}%, Despesas: {variacao_despesas}%, Saldo: {variacao_saldo}%")
+        
+        resultado = {
             'periodo1': {
                 'datas': {'inicio': data_inicio1.isoformat(), 'fim': data_fim1.isoformat()},
                 'dados': periodo1
@@ -8356,8 +8382,15 @@ def relatorio_comparativo_periodos():
                 'despesas': round(variacao_despesas, 2),
                 'saldo': round(variacao_saldo, 2)
             }
-        })
+        }
+        
+        print(f"[COMPARATIVO] Retornando resultado com sucesso")
+        return jsonify(resultado)
+        
     except Exception as e:
+        print(f"[COMPARATIVO] ERRO CRÍTICO: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/relatorios/indicadores', methods=['GET'])

@@ -1413,7 +1413,6 @@
                 <button class="submenu-button" onclick="showSection('fluxo-caixa')" data-permission="relatorios_view">📈 Fluxo de Caixa</button>
                 <button class="submenu-button" onclick="showSection('analise-detalhada')" data-permission="relatorios_view">📊 Análise Detalhada</button>
                 <button class="submenu-button" onclick="showSection('comparativo-periodos')" data-permission="relatorios_view">📉 Comparativo de Períodos</button>
-                <button class="submenu-button" onclick="showSection('indicadores')" data-permission="relatorios_view">🎯 Indicadores Financeiros</button>
                 <button class="submenu-button" onclick="showSection('inadimplencia')" data-permission="relatorios_view">⚠️ Inadimplência <span id="badge-inadimplencia" class="badge-inadimplencia">0</span></button>
                 <button class="submenu-button" onclick="showSection('fiscal')" data-permission="relatorios_view">📑 NF-e e CT-e - Documentos Fiscais</button>
                 <button class="submenu-button" onclick="showSection('nfse')" data-permission="nfse_view">📄 NFS-e - Notas Fiscais</button>
@@ -4009,7 +4008,7 @@
                         <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
                             <div>
                                 <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Ano:</label>
-                                <input type="number" id="filter-ano-categorias" placeholder="2025" style="width: 100px; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                                <input type="number" id="filter-ano-categorias" value="2026" placeholder="2026" style="width: 100px; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
                             </div>
                             <div>
                                 <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Mês:</label>
@@ -4116,47 +4115,6 @@
                     <div style="font-size: 48px; margin-bottom: 20px;">📊</div>
                     <h3 style="color: #34495e; margin-bottom: 10px;">Compare Períodos Financeiros</h3>
                     <p style="margin: 0; font-size: 14px;">Selecione os períodos acima e clique em <strong>🔍 Comparar Períodos</strong> para visualizar a análise comparativa.</p>
-                </div>
-            </div>
-
-            <!-- Indicadores -->
-            <div id="indicadores-section" class="content-card hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">🎯 Indicadores Financeiros</h2>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn btn-primary" onclick="exportarIndicadoresPDF()" style="padding: 8px 16px; font-size: 13px; background: #e74c3c;">📝 PDF</button>
-                        <button class="btn btn-primary" onclick="exportarIndicadoresExcel()" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📊 Excel</button>
-                    </div>
-                </div>
-                
-                <!-- Filtros -->
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
-                        <div>
-                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Período:</label>
-                            <select id="filter-periodo-indicadores" onchange="aplicarFiltroPeriodoIndicadores()" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px; min-width: 150px;">
-                                <option value="30">Últimos 30 dias</option>
-                                <option value="90">Últimos 3 meses</option>
-                                <option value="180">Últimos 6 meses</option>
-                                <option value="365">Último ano</option>
-                                <option value="custom">Período personalizado</option>
-                            </select>
-                        </div>
-                        <div id="filtro-data-inicio-indicadores" style="display: none;">
-                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Data Inicial:</label>
-                            <input type="date" id="filter-data-inicio-indicadores" onchange="carregarIndicadores()" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div id="filtro-data-fim-indicadores" style="display: none;">
-                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Data Final:</label>
-                            <input type="date" id="filter-data-fim-indicadores" onchange="carregarIndicadores()" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="indicadores-content" style="text-align: center; padding: 60px 20px; color: #7f8c8d;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">🎯</div>
-                    <h3 style="color: #34495e; margin-bottom: 10px;">Indicadores Financeiros</h3>
-                    <p style="margin: 0; font-size: 14px;">Selecione o período acima para visualizar os principais indicadores de desempenho financeiro.</p>
                 </div>
             </div>
 
