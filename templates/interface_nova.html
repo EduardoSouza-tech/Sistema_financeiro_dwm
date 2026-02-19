@@ -13500,17 +13500,34 @@
                         inputNome.disabled = false;
                         
                         // ✅ Preencher UF automaticamente (se disponível)
+                        let ufDetectada = false;
                         if (cert.uf && ufParaCuf[cert.uf]) {
                             inputCuf.value = ufParaCuf[cert.uf];
                             inputCuf.style.background = '#e8f5e9';
                             inputCuf.style.borderColor = '#4caf50';
+                            ufDetectada = true;
+                            console.log(`✅ UF detectada automaticamente: ${cert.uf} (código ${ufParaCuf[cert.uf]})`);
+                        } else {
+                            console.warn('⚠️ UF não detectada no certificado/CNPJ - usuário precisará selecionar manualmente');
+                            inputCuf.style.background = '#fff3cd';
+                            inputCuf.style.borderColor = '#ffc107';
                         }
                         
                         // ✅ Tornar campos readonly (preenchidos automaticamente)
                         inputNome.readOnly = true;
                         inputNome.style.background = '#e8f5e9';
                         inputNome.style.borderColor = '#4caf50';
-                        inputCuf.disabled = true;
+                        
+                        // ✅ Se UF não foi detectada, deixar select ativo para seleção manual
+                        if (ufDetectada) {
+                            inputCuf.disabled = true;
+                        } else {
+                            inputCuf.disabled = false;
+                            // Focar no select para facilitar seleção
+                            setTimeout(() => {
+                                inputCuf.focus();
+                            }, 100);
+                        }
                         
                         // ✅ Reabilitar botão de salvar após validação bem-sucedida
                         if (btnSalvar) {
@@ -13524,10 +13541,11 @@
                         console.log('✅ Certificado validado:', {
                             razao_social: cert.razao_social,
                             cnpj: cert.cnpj,
-                            uf: cert.uf,
-                            cuf: ufParaCuf[cert.uf] || '-',
+                            uf: cert.uf || '(não detectada)',
+                            cuf: ufParaCuf[cert.uf] || '(não preenchido)',
                             validade: validade,
-                            emitente: cert.emitente
+                            emitente: cert.emitente,
+                            uf_origem: cert.uf ? 'certificado/CNPJ' : 'seleção manual'
                         });
                     } else {
                         // ✅ Resetar estado do campo

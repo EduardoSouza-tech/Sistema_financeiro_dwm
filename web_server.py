@@ -14849,6 +14849,33 @@ def validar_certificado():
                 'erro': info.get('error', 'Erro ao processar certificado')
             })
         
+        # Se não conseguiu extrair UF do certificado, tentar consultar ReceitaWS
+        if not info.get('uf') and info.get('cnpj'):
+            try:
+                logger.info(f"🔍 UF não encontrada no certificado, consultando ReceitaWS para CNPJ {info['cnpj']}")
+                import requests
+                cnpj_limpo = info['cnpj'].replace('.', '').replace('/', '').replace('-', '')
+                url = f"https://www.receitaws.com.br/v1/cnpj/{cnpj_limpo}"
+                
+                response = requests.get(url, timeout=5)
+                if response.status_code == 200:
+                    dados_empresa = response.json()
+                    if dados_empresa.get('status') == 'OK':
+                        uf = dados_empresa.get('uf', '').strip().upper()
+                        if len(uf) == 2 and uf.isalpha():
+                            info['uf'] = uf
+                            logger.info(f"✅ UF obtida via ReceitaWS: {uf}")
+                        else:
+                            logger.warning(f"⚠️ UF inválida retornada pela ReceitaWS: {uf}")
+                    else:
+                        logger.warning(f"⚠️ ReceitaWS retornou status: {dados_empresa.get('status')}")
+                else:
+                    logger.warning(f"⚠️ ReceitaWS retornou status code: {response.status_code}")
+            except requests.Timeout:
+                logger.warning("⚠️ Timeout ao consultar ReceitaWS (5s)")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao consultar ReceitaWS: {str(e)}")
+        
         # Retornar informações extraídas
         return jsonify({
             'sucesso': True,
