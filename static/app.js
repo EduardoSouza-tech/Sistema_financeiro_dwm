@@ -8414,34 +8414,82 @@ window.carregarPlanoContas = async function() {
     if (tipo) url += `&tipo_conta=${tipo}`;
     if (busca) url += `&busca=${encodeURIComponent(busca)}`;
     
+    console.log('🌐 URL final:', url);
+    
     try {
+        console.log('⏳ Iniciando fetch...');
         const response = await fetch(url, { credentials: 'include' });
+        console.log('✅ Response recebido:', response.status, response.statusText);
+        
         const data = await response.json();
+        console.log('📦 Data parseado:', data);
+        console.log('📊 data.success:', data.success);
+        console.log('📊 data.contas:', data.contas);
+        console.log('📊 data.contas.length:', data.contas ? data.contas.length : 'undefined');
         
         if (data.success) {
+            console.log('✅ Sucesso! Processando', data.contas.length, 'contas');
             window.pcContas = data.contas;
+            
+            console.log('📊 Atualizando estatísticas...');
             atualizarEstatisticasPC(data.contas);
             
+            console.log('🎨 Visualização:', window.pcVisualizacao);
             if (window.pcVisualizacao === 'arvore') {
+                console.log('🌳 Renderizando árvore...');
                 renderizarArvorePC(versaoId);
             } else {
+                console.log('📋 Renderizando tabela...');
                 renderizarTabelaPC(data.contas);
             }
+            console.log('✅ Renderização concluída!');
         } else {
+            console.error('❌ Erro no data.success:', data.error);
             showToast('❌ ' + (data.error || 'Erro ao carregar contas'), 'error');
         }
     } catch (error) {
-        console.error('Erro ao carregar plano de contas:', error);
+        console.error('❌ Erro no try/catch:', error);
+        console.error('❌ Stack:', error.stack);
         showToast('❌ Erro ao carregar plano de contas', 'error');
     }
 };
 
 // Atualizar estatísticas
 function atualizarEstatisticasPC(contas) {
-    document.getElementById('pcTotalContas').textContent = contas.length;
-    document.getElementById('pcTotalSinteticas').textContent = contas.filter(c => c.tipo_conta === 'sintetica').length;
-    document.getElementById('pcTotalAnaliticas').textContent = contas.filter(c => c.tipo_conta === 'analitica').length;
-    document.getElementById('pcTotalBloqueadas').textContent = contas.filter(c => c.is_bloqueada).length;
+    console.log('📊 atualizarEstatisticasPC chamada');
+    console.log('   📦 contas:', contas);
+    console.log('   📊 contas.length:', contas ? contas.length : 'null/undefined');
+    
+    const totalEl = document.getElementById('pcTotalContas');
+    const sinteticasEl = document.getElementById('pcTotalSinteticas');
+    const analiticasEl = document.getElementById('pcTotalAnaliticas');
+    const bloqueadasEl = document.getElementById('pcTotalBloqueadas');
+    
+    console.log('   📍 Elementos encontrados:', {
+        total: !!totalEl,
+        sinteticas: !!sinteticasEl,
+        analiticas: !!analiticasEl,
+        bloqueadas: !!bloqueadasEl
+    });
+    
+    if (!totalEl || !sinteticasEl || !analiticasEl || !bloqueadasEl) {
+        console.error('   ❌ Elementos de estatísticas não encontrados!');
+        return;
+    }
+    
+    const total = contas.length;
+    const sinteticas = contas.filter(c => c.tipo_conta === 'sintetica').length;
+    const analiticas = contas.filter(c => c.tipo_conta === 'analitica').length;
+    const bloqueadas = contas.filter(c => c.is_bloqueada).length;
+    
+    console.log('   📊 Estatísticas calculadas:', { total, sinteticas, analiticas, bloqueadas });
+    
+    totalEl.textContent = total;
+    sinteticasEl.textContent = sinteticas;
+    analiticasEl.textContent = analiticas;
+    bloqueadasEl.textContent = bloqueadas;
+    
+    console.log('   ✅ Estatísticas atualizadas');
 }
 
 // Labels para classificação
@@ -8465,12 +8513,20 @@ const classificacaoCores = {
 
 // Renderizar tabela
 function renderizarTabelaPC(contas) {
+    console.log('🎨 renderizarTabelaPC chamada');
+    console.log('   📦 contas:', contas);
+    console.log('   📊 contas.length:', contas ? contas.length : 'null/undefined');
+    
     const tbody = document.getElementById('pcTabelaBody');
+    console.log('   📍 tbody element:', tbody);
     
     if (!contas || contas.length === 0) {
+        console.log('   ⚠️ Nenhuma conta para exibir');
         tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">Nenhuma conta encontrada</td></tr>';
         return;
     }
+    
+    console.log('   ✅ Renderizando', contas.length, 'contas...');
     
     // Ordenar
     const { campo, direcao } = window.pcOrdenacao;
@@ -8513,6 +8569,9 @@ function renderizarTabelaPC(contas) {
             </td>
         </tr>`;
     }).join('');
+    
+    console.log('   ✅ HTML da tabela gerado (' + tbody.innerHTML.length + ' chars)');
+    console.log('   ✅ renderizarTabelaPC concluída!');
 }
 
 // Ordenar tabela
