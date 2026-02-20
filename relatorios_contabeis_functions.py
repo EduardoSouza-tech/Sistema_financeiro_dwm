@@ -193,17 +193,24 @@ def gerar_dre(
     empresa_id: int,
     data_inicio: date,
     data_fim: date,
-    versao_plano_id: Optional[int] = None
+    versao_plano_id: Optional[int] = None,
+    comparar_periodo_anterior: bool = False
 ) -> Dict:
     """
-    Gera DRE (Demonstrativo de Resultado do Exercício) para um período.
+    Gera DRE (Demonstração do Resultado do Exercício) COMPLETA para um período.
     
-    Estrutura:
-    - Receitas (classificacao='receita')
-    - (-) Custos (classificacao='despesa' + codigo inicia com '5')
-    - = Lucro Bruto
-    - (-) Despesas Operacionais (classificacao='despesa' + codigo inicia com '6')
-    - = Resultado Operacional
+    Estrutura melhorada:
+    1. RECEITA BRUTA (grupo 4, exceto 4.9)
+    2. (-) DEDUÇÕES DA RECEITA (grupo 4.9)
+    3. = RECEITA LÍQUIDA
+    4. (-) CUSTOS (grupo 5)
+    5. = LUCRO BRUTO
+    6. (-) DESPESAS OPERACIONAIS (grupo 6)
+    7. = RESULTADO OPERACIONAL
+    8. (+/-) RESULTADO FINANCEIRO (7.1 receitas - 7.2 despesas financeiras)
+    9. = LUCRO LÍQUIDO DO EXERCÍCIO
+    
+    + Percentuais sobre receita bruta para cada linha
     
     Args:
         conn: Conexão com o banco
@@ -211,20 +218,40 @@ def gerar_dre(
         data_inicio: Data inicial do período
         data_fim: Data final do período
         versao_plano_id: ID da versão do plano de contas
+        comparar_periodo_anterior: Se True, retorna dados comparativos também
     
     Returns:
-        Dict com DRE estruturada
+        Dict com DRE estruturada e indicadores
     """
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
     try:
-        # Função auxiliar para buscar saldo de contas por classificação
-        def buscar_saldo_grupo(classificacao_conta: str, prefixo_codigo: Optional[str] = None):
+        # Função auxiliar para buscar saldo de contas por classificação e prefixo
+        def buscar_saldo_grupo(
+            classificacao_conta: Optional[str] = None, 
+            prefixo_codigo: Optional[str] = None,
+            excluir_prefixo: Optional[str] = None,
+            data_ini: date = None,
+            data_fi: date = None
+        ):
+            """
+            Busca saldo de grupo de contas com filtros flexíveis
+            
+            Args:
+                classificacao_conta: 'receita' ou 'despesa'
+                prefixo_codigo: Código deve começar com (ex: '4', '5', '6')
+                excluir_prefixo: Código NÃO deve começar com (ex: '4.9')  
+                data_ini, data_fi: Período customizado (se None, usa data_inicio/data_fim)
+            """
+            di = data_ini or data_inicio
+            df = data_fi or data_fim
+            
             query = """
                 SELECT 
                     pc.codigo,
                     pc.descricao,
                     pc.classificacao,
+                    pc.natureza,
                     COALESCE(SUM(CASE WHEN lci.tipo = 'debito' THEN lci.valor ELSE 0 END), 0) AS total_debito,
                     COALESCE(SUM(CASE WHEN lci.tipo = 'credito' THEN lci.valor ELSE 0 END), 0) AS total_credito
                 FROM plano_contas pc
@@ -235,11 +262,15 @@ def gerar_dre(
                     AND lc.is_estornado = FALSE
                     AND lc.empresa_id = %s
                 WHERE pc.empresa_id = %s
-                  AND pc.classificacao = %s
                   AND pc.tipo_conta = 'analitica'
+                  AND pc.deleted_at IS NULL
             """
             
-            params = [data_inicio, data_fim, empresa_id, empresa_id, classificacao_conta]
+            params = [di, df, empresa_id, empresa_id]
+            
+            if classificacao_conta:
+                query += " AND pc.classificacao = %s"
+                params.append(classificacao_conta)
             
             if versao_plano_id:
                 query += " AND pc.versao_id = %s"
@@ -249,7 +280,11 @@ def gerar_dre(
                 query += " AND pc.codigo LIKE %s"
                 params.append(f"{prefixo_codigo}%")
             
-            query += " GROUP BY pc.id, pc.codigo, pc.descricao, pc.classificacao"
+            if excluir_prefixo:
+                query += " AND pc.codigo NOT LIKE %s"
+                params.append(f"{excluir_prefixo}%")
+            
+            query += " GROUP BY pc.id, pc.codigo, pc.descricao, pc.classificacao, pc.natureza"
             query += " HAVING (COALESCE(SUM(CASE WHEN lci.tipo = 'debito' THEN lci.valor ELSE 0 END), 0) > 0"
             query += "     OR COALESCE(SUM(CASE WHEN lci.tipo = 'credito' THEN lci.valor ELSE 0 END), 0) > 0)"
             query += " ORDER BY pc.codigo"
@@ -261,11 +296,11 @@ def gerar_dre(
                 debito = float(row['total_debito'])
                 credito = float(row['total_credito'])
                 
-                # Receitas: crédito aumenta, débito diminui
-                # Despesas/Custos: débito aumenta, crédito diminui
-                if classificacao_conta == 'receita':
+                # Lógica de saldo baseada na natureza da conta
+                natureza = row['natureza']
+                if natureza == 'credora':  # Receitas
                     valor = credito - debito
-                else:  # despesa
+                else:  # Devedora - Despesas/Custos
                     valor = debito - credito
                 
                 if valor != 0:
@@ -277,66 +312,190 @@ def gerar_dre(
             
             return resultados
         
-        # 1. RECEITAS (grupo 4)
-        receitas = buscar_saldo_grupo('receita')
-        receita_bruta = sum(item['valor'] for item in receitas)
-        
-        # 2. CUSTOS (grupo 5 - começam com 5)
-        custos = buscar_saldo_grupo('despesa', '5')
-        total_custos = sum(item['valor'] for item in custos)
-        
-        # 3. LUCRO BRUTO
-        lucro_bruto = receita_bruta - total_custos
-        
-        # 4. DESPESAS OPERACIONAIS (grupo 6 - começam com 6)
-        despesas = buscar_saldo_grupo('despesa', '6')
-        total_despesas = sum(item['valor'] for item in despesas)
-        
-        # 5. RESULTADO OPERACIONAL
-        resultado_operacional = lucro_bruto - total_despesas
-        
-        # 6. OUTRAS RECEITAS/DESPESAS (grupo 7 - começam com 7)
-        outras_receitas_despesas = buscar_saldo_grupo('despesa', '7')
-        total_outras = sum(item['valor'] for item in outras_receitas_despesas)
-        
-        # 7. RESULTADO LÍQUIDO
-        resultado_liquido = resultado_operacional - total_outras
-        
-        return {
-            'success': True,
-            'dre': {
-                'receitas': {
-                    'itens': receitas,
-                    'total': receita_bruta
+        def calcular_dre_periodo(di: date, df: date):
+            """Calcula DRE para um período específico"""
+            
+            # 1. RECEITA BRUTA (grupo 4, excluindo 4.9 - deduções)
+            receitas_brutas = buscar_saldo_grupo(
+                classificacao_conta='receita', 
+                prefixo_codigo='4',
+                excluir_prefixo='4.9',
+                data_ini=di,
+                data_fi=df
+            )
+            receita_bruta = sum(item['valor'] for item in receitas_brutas)
+            
+            # 2. DEDUÇÕES DA RECEITA (grupo 4.9)
+            deducoes = buscar_saldo_grupo(
+                classificacao_conta='receita', 
+                prefixo_codigo='4.9',
+                data_ini=di,
+                data_fi=df
+            )
+            total_deducoes = sum(item['valor'] for item in deducoes)
+            
+            # 3. RECEITA LÍQUIDA
+            receita_liquida = receita_bruta - abs(total_deducoes)
+            
+            # 4. CUSTOS (grupo 5)
+            custos = buscar_saldo_grupo(
+                classificacao_conta='despesa', 
+                prefixo_codigo='5',
+                data_ini=di,
+                data_fi=df
+            )
+            total_custos = sum(item['valor'] for item in custos)
+            
+            # 5. LUCRO BRUTO
+            lucro_bruto = receita_liquida - total_custos
+            
+            # 6. DESPESAS OPERACIONAIS (grupo 6)
+            despesas_operacionais = buscar_saldo_grupo(
+                classificacao_conta='despesa', 
+                prefixo_codigo='6',
+                data_ini=di,
+                data_fi=df
+            )
+            total_despesas_operacionais = sum(item['valor'] for item in despesas_operacionais)
+            
+            # 7. RESULTADO OPERACIONAL
+            resultado_operacional = lucro_bruto - total_despesas_operacionais
+            
+            # 8. RESULTADO FINANCEIRO
+            # 8.1 Receitas Financeiras (7.1)
+            receitas_financeiras = buscar_saldo_grupo(
+                classificacao_conta='receita', 
+                prefixo_codigo='7.1',
+                data_ini=di,
+                data_fi=df
+            )
+            total_receitas_financeiras = sum(item['valor'] for item in receitas_financeiras)
+            
+            # 8.2 Despesas Financeiras (7.2)
+            despesas_financeiras = buscar_saldo_grupo(
+                classificacao_conta='despesa', 
+                prefixo_codigo='7.2',
+                data_ini=di,
+                data_fi=df
+            )
+            total_despesas_financeiras = sum(item['valor'] for item in despesas_financeiras)
+            
+            resultado_financeiro = total_receitas_financeiras - total_despesas_financeiras
+            
+            # 9. LUCRO LÍQUIDO DO EXERCÍCIO
+            lucro_liquido = resultado_operacional + resultado_financeiro
+            
+            # Cálculo de percentuais sobre receita bruta
+            def percentual(valor, base):
+                return (valor / base * 100) if base != 0 else 0
+            
+            return {
+                'receita_bruta': {
+                    'itens': receitas_brutas,
+                    'total': receita_bruta,
+                    'percentual': 100.0
+                },
+                'deducoes': {
+                    'itens': deducoes,
+                    'total': abs(total_deducoes),
+                    'percentual': percentual(abs(total_deducoes), receita_bruta)
+                },
+                'receita_liquida': {
+                    'total': receita_liquida,
+                    'percentual': percentual(receita_liquida, receita_bruta)
                 },
                 'custos': {
                     'itens': custos,
-                    'total': total_custos
+                    'total': total_custos,
+                    'percentual': percentual(total_custos, receita_bruta)
                 },
-                'lucro_bruto': lucro_bruto,
+                'lucro_bruto': {
+                    'total': lucro_bruto,
+                    'percentual': percentual(lucro_bruto, receita_bruta)
+                },
                 'despesas_operacionais': {
-                    'itens': despesas,
-                    'total': total_despesas
+                    'itens': despesas_operacionais,
+                    'total': total_despesas_operacionais,
+                    'percentual': percentual(total_despesas_operacionais, receita_bruta)
                 },
-                'resultado_operacional': resultado_operacional,
-                'outras_receitas_despesas': {
-                    'itens': outras_receitas_despesas,
-                    'total': total_outras
+                'resultado_operacional': {
+                    'total': resultado_operacional,
+                    'percentual': percentual(resultado_operacional, receita_bruta)
                 },
-                'resultado_liquido': resultado_liquido
-            },
+                'resultado_financeiro': {
+                    'receitas_financeiras': {
+                        'itens': receitas_financeiras,
+                        'total': total_receitas_financeiras
+                    },
+                    'despesas_financeiras': {
+                        'itens': despesas_financeiras,
+                        'total': total_despesas_financeiras
+                    },
+                    'total': resultado_financeiro,
+                    'percentual': percentual(resultado_financeiro, receita_bruta)
+                },
+                'lucro_liquido': {
+                    'total': lucro_liquido,
+                    'percentual': percentual(lucro_liquido, receita_bruta)
+                }
+            }
+        
+        # Calcular DRE do período solicitado
+        dre_atual = calcular_dre_periodo(data_inicio, data_fim)
+        
+        resultado = {
+            'success': True,
+            'dre': dre_atual,
             'periodo': {
                 'data_inicio': data_inicio.isoformat(),
-                'data_fim': data_fim.isoformat()
+                'data_fim': data_fim.isoformat(),
+                'descricao': f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
             },
             'indicadores': {
-                'margem_bruta': (lucro_bruto / receita_bruta * 100) if receita_bruta > 0 else 0,
-                'margem_operacional': (resultado_operacional / receita_bruta * 100) if receita_bruta > 0 else 0,
-                'margem_liquida': (resultado_liquido / receita_bruta * 100) if receita_bruta > 0 else 0
+                'margem_bruta': dre_atual['lucro_bruto']['percentual'],
+                'margem_operacional': dre_atual['resultado_operacional']['percentual'],
+                'margem_liquida': dre_atual['lucro_liquido']['percentual'],
+                'rentabilidade': (dre_atual['lucro_liquido']['total'] / dre_atual['receita_bruta']['total'] * 100) if dre_atual['receita_bruta']['total'] > 0 else 0
             }
         }
         
+        # Se solicitado comparativo com período anterior
+        if comparar_periodo_anterior:
+            from dateutil.relativedelta import relativedelta
+            
+            # Calcular período anterior (mesmo intervalo de dias)
+            dias_periodo = (data_fim - data_inicio).days
+            data_inicio_anterior = data_inicio - relativedelta(days=dias_periodo + 1)
+            data_fim_anterior = data_inicio - relativedelta(days=1)
+            
+            dre_anterior = calcular_dre_periodo(data_inicio_anterior, data_fim_anterior)
+            
+            # Calcular variações
+            def calcular_variacao(atual, anterior):
+                if anterior == 0:
+                    return 0 if atual == 0 else 100
+                return ((atual - anterior) / abs(anterior)) * 100
+            
+            resultado['dre_anterior'] = dre_anterior
+            resultado['periodo_anterior'] = {
+                'data_inicio': data_inicio_anterior.isoformat(),
+                'data_fim': data_fim_anterior.isoformat(),
+                'descricao': f"{data_inicio_anterior.strftime('%d/%m/%Y')} a {data_fim_anterior.strftime('%d/%m/%Y')}"
+            }
+            resultado['variacoes'] = {
+                'receita_bruta': calcular_variacao(dre_atual['receita_bruta']['total'], dre_anterior['receita_bruta']['total']),
+                'receita_liquida': calcular_variacao(dre_atual['receita_liquida']['total'], dre_anterior['receita_liquida']['total']),
+                'lucro_bruto': calcular_variacao(dre_atual['lucro_bruto']['total'], dre_anterior['lucro_bruto']['total']),
+                'resultado_operacional': calcular_variacao(dre_atual['resultado_operacional']['total'], dre_anterior['resultado_operacional']['total']),
+                'lucro_liquido': calcular_variacao(dre_atual['lucro_liquido']['total'], dre_anterior['lucro_liquido']['total'])
+            }
+        
+        return resultado
+        
     except Exception as e:
+        import traceback
+        print(f"ERRO em gerar_dre: {e}")
+        print(traceback.format_exc())
         return {'success': False, 'error': str(e)}
     finally:
         cur.close()

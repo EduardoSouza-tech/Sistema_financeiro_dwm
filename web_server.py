@@ -13426,7 +13426,7 @@ def gerar_balancete_api():
 @app.route('/api/relatorios/dre', methods=['POST'])
 @require_auth
 def gerar_dre_api():
-    """Gera DRE (Demonstrativo de Resultado do Exercício)"""
+    """Gera DRE (Demonstração do Resultado do Exercício) COMPLETA"""
     try:
         user = request.user
         empresa_id = user['empresa_id']
@@ -13450,13 +13450,59 @@ def gerar_dre_api():
             empresa_id=empresa_id,
             data_inicio=data_inicio,
             data_fim=data_fim,
-            versao_plano_id=data.get('versao_plano_id')
+            versao_plano_id=data.get('versao_plano_id'),
+            comparar_periodo_anterior=data.get('comparar_periodo_anterior', False)
         )
         conn.close()
         
         return jsonify(resultado)
     except Exception as e:
         logger.error(f"Erro ao gerar DRE: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/dashboard/gerencial', methods=['GET'])
+@require_auth
+def dashboard_gerencial_api():
+    """
+    Dashboard Gerencial Completo
+    
+    Retorna:
+    - KPIs do mês (receita, despesas, lucro, margem)
+    - Evolução mensal (12 meses)
+    - Ponto de equilíbrio
+    - Comparação com mês anterior
+    """
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        # Parâmetros opcionais
+        data_referencia_str = request.args.get('data_referencia')
+        versao_plano_id = request.args.get('versao_plano_id', type=int)
+        
+        # Converter data se fornecida
+        from datetime import datetime
+        data_referencia = None
+        if data_referencia_str:
+            data_referencia = datetime.strptime(data_referencia_str, '%Y-%m-%d').date()
+        
+        from dashboard_functions import gerar_dashboard_gerencial
+        
+        conn = get_db_connection()
+        resultado = gerar_dashboard_gerencial(
+            conn=conn,
+            empresa_id=empresa_id,
+            data_referencia=data_referencia,
+            versao_plano_id=versao_plano_id
+        )
+        conn.close()
+        
+        return jsonify(resultado)
+    except Exception as e:
+        logger.error(f"Erro ao gerar dashboard gerencial: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

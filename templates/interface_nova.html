@@ -1402,7 +1402,8 @@
             <div class="submenu" id="submenu-contabilidade" style="display: none;">
                 <button class="submenu-button" onclick="showSection('plano-contas')" data-permission="lancamentos_view">📊 Plano de Contas</button>
                 <button class="submenu-button" onclick="showSection('integra-contador')" data-permission="lancamentos_view">🔗 Integra Contador</button>
-                <button class="submenu-button" onclick="gerarDRE()" data-permission="lancamentos_view">📈 DRE (Demonstração do Resultado)</button>
+                <button class="submenu-button" onclick="showSection('dre')" data-permission="lancamentos_view">📈 DRE (Demonstração do Resultado)</button>
+                <button class="submenu-button" onclick="showSection('dashboard-gerencial')" data-permission="lancamentos_view">📊 Dashboard Gerencial</button>
             </div>
             
             <!-- Menu de Relatórios com Submenu -->
@@ -4747,6 +4748,89 @@
                         <button onclick="fecharModalImportar()" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer;">Cancelar</button>
                         <button onclick="processarImportCSV()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer;">📥 Importar</button>
                     </div>
+                </div>
+            </div>
+
+            <!-- ================================================================= -->
+            <!-- DRE - DEMONSTRAÇÃO DO RESULTADO DO EXERCÍCIO -->
+            <!-- ================================================================= -->
+            <div id="dre-section" class="content-card hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">📈 DRE - Demonstração do Resultado do Exercício</h2>
+                </div>
+
+                <!-- Filtros -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">Data Início:</label>
+                            <input type="date" id="dreDataInicio" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">Data Fim:</label>
+                            <input type="date" id="dreDataFim" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">Versão do Plano:</label>
+                            <select id="dreVersaoPlano" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                                <option value="">Todas as versões</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Botões de Período Rápido -->
+                    <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                        <button id="drePeriodoMesAtual" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px; background: #95a5a6;">📅 Mês Atual</button>
+                        <button id="drePeriodoMesAnterior" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px; background: #95a5a6;">⏮️ Mês Anterior</button>
+                        <button id="drePeriodoTrimestre" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px; background: #95a5a6;">📊 Trimestre Atual</button>
+                        <button id="drePeriodoAnoAtual" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px; background: #95a5a6;">📆 Ano Atual</button>
+                    </div>
+                    
+                    <!-- Opções adicionais -->
+                    <div style="margin-top: 15px; display: flex; align-items: center; gap: 15px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="dreCompararPeriodo" style="width: 18px; height: 18px;">
+                            <span style="font-size: 13px; color: #555; font-weight: 500;">Comparar com período anterior</span>
+                        </label>
+                        <button onclick="gerarDRECompleta()" class="btn btn-primary" style="padding: 10px 24px; font-size: 14px; background: #3498db; margin-left: auto;">🚀 Gerar DRE</button>
+                    </div>
+                </div>
+
+                <!-- Resultado da DRE -->
+                <div id="dreResultado" style="display: none;">
+                    <!-- Será preenchido dinamicamente pelo JavaScript -->
+                </div>
+            </div>
+
+            <!-- ================================================================= -->
+            <!-- DASHBOARD GERENCIAL -->
+            <!-- ================================================================= -->
+            <div id="dashboard-gerencial-section" class="content-card hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">📊 Dashboard Gerencial</h2>
+                    <button onclick="carregarDashboardGerencial()" class="btn btn-primary" style="padding: 8px 16px; font-size: 13px; background: #3498db;">🔄 Atualizar</button>
+                </div>
+
+                <!-- Filtros -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 15px; align-items: end; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">Mês de Referência:</label>
+                            <input type="month" id="dashboardMesReferencia" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">Versão do Plano:</label>
+                            <select id="dashboardVersaoPlano" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                                <option value="">Todas as versões</option>
+                            </select>
+                        </div>
+                        <button onclick="carregarDashboardGerencial()" class="btn btn-success" style="padding: 10px 24px; font-size: 14px; background: #27ae60;">📊 Carregar Dashboard</button>
+                    </div>
+                </div>
+
+                <!-- Resultado do Dashboard -->
+                <div id="dashboardResultado" style="display: none;">
+                    <!-- Será preenchido dinamicamente pelo JavaScript -->
                 </div>
             </div>
 
@@ -12046,6 +12130,39 @@
     <script src="/static/excel_functions.js?v={{ build_timestamp }}"></script>
     <script src="/static/analise_functions.js?v={{ build_timestamp }}"></script>
     <script src="/static/modals.js?v={{ build_timestamp }}"></script>
+    
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    
+    <!-- Módulos DRE e Dashboard Gerencial -->
+    <script src="/static/dre_module.js?v={{ build_timestamp }}"></script>
+    <script src="/static/dashboard_module.js?v={{ build_timestamp }}"></script>
+    
+    <!-- Inicialização dos módulos DRE e Dashboard -->
+    <script>
+        // Interceptar showSection para inicializar módulos quando necessário
+        (function() {
+            const originalShowSection = window.showSection;
+            
+            window.showSection = async function(sectionName) {
+                // Chamar a função original
+                if (originalShowSection) {
+                    originalShowSection(sectionName);
+                }
+                
+                // Inicializar módulos específicos quando suas seções são abertas
+                if (sectionName === 'dre' && typeof window.inicializarModuloDRE === 'function') {
+                    console.log('🎯 Inicializando módulo DRE...');
+                    await window.inicializarModuloDRE();
+                } else if (sectionName === 'dashboard-gerencial' && typeof window.inicializarModuloDashboard === 'function') {
+                    console.log('🎯 Inicializando módulo Dashboard Gerencial...');
+                    await window.inicializarModuloDashboard();
+                }
+            };
+            
+            console.log('✅ Interceptor de seções DRE e Dashboard configurado');
+        })();
+    </script>
     
     <!-- Service Worker para controle de cache -->
     <script>
