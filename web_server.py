@@ -13726,7 +13726,7 @@ def criar_mapeamento_dre():
                 WHERE id = %s
                   AND empresa_id = %s
                   AND tipo_conta = 'analitica'
-                  AND (codigo LIKE '4%' OR codigo LIKE '5%' OR codigo LIKE '6%' OR codigo LIKE '7%')
+                  AND (codigo LIKE '4%%' OR codigo LIKE '5%%' OR codigo LIKE '6%%' OR codigo LIKE '7%%')
                   AND deleted_at IS NULL
             """, (plano_contas_id, empresa_id))
             
@@ -13824,7 +13824,7 @@ def atualizar_mapeamento_dre(mapeamento_id):
                     WHERE id = %s
                       AND empresa_id = %s
                       AND tipo_conta = 'analitica'
-                      AND (codigo LIKE '4%' OR codigo LIKE '5%' OR codigo LIKE '6%' OR codigo LIKE '7%')
+                      AND (codigo LIKE '4%%' OR codigo LIKE '5%%' OR codigo LIKE '6%%' OR codigo LIKE '7%%')
                       AND deleted_at IS NULL
                 """, (data['plano_contas_id'], empresa_id))
                 
@@ -13985,7 +13985,7 @@ def listar_plano_contas_dre():
                 FROM plano_contas
                 WHERE empresa_id = %s
                   AND tipo_conta = 'analitica'
-                  AND (codigo LIKE '4%' OR codigo LIKE '5%' OR codigo LIKE '6%' OR codigo LIKE '7%')
+                  AND (codigo LIKE '4%%' OR codigo LIKE '5%%' OR codigo LIKE '6%%' OR codigo LIKE '7%%')
                   AND deleted_at IS NULL
             """
             params = [empresa_id]
