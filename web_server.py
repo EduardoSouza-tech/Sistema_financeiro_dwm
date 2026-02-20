@@ -13605,6 +13605,460 @@ def gerar_dre_excel_api():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ============================================================================
+# CONFIGURAÇÃO DRE - MAPEAMENTO DE SUBCATEGORIAS
+# ============================================================================
+
+@app.route('/api/dre/configuracao/mapeamentos', methods=['GET'])
+@require_auth
+def listar_mapeamentos_dre():
+    """Lista todos os mapeamentos de subcategorias para o DRE da empresa"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Buscar mapeamentos com informações das subcategorias e contas
+        cursor.execute("""
+            SELECT 
+                m.id,
+                m.subcategoria_id,
+                s.nome as subcategoria_nome,
+                c.nome as categoria_nome,
+                c.tipo as categoria_tipo,
+                m.plano_contas_id,
+                pc.codigo as plano_contas_codigo,
+                pc.descricao as plano_contas_descricao,
+                pc.classificacao as plano_contas_classificacao,
+                m.ativo,
+                m.created_at,
+                m.updated_at
+            FROM dre_mapeamento_subcategoria m
+            INNER JOIN subcategorias s ON s.id = m.subcategoria_id
+            INNER JOIN categorias c ON c.id = s.categoria_id
+            INNER JOIN plano_contas pc ON pc.id = m.plano_contas_id
+            WHERE m.empresa_id = %s
+            ORDER BY c.nome, s.nome
+        """, (empresa_id,))
+        
+        mapeamentos = []
+        for row in cursor.fetchall():
+            mapeamentos.append({
+                'id': row['id'],
+                'subcategoria': {
+                    'id': row['subcategoria_id'],
+                    'nome': row['subcategoria_nome'],
+                    'categoria': {
+                        'nome': row['categoria_nome'],
+                        'tipo': row['categoria_tipo']
+                    }
+                },
+                'plano_contas': {
+                    'id': row['plano_contas_id'],
+                    'codigo': row['plano_contas_codigo'],
+                    'descricao': row['plano_contas_descricao'],
+                    'classificacao': row['plano_contas_classificacao']
+                },
+                'ativo': row['ativo'],
+                'created_at': row['created_at'].isoformat() if row['created_at'] else None,
+                'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'mapeamentos': mapeamentos,
+            'total': len(mapeamentos)
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao listar mapeamentos DRE: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/dre/configuracao/mapeamentos', methods=['POST'])
+@require_auth
+def criar_mapeamento_dre():
+    """Cria um novo mapeamento de subcategoria para conta do DRE"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        data = request.get_json()
+        
+        # Validar campos obrigatórios
+        if not data.get('subcategoria_id') or not data.get('plano_contas_id'):
+            return jsonify({
+                'success': False,
+                'error': 'subcategoria_id e plano_contas_id são obrigatórios'
+            }), 400
+        
+        subcategoria_id = data['subcategoria_id']
+        plano_contas_id = data['plano_contas_id']
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Verificar se a subcategoria pertence à empresa
+        cursor.execute("""
+            SELECT s.id, s.nome, c.nome as categoria_nome, c.empresa_id
+            FROM subcategorias s
+            INNER JOIN categorias c ON c.id = s.categoria_id
+            WHERE s.id = %s
+        """, (subcategoria_id,))
+        
+        subcategoria = cursor.fetchone()
+        if not subcategoria:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Subcategoria não encontrada'}), 404
+        
+        if subcategoria['empresa_id'] != empresa_id:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Subcategoria não pertence a esta empresa'}), 403
+        
+        # Verificar se a conta do plano pertence à empresa e é DRE (códigos 4, 5, 6, 7)
+        cursor.execute("""
+            SELECT id, codigo, descricao, classificacao, empresa_id
+            FROM plano_contas
+            WHERE id = %s
+              AND empresa_id = %s
+              AND tipo_conta = 'analitica'
+              AND (codigo LIKE '4%' OR codigo LIKE '5%' OR codigo LIKE '6%' OR codigo LIKE '7%')
+              AND deleted_at IS NULL
+        """, (plano_contas_id, empresa_id))
+        
+        plano_contas = cursor.fetchone()
+        if not plano_contas:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': 'Conta do plano não encontrada ou não é válida para DRE (deve ser código 4.x, 5.x, 6.x ou 7.x)'
+            }), 404
+        
+        # Verificar se já existe mapeamento para esta subcategoria
+        cursor.execute("""
+            SELECT id FROM dre_mapeamento_subcategoria
+            WHERE empresa_id = %s AND subcategoria_id = %s
+        """, (empresa_id, subcategoria_id))
+        
+        if cursor.fetchone():
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': 'Já existe um mapeamento para esta subcategoria. Atualize o existente ou exclua-o primeiro.'
+            }), 409
+        
+        # Criar o mapeamento
+        cursor.execute("""
+            INSERT INTO dre_mapeamento_subcategoria 
+            (empresa_id, subcategoria_id, plano_contas_id, ativo)
+            VALUES (%s, %s, %s, TRUE)
+            RETURNING id, created_at
+        """, (empresa_id, subcategoria_id, plano_contas_id))
+        
+        result = cursor.fetchone()
+        mapeamento_id = result['id']
+        created_at = result['created_at']
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Mapeamento criado com sucesso',
+            'mapeamento': {
+                'id': mapeamento_id,
+                'subcategoria': {
+                    'id': subcategoria_id,
+                    'nome': subcategoria['nome'],
+                    'categoria': subcategoria['categoria_nome']
+                },
+                'plano_contas': {
+                    'id': plano_contas_id,
+                    'codigo': plano_contas['codigo'],
+                    'descricao': plano_contas['descricao']
+                },
+                'created_at': created_at.isoformat()
+            }
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Erro ao criar mapeamento DRE: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/dre/configuracao/mapeamentos/<int:mapeamento_id>', methods=['PUT'])
+@require_auth
+def atualizar_mapeamento_dre(mapeamento_id):
+    """Atualiza um mapeamento existente"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        data = request.get_json()
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Verificar se o mapeamento existe e pertence à empresa
+        cursor.execute("""
+            SELECT id FROM dre_mapeamento_subcategoria
+            WHERE id = %s AND empresa_id = %s
+        """, (mapeamento_id, empresa_id))
+        
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'success': False, 'error': 'Mapeamento não encontrado'}), 404
+        
+        # Campos atualizáveis
+        updates = []
+        params = []
+        
+        if 'plano_contas_id' in data:
+            # Validar nova conta
+            cursor.execute("""
+                SELECT id, codigo, descricao
+                FROM plano_contas
+                WHERE id = %s
+                  AND empresa_id = %s
+                  AND tipo_conta = 'analitica'
+                  AND (codigo LIKE '4%' OR codigo LIKE '5%' OR codigo LIKE '6%' OR codigo LIKE '7%')
+                  AND deleted_at IS NULL
+            """, (data['plano_contas_id'], empresa_id))
+            
+            if not cursor.fetchone():
+                conn.close()
+                return jsonify({
+                    'success': False,
+                    'error': 'Conta do plano inválida para DRE'
+                }), 400
+            
+            updates.append('plano_contas_id = %s')
+            params.append(data['plano_contas_id'])
+        
+        if 'ativo' in data:
+            updates.append('ativo = %s')
+            params.append(data['ativo'])
+        
+        if not updates:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Nenhum campo para atualizar'}), 400
+        
+        # Executar update
+        params.extend([mapeamento_id, empresa_id])
+        query = f"""
+            UPDATE dre_mapeamento_subcategoria
+            SET {', '.join(updates)}
+            WHERE id = %s AND empresa_id = %s
+            RETURNING updated_at
+        """
+        
+        cursor.execute(query, params)
+        result = cursor.fetchone()
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Mapeamento atualizado com sucesso',
+            'updated_at': result['updated_at'].isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao atualizar mapeamento DRE: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/dre/configuracao/mapeamentos/<int:mapeamento_id>', methods=['DELETE'])
+@require_auth
+def excluir_mapeamento_dre(mapeamento_id):
+    """Exclui um mapeamento"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verificar se o mapeamento existe e pertence à empresa
+        cursor.execute("""
+            DELETE FROM dre_mapeamento_subcategoria
+            WHERE id = %s AND empresa_id = %s
+            RETURNING id
+        """, (mapeamento_id, empresa_id))
+        
+        result = cursor.fetchone()
+        
+        if not result:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Mapeamento não encontrado'}), 404
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Mapeamento excluído com sucesso'
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao excluir mapeamento DRE: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/dre/configuracao/subcategorias-disponiveis', methods=['GET'])
+@require_auth
+def listar_subcategorias_disponiveis_dre():
+    """Lista subcategorias que ainda não têm mapeamento para o DRE"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Buscar subcategorias sem mapeamento
+        cursor.execute("""
+            SELECT 
+                s.id,
+                s.nome as subcategoria_nome,
+                c.id as categoria_id,
+                c.nome as categoria_nome,
+                c.tipo as categoria_tipo
+            FROM subcategorias s
+            INNER JOIN categorias c ON c.id = s.categoria_id
+            LEFT JOIN dre_mapeamento_subcategoria m ON m.subcategoria_id = s.id AND m.empresa_id = %s
+            WHERE c.empresa_id = %s
+              AND s.ativa = TRUE
+              AND c.ativa = TRUE
+              AND m.id IS NULL
+            ORDER BY c.nome, s.nome
+        """, (empresa_id, empresa_id))
+        
+        subcategorias = []
+        for row in cursor.fetchall():
+            subcategorias.append({
+                'id': row['id'],
+                'nome': row['subcategoria_nome'],
+                'categoria': {
+                    'id': row['categoria_id'],
+                    'nome': row['categoria_nome'],
+                    'tipo': row['categoria_tipo']
+                }
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'subcategorias': subcategorias,
+            'total': len(subcategorias)
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao listar subcategorias disponíveis: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/dre/configuracao/plano-contas-dre', methods=['GET'])
+@require_auth
+def listar_plano_contas_dre():
+    """Lista contas do plano de contas válidas para DRE (códigos 4, 5, 6, 7)"""
+    try:
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        # Parâmetro opcional para filtrar por classificação
+        classificacao = request.args.get('classificacao')  # 'receita' ou 'despesa'
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        query = """
+            SELECT 
+                id,
+                codigo,
+                descricao,
+                classificacao,
+                nivel
+            FROM plano_contas
+            WHERE empresa_id = %s
+              AND tipo_conta = 'analitica'
+              AND (codigo LIKE '4%' OR codigo LIKE '5%' OR codigo LIKE '6%' OR codigo LIKE '7%')
+              AND deleted_at IS NULL
+        """
+        params = [empresa_id]
+        
+        if classificacao:
+            query += " AND classificacao = %s"
+            params.append(classificacao)
+        
+        query += " ORDER BY codigo"
+        
+        cursor.execute(query, params)
+        
+        contas = []
+        for row in cursor.fetchall():
+            # Determinar grupo DRE baseado no código
+            codigo = row['codigo']
+            if codigo.startswith('4.9'):
+                grupo_dre = 'Deduções da Receita'
+            elif codigo.startswith('4'):
+                grupo_dre = 'Receita Bruta'
+            elif codigo.startswith('5'):
+                grupo_dre = 'Custos'
+            elif codigo.startswith('6'):
+                grupo_dre = 'Despesas Operacionais'
+            elif codigo.startswith('7.1'):
+                grupo_dre = 'Receitas Financeiras'
+            elif codigo.startswith('7.2'):
+                grupo_dre = 'Despesas Financeiras'
+            else:
+                grupo_dre = 'Outros'
+            
+            contas.append({
+                'id': row['id'],
+                'codigo': row['codigo'],
+                'descricao': row['descricao'],
+                'classificacao': row['classificacao'],
+                'nivel': row['nivel'],
+                'grupo_dre': grupo_dre
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'contas': contas,
+            'total': len(contas)
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao listar plano de contas DRE: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# FIM - CONFIGURAÇÃO DRE
+# ============================================================================
+
+
 @app.route('/api/dashboard/gerencial', methods=['GET'])
 @require_auth
 def dashboard_gerencial_api():

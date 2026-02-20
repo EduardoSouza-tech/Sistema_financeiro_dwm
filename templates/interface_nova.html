@@ -4757,6 +4757,9 @@
             <div id="dre-section" class="content-card hidden">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2 style="margin: 0;">📈 DRE - Demonstração do Resultado do Exercício</h2>
+                    <button onclick="abrirModalConfiguracaoDRE()" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px; background: #9b59b6; color: white;">
+                        ⚙️ Configurar Mapeamento
+                    </button>
                 </div>
 
                 <!-- Filtros -->
@@ -4799,6 +4802,88 @@
                 <!-- Resultado da DRE -->
                 <div id="dreResultado" style="display: none;">
                     <!-- Será preenchido dinamicamente pelo JavaScript -->
+                </div>
+            </div>
+
+            <!-- ================================================================= -->
+            <!-- MODAL: CONFIGURAÇÃO DE MAPEAMENTO DRE -->
+            <!-- ================================================================= -->
+            <div id="modalConfiguracaoDRE" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; overflow-y: auto; padding: 20px;">
+                <div style="background: white; border-radius: 12px; max-width: 1200px; margin: 40px auto; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+                    
+                    <!-- CABEÇALHO -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #9b59b6; padding-bottom: 15px;">
+                        <div>
+                            <h2 style="margin: 0; color: #9b59b6; font-size: 24px;">⚙️ Configuração de Mapeamento DRE</h2>
+                            <p style="margin: 5px 0 0 0; font-size: 14px; color: #777;">
+                                Vincule suas subcategorias às contas do plano de contas do DRE
+                            </p>
+                        </div>
+                        <button onclick="fecharModalConfiguracaoDRE()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #999; line-height: 1;">✕</button>
+                    </div>
+
+                    <!-- INSTRUÇÕES -->
+                    <div style="background: #f0f3ff; border-left: 4px solid #9b59b6; padding: 15px; border-radius: 6px; margin-bottom: 25px;">
+                        <p style="margin: 0; font-size: 13px; color: #555; line-height: 1.6;">
+                            <strong>📌 Como funciona:</strong><br>
+                            • Ao mapear uma subcategoria para uma conta do DRE, todos os lançamentos dessa subcategoria serão incluídos no DRE<br>
+                            • Cada subcategoria só pode ser mapeada para UMA conta do plano de contas<br>
+                            • As contas válidas são: <strong>4.x</strong> (Receitas), <strong>5.x</strong> (Custos), <strong>6.x</strong> (Despesas Operacionais), <strong>7.x</strong> (Resultado Financeiro)
+                        </p>
+                    </div>
+
+                    <!-- FORMULÁRIO DE NOVO MAPEAMENTO -->
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                        <h3 style="margin: 0 0 15px 0; font-size: 16px; color: #333;">➕ Novo Mapeamento</h3>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 120px; gap: 15px; align-items: end;">
+                            <div>
+                                <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">
+                                    Subcategoria:
+                                </label>
+                                <select id="novoMapSubcategoria" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                                    <option value="">Selecione uma subcategoria...</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">
+                                    Conta do DRE:
+                                </label>
+                                <select id="novoMapPlanoContas" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                                    <option value="">Selecione uma conta...</option>
+                                </select>
+                            </div>
+                            
+                            <button onclick="salvarNovoMapeamento()" class="btn btn-primary" style="padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; height: 42px;">
+                                ✓ Adicionar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- LISTA DE MAPEAMENTOS EXISTENTES -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0; font-size: 16px; color: #333;">📋 Mapeamentos Atuais</h3>
+                            <span id="totalMapeamentos" style="font-size: 13px; color: #777; font-weight: 600;">0 mapeamentos</span>
+                        </div>
+                        
+                        <div id="listaMapeamentosDRE" style="min-height: 150px;">
+                            <!-- Será preenchido dinamicamente -->
+                            <div style="text-align: center; padding: 40px; color: #999;">
+                                <div style="font-size: 48px; margin-bottom: 10px;">📂</div>
+                                <p>Nenhum mapeamento configurado ainda</p>
+                                <p style="font-size: 12px; margin-top: 5px;">Adicione um mapeamento acima para começar</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RODAPÉ -->
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; gap: 10px;">
+                        <button onclick="fecharModalConfiguracaoDRE()" class="btn btn-secondary" style="padding: 10px 24px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            Fechar
+                        </button>
+                    </div>
                 </div>
             </div>
 

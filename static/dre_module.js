@@ -497,4 +497,330 @@ window.imprimirDRE = function() {
     window.print();
 };
 
+// ===== CONFIGURAÇÃO DE MAPEAMENTO DRE =====
+
+/**
+ * Abrir modal de configuração de mapeamento
+ */
+window.abrirModalConfiguracaoDRE = async function() {
+    console.log('📂 Abrindo configuração de mapeamento DRE...');
+    
+    // Mostrar modal
+    document.getElementById('modalConfiguracaoDRE').style.display = 'flex';
+    
+    // Carregar dados
+    await carregarSubcategoriasDisponiveis();
+    await carregarPlanoContasDRE();
+    await carregarMapeamentosExistentes();
+};
+
+/**
+ * Fechar modal de configuração
+ */
+window.fecharModalConfiguracaoDRE = function() {
+    document.getElementById('modalConfiguracaoDRE').style.display = 'none';
+};
+
+/**
+ * Carregar subcategorias disponíveis (sem mapeamento)
+ */
+async function carregarSubcategoriasDisponiveis() {
+    try {
+        const response = await fetch('/api/dre/configuracao/subcategorias-disponiveis', {
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.subcategorias) {
+            const select = document.getElementById('novoMapSubcategoria');
+            select.innerHTML = '<option value="">Selecione uma subcategoria...</option>';
+            
+            data.subcategorias.forEach(sub => {
+                const opt = document.createElement('option');
+                opt.value = sub.id;
+                opt.textContent = `${sub.categoria.nome} → ${sub.nome} (${sub.categoria.tipo})`;
+                select.appendChild(opt);
+            });
+            
+            console.log(`✅ ${data.subcategorias.length} subcategorias disponíveis carregadas`);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar subcategorias disponíveis:', error);
+        showToast('❌ Erro ao carregar subcategorias', 'error');
+    }
+}
+
+/**
+ * Carregar contas do plano de contas válidas para DRE
+ */
+async function carregarPlanoContasDRE() {
+    try {
+        const response = await fetch('/api/dre/configuracao/plano-contas-dre', {
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.contas) {
+            const select = document.getElementById('novoMapPlanoContas');
+            select.innerHTML = '<option value="">Selecione uma conta...</option>';
+            
+            // Agrupar por grupo DRE
+            const grupos = {};
+            data.contas.forEach(conta => {
+                if (!grupos[conta.grupo_dre]) {
+                    grupos[conta.grupo_dre] = [];
+                }
+                grupos[conta.grupo_dre].push(conta);
+            });
+            
+            // Criar optgroups
+            for (const [grupo, contas] of Object.entries(grupos)) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = grupo;
+                
+                contas.forEach(conta => {
+                    const opt = document.createElement('option');
+                    opt.value = conta.id;
+                    opt.textContent = `${conta.codigo} - ${conta.descricao}`;
+                    optgroup.appendChild(opt);
+                });
+                
+                select.appendChild(optgroup);
+            }
+            
+            console.log(`✅ ${data.contas.length} contas DRE carregadas`);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar plano de contas DRE:', error);
+        showToast('❌ Erro ao carregar contas', 'error');
+    }
+}
+
+/**
+ * Carregar mapeamentos existentes
+ */
+async function carregarMapeamentosExistentes() {
+    try {
+        const response = await fetch('/api/dre/configuracao/mapeamentos', {
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.mapeamentos) {
+            renderizarListaMapeamentos(data.mapeamentos);
+            document.getElementById('totalMapeamentos').textContent = `${data.mapeamentos.length} mapeamento${data.mapeamentos.length !== 1 ? 's' : ''}`;
+            console.log(`✅ ${data.mapeamentos.length} mapeamentos carregados`);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar mapeamentos:', error);
+        showToast('❌ Erro ao carregar mapeamentos', 'error');
+    }
+}
+
+/**
+ * Renderizar lista de mapeamentos
+ */
+function renderizarListaMapeamentos(mapeamentos) {
+    const container = document.getElementById('listaMapeamentosDRE');
+    
+    if (!mapeamentos || mapeamentos.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #999;">
+                <div style="font-size: 48px; margin-bottom: 10px;">📂</div>
+                <p>Nenhum mapeamento configurado ainda</p>
+                <p style="font-size: 12px; margin-top: 5px;">Adicione um mapeamento acima para começar</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div style="max-height: 400px; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 1;">
+                    <tr style="border-bottom: 2px solid #ddd;">
+                        <th style="padding: 12px; text-align: left; font-weight: 600; color: #555;">Categoria</th>
+                        <th style="padding: 12px; text-align: left; font-weight: 600; color: #555;">Subcategoria</th>
+                        <th style="padding: 12px; text-align: left; font-weight: 600; color: #555;">Tipo</th>
+                        <th style="padding: 12px; text-align: left; font-weight: 600; color: #555;">Conta DRE</th>
+                        <th style="padding: 12px; text-align: left; font-weight: 600; color: #555;">Grupo DRE</th>
+                        <th style="padding: 12px; text-align: center; font-weight: 600; color: #555;">Status</th>
+                        <th style="padding: 12px; text-align: center; font-weight: 600; color: #555; width: 100px;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    mapeamentos.forEach(map => {
+        const tipoColor = map.subcategoria.categoria.tipo === 'receita' ? '#27ae60' : '#e74c3c';
+        const tipoBadge = map.subcategoria.categoria.tipo === 'receita' ? '📈 Receita' : '📉 Despesa';
+        
+        // Determinar grupo DRE
+        let grupoDRE = 'Outros';
+        const codigo = map.plano_contas.codigo;
+        if (codigo.startsWith('4.9')) grupoDRE = 'Deduções da Receita';
+        else if (codigo.startsWith('4')) grupoDRE = 'Receita Bruta';
+        else if (codigo.startsWith('5')) grupoDRE = 'Custos';
+        else if (codigo.startsWith('6')) grupoDRE = 'Despesas Operacionais';
+        else if (codigo.startsWith('7.1')) grupoDRE = 'Receitas Financeiras';
+        else if (codigo.startsWith('7.2')) grupoDRE = 'Despesas Financeiras';
+        
+        const statusIcon = map.ativo ? '✅' : '⏸️';
+        const statusText = map.ativo ? 'Ativo' : 'Inativo';
+        const statusColor = map.ativo ? '#27ae60' : '#95a5a6';
+        
+        html += `
+            <tr style="border-bottom: 1px solid #e0e0e0; transition: background 0.2s;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='white'">
+                <td style="padding: 12px; color: #333; font-weight: 500;">${map.subcategoria.categoria.nome}</td>
+                <td style="padding: 12px; color: #555;">${map.subcategoria.nome}</td>
+                <td style="padding: 12px;">
+                    <span style="background: ${tipoColor}; color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;">
+                        ${tipoBadge}
+                    </span>
+                </td>
+                <td style="padding: 12px; font-family: monospace; color: #555;">
+                    <strong>${map.plano_contas.codigo}</strong> ${map.plano_contas.descricao}
+                </td>
+                <td style="padding: 12px; color: #777; font-size: 12px;">${grupoDRE}</td>
+                <td style="padding: 12px; text-align: center;">
+                    <span style="color: ${statusColor}; font-weight: 600;">${statusIcon} ${statusText}</span>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                    <button onclick="toggleMapeamentoStatus(${map.id}, ${!map.ativo})" style="background: ${map.ativo ? '#f39c12' : '#27ae60'}; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-right: 5px;" title="${map.ativo ? 'Desativar' : 'Ativar'}">
+                        ${map.ativo ? '⏸️' : '▶️'}
+                    </button>
+                    <button onclick="excluirMapeamento(${map.id})" style="background: #e74c3c; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="Excluir">
+                        🗑️
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+/**
+ * Salvar novo mapeamento
+ */
+window.salvarNovoMapeamento = async function() {
+    try {
+        const subcategoriaId = document.getElementById('novoMapSubcategoria').value;
+        const planoContasId = document.getElementById('novoMapPlanoContas').value;
+        
+        if (!subcategoriaId || !planoContasId) {
+            showToast('❌ Selecione a subcategoria e a conta', 'error');
+            return;
+        }
+        
+        showToast('⏳ Salvando mapeamento...', 'info');
+        
+        const response = await fetch('/api/dre/configuracao/mapeamentos', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                subcategoria_id: parseInt(subcategoriaId),
+                plano_contas_id: parseInt(planoContasId)
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('✅ Mapeamento criado com sucesso!', 'success');
+            
+            // Limpar formulário
+            document.getElementById('novoMapSubcategoria').value = '';
+            document.getElementById('novoMapPlanoContas').value = '';
+            
+            // Recarregar listas
+            await carregarSubcategoriasDisponiveis();
+            await carregarMapeamentosExistentes();
+        } else {
+            showToast(`❌ Erro: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar mapeamento:', error);
+        showToast('❌ Erro ao salvar mapeamento', 'error');
+    }
+};
+
+/**
+ * Toggle status do mapeamento (ativar/desativar)
+ */
+window.toggleMapeamentoStatus = async function(mapeamentoId, novoStatus) {
+    try {
+        showToast('⏳ Atualizando status...', 'info');
+        
+        const response = await fetch(`/api/dre/configuracao/mapeamentos/${mapeamentoId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                ativo: novoStatus
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(`✅ Mapeamento ${novoStatus ? 'ativado' : 'desativado'}!`, 'success');
+            await carregarMapeamentosExistentes();
+        } else {
+            showToast(`❌ Erro: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao atualizar status:', error);
+        showToast('❌ Erro ao atualizar status', 'error');
+    }
+};
+
+/**
+ * Excluir mapeamento
+ */
+window.excluirMapeamento = async function(mapeamentoId) {
+    if (!confirm('⚠️ Tem certeza que deseja excluir este mapeamento?\n\nEsta ação não pode ser desfeita.')) {
+        return;
+    }
+    
+    try {
+        showToast('⏳ Excluindo mapeamento...', 'info');
+        
+        const response = await fetch(`/api/dre/configuracao/mapeamentos/${mapeamentoId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('✅ Mapeamento excluído!', 'success');
+            
+            // Recarregar listas
+            await carregarSubcategoriasDisponiveis();
+            await carregarMapeamentosExistentes();
+        } else {
+            showToast(`❌ Erro: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao excluir mapeamento:', error);
+        showToast('❌ Erro ao excluir mapeamento', 'error');
+    }
+};
+
 console.log('✅ Módulo DRE carregado');
+

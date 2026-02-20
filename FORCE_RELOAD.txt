@@ -1,11 +1,14 @@
 This file forces Railway to reload all Python modules
-Timestamp: 2026-02-19 22:45:00
-FEATURES: Dashboard - Novos gráficos (Pie + Bar Chart) + Exportações PDF/Excel
-1. Pie chart: Despesas por categoria (top 5 + Outros)
-2. Bar chart horizontal: Receitas por categoria (top 10)
-3. Exportação PDF: 5 seções com tabelas coloridas
-4. Exportação Excel: 4 sheets profissionais
-Total: ~919 linhas de código novo (dashboard_functions +48, dashboard_module +203, pdf_export +525, web_server +143)
+Timestamp: 2026-02-19 23:15:00
+FEATURE: DRE - Sistema de Mapeamento de Subcategorias para Contas do Plano de Contas
+1. Nova tabela: dre_mapeamento_subcategoria (empresa_id, subcategoria_id, plano_contas_id, ativo)
+2. 6 APIs REST completas: GET/POST/PUT/DELETE mapeamentos + subcategorias disponíveis + plano contas DRE
+3. Interface: Modal de configuração com formulário e tabela de gerenciamento
+4. JavaScript: CRUD completo, validações, feedback visual
+5. Multi-tenant: 100% isolado por empresa, cada empresa define seus próprios mapeamentos
+Total: ~750 linhas (APIs 370, JS 280, HTML 95, SQL 130)
+MIGRATION PENDENTE: Executar migration_dre_mapeamento.sql no Railway antes de usar
+
 Fórmulas: Percentuais automáticos, formatação de moeda brasileira
 Comparativo: Suporte para 5 colunas com período anterior e variação %
 API: POST /api/relatorios/dre/excel
