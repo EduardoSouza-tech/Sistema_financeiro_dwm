@@ -1,5 +1,5 @@
 This file forces Railway to reload all Python modules
-Timestamp: 2026-02-19 21:00:00
-FIX: Corrigir atualizar_conta() - extrair versao_id corretamente da tupla cursor
-Bug: conta[1] falhava ao acessar diretamente, causando erro 500 ao editar plano de contas
-Solução: Extrair versao_id em variável separada antes de usar no SQL subsequente
+Timestamp: 2026-02-19 21:10:00
+FEATURE: Auto-selecionar primeira versão disponível no Plano de Contas
+UX: Ao abrir 📒 Plano de Contas, já mostra o primeiro plano automaticamente
+Melhoria: Economiza clique do usuário - não precisa selecionar versão manualmente

@@ -8369,13 +8369,17 @@ async function carregarVersoesDropdown() {
             console.log('⭐ Versão ativa encontrada:', versaoAtiva);
             console.log('⭐ Versão ativa encontrada:', versaoAtiva);
             
-            // Restaurar seleção ou selecionar ativa
+            // Restaurar seleção ou selecionar ativa ou primeira disponível
             if (valorAtual) {
                 select.value = valorAtual;
                 console.log('✅ Restaurado valor anterior:', valorAtual);
             } else if (versaoAtiva) {
                 select.value = versaoAtiva;
                 console.log('✅ Selecionada versão ativa:', versaoAtiva);
+            } else if (data.versoes.length > 0) {
+                // Auto-selecionar primeira versão disponível (melhoria UX)
+                select.value = data.versoes[0].id;
+                console.log('✅ Auto-selecionada primeira versão:', data.versoes[0].id, '-', data.versoes[0].nome_versao);
             }
             
             console.log('🎯 Valor final do select:', select.value);
