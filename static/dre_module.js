@@ -398,8 +398,9 @@ function renderizarDRE(data) {
     });
     
     document.getElementById('dreResultado').innerHTML = html;
+    document.getElementById('dreResultado').style.display = 'block'; // GARANTIR que está visível
     
-    console.log('✅ HTML inserido no DOM');
+    console.log('✅ HTML inserido no DOM e display forçado para block');
 }
 
 /**
