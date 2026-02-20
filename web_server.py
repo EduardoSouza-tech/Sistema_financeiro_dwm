@@ -13614,7 +13614,7 @@ def gerar_dre_excel_api():
 def listar_mapeamentos_dre():
     """Lista todos os mapeamentos de subcategorias para o DRE da empresa"""
     try:
-        user = request.user
+        user = request.usuario
         empresa_id = user['empresa_id']
         
         conn = get_db_connection()
@@ -13687,7 +13687,7 @@ def listar_mapeamentos_dre():
 def criar_mapeamento_dre():
     """Cria um novo mapeamento de subcategoria para conta do DRE"""
     try:
-        user = request.user
+        user = request.usuario
         empresa_id = user['empresa_id']
         
         data = request.get_json()
@@ -13801,7 +13801,7 @@ def criar_mapeamento_dre():
 def atualizar_mapeamento_dre(mapeamento_id):
     """Atualiza um mapeamento existente"""
     try:
-        user = request.user
+        user = request.usuario
         empresa_id = user['empresa_id']
         
         data = request.get_json()
@@ -13887,7 +13887,7 @@ def atualizar_mapeamento_dre(mapeamento_id):
 def excluir_mapeamento_dre(mapeamento_id):
     """Exclui um mapeamento"""
     try:
-        user = request.user
+        user = request.usuario
         empresa_id = user['empresa_id']
         
         conn = get_db_connection()
@@ -13925,7 +13925,7 @@ def excluir_mapeamento_dre(mapeamento_id):
 def listar_subcategorias_disponiveis_dre():
     """Lista subcategorias que ainda não têm mapeamento para o DRE"""
     try:
-        user = request.user
+        user = request.usuario
         empresa_id = user['empresa_id']
         
         conn = get_db_connection()
@@ -13979,7 +13979,7 @@ def listar_subcategorias_disponiveis_dre():
 def listar_plano_contas_dre():
     """Lista contas do plano de contas válidas para DRE (códigos 4, 5, 6, 7)"""
     try:
-        user = request.user
+        user = request.usuario
         empresa_id = user['empresa_id']
         
         # Parâmetro opcional para filtrar por classificação
