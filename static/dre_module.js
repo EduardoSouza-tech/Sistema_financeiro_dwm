@@ -191,7 +191,12 @@ window.gerarDRECompleta = async function() {
         
         const data = await response.json();
         
-        console.log('📦 Dados parseados:', data);
+        console.log('📦 Dados parseados:');
+        console.log('   success:', data.success);
+        console.log('   error:', data.error);
+        console.log('   dre:', data.dre);
+        console.log('   periodo:', data.periodo);
+        console.log('   indicadores:', data.indicadores);
         
         if (!data.success) {
             console.error('❌ API retornou erro:', data.error);
@@ -201,6 +206,11 @@ window.gerarDRECompleta = async function() {
         }
         
         console.log('✅ Dados OK, armazenando...');
+        console.log('📊 Estrutura dos dados:', {
+            hasDre: !!data.dre,
+            hasPeriodo: !!data.periodo,
+            hasIndicadores: !!data.indicadores
+        });
         
         // Armazenar dados
         window.dreData = data;
@@ -212,6 +222,20 @@ window.gerarDRECompleta = async function() {
         renderizarDRE(data);
         
         console.log('✅ DRE renderizada com sucesso!');
+        
+        // Verificar resultado no DOM
+        const resultadoElement = document.getElementById('dreResultado');
+        const secaoElement = document.getElementById('dre-section');
+        console.log('🔍 Verificação pós-render:', {
+            elementoExiste: !!resultadoElement,
+            displayStyle: resultadoElement?.style.display,
+            temConteudo: resultadoElement?.innerHTML?.length > 0,
+            tamanhoHTML: resultadoElement?.innerHTML?.length,
+            primeiros100Chars: resultadoElement?.innerHTML?.substring(0, 100),
+            secaoExiste: !!secaoElement,
+            secaoTemClasseHidden: secaoElement?.classList.contains('hidden'),
+            secaoDisplay: secaoElement?.style.display
+        });
         
         showToast('✅ DRE gerada com sucesso!', 'success');
         
@@ -226,6 +250,16 @@ window.gerarDRECompleta = async function() {
 // ===== RENDERIZAR DRE =====
 
 function renderizarDRE(data) {
+    console.log('🎨 renderizarDRE iniciada');
+    console.log('📊 Dados recebidos:', {
+        hasDre: !!data?.dre,
+        hasPeriodo: !!data?.periodo,
+        hasIndicadores: !!data?.indicadores,
+        dre: data?.dre,
+        periodo: data?.periodo,
+        indicadores: data?.indicadores
+    });
+    
     const dre = data.dre;
     const periodo = data.periodo;
     const indicadores = data.indicadores;
@@ -351,7 +385,21 @@ function renderizarDRE(data) {
         </div>
     `;
     
+    console.log('📝 HTML gerado:', {
+        tamanho: html.length,
+        inicio: html.substring(0, 200)
+    });
+    
+    const elemento = document.getElementById('dreResultado');
+    console.log('🎯 Elemento dreResultado:', {
+        existe: !!elemento,
+        display: elemento?.style.display,
+        offsetParent: elemento?.offsetParent ? 'visível' : 'oculto'
+    });
+    
     document.getElementById('dreResultado').innerHTML = html;
+    
+    console.log('✅ HTML inserido no DOM');
 }
 
 /**
