@@ -164,8 +164,10 @@ def excluir_versao(empresa_id, versao_id):
 
 def listar_contas(empresa_id, versao_id=None, classificacao=None, tipo_conta=None, busca=None):
     """Lista contas do plano com filtros opcionais"""
+    from psycopg2.extras import RealDictCursor
+    
     with get_db_connection(empresa_id=empresa_id) as conn:
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         query = """
             SELECT pc.id, pc.codigo, pc.descricao, pc.parent_id, pc.nivel, pc.ordem,
@@ -197,10 +199,9 @@ def listar_contas(empresa_id, versao_id=None, classificacao=None, tipo_conta=Non
         query += " ORDER BY pc.codigo"
         
         cursor.execute(query, params)
-        colunas = [desc[0] for desc in cursor.description]
         contas = []
         for row in cursor.fetchall():
-            c = dict(zip(colunas, row))
+            c = dict(row)
             for key in ['created_at', 'updated_at']:
                 if c.get(key):
                     c[key] = c[key].isoformat() if hasattr(c[key], 'isoformat') else str(c[key])

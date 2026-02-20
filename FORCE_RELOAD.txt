@@ -1,4 +1,5 @@
 This file forces Railway to reload all Python modules
-Timestamp: 2026-02-19 22:00:00
-CRITICAL FIX: Corrigir KeyError 'coalesce' em importar_plano_padrao - adicionar alias 'proxima' nas queries
-Adicionado logs em: carregarPlanoContas, renderizarTabelaPC, atualizarEstatisticasPC
+Timestamp: 2026-02-19 20:15:00
+CRITICAL FIX: Corrigir listar_contas() - RealDictCursor para evitar retornar nomes de colunas
+Bug: cursor.cursor() sem RealDictCursor causava dict(zip(colunas, row)) retornar literais 'codigo', 'descricao'
+Solução: use cursor_factory=RealDictCursor para retornar dicionários diretamente
