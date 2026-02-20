@@ -1,8 +1,8 @@
 This file forces Railway to reload all Python modules
-Timestamp: 2026-02-19 21:45:00
-FEATURE: Sistema completo DRE e Dashboard Gerencial
-Implementação: DRE com 9 seções (Receita Bruta, Deduções, Receita Líquida, Custos, Lucro Bruto, Despesas Operacionais, Resultado Operacional, Resultado Financeiro, Lucro Líquido)
-Dashboard: KPIs do mês, Evolução 12 meses, Ponto de Equilíbrio, Comparativos
-Gráficos: Chart.js para visualizações interativas
-Exportação: PDF e Excel (em desenvolvimento)
-APIs: GET /api/dashboard/gerencial, POST /api/relatorios/dre (com comparativo período anterior)
+Timestamp: 2026-02-19 22:05:00
+FEATURE: Exportação PDF da DRE
+Implementação: Relatório DRE completo em PDF com ReportLab
+Formatação: Tabelas coloridas, cabeçalho da empresa, 9 seções da DRE
+Comparativo: Suporte para exibir período anterior no PDF
+API: POST /api/relatorios/dre/pdf
+Frontend: Download automático do arquivo PDF

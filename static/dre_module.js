@@ -368,14 +368,64 @@ function formatarDataBR(dataISO) {
 
 // ===== EXPORTAÇÕES =====
 
-window.exportarDREPDF = function() {
+window.exportarDREPDF = async function() {
     if (!window.dreData) {
         showToast('❌ Nenhuma DRE gerada', 'error');
         return;
     }
     
-    showToast('🔄 Exportação PDF em desenvolvimento...', 'info');
-    // TODO: Implementar exportação PDF
+    try {
+        showToast('📄 Gerando PDF...', 'info');
+        
+        // Obter parâmetros da DRE atual
+        const dataInicio = document.getElementById('dreDataInicio').value;
+        const dataFim = document.getElementById('dreDataFim').value;
+        const versaoPlanoId = document.getElementById('dreVersaoPlano').value || null;
+        const comparar = document.getElementById('dreCompararPeriodo')?.checked || false;
+        
+        // Chamar API de exportação PDF
+        const response = await fetch('/api/relatorios/dre/pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                data_inicio: dataInicio,
+                data_fim: dataFim,
+                versao_plano_id: versaoPlanoId ? parseInt(versaoPlanoId) : null,
+                comparar_periodo_anterior: comparar
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erro ao gerar PDF');
+        }
+        
+        // Obter blob do PDF
+        const blob = await response.blob();
+        
+        // Criar URL temporária para download
+        const url = window.URL.createObjectURL(blob);
+        
+        // Criar link de download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `DRE_${dataInicio.replace(/-/g, '')}_${dataFim.replace(/-/g, '')}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        
+        // Limpar
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        showToast('✅ PDF exportado com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('Erro ao exportar PDF:', error);
+        showToast(`❌ Erro ao exportar PDF: ${error.message}`, 'error');
+    }
 };
 
 window.exportarDREExcel = function() {

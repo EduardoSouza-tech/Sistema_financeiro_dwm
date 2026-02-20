@@ -13461,6 +13461,78 @@ def gerar_dre_api():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/relatorios/dre/pdf', methods=['POST'])
+@require_auth
+def gerar_dre_pdf_api():
+    """Exporta DRE em formato PDF"""
+    try:
+        from datetime import datetime
+        from flask import send_file
+        from relatorios_contabeis_functions import gerar_dre
+        from pdf_export import gerar_dre_pdf
+        
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        data = request.get_json()
+        
+        # Validar campos obrigatórios
+        if not data.get('data_inicio') or not data.get('data_fim'):
+            return jsonify({'success': False, 'error': 'Período é obrigatório'}), 400
+        
+        # Converter datas
+        data_inicio = datetime.strptime(data['data_inicio'], '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data['data_fim'], '%Y-%m-%d').date()
+        
+        # Buscar nome da empresa
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT nome_empresa FROM empresas WHERE id = %s", (empresa_id,))
+        empresa = cursor.fetchone()
+        nome_empresa = empresa[0] if empresa else "Empresa"
+        
+        # Gerar dados da DRE
+        dados_dre = gerar_dre(
+            conn=conn,
+            empresa_id=empresa_id,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            versao_plano_id=data.get('versao_plano_id'),
+            comparar_periodo_anterior=data.get('comparar_periodo_anterior', False)
+        )
+        conn.close()
+        
+        if not dados_dre.get('success'):
+            return jsonify({'success': False, 'error': 'Erro ao gerar dados da DRE'}), 400
+        
+        # Formatar período para o PDF
+        periodo = f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
+        
+        # Gerar PDF
+        pdf_buffer = gerar_dre_pdf(
+            dados_dre=dados_dre,
+            nome_empresa=nome_empresa,
+            periodo=periodo
+        )
+        
+        # Nome do arquivo PDF
+        filename = f"DRE_{data_inicio.strftime('%Y%m%d')}_{data_fim.strftime('%Y%m%d')}.pdf"
+        
+        # Retornar PDF
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar PDF da DRE: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/dashboard/gerencial', methods=['GET'])
 @require_auth
 def dashboard_gerencial_api():

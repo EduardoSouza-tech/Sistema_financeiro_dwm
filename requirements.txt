@@ -29,8 +29,10 @@ google-api-python-client==2.116.0
 
 # Cryptography for Multi-Database
 cryptography==42.0.0
-# PDF Generation (DANFSE)
-fpdf2==2.8.1
+
+# PDF Generation
+fpdf2==2.8.1  # DANFSE
+reportlab==4.0.9  # DRE e relatórios contábeis
 
 # NFS-e SOAP (certificado A1)
 requests-pkcs12==1.24
