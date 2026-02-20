@@ -1,8 +1,9 @@
 This file forces Railway to reload all Python modules
-Timestamp: 2026-02-19 22:05:00
-FEATURE: Exportação PDF da DRE
-Implementação: Relatório DRE completo em PDF com ReportLab
-Formatação: Tabelas coloridas, cabeçalho da empresa, 9 seções da DRE
-Comparativo: Suporte para exibir período anterior no PDF
-API: POST /api/relatorios/dre/pdf
-Frontend: Download automático do arquivo PDF
+Timestamp: 2026-02-19 22:15:00
+FEATURE: Exportação Excel da DRE
+Implementação: Planilha Excel formatada profissionalmente com openpyxl
+Formatação: Cores por tipo (receitas/despesas/resultados), bordas, indentação
+Fórmulas: Percentuais automáticos, formatação de moeda brasileira
+Comparativo: Suporte para 5 colunas com período anterior e variação %
+API: POST /api/relatorios/dre/excel
+Frontend: Download automático do arquivo .xlsx

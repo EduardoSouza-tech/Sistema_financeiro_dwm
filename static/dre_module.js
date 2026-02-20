@@ -428,14 +428,64 @@ window.exportarDREPDF = async function() {
     }
 };
 
-window.exportarDREExcel = function() {
+window.exportarDREExcel = async function() {
     if (!window.dreData) {
         showToast('❌ Nenhuma DRE gerada', 'error');
         return;
     }
     
-    showToast('🔄 Exportação Excel em desenvolvimento...', 'info');
-    // TODO: Implementar exportação Excel
+    try {
+        showToast('📊 Gerando Excel...', 'info');
+        
+        // Obter parâmetros da DRE atual
+        const dataInicio = document.getElementById('dreDataInicio').value;
+        const dataFim = document.getElementById('dreDataFim').value;
+        const versaoPlanoId = document.getElementById('dreVersaoPlano').value || null;
+        const comparar = document.getElementById('dreCompararPeriodo')?.checked || false;
+        
+        // Chamar API de exportação Excel
+        const response = await fetch('/api/relatorios/dre/excel', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                data_inicio: dataInicio,
+                data_fim: dataFim,
+                versao_plano_id: versaoPlanoId ? parseInt(versaoPlanoId) : null,
+                comparar_periodo_anterior: comparar
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erro ao gerar Excel');
+        }
+        
+        // Obter blob do Excel
+        const blob = await response.blob();
+        
+        // Criar URL temporária para download
+        const url = window.URL.createObjectURL(blob);
+        
+        // Criar link de download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `DRE_${dataInicio.replace(/-/g, '')}_${dataFim.replace(/-/g, '')}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        
+        // Limpar
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        showToast('✅ Excel exportado com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('Erro ao exportar Excel:', error);
+        showToast(`❌ Erro ao exportar Excel: ${error.message}`, 'error');
+    }
 };
 
 window.imprimirDRE = function() {
