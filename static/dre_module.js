@@ -397,10 +397,17 @@ function renderizarDRE(data) {
         offsetParent: elemento?.offsetParent ? 'visível' : 'oculto'
     });
     
-    document.getElementById('dreResultado').innerHTML = html;
-    document.getElementById('dreResultado').style.display = 'block'; // GARANTIR que está visível
+    const dreResultado = document.getElementById('dreResultado');
+    dreResultado.innerHTML = html;
+    dreResultado.style.display = 'block'; // GARANTIR que está visível
     
     console.log('✅ HTML inserido no DOM e display forçado para block');
+    
+    // Rolar suavemente para o resultado
+    setTimeout(() => {
+        dreResultado.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        console.log('📜 Scroll automático para o DRE executado');
+    }, 100);
 }
 
 /**
