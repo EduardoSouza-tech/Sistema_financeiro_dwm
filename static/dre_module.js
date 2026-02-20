@@ -148,20 +148,29 @@ function formatarDataInput(data) {
 
 window.gerarDRECompleta = async function() {
     try {
+        console.log('🔍 gerarDRECompleta: Iniciando...');
+        
         // Obter parâmetros
         const dataInicio = document.getElementById('dreDataInicio').value;
         const dataFim = document.getElementById('dreDataFim').value;
         const versaoPlanoId = document.getElementById('dreVersaoPlano').value || null;
         const comparar = document.getElementById('dreCompararPeriodo')?.checked || false;
         
+        console.log('📅 Parâmetros:', { dataInicio, dataFim, versaoPlanoId, comparar });
+        
         if (!dataInicio || !dataFim) {
+            console.warn('⚠️ Período não selecionado');
             showToast('❌ Selecione o período', 'error');
             return;
         }
         
+        console.log('✅ Validação OK, mostrando loading...');
+        
         // Mostrar loading
         document.getElementById('dreResultado').innerHTML = '<div style="text-align:center; padding: 40px;"><div class="spinner"></div><p>Gerando DRE...</p></div>';
         document.getElementById('dreResultado').style.display = 'block';
+        
+        console.log('🌐 Fazendo requisição para API...');
         
         // Fazer requisição
         const response = await fetch('/api/relatorios/dre', {
@@ -178,26 +187,38 @@ window.gerarDRECompleta = async function() {
             })
         });
         
+        console.log('📡 Response recebido:', response.status, response.statusText);
+        
         const data = await response.json();
         
+        console.log('📦 Dados parseados:', data);
+        
         if (!data.success) {
+            console.error('❌ API retornou erro:', data.error);
             showToast('❌ Erro ao gerar DRE: ' + (data.error || 'Erro desconhecido'), 'error');
             document.getElementById('dreResultado').innerHTML = '';
             return;
         }
         
+        console.log('✅ Dados OK, armazenando...');
+        
         // Armazenar dados
         window.dreData = data;
         window.drePeriodoAtual = { dataInicio, dataFim };
         
+        console.log('🎨 Renderizando DRE...');
+        
         // Renderizar DRE
         renderizarDRE(data);
+        
+        console.log('✅ DRE renderizada com sucesso!');
         
         showToast('✅ DRE gerada com sucesso!', 'success');
         
     } catch (error) {
-        console.error('Erro ao gerar DRE:', error);
-        showToast('❌ Erro ao gerar DRE', 'error');
+        console.error('💥 ERRO em gerarDRECompleta:', error);
+        console.error('💥 Stack trace:', error.stack);
+        showToast('❌ Erro ao gerar DRE: ' + error.message, 'error');
         document.getElementById('dreResultado').innerHTML = '';
     }
 };
