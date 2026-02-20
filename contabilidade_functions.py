@@ -307,16 +307,19 @@ def atualizar_conta(empresa_id, conta_id, dados):
             SELECT id, versao_id FROM plano_contas 
             WHERE id = %s AND empresa_id = %s AND deleted_at IS NULL
         """, (conta_id, empresa_id))
-        conta = cursor.fetchone()
-        if not conta:
+        conta_row = cursor.fetchone()
+        if not conta_row:
             raise ValueError("Conta não encontrada")
+        
+        # Extrair versao_id corretamente (índice 1 da tupla)
+        versao_id = conta_row[1]
         
         # Verificar código duplicado
         cursor.execute("""
             SELECT id FROM plano_contas 
             WHERE empresa_id = %s AND versao_id = %s AND codigo = %s 
               AND id != %s AND deleted_at IS NULL
-        """, (empresa_id, conta[1], dados['codigo'], conta_id))
+        """, (empresa_id, versao_id, dados['codigo'], conta_id))
         if cursor.fetchone():
             raise ValueError(f"Código {dados['codigo']} já existe nesta versão")
         

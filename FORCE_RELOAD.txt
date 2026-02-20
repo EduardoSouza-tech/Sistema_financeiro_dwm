@@ -1,5 +1,5 @@
 This file forces Railway to reload all Python modules
-Timestamp: 2026-02-19 20:45:00
-FIX: Renomear salvarConta em modals.js para salvarContaBancaria - resolver conflito definitivo
-Bug: modals.js sobrescrevia window.salvarConta do app.js causando erro ao editar plano de contas
-Solução: salvarContaBancaria para contas bancárias, salvarConta para plano de contas contábil
+Timestamp: 2026-02-19 21:00:00
+FIX: Corrigir atualizar_conta() - extrair versao_id corretamente da tupla cursor
+Bug: conta[1] falhava ao acessar diretamente, causando erro 500 ao editar plano de contas
+Solução: Extrair versao_id em variável separada antes de usar no SQL subsequente
