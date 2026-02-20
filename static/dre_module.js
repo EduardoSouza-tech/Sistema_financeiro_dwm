@@ -55,6 +55,10 @@ window.inicializarModuloDRE = async function() {
     configurarBotoesPeriodoDRE();
     
     console.log('✅ Módulo DRE inicializado');
+    
+    // Gerar DRE automaticamente com período padrão
+    console.log('🚀 Gerando DRE automaticamente...');
+    await gerarDRECompleta();
 };
 
 /**
