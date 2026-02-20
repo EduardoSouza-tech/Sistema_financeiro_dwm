@@ -73,6 +73,49 @@ def gerar_dashboard_gerencial(
         lucro_liquido_mes = dre['lucro_liquido']['total']
         margem_liquida = dre['lucro_liquido']['percentual']
         
+        # ===== DETALHAMENTO PARA GRÁFICOS =====
+        
+        # Pie Chart: Despesas por categoria (top 5 + outros)
+        despesas_detalhadas = []
+        
+        # Adicionar despesas operacionais
+        for item in dre['despesas_operacionais'].get('itens', []):
+            despesas_detalhadas.append({
+                'categoria': item['descricao'],
+                'valor': abs(item['valor'])  # Garantir valor positivo
+            })
+        
+        # Adicionar custos
+        for item in dre['custos'].get('itens', []):
+            despesas_detalhadas.append({
+                'categoria': item['descricao'],
+                'valor': abs(item['valor'])
+            })
+        
+        # Ordenar por valor e pegar top 5
+        despesas_detalhadas_sorted = sorted(despesas_detalhadas, key=lambda x: x['valor'], reverse=True)
+        
+        if len(despesas_detalhadas_sorted) > 5:
+            top_5_despesas = despesas_detalhadas_sorted[:5]
+            outros_valor = sum(item['valor'] for item in despesas_detalhadas_sorted[5:])
+            if outros_valor > 0:
+                top_5_despesas.append({'categoria': 'Outros', 'valor': outros_valor})
+            despesas_por_categoria = top_5_despesas
+        else:
+            despesas_por_categoria = despesas_detalhadas_sorted
+        
+        # Bar Chart: Receitas por categoria
+        receitas_detalhadas = []
+        for item in dre['receita_bruta'].get('itens', []):
+            if item['valor'] > 0:  # Apenas receitas positivas
+                receitas_detalhadas.append({
+                    'categoria': item['descricao'],
+                    'valor': item['valor']
+                })
+        
+        # Ordenar por valor (top 10)
+        receitas_por_categoria = sorted(receitas_detalhadas, key=lambda x: x['valor'], reverse=True)[:10]
+        
         # ===== EVOLUÇÃO MENSAL (últimos 12 meses para gráficos) =====
         evolucao_mensal = []
         
@@ -190,6 +233,10 @@ def gerar_dashboard_gerencial(
                         'receita': variacao_receita,
                         'lucro': variacao_lucro
                     }
+                },
+                'graficos_adicionais': {
+                    'despesas_por_categoria': despesas_por_categoria,
+                    'receitas_por_categoria': receitas_por_categoria
                 }
             }
         }

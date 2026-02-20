@@ -419,10 +419,311 @@ def gerar_dashboard_pdf(
 ) -> BytesIO:
     """
     Gera PDF do Dashboard Gerencial
-    (Implementação futura se necessário)
+    
+    Args:
+        dados_dashboard: Dicionário retornado por gerar_dashboard_gerencial()
+        nome_empresa: Nome da empresa
+        mes_referencia: Mês de referência formatado (ex: "Fevereiro/2026")
+    
+    Returns:
+        BytesIO com o PDF gerado
     """
-    # TODO: Implementar se necessário
-    pass
+    
+    buffer = BytesIO()
+    
+    # Criar documento
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=20*mm,
+        leftMargin=20*mm,
+        topMargin=20*mm,
+        bottomMargin=20*mm
+    )
+    
+    # Estilos
+    styles = getSampleStyleSheet()
+    
+    titulo_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        textColor=colors.HexColor('#2c3e50'),
+        spaceAfter=6,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    subtitulo_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Normal'],
+        fontSize=12,
+        textColor=colors.HexColor('#34495e'),
+        spaceAfter=16,
+        alignment=TA_CENTER
+    )
+    
+    heading_style = ParagraphStyle(
+        'Heading',
+        parent=styles['Heading2'],
+        fontSize=13,
+        textColor=colors.HexColor('#2c3e50'),
+        spaceAfter=10,
+        spaceBefore=12,
+        fontName='Helvetica-Bold'
+    )
+    
+    elements = []
+    
+    # Cabeçalho
+    elements.append(Paragraph(nome_empresa, titulo_style))
+    elements.append(Paragraph("DASHBOARD GERENCIAL", titulo_style))
+    if mes_referencia:
+        elements.append(Paragraph(f"Mês de Referência: {mes_referencia}", subtitulo_style))
+    elements.append(Spacer(1, 8*mm))
+    
+    # Extrair dados
+    dashboard = dados_dashboard.get('dashboard', {})
+    kpis = dashboard.get('kpis', {})
+    ponto_eq = dashboard.get('ponto_equilibrio', {})
+    comparacao = dashboard.get('comparacao', {})
+    
+    # ===== KPIs PRINCIPAIS =====
+    elements.append(Paragraph("📊 INDICADORES PRINCIPAIS", heading_style))
+    
+    kpi_data = [
+        ['INDICADOR', 'VALOR', 'VARIAÇÃO'],
+        [
+            'Receita do Mês',
+            formatar_moeda_pdf(kpis.get('receita_mes', {}).get('valor', 0)),
+            f"{kpis.get('receita_mes', {}).get('variacao_percentual', 0):+.2f}%"
+        ],
+        [
+            'Despesas do Mês',
+            formatar_moeda_pdf(kpis.get('despesas_mes', {}).get('valor', 0)),
+            f"{kpis.get('despesas_mes', {}).get('percentual_receita', 0):.2f}% da receita"
+        ],
+        [
+            'Lucro Líquido',
+            formatar_moeda_pdf(kpis.get('lucro_liquido_mes', {}).get('valor', 0)),
+            f"{kpis.get('lucro_liquido_mes', {}).get('variacao_percentual', 0):+.2f}%"
+        ],
+        [
+            'Margem Líquida',
+            f"{kpis.get('margem_liquida', {}).get('percentual', 0):.2f}%",
+            kpis.get('margem_liquida', {}).get('status', '').upper()
+        ]
+    ]
+    
+    kpi_table = Table(kpi_data, colWidths=[60*mm, 50*mm, 50*mm])
+    kpi_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+        ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+    ]))
+    
+    elements.append(kpi_table)
+    elements.append(Spacer(1, 8*mm))
+    
+    # ===== PONTO DE EQUILÍBRIO =====
+    elements.append(Paragraph("⚖️ PONTO DE EQUILÍBRIO", heading_style))
+    
+    pe_data = [
+        ['MÉTRICA', 'VALOR'],
+        ['Valor de Equilíbrio', formatar_moeda_pdf(ponto_eq.get('valor', 0))],
+        ['Percentual Atingido', f"{ponto_eq.get('percentual_atingido', 0):.2f}%"],
+        ['Falta para Equilíbrio', formatar_moeda_pdf(ponto_eq.get('falta_para_equilibrio', 0))],
+        ['Status', '✅ ATINGIDO' if ponto_eq.get('atingiu') else '⚠️ NÃO ATINGIDO'],
+        ['Custos Fixos', formatar_moeda_pdf(ponto_eq.get('custos_fixos', 0))],
+        ['Margem de Contribuição', f"{ponto_eq.get('margem_contribuicao_percentual', 0):.2f}%"]
+    ]
+    
+    pe_table = Table(pe_data, colWidths=[80*mm, 80*mm])
+    pe_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+        ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+        
+        # Destacar status
+        ('BACKGROUND', (0, 4), (-1, 4), colors.HexColor('#d5f4e6') if ponto_eq.get('atingiu') else colors.HexColor('#fadbd8')),
+        ('TEXTCOLOR', (0, 4), (-1, 4), colors.HexColor('#27ae60') if ponto_eq.get('atingiu') else colors.HexColor('#e74c3c')),
+        ('FONTNAME', (0, 4), (-1, 4), 'Helvetica-Bold'),
+    ]))
+    
+    elements.append(pe_table)
+    elements.append(Spacer(1, 8*mm))
+    
+    # ===== COMPARAÇÃO MÊS ANTERIOR =====
+    elements.append(Paragraph("📅 COMPARAÇÃO COM MÊS ANTERIOR", heading_style))
+    
+    comp_data = [
+        ['MÉTRICA', 'MÊS ANTERIOR', 'MÊS ATUAL', 'VARIAÇÃO'],
+        [
+            'Receita',
+            formatar_moeda_pdf(comparacao.get('mes_anterior', {}).get('receita', 0)),
+            formatar_moeda_pdf(kpis.get('receita_mes', {}).get('valor', 0)),
+            f"{comparacao.get('variacoes', {}).get('receita', 0):+.2f}%"
+        ],
+        [
+            'Lucro Líquido',
+            formatar_moeda_pdf(comparacao.get('mes_anterior', {}).get('lucro', 0)),
+            formatar_moeda_pdf(kpis.get('lucro_liquido_mes', {}).get('valor', 0)),
+            f"{comparacao.get('variacoes', {}).get('lucro', 0):+.2f}%"
+        ]
+    ]
+    
+    comp_table = Table(comp_data, colWidths=[50*mm, 35*mm, 35*mm, 40*mm])
+    comp_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#27ae60')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+        ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+    ]))
+    
+    elements.append(comp_table)
+    elements.append(Spacer(1, 8*mm))
+    
+    # ===== DESPESAS POR CATEGORIA =====
+    graficos_adicionais = dashboard.get('graficos_adicionais', {})
+    despesas_cat = graficos_adicionais.get('despesas_por_categoria', [])
+    
+    if despesas_cat:
+        elements.append(Paragraph("🔴 DESPESAS POR CATEGORIA", heading_style))
+        
+        desp_data = [['CATEGORIA', 'VALOR', '% DO TOTAL']]
+        total_despesas = sum(item['valor'] for item in despesas_cat)
+        
+        for item in despesas_cat:
+            percentual = (item['valor'] / total_despesas * 100) if total_despesas > 0 else 0
+            desp_data.append([
+                item['categoria'],
+                formatar_moeda_pdf(item['valor']),
+                f"{percentual:.2f}%"
+            ])
+        
+        desp_table = Table(desp_data, colWidths=[80*mm, 50*mm, 30*mm])
+        desp_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e74c3c')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('TOPPADDING', (0, 0), (-1, 0), 8),
+            
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+            ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ffebee')]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('TOPPadding', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+        ]))
+        
+        elements.append(desp_table)
+        elements.append(Spacer(1, 8*mm))
+    
+    # ===== RECEITAS POR CATEGORIA =====
+    receitas_cat = graficos_adicionais.get('receitas_por_categoria', [])
+    
+    if receitas_cat:
+        elements.append(Paragraph("🟢 RECEITAS POR CATEGORIA (Top 10)", heading_style))
+        
+        rec_data = [['CATEGORIA', 'VALOR', '% DO TOTAL']]
+        total_receitas = sum(item['valor'] for item in receitas_cat)
+        
+        for item in receitas_cat[:10]:  # Top 10
+            percentual = (item['valor'] / total_receitas * 100) if total_receitas > 0 else 0
+            rec_data.append([
+                item['categoria'],
+                formatar_moeda_pdf(item['valor']),
+                f"{percentual:.2f}%"
+            ])
+        
+        rec_table = Table(rec_data, colWidths=[80*mm, 50*mm, 30*mm])
+        rec_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#27ae60')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('TOPPADDING', (0, 0), (-1, 0), 8),
+            
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+            ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#e8f5e9')]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+        ]))
+        
+        elements.append(rec_table)
+    
+    # Rodapé
+    elements.append(Spacer(1, 10*mm))
+    data_geracao = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+    rodape_style = ParagraphStyle(
+        'Rodape',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.HexColor('#7F8C8D'),
+        alignment=TA_RIGHT,
+        fontName='Helvetica-Oblique'
+    )
+    elements.append(Paragraph(f"Relatório gerado em: {data_geracao}", rodape_style))
+    
+    # Gerar PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    return buffer
 
 
 def gerar_dre_excel(
@@ -869,6 +1170,247 @@ def gerar_dre_excel(
     cell_rodape.alignment = align_right
     
     # ===== SALVAR EM BUFFER =====
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    return buffer
+
+
+def gerar_dashboard_excel(
+    dados_dashboard: Dict,
+    nome_empresa: str = "Empresa",
+    mes_referencia: str = ""
+) -> BytesIO:
+    """
+    Gera Excel do Dashboard Gerencial
+    
+    Args:
+        dados_dashboard: Dicionário retornado por gerar_dashboard_gerencial()
+        nome_empresa: Nome da empresa
+        mes_referencia: Mês de referência (ex: "Fevereiro/2026")
+    
+    Returns:
+        BytesIO com o arquivo Excel gerado
+    """
+    
+    # Criar workbook com múltiplas abas
+    wb = Workbook()
+    
+    # Extrair dados
+    dashboard = dados_dashboard.get('dashboard', {})
+    kpis = dashboard.get('kpis', {})
+    evolucao = dashboard.get('evolucao_mensal', [])
+    ponto_eq = dashboard.get('ponto_equilibrio', {})
+    comparacao = dashboard.get('comparacao', {})
+    graficos_adicionais = dashboard.get('graficos_adicionais', {})
+    
+    # ===== ABA 1: KPIs =====
+    ws_kpis = wb.active
+    ws_kpis.title = "KPIs"
+    
+    # Estilos
+    font_titulo = Font(name='Arial', size=14, bold=True, color='2C3E50')
+    font_header = Font(name='Arial', size=11, bold=True, color='FFFFFF')
+    fill_header = PatternFill(start_color='2C3E50', end_color='2C3E50', fill_type='solid')
+    borda_fina = Border(
+        left=Side(style='thin', color='CCCCCC'),
+        right=Side(style='thin', color='CCCCCC'),
+        top=Side(style='thin', color='CCCCCC'),
+        bottom=Side(style='thin', color='CCCCCC')
+    )
+    align_center = Alignment(horizontal='center', vertical='center')
+    align_left = Alignment(horizontal='left', vertical='center')
+    align_right = Alignment(horizontal='right', vertical='center')
+    
+    # Cabeçalho
+    ws_kpis.merge_cells('A1:D1')
+    cell = ws_kpis['A1']
+    cell.value = nome_empresa
+    cell.font = font_titulo
+    cell.alignment = align_center
+    
+    ws_kpis.merge_cells('A2:D2')
+    cell = ws_kpis['A2']
+    cell.value = "DASHBOARD GERENCIAL"
+    cell.font = font_titulo
+    cell.alignment = align_center
+    
+    if mes_referencia:
+        ws_kpis.merge_cells('A3:D3')
+        cell = ws_kpis['A3']
+        cell.value = f"Mês: {mes_referencia}"
+        cell.font = Font(name='Arial', size=11, color='34495E')
+        cell.alignment = align_center
+    
+    # KPIs
+    linha = 5
+    ws_kpis.merge_cells(f'A{linha}:D{linha}')
+    cell = ws_kpis[f'A{linha}']
+    cell.value = "📊 INDICADORES PRINCIPAIS"
+    cell.font = Font(name='Arial', size=12, bold=True, color='2C3E50')
+    linha += 1
+    
+    # Headers
+    headers = ['INDICADOR', 'VALOR', 'VARIAÇÃO', 'STATUS']
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws_kpis.cell(row=linha, column=col_idx)
+        cell.value = header
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = align_center
+        cell.border = borda_fina
+    linha += 1
+    
+    # Dados KPIs
+    kpi_data = [
+        ['Receita do Mês', kpis.get('receita_mes', {}).get('valor', 0),
+         f"{kpis.get('receita_mes', {}).get('variacao_percentual', 0):+.2f}%",
+         kpis.get('receita_mes', {}).get('tendencia', '')],
+        ['Despesas do Mês', kpis.get('despesas_mes', {}).get('valor', 0),
+         f"{kpis.get('despesas_mes', {}).get('percentual_receita', 0):.2f}% da receita", ''],
+        ['Lucro Líquido', kpis.get('lucro_liquido_mes', {}).get('valor', 0),
+         f"{kpis.get('lucro_liquido_mes', {}).get('variacao_percentual', 0):+.2f}%",
+         kpis.get('lucro_liquido_mes', {}).get('tendencia', '')],
+        ['Margem Líquida', kpis.get('margem_liquida', {}).get('percentual', 0),
+         '', kpis.get('margem_liquida', {}).get('status', '').upper()]
+    ]
+    
+    for row_data in kpi_data:
+        for col_idx, value in enumerate(row_data, start=1):
+            cell = ws_kpis.cell(row=linha, column=col_idx)
+            if col_idx == 2 and isinstance(value, (int, float)):
+                cell.value = value
+                cell.number_format = '#,##0.00' if row_data[0] != 'Margem Líquida' else '0.00"%"'
+            else:
+                cell.value = value
+            cell.alignment = align_right if col_idx in [2, 3] else align_left
+            cell.border = borda_fina
+        linha += 1
+    
+    # Larguras
+    ws_kpis.column_dimensions['A'].width = 25
+    ws_kpis.column_dimensions['B'].width = 20
+    ws_kpis.column_dimensions['C'].width = 25
+    ws_kpis.column_dimensions['D'].width = 15
+    
+    # ===== ABA 2: EVOLUÇÃO MENSAL =====
+    ws_evolucao = wb.create_sheet("Evolução 12 Meses")
+    
+    # Cabeçalho
+    ws_evolucao.merge_cells('A1:E1')
+    cell = ws_evolucao['A1']
+    cell.value = "📈 EVOLUÇÃO MENSAL (Últimos 12 Meses)"
+    cell.font = font_titulo
+    cell.alignment = align_center
+    
+    # Headers
+    linha = 3
+    headers_ev = ['MÊS', 'RECEITA', 'DESPESAS', 'LUCRO LÍQUIDO', 'MARGEM %']
+    for col_idx, header in enumerate(headers_ev, start=1):
+        cell = ws_evolucao.cell(row=linha, column=col_idx)
+        cell.value = header
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = align_center
+        cell.border = borda_fina
+    linha += 1
+    
+    # Dados
+    for mes_data in evolucao:
+        ws_evolucao.cell(row=linha, column=1, value=mes_data.get('mes_nome', '')).alignment = align_left
+        ws_evolucao.cell(row=linha, column=2, value=mes_data.get('receita', 0)).number_format = '#,##0.00'
+        ws_evolucao.cell(row=linha, column=3, value=mes_data.get('despesas', 0)).number_format = '#,##0.00'
+        ws_evolucao.cell(row=linha, column=4, value=mes_data.get('lucro_liquido', 0)).number_format = '#,##0.00'
+        ws_evolucao.cell(row=linha, column=5, value=mes_data.get('margem', 0) / 100).number_format = '0.00%'
+        
+        for col in range(1, 6):
+            ws_evolucao.cell(row=linha, column=col).border = borda_fina
+            ws_evolucao.cell(row=linha, column=col).alignment = align_right if col > 1 else align_left
+        linha += 1
+    
+    # Larguras
+    ws_evolucao.column_dimensions['A'].width = 15
+    for col in ['B', 'C', 'D', 'E']:
+        ws_evolucao.column_dimensions[col].width = 18
+    
+    # ===== ABA 3: DESPESAS POR CATEGORIA =====
+    despesas_cat = graficos_adicionais.get('despesas_por_categoria', [])
+    if despesas_cat:
+        ws_desp = wb.create_sheet("Despesas por Categoria")
+        
+        ws_desp.merge_cells('A1:C1')
+        cell = ws_desp['A1']
+        cell.value = "🔴 DESPESAS POR CATEGORIA"
+        cell.font = font_titulo
+        cell.alignment = align_center
+        
+        linha = 3
+        headers_desp = ['CATEGORIA', 'VALOR', '% DO TOTAL']
+        for col_idx, header in enumerate(headers_desp, start=1):
+            cell = ws_desp.cell(row=linha, column=col_idx)
+            cell.value = header
+            cell.font = font_header
+            cell.fill = fill_header
+            cell.alignment = align_center
+            cell.border = borda_fina
+        linha += 1
+        
+        total_despesas = sum(item['valor'] for item in despesas_cat)
+        for item in despesas_cat:
+            percentual = (item['valor'] / total_despesas) if total_despesas > 0 else 0
+            ws_desp.cell(row=linha, column=1, value=item['categoria']).alignment = align_left
+            ws_desp.cell(row=linha, column=2, value=item['valor']).number_format = '#,##0.00'
+            ws_desp.cell(row=linha, column=3, value=percentual).number_format = '0.00%'
+            
+            for col in range(1, 4):
+                ws_desp.cell(row=linha, column=col).border = borda_fina
+                ws_desp.cell(row=linha, column=col).alignment = align_right if col > 1 else align_left
+            linha += 1
+        
+        ws_desp.column_dimensions['A'].width = 40
+        ws_desp.column_dimensions['B'].width = 20
+        ws_desp.column_dimensions['C'].width = 15
+    
+    # ===== ABA 4: RECEITAS POR CATEGORIA =====
+    receitas_cat = graficos_adicionais.get('receitas_por_categoria', [])
+    if receitas_cat:
+        ws_rec = wb.create_sheet("Receitas por Categoria")
+        
+        ws_rec.merge_cells('A1:C1')
+        cell = ws_rec['A1']
+        cell.value = "🟢 RECEITAS POR CATEGORIA"
+        cell.font = font_titulo
+        cell.alignment = align_center
+        
+        linha = 3
+        headers_rec = ['CATEGORIA', 'VALOR', '% DO TOTAL']
+        for col_idx, header in enumerate(headers_rec, start=1):
+            cell = ws_rec.cell(row=linha, column=col_idx)
+            cell.value = header
+            cell.font = font_header
+            cell.fill = fill_header
+            cell.alignment = align_center
+            cell.border = borda_fina
+        linha += 1
+        
+        total_receitas = sum(item['valor'] for item in receitas_cat)
+        for item in receitas_cat:
+            percentual = (item['valor'] / total_receitas) if total_receitas > 0 else 0
+            ws_rec.cell(row=linha, column=1, value=item['categoria']).alignment = align_left
+            ws_rec.cell(row=linha, column=2, value=item['valor']).number_format = '#,##0.00'
+            ws_rec.cell(row=linha, column=3, value=percentual).number_format = '0.00%'
+            
+            for col in range(1, 4):
+                ws_rec.cell(row=linha, column=col).border = borda_fina
+                ws_rec.cell(row=linha, column=col).alignment = align_right if col > 1 else align_left
+            linha += 1
+        
+        ws_rec.column_dimensions['A'].width = 40
+        ws_rec.column_dimensions['B'].width = 20
+        ws_rec.column_dimensions['C'].width = 15
+    
+    # Salvar
     buffer = BytesIO()
     wb.save(buffer)
     buffer.seek(0)

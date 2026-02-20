@@ -13650,6 +13650,146 @@ def dashboard_gerencial_api():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/dashboard/gerencial/pdf', methods=['GET'])
+@require_auth
+def gerar_dashboard_pdf_api():
+    """Exporta Dashboard Gerencial em formato PDF"""
+    try:
+        from datetime import datetime
+        from flask import send_file
+        from dashboard_functions import gerar_dashboard_gerencial
+        from pdf_export import gerar_dashboard_pdf
+        
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        # Parâmetros
+        data_referencia_str = request.args.get('data_referencia')
+        versao_plano_id = request.args.get('versao_plano_id', type=int)
+        
+        # Converter data
+        data_referencia = None
+        if data_referencia_str:
+            data_referencia = datetime.strptime(data_referencia_str, '%Y-%m-%d').date()
+        
+        # Buscar nome da empresa
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT nome_empresa FROM empresas WHERE id = %s", (empresa_id,))
+        empresa = cursor.fetchone()
+        nome_empresa = empresa[0] if empresa else "Empresa"
+        
+        # Gerar dados do dashboard
+        dados_dashboard = gerar_dashboard_gerencial(
+            conn=conn,
+            empresa_id=empresa_id,
+            data_referencia=data_referencia,
+            versao_plano_id=versao_plano_id
+        )
+        conn.close()
+        
+        if not dados_dashboard.get('success'):
+            return jsonify({'success': False, 'error': 'Erro ao gerar dados do dashboard'}), 400
+        
+        # Formatar mês de referência
+        mes_ref = dados_dashboard['dashboard'].get('mes_referencia', '')
+        
+        # Gerar PDF
+        pdf_buffer = gerar_dashboard_pdf(
+            dados_dashboard=dados_dashboard,
+            nome_empresa=nome_empresa,
+            mes_referencia=mes_ref
+        )
+        
+        # Nome do arquivo
+        mes_ano = data_referencia.strftime('%Y%m') if data_referencia else datetime.now().strftime('%Y%m')
+        filename = f"Dashboard_{mes_ano}.pdf"
+        
+        # Retornar PDF
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar PDF do dashboard: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/dashboard/gerencial/excel', methods=['GET'])
+@require_auth
+def gerar_dashboard_excel_api():
+    """Exporta Dashboard Gerencial em formato Excel"""
+    try:
+        from datetime import datetime
+        from flask import send_file
+        from dashboard_functions import gerar_dashboard_gerencial
+        from pdf_export import gerar_dashboard_excel
+        
+        user = request.user
+        empresa_id = user['empresa_id']
+        
+        # Parâmetros
+        data_referencia_str = request.args.get('data_referencia')
+        versao_plano_id = request.args.get('versao_plano_id', type=int)
+        
+        # Converter data
+        data_referencia = None
+        if data_referencia_str:
+            data_referencia = datetime.strptime(data_referencia_str, '%Y-%m-%d').date()
+        
+        # Buscar nome da empresa
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT nome_empresa FROM empresas WHERE id = %s", (empresa_id,))
+        empresa = cursor.fetchone()
+        nome_empresa = empresa[0] if empresa else "Empresa"
+        
+        # Gerar dados do dashboard
+        dados_dashboard = gerar_dashboard_gerencial(
+            conn=conn,
+            empresa_id=empresa_id,
+            data_referencia=data_referencia,
+            versao_plano_id=versao_plano_id
+        )
+        conn.close()
+        
+        if not dados_dashboard.get('success'):
+            return jsonify({'success': False, 'error': 'Erro ao gerar dados do dashboard'}), 400
+        
+        # Formatar mês de referência
+        mes_ref = dados_dashboard['dashboard'].get('mes_referencia', '')
+        
+        # Gerar Excel
+        excel_buffer = gerar_dashboard_excel(
+            dados_dashboard=dados_dashboard,
+            nome_empresa=nome_empresa,
+            mes_referencia=mes_ref
+        )
+        
+        # Nome do arquivo
+        mes_ano = data_referencia.strftime('%Y%m') if data_referencia else datetime.now().strftime('%Y%m')
+        filename = f"Dashboard_{mes_ano}.xlsx"
+        
+        # Retornar Excel
+        return send_file(
+            excel_buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar Excel do dashboard: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/relatorios/balanco-patrimonial', methods=['POST'])
 @require_auth
 def gerar_balanco_patrimonial_api():

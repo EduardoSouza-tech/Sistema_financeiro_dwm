@@ -138,6 +138,12 @@ window.carregarDashboardGerencial = async function() {
         setTimeout(() => {
             carregarGraficoEvolucao(data.dashboard.evolucao_mensal);
             carregarGraficoPontoEquilibrio(data.dashboard.ponto_equilibrio, data.dashboard.kpis);
+            
+            // Novos gráficos
+            if (data.dashboard.graficos_adicionais) {
+                carregarGraficoDespesasPorCategoria(data.dashboard.graficos_adicionais.despesas_por_categoria);
+                carregarGraficoReceitasPorCategoria(data.dashboard.graficos_adicionais.receitas_por_categoria);
+            }
         }, 100);
         
         showToast('✅ Dashboard carregado com sucesso!', 'success');
@@ -174,11 +180,24 @@ function renderizarDashboard(data) {
         <div class="dashboard-container" style="background: #ecf0f1; padding: 20px; border-radius: 12px;">
             
             <!-- CABEÇALHO -->
-            <div style="text-align: center; margin-bottom: 30px;">
+            <div style="text-align: center; margin-bottom: 20px;">
                 <h2 style="color: #2c3e50; margin: 0;">📊 DASHBOARD GERENCIAL</h2>
                 <p style="color: #7f8c8d; margin: 10px 0 0 0;">
                     ${dashboard.mes_referencia}
                 </p>
+            </div>
+            
+            <!-- BOTÕES DE EXPORTAÇÃO -->
+            <div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 30px;">
+                <button onclick="exportarDashboardPDF()" class="btn" style="background: #e74c3c; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                    📄 Exportar PDF
+                </button>
+                <button onclick="exportarDashboardExcel()" class="btn" style="background: #27ae60; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                    📊 Exportar Excel
+                </button>
+                <button onclick="window.print()" class="btn" style="background: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                    🖨️ Imprimir
+                </button>
             </div>
             
             <!-- GRID DE KPIs -->
@@ -279,6 +298,27 @@ function renderizarDashboard(data) {
                             '<div style="margin-top: 15px; padding: 12px; background: #d5f4e6; border-radius: 8px; color: #27ae60; text-align: center; font-weight: bold;">✅ Ponto de equilíbrio atingido!</div>' :
                             '<div style="margin-top: 15px; padding: 12px; background: #fadbd8; border-radius: 8px; color: #e74c3c; text-align: center; font-weight: bold;">⚠️ Abaixo do ponto de equilíbrio</div>'
                         }
+                    </div>
+                </div>
+                
+            </div>
+            
+            <!-- GRÁFICOS ADICIONAIS: DESPESAS E RECEITAS -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                
+                <!-- GRÁFICO: DESPESAS POR CATEGORIA -->
+                <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3 style="color: #2c3e50; margin: 0 0 20px 0; font-size: 18px;">🔴 Despesas por Categoria</h3>
+                    <div style="height: 300px; position: relative;">
+                        <canvas id="graficoDespesasCategoria"></canvas>
+                    </div>
+                </div>
+                
+                <!-- GRÁFICO: RECEITAS POR CATEGORIA -->
+                <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3 style="color: #2c3e50; margin: 0 0 20px 0; font-size: 18px;">🟢 Receitas por Categoria</h3>
+                    <div style="height: 300px; position: relative;">
+                        <canvas id="graficoReceitasCategoria"></canvas>
                     </div>
                 </div>
                 
@@ -470,5 +510,282 @@ function carregarGraficoPontoEquilibrio(pontoEquilibrio, kpis) {
         }
     });
 }
+
+// ===== GRÁFICO PIE: DESPESAS POR CATEGORIA =====
+
+function carregarGraficoDespesasPorCategoria(despesasPorCategoria) {
+    const canvas = document.getElementById('graficoDespesasCategoria');
+    if (!canvas) {
+        console.warn('Canvas graficoDespesasCategoria não encontrado');
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Destruir gráfico anterior se existir
+    if (window.dashboardCharts.despesasCategoria) {
+        window.dashboardCharts.despesasCategoria.destroy();
+    }
+    
+    // Verificar Chart.js
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js não carregado');
+        return;
+    }
+    
+    // Preparar dados
+    const labels = despesasPorCategoria.map(item => item.categoria);
+    const valores = despesasPorCategoria.map(item => item.valor);
+    
+    // Cores variadas para o pie chart
+    const cores = [
+        '#E74C3C', '#C0392B', '#E67E22', '#D35400', '#F39C12',
+        '#F1C40F', '#7F8C8D', '#95A5A6'
+    ];
+    
+    window.dashboardCharts.despesasCategoria = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: valores,
+                backgroundColor: cores.slice(0, valores.length),
+                borderWidth: 2,
+                borderColor: '#FFFFFF'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'right',
+                    labels: {
+                        boxWidth: 15,
+                        padding: 10,
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const valor = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentual = ((valor / total) * 100).toFixed(1);
+                            return `${label}: ${formatarMoeda(valor)} (${percentual}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ===== GRÁFICO BAR: RECEITAS POR CATEGORIA =====
+
+function carregarGraficoReceitasPorCategoria(receitasPorCategoria) {
+    const canvas = document.getElementById('graficoReceitasCategoria');
+    if (!canvas) {
+        console.warn('Canvas graficoReceitasCategoria não encontrado');
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Destruir gráfico anterior se existir
+    if (window.dashboardCharts.receitasCategoria) {
+        window.dashboardCharts.receitasCategoria.destroy();
+    }
+    
+    // Verificar Chart.js
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js não carregado');
+        return;
+    }
+    
+    // Preparar dados
+    const labels = receitasPorCategoria.map(item => item.categoria);
+    const valores = receitasPorCategoria.map(item => item.valor);
+    
+    // Gradiente de verde
+    const cores = valores.map((_, index) => {
+        const intensity = 255 - (index * 20);
+        return `rgba(39, 174, 96, ${0.8 - (index * 0.05)})`;
+    });
+    
+    window.dashboardCharts.receitasCategoria = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Receita',
+                data: valores,
+                backgroundColor: cores,
+                borderColor: '#27AE60',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',  // Horizontal bars
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Receita: ' + formatarMoeda(context.parsed.x);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return formatarMoedaCompacta(value);
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                y: {
+                    ticks: {
+                        font: {
+                            size: 10
+                        }
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ===== EXPORTAÇÃO PDF =====
+
+window.exportarDashboardPDF = async function() {
+    if (!window.dashboardData) {
+        showToast('❌ Nenhum dashboard gerado', 'error');
+        return;
+    }
+    
+    try {
+        showToast('📄 Gerando PDF...', 'info');
+        
+        // Obter parâmetros atuais
+        const mesRef = document.getElementById('dashboardMesReferencia').value;
+        const versaoPlanoId = document.getElementById('dashboardVersaoPlano').value || null;
+        
+        // Converter para data de referência (último dia do mês)
+        const [ano, mes] = mesRef.split('-');
+        const ultimoDiaMes = new Date(ano, mes, 0).getDate();
+        const dataReferencia = `${ano}-${mes}-${ultimoDiaMes}`;
+        
+        // Construir URL
+        const url = new URL('/api/dashboard/gerencial/pdf', window.location.origin);
+        url.searchParams.append('data_referencia', dataReferencia);
+        if (versaoPlanoId) url.searchParams.append('versao_plano_id', versaoPlanoId);
+        
+        // Chamar API
+        const response = await fetch(url, {
+            method: 'GET',
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Erro ao gerar PDF');
+        }
+        
+        // Obter blob
+        const blob = await response.blob();
+        
+        // Criar URL de download
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `Dashboard_${ano}${mes}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        
+        // Limpar
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+        
+        showToast('✅ PDF exportado com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('Erro ao exportar PDF:', error);
+        showToast(`❌ Erro ao exportar PDF: ${error.message}`, 'error');
+    }
+};
+
+// ===== EXPORTAÇÃO EXCEL =====
+
+window.exportarDashboardExcel = async function() {
+    if (!window.dashboardData) {
+        showToast('❌ Nenhum dashboard gerado', 'error');
+        return;
+    }
+    
+    try {
+        showToast('📊 Gerando Excel...', 'info');
+        
+        // Obter parâmetros atuais
+        const mesRef = document.getElementById('dashboardMesReferencia').value;
+        const versaoPlanoId = document.getElementById('dashboardVersaoPlano').value || null;
+        
+        // Converter para data de referência (último dia do mês)
+        const [ano, mes] = mesRef.split('-');
+        const ultimoDiaMes = new Date(ano, mes, 0).getDate();
+        const dataReferencia = `${ano}-${mes}-${ultimoDiaMes}`;
+        
+        // Construir URL
+        const url = new URL('/api/dashboard/gerencial/excel', window.location.origin);
+        url.searchParams.append('data_referencia', dataReferencia);
+        if (versaoPlanoId) url.searchParams.append('versao_plano_id', versaoPlanoId);
+        
+        // Chamar API
+        const response = await fetch(url, {
+            method: 'GET',
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Erro ao gerar Excel');
+        }
+        
+        // Obter blob
+        const blob = await response.blob();
+        
+        // Criar URL de download
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `Dashboard_${ano}${mes}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        
+        // Limpar
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+        
+        showToast('✅ Excel exportado com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('Erro ao exportar Excel:', error);
+        showToast(`❌ Erro ao exportar Excel: ${error.message}`, 'error');
+    }
+};
 
 console.log('✅ Módulo Dashboard Gerencial carregado');

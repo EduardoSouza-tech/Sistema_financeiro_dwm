@@ -1,8 +1,11 @@
 This file forces Railway to reload all Python modules
-Timestamp: 2026-02-19 22:15:00
-FEATURE: Exportação Excel da DRE
-Implementação: Planilha Excel formatada profissionalmente com openpyxl
-Formatação: Cores por tipo (receitas/despesas/resultados), bordas, indentação
+Timestamp: 2026-02-19 22:45:00
+FEATURES: Dashboard - Novos gráficos (Pie + Bar Chart) + Exportações PDF/Excel
+1. Pie chart: Despesas por categoria (top 5 + Outros)
+2. Bar chart horizontal: Receitas por categoria (top 10)
+3. Exportação PDF: 5 seções com tabelas coloridas
+4. Exportação Excel: 4 sheets profissionais
+Total: ~919 linhas de código novo (dashboard_functions +48, dashboard_module +203, pdf_export +525, web_server +143)
 Fórmulas: Percentuais automáticos, formatação de moeda brasileira
 Comparativo: Suporte para 5 colunas com período anterior e variação %
 API: POST /api/relatorios/dre/excel
