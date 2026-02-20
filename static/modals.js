@@ -800,7 +800,7 @@ function formatarValorParaExibicao(valor) {
     return resultado;
 }
 
-async function salvarConta(event) {
+async function salvarContaBancaria(event) {
     if (event && event.preventDefault) event.preventDefault();
     
     // Validar empresa_id
@@ -1728,7 +1728,7 @@ window.salvarCliente = salvarCliente;
 window.openModalFornecedor = openModalFornecedor;
 window.salvarFornecedor = salvarFornecedor;
 window.openModalConta = openModalConta;
-window.salvarConta = salvarConta;
+window.salvarContaBancaria = salvarContaBancaria;
 window.openModalCategoria = openModalCategoria;
 window.salvarCategoria = salvarCategoria;
 window.closeModal = closeModal;

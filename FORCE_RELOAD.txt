@@ -1,5 +1,5 @@
 This file forces Railway to reload all Python modules
-Timestamp: 2026-02-19 20:30:00
-FIX: Corrigir conflito salvarConta() - tornar compatível com ou sem event
-Bug: Duas funções salvarConta (modals.js e app.js) causavam erro ao editar/excluir contas
-Solução: if (event && event.preventDefault) event.preventDefault() - compatível com ambas
+Timestamp: 2026-02-19 20:45:00
+FIX: Renomear salvarConta em modals.js para salvarContaBancaria - resolver conflito definitivo
+Bug: modals.js sobrescrevia window.salvarConta do app.js causando erro ao editar plano de contas
+Solução: salvarContaBancaria para contas bancárias, salvarConta para plano de contas contábil
