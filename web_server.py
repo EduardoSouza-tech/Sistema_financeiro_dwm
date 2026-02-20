@@ -13944,7 +13944,6 @@ def listar_subcategorias_disponiveis_dre():
             LEFT JOIN dre_mapeamento_subcategoria m ON m.subcategoria_id = s.id AND m.empresa_id = %s
             WHERE c.empresa_id = %s
               AND s.ativa = TRUE
-              AND c.ativa = TRUE
               AND m.id IS NULL
             ORDER BY c.nome, s.nome
         """, (empresa_id, empresa_id))
