@@ -13428,7 +13428,7 @@ def gerar_balancete_api():
 def gerar_dre_api():
     """Gera DRE (Demonstração do Resultado do Exercício) COMPLETA"""
     try:
-        user = request.user
+        user = request.usuario
         empresa_id = user['empresa_id']
         
         data = request.get_json()
@@ -13444,16 +13444,15 @@ def gerar_dre_api():
         
         from relatorios_contabeis_functions import gerar_dre
         
-        conn = get_db_connection()
-        resultado = gerar_dre(
-            conn=conn,
-            empresa_id=empresa_id,
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            versao_plano_id=data.get('versao_plano_id'),
-            comparar_periodo_anterior=data.get('comparar_periodo_anterior', False)
-        )
-        conn.close()
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            resultado = gerar_dre(
+                conn=conn,
+                empresa_id=empresa_id,
+                data_inicio=data_inicio,
+                data_fim=data_fim,
+                versao_plano_id=data.get('versao_plano_id'),
+                comparar_periodo_anterior=data.get('comparar_periodo_anterior', False)
+            )
         
         return jsonify(resultado)
     except Exception as e:
