@@ -801,7 +801,7 @@ function formatarValorParaExibicao(valor) {
 }
 
 async function salvarConta(event) {
-    event.preventDefault();
+    if (event && event.preventDefault) event.preventDefault();
     
     // Validar empresa_id
     if (!window.currentEmpresaId) {

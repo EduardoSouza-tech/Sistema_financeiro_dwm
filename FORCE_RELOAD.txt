@@ -1,5 +1,5 @@
 This file forces Railway to reload all Python modules
-Timestamp: 2026-02-19 20:15:00
-CRITICAL FIX: Corrigir listar_contas() - RealDictCursor para evitar retornar nomes de colunas
-Bug: cursor.cursor() sem RealDictCursor causava dict(zip(colunas, row)) retornar literais 'codigo', 'descricao'
-Solução: use cursor_factory=RealDictCursor para retornar dicionários diretamente
+Timestamp: 2026-02-19 20:30:00
+FIX: Corrigir conflito salvarConta() - tornar compatível com ou sem event
+Bug: Duas funções salvarConta (modals.js e app.js) causavam erro ao editar/excluir contas
+Solução: if (event && event.preventDefault) event.preventDefault() - compatível com ambas

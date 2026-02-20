@@ -8738,7 +8738,8 @@ window.editarConta = async function(contaId) {
 };
 
 // Salvar conta (nova ou edição)
-window.salvarConta = async function() {
+window.salvarConta = async function(event) {
+    if (event && event.preventDefault) event.preventDefault();
     const editId = document.getElementById('contaEditId').value;
     const versaoId = document.getElementById('pcVersaoFiltro').value;
     
