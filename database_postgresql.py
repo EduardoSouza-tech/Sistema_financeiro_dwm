@@ -4025,16 +4025,16 @@ def listar_contratos(empresa_id: int) -> List[Dict]:
     # 🔒 Usar get_db_connection com empresa_id
     with get_db_connection(empresa_id=empresa_id) as conn:
         cursor = conn.cursor()
-        
         cursor.execute("""
             SELECT c.*, cl.nome as cliente_nome
             FROM contratos c
             LEFT JOIN clientes cl ON c.cliente_id = cl.id
             ORDER BY c.created_at DESC
         """)
+        rows = cursor.fetchall()
     
     contratos = []
-    for row in cursor.fetchall():
+    for row in rows:
         contrato = dict(row)
         
         # Preservar campos importantes da tabela ANTES de mesclar com JSON
@@ -4080,8 +4080,6 @@ def listar_contratos(empresa_id: int) -> List[Dict]:
         
         contratos.append(contrato)
     
-    cursor.close()
-    return_to_pool(conn)  # Devolver ao pool
     return contratos
 
 def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
