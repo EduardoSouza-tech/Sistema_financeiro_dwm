@@ -459,39 +459,38 @@ def get_db_connection(empresa_id=None, allow_global=False):
                 "   3. Ver: REGRAS_SEGURANCA_OBRIGATORIAS.md"
             )
     
-    try:
-        conn.autocommit = True
-        
-        # ✅ ATIVAR RLS SE EMPRESA_ID DISPONÍVEL
-        if empresa_id is not None and SECURITY_ENABLED:
-            cursor = conn.cursor()
-            try:
-                cursor.execute("SELECT set_current_empresa(%s)", (empresa_id,))
-                log(f"🔒 RLS ativado para empresa {empresa_id}")
-            except Exception as e:
-                log(f"⚠️ Erro ao configurar RLS: {e}")
-            finally:
-                cursor.close()
-        elif allow_global:
-            log(f"⚪ Conexão global (sem RLS) - Tabelas: usuarios, empresas, permissoes")
-        
-        # 🔒 Marcar como gerenciada pelo context manager
-        # return_to_pool() detecta esta flag e se torna no-op
-        conn._managed_by_context = True
+    conn.autocommit = True
+    
+    # ✅ ATIVAR RLS SE EMPRESA_ID DISPONÍVEL
+    if empresa_id is not None and SECURITY_ENABLED:
+        cursor = conn.cursor()
         try:
-            yield conn
+            cursor.execute("SELECT set_current_empresa(%s)", (empresa_id,))
+            log(f"🔒 RLS ativado para empresa {empresa_id}")
+        except Exception as e:
+            log(f"⚠️ Erro ao configurar RLS: {e}")
         finally:
-            conn._managed_by_context = False
-            # Limpar configuração RLS
-            if empresa_id is not None and SECURITY_ENABLED:
-                try:
-                    cursor = conn.cursor()
-                    cursor.execute("RESET app.current_empresa_id")
-                    cursor.close()
-                except:
-                    pass
-            
-            pool_obj.putconn(conn)
+            cursor.close()
+    elif allow_global:
+        log(f"⚪ Conexão global (sem RLS) - Tabelas: usuarios, empresas, permissoes")
+    
+    # 🔒 Marcar como gerenciada pelo context manager
+    # return_to_pool() detecta esta flag e se torna no-op
+    conn._managed_by_context = True
+    try:
+        yield conn
+    finally:
+        conn._managed_by_context = False
+        # Limpar configuração RLS
+        if empresa_id is not None and SECURITY_ENABLED:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("RESET app.current_empresa_id")
+                cursor.close()
+            except:
+                pass
+        
+        pool_obj.putconn(conn)
 
 
 def return_to_pool(conn):
