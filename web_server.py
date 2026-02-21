@@ -16035,6 +16035,60 @@ def recadastrar_certificado(certificado_id):
 
 # ===== BUSCA E PROCESSAMENTO DE DOCUMENTOS =====
 
+def _auto_obter_certificado_id(empresa_id):
+    """
+    Retorna um certificado_id de certificados_digitais para a empresa.
+    Primeiro busca em certificados_digitais (qualquer linha da empresa, ativo ou não).
+    Se não encontrar, sincroniza do certificado NFS-e e cria um registro automático.
+    """
+    try:
+        # Tenta qualquer cert da empresa (ativo ou inativo — o fallback de texto plano já funciona)
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id FROM certificados_digitais
+                WHERE empresa_id = %s
+                ORDER BY ativo DESC, id ASC
+                LIMIT 1
+            """, (empresa_id,))
+            row = cursor.fetchone()
+            if row:
+                return row[0] if not isinstance(row, dict) else row['id']
+
+        # Não encontrou — tenta sincronizar do certificado NFS-e
+        from nfse_functions import get_certificado_para_soap, get_certificado_info
+        from database_postgresql import get_nfse_db_params
+        import base64 as _b64
+
+        db_params = get_nfse_db_params()
+        nfse_cert = get_certificado_para_soap(db_params, empresa_id)
+        if not nfse_cert:
+            return None
+
+        pfx_bytes, senha_plain = nfse_cert
+        pfx_b64 = _b64.b64encode(pfx_bytes).decode('utf-8')
+
+        cert_info = get_certificado_info(db_params, empresa_id) or {}
+        cnpj_raw = cert_info.get('cnpj', '')
+        cnpj = ''.join(filter(str.isdigit, cnpj_raw))
+
+        from relatorios.nfe import nfe_api
+        result = nfe_api.salvar_certificado(
+            empresa_id=empresa_id,
+            cnpj=cnpj,
+            nome_certificado='Certificado Digital (NFS-e)',
+            pfx_base64=pfx_b64,
+            senha=senha_plain,
+            cuf=0,
+            ambiente='producao'
+        )
+        return result.get('certificado_id') if result and result.get('sucesso') else None
+
+    except Exception as e:
+        logger.error(f"[_auto_obter_certificado_id] empresa {empresa_id}: {e}")
+        return None
+
+
 @app.route('/api/relatorios/buscar-documentos', methods=['POST'])
 @require_auth
 @require_permission('relatorios_view')
@@ -16045,27 +16099,28 @@ def buscar_documentos():
         empresa_id = session.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
-        
-        data = request.get_json()
-        certificado_id = data.get('certificado_id')
-        
+
+        data = request.get_json() or {}
+        # Aceita certificado_id explícito ou auto-detecta pelo empresa_id
+        certificado_id = data.get('certificado_id') or _auto_obter_certificado_id(empresa_id)
+
         if not certificado_id:
             return jsonify({
-                'success': False,
-                'error': 'certificado_id é obrigatório'
+                'sucesso': False,
+                'erro': 'Nenhum certificado digital encontrado para esta empresa. '
+                        'Configure um certificado em 📄 NFS-e > ⚙️ Configurar Municípios NFS-e.'
             }), 400
-        
+
         # Importa módulo de API
         from relatorios.nfe import nfe_api
-        
-        # Executa busca (sem limite: SEFAZ define quantos documentos retornar)
+
         resultado = nfe_api.buscar_e_processar_novos_documentos(
             certificado_id=certificado_id,
             usuario_id=usuario['id']
         )
-        
+
         return jsonify(resultado)
-        
+
     except Exception as e:
         logger.error(f"Erro ao buscar documentos: {e}")
         return jsonify({
@@ -16085,14 +16140,17 @@ def consultar_por_chave():
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
-        data = request.get_json()
+        data = request.get_json() or {}
         chave = data.get('chave')
-        certificado_id = data.get('certificado_id')
-        
-        if not chave or not certificado_id:
+        certificado_id = data.get('certificado_id') or _auto_obter_certificado_id(empresa_id)
+
+        if not chave:
+            return jsonify({'success': False, 'error': 'chave é obrigatória'}), 400
+
+        if not certificado_id:
             return jsonify({
                 'success': False,
-                'error': 'chave e certificado_id são obrigatórios'
+                'error': 'Nenhum certificado digital encontrado para esta empresa.'
             }), 400
         
         # Importa módulos

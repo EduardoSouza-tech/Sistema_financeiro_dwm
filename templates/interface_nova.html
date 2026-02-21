@@ -4287,18 +4287,11 @@
                         <p style="margin: 0; opacity: 0.9; font-size: 13px;">Valor Total NF-e</p>
                         <h3 id="fiscal-statValorTotal" style="margin: 10px 0 0 0; font-size: 28px; font-weight: 700;">R$ 0,00</h3>
                     </div>
-                    <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); padding: 20px; border-radius: 10px; color: white;">
-                        <p style="margin: 0; opacity: 0.9; font-size: 13px;">Certificados Ativos</p>
-                        <h3 id="fiscal-statCertificados" style="margin: 10px 0 0 0; font-size: 28px; font-weight: 700;">-</h3>
-                    </div>
                 </div>
 
                 <!-- Tabs -->
                 <div style="border-bottom: 2px solid #e0e0e0; margin-bottom: 20px;">
-                    <button class="tab-button active" onclick="showFiscalTab('certificados')" id="fiscal-tab-certificados">
-                        🔐 Certificados Digitais
-                    </button>
-                    <button class="tab-button" onclick="showFiscalTab('busca')" id="fiscal-tab-busca">
+                    <button class="tab-button active" onclick="showFiscalTab('busca')" id="fiscal-tab-busca">
                         🔍 Buscar Documentos
                     </button>
                     <button class="tab-button" onclick="showFiscalTab('documentos')" id="fiscal-tab-documentos">
@@ -4309,33 +4302,14 @@
                     </button>
                 </div>
 
-                <!-- Tab Content: Certificados -->
-                <div id="fiscal-content-certificados" class="fiscal-tab-content">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h3>Certificados Cadastrados</h3>
-                        <button class="btn btn-primary" onclick="abrirModalNovoCertificadoFiscal()">
-                            ➕ Novo Certificado
-                        </button>
-                    </div>
-                    <div id="fiscal-certificadosContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 15px;">
-                        <p class="text-muted">Carregando certificados...</p>
-                    </div>
-                </div>
-
                 <!-- Tab Content: Busca -->
-                <div id="fiscal-content-busca" class="fiscal-tab-content hidden">
+                <div id="fiscal-content-busca" class="fiscal-tab-content">
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
                         <!-- Busca Automática -->
                         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
                             <h4>🔄 Busca Automática (NSU)</h4>
-                            <p class="text-muted" style="font-size: 13px;">Busca incremental de documentos na SEFAZ usando o último NSU processado. A SEFAZ controla automaticamente quantos documentos retornar.</p>
-                            <div style="margin: 15px 0;">
-                                <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600;">Certificado</label>
-                                <select id="fiscal-buscaAutoCertificado" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                    <option value="">Selecione um certificado...</option>
-                                </select>
-                            </div>
-                            <button class="btn btn-primary" onclick="executarBuscaAutomaticaFiscal()" style="width: 100%;">
+                            <p class="text-muted" style="font-size: 13px;">Busca incremental de documentos na SEFAZ usando o último NSU processado. O certificado configurado em NFS-e é usado automaticamente.</p>
+                            <button class="btn btn-primary" onclick="executarBuscaAutomaticaFiscal()" style="width: 100%; margin-top: 10px;">
                                 🔄 Iniciar Busca Automática
                             </button>
                             <div id="fiscal-buscaAutoResultado" style="margin-top: 15px;"></div>
@@ -4344,13 +4318,7 @@
                         <!-- Consultar por Chave -->
                         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
                             <h4>🔍 Consultar por Chave</h4>
-                            <p class="text-muted" style="font-size: 13px;">Consulta uma NF-e ou CT-e específica pela chave de acesso de 44 dígitos.</p>
-                            <div style="margin: 15px 0;">
-                                <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600;">Certificado</label>
-                                <select id="fiscal-buscaChaveCertificado" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                    <option value="">Selecione um certificado...</option>
-                                </select>
-                            </div>
+                            <p class="text-muted" style="font-size: 13px;">Consulta uma NF-e ou CT-e específica pela chave de acesso de 44 dígitos. O certificado configurado em NFS-e é usado automaticamente.</p>
                             <div style="margin: 15px 0;">
                                 <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600;">Chave de Acesso (44 dígitos)</label>
                                 <input type="text" id="fiscal-buscaChave" maxlength="44" placeholder="35260112345678000190550010000001001123456781" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
@@ -12793,8 +12761,7 @@
         // Função de carregamento da seção fiscal (registrada no mapa de loaders)
         window.loadFiscalSection = function() {
             carregarEstatisticasFiscais();
-            carregarCertificadosFiscais();
-            preencherSelectsCertificadosFiscais();
+            carregarDocumentosFiscais();
         };
 
         // Controle de Tabs Fiscais
@@ -12810,7 +12777,6 @@
             document.getElementById(`fiscal-tab-${tabName}`).classList.add('active');
             
             // Carregar dados específicos da tab
-            if (tabName === 'certificados') carregarCertificadosFiscais();
             if (tabName === 'documentos') carregarDocumentosFiscais();
             if (tabName === 'nsu') carregarNSUStatusFiscal();
         }
@@ -12824,8 +12790,7 @@
             
             if (sectionId === 'fiscal') {
                 carregarEstatisticasFiscais();
-                carregarCertificadosFiscais();
-                preencherSelectsCertificadosFiscais();
+                carregarDocumentosFiscais();
             }
             
             if (sectionId === 'empresa') {
@@ -12864,7 +12829,6 @@
                         document.getElementById('fiscal-statTotalDocs').textContent = stats.total_documentos || 0;
                         document.getElementById('fiscal-statTotalNFes').textContent = stats.total_nfes || 0;
                         document.getElementById('fiscal-statValorTotal').textContent = formatarMoedaFiscal(stats.valor_total_nfes);
-                        document.getElementById('fiscal-statCertificados').textContent = stats.certificados_ativos || 0;
                     }
                 })
                 .catch(err => console.error('Erro ao carregar estatísticas fiscais:', err));
@@ -13181,21 +13145,12 @@
 
         // Buscar Documentos
         function executarBuscaAutomaticaFiscal() {
-            const certificadoId = document.getElementById('fiscal-buscaAutoCertificado').value;
-
-            if (!certificadoId) {
-                showToastFiscal('Selecione um certificado', 'error');
-                return;
-            }
-
-            document.getElementById('fiscal-buscaAutoResultado').innerHTML = '<p style="color: #3498db;">⏳ Buscando documentos...</p>';
+            document.getElementById('fiscal-buscaAutoResultado').innerHTML = '<p style="color: #3498db;">⏳ Buscando documentos... (usando certificado NFS-e)</p>';
 
             fetch('/api/relatorios/buscar-documentos', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    certificado_id: parseInt(certificadoId)
-                })
+                body: JSON.stringify({})
             })
             .then(r => r.json())
             .then(response => {
@@ -13230,11 +13185,10 @@
         }
 
         function consultarPorChaveFiscal() {
-            const certificadoId = document.getElementById('fiscal-buscaChaveCertificado').value;
             const chave = document.getElementById('fiscal-buscaChave').value.trim();
 
-            if (!certificadoId || !chave) {
-                showToastFiscal('Preencha todos os campos', 'error');
+            if (!chave) {
+                showToastFiscal('Informe a chave de acesso', 'error');
                 return;
             }
 
@@ -13249,7 +13203,6 @@
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    certificado_id: parseInt(certificadoId),
                     chave: chave
                 })
             })
