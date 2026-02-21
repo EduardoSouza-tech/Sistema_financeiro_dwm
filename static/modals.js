@@ -4127,6 +4127,9 @@ async function salvarTagRapida(event) {
         
         const result = await response.json();
         console.log('🔵 [DEBUG TAG] Response JSON:', result);
+        console.log('🔵 [DEBUG TAG] result.success:', result.success);
+        console.log('🔵 [DEBUG TAG] result.error:', result.error);
+        console.log('🔵 [DEBUG TAG] result.message:', result.message);
         
         if (response.ok && result.success) {
             console.log('✅ [DEBUG TAG] Sucesso!');
