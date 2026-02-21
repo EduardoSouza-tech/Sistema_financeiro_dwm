@@ -16098,7 +16098,6 @@ def buscar_documentos():
             return jsonify({'sucesso': False, 'erro': 'Empresa não identificada'}), 403
 
         data = request.get_json() or {}
-        # Aceita certificado_id explícito ou auto-detecta pelo empresa_id
         certificado_id = data.get('certificado_id') or _auto_obter_certificado_id(empresa_id)
 
         if not certificado_id:
@@ -16108,7 +16107,52 @@ def buscar_documentos():
                         'Acesse 🏢 Dados da Empresa e Certificado Digital para cadastrar.'
             }), 400
 
-        # Importa módulo de API
+        # ── Diagnóstico do certificado antes de tentar usar ──────────────────
+        diag = {'cert_id': certificado_id}
+        try:
+            with get_db_connection(allow_global=True) as _conn:
+                _cur = _conn.cursor()
+                _cur.execute("""
+                    SELECT id, ativo, empresa_id, cnpj, cuf, ambiente,
+                           LENGTH(pfx_base64) AS pfx_len,
+                           LENGTH(senha_pfx)  AS senha_len,
+                           valido_ate
+                    FROM certificados_digitais WHERE id = %s
+                """, (certificado_id,))
+                row = _cur.fetchone()
+                if row:
+                    keys = ['id','ativo','empresa_id','cnpj','cuf','ambiente',
+                            'pfx_len','senha_len','valido_ate']
+                    diag.update(dict(zip(keys, row)) if not isinstance(row, dict) else row)
+                else:
+                    diag['erro_diag'] = f'ID {certificado_id} não existe na tabela'
+        except Exception as de:
+            diag['erro_diag'] = str(de)
+
+        logger.info(f"[buscar_documentos] Diagnóstico cert: {diag}")
+
+        if diag.get('erro_diag'):
+            return jsonify({
+                'sucesso': False,
+                'erro': f'Certificado ID {certificado_id} não encontrado no banco.',
+                'diagnostico': diag
+            })
+
+        if not diag.get('ativo'):
+            return jsonify({
+                'sucesso': False,
+                'erro': f'Certificado ID {certificado_id} está inativo (ativo=False). Recadastre em 🏢 Dados da Empresa.',
+                'diagnostico': diag
+            })
+
+        if not diag.get('pfx_len'):
+            return jsonify({
+                'sucesso': False,
+                'erro': f'Certificado ID {certificado_id} não tem PFX gravado (pfx_base64 vazio). Recadastre em 🏢 Dados da Empresa.',
+                'diagnostico': diag
+            })
+        # ─────────────────────────────────────────────────────────────────────
+
         from relatorios.nfe import nfe_api
 
         resultado = nfe_api.buscar_e_processar_novos_documentos(
@@ -16116,13 +16160,19 @@ def buscar_documentos():
             usuario_id=usuario['id']
         )
 
+        # Se ainda falhou, inclui diagnóstico na resposta para debug
+        if not resultado.get('sucesso'):
+            resultado['diagnostico'] = diag
+
         return jsonify(resultado)
 
     except Exception as e:
         logger.error(f"Erro ao buscar documentos: {e}")
+        import traceback as _tb
         return jsonify({
-            'success': False,
-            'error': f'Erro no servidor: {str(e)}'
+            'sucesso': False,
+            'erro': f'Erro no servidor: {str(e)}',
+            'traceback': _tb.format_exc()
         }), 500
 
 
