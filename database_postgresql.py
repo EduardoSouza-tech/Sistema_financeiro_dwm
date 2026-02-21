@@ -3978,9 +3978,10 @@ def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
         cursor.execute("""
             INSERT INTO contratos (
                 numero, cliente_id, descricao, valor, data_inicio, data_fim, 
-                status, observacoes, empresa_id
+                status, observacoes, empresa_id,
+                horas_totais, horas_utilizadas, horas_extras, controle_horas_ativo
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             dados.get('numero'),
@@ -3992,6 +3993,10 @@ def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
             dados.get('status', 'ativo'),
             observacoes_json,
             empresa_id,
+            horas_totais,
+            0,
+            0,
+            controle_horas_ativo,
         ))
         contrato_id = cursor.fetchone()['id']
         conn.commit()
