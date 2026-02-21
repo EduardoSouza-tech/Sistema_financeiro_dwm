@@ -5,6 +5,7 @@ Operações de banco de dados e lógica de negócios
 import logging
 import traceback
 from datetime import datetime
+import psycopg2.extras
 from database_postgresql import get_db_connection
 
 logger = logging.getLogger(__name__)
