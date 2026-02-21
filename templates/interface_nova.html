@@ -4466,7 +4466,7 @@
                         </div>
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: 600;">UF (Estado)</label>
-                            <input type="text" id="fiscal-certCUF" readonly placeholder="Será preenchido automaticamente" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f5f5f5;">
+                            <input type="text" id="fiscal-certCUF" placeholder="Será preenchido automaticamente ou informe o código IBGE" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f5f5f5;">
                             <small class="text-muted" id="fiscal-certUF-hint">UF da empresa será detectada automaticamente</small>
                         </div>
                         <div style="margin-bottom: 15px;">
@@ -13005,11 +13005,20 @@
                         document.getElementById('fiscal-certNome').value = data.dados.nome_certificado || '';
                         document.getElementById('fiscal-certCNPJ').value = data.dados.cnpj || '';
                         
-                        // Preenche UF com código e sigla
-                        const cuf = data.dados.cuf || '31';
-                        const uf_sigla = data.dados.uf_sigla || 'MG';
-                        document.getElementById('fiscal-certCUF').value = `${cuf} (${uf_sigla})`;
-                        document.getElementById('fiscal-certUF-hint').textContent = `Estado: ${uf_sigla} - Código IBGE: ${cuf}`;
+                        // Preenche UF com código e sigla (pode ser vazio se não detectado)
+                        const cuf = data.dados.cuf || '';
+                        const uf_sigla = data.dados.uf_sigla || '';
+                        const cufInput = document.getElementById('fiscal-certCUF');
+                        if (cuf && uf_sigla) {
+                            cufInput.value = `${cuf} (${uf_sigla})`;
+                            cufInput.style.background = '#f5f5f5';
+                            document.getElementById('fiscal-certUF-hint').textContent = `Estado: ${uf_sigla} - Código IBGE: ${cuf}`;
+                        } else {
+                            cufInput.value = '';
+                            cufInput.style.background = '#fff9e6';
+                            cufInput.style.border = '1px solid #f39c12';
+                            document.getElementById('fiscal-certUF-hint').textContent = '⚠️ UF não detectada no certificado. Informe o código UF manualmente (ex: 31 para MG, 35 para SP, 41 para PR).';
+                        }
                         
                         // Mostra informações do certificado
                         const valido_de = data.dados.valido_de ? new Date(data.dados.valido_de).toLocaleDateString('pt-BR') : 'N/A';
@@ -13060,7 +13069,7 @@
             // Se estiver recadastrando um cert existente por ID, não exige extração prévia
             const certIdRecadastrar = window._certIdParaRecadastrar;
 
-            if (!certIdRecadastrar && (!nome || !cnpj || !cuf)) {
+            if (!certIdRecadastrar && (!nome || !cnpj)) {
                 showToastFiscal('Aguarde a extração automática dos dados do certificado', 'warning');
                 return;
             }
@@ -13097,7 +13106,7 @@
                     cnpj: cnpj,
                     pfx_base64: base64,
                     senha: senha,
-                    cuf: parseInt(cuf),
+                    cuf: parseInt(cuf) || 0,
                     ambiente: document.getElementById('fiscal-certAmbiente').value
                 };
 
@@ -13892,7 +13901,7 @@
                     cnpj: cnpj,
                     pfx_base64: base64,
                     senha: senha,
-                    cuf: parseInt(cuf),  // parseInt extrai apenas o número de "31 (MG)"
+                    cuf: parseInt(cuf) || 0,  // parseInt extrai apenas o número de "31 (MG)"
                     ambiente: ambiente
                 };
                 

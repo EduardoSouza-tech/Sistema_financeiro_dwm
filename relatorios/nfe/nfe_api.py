@@ -166,13 +166,33 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             
-            # Verifica se já existe certificado com esse CNPJ para essa empresa
+            # Busca qualquer certificado da empresa (ativo ou não), pelo CNPJ normalizado ou pelo empresa_id
+            # Normaliza CNPJ para comparação (remove máscara)
+            cnpj_limpo = ''.join(filter(str.isdigit, cnpj))
+            
             cursor.execute("""
                 SELECT id FROM certificados_digitais
-                WHERE empresa_id = %s AND cnpj = %s
-            """, (empresa_id, cnpj))
+                WHERE empresa_id = %s
+                  AND (
+                    REGEXP_REPLACE(cnpj, '[^0-9]', '', 'g') = %s
+                    OR cnpj = %s
+                  )
+                ORDER BY id
+                LIMIT 1
+            """, (empresa_id, cnpj_limpo, cnpj))
             
             resultado = cursor.fetchone()
+            
+            # Se não encontrou por CNPJ, pega qualquer cert da empresa (o mais antigo)
+            if not resultado:
+                cursor.execute("""
+                    SELECT id FROM certificados_digitais
+                    WHERE empresa_id = %s
+                    ORDER BY id
+                    LIMIT 1
+                """, (empresa_id,))
+                resultado = cursor.fetchone()
+            
             logger.info(f"[CERTIFICADO] Resultado da busca: {resultado}, tipo: {type(resultado)}")
             
             if resultado:
@@ -187,6 +207,7 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
                 cursor.execute("""
                     UPDATE certificados_digitais
                     SET nome_certificado = %s,
+                        cnpj = %s,
                         pfx_base64 = %s,
                         senha_pfx = %s,
                         cuf = %s,
@@ -195,25 +216,20 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
                         valido_ate = %s,
                         ativo = TRUE
                     WHERE id = %s
-                """, (nome_certificado, pfx_base64, senha_cripto, cuf, ambiente,
+                """, (nome_certificado, cnpj_limpo, pfx_base64, senha_cripto, cuf, ambiente,
                       valido_de, valido_ate, certificado_id))
             else:
-                # Desativa outros certificados ativos da mesma empresa
+                # Nenhum cert encontrado: insere novo
                 logger.info(f"[CERTIFICADO] Inserindo novo certificado para empresa {empresa_id}")
-                cursor.execute("""
-                    UPDATE certificados_digitais
-                    SET ativo = FALSE
-                    WHERE empresa_id = %s AND ativo = TRUE
-                """, (empresa_id,))
                 
-                # Insere novo certificado
+                # Insere novo certificado (sem desativar outros — usuário deve desativar manualmente)
                 cursor.execute("""
                     INSERT INTO certificados_digitais 
                     (empresa_id, cnpj, nome_certificado, pfx_base64, senha_pfx, 
                      cuf, ambiente, valido_de, valido_ate, criado_por, ativo)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
                     RETURNING id
-                """, (empresa_id, cnpj, nome_certificado, pfx_base64, senha_cripto,
+                """, (empresa_id, cnpj_limpo, nome_certificado, pfx_base64, senha_cripto,
                       cuf, ambiente, valido_de, valido_ate, usuario_id))
                 
                 resultado_insert = cursor.fetchone()

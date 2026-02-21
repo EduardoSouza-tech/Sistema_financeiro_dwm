@@ -15764,28 +15764,17 @@ def extrair_dados_certificado():
                     'valido_ate': cert.cert_data.get('valido_ate').isoformat() if cert.cert_data.get('valido_ate') else None
                 })
             
-            # Busca dados da empresa para preencher campos (incluindo estado/UF)
+            # Busca dados da empresa para completar campos (UF)
             with get_db_connection(empresa_id=empresa_id) as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT razao_social, cnpj, estado
+                    SELECT estado
                     FROM empresas
                     WHERE id = %s
                 """, (empresa_id,))
                 empresa = cursor.fetchone()
             
-            empresa_dict = dict(zip(['razao_social', 'cnpj', 'estado'], empresa)) if empresa else {}
-            
-            # 🔍 DEBUG: Log dos dados da empresa
-            logger.info(f"[CERTIFICADO DEBUG] Empresa ID: {empresa_id}")
-            logger.info(f"[CERTIFICADO DEBUG] Dados empresa: {empresa_dict}")
-            logger.info(f"[CERTIFICADO DEBUG] Estado bruto: '{empresa_dict.get('estado')}'")
-            
-            # Extrai CNPJ do certificado (subject DN geralmente contém)
-            cnpj_cert = cert.cert_data.get('cnpj', '')
-            
-            # CNPJ do certificado tem prioridade; se não extrair, usa o da empresa
-            cnpj_final = cnpj_cert if cnpj_cert else (empresa_dict.get('cnpj', '').replace('.', '').replace('/', '').replace('-', ''))
+            estado_db = (empresa[0] if empresa else '') or ''
             
             # Mapa de UF (sigla) para código IBGE (cUF)
             uf_para_codigo = {
@@ -15797,23 +15786,59 @@ def extrair_dados_certificado():
                 'SE': '28', 'TO': '17'
             }
             
-            # Busca UF da empresa e converte para código IBGE
-            estado_empresa = (empresa_dict.get('estado') or '').strip().upper()
-            cuf_empresa = uf_para_codigo.get(estado_empresa, '31')  # Default MG se não encontrar
+            # --- Extrai nome do certificado a partir do Subject CN ---
+            # Formato típico BR: CN=NOME EMPRESA:CNPJ14DIGITS ou CN=NOME:CNPJ-TITULAR
+            import re
+            subject_str = cert.cert_data.get('subject', '')
+            nome_cert_extraido = ''
             
-            # 🔍 DEBUG: Log do mapeamento
-            logger.info(f"[CERTIFICADO DEBUG] Estado normalizado: '{estado_empresa}'")
-            logger.info(f"[CERTIFICADO DEBUG] Código UF mapeado: {cuf_empresa}")
+            # Tenta extrair de CN=
+            cn_match = re.search(r'(?:^|,)CN=([^,]+)', subject_str)
+            if cn_match:
+                cn_value = cn_match.group(1).strip()
+                # Remove parte após ":" (que geralmente é CNPJ ou código)
+                nome_cert_extraido = cn_value.split(':')[0].strip()
+            
+            # Se não encontrou nome válido no CN, usa O= (Organization)
+            if not nome_cert_extraido or len(nome_cert_extraido) < 3:
+                o_match = re.search(r'(?:^|,)O=([^,]+)', subject_str)
+                if o_match:
+                    nome_cert_extraido = o_match.group(1).strip()
+
+            # Fallback: usa nome do arquivo
+            if not nome_cert_extraido or nome_cert_extraido.upper() in ('ICP-BRASIL', 'ICP-BRASIL'):
+                nome_cert_extraido = 'Certificado Digital'
+            
+            # --- UF: tenta extrair do Subject, fallback para empresa ---
+            uf_sigla = ''
+            # Alguns certs têm ST= (State) no subject
+            st_match = re.search(r'(?:^|,)ST=([A-Z]{2})', subject_str)
+            if st_match:
+                uf_sigla = st_match.group(1).strip()
+            
+            # Fallback: estado da empresa (somente se for uma sigla válida de 2 letras)
+            if not uf_sigla and len(estado_db.strip()) == 2 and estado_db.strip().upper() in uf_para_codigo:
+                uf_sigla = estado_db.strip().upper()
+            
+            cuf = uf_para_codigo.get(uf_sigla, '')  # Deixa vazio se não souber
+            
+            # Extrai CNPJ do certificado
+            cnpj_cert = cert.cert_data.get('cnpj', '')
+            
+            logger.info(f"[CERTIFICADO DEBUG] Subject: {subject_str[:100]}")
+            logger.info(f"[CERTIFICADO DEBUG] Nome extraído do cert: '{nome_cert_extraido}'")
+            logger.info(f"[CERTIFICADO DEBUG] CNPJ cert: '{cnpj_cert}'")
+            logger.info(f"[CERTIFICADO DEBUG] UF: sigla='{uf_sigla}' cuf='{cuf}'")
             
             resultado = {
                 'sucesso': True,
                 'dados': {
-                    'cnpj': cnpj_final,
-                    'nome_certificado': empresa_dict.get('razao_social', 'Certificado Digital'),
+                    'cnpj': cnpj_cert,
+                    'nome_certificado': nome_cert_extraido,
                     'valido_de': cert.cert_data.get('valido_de').isoformat() if cert.cert_data.get('valido_de') else None,
                     'valido_ate': cert.cert_data.get('valido_ate').isoformat() if cert.cert_data.get('valido_ate') else None,
-                    'cuf': cuf_empresa,  # UF da empresa convertido para código IBGE
-                    'uf_sigla': estado_empresa,  # Sigla do estado para referência
+                    'cuf': cuf,
+                    'uf_sigla': uf_sigla,
                     'subject': cert.cert_data.get('subject', ''),
                     'issuer': cert.cert_data.get('issuer', '')
                 }
