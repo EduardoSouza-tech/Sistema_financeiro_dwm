@@ -17,6 +17,7 @@ import time
 import logging
 from contextlib import contextmanager
 from urllib.parse import urlparse
+import weakref
 
 # Configurar logger
 logger = logging.getLogger(__name__)
@@ -332,6 +333,10 @@ def _get_postgresql_config():
 
 POSTGRESQL_CONFIG = _get_postgresql_config()
 
+# 🔒 WeakSet para rastrear conexões gerenciadas pelo context manager
+# Evita duplo-retorno ao pool que corrompe e causa 500s intermitentes
+_managed_connections = weakref.WeakSet()
+
 def get_nfse_db_params() -> dict:
     """
     Retorna parâmetros de conexão para NFSeDatabase (sem DSN)
@@ -474,13 +479,13 @@ def get_db_connection(empresa_id=None, allow_global=False):
     elif allow_global:
         log(f"⚪ Conexão global (sem RLS) - Tabelas: usuarios, empresas, permissoes")
     
-    # 🔒 Marcar como gerenciada pelo context manager
-    # return_to_pool() detecta esta flag e se torna no-op
-    conn._managed_by_context = True
+    # 🔒 Marcar como gerenciada pelo context manager via WeakSet
+    # return_to_pool() checa o WeakSet e se torna no-op para evitar duplo-retorno
+    _managed_connections.add(conn)
     try:
         yield conn
     finally:
-        conn._managed_by_context = False
+        _managed_connections.discard(conn)
         # Limpar configuração RLS
         if empresa_id is not None and SECURITY_ENABLED:
             try:
@@ -502,7 +507,7 @@ def return_to_pool(conn):
     """
     try:
         # Se gerenciada pelo context manager, NÃO devolver — ele cuida disso.
-        if getattr(conn, '_managed_by_context', False):
+        if conn in _managed_connections:
             return
         pool_obj = _get_connection_pool()
         pool_obj.putconn(conn)
