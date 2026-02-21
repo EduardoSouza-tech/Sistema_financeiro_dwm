@@ -3870,13 +3870,23 @@ async function loadTags() {
         console.log('🏷️ Carregando tags...');
         const response = await fetch('/api/tags');
         
+        console.log('🔵 [DEBUG TAG] loadTags() - Response status:', response.status);
+        
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
         
         const result = await response.json();
+        console.log('🔵 [DEBUG TAG] loadTags() - Result RAW:', result);
+        console.log('🔵 [DEBUG TAG] loadTags() - result.success:', result.success);
+        console.log('🔵 [DEBUG TAG] loadTags() - result.data:', result.data);
+        
         const tags = result.success ? (result.data || []) : [];
+        console.log('🔵 [DEBUG TAG] loadTags() - Tags extraídas:', tags);
+        console.log('🔵 [DEBUG TAG] loadTags() - Número de tags:', tags.length);
+        
         window.tagsDisponiveis = tags;
+        console.log('🔵 [DEBUG TAG] loadTags() - window.tagsDisponiveis atualizado:', window.tagsDisponiveis);
         console.log('✅ Tags carregadas:', tags.length);
         return tags;
     } catch (error) {
@@ -4106,13 +4116,19 @@ async function salvarTagRapida(event) {
             console.log('✅ [DEBUG TAG] Sucesso!');
             showToast('✅ Tag criada com sucesso!', 'success');
             
+            console.log('🔵 [DEBUG TAG] Chamando loadTags()...');
             // Recarregar tags
             await loadTags();
+            console.log('🔵 [DEBUG TAG] loadTags() concluído!');
             
+            console.log('🔵 [DEBUG TAG] Chamando atualizarInterfaceTags()...');
             // Atualizar interface de seleção de tags
             atualizarInterfaceTags();
+            console.log('🔵 [DEBUG TAG] atualizarInterfaceTags() concluído!');
             
+            console.log('🔵 [DEBUG TAG] Fechando modal...');
             closeModal();
+            console.log('✅ [DEBUG TAG] Fluxo completo de criação finalizado!');
         } else {
             console.error('🔴 [DEBUG TAG] Falha na requisição');
             showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
@@ -4130,10 +4146,14 @@ async function salvarTagRapida(event) {
  */
 function renderizarSeletorTags(tagsSelecionadas = []) {
     const tags = window.tagsDisponiveis || [];
+    console.log('🔵 [DEBUG TAG] renderizarSeletorTags() chamada');
+    console.log('🔵 [DEBUG TAG] Tags disponíveis:', tags.length);
+    console.log('🔵 [DEBUG TAG] window.tagsDisponiveis:', window.tagsDisponiveis);
+    console.log('🔵 [DEBUG TAG] Tags selecionadas:', tagsSelecionadas);
     
     if (tags.length === 0) {
         return `
-            <div style="padding: 20px; text-align: center; color: #6b7280; background: #f9fafb; border-radius: 8px;">
+            <div id="tags-selector" style="padding: 20px; text-align: center; color: #6b7280; background: #f9fafb; border-radius: 8px;">
                 <p>Nenhuma tag cadastrada</p>
                 <button type="button" onclick="openModalAdicionarTag()" class="btn btn-sm" style="margin-top: 10px; background: #10b981; color: white;">
                     ➕ Criar Primeira Tag
@@ -4177,11 +4197,44 @@ function renderizarSeletorTags(tagsSelecionadas = []) {
  * Atualiza interface de tags após criar nova
  */
 function atualizarInterfaceTags() {
-    const container = document.getElementById('tags-selector');
+    console.log('🔵 [DEBUG TAG] atualizarInterfaceTags() INICIADA');
+    
+    // Primeiro tenta encontrar o wrapper (sessao-tags-container)
+    let container = document.getElementById('sessao-tags-container');
+    console.log('🔵 [DEBUG TAG] Container sessao-tags-container:', container);
+    
+    // Se não encontrar o wrapper, tenta o seletor interno
+    if (!container) {
+        container = document.getElementById('tags-selector');
+        console.log('🔵 [DEBUG TAG] Container tags-selector (fallback):', container);
+    }
+    
     if (container) {
+        console.log('🔵 [DEBUG TAG] Container encontrado! Atualizando...');
         const tagsSelecionadas = obterTagsSelecionadas();
-        container.outerHTML = renderizarSeletorTags(tagsSelecionadas);
+        console.log('🔵 [DEBUG TAG] Tags selecionadas antes da atualização:', tagsSelecionadas);
+        
+        const novoHTML = renderizarSeletorTags(tagsSelecionadas);
+        console.log('🔵 [DEBUG TAG] Novo HTML gerado (primeiros 200 chars):', novoHTML.substring(0, 200));
+        
+        // Se for o wrapper, substitui innerHTML; se for o seletor, substitui outerHTML
+        if (container.id === 'sessao-tags-container') {
+            container.innerHTML = novoHTML;
+            console.log('✅ [DEBUG TAG] innerHTML do wrapper atualizado');
+        } else {
+            container.outerHTML = novoHTML;
+            console.log('✅ [DEBUG TAG] outerHTML do seletor atualizado');
+        }
+        
         configurarEventosTags();
+        console.log('✅ [DEBUG TAG] Eventos configurados');
+    } else {
+        console.error('🔴 [DEBUG TAG] ERRO: Container não encontrado!');
+        console.error('🔴 [DEBUG TAG] Containers disponíveis:', {
+            'sessao-tags-container': document.getElementById('sessao-tags-container'),
+            'tags-selector': document.getElementById('tags-selector'),
+            'dynamic-modal': document.getElementById('dynamic-modal')
+        });
     }
 }
 
