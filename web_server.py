@@ -15923,6 +15923,91 @@ def desativar_certificado(certificado_id):
         }), 500
 
 
+@app.route('/api/relatorios/certificados/<int:certificado_id>/recadastrar', methods=['POST'])
+@require_auth
+@require_permission('relatorios_view')
+def recadastrar_certificado(certificado_id):
+    """Atualiza pfx e senha de um certificado existente pelo ID (sem depender de CNPJ)"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+
+        data = request.get_json()
+        pfx_base64 = data.get('pfx_base64', '').strip()
+        senha = data.get('senha', '').strip()
+
+        if not pfx_base64 or not senha:
+            return jsonify({'success': False, 'error': 'Arquivo PFX e senha são obrigatórios'}), 400
+
+        from relatorios.nfe import nfe_api, nfe_busca
+        import os
+
+        # Valida certificado
+        try:
+            cert = nfe_busca.CertificadoA1(pfx_base64=pfx_base64, senha=senha)
+            if not cert.esta_valido():
+                return jsonify({'success': False, 'error': 'Certificado fora do prazo de validade'}), 400
+            dados_cert = cert.cert_data
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Certificado inválido ou senha incorreta: {str(e)}'}), 400
+
+        # Criptografa senha
+        chave_str = os.environ.get('FERNET_KEY', '').strip()
+        if not chave_str:
+            return jsonify({'success': False, 'error': 'FERNET_KEY não configurada no servidor'}), 500
+
+        try:
+            senha_cripto = nfe_api.criptografar_senha(senha, chave_str.encode('utf-8'))
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Erro ao criptografar senha: {str(e)}'}), 500
+
+        logger.info(f"[RECADASTRAR] Cert ID {certificado_id} - senha criptografada: {len(senha_cripto)} chars")
+
+        # Atualiza diretamente pelo ID (sem depender de CNPJ)
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            # Verifica que o cert pertence à empresa
+            cursor.execute(
+                "SELECT id FROM certificados_digitais WHERE id = %s AND empresa_id = %s",
+                (certificado_id, empresa_id)
+            )
+            if not cursor.fetchone():
+                return jsonify({'success': False, 'error': 'Certificado não encontrado'}), 404
+
+            cursor.execute("""
+                UPDATE certificados_digitais
+                SET pfx_base64   = %s,
+                    senha_pfx    = %s,
+                    valido_de    = %s,
+                    valido_ate   = %s,
+                    ativo        = TRUE,
+                    atualizado_em = NOW(),
+                    atualizado_por = %s
+                WHERE id = %s AND empresa_id = %s
+            """, (
+                pfx_base64,
+                senha_cripto,
+                dados_cert.get('valido_de'),
+                dados_cert.get('valido_ate'),
+                usuario['id'],
+                certificado_id,
+                empresa_id,
+            ))
+            conn.commit()
+
+        logger.info(f"[RECADASTRAR] ✅ Certificado ID {certificado_id} atualizado com sucesso")
+        return jsonify({'success': True, 'message': 'Certificado recadastrado com sucesso!'})
+
+    except Exception as e:
+        logger.error(f"Erro ao recadastrar certificado {certificado_id}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ===== BUSCA E PROCESSAMENTO DE DOCUMENTOS =====
 
 @app.route('/api/relatorios/buscar-documentos', methods=['POST'])

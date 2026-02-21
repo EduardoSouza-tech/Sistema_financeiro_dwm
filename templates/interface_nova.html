@@ -13056,8 +13056,11 @@
                 showToastFiscal('Digite a senha do certificado', 'error');
                 return;
             }
-            
-            if (!nome || !cnpj || !cuf) {
+
+            // Se estiver recadastrando um cert existente por ID, não exige extração prévia
+            const certIdRecadastrar = window._certIdParaRecadastrar;
+
+            if (!certIdRecadastrar && (!nome || !cnpj || !cuf)) {
                 showToastFiscal('Aguarde a extração automática dos dados do certificado', 'warning');
                 return;
             }
@@ -13065,6 +13068,29 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const base64 = e.target.result.split(',')[1];
+
+                // Recadastrar por ID: atualiza pfx+senha sem depender de CNPJ
+                if (certIdRecadastrar) {
+                    fetch(`/api/relatorios/certificados/${certIdRecadastrar}/recadastrar`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ pfx_base64: base64, senha: senha })
+                    })
+                    .then(r => r.json())
+                    .then(response => {
+                        if (response.success) {
+                            window._certIdParaRecadastrar = null;
+                            showToastFiscal('✅ Certificado recadastrado com sucesso!');
+                            fecharModalNovoCertificadoFiscal();
+                            carregarCertificadosFiscais();
+                            carregarEstatisticasFiscais();
+                        } else {
+                            showToastFiscal('Erro: ' + (response.error || response.erro), 'error');
+                        }
+                    })
+                    .catch(err => showToastFiscal('Erro ao recadastrar certificado', 'error'));
+                    return;
+                }
                 
                 const dados = {
                     nome_certificado: nome,
@@ -13098,7 +13124,8 @@
         }
 
         function abrirModalNovoCertificadoFiscal() {
-            // Limpa campos
+            // Limpa campos e certId armazenado (novo cadastro)
+            window._certIdParaRecadastrar = null;
             document.getElementById('fiscal-certArquivo').value = '';
             document.getElementById('fiscal-certSenha').value = '';
             document.getElementById('fiscal-certNome').value = '';
@@ -13117,11 +13144,12 @@
         }
 
         function abrirModalRecadastrarCertificado(certificadoId) {
-            // Abre o modal de novo certificado
+            // Abre o modal e armazena o ID para atualizar diretamente
             abrirModalNovoCertificadoFiscal();
+            window._certIdParaRecadastrar = certificadoId;
             
             // Mostra mensagem de recadastramento
-            showToastFiscal('⚠️ Recadastre o certificado com o arquivo .PFX e senha corretos', 'warning');
+            showToastFiscal('⚠️ Selecione o arquivo .PFX e informe a senha para recadastrar o certificado', 'warning');
         }
 
         function desativarCertificadoFiscal(id) {
