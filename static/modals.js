@@ -4002,29 +4002,74 @@ function atualizarPreviewTag() {
 async function salvarTagRapida(event) {
     console.log('🔵 [DEBUG TAG] salvarTagRapida() INICIADA');
     console.log('🔵 [DEBUG TAG] Event:', event);
+    console.log('🔵 [DEBUG TAG] Event.target:', event.target);
+    console.log('🔵 [DEBUG TAG] Event.currentTarget:', event.currentTarget);
+    console.log('🔵 [DEBUG TAG] Form elements:', event.target?.elements);
     
     event.preventDefault();
     console.log('🔵 [DEBUG TAG] preventDefault() executado');
     
+    // Tentar diferentes métodos de captura
+    console.log('🔵 [DEBUG TAG] === MÉTODO 1: getElementById ===');
     const campoNome = document.getElementById('tag-nome');
     const campoCor = document.getElementById('tag-cor');
     const campoIcone = document.getElementById('tag-icone');
     
     console.log('🔵 [DEBUG TAG] Campos DOM:', {
         campoNome: campoNome,
+        campoNomeValue: campoNome?.value,
+        campoNomeType: campoNome?.type,
+        campoNomeId: campoNome?.id,
         campoCor: campoCor,
-        campoIcone: campoIcone
+        campoCorValue: campoCor?.value,
+        campoIcone: campoIcone,
+        campoIconeValue: campoIcone?.value
     });
     
-    const nome = campoNome ? campoNome.value.trim() : '';
+    console.log('🔵 [DEBUG TAG] === MÉTODO 2: event.target.elements ===');
+    const formElements = event.target.elements;
+    console.log('🔵 [DEBUG TAG] Form elements:', formElements);
+    console.log('🔵 [DEBUG TAG] Form elements["tag-nome"]:', formElements['tag-nome']);
+    console.log('🔵 [DEBUG TAG] Form elements["tag-nome"].value:', formElements['tag-nome']?.value);
+    
+    console.log('🔵 [DEBUG TAG] === MÉTODO 3: querySelector ===');
+    const campoNomeQuery = document.querySelector('#form-tag #tag-nome');
+    console.log('🔵 [DEBUG TAG] querySelector #tag-nome:', campoNomeQuery);
+    console.log('🔵 [DEBUG TAG] querySelector #tag-nome value:', campoNomeQuery?.value);
+    
+    console.log('🔵 [DEBUG TAG] === MÉTODO 4: querySelectorAll (duplicatas?) ===');
+    const todosCamposNome = document.querySelectorAll('#tag-nome');
+    console.log('🔵 [DEBUG TAG] Todos elementos com id tag-nome:', todosCamposNome);
+    todosCamposNome.forEach((campo, index) => {
+        console.log(`🔵 [DEBUG TAG] Campo ${index}:`, {
+            element: campo,
+            value: campo.value,
+            parent: campo.parentElement,
+            form: campo.closest('form')?.id
+        });
+    });
+    
+    // Usar o valor mais confiável
+    let nome = '';
+    if (formElements['tag-nome']?.value) {
+        nome = formElements['tag-nome'].value.trim();
+        console.log('✅ [DEBUG TAG] Usando valor do formElements');
+    } else if (campoNomeQuery?.value) {
+        nome = campoNomeQuery.value.trim();
+        console.log('✅ [DEBUG TAG] Usando valor do querySelector');
+    } else if (campoNome?.value) {
+        nome = campoNome.value.trim();
+        console.log('✅ [DEBUG TAG] Usando valor do getElementById');
+    }
+    
     const cor = campoCor ? campoCor.value : '#3b82f6';
     const icone = campoIcone ? campoIcone.value.trim() : '🏷️';
     
-    console.log('🔵 [DEBUG TAG] Valores extraídos:', {
+    console.log('🔵 [DEBUG TAG] Valores finais extraídos:', {
         nome: nome,
+        nomeLength: nome.length,
         cor: cor,
-        icone: icone,
-        nomeLength: nome.length
+        icone: icone
     });
     
     if (!nome) {
