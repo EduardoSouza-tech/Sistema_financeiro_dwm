@@ -140,7 +140,8 @@
                 'remessa-pagamento': 'loadRemessaPagamento',
                 'nfse': 'loadNFSeSection',
                 'plano-contas': 'loadPlanoContas',
-                'fiscal': 'loadFiscalSection'
+                'fiscal': 'loadFiscalSection',
+                'empresa': 'carregarDadosEmpresa'
             };
             
             const loadFunctionName = loadFunctions[sectionId];
@@ -7148,6 +7149,9 @@
             } else if (sectionId === 'fiscal') {
                 console.log('  ➡️ loadFiscalSection:', typeof loadFiscalSection);
                 if (typeof loadFiscalSection === 'function') loadFiscalSection();
+            } else if (sectionId === 'empresa') {
+                console.log('  ➡️ carregarDadosEmpresa:', typeof carregarDadosEmpresa);
+                if (typeof carregarDadosEmpresa === 'function') carregarDadosEmpresa();
             } else {
                 console.log('  ⚠️ Nenhuma função de carregamento definida para:', sectionId);
             }
@@ -13556,6 +13560,8 @@
         }
 
         function abrirModalCertificadoEmpresa() {
+            // Limpa CNPJ detectado anteriormente
+            window._certCNPJDetectado = '';
             // Limpar campos
             const inputNome = document.getElementById('cert-emp-nome');
             const inputCuf = document.getElementById('cert-emp-cuf');
@@ -13675,6 +13681,10 @@
                         } else {
                             inputNome.value = 'Certificado ' + (cert.cnpj || 'Digital');
                         }
+                        
+                        // Salva CNPJ do cert para usar no momento de salvar
+                        window._certCNPJDetectado = cert.cnpj || '';
+                        console.log('📋 CNPJ detectado no cert:', window._certCNPJDetectado);
                         
                         // ✅ Limpar placeholder e habilitar input
                         inputNome.placeholder = '';
@@ -13902,8 +13912,12 @@
                 return;
             }
 
-            // Obter CNPJ da empresa
-            const cnpj = document.getElementById('empresa-cnpj').textContent.replace(/\D/g, '');
+            // Obter CNPJ da empresa: tenta do span, fallback do cert validado
+            let cnpj = document.getElementById('empresa-cnpj').textContent.replace(/\D/g, '');
+            if (!cnpj && window._certCNPJDetectado) {
+                cnpj = window._certCNPJDetectado.replace(/\D/g, '');
+                console.log('📋 CNPJ do span vazio, usando CNPJ do certificado:', cnpj);
+            }
 
             // Ler arquivo
             const reader = new FileReader();

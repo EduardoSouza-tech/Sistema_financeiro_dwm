@@ -15869,20 +15869,30 @@ def cadastrar_certificado():
     """Cadastra um novo certificado digital"""
     try:
         usuario = get_usuario_logado()
-        empresa_id = session.get('empresa_id')
+        empresa_id = session.get('empresa_id') or usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'sucesso': False, 'erro': 'Empresa não identificada'}), 403
         
         data = request.get_json()
         
         # Validação
-        required = ['cnpj', 'nome_certificado', 'pfx_base64', 'senha', 'cuf']
+        required = ['nome_certificado', 'pfx_base64', 'senha', 'cuf']
         missing = [f for f in required if not data.get(f)]
         if missing:
             return jsonify({
-                'success': False,
-                'error': f'Campos obrigatórios faltando: {", ".join(missing)}'
+                'sucesso': False,
+                'erro': f'Campos obrigatórios faltando: {", ".join(missing)}'
             }), 400
+        # CNPJ pode vir do form ou ser derivado da empresa
+        if not data.get('cnpj'):
+            try:
+                with get_db_connection(allow_global=True) as conn:
+                    cur = conn.cursor()
+                    cur.execute("SELECT cnpj FROM empresas WHERE id = %s", (empresa_id,))
+                    row = cur.fetchone()
+                    data['cnpj'] = row[0] if row else ''
+            except Exception:
+                data['cnpj'] = ''
         
         # Importa módulo de API
         from relatorios.nfe import nfe_api

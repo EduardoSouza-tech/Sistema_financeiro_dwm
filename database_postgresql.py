@@ -7547,8 +7547,8 @@ def obter_empresa(empresa_id):
     """
     log(f"[obter_empresa] INICIO - empresa_id={empresa_id}")
     try:
-        log(f"[obter_empresa] Chamando get_db_connection()...")
-        with get_db_connection() as conn:
+        log(f"[obter_empresa] Chamando get_db_connection(allow_global=True)...")
+        with get_db_connection(allow_global=True) as conn:
             log(f"[obter_empresa] Conexao obtida: {type(conn)}")
             log(f"[obter_empresa] Criando cursor com RealDictCursor...")
             cursor = conn.cursor(cursor_factory=RealDictCursor)
