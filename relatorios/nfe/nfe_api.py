@@ -330,8 +330,14 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
                     return None
             
             # Cria certificado
-            logger.info(f"[CERT] Criando objeto CertificadoA1...")
-            cert = nfe_busca.CertificadoA1(pfx_base64=pfx_base64, senha=senha)
+            logger.info(f"[CERT] Criando objeto CertificadoA1 (pfx_len={len(pfx_base64)}, senha_len={len(senha)})...")
+            try:
+                cert = nfe_busca.CertificadoA1(pfx_base64=pfx_base64, senha=senha)
+            except Exception as cert_err:
+                logger.error(f"[CERT] ❌ Falha ao criar CertificadoA1: {type(cert_err).__name__}: {cert_err}")
+                logger.error(f"[CERT]   Provável causa: senha incorreta para o PFX")
+                logger.error(f"[CERT]   Traceback: {traceback.format_exc()}")
+                return None
             
             logger.info(f"[CERT] Certificado ID {certificado_id} carregado com sucesso")
             return cert

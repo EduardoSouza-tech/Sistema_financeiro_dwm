@@ -16151,6 +16151,18 @@ def buscar_documentos():
                 'erro': f'Certificado ID {certificado_id} não tem PFX gravado (pfx_base64 vazio). Recadastre em 🏢 Dados da Empresa.',
                 'diagnostico': diag
             })
+
+        # Detecta senha Fernet sem FERNET_KEY configurada
+        import os as _os
+        fernet_key_presente = bool(_os.environ.get('FERNET_KEY', ''))
+        senha_parece_fernet = diag.get('senha_len', 0) >= 50
+        if senha_parece_fernet and not fernet_key_presente:
+            return jsonify({
+                'sucesso': False,
+                'erro': '⚠️ A senha do certificado está criptografada (Fernet, {} chars), mas FERNET_KEY não está configurada no servidor. '
+                        'SOLUÇÃO: Recadastre o certificado agora em 🏢 Dados da Empresa — a nova versão salva sem criptografia quando FERNET_KEY está ausente.'.format(diag['senha_len']),
+                'diagnostico': diag
+            })
         # ─────────────────────────────────────────────────────────────────────
 
         from relatorios.nfe import nfe_api
