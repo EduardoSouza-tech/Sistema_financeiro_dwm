@@ -3878,26 +3878,26 @@ def migrar_dados_json(json_path: str):
 
 # ==================== FUNi?i?ES CRUD - CONTRATOS ====================
 def gerar_proximo_numero_contrato() -> str:
-    """Gera o pri?ximo ni?mero de contrato no formato CONT-YYYY-NNNN"""
+    """Gera o próximo número de contrato no formato CONT-YYYY-NNNN"""
     try:
-        db = DatabaseManager()
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
         ano_atual = datetime.now().year
         
-        # Buscar o i?ltimo ni?mero de contrato do ano atual
-        cursor.execute("""
-            SELECT numero FROM contratos 
-            WHERE numero LIKE %s
-            ORDER BY numero DESC 
-            LIMIT 1
-        """, (f'CONT-{ano_atual}-%',))
-        
-        resultado = cursor.fetchone()
+        # 🔒 Usar context manager para garantir devolução ao pool em qualquer caso
+        with get_db_connection(allow_global=True) as conn:
+            cursor = conn.cursor()
+            
+            # Buscar o último número de contrato do ano atual
+            cursor.execute("""
+                SELECT numero FROM contratos 
+                WHERE numero LIKE %s
+                ORDER BY numero DESC 
+                LIMIT 1
+            """, (f'CONT-{ano_atual}-%',))
+            
+            resultado = cursor.fetchone()
         
         if resultado:
-            # Extrair o ni?mero sequencial do i?ltimo contrato
+            # Extrair o número sequencial do último contrato
             ultimo_numero = resultado['numero']
             try:
                 sequencial = int(ultimo_numero.split('-')[-1])
@@ -3907,14 +3907,11 @@ def gerar_proximo_numero_contrato() -> str:
         else:
             proximo_numero = 1
         
-        cursor.close()
-        return_to_pool(conn)  # Devolver ao pool
-        
         # Formatar: CONT-2025-0001
         return f'CONT-{ano_atual}-{proximo_numero:04d}'
     except Exception as e:
-        print(f"? Erro ao gerar ni?mero do contrato: {e}")
-        # Em caso de erro, retornar um ni?mero padri?o
+        print(f"❌ Erro ao gerar número do contrato: {e}")
+        # Em caso de erro, retornar um número padrão
         ano_atual = datetime.now().year
         return f'CONT-{ano_atual}-0001'
 
@@ -4084,9 +4081,7 @@ def listar_contratos(empresa_id: int) -> List[Dict]:
 
 def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
     """Atualiza um contrato existente"""
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
+    import json
     
     # Preparar observações com todos os dados adicionais
     observacoes_dict = {
@@ -4102,45 +4097,43 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
         'imposto': dados.get('imposto'),
         'comissoes': dados.get('comissoes', [])
     }
-    
-    import json
     observacoes_json = json.dumps(observacoes_dict)
     
-    cursor.execute("""
-        UPDATE contratos
-        SET numero = %s, cliente_id = %s, descricao = %s, valor = %s,
-            data_inicio = %s, data_fim = %s, status = %s, observacoes = %s,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = %s
-    """, (
-        dados.get('numero'),
-        dados.get('cliente_id'),
-        dados.get('descricao', dados.get('nome')),
-        dados.get('valor_total', dados.get('valor')),
-        dados.get('data_contrato', dados.get('data_inicio')),
-        dados.get('data_fim'),
-        dados.get('status'),
-        observacoes_json,
-        contrato_id
-    ))
+    # 🔒 Usar context manager para garantir devolução ao pool em qualquer caso
+    # autocommit=True no get_db_connection, não precisa de conn.commit()
+    empresa_id = dados.get('empresa_id') or _get_empresa_id_from_session()
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE contratos
+            SET numero = %s, cliente_id = %s, descricao = %s, valor = %s,
+                data_inicio = %s, data_fim = %s, status = %s, observacoes = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (
+            dados.get('numero'),
+            dados.get('cliente_id'),
+            dados.get('descricao', dados.get('nome')),
+            dados.get('valor_total', dados.get('valor')),
+            dados.get('data_contrato', dados.get('data_inicio')),
+            dados.get('data_fim'),
+            dados.get('status'),
+            observacoes_json,
+            contrato_id
+        ))
+        sucesso = cursor.rowcount > 0
     
-    conn.commit()  # Confirmar transação
-    sucesso = cursor.rowcount > 0
-    cursor.close()
-    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 def deletar_contrato(contrato_id: int) -> bool:
     """Deleta um contrato"""
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
+    # 🔒 Usar context manager para garantir devolução ao pool em qualquer caso
+    empresa_id = _get_empresa_id_from_session()
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM contratos WHERE id = %s", (contrato_id,))
+        sucesso = cursor.rowcount > 0
     
-    cursor.execute("DELETE FROM contratos WHERE id = %s", (contrato_id,))
-    
-    sucesso = cursor.rowcount > 0
-    cursor.close()
-    return_to_pool(conn)  # Devolver ao pool
     return sucesso
 
 
