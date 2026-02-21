@@ -3878,10 +3878,26 @@ async function loadTags() {
         
         const result = await response.json();
         console.log('🔵 [DEBUG TAG] loadTags() - Result RAW:', result);
+        console.log('🔵 [DEBUG TAG] loadTags() - Tipo do result:', typeof result, Array.isArray(result));
         console.log('🔵 [DEBUG TAG] loadTags() - result.success:', result.success);
         console.log('🔵 [DEBUG TAG] loadTags() - result.data:', result.data);
         
-        const tags = result.success ? (result.data || []) : [];
+        // Suportar AMBOS os formatos: array direto OU {success, data}
+        let tags = [];
+        if (Array.isArray(result)) {
+            // Formato ANTIGO: array direto
+            tags = result;
+            console.log('🟡 [DEBUG TAG] loadTags() - Formato ANTIGO detectado (array direto)');
+        } else if (result.success && result.data) {
+            // Formato NOVO: {success: true, data: [...]}
+            tags = result.data;
+            console.log('🟢 [DEBUG TAG] loadTags() - Formato NOVO detectado ({success, data})');
+        } else if (result.success && Array.isArray(result.tags)) {
+            // Formato alternativo: {success: true, tags: [...]}
+            tags = result.tags;
+            console.log('🟢 [DEBUG TAG] loadTags() - Formato alternativo ({success, tags})');
+        }
+        
         console.log('🔵 [DEBUG TAG] loadTags() - Tags extraídas:', tags);
         console.log('🔵 [DEBUG TAG] loadTags() - Número de tags:', tags.length);
         
