@@ -12813,7 +12813,7 @@ def excluir_versao_plano(versao_id):
 def listar_plano_contas():
     """Lista contas do plano com filtros"""
     try:
-        usuario = get_usuario_logado()
+        usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
@@ -12837,7 +12837,7 @@ def listar_plano_contas():
 def arvore_plano_contas():
     """Retorna plano de contas em estrutura de árvore"""
     try:
-        usuario = get_usuario_logado()
+        usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
@@ -12865,7 +12865,7 @@ def arvore_plano_contas():
 def criar_conta_plano():
     """Cria nova conta no plano"""
     try:
-        usuario = get_usuario_logado()
+        usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
@@ -12893,7 +12893,7 @@ def criar_conta_plano():
 def atualizar_conta_plano(conta_id):
     """Atualiza conta do plano"""
     try:
-        usuario = get_usuario_logado()
+        usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
@@ -12914,7 +12914,7 @@ def atualizar_conta_plano(conta_id):
 def excluir_conta_plano(conta_id):
     """Soft delete da conta e subcontas"""
     try:
-        usuario = get_usuario_logado()
+        usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
@@ -12934,7 +12934,7 @@ def excluir_conta_plano(conta_id):
 def mover_conta_plano():
     """Move conta para outro pai (drag-and-drop)"""
     try:
-        usuario = get_usuario_logado()
+        usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
@@ -12958,7 +12958,7 @@ def mover_conta_plano():
 def importar_plano_contas():
     """Importa contas de CSV"""
     try:
-        usuario = get_usuario_logado()
+        usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
@@ -12983,7 +12983,7 @@ def importar_plano_contas():
 def exportar_plano_contas():
     """Exporta contas em JSON (para CSV/Excel no frontend)"""
     try:
-        usuario = get_usuario_logado()
+        usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
@@ -13005,7 +13005,7 @@ def exportar_plano_contas():
 def importar_plano_padrao_route():
     """Importa o plano de contas padrão para a empresa"""
     try:
-        usuario = get_usuario_logado()
+        usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
@@ -13038,7 +13038,7 @@ def importar_plano_padrao_route():
 def exportar_plano_speed():
     """Exporta plano de contas no formato Speed (TXT)"""
     try:
-        usuario = get_usuario_logado()
+        usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
@@ -13078,7 +13078,7 @@ def exportar_plano_speed():
 def exportar_mapeamento_referencial():
     """Exporta mapeamento com Referencial Contábil (CSV)"""
     try:
-        usuario = get_usuario_logado()
+        usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
