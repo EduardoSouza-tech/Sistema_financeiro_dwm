@@ -16038,22 +16038,32 @@ def recadastrar_certificado(certificado_id):
 def _auto_obter_certificado_id(empresa_id):
     """
     Retorna um certificado_id de certificados_digitais para a empresa.
-    Primeiro busca em certificados_digitais (qualquer linha da empresa, ativo ou não).
+    Reativa o cert se estiver inativo (desde que tenha pfx_base64 válido).
     Se não encontrar, sincroniza do certificado NFS-e e cria um registro automático.
     """
     try:
-        # Tenta qualquer cert da empresa (ativo ou inativo — o fallback de texto plano já funciona)
+        # Busca qualquer cert da empresa (ativo ou não)
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT id FROM certificados_digitais
-                WHERE empresa_id = %s
+                SELECT id, ativo FROM certificados_digitais
+                WHERE empresa_id = %s AND pfx_base64 IS NOT NULL AND pfx_base64 != ''
                 ORDER BY ativo DESC, id ASC
                 LIMIT 1
             """, (empresa_id,))
             row = cursor.fetchone()
             if row:
-                return row[0] if not isinstance(row, dict) else row['id']
+                cert_id = row[0] if not isinstance(row, dict) else row['id']
+                cert_ativo = row[1] if not isinstance(row, dict) else row['ativo']
+                # Reativa se estiver inativo
+                if not cert_ativo:
+                    cursor.execute(
+                        "UPDATE certificados_digitais SET ativo = TRUE WHERE id = %s",
+                        (cert_id,)
+                    )
+                    conn.commit()
+                    logger.info(f"[_auto_cert] Reativou certificado ID {cert_id} para empresa {empresa_id}")
+                return cert_id
 
         # Não encontrou — tenta sincronizar do certificado NFS-e
         from nfse_functions import get_certificado_para_soap, get_certificado_info
