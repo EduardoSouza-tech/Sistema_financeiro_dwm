@@ -9593,22 +9593,42 @@ def extrair_schema_debug():
 @require_permission('operacional_view')
 def tags():
     """Gerenciar tags"""
+    print(f"🔵 [DEBUG TAG] Rota /api/tags acessada - Method: {request.method}")
+    
     empresa_id = session.get('empresa_id')
+    print(f"🔵 [DEBUG TAG] empresa_id da sessão: {empresa_id}")
+    
     if not empresa_id:
+        print("🔴 [DEBUG TAG] ERRO: empresa_id não encontrado na sessão")
         return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
     
     if request.method == 'GET':
         try:
+            print(f"🔵 [DEBUG TAG] GET - Listando tags da empresa {empresa_id}")
             tags = database.listar_tags(empresa_id)
+            print(f"🔵 [DEBUG TAG] GET - {len(tags)} tags encontradas")
             return jsonify({'success': True, 'data': tags})
         except Exception as e:
+            print(f"🔴 [DEBUG TAG] GET - Exception: {e}")
+            print(f"🔴 [DEBUG TAG] GET - Traceback:", exc_info=True)
             return jsonify({'success': False, 'error': str(e)}), 500
     else:  # POST
         try:
             data = request.json
+            print(f"🔵 [DEBUG TAG] POST - Dados recebidos: {data}")
+            print(f"🔵 [DEBUG TAG] POST - Tipo do data: {type(data)}")
+            print(f"🔵 [DEBUG TAG] POST - Keys do data: {data.keys() if data else 'None'}")
+            print(f"🔵 [DEBUG TAG] POST - Chamando database.adicionar_tag(empresa_id={empresa_id}, dados={data})")
+            
             tag_id = database.adicionar_tag(empresa_id, data)
+            print(f"✅ [DEBUG TAG] POST - Tag criada com ID: {tag_id}")
             return jsonify({'success': True, 'message': 'Tag criada com sucesso', 'id': tag_id}), 201
         except Exception as e:
+            print(f"🔴 [DEBUG TAG] POST - Exception: {e}")
+            print(f"🔴 [DEBUG TAG] POST - Exception type: {type(e)}")
+            import traceback
+            print(f"🔴 [DEBUG TAG] POST - Traceback completo:")
+            traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
 
 

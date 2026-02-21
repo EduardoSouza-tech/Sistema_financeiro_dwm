@@ -6143,24 +6143,39 @@ def adicionar_tag(empresa_id: int, dados: Dict) -> int:
     Security:
         🔒 RLS aplicado - tag vinculada à empresa
     """
+    print(f"🔵 [DEBUG TAG DB] adicionar_tag() INICIADA")
+    print(f"🔵 [DEBUG TAG DB] empresa_id: {empresa_id}")
+    print(f"🔵 [DEBUG TAG DB] dados: {dados}")
+    print(f"🔵 [DEBUG TAG DB] tipo dados: {type(dados)}")
+    
     if not empresa_id:
+        print("🔴 [DEBUG TAG DB] ERRO: empresa_id vazio")
         raise ValueError("empresa_id é obrigatório")
     
+    nome = dados.get('nome')
+    cor = dados.get('cor', '#3b82f6')
+    icone = dados.get('icone', 'tag')
+    
+    print(f"🔵 [DEBUG TAG DB] Valores extraídos:")
+    print(f"   - nome: '{nome}' (tipo: {type(nome)})")
+    print(f"   - cor: '{cor}' (tipo: {type(cor)})")
+    print(f"   - icone: '{icone}' (tipo: {type(icone)})")
+    
     with get_db_connection(empresa_id=empresa_id) as conn:
+        print(f"🔵 [DEBUG TAG DB] Conexão obtida")
         cursor = conn.cursor()
+        print(f"🔵 [DEBUG TAG DB] Cursor criado")
         
+        print(f"🔵 [DEBUG TAG DB] Executando INSERT...")
         cursor.execute("""
             INSERT INTO tags (nome, cor, icone, empresa_id)
             VALUES (%s, %s, %s, %s)
             RETURNING id
-        """, (
-            dados['nome'],
-            dados.get('cor', '#3b82f6'),
-            dados.get('icone', 'tag'),
-            empresa_id
-        ))
+        """, (nome, cor, icone, empresa_id))
         
+        print(f"🔵 [DEBUG TAG DB] INSERT executado, buscando ID...")
         tag_id = cursor.fetchone()['id']
+        print(f"✅ [DEBUG TAG DB] Tag criada com ID: {tag_id}")
         return tag_id
 
 

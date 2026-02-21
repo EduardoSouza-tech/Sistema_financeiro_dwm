@@ -3890,6 +3890,7 @@ async function loadTags() {
  * Abre modal rápido para adicionar nova tag
  */
 function openModalAdicionarTag() {
+    console.log('🔵 [DEBUG TAG] openModalAdicionarTag() INICIADA');
     const modal = createModal('🏷️ Nova Tag', `
         <form id="form-tag" onsubmit="salvarTagRapida(event)" style="max-width: 600px;">
             <div class="form-group">
@@ -3933,6 +3934,8 @@ function openModalAdicionarTag() {
         </form>
     `);
     
+    console.log('🔵 [DEBUG TAG] Modal criado, aguardando 100ms para anexar listeners');
+    
     // Sincronizar campos de cor
     setTimeout(() => {
         const campoNome = document.getElementById('tag-nome');
@@ -3940,10 +3943,18 @@ function openModalAdicionarTag() {
         const campoCorTexto = document.getElementById('tag-cor-texto');
         const campoIcone = document.getElementById('tag-icone');
         
+        console.log('🔵 [DEBUG TAG] Campos encontrados:', {
+            campoNome: !!campoNome,
+            campoCor: !!campoCor,
+            campoCorTexto: !!campoCorTexto,
+            campoIcone: !!campoIcone
+        });
+        
         // Listeners para preview
         if (campoNome) {
             campoNome.addEventListener('input', atualizarPreviewTag);
             campoNome.focus();
+            console.log('🔵 [DEBUG TAG] Listeners anexados ao campo nome');
         }
         if (campoCor) {
             campoCor.addEventListener('input', (e) => {
@@ -3989,29 +4000,65 @@ function atualizarPreviewTag() {
  * Salva nova tag via API
  */
 async function salvarTagRapida(event) {
-    event.preventDefault();
+    console.log('🔵 [DEBUG TAG] salvarTagRapida() INICIADA');
+    console.log('🔵 [DEBUG TAG] Event:', event);
     
-    const nome = document.getElementById('tag-nome').value.trim();
-    const cor = document.getElementById('tag-cor').value;
-    const icone = document.getElementById('tag-icone').value.trim();
+    event.preventDefault();
+    console.log('🔵 [DEBUG TAG] preventDefault() executado');
+    
+    const campoNome = document.getElementById('tag-nome');
+    const campoCor = document.getElementById('tag-cor');
+    const campoIcone = document.getElementById('tag-icone');
+    
+    console.log('🔵 [DEBUG TAG] Campos DOM:', {
+        campoNome: campoNome,
+        campoCor: campoCor,
+        campoIcone: campoIcone
+    });
+    
+    const nome = campoNome ? campoNome.value.trim() : '';
+    const cor = campoCor ? campoCor.value : '#3b82f6';
+    const icone = campoIcone ? campoIcone.value.trim() : '🏷️';
+    
+    console.log('🔵 [DEBUG TAG] Valores extraídos:', {
+        nome: nome,
+        cor: cor,
+        icone: icone,
+        nomeLength: nome.length
+    });
     
     if (!nome) {
+        console.error('🔴 [DEBUG TAG] ERRO: Nome vazio!');
         showToast('❌ Nome da tag é obrigatório', 'error');
         return;
     }
     
     try {
+        console.log('� [DEBUG TAG] Preparando requisição POST');
         console.log('💾 Salvando tag:', nome);
         
+        const payload = { nome, cor, icone };
+        console.log('🔵 [DEBUG TAG] Payload:', payload);
+        console.log('🔵 [DEBUG TAG] Payload JSON:', JSON.stringify(payload));
+        
+        console.log('🔵 [DEBUG TAG] Enviando para /api/tags...');
         const response = await fetch('/api/tags', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome, cor, icone })
+            body: JSON.stringify(payload)
+        });
+        
+        console.log('🔵 [DEBUG TAG] Response recebido:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok
         });
         
         const result = await response.json();
+        console.log('🔵 [DEBUG TAG] Response JSON:', result);
         
         if (response.ok && result.success) {
+            console.log('✅ [DEBUG TAG] Sucesso!');
             showToast('✅ Tag criada com sucesso!', 'success');
             
             // Recarregar tags
@@ -4022,10 +4069,12 @@ async function salvarTagRapida(event) {
             
             closeModal();
         } else {
+            console.error('🔴 [DEBUG TAG] Falha na requisição');
             showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
             console.error('❌ Erro ao criar tag:', result);
         }
     } catch (error) {
+        console.error('🔴 [DEBUG TAG] Exception capturada:', error);
         console.error('❌ Erro ao salvar tag:', error);
         showToast('❌ Erro ao salvar tag: ' + error.message, 'error');
     }
