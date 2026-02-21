@@ -16037,12 +16037,42 @@ def recadastrar_certificado(certificado_id):
 
 def _auto_obter_certificado_id(empresa_id):
     """
-    Retorna um certificado_id de certificados_digitais para a empresa.
-    Reativa o cert se estiver inativo (desde que tenha pfx_base64 válido).
-    Se não encontrar, sincroniza do certificado NFS-e e cria um registro automático.
+    Retorna um certificado_id para a empresa, SEMPRE sincronizando o PFX e
+    a senha do certificado NFS-e (que funciona) para certificados_digitais.
+    Isso garante que obter_certificado() nunca falhe por senha/PFX corrompido.
     """
     try:
-        # Busca qualquer cert da empresa (ativo ou não)
+        from nfse_functions import get_certificado_para_soap, get_certificado_info
+        from database_postgresql import get_nfse_db_params
+        import base64 as _b64
+
+        db_params = get_nfse_db_params()
+        nfse_cert = get_certificado_para_soap(db_params, empresa_id)
+
+        if nfse_cert:
+            # Temos o cert do NFS-e — sincroniza para certificados_digitais
+            pfx_bytes, senha_plain = nfse_cert
+            pfx_b64 = _b64.b64encode(pfx_bytes).decode('utf-8')
+
+            cert_info = get_certificado_info(db_params, empresa_id) or {}
+            cnpj_raw = cert_info.get('cnpj', '')
+            cnpj = ''.join(filter(str.isdigit, cnpj_raw))
+
+            from relatorios.nfe import nfe_api
+            result = nfe_api.salvar_certificado(
+                empresa_id=empresa_id,
+                cnpj=cnpj,
+                nome_certificado='Certificado Digital (NFS-e)',
+                pfx_base64=pfx_b64,
+                senha=senha_plain,
+                cuf=0,
+                ambiente='producao'
+            )
+            if result and result.get('sucesso'):
+                logger.info(f"[_auto_cert] Sincronizado do NFS-e → cert ID {result['certificado_id']}")
+                return result['certificado_id']
+
+        # Fallback: usa qualquer cert existente na tabela (reativa se necessário)
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -16055,47 +16085,17 @@ def _auto_obter_certificado_id(empresa_id):
             if row:
                 cert_id = row[0] if not isinstance(row, dict) else row['id']
                 cert_ativo = row[1] if not isinstance(row, dict) else row['ativo']
-                # Reativa se estiver inativo
                 if not cert_ativo:
-                    cursor.execute(
-                        "UPDATE certificados_digitais SET ativo = TRUE WHERE id = %s",
-                        (cert_id,)
-                    )
+                    cursor.execute("UPDATE certificados_digitais SET ativo = TRUE WHERE id = %s", (cert_id,))
                     conn.commit()
-                    logger.info(f"[_auto_cert] Reativou certificado ID {cert_id} para empresa {empresa_id}")
                 return cert_id
 
-        # Não encontrou — tenta sincronizar do certificado NFS-e
-        from nfse_functions import get_certificado_para_soap, get_certificado_info
-        from database_postgresql import get_nfse_db_params
-        import base64 as _b64
-
-        db_params = get_nfse_db_params()
-        nfse_cert = get_certificado_para_soap(db_params, empresa_id)
-        if not nfse_cert:
-            return None
-
-        pfx_bytes, senha_plain = nfse_cert
-        pfx_b64 = _b64.b64encode(pfx_bytes).decode('utf-8')
-
-        cert_info = get_certificado_info(db_params, empresa_id) or {}
-        cnpj_raw = cert_info.get('cnpj', '')
-        cnpj = ''.join(filter(str.isdigit, cnpj_raw))
-
-        from relatorios.nfe import nfe_api
-        result = nfe_api.salvar_certificado(
-            empresa_id=empresa_id,
-            cnpj=cnpj,
-            nome_certificado='Certificado Digital (NFS-e)',
-            pfx_base64=pfx_b64,
-            senha=senha_plain,
-            cuf=0,
-            ambiente='producao'
-        )
-        return result.get('certificado_id') if result and result.get('sucesso') else None
+        return None
 
     except Exception as e:
         logger.error(f"[_auto_obter_certificado_id] empresa {empresa_id}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return None
 
 
