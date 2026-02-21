@@ -12884,8 +12884,14 @@ def criar_conta_plano():
     except ValueError as e:
         return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
+        error_msg = str(e)
+        # Tratar erros de constraint de banco de dados
+        if 'unique constraint' in error_msg.lower() or 'duplicate key' in error_msg.lower():
+            if 'codigo' in error_msg:
+                return jsonify({'success': False, 'error': f'O código "{dados.get("codigo")}" já existe nesta versão do plano de contas'}), 400
+            return jsonify({'success': False, 'error': 'Já existe um registro com estes dados'}), 400
         logger.error(f"Erro ao criar conta: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Erro ao criar conta. Verifique os dados e tente novamente.'}), 500
 
 
 @app.route('/api/contabilidade/plano-contas/<int:conta_id>', methods=['PUT'])
@@ -12905,8 +12911,14 @@ def atualizar_conta_plano(conta_id):
     except ValueError as e:
         return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
+        error_msg = str(e)
+        # Tratar erros de constraint de banco de dados
+        if 'unique constraint' in error_msg.lower() or 'duplicate key' in error_msg.lower():
+            if 'codigo' in error_msg:
+                return jsonify({'success': False, 'error': f'O código "{dados.get("codigo")}" já existe nesta versão do plano de contas'}), 400
+            return jsonify({'success': False, 'error': 'Já existe um registro com estes dados'}), 400
         logger.error(f"Erro ao atualizar conta: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Erro ao atualizar conta. Verifique os dados e tente novamente.'}), 500
 
 
 @app.route('/api/contabilidade/plano-contas/<int:conta_id>', methods=['DELETE'])
