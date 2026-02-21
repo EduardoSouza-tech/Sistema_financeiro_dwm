@@ -232,7 +232,7 @@ def obter_arvore_contas(empresa_id, versao_id):
 def criar_conta(empresa_id, dados):
     """Cria uma nova conta no plano"""
     with get_db_connection(empresa_id=empresa_id) as conn:
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         # Calcular nível e validar parent
         nivel = 1
@@ -245,9 +245,9 @@ def criar_conta(empresa_id, dados):
             parent = cursor.fetchone()
             if not parent:
                 raise ValueError("Conta pai não encontrada")
-            if parent[1] == 'analitica':
+            if parent['tipo_conta'] == 'analitica':
                 raise ValueError("Não é possível adicionar subconta a uma conta analítica")
-            nivel = parent[0] + 1
+            nivel = parent['nivel'] + 1
         
         # Validar código único
         cursor.execute("""
@@ -264,7 +264,7 @@ def criar_conta(empresa_id, dados):
               AND deleted_at IS NULL
         """, (empresa_id, dados['versao_id'], parent_id))
         resultado_ordem = cursor.fetchone()
-        ordem = resultado_ordem['proxima'] if isinstance(resultado_ordem, dict) else resultado_ordem[0]
+        ordem = resultado_ordem['proxima']
         
         cursor.execute("""
             INSERT INTO plano_contas 
@@ -293,7 +293,7 @@ def criar_conta(empresa_id, dados):
             dados.get('natureza_sped', '01')
         ))
         resultado_conta = cursor.fetchone()
-        conta_id = resultado_conta['id'] if isinstance(resultado_conta, dict) else resultado_conta[0]
+        conta_id = resultado_conta['id']
         cursor.close()
         return conta_id
 
