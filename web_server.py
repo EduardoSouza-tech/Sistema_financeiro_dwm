@@ -16037,60 +16037,37 @@ def recadastrar_certificado(certificado_id):
 
 def _auto_obter_certificado_id(empresa_id):
     """
-    Retorna um certificado_id para a empresa, SEMPRE sincronizando o PFX e
-    a senha do certificado NFS-e (que funciona) para certificados_digitais.
-    Isso garante que obter_certificado() nunca falhe por senha/PFX corrompido.
+    Retorna o certificado_id do certificado cadastrado em
+    'Dados da Empresa e Certificado Digital' (tabela certificados_digitais).
+    Reativa automaticamente se estiver inativo.
     """
     try:
-        from nfse_functions import get_certificado_para_soap, get_certificado_info
-        from database_postgresql import get_nfse_db_params
-        import base64 as _b64
-
-        db_params = get_nfse_db_params()
-        nfse_cert = get_certificado_para_soap(db_params, empresa_id)
-
-        if nfse_cert:
-            # Temos o cert do NFS-e — sincroniza para certificados_digitais
-            pfx_bytes, senha_plain = nfse_cert
-            pfx_b64 = _b64.b64encode(pfx_bytes).decode('utf-8')
-
-            cert_info = get_certificado_info(db_params, empresa_id) or {}
-            cnpj_raw = cert_info.get('cnpj', '')
-            cnpj = ''.join(filter(str.isdigit, cnpj_raw))
-
-            from relatorios.nfe import nfe_api
-            result = nfe_api.salvar_certificado(
-                empresa_id=empresa_id,
-                cnpj=cnpj,
-                nome_certificado='Certificado Digital (NFS-e)',
-                pfx_base64=pfx_b64,
-                senha=senha_plain,
-                cuf=0,
-                ambiente='producao'
-            )
-            if result and result.get('sucesso'):
-                logger.info(f"[_auto_cert] Sincronizado do NFS-e → cert ID {result['certificado_id']}")
-                return result['certificado_id']
-
-        # Fallback: usa qualquer cert existente na tabela (reativa se necessário)
-        with get_db_connection(empresa_id=empresa_id) as conn:
+        with get_db_connection(allow_global=True) as conn:
             cursor = conn.cursor()
+            # Prioriza cert ativo; se não existir, pega qualquer um para reativar
             cursor.execute("""
-                SELECT id, ativo FROM certificados_digitais
+                SELECT id, ativo, senha_pfx
+                FROM certificados_digitais
                 WHERE empresa_id = %s AND pfx_base64 IS NOT NULL AND pfx_base64 != ''
-                ORDER BY ativo DESC, id ASC
+                ORDER BY ativo DESC, id DESC
                 LIMIT 1
             """, (empresa_id,))
             row = cursor.fetchone()
-            if row:
-                cert_id = row[0] if not isinstance(row, dict) else row['id']
-                cert_ativo = row[1] if not isinstance(row, dict) else row['ativo']
-                if not cert_ativo:
-                    cursor.execute("UPDATE certificados_digitais SET ativo = TRUE WHERE id = %s", (cert_id,))
-                    conn.commit()
-                return cert_id
+            if not row:
+                logger.warning(f"[_auto_cert] Nenhum certificado encontrado para empresa {empresa_id}")
+                return None
 
-        return None
+            cert_id = row[0] if not isinstance(row, dict) else row['id']
+            cert_ativo = row[1] if not isinstance(row, dict) else row['ativo']
+            senha_pfx = row[2] if not isinstance(row, dict) else row['senha_pfx']
+
+            if not cert_ativo:
+                logger.info(f"[_auto_cert] Reativando cert ID {cert_id} (empresa {empresa_id})")
+                cursor.execute("UPDATE certificados_digitais SET ativo = TRUE WHERE id = %s", (cert_id,))
+                conn.commit()
+
+            logger.info(f"[_auto_cert] Usando cert ID {cert_id} (empresa {empresa_id}, ativo={cert_ativo}, senha_len={len(senha_pfx or '')})")
+            return cert_id
 
     except Exception as e:
         logger.error(f"[_auto_obter_certificado_id] empresa {empresa_id}: {e}")
@@ -16106,9 +16083,9 @@ def buscar_documentos():
     """Inicia busca automática de documentos na SEFAZ"""
     try:
         usuario = get_usuario_logado()
-        empresa_id = session.get('empresa_id')
+        empresa_id = session.get('empresa_id') or usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'sucesso': False, 'erro': 'Empresa não identificada'}), 403
 
         data = request.get_json() or {}
         # Aceita certificado_id explícito ou auto-detecta pelo empresa_id
@@ -16117,8 +16094,8 @@ def buscar_documentos():
         if not certificado_id:
             return jsonify({
                 'sucesso': False,
-                'erro': 'Nenhum certificado digital encontrado para esta empresa. '
-                        'Configure um certificado em 📄 NFS-e > ⚙️ Configurar Municípios NFS-e.'
+                'erro': 'Nenhum certificado digital cadastrado para esta empresa. '
+                        'Acesse 🏢 Dados da Empresa e Certificado Digital para cadastrar.'
             }), 400
 
         # Importa módulo de API
@@ -16146,7 +16123,7 @@ def consultar_por_chave():
     """Consulta uma NF-e específica por chave de acesso"""
     try:
         usuario = get_usuario_logado()
-        empresa_id = session.get('empresa_id')
+        empresa_id = session.get('empresa_id') or usuario.get('empresa_id')
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         

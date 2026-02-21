@@ -299,40 +299,38 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
             logger.info(f"[CERT] Certificado encontrado, ativo={ativo}")
             
             if not ativo:
-                logger.warning(f"[CERT] Certificado ID {certificado_id} está inativo")
+                logger.warning(f"[CERT] Certificado ID {certificado_id} está inativo — acesse '🏢 Dados da Empresa' para reativar")
                 return None
-            
-            # Descriptografa senha
-            if not chave_cripto:
-                chave_cripto_str = os.environ.get('FERNET_KEY', '')
-                logger.info(f"[CERT] FERNET_KEY lida do ambiente: {'SIM (' + str(len(chave_cripto_str)) + ' chars)' if chave_cripto_str else 'NÃO (vazia)'}")
-                
-                if not chave_cripto_str:
-                    logger.error("[CERT] ❌ FERNET_KEY não configurada no ambiente")
-                    logger.error("[CERT] Configure a variável FERNET_KEY no Railway ou .env")
+
+            senha_len = len(senha_cripto) if senha_cripto else 0
+            logger.info(f"[CERT] Processando senha (tamanho: {senha_len} chars)...")
+
+            # Senhas curtas (< 50 chars) são texto plano — não precisam de FERNET_KEY
+            if senha_len < 50:
+                logger.warning(f"[CERT] Senha parece texto plano ({senha_len} chars) — usando diretamente")
+                senha = senha_cripto
+            else:
+                # Precisa de FERNET_KEY para descriptografar
+                if not chave_cripto:
+                    chave_cripto_str = os.environ.get('FERNET_KEY', '')
+                    logger.info(f"[CERT] FERNET_KEY: {'SIM (' + str(len(chave_cripto_str)) + ' chars)' if chave_cripto_str else 'NÃO CONFIGURADA'}")
+                    if not chave_cripto_str:
+                        logger.error("[CERT] ❌ FERNET_KEY não configurada. Configure no Railway > Variables")
+                        return None
+                    chave_cripto = chave_cripto_str.encode('utf-8')
+
+                try:
+                    senha = descriptografar_senha(senha_cripto, chave_cripto)
+                    logger.info("[CERT] ✅ Senha Fernet descriptografada com sucesso")
+                except ValueError as ve:
+                    logger.error(f"[CERT] ❌ Falha ao descriptografar senha: {ve}")
+                    logger.error(f"[CERT]   Tamanho senha_cripto: {senha_len} chars")
+                    logger.error("[CERT]   Possível causa: FERNET_KEY diferente entre salvar e recuperar")
+                    logger.error("[CERT]   SOLUÇÃO: Recadastre o certificado em '🏢 Dados da Empresa e Certificado Digital'")
                     return None
-                
-                chave_cripto = chave_cripto_str.encode('utf-8')
-            
-            logger.info(f"[CERT] Descriptografando senha (tamanho senha_cripto: {len(senha_cripto)} chars)...")
-            try:
-                senha = descriptografar_senha(senha_cripto, chave_cripto)
-                logger.info(f"[CERT] ✅ Senha descriptografada com sucesso")
-            except ValueError as ve:
-                # Senha em formato inválido (texto plano ou corrompida)
-                logger.error(f"[CERT] ❌ Senha em formato inválido: {str(ve)}")
-                logger.error(f"[CERT] Tamanho da senha_cripto recebida: {len(senha_cripto)} chars")
-                logger.error("[CERT] Possíveis causas:")
-                logger.error("[CERT]   1. Certificado salvo ANTES da criptografia estar implementada")
-                logger.error("[CERT]   2. FERNET_KEY diferente entre salvar e recuperar")
-                logger.error("[CERT]   3. Senha corrompida no banco de dados")
-                logger.error("[CERT] ⚠️ AÇÃO NECESSÁRIA: Recadastre o certificado com a senha correta")
-                logger.error("[CERT] 💡 Vá em: Relatórios Fiscais > Aba '🔐 Certificados Digitais' > Desativar certificado antigo > Cadastrar novo")
-                return None
-            except Exception as e:
-                logger.error(f"[CERT] ❌ Erro ao descriptografar senha: {str(e)}")
-                logger.error(f"[CERT] Tipo do erro: {type(e).__name__}")
-                return None
+                except Exception as e:
+                    logger.error(f"[CERT] ❌ Erro inesperado descriptografando senha: {type(e).__name__}: {e}")
+                    return None
             
             # Cria certificado
             logger.info(f"[CERT] Criando objeto CertificadoA1...")
@@ -380,7 +378,7 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
         if not cert:
             return {
                 'sucesso': False, 
-                'erro': 'Certificado não encontrado ou senha em formato inválido. Por favor, recadastre o certificado na aba "🔐 Certificados Digitais".'
+                'erro': 'Certificado não encontrado ou senha inválida. Acesse "🏢 Dados da Empresa e Certificado Digital" para cadastrar ou atualizar o certificado.'
             }
         
         # Busca dados do certificado no banco (allow_global pois buscamos cert diretamente)
