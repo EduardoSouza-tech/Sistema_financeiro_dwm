@@ -5763,9 +5763,6 @@ def adicionar_funcao_responsavel(empresa_id: int, dados: Dict) -> int:
         ))
         
         funcao_id = cursor.fetchone()['id']
-        conn.commit()
-        cursor.close()
-        return_to_pool(conn)
         return funcao_id
 
 
@@ -5804,8 +5801,6 @@ def listar_funcoes_responsaveis(empresa_id: int, apenas_ativas: bool = True) -> 
             funcao = dict(row)
             funcoes.append(funcao)
         
-        cursor.close()
-        return_to_pool(conn)
         return funcoes
 
 
@@ -5837,8 +5832,6 @@ def obter_funcao_responsavel(empresa_id: int, funcao_id: int) -> Dict:
         row = cursor.fetchone()
         funcao = dict(row) if row else None
         
-        cursor.close()
-        return_to_pool(conn)
         return funcao
 
 
@@ -5879,9 +5872,6 @@ def atualizar_funcao_responsavel(empresa_id: int, funcao_id: int, dados: Dict) -
         ))
         
         sucesso = cursor.rowcount > 0
-        conn.commit()
-        cursor.close()
-        return_to_pool(conn)
         return sucesso
 
 
@@ -5924,9 +5914,6 @@ def deletar_funcao_responsavel(empresa_id: int, funcao_id: int) -> bool:
         # """, (funcao_id, empresa_id))
         
         sucesso = cursor.rowcount > 0
-        conn.commit()
-        cursor.close()
-        return_to_pool(conn)
         return sucesso
 
 
@@ -5972,9 +5959,6 @@ def adicionar_custo_operacional(empresa_id: int, dados: Dict) -> int:
         ))
         
         custo_id = cursor.fetchone()['id']
-        conn.commit()
-        cursor.close()
-        return_to_pool(conn)
         return custo_id
 
 
@@ -6021,8 +6005,6 @@ def listar_custos_operacionais(empresa_id: int, apenas_ativos: bool = True, cate
                 custo['valor_padrao'] = float(custo['valor_padrao'])
             custos.append(custo)
         
-        cursor.close()
-        return_to_pool(conn)
         return custos
 
 
@@ -6057,8 +6039,6 @@ def obter_custo_operacional(empresa_id: int, custo_id: int) -> Dict:
         if custo and custo.get('valor_padrao'):
             custo['valor_padrao'] = float(custo['valor_padrao'])
         
-        cursor.close()
-        return_to_pool(conn)
         return custo
 
 
@@ -6105,9 +6085,6 @@ def atualizar_custo_operacional(empresa_id: int, custo_id: int, dados: Dict) -> 
         ))
         
         sucesso = cursor.rowcount > 0
-        conn.commit()
-        cursor.close()
-        return_to_pool(conn)
         return sucesso
 
 
@@ -6143,9 +6120,6 @@ def deletar_custo_operacional(empresa_id: int, custo_id: int) -> bool:
         """, (custo_id, empresa_id))
         
         sucesso = cursor.rowcount > 0
-        conn.commit()
-        cursor.close()
-        return_to_pool(conn)
         return sucesso
 
 
@@ -6187,9 +6161,6 @@ def adicionar_tag(empresa_id: int, dados: Dict) -> int:
         ))
         
         tag_id = cursor.fetchone()['id']
-        conn.commit()
-        cursor.close()
-        return_to_pool(conn)
         return tag_id
 
 
@@ -6228,8 +6199,6 @@ def listar_tags(empresa_id: int, apenas_ativas: bool = True) -> List[Dict]:
             tag = dict(row)
             tags.append(tag)
         
-        cursor.close()
-        return_to_pool(conn)
         return tags
 
 
@@ -6261,8 +6230,6 @@ def obter_tag(empresa_id: int, tag_id: int) -> Dict:
         row = cursor.fetchone()
         tag = dict(row) if row else None
         
-        cursor.close()
-        return_to_pool(conn)
         return tag
 
 
@@ -6305,9 +6272,6 @@ def atualizar_tag(empresa_id: int, tag_id: int, dados: Dict) -> bool:
         ))
         
         sucesso = cursor.rowcount > 0
-        conn.commit()
-        cursor.close()
-        return_to_pool(conn)
         return sucesso
 
 
@@ -6343,9 +6307,6 @@ def deletar_tag(empresa_id: int, tag_id: int) -> bool:
         """, (tag_id, empresa_id))
         
         sucesso = cursor.rowcount > 0
-        conn.commit()
-        cursor.close()
-        return_to_pool(conn)
         return sucesso
 
 
