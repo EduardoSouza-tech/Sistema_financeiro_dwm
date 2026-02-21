@@ -9593,42 +9593,153 @@ def extrair_schema_debug():
 @require_permission('operacional_view')
 def tags():
     """Gerenciar tags"""
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+    
     if request.method == 'GET':
         try:
-            tags = db.listar_tags()
-            return jsonify(tags)
+            tags = database.listar_tags(empresa_id)
+            return jsonify({'success': True, 'data': tags})
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'success': False, 'error': str(e)}), 500
     else:  # POST
         try:
             data = request.json
-            tag_id = db.adicionar_tag(data)
-            return jsonify({'message': 'Tag criada com sucesso', 'id': tag_id}), 201
+            tag_id = database.adicionar_tag(empresa_id, data)
+            return jsonify({'success': True, 'message': 'Tag criada com sucesso', 'id': tag_id}), 201
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/tags/<int:tag_id>', methods=['PUT', 'DELETE'])
 @require_permission('operacional_edit')
 def tag_detalhes(tag_id):
     """Atualizar ou excluir tag"""
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+    
     if request.method == 'PUT':
         try:
             data = request.json
-            success = db.atualizar_tag(tag_id, data)
+            success = database.atualizar_tag(empresa_id, tag_id, data)
             if success:
-                return jsonify({'message': 'Tag atualizada com sucesso'})
-            return jsonify({'error': 'Tag não encontrada'}), 404
+                return jsonify({'success': True, 'message': 'Tag atualizada com sucesso'})
+            return jsonify({'success': False, 'error': 'Tag não encontrada'}), 404
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'success': False, 'error': str(e)}), 500
     else:  # DELETE
         try:
-            success = db.deletar_tag(tag_id)
+            success = database.deletar_tag(empresa_id, tag_id)
             if success:
-                return jsonify({'message': 'Tag excluída com sucesso'})
-            return jsonify({'error': 'Tag não encontrada'}), 404
+                return jsonify({'success': True, 'message': 'Tag excluída com sucesso'})
+            return jsonify({'success': False, 'error': 'Tag não encontrada'}), 404
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/funcoes-responsaveis', methods=['GET', 'POST'])
+@require_permission('operacional_view')
+def funcoes_responsaveis():
+    """Gerenciar funções de responsáveis"""
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+    
+    if request.method == 'GET':
+        try:
+            apenas_ativas = request.args.get('apenas_ativas', 'true').lower() == 'true'
+            funcoes = database.listar_funcoes_responsaveis(empresa_id, apenas_ativas)
+            return jsonify({'success': True, 'data': funcoes})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    else:  # POST
+        try:
+            data = request.json
+            funcao_id = database.adicionar_funcao_responsavel(empresa_id, data)
+            return jsonify({'success': True, 'message': 'Função criada com sucesso', 'id': funcao_id}), 201
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/funcoes-responsaveis/<int:funcao_id>', methods=['PUT', 'DELETE'])
+@require_permission('operacional_edit')
+def funcao_responsavel_detalhes(funcao_id):
+    """Atualizar ou excluir função de responsável"""
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+    
+    if request.method == 'PUT':
+        try:
+            data = request.json
+            success = database.atualizar_funcao_responsavel(empresa_id, funcao_id, data)
+            if success:
+                return jsonify({'success': True, 'message': 'Função atualizada com sucesso'})
+            return jsonify({'success': False, 'error': 'Função não encontrada'}), 404
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    else:  # DELETE
+        try:
+            success = database.deletar_funcao_responsavel(empresa_id, funcao_id)
+            if success:
+                return jsonify({'success': True, 'message': 'Função excluída com sucesso'})
+            return jsonify({'success': False, 'error': 'Função não encontrada'}), 404
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/custos-operacionais', methods=['GET', 'POST'])
+@require_permission('operacional_view')
+def custos_operacionais():
+    """Gerenciar custos operacionais"""
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+    
+    if request.method == 'GET':
+        try:
+            apenas_ativos = request.args.get('apenas_ativos', 'true').lower() == 'true'
+            categoria = request.args.get('categoria')
+            custos = database.listar_custos_operacionais(empresa_id, apenas_ativos, categoria)
+            return jsonify({'success': True, 'data': custos})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    else:  # POST
+        try:
+            data = request.json
+            custo_id = database.adicionar_custo_operacional(empresa_id, data)
+            return jsonify({'success': True, 'message': 'Custo criado com sucesso', 'id': custo_id}), 201
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/custos-operacionais/<int:custo_id>', methods=['PUT', 'DELETE'])
+@require_permission('operacional_edit')
+def custo_operacional_detalhes(custo_id):
+    """Atualizar ou excluir custo operacional"""
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+    
+    if request.method == 'PUT':
+        try:
+            data = request.json
+            success = database.atualizar_custo_operacional(empresa_id, custo_id, data)
+            if success:
+                return jsonify({'success': True, 'message': 'Custo atualizado com sucesso'})
+            return jsonify({'success': False, 'error': 'Custo não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    else:  # DELETE
+        try:
+            success = database.deletar_custo_operacional(empresa_id, custo_id)
+            if success:
+                return jsonify({'success': True, 'message': 'Custo excluído com sucesso'})
+            return jsonify({'success': False, 'error': 'Custo não encontrado'}), 404
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/templates-equipe', methods=['GET', 'POST'])

@@ -3555,7 +3555,8 @@ async function loadFuncoesResponsaveis() {
             throw new Error(`HTTP ${response.status}`);
         }
         
-        const funcoes = await response.json();
+        const result = await response.json();
+        const funcoes = result.success ? (result.data || []) : [];
         window.funcoesResponsaveis = funcoes;
         console.log('✅ Funções carregadas:', funcoes.length);
         return funcoes;
@@ -3694,7 +3695,8 @@ async function loadCustosOperacionais() {
             throw new Error(`HTTP ${response.status}`);
         }
         
-        const custos = await response.json();
+        const result = await response.json();
+        const custos = result.success ? (result.data || []) : [];
         window.custosOperacionais = custos;
         console.log('✅ Custos carregados:', custos.length);
         return custos;
@@ -3872,7 +3874,8 @@ async function loadTags() {
             throw new Error(`HTTP ${response.status}`);
         }
         
-        const tags = await response.json();
+        const result = await response.json();
+        const tags = result.success ? (result.data || []) : [];
         window.tagsDisponiveis = tags;
         console.log('✅ Tags carregadas:', tags.length);
         return tags;
