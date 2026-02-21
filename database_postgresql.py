@@ -475,27 +475,40 @@ def get_db_connection(empresa_id=None, allow_global=False):
         elif allow_global:
             log(f"⚪ Conexão global (sem RLS) - Tabelas: usuarios, empresas, permissoes")
         
-        yield conn
-    finally:
-        # Limpar configuração RLS
-        if empresa_id is not None and SECURITY_ENABLED:
-            try:
-                cursor = conn.cursor()
-                cursor.execute("RESET app.current_empresa_id")
-                cursor.close()
-            except:
-                pass
-        
-        pool_obj.putconn(conn)
+        # 🔒 Marcar como gerenciada pelo context manager
+        # return_to_pool() detecta esta flag e se torna no-op
+        conn._managed_by_context = True
+        try:
+            yield conn
+        finally:
+            conn._managed_by_context = False
+            # Limpar configuração RLS
+            if empresa_id is not None and SECURITY_ENABLED:
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute("RESET app.current_empresa_id")
+                    cursor.close()
+                except:
+                    pass
+            
+            pool_obj.putconn(conn)
 
 
 def return_to_pool(conn):
-    """Devolve uma conexi?o ao pool manualmente"""
+    """Devolve uma conexão ao pool manualmente.
+    
+    ⚠️ No-op se a conexão foi obtida via `with get_db_connection()` —
+    o context manager já chama putconn() no finally, evitando duplo-retorno
+    que corrompe o pool e causa 500s intermitentes.
+    """
     try:
+        # Se gerenciada pelo context manager, NÃO devolver — ele cuida disso.
+        if getattr(conn, '_managed_by_context', False):
+            return
         pool_obj = _get_connection_pool()
         pool_obj.putconn(conn)
     except Exception as e:
-        print(f"?? Erro ao devolver conexi?o ao pool: {e}")
+        print(f"⚠️ Erro ao devolver conexão ao pool: {e}")
 
 
 # ============================================================================
