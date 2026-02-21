@@ -13554,7 +13554,7 @@ def gerar_dre_excel_api():
         from relatorios_contabeis_functions import gerar_dre
         from pdf_export import gerar_dre_excel
         
-        user = request.user
+        user = request.usuario
         empresa_id = user['empresa_id']
         
         data = request.get_json()
