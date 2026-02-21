@@ -300,7 +300,7 @@ def criar_conta(empresa_id, dados):
 def atualizar_conta(empresa_id, conta_id, dados):
     """Atualiza uma conta existente"""
     with get_db_connection(empresa_id=empresa_id) as conn:
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         # Verificar se conta existe
         cursor.execute("""
@@ -311,8 +311,8 @@ def atualizar_conta(empresa_id, conta_id, dados):
         if not conta_row:
             raise ValueError("Conta não encontrada")
         
-        # Extrair versao_id corretamente (índice 1 da tupla)
-        versao_id = conta_row[1]
+        # Extrair versao_id usando chave do dict
+        versao_id = conta_row['versao_id']
         
         # Verificar código duplicado
         cursor.execute("""
