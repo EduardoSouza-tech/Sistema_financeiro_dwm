@@ -15566,7 +15566,7 @@ def resumo_dirf():
 
 @app.route('/relatorios/fiscal')
 @require_auth
-@require_permission('relatorios.nfe.visualizar')
+@require_permission('relatorios_view')
 def relatorios_fiscal():
     """Dashboard de relatórios fiscais (NF-e, CT-e)"""
     return render_template('relatorios_fiscais.html')
@@ -15576,7 +15576,7 @@ def relatorios_fiscal():
 
 @app.route('/api/relatorios/certificados', methods=['GET'])
 @require_auth
-@require_permission('relatorios.certificados.visualizar')
+@require_permission('relatorios_view')
 def listar_certificados():
     """Lista todos os certificados digitais da empresa"""
     try:
@@ -15729,7 +15729,7 @@ def validar_certificado():
 
 @app.route('/api/relatorios/certificados/extrair-dados', methods=['POST'])
 @require_auth
-@require_permission('relatorios.certificados.criar')
+@require_permission('relatorios_view')
 def extrair_dados_certificado():
     """Extrai dados automaticamente do arquivo .pfx (CNPJ, nome, validades)"""
     try:
@@ -15839,7 +15839,7 @@ def extrair_dados_certificado():
 
 @app.route('/api/relatorios/certificados/novo', methods=['POST'])
 @require_auth
-@require_permission('relatorios.certificados.criar')
+@require_permission('relatorios_view')
 def cadastrar_certificado():
     """Cadastra um novo certificado digital"""
     try:
@@ -15888,7 +15888,7 @@ def cadastrar_certificado():
 
 @app.route('/api/relatorios/certificados/<int:certificado_id>/desativar', methods=['POST'])
 @require_auth
-@require_permission('relatorios.certificados.editar')
+@require_permission('relatorios_view')
 def desativar_certificado(certificado_id):
     """Desativa um certificado digital"""
     try:
@@ -15927,7 +15927,7 @@ def desativar_certificado(certificado_id):
 
 @app.route('/api/relatorios/buscar-documentos', methods=['POST'])
 @require_auth
-@require_permission('relatorios.nfe.buscar')
+@require_permission('relatorios_view')
 def buscar_documentos():
     """Inicia busca automática de documentos na SEFAZ"""
     try:
@@ -15966,7 +15966,7 @@ def buscar_documentos():
 
 @app.route('/api/relatorios/consultar-chave', methods=['POST'])
 @require_auth
-@require_permission('relatorios.nfe.buscar')
+@require_permission('relatorios_view')
 def consultar_por_chave():
     """Consulta uma NF-e específica por chave de acesso"""
     try:
@@ -16017,7 +16017,7 @@ def consultar_por_chave():
 
 @app.route('/api/relatorios/documentos', methods=['GET'])
 @require_auth
-@require_permission('relatorios.nfe.visualizar')
+@require_permission('relatorios_view')
 def listar_documentos():
     """Lista documentos fiscais com filtros"""
     try:
@@ -16113,7 +16113,7 @@ def listar_documentos():
 
 @app.route('/api/relatorios/documento/<int:doc_id>', methods=['GET'])
 @require_auth
-@require_permission('relatorios.nfe.visualizar')
+@require_permission('relatorios_view')
 def obter_documento(doc_id):
     """Obtém detalhes de um documento específico"""
     try:
@@ -16154,7 +16154,7 @@ def obter_documento(doc_id):
 
 @app.route('/api/relatorios/documento/<int:doc_id>/xml', methods=['GET'])
 @require_auth
-@require_permission('relatorios.nfe.visualizar')
+@require_permission('relatorios_view')
 def download_xml(doc_id):
     """Download do XML de um documento"""
     try:
@@ -16209,7 +16209,7 @@ def download_xml(doc_id):
 
 @app.route('/api/relatorios/estatisticas', methods=['GET'])
 @require_auth
-@require_permission('relatorios.nfe.visualizar')
+@require_permission('relatorios_view')
 def obter_estatisticas():
     """Obtém estatísticas de documentos fiscais da empresa"""
     try:
@@ -16237,7 +16237,7 @@ def obter_estatisticas():
 
 @app.route('/api/relatorios/nsu-status', methods=['GET'])
 @require_auth
-@require_permission('relatorios.nfe.visualizar')
+@require_permission('relatorios_view')
 def obter_nsu_status():
     """Obtém status dos NSUs de todos os certificados"""
     try:
@@ -16283,7 +16283,7 @@ def obter_nsu_status():
 
 @app.route('/api/relatorios/exportar-excel', methods=['POST'])
 @require_auth
-@require_permission('relatorios.nfe.exportar')
+@require_permission('relatorios_view')
 def exportar_excel():
     """Exporta documentos fiscais para Excel"""
     try:
@@ -16445,5 +16445,6 @@ if __name__ == '__main__':
     
     # Habilitar debug do Flask
     app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)
+
 
 

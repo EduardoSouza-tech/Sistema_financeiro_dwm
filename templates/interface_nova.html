@@ -139,7 +139,8 @@
                 'funcionarios': 'loadFuncionariosRH',
                 'remessa-pagamento': 'loadRemessaPagamento',
                 'nfse': 'loadNFSeSection',
-                'plano-contas': 'loadPlanoContas'
+                'plano-contas': 'loadPlanoContas',
+                'fiscal': 'loadFiscalSection'
             };
             
             const loadFunctionName = loadFunctions[sectionId];
@@ -12785,6 +12786,13 @@
         // ============================================
         // NF-e / CT-e - DOCUMENTOS FISCAIS
         // ============================================
+
+        // Função de carregamento da seção fiscal (registrada no mapa de loaders)
+        window.loadFiscalSection = function() {
+            carregarEstatisticasFiscais();
+            carregarCertificadosFiscais();
+            preencherSelectsCertificadosFiscais();
+        };
 
         // Controle de Tabs Fiscais
         function showFiscalTab(tabName) {
