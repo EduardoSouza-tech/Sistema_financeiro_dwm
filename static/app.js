@@ -7108,7 +7108,7 @@ window.exibirNFSe = function(nfses) {
     const tbody = document.getElementById('tbody-nfse');
     
     if (nfses.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 60px; color: #7f8c8d;"><div style="font-size: 48px; margin-bottom: 20px;">📄</div><h3 style="color: #34495e;">Nenhuma NFS-e encontrada</h3><p style="font-size: 14px;">Tente ajustar o período ou buscar via API SOAP.</p></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 60px; color: #7f8c8d;"><div style="font-size: 48px; margin-bottom: 20px;">📄</div><h3 style="color: #34495e;">Nenhuma NFS-e encontrada</h3><p style="font-size: 14px;">Tente ajustar o período ou buscar via API SOAP.</p></td></tr>';
         return;
     }
     
@@ -7131,6 +7131,7 @@ window.exibirNFSe = function(nfses) {
         }
         const valorServico = nfse.valor_servico ? parseFloat(nfse.valor_servico).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
         const valorIss = nfse.valor_iss ? parseFloat(nfse.valor_iss).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
+        const valorLiquido = nfse.valor_liquido ? parseFloat(nfse.valor_liquido).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
         
         // Badge situação
         let badgeSituacao = '';
@@ -7155,6 +7156,7 @@ window.exibirNFSe = function(nfses) {
             <td style="text-align: center;">${nfse.nome_municipio || '-'}/${nfse.uf || '-'}</td>
             <td style="text-align: right; font-weight: bold; color: #27ae60;">${valorServico}</td>
             <td style="text-align: right; font-weight: bold; color: #3498db;">${valorIss}</td>
+            <td style="text-align: right; font-weight: bold; color: #8e44ad;">${valorLiquido}</td>
             <td style="text-align: center;">${badgeSituacao}</td>
             <td style="text-align: center; white-space: nowrap;">
                 <button onclick="verDetalhesNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; background: #3498db;" title="Ver Detalhes">👁️</button>
@@ -7355,7 +7357,7 @@ window.ordenarNFSe = function(campo) {
     }
     
     // Limpar todos os indicadores de ordenação
-    ['numero_nfse', 'data_emissao', 'razao_social_tomador', 'nome_municipio', 'valor_servico', 'valor_iss', 'situacao'].forEach(c => {
+    ['numero_nfse', 'data_emissao', 'razao_social_tomador', 'nome_municipio', 'valor_servico', 'valor_iss', 'valor_liquido', 'situacao'].forEach(c => {
         const el = document.getElementById(`sort-${c}`);
         if (el) el.textContent = '';
     });
@@ -7376,7 +7378,7 @@ window.ordenarNFSe = function(campo) {
         if (valorB === null || valorB === undefined) valorB = '';
         
         // Ordenação numérica para valores
-        if (campo === 'valor_servico' || campo === 'valor_iss') {
+        if (campo === 'valor_servico' || campo === 'valor_iss' || campo === 'valor_liquido') {
             valorA = parseFloat(valorA) || 0;
             valorB = parseFloat(valorB) || 0;
         }
