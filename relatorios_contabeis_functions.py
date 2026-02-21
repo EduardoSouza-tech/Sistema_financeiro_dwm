@@ -226,6 +226,97 @@ def gerar_dre(
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
     try:
+        # ===== NOVA FUNÇÃO: Buscar saldos de lançamentos financeiros via mapeamento DRE =====
+        def buscar_saldo_lancamentos_financeiros(
+            prefixo_codigo: str,
+            excluir_prefixo: Optional[str] = None,
+            data_ini: date = None,
+            data_fi: date = None
+        ):
+            """
+            Busca saldo de lançamentos financeiros usando mapeamento DRE.
+            
+            Lógica:
+            1. Busca lançamentos da tabela 'lancamentos' no período
+            2. Faz JOIN com subcategorias pelo nome
+            3. Faz JOIN com dre_mapeamento_subcategoria para pegar conta DRE
+            4. Filtra por prefixo de código da conta DRE (4.x, 5.x, etc)
+            5. Agrupa e retorna totais por conta
+            
+            Args:
+                prefixo_codigo: Código deve começar com (ex: '4', '5', '6')
+                excluir_prefixo: Código NÃO deve começar com (ex: '4.9')
+                data_ini, data_fi: Período customizado
+            
+            Returns:
+                Lista de dicts com código, descricao e valor
+            """
+            di = data_ini or data_inicio
+            df = data_fi or data_fim
+            
+            query = """
+                SELECT 
+                    pc.codigo,
+                    pc.descricao,
+                    SUM(
+                        CASE 
+                            WHEN l.tipo = 'receita' AND l.data_pagamento IS NOT NULL THEN l.valor
+                            WHEN l.tipo = 'despesa' AND l.data_pagamento IS NOT NULL THEN -l.valor
+                            ELSE 0
+                        END
+                    ) AS valor_total
+                FROM lancamentos l
+                INNER JOIN subcategorias s ON LOWER(TRIM(l.subcategoria)) = LOWER(TRIM(s.nome))
+                INNER JOIN dre_mapeamento_subcategoria m 
+                    ON m.subcategoria_id = s.id 
+                    AND m.empresa_id = %s
+                    AND m.ativo = TRUE
+                INNER JOIN plano_contas pc 
+                    ON pc.id = m.plano_contas_id
+                    AND pc.empresa_id = %s
+                WHERE l.empresa_id = %s
+                  AND l.data_pagamento >= %s
+                  AND l.data_pagamento <= %s
+                  AND l.status = 'pago'
+                  AND pc.codigo LIKE %s
+            """
+            
+            params = [empresa_id, empresa_id, empresa_id, di, df, f"{prefixo_codigo}%"]
+            
+            if excluir_prefixo:
+                query += " AND pc.codigo NOT LIKE %s"
+                params.append(f"{excluir_prefixo}%")
+            
+            if versao_plano_id:
+                query += " AND pc.versao_id = %s"
+                params.append(versao_plano_id)
+            
+            query += """
+                GROUP BY pc.codigo, pc.descricao
+                HAVING SUM(
+                    CASE 
+                        WHEN l.tipo = 'receita' AND l.data_pagamento IS NOT NULL THEN l.valor
+                        WHEN l.tipo = 'despesa' AND l.data_pagamento IS NOT NULL THEN -l.valor
+                        ELSE 0
+                    END
+                ) != 0
+                ORDER BY pc.codigo
+            """
+            
+            cur.execute(query, params)
+            resultados = []
+            
+            for row in cur.fetchall():
+                valor = float(row['valor_total'])
+                if valor != 0:
+                    resultados.append({
+                        'codigo': row['codigo'],
+                        'descricao': row['descricao'],
+                        'valor': abs(valor)  # Valor absoluto, sinal tratado na lógica do DRE
+                    })
+            
+            return resultados
+        
         # Função auxiliar para buscar saldo de contas por classificação e prefixo
         def buscar_saldo_grupo(
             classificacao_conta: Optional[str] = None, 
@@ -313,11 +404,10 @@ def gerar_dre(
             return resultados
         
         def calcular_dre_periodo(di: date, df: date):
-            """Calcula DRE para um período específico"""
+            """Calcula DRE para um período específico usando lançamentos financeiros + mapeamento"""
             
             # 1. RECEITA BRUTA (grupo 4, excluindo 4.9 - deduções)
-            receitas_brutas = buscar_saldo_grupo(
-                classificacao_conta='receita', 
+            receitas_brutas = buscar_saldo_lancamentos_financeiros(
                 prefixo_codigo='4',
                 excluir_prefixo='4.9',
                 data_ini=di,
@@ -326,8 +416,7 @@ def gerar_dre(
             receita_bruta = sum(item['valor'] for item in receitas_brutas)
             
             # 2. DEDUÇÕES DA RECEITA (grupo 4.9)
-            deducoes = buscar_saldo_grupo(
-                classificacao_conta='receita', 
+            deducoes = buscar_saldo_lancamentos_financeiros(
                 prefixo_codigo='4.9',
                 data_ini=di,
                 data_fi=df
@@ -338,8 +427,7 @@ def gerar_dre(
             receita_liquida = receita_bruta - abs(total_deducoes)
             
             # 4. CUSTOS (grupo 5)
-            custos = buscar_saldo_grupo(
-                classificacao_conta='despesa', 
+            custos = buscar_saldo_lancamentos_financeiros(
                 prefixo_codigo='5',
                 data_ini=di,
                 data_fi=df
@@ -350,8 +438,7 @@ def gerar_dre(
             lucro_bruto = receita_liquida - total_custos
             
             # 6. DESPESAS OPERACIONAIS (grupo 6)
-            despesas_operacionais = buscar_saldo_grupo(
-                classificacao_conta='despesa', 
+            despesas_operacionais = buscar_saldo_lancamentos_financeiros(
                 prefixo_codigo='6',
                 data_ini=di,
                 data_fi=df
@@ -363,8 +450,7 @@ def gerar_dre(
             
             # 8. RESULTADO FINANCEIRO
             # 8.1 Receitas Financeiras (7.1)
-            receitas_financeiras = buscar_saldo_grupo(
-                classificacao_conta='receita', 
+            receitas_financeiras = buscar_saldo_lancamentos_financeiros(
                 prefixo_codigo='7.1',
                 data_ini=di,
                 data_fi=df
@@ -372,8 +458,7 @@ def gerar_dre(
             total_receitas_financeiras = sum(item['valor'] for item in receitas_financeiras)
             
             # 8.2 Despesas Financeiras (7.2)
-            despesas_financeiras = buscar_saldo_grupo(
-                classificacao_conta='despesa', 
+            despesas_financeiras = buscar_saldo_lancamentos_financeiros(
                 prefixo_codigo='7.2',
                 data_ini=di,
                 data_fi=df
