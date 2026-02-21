@@ -249,7 +249,54 @@ def criar_conta(empresa_id, dados):
                 raise ValueError("Não é possível adicionar subconta a uma conta analítica")
             nivel = parent['nivel'] + 1
         
-        # Validar código único
+        # Verificar se existe conta deletada com mesmo código (para restaurar)
+        cursor.execute("""
+            SELECT id FROM plano_contas 
+            WHERE empresa_id = %s AND versao_id = %s AND codigo = %s AND deleted_at IS NOT NULL
+        """, (empresa_id, dados['versao_id'], dados['codigo']))
+        conta_deletada = cursor.fetchone()
+        
+        if conta_deletada:
+            # Restaurar conta deletada em vez de criar nova
+            cursor.execute("""
+                UPDATE plano_contas 
+                SET deleted_at = NULL,
+                    descricao = %s,
+                    parent_id = %s,
+                    nivel = %s,
+                    tipo_conta = %s,
+                    classificacao = %s,
+                    natureza = %s,
+                    is_bloqueada = %s,
+                    requer_centro_custo = %s,
+                    permite_lancamento = %s,
+                    codigo_speed = %s,
+                    codigo_referencial = %s,
+                    natureza_sped = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                RETURNING id
+            """, (
+                dados['descricao'],
+                parent_id,
+                nivel,
+                dados.get('tipo_conta', 'analitica'),
+                dados['classificacao'],
+                dados.get('natureza', 'devedora'),
+                dados.get('is_bloqueada', False),
+                dados.get('requer_centro_custo', False),
+                dados.get('permite_lancamento', True),
+                dados.get('codigo_speed'),
+                dados.get('codigo_referencial'),
+                dados.get('natureza_sped', '01'),
+                conta_deletada['id']
+            ))
+            resultado_conta = cursor.fetchone()
+            conta_id = resultado_conta['id']
+            cursor.close()
+            return conta_id
+        
+        # Validar código único entre contas ativas
         cursor.execute("""
             SELECT id FROM plano_contas 
             WHERE empresa_id = %s AND versao_id = %s AND codigo = %s AND deleted_at IS NULL
