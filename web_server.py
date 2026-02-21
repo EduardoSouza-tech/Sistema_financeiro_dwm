@@ -13498,9 +13498,9 @@ def gerar_dre_pdf_api():
         # Buscar nome da empresa e gerar DRE
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cursor.execute("SELECT nome_empresa FROM empresas WHERE id = %s", (empresa_id,))
+            cursor.execute("SELECT razao_social FROM empresas WHERE id = %s", (empresa_id,))
             empresa = cursor.fetchone()
-            nome_empresa = empresa['nome_empresa'] if empresa else "Empresa"
+            nome_empresa = empresa['razao_social'] if empresa else "Empresa"
             
             # Gerar dados da DRE
             dados_dre = gerar_dre(
@@ -13569,9 +13569,9 @@ def gerar_dre_excel_api():
         # Buscar nome da empresa e gerar DRE
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cursor.execute("SELECT nome_empresa FROM empresas WHERE id = %s", (empresa_id,))
+            cursor.execute("SELECT razao_social FROM empresas WHERE id = %s", (empresa_id,))
             empresa = cursor.fetchone()
-            nome_empresa = empresa['nome_empresa'] if empresa else "Empresa"
+            nome_empresa = empresa['razao_social'] if empresa else "Empresa"
             
             # Gerar dados da DRE
             dados_dre = gerar_dre(
@@ -14108,7 +14108,7 @@ def gerar_dashboard_pdf_api():
         from dashboard_functions import gerar_dashboard_gerencial
         from pdf_export import gerar_dashboard_pdf
         
-        user = request.user
+        user = request.usuario
         empresa_id = user['empresa_id']
         
         # Parâmetros
@@ -14120,21 +14120,20 @@ def gerar_dashboard_pdf_api():
         if data_referencia_str:
             data_referencia = datetime.strptime(data_referencia_str, '%Y-%m-%d').date()
         
-        # Buscar nome da empresa
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT nome_empresa FROM empresas WHERE id = %s", (empresa_id,))
-        empresa = cursor.fetchone()
-        nome_empresa = empresa[0] if empresa else "Empresa"
-        
-        # Gerar dados do dashboard
-        dados_dashboard = gerar_dashboard_gerencial(
-            conn=conn,
-            empresa_id=empresa_id,
-            data_referencia=data_referencia,
-            versao_plano_id=versao_plano_id
-        )
-        conn.close()
+        # Buscar nome da empresa e gerar dashboard
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute("SELECT razao_social FROM empresas WHERE id = %s", (empresa_id,))
+            empresa = cursor.fetchone()
+            nome_empresa = empresa['razao_social'] if empresa else "Empresa"
+            
+            # Gerar dados do dashboard
+            dados_dashboard = gerar_dashboard_gerencial(
+                conn=conn,
+                empresa_id=empresa_id,
+                data_referencia=data_referencia,
+                versao_plano_id=versao_plano_id
+            )
         
         if not dados_dashboard.get('success'):
             return jsonify({'success': False, 'error': 'Erro ao gerar dados do dashboard'}), 400
@@ -14178,7 +14177,7 @@ def gerar_dashboard_excel_api():
         from dashboard_functions import gerar_dashboard_gerencial
         from pdf_export import gerar_dashboard_excel
         
-        user = request.user
+        user = request.usuario
         empresa_id = user['empresa_id']
         
         # Parâmetros
@@ -14190,21 +14189,20 @@ def gerar_dashboard_excel_api():
         if data_referencia_str:
             data_referencia = datetime.strptime(data_referencia_str, '%Y-%m-%d').date()
         
-        # Buscar nome da empresa
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT nome_empresa FROM empresas WHERE id = %s", (empresa_id,))
-        empresa = cursor.fetchone()
-        nome_empresa = empresa[0] if empresa else "Empresa"
-        
-        # Gerar dados do dashboard
-        dados_dashboard = gerar_dashboard_gerencial(
-            conn=conn,
-            empresa_id=empresa_id,
-            data_referencia=data_referencia,
-            versao_plano_id=versao_plano_id
-        )
-        conn.close()
+        # Buscar nome da empresa e gerar dashboard
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute("SELECT razao_social FROM empresas WHERE id = %s", (empresa_id,))
+            empresa = cursor.fetchone()
+            nome_empresa = empresa['razao_social'] if empresa else "Empresa"
+            
+            # Gerar dados do dashboard
+            dados_dashboard = gerar_dashboard_gerencial(
+                conn=conn,
+                empresa_id=empresa_id,
+                data_referencia=data_referencia,
+                versao_plano_id=versao_plano_id
+            )
         
         if not dados_dashboard.get('success'):
             return jsonify({'success': False, 'error': 'Erro ao gerar dados do dashboard'}), 400
