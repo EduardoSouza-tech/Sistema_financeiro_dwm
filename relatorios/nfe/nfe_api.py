@@ -151,22 +151,19 @@ def salvar_certificado(empresa_id: int, cnpj: str, nome_certificado: str,
                 'erro': f'Certificado inválido: {str(e)}'
             }
         
-        # Criptografa senha
+        # Criptografa senha (se FERNET_KEY configurada; caso contrário, salva em texto plano)
         if not chave_cripto:
             chave_cripto_str = os.environ.get('FERNET_KEY', '')
-            logger.info(f"[CERTIFICADO] FERNET_KEY para salvar: {'✅ Presente (' + str(len(chave_cripto_str)) + ' chars)' if chave_cripto_str else '❌ Ausente'}")
-            
-            if not chave_cripto_str:
-                return {
-                    'sucesso': False,
-                    'erro': 'Chave de criptografia não configurada (FERNET_KEY). Configure a variável de ambiente FERNET_KEY.'
-                }
-            
-            chave_cripto = chave_cripto_str.encode('utf-8')
+            logger.info(f"[CERTIFICADO] FERNET_KEY para salvar: {'✅ Presente (' + str(len(chave_cripto_str)) + ' chars)' if chave_cripto_str else '⚠️ Ausente - salvando senha em texto plano'}")
+            chave_cripto = chave_cripto_str.encode('utf-8') if chave_cripto_str else None
         
-        logger.info(f"[CERTIFICADO] Criptografando senha de {len(senha)} caracteres...")
-        senha_cripto = criptografar_senha(senha, chave_cripto)
-        logger.info(f"[CERTIFICADO] ✅ Senha criptografada: {len(senha_cripto)} chars")
+        if chave_cripto:
+            logger.info(f"[CERTIFICADO] Criptografando senha de {len(senha)} caracteres...")
+            senha_cripto = criptografar_senha(senha, chave_cripto)
+            logger.info(f"[CERTIFICADO] ✅ Senha criptografada: {len(senha_cripto)} chars")
+        else:
+            senha_cripto = senha
+            logger.warning(f"[CERTIFICADO] ⚠️ FERNET_KEY ausente: senha salva em texto plano ({len(senha)} chars). Configure FERNET_KEY para maior segurança.")
         
         # Salva no banco
         with get_db_connection(empresa_id=empresa_id) as conn:
@@ -305,20 +302,20 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
             senha_len = len(senha_cripto) if senha_cripto else 0
             logger.info(f"[CERT] Processando senha (tamanho: {senha_len} chars)...")
 
-            # Senhas curtas (< 50 chars) são texto plano — não precisam de FERNET_KEY
-            if senha_len < 50:
-                logger.warning(f"[CERT] Senha parece texto plano ({senha_len} chars) — usando diretamente")
+            # Verifica disponibilidade da chave
+            if not chave_cripto:
+                chave_cripto_str = os.environ.get('FERNET_KEY', '')
+                chave_cripto = chave_cripto_str.encode('utf-8') if chave_cripto_str else None
+                logger.info(f"[CERT] FERNET_KEY: {'SIM (' + str(len(chave_cripto_str)) + ' chars)' if chave_cripto_str else 'AUSENTE'}")
+
+            # Senhas curtas (< 50 chars) OU sem FERNET_KEY → texto plano
+            if senha_len < 50 or not chave_cripto:
+                if not chave_cripto and senha_len >= 50:
+                    logger.warning(f"[CERT] ⚠️ FERNET_KEY ausente e senha >= 50 chars — tentando como texto plano")
+                else:
+                    logger.warning(f"[CERT] Senha texto plano ({senha_len} chars) — usando diretamente")
                 senha = senha_cripto
             else:
-                # Precisa de FERNET_KEY para descriptografar
-                if not chave_cripto:
-                    chave_cripto_str = os.environ.get('FERNET_KEY', '')
-                    logger.info(f"[CERT] FERNET_KEY: {'SIM (' + str(len(chave_cripto_str)) + ' chars)' if chave_cripto_str else 'NÃO CONFIGURADA'}")
-                    if not chave_cripto_str:
-                        logger.error("[CERT] ❌ FERNET_KEY não configurada. Configure no Railway > Variables")
-                        return None
-                    chave_cripto = chave_cripto_str.encode('utf-8')
-
                 try:
                     senha = descriptografar_senha(senha_cripto, chave_cripto)
                     logger.info("[CERT] ✅ Senha Fernet descriptografada com sucesso")
