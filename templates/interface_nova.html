@@ -13145,44 +13145,101 @@
         }
 
         // Buscar Documentos
-        function executarBuscaAutomaticaFiscal() {
-            document.getElementById('fiscal-buscaAutoResultado').innerHTML = '<p style="color: #3498db;">⏳ Buscando documentos... (usando certificado NFS-e)</p>';
+        async function executarBuscaAutomaticaFiscal() {
+            const resultDiv = document.getElementById('fiscal-buscaAutoResultado');
+            const token = localStorage.getItem('token');
+            const empresaId = window.currentEmpresaId;
 
-            fetch('/api/relatorios/buscar-documentos', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({})
-            })
-            .then(r => r.json())
-            .then(response => {
-                if (response.sucesso) {
-                    const html = `
-                        <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 6px; margin-top: 10px;">
-                            <h6 style="margin: 0 0 10px 0;">✅ Busca concluída!</h6>
-                            <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
-                                <li>Documentos baixados: <strong>${response.total_baixados || 0}</strong></li>
-                                <li>NF-es processadas: <strong>${response.nfes_processadas || 0}</strong></li>
-                                <li>CT-es processados: <strong>${response.ctes_processados || 0}</strong></li>
-                                <li>Eventos processados: <strong>${response.eventos_processados || 0}</strong></li>
-                                <li>Erros: <strong>${response.erros || 0}</strong></li>
-                                <li>Novo NSU: <strong>${response.novo_nsu}</strong></li>
-                            </ul>
-                        </div>
-                    `;
-                    document.getElementById('fiscal-buscaAutoResultado').innerHTML = html;
-                    carregarEstatisticasFiscais();
-                    carregarCertificadosFiscais();
-                } else {
-                    document.getElementById('fiscal-buscaAutoResultado').innerHTML = `
-                        <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 6px; margin-top: 10px;">
-                            <strong>Erro:</strong> ${response.erro}
-                        </div>
-                    `;
+            // ── 1. Info inicial ──────────────────────────────────────────────
+            console.group('🔍 executarBuscaAutomaticaFiscal() — DEBUG');
+            console.log('📍 empresa_id:', empresaId);
+            console.log('🔑 token presente:', !!token, token ? `(${token.length} chars)` : '(VAZIO!)');
+
+            resultDiv.innerHTML = `
+                <div style="background:#fff3cd;border:1px solid #ffc107;padding:12px;border-radius:6px;font-size:12px;font-family:monospace;">
+                    <strong>🔍 DEBUG — Iniciando busca...</strong><br>
+                    empresa_id: <strong>${empresaId}</strong><br>
+                    token: <strong>${token ? '✅ presente (' + token.length + ' chars)' : '❌ AUSENTE'}</strong><br>
+                    <span id="_dbg_status">⏳ Enviando POST /api/relatorios/buscar-documentos ...</span>
+                </div>`;
+
+            const payload = {};
+            console.log('📤 Payload enviado:', JSON.stringify(payload));
+
+            let httpStatus, rawText, parsed;
+            try {
+                // ── 2. Fetch ─────────────────────────────────────────────────
+                const resp = await fetch('/api/relatorios/buscar-documentos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? {'Authorization': `Bearer ${token}`} : {})
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                httpStatus = resp.status;
+                rawText = await resp.text();
+                console.log('📥 HTTP Status:', httpStatus);
+                console.log('📥 Resposta bruta:', rawText);
+
+                document.getElementById('_dbg_status').textContent =
+                    `✅ Resposta recebida — HTTP ${httpStatus}`;
+
+                // ── 3. Parse JSON ────────────────────────────────────────────
+                try {
+                    parsed = JSON.parse(rawText);
+                    console.log('📦 JSON parseado:', parsed);
+                } catch (parseErr) {
+                    console.error('❌ Não foi possível parsear JSON:', parseErr);
+                    resultDiv.innerHTML = `
+                        <div style="background:#f8d7da;border:1px solid #f5c6cb;padding:12px;border-radius:6px;font-size:12px;font-family:monospace;">
+                            <strong>❌ Resposta não é JSON válido (HTTP ${httpStatus})</strong><br>
+                            <pre style="white-space:pre-wrap;margin:8px 0 0 0;">${rawText.substring(0, 800)}</pre>
+                        </div>`;
+                    console.groupEnd();
+                    return;
                 }
-            })
-            .catch(err => {
-                document.getElementById('fiscal-buscaAutoResultado').innerHTML = '<p style="color: #e74c3c;">❌ Erro ao executar busca</p>';
-            });
+
+                // ── 4. Exibir resultado completo ─────────────────────────────
+                const sucesso = parsed.sucesso || parsed.success;
+                const erro = parsed.erro || parsed.error || '(campo erro/error ausente)';
+
+                if (sucesso) {
+                    console.log('✅ Busca bem-sucedida:', parsed);
+                    resultDiv.innerHTML = `
+                        <div style="background:#d4edda;border:1px solid #c3e6cb;padding:15px;border-radius:6px;margin-top:10px;">
+                            <h6 style="margin:0 0 10px 0;">✅ Busca concluída!</h6>
+                            <ul style="margin:0;padding-left:20px;font-size:13px;">
+                                <li>Documentos baixados: <strong>${parsed.total_baixados || 0}</strong></li>
+                                <li>NF-es processadas: <strong>${parsed.nfes_processadas || 0}</strong></li>
+                                <li>CT-es processados: <strong>${parsed.ctes_processados || 0}</strong></li>
+                                <li>Eventos processados: <strong>${parsed.eventos_processados || 0}</strong></li>
+                                <li>Erros: <strong>${parsed.erros || 0}</strong></li>
+                                <li>Novo NSU: <strong>${parsed.novo_nsu}</strong></li>
+                            </ul>
+                        </div>`;
+                    carregarEstatisticasFiscais();
+                } else {
+                    console.warn('⚠️ Busca retornou erro:', parsed);
+                    resultDiv.innerHTML = `
+                        <div style="background:#f8d7da;border:1px solid #f5c6cb;padding:12px;border-radius:6px;font-size:12px;font-family:monospace;">
+                            <strong>❌ Erro retornado pelo servidor (HTTP ${httpStatus})</strong><br><br>
+                            <strong>Mensagem:</strong> ${erro}<br><br>
+                            <strong>Resposta completa:</strong><br>
+                            <pre style="white-space:pre-wrap;margin:4px 0 0 0;font-size:11px;">${JSON.stringify(parsed, null, 2)}</pre>
+                        </div>`;
+                }
+
+            } catch (fetchErr) {
+                console.error('❌ Erro de rede/fetch:', fetchErr);
+                resultDiv.innerHTML = `
+                    <div style="background:#f8d7da;border:1px solid #f5c6cb;padding:12px;border-radius:6px;font-size:12px;font-family:monospace;">
+                        <strong>❌ Erro de rede (fetch falhou)</strong><br>
+                        <pre style="white-space:pre-wrap;margin:4px 0 0 0;">${fetchErr}</pre>
+                    </div>`;
+            }
+            console.groupEnd();
         }
 
         function consultarPorChaveFiscal() {
