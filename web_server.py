@@ -13482,7 +13482,7 @@ def gerar_dre_pdf_api():
         from relatorios_contabeis_functions import gerar_dre
         from pdf_export import gerar_dre_pdf
         
-        user = request.user
+        user = request.usuario
         empresa_id = user['empresa_id']
         
         data = request.get_json()
@@ -13495,23 +13495,22 @@ def gerar_dre_pdf_api():
         data_inicio = datetime.strptime(data['data_inicio'], '%Y-%m-%d').date()
         data_fim = datetime.strptime(data['data_fim'], '%Y-%m-%d').date()
         
-        # Buscar nome da empresa
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT nome_empresa FROM empresas WHERE id = %s", (empresa_id,))
-        empresa = cursor.fetchone()
-        nome_empresa = empresa[0] if empresa else "Empresa"
-        
-        # Gerar dados da DRE
-        dados_dre = gerar_dre(
-            conn=conn,
-            empresa_id=empresa_id,
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            versao_plano_id=data.get('versao_plano_id'),
-            comparar_periodo_anterior=data.get('comparar_periodo_anterior', False)
-        )
-        conn.close()
+        # Buscar nome da empresa e gerar DRE
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute("SELECT nome_empresa FROM empresas WHERE id = %s", (empresa_id,))
+            empresa = cursor.fetchone()
+            nome_empresa = empresa['nome_empresa'] if empresa else "Empresa"
+            
+            # Gerar dados da DRE
+            dados_dre = gerar_dre(
+                conn=conn,
+                empresa_id=empresa_id,
+                data_inicio=data_inicio,
+                data_fim=data_fim,
+                versao_plano_id=data.get('versao_plano_id'),
+                comparar_periodo_anterior=data.get('comparar_periodo_anterior', False)
+            )
         
         if not dados_dre.get('success'):
             return jsonify({'success': False, 'error': 'Erro ao gerar dados da DRE'}), 400
@@ -13567,23 +13566,22 @@ def gerar_dre_excel_api():
         data_inicio = datetime.strptime(data['data_inicio'], '%Y-%m-%d').date()
         data_fim = datetime.strptime(data['data_fim'], '%Y-%m-%d').date()
         
-        # Buscar nome da empresa
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT nome_empresa FROM empresas WHERE id = %s", (empresa_id,))
-        empresa = cursor.fetchone()
-        nome_empresa = empresa[0] if empresa else "Empresa"
-        
-        # Gerar dados da DRE
-        dados_dre = gerar_dre(
-            conn=conn,
-            empresa_id=empresa_id,
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            versao_plano_id=data.get('versao_plano_id'),
-            comparar_periodo_anterior=data.get('comparar_periodo_anterior', False)
-        )
-        conn.close()
+        # Buscar nome da empresa e gerar DRE
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute("SELECT nome_empresa FROM empresas WHERE id = %s", (empresa_id,))
+            empresa = cursor.fetchone()
+            nome_empresa = empresa['nome_empresa'] if empresa else "Empresa"
+            
+            # Gerar dados da DRE
+            dados_dre = gerar_dre(
+                conn=conn,
+                empresa_id=empresa_id,
+                data_inicio=data_inicio,
+                data_fim=data_fim,
+                versao_plano_id=data.get('versao_plano_id'),
+                comparar_periodo_anterior=data.get('comparar_periodo_anterior', False)
+            )
         
         if not dados_dre.get('success'):
             return jsonify({'success': False, 'error': 'Erro ao gerar dados da DRE'}), 400
