@@ -70,16 +70,22 @@ def descriptografar_senha(senha_cripto: str, chave: bytes) -> str:
     """
     Descriptografa a senha do certificado.
     
+    Se a senha tiver menos de 50 chars, assume que está em texto plano
+    (certificados cadastrados antes da criptografia ser implementada)
+    e retorna diretamente sem tentar descriptografar.
+    
     Raises:
-        ValueError: Se a senha não estiver no formato Fernet válido
+        ValueError: Se a senha não puder ser descriptografada
     """
-    # ✅ VALIDAÇÃO: Verifica se a senha tem tamanho mínimo de token Fernet
-    # Tokens Fernet têm pelo menos 72 caracteres base64-encoded
+    # Tokens Fernet têm pelo menos 72 caracteres base64-encoded.
+    # Senhas curtas foram salvas em texto plano — usa diretamente.
     if len(senha_cripto) < 50:
-        raise ValueError(
-            "Senha do certificado em formato inválido (possivelmente salva em texto plano). "
-            "Por favor, recadastre o certificado com a senha correta."
+        logger.warning(
+            f"[CERT] ⚠️ Senha com {len(senha_cripto)} chars parece texto plano. "
+            "Usando diretamente (sem descriptografia). "
+            "Recomendado: recadastrar o certificado para criptografar a senha."
         )
+        return senha_cripto
     
     try:
         f = Fernet(chave)
