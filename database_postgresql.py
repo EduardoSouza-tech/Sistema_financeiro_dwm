@@ -3938,15 +3938,8 @@ def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
     if not empresa_id:
         raise ValueError("empresa_id é obrigatório para adicionar_contrato")
     
-    # 🔒 Usar get_db_connection com empresa_id
-    with get_db_connection(empresa_id=empresa_id) as conn:
-        cursor = conn.cursor()
-    
-    # Mapear dados do frontend para os campos do banco
-    # Frontend: nome, tipo, valor_mensal, quantidade_meses, valor_total, data_contrato, etc
-    # Banco: numero, cliente_id, descricao, valor, data_inicio, data_fim, status, observacoes
-    
     # Preparar observações com todos os dados adicionais
+    import json
     observacoes_dict = {
         'tipo': dados.get('tipo'),
         'nome': dados.get('nome'),
@@ -3960,11 +3953,9 @@ def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
         'imposto': dados.get('imposto'),
         'comissoes': dados.get('comissoes', [])
     }
-    
-    import json
     observacoes_json = json.dumps(observacoes_dict)
     
-    # � Calcular horas totais baseado no tipo
+    # Calcular horas totais baseado no tipo
     tipo = dados.get('tipo', 'Mensal')
     horas_mensais = float(dados.get('horas_mensais') or 0)
     qtd_meses = int(dados.get('quantidade_meses') or 1)
@@ -3973,44 +3964,43 @@ def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
     controle_horas_ativo = False
     
     if tipo == 'Pacote':
-        # Pacote: qtd_pacotes × horas_pacote
-        qtd_pacotes = qtd_meses  # Reutiliza campo quantidade_meses
-        horas_pacote = horas_mensais  # Reutiliza campo horas_mensais
+        qtd_pacotes = qtd_meses
+        horas_pacote = horas_mensais
         horas_totais = qtd_pacotes * horas_pacote
         controle_horas_ativo = True if horas_totais > 0 else False
     elif horas_mensais > 0:
-        # Mensal/Único com horas definidas: horas_mensais × qtd_meses
         horas_totais = horas_mensais * qtd_meses
         controle_horas_ativo = True
     
-    # 🔒 INCLUIR empresa_id, horas_totais e controle_horas_ativo no INSERT
-    cursor.execute("""
-        INSERT INTO contratos (
-            numero, cliente_id, descricao, valor, data_inicio, data_fim, 
-            status, observacoes, empresa_id, 
-            horas_totais, horas_utilizadas, horas_extras, controle_horas_ativo
-        )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id
-    """, (
-        dados.get('numero'),
-        dados.get('cliente_id'),
-        dados.get('descricao', dados.get('nome')),  # usar 'nome' se 'descricao' não existir
-        dados.get('valor_total', dados.get('valor')),  # usar 'valor_total' ou 'valor'
-        dados.get('data_contrato', dados.get('data_inicio')),  # usar 'data_contrato' ou 'data_inicio'
-        dados.get('data_fim'),
-        dados.get('status', 'ativo'),
-        observacoes_json,
-        empresa_id,  # 🔒 Adicionar empresa_id
-        horas_totais,  # 📊 Total de horas
-        0,  # horas_utilizadas inicial
-        0,  # horas_extras inicial
-        controle_horas_ativo  # 📊 Controle ativo
-    ))
+    # 🔒 Usar get_db_connection com empresa_id — tudo dentro do with
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO contratos (
+                numero, cliente_id, descricao, valor, data_inicio, data_fim, 
+                status, observacoes, empresa_id, 
+                horas_totais, horas_utilizadas, horas_extras, controle_horas_ativo
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (
+            dados.get('numero'),
+            dados.get('cliente_id'),
+            dados.get('descricao', dados.get('nome')),
+            dados.get('valor_total', dados.get('valor')),
+            dados.get('data_contrato', dados.get('data_inicio')),
+            dados.get('data_fim'),
+            dados.get('status', 'ativo'),
+            observacoes_json,
+            empresa_id,
+            horas_totais,
+            0,
+            0,
+            controle_horas_ativo
+        ))
+        contrato_id = cursor.fetchone()['id']
+        conn.commit()
     
-    contrato_id = cursor.fetchone()['id']
-    cursor.close()
-    return_to_pool(conn)  # Devolver ao pool
     return contrato_id
 
 def listar_contratos(empresa_id: int) -> List[Dict]:

@@ -5014,7 +5014,7 @@ function renderizarTabelaResumo(contratos) {
                 R$ ${contrato.resultado.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
             </td>
             <td style="padding: 12px 15px; text-align: center;">
-                <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700;">
+                <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; display: inline-block;">
                     ${statusIcon} ${statusText}
                 </span>
             </td>
