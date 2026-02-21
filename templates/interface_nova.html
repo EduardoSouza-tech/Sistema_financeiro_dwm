@@ -7176,6 +7176,9 @@
             } else if (sectionId === 'logs') {
                 console.log('  ➡️ loadLogs:', typeof loadLogs);
                 // if (typeof loadLogs === 'function') loadLogs();
+            } else if (sectionId === 'fiscal') {
+                console.log('  ➡️ loadFiscalSection:', typeof loadFiscalSection);
+                if (typeof loadFiscalSection === 'function') loadFiscalSection();
             } else {
                 console.log('  ⚠️ Nenhuma função de carregamento definida para:', sectionId);
             }
