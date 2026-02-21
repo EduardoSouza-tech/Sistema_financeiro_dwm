@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def listar_versoes(empresa_id):
     """Lista todas as versões do plano de contas da empresa"""
     with get_db_connection(empresa_id=empresa_id) as conn:
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
             SELECT id, nome_versao, exercicio_fiscal, data_inicio, data_fim,
                    is_ativa, observacoes, created_at
@@ -76,7 +76,7 @@ def listar_versoes(empresa_id):
 def criar_versao(empresa_id, dados):
     """Cria uma nova versão do plano de contas"""
     with get_db_connection(empresa_id=empresa_id) as conn:
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
             INSERT INTO plano_contas_versao 
                 (empresa_id, nome_versao, exercicio_fiscal, data_inicio, data_fim, is_ativa, observacoes)
@@ -93,8 +93,7 @@ def criar_versao(empresa_id, dados):
         ))
         
         resultado = cursor.fetchone()
-        # Compatível com dict e tuple cursor
-        versao_id = resultado['id'] if isinstance(resultado, dict) else resultado[0]
+        versao_id = resultado['id']
         
         # Se esta versão é ativa, desativar as outras
         if dados.get('is_ativa'):
@@ -111,7 +110,7 @@ def criar_versao(empresa_id, dados):
 def atualizar_versao(empresa_id, versao_id, dados):
     """Atualiza uma versão do plano de contas"""
     with get_db_connection(empresa_id=empresa_id) as conn:
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
             UPDATE plano_contas_versao SET
                 nome_versao = %s,
@@ -148,7 +147,7 @@ def atualizar_versao(empresa_id, versao_id, dados):
 def excluir_versao(empresa_id, versao_id):
     """Exclui uma versão e todas as contas associadas"""
     with get_db_connection(empresa_id=empresa_id) as conn:
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         # CASCADE vai remover as contas associadas
         cursor.execute("""
             DELETE FROM plano_contas_versao 
@@ -408,7 +407,7 @@ def atualizar_conta(empresa_id, conta_id, dados):
 def excluir_conta(empresa_id, conta_id):
     """Soft delete de uma conta (e suas subcontas)"""
     with get_db_connection(empresa_id=empresa_id) as conn:
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         # Verificar se a conta existe
         cursor.execute("""
@@ -439,7 +438,7 @@ def excluir_conta(empresa_id, conta_id):
 def mover_conta(empresa_id, conta_id, novo_parent_id):
     """Move uma conta para outro pai (drag-and-drop)"""
     with get_db_connection(empresa_id=empresa_id) as conn:
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         # Verificar conta
         cursor.execute("""
@@ -460,9 +459,9 @@ def mover_conta(empresa_id, conta_id, novo_parent_id):
             parent = cursor.fetchone()
             if not parent:
                 raise ValueError("Conta pai destino não encontrada")
-            if parent[2] == 'analitica':
+            if parent['tipo_conta'] == 'analitica':
                 raise ValueError("Não é possível mover para uma conta analítica")
-            novo_nivel = parent[1] + 1
+            novo_nivel = parent['nivel'] + 1
             
             # Verificar circularidade
             cursor.execute("""
@@ -512,7 +511,7 @@ def importar_contas_csv(empresa_id, versao_id, linhas):
     erros = []
     
     with get_db_connection(empresa_id=empresa_id) as conn:
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         for i, linha in enumerate(linhas, 1):
             try:
@@ -534,7 +533,7 @@ def importar_contas_csv(empresa_id, versao_id, linhas):
                     """, (empresa_id, versao_id, codigo_pai))
                     pai = cursor.fetchone()
                     if pai:
-                        parent_id = pai[0]
+                        parent_id = pai['id']
                 
                 nivel = len(codigo.split('.'))
                 tipo_conta = linha.get('tipo_conta', 'analitica').strip().lower()
@@ -583,7 +582,7 @@ def exportar_contas(empresa_id, versao_id):
 def obter_versao_ativa(empresa_id):
     """Retorna a versão ativa do plano de contas"""
     with get_db_connection(empresa_id=empresa_id) as conn:
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
             SELECT id, nome_versao, exercicio_fiscal, data_inicio, data_fim, observacoes
             FROM plano_contas_versao
@@ -594,22 +593,14 @@ def obter_versao_ativa(empresa_id):
         row = cursor.fetchone()
         cursor.close()
         if row:
-            if isinstance(row, dict):
-                return {
-                    'id': row['id'],
-                    'nome_versao': row['nome_versao'],
-                    'exercicio_fiscal': row['exercicio_fiscal'],
-                    'data_inicio': row['data_inicio'].isoformat() if row.get('data_inicio') else None,
-                    'data_fim': row['data_fim'].isoformat() if row.get('data_fim') else None,
-                    'observacoes': row.get('observacoes')
-                }
-            else:
-                return {
-                    'id': row[0], 'nome_versao': row[1], 'exercicio_fiscal': row[2],
-                    'data_inicio': row[3].isoformat() if row[3] else None,
-                    'data_fim': row[4].isoformat() if row[4] else None,
-                    'observacoes': row[5]
-                }
+            return {
+                'id': row['id'],
+                'nome_versao': row['nome_versao'],
+                'exercicio_fiscal': row['exercicio_fiscal'],
+                'data_inicio': row['data_inicio'].isoformat() if row.get('data_inicio') else None,
+                'data_fim': row['data_fim'].isoformat() if row.get('data_fim') else None,
+                'observacoes': row.get('observacoes')
+            }
         return None
 
 
@@ -635,7 +626,7 @@ def importar_plano_padrao(empresa_id, ano_fiscal=None):
         # Verificar se já existe versão com este nome
         versao_existente = None
         with get_db_connection(empresa_id=empresa_id) as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cursor.execute("""
                 SELECT id, nome_versao, is_ativa
                 FROM plano_contas_versao
@@ -645,23 +636,23 @@ def importar_plano_padrao(empresa_id, ano_fiscal=None):
             row = cursor.fetchone()
             if row:
                 versao_existente = {
-                    'id': row['id'] if isinstance(row, dict) else row[0],
-                    'nome_versao': row['nome_versao'] if isinstance(row, dict) else row[1],
-                    'is_ativa': row['is_ativa'] if isinstance(row, dict) else row[2]
+                    'id': row['id'],
+                    'nome_versao': row['nome_versao'],
+                    'is_ativa': row['is_ativa']
                 }
             cursor.close()
         
         if versao_existente:
             # Verificar se a versão já tem contas
             with get_db_connection(empresa_id=empresa_id) as conn:
-                cursor = conn.cursor()
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                 cursor.execute("""
                     SELECT COUNT(*) as total
                     FROM plano_contas
                     WHERE empresa_id = %s AND versao_id = %s AND deleted_at IS NULL
                 """, (empresa_id, versao_existente['id']))
                 resultado = cursor.fetchone()
-                total_contas = resultado['total'] if isinstance(resultado, dict) else resultado[0]
+                total_contas = resultado['total']
                 cursor.close()
             
             # Se já tem contas, não fazer nada
@@ -700,7 +691,7 @@ def importar_plano_padrao(empresa_id, ano_fiscal=None):
         erros = []
         
         with get_db_connection(empresa_id=empresa_id) as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
             # Inserir contas em ordem (já vêm na ordem correta)
             for conta in contas_padrao:
