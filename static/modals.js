@@ -2712,8 +2712,8 @@ function renderBotoesStatusSessao(sessao) {
     const badge = badges[status] || badges['rascunho'];
     
     let html = `
-        <!-- Badge de Status -->
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; background: ${badge.cor}; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600;">
+        <!-- Badge de Status Atual -->
+        <div style="display: inline-flex; align-items: center; justify-content: center; background: ${badge.cor}; color: white; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 13px; white-space: nowrap;">
             ${badge.label}
         </div>
     `;
@@ -2722,43 +2722,43 @@ function renderBotoesStatusSessao(sessao) {
     switch(status) {
         case 'rascunho':
             html += `
-                <button type="button" class="btn" style="background: #3b82f6; color: white;" onclick="confirmarSessao(${sessaoId})">
+                <button type="button" class="btn" style="background: #3b82f6; color: white; font-size: 13px; padding: 8px 16px;" onclick="confirmarSessao(${sessaoId})">
                     📅 Confirmar/Agendar
                 </button>
-                <button type="button" class="btn" style="background: #ef4444; color: white;" onclick="cancelarSessaoModal(${sessaoId})">
-                    ❌ Cancelar
+                <button type="button" class="btn" style="background: #ef4444; color: white; font-size: 13px; padding: 8px 16px;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar Sessão
                 </button>
             `;
             break;
             
         case 'agendada':
             html += `
-                <button type="button" class="btn" style="background: #f59e0b; color: white;" onclick="iniciarSessao(${sessaoId})">
+                <button type="button" class="btn" style="background: #f59e0b; color: white; font-size: 13px; padding: 8px 16px;" onclick="iniciarSessao(${sessaoId})">
                     ▶️ Iniciar Sessão
                 </button>
-                <button type="button" class="btn" style="background: #10b981; color: white;" onclick="finalizarSessaoModal(${sessaoId})">
+                <button type="button" class="btn" style="background: #10b981; color: white; font-size: 13px; padding: 8px 16px;" onclick="finalizarSessaoModal(${sessaoId})">
                     ✅ Finalizar Diretamente
                 </button>
-                <button type="button" class="btn" style="background: #ef4444; color: white;" onclick="cancelarSessaoModal(${sessaoId})">
-                    ❌ Cancelar
+                <button type="button" class="btn" style="background: #ef4444; color: white; font-size: 13px; padding: 8px 16px;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar Sessão
                 </button>
             `;
             break;
             
         case 'em_andamento':
             html += `
-                <button type="button" class="btn" style="background: #10b981; color: white;" onclick="finalizarSessaoModal(${sessaoId})">
+                <button type="button" class="btn" style="background: #10b981; color: white; font-size: 13px; padding: 8px 16px;" onclick="finalizarSessaoModal(${sessaoId})">
                     ✅ Finalizar Sessão
                 </button>
-                <button type="button" class="btn" style="background: #ef4444; color: white;" onclick="cancelarSessaoModal(${sessaoId})">
-                    ❌ Cancelar
+                <button type="button" class="btn" style="background: #ef4444; color: white; font-size: 13px; padding: 8px 16px;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar Sessão
                 </button>
             `;
             break;
             
         case 'finalizada':
             html += `
-                <button type="button" class="btn" style="background: #8b5cf6; color: white;" onclick="reabrirSessaoModal(${sessaoId})">
+                <button type="button" class="btn" style="background: #8b5cf6; color: white; font-size: 13px; padding: 8px 16px;" onclick="reabrirSessaoModal(${sessaoId})">
                     🔄 Reabrir Sessão
                 </button>
             `;
@@ -2766,7 +2766,7 @@ function renderBotoesStatusSessao(sessao) {
             
         case 'cancelada':
             html += `
-                <button type="button" class="btn" style="background: #8b5cf6; color: white;" onclick="reabrirSessaoModal(${sessaoId})">
+                <button type="button" class="btn" style="background: #8b5cf6; color: white; font-size: 13px; padding: 8px 16px;" onclick="reabrirSessaoModal(${sessaoId})">
                     🔄 Reabrir Sessão
                 </button>
             `;
@@ -2774,14 +2774,14 @@ function renderBotoesStatusSessao(sessao) {
             
         case 'reaberta':
             html += `
-                <button type="button" class="btn" style="background: #3b82f6; color: white;" onclick="confirmarSessao(${sessaoId})">
+                <button type="button" class="btn" style="background: #3b82f6; color: white; font-size: 13px; padding: 8px 16px;" onclick="confirmarSessao(${sessaoId})">
                     📅 Agendar Novamente
                 </button>
-                <button type="button" class="btn" style="background: #10b981; color: white;" onclick="finalizarSessaoModal(${sessaoId})">
+                <button type="button" class="btn" style="background: #10b981; color: white; font-size: 13px; padding: 8px 16px;" onclick="finalizarSessaoModal(${sessaoId})">
                     ✅ Finalizar
                 </button>
-                <button type="button" class="btn" style="background: #ef4444; color: white;" onclick="cancelarSessaoModal(${sessaoId})">
-                    ❌ Cancelar
+                <button type="button" class="btn" style="background: #ef4444; color: white; font-size: 13px; padding: 8px 16px;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar Sessão
                 </button>
             `;
             break;
@@ -3110,10 +3110,24 @@ async function openModalSessao(sessaoEdit = null) {
                 <textarea id="sessao-observacoes" rows="3" placeholder="Observações gerais sobre a sessão...">${isEdit ? sessaoEdit.observacoes || '' : ''}</textarea>
             </div>
             
-            <div style="display: flex; gap: 10px; margin-top: 20px; position: sticky; bottom: 0; background: white; padding: 15px 0; border-top: 2px solid #eee;">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-                <button type="submit" class="btn btn-primary">Salvar Sessão</button>
-                ${isEdit ? renderBotoesStatusSessao(sessaoEdit) : ''}
+            <!-- Área de Botões Reorganizada -->
+            <div style="position: sticky; bottom: 0; background: white; padding: 15px 0; border-top: 2px solid #eee; margin-top: 20px;">
+                
+                <!-- Botões de Ação Principal -->
+                <div style="display: flex; gap: 10px; margin-bottom: ${isEdit ? '15px' : '0'};">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()" style="flex: 0 0 auto; min-width: 120px;">✖️ Cancelar</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 0 0 auto; min-width: 120px;">💾 Salvar Sessão</button>
+                </div>
+                
+                <!-- Controles de Status (apenas em modo edição) -->
+                ${isEdit ? `
+                <div style="border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                    <label style="font-size: 12px; color: #666; font-weight: 600; display: block; margin-bottom: 10px; text-transform: uppercase;">⚡ Controles de Status</label>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                        ${renderBotoesStatusSessao(sessaoEdit)}
+                    </div>
+                </div>
+                ` : ''}
             </div>
         </form>
     `);
