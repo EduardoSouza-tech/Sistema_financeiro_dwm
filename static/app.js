@@ -4842,7 +4842,7 @@ function showContratoTab(tabName) {
     console.log('📑 Alternando para tab:', tabName);
     
     // Ocultar todos os conteúdos
-    const contents = ['resumo', 'contratos', 'sessoes', 'comissoes', 'equipe'];
+    const contents = ['resumo', 'contratos', 'sessoes', 'controle-horas', 'comissoes', 'equipe'];
     contents.forEach(name => {
         const content = document.getElementById(`tab-content-${name}`);
         if (content) content.style.display = 'none';
@@ -4880,6 +4880,9 @@ function showContratoTab(tabName) {
             break;
         case 'sessoes':
             loadSessoes();
+            break;
+        case 'controle-horas':
+            loadControleHoras();
             break;
         case 'comissoes':
             loadComissoes();
