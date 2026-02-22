@@ -16886,6 +16886,188 @@ if __name__ == '__main__':
     
     logger.info("="*80)
     logger.info("FIM DO ARQUIVO WEB_SERVER.PY - TODAS AS ROTAS CARREGADAS")
+
+
+# ==============================================================================
+# 🔧 ENDPOINT ADMINISTRATIVO TEMPORÁRIO: Corrigir cliente_id nos contratos
+# ==============================================================================
+@app.route('/api/admin/fix-contratos-cliente-id', methods=['POST'])
+@require_admin
+def fix_contratos_cliente_id():
+    """
+    Endpoint administrativo para corrigir cliente_id NULL nos contratos
+    Atualiza baseado nas sessões vinculadas ou busca pelo cliente_nome
+    """
+    try:
+        print("\n" + "="*80)
+        print("🔧 INICIANDO CORREÇÃO DE CLIENTE_ID NOS CONTRATOS")
+        print("="*80)
+        
+        # Buscar todos os contratos
+        query_contratos = """
+            SELECT id, numero, nome, cliente_id, cliente_nome, empresa_id
+            FROM contratos
+            ORDER BY id
+        """
+        
+        contratos = database.execute_query(query_contratos)
+        print(f"\n📋 Total de contratos encontrados: {len(contratos)}")
+        
+        contratos_corrigidos = 0
+        contratos_com_problemas = []
+        detalhes = []
+        
+        for contrato in contratos:
+            contrato_id = contrato['id']
+            numero = contrato['numero']
+            cliente_id_atual = contrato['cliente_id']
+            cliente_nome = contrato['cliente_nome']
+            
+            print(f"\n{'='*80}")
+            print(f"📋 Contrato ID {contrato_id} - {numero}")
+            print(f"   Nome contrato: {contrato['nome']}")
+            print(f"   Cliente ID atual: {cliente_id_atual}")
+            print(f"   Cliente Nome: {cliente_nome}")
+            
+            # Se já tem cliente_id, pular
+            if cliente_id_atual:
+                print(f"   ✅ Já tem cliente_id, pulando...")
+                detalhes.append({
+                    'contrato_id': contrato_id,
+                    'numero': numero,
+                    'status': 'OK',
+                    'cliente_id': cliente_id_atual
+                })
+                continue
+            
+            # Buscar sessões deste contrato
+            query_sessoes = """
+                SELECT DISTINCT cliente_id, cliente_nome
+                FROM sessoes
+                WHERE contrato_id = %s AND cliente_id IS NOT NULL
+            """
+            
+            sessoes = database.execute_query(query_sessoes, (contrato_id,))
+            
+            if not sessoes:
+                print(f"   ⚠️ Sem sessões com cliente_id para este contrato")
+                
+                # Se tem cliente_nome, tentar buscar pelo nome
+                if cliente_nome:
+                    query_cliente = """
+                        SELECT id, razao_social
+                        FROM clientes
+                        WHERE razao_social ILIKE %s
+                        LIMIT 1
+                    """
+                    clientes = database.execute_query(query_cliente, (cliente_nome,))
+                    
+                    if clientes:
+                        novo_cliente_id = clientes[0]['id']
+                        print(f"   🔍 Cliente encontrado pelo nome: ID {novo_cliente_id}")
+                        
+                        # Atualizar contrato
+                        update_query = """
+                            UPDATE contratos
+                            SET cliente_id = %s
+                            WHERE id = %s
+                        """
+                        database.execute_update(update_query, (novo_cliente_id, contrato_id))
+                        print(f"   ✅ Contrato atualizado com cliente_id {novo_cliente_id}")
+                        contratos_corrigidos += 1
+                        detalhes.append({
+                            'contrato_id': contrato_id,
+                            'numero': numero,
+                            'status': 'CORRIGIDO_POR_NOME',
+                            'cliente_id': novo_cliente_id,
+                            'cliente_nome': cliente_nome
+                        })
+                    else:
+                        print(f"   ❌ Cliente não encontrado com nome '{cliente_nome}'")
+                        contratos_com_problemas.append({
+                            'contrato_id': contrato_id,
+                            'numero': numero,
+                            'cliente_nome': cliente_nome,
+                            'motivo': 'Cliente não encontrado'
+                        })
+                        detalhes.append({
+                            'contrato_id': contrato_id,
+                            'numero': numero,
+                            'status': 'ERRO',
+                            'motivo': 'Cliente não encontrado'
+                        })
+                else:
+                    print(f"   ❌ Contrato sem cliente_nome para buscar")
+                    contratos_com_problemas.append({
+                        'contrato_id': contrato_id,
+                        'numero': numero,
+                        'cliente_nome': None,
+                        'motivo': 'Sem cliente_nome'
+                    })
+                    detalhes.append({
+                        'contrato_id': contrato_id,
+                        'numero': numero,
+                        'status': 'ERRO',
+                        'motivo': 'Sem cliente_nome'
+                    })
+                continue
+            
+            # Se tem múltiplos clientes nas sessões, usar o primeiro e avisar
+            if len(sessoes) > 1:
+                print(f"   ⚠️ ATENÇÃO: Contrato tem sessões de {len(sessoes)} clientes diferentes!")
+                for sessao in sessoes:
+                    print(f"      - Cliente ID {sessao['cliente_id']}: {sessao['cliente_nome']}")
+                print(f"   ⚠️ Usando o primeiro cliente encontrado")
+            
+            # Atualizar com o cliente_id da sessão
+            novo_cliente_id = sessoes[0]['cliente_id']
+            novo_cliente_nome = sessoes[0]['cliente_nome']
+            
+            print(f"   🎯 Atualizando com cliente_id {novo_cliente_id} ({novo_cliente_nome})")
+            
+            update_query = """
+                UPDATE contratos
+                SET cliente_id = %s
+                WHERE id = %s
+            """
+            
+            database.execute_update(update_query, (novo_cliente_id, contrato_id))
+            print(f"   ✅ Contrato atualizado com sucesso!")
+            contratos_corrigidos += 1
+            detalhes.append({
+                'contrato_id': contrato_id,
+                'numero': numero,
+                'status': 'CORRIGIDO_POR_SESSAO',
+                'cliente_id': novo_cliente_id,
+                'cliente_nome': novo_cliente_nome,
+                'multiplos_clientes': len(sessoes) > 1
+            })
+        
+        # Resumo final
+        print(f"\n{'='*80}")
+        print(f"📊 RESUMO DA CORREÇÃO")
+        print(f"{'='*80}")
+        print(f"✅ Contratos corrigidos: {contratos_corrigidos}")
+        print(f"⚠️ Contratos com problemas: {len(contratos_com_problemas)}")
+        print(f"{'='*80}\n")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Correção concluída',
+            'contratos_corrigidos': contratos_corrigidos,
+            'contratos_com_problemas': len(contratos_com_problemas),
+            'problemas': contratos_com_problemas,
+            'detalhes': detalhes
+        })
+        
+    except Exception as e:
+        print(f"\n❌ ERRO: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
     logger.info("="*80)
     
     # Habilitar debug do Flask
