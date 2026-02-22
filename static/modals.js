@@ -3913,15 +3913,186 @@ async function loadTags() {
 }
 
 /**
+ * Carrega e exibe tags na tabela de gerenciamento
+ */
+async function loadTagsTable() {
+    try {
+        console.log('🏷️ [Gerenciamento] Carregando tabela de tags...');
+        const response = await fetch('/api/tags');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        // Suportar múltiplos formatos de resposta
+        let tags = [];
+        if (Array.isArray(result)) {
+            tags = result;
+        } else if (result.success && result.data) {
+            tags = result.data;
+        } else if (result.success && Array.isArray(result.tags)) {
+            tags = result.tags;
+        }
+        
+        console.log(`📦 ${tags.length} tags recebidas`);
+        
+        const tbody = document.getElementById('tbody-tags');
+        if (!tbody) {
+            console.error('❌ tbody-tags não encontrado!');
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        
+        if (tags.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #999;">Nenhuma tag cadastrada. Clique em "➕ Nova Tag" para criar.</td></tr>';
+            return;
+        }
+        
+        tags.forEach(tag => {
+            const tr = document.createElement('tr');
+            
+            // Badge de preview da tag
+            const tagBadge = `
+                <span class="tag-badge" style="
+                    background: ${tag.cor || '#3b82f6'};
+                    color: white;
+                    padding: 4px 12px;
+                    border-radius: 12px;
+                    display: inline-block;
+                    font-size: 12px;
+                ">
+                    ${tag.icone || '🏷️'} ${tag.nome}
+                </span>
+            `;
+            
+            // Status
+            const statusBadge = tag.ativa !== false ? 
+                '<span style="color: #27ae60; font-weight: bold;">✅ Ativa</span>' :
+                '<span style="color: #95a5a6; font-weight: bold;">⏸️ Inativa</span>';
+            
+            // Botões de ação
+            const botoesAcao = `
+                <button class="btn-edit" onclick="editarTag(${tag.id})" title="Editar tag">✏️</button>
+                <button class="btn-delete" onclick="deletarTag(${tag.id}, '${tag.nome.replace(/'/g, "\\'")}' )" title="Excluir tag">🗑️</button>
+            `;
+            
+            tr.innerHTML = `
+                <td>${tagBadge}</td>
+                <td>
+                    <div style="
+                        width: 40px;
+                        height: 20px;
+                        background: ${tag.cor || '#3b82f6'};
+                        border: 1px solid #ddd;
+                        border-radius: 4px;
+                    "></div>
+                </td>
+                <td style="font-size: 24px;">${tag.icone || '🏷️'}</td>
+                <td>${statusBadge}</td>
+                <td>${botoesAcao}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+        console.log('✅ Tabela de tags atualizada');
+    } catch (error) {
+        console.error('❌ Erro ao carregar tabela de tags:', error);
+        const tbody = document.getElementById('tbody-tags');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #e74c3c;">❌ Erro ao carregar tags</td></tr>';
+        }
+    }
+}
+
+/**
+ * Edita uma tag existente
+ */
+async function editarTag(tagId) {
+    try {
+        console.log('✏️ Editando tag ID:', tagId);
+        
+        const response = await fetch(`/api/tags/${tagId}`);
+        if (!response.ok) throw new Error('Tag não encontrada');
+        
+        const tag = await response.json();
+        
+        // Abrir modal de adição/edição com dados pré-preenchidos
+        openModalAdicionarTag('management', tag);
+    } catch (error) {
+        console.error('❌ Erro ao editar tag:', error);
+        if (typeof showToast === 'function') {
+            showToast('Erro ao carregar dados da tag', 'error');
+        } else {
+            alert('Erro ao carregar dados da tag');
+        }
+    }
+}
+
+/**
+ * Exclui uma tag
+ */
+async function deletarTag(tagId, tagNome) {
+    if (!confirm(`❗ Tem certeza que deseja excluir a tag "${tagNome}"?\n\nEsta ação não pode ser desfeita.`)) {
+        return;
+    }
+    
+    try {
+        console.log('🗑️ Excluindo tag ID:', tagId);
+        
+        const response = await fetch(`/api/tags/${tagId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || 'Erro ao excluir tag');
+        }
+        
+        console.log('✅ Tag excluída com sucesso');
+        
+        if (typeof showToast === 'function') {
+            showToast('Tag excluída com sucesso!', 'success');
+        } else {
+            alert('Tag excluída com sucesso!');
+        }
+        
+        // Recarregar tabela
+        loadTagsTable();
+    } catch (error) {
+        console.error('❌ Erro ao excluir tag:', error);
+        if (typeof showToast === 'function') {
+            showToast('Erro ao excluir tag: ' + error.message, 'error');
+        } else {
+            alert('Erro ao excluir tag: ' + error.message);
+        }
+    }
+}
+
+/**
  * Abre modal rápido para adicionar nova tag
  */
-function openModalAdicionarTag() {
+function openModalAdicionarTag(context = 'modal', tagExistente = null) {
     console.log('🔵 [DEBUG TAG] openModalAdicionarTag() INICIADA');
-    const modal = createModal('🏷️ Nova Tag', `
-        <form id="form-tag" onsubmit="salvarTagRapida(event)" style="max-width: 600px;">
+    console.log('🔵 [DEBUG TAG] Context:', context);
+    console.log('🔵 [DEBUG TAG] Tag Existente:', tagExistente);
+    
+    const isEdicao = tagExistente !== null;
+    const titulo = isEdicao ? '✏️ Editar Tag' : '🏷️ Nova Tag';
+    const botaoTexto = isEdicao ? '💾 Salvar Alterações' : '🏷️ Adicionar Tag';
+    
+    const modal = createModal(titulo, `
+        <form id="form-tag" onsubmit="salvarTagRapida(event, ${isEdicao ? tagExistente.id : 'null'})" style="max-width: 600px;">
             <div class="form-group">
                 <label>*Nome da Tag:</label>
                 <input type="text" id="tag-nome" required placeholder="Ex: Urgente, VIP, Comercial..." 
+                       value="${isEdicao ? tagExistente.nome : ''}"
                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
             </div>
             
@@ -3929,9 +4100,9 @@ function openModalAdicionarTag() {
                 <div class="form-group">
                     <label>Cor:</label>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="color" id="tag-cor" value="#3b82f6" 
+                        <input type="color" id="tag-cor" value="${isEdicao ? tagExistente.cor : '#3b82f6'}" 
                                style="width: 60px; height: 40px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">
-                        <input type="text" id="tag-cor-texto" value="#3b82f6" placeholder="#3b82f6"
+                        <input type="text" id="tag-cor-texto" value="${isEdicao ? tagExistente.cor : '#3b82f6'}" placeholder="#3b82f6"
                                style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
                                oninput="sincronizarCorTag(this, 'tag-cor')">
                     </div>
@@ -3939,7 +4110,7 @@ function openModalAdicionarTag() {
                 
                 <div class="form-group">
                     <label>Ícone/Emoji:</label>
-                    <input type="text" id="tag-icone" placeholder="🔥" value="🏷️" maxlength="10"
+                    <input type="text" id="tag-icone" placeholder="🔥" value="${isEdicao ? (tagExistente.icone || '🏷️') : '🏷️'}" maxlength="10"
                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 20px; text-align: center;">
                 </div>
             </div>
@@ -3947,15 +4118,15 @@ function openModalAdicionarTag() {
             <div class="form-group" style="margin-top: 15px;">
                 <label>Preview:</label>
                 <div id="tag-preview" style="padding: 15px; background: #f3f4f6; border-radius: 8px; border: 2px dashed #d1d5db;">
-                    <span style="display: inline-block; padding: 6px 16px; border-radius: 20px; background: #3b82f6; color: white; font-size: 14px; font-weight: 500;">
-                        <span id="preview-icone">🏷️</span> <span id="preview-nome">Nome da Tag</span>
+                    <span style="display: inline-block; padding: 6px 16px; border-radius: 20px; background: ${isEdicao ? tagExistente.cor : '#3b82f6'}; color: white; font-size: 14px; font-weight: 500;">
+                        <span id="preview-icone">${isEdicao ? (tagExistente.icone || '🏷️') : '🏷️'}</span> <span id="preview-nome">${isEdicao ? tagExistente.nome : 'Nome da Tag'}</span>
                     </span>
                 </div>
             </div>
             
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-                <button type="submit" class="btn btn-primary">🏷️ Adicionar Tag</button>
+                <button type="submit" class="btn btn-primary">${botaoTexto}</button>
             </div>
         </form>
     `);
@@ -3991,6 +4162,11 @@ function openModalAdicionarTag() {
         if (campoIcone) {
             campoIcone.addEventListener('input', atualizarPreviewTag);
         }
+        
+        // Atualizar preview inicial se for edição
+        if (isEdicao) {
+            atualizarPreviewTag();
+        }
     }, 100);
 }
 
@@ -4025,8 +4201,9 @@ function atualizarPreviewTag() {
 /**
  * Salva nova tag via API
  */
-async function salvarTagRapida(event) {
-    console.log('🔵 [DEBUG TAG] salvarTagRapida() INICIADA');
+async function salvarTagRapida(event, tagId = null) {
+    const isEdicao = tagId !== null;
+    console.log('🔵 [DEBUG TAG] salvarTagRapida() INICIADA (Edição:', isEdicao, 'ID:', tagId, ')');
     console.log('🔵 [DEBUG TAG] Event:', event);
     console.log('🔵 [DEBUG TAG] Event.target:', event.target);
     console.log('🔵 [DEBUG TAG] Event.currentTarget:', event.currentTarget);
@@ -4105,16 +4282,20 @@ async function salvarTagRapida(event) {
     }
     
     try {
-        console.log('� [DEBUG TAG] Preparando requisição POST');
+        const metodo = isEdicao ? 'PUT' : 'POST';
+        const url = isEdicao ? `/api/tags/${tagId}` : '/api/tags';
+        const mensagemSucesso = isEdicao ? 'Tag atualizada com sucesso!' : 'Tag criada com sucesso!';
+        
+        console.log(`🔵 [DEBUG TAG] Preparando requisição ${metodo} para ${url}`);
         console.log('💾 Salvando tag:', nome);
         
         const payload = { nome, cor, icone };
         console.log('🔵 [DEBUG TAG] Payload:', payload);
         console.log('🔵 [DEBUG TAG] Payload JSON:', JSON.stringify(payload));
         
-        console.log('🔵 [DEBUG TAG] Enviando para /api/tags...');
-        const response = await fetch('/api/tags', {
-            method: 'POST',
+        console.log(`🔵 [DEBUG TAG] Enviando para ${url}...`);
+        const response = await fetch(url, {
+            method: metodo,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
@@ -4133,25 +4314,32 @@ async function salvarTagRapida(event) {
         
         if (response.ok && result.success) {
             console.log('✅ [DEBUG TAG] Sucesso!');
-            showToast('✅ Tag criada com sucesso!', 'success');
+            showToast(`✅ ${mensagemSucesso}`, 'success');
             
             console.log('🔵 [DEBUG TAG] Chamando loadTags()...');
             // Recarregar tags
             await loadTags();
             console.log('🔵 [DEBUG TAG] loadTags() concluído!');
             
-            console.log('🔵 [DEBUG TAG] Chamando atualizarInterfaceTags()...');
-            // Atualizar interface de seleção de tags
-            atualizarInterfaceTags();
-            console.log('🔵 [DEBUG TAG] atualizarInterfaceTags() concluído!');
+            // Se estiver na tela de gerenciamento, recarregar tabela
+            const tabelaTags = document.getElementById('tbody-tags');
+            if (tabelaTags) {
+                console.log('🔵 [DEBUG TAG] Detectado contexto de gerenciamento, recarregando tabela...');
+                await loadTagsTable();
+            } else {
+                console.log('🔵 [DEBUG TAG] Chamando atualizarInterfaceTags()...');
+                // Atualizar interface de seleção de tags no modal de sessão
+                atualizarInterfaceTags();
+                console.log('🔵 [DEBUG TAG] atualizarInterfaceTags() concluído!');
+            }
             
             console.log('🔵 [DEBUG TAG] Fechando modal...');
             closeModal();
-            console.log('✅ [DEBUG TAG] Fluxo completo de criação finalizado!');
+            console.log(`✅ [DEBUG TAG] Fluxo completo de ${isEdicao ? 'edição' : 'criação'} finalizado!`);
         } else {
             console.error('🔴 [DEBUG TAG] Falha na requisição');
             showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
-            console.error('❌ Erro ao criar tag:', result);
+            console.error('❌ Erro ao salvar tag:', result);
         }
     } catch (error) {
         console.error('🔴 [DEBUG TAG] Exception capturada:', error);

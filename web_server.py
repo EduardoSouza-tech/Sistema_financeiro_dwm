@@ -9632,15 +9632,23 @@ def tags():
             return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/api/tags/<int:tag_id>', methods=['PUT', 'DELETE'])
-@require_permission('operacional_edit')
+@app.route('/api/tags/<int:tag_id>', methods=['GET', 'PUT', 'DELETE'])
+@require_permission('operacional_view')
 def tag_detalhes(tag_id):
-    """Atualizar ou excluir tag"""
+    """Buscar, atualizar ou excluir tag"""
     empresa_id = session.get('empresa_id')
     if not empresa_id:
         return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
     
-    if request.method == 'PUT':
+    if request.method == 'GET':
+        try:
+            tag = database.obter_tag(empresa_id, tag_id)
+            if tag:
+                return jsonify(tag)
+            return jsonify({'success': False, 'error': 'Tag não encontrada'}), 404
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    elif request.method == 'PUT':
         try:
             data = request.json
             success = database.atualizar_tag(empresa_id, tag_id, data)
