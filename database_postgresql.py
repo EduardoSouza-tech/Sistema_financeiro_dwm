@@ -4162,6 +4162,30 @@ def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
         horas_totais = horas_mensais * qtd_meses
         controle_horas_ativo = True
     
+    # � GARANTIR cliente_id: buscar por nome se não fornecido
+    cliente_id = dados.get('cliente_id')
+    
+    if not cliente_id:
+        cliente_nome = dados.get('cliente_nome') or dados.get('cliente')
+        if cliente_nome:
+            log(f"⚠️ cliente_id não fornecido, buscando por nome: {cliente_nome}")
+            # Buscar cliente pelo nome
+            with get_db_connection(empresa_id=empresa_id) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id FROM clientes 
+                    WHERE razao_social ILIKE %s
+                    LIMIT 1
+                """, (cliente_nome,))
+                resultado = cursor.fetchone()
+                if resultado:
+                    cliente_id = resultado['id']
+                    log(f"✅ Cliente encontrado: ID {cliente_id}")
+                else:
+                    log(f"⚠️ Cliente '{cliente_nome}' não encontrado no banco")
+        else:
+            log(f"⚠️ ATENÇÃO: Contrato criado sem cliente_id e sem cliente_nome!")
+    
     # 🔒 Usar get_db_connection com empresa_id — tudo dentro do with
     with get_db_connection(empresa_id=empresa_id) as conn:
         cursor = conn.cursor()
@@ -4175,7 +4199,7 @@ def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
             RETURNING id
         """, (
             dados.get('numero'),
-            dados.get('cliente_id'),
+            cliente_id,  # ✅ Agora usa a variável validada
             dados.get('descricao', dados.get('nome')),
             dados.get('valor_total', dados.get('valor')),
             dados.get('data_contrato', dados.get('data_inicio')),
