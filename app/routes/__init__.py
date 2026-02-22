@@ -14,25 +14,34 @@ def register_blueprints(app):
     """
     # Import dinâmico para evitar imports circulares
     try:
+        print("🔄 Tentando importar blueprint 'kits'...")
         from .kits import kits_bp
         app.register_blueprint(kits_bp, url_prefix='/api')
         print("✅ Blueprint 'kits' registrado")
-    except ImportError as e:
-        print(f"⚠️  Blueprint 'kits' não encontrado: {e}")
+    except Exception as e:
+        print(f"❌ Erro ao registrar blueprint 'kits': {e}")
+        import traceback
+        traceback.print_exc()
     
     try:
+        print("🔄 Tentando importar blueprint 'contratos'...")
         from .contratos import contratos_bp
         app.register_blueprint(contratos_bp)
         print("✅ Blueprint 'contratos' registrado")
-    except ImportError as e:
-        print(f"⚠️  Blueprint 'contratos' não encontrado: {e}")
+    except Exception as e:
+        print(f"❌ Erro ao registrar blueprint 'contratos': {e}")
+        import traceback
+        traceback.print_exc()
     
     try:
+        print("🔄 Tentando importar blueprint 'sessoes'...")
         from .sessoes import sessoes_bp
         app.register_blueprint(sessoes_bp)
         print("✅ Blueprint 'sessões' registrado")
-    except ImportError as e:
-        print(f"⚠️  Blueprint 'sessões' não encontrado: {e}")
+    except Exception as e:
+        print(f"❌ Erro ao registrar blueprint 'sessões': {e}")
+        import traceback
+        traceback.print_exc()
     
     try:
         from .funcoes_responsaveis import funcoes_bp
