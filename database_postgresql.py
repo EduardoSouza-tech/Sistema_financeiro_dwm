@@ -906,6 +906,7 @@ class DatabaseManager:
                 dia_vencimento INTEGER,
                 juros DECIMAL(15,2) DEFAULT 0,
                 desconto DECIMAL(15,2) DEFAULT 0,
+                empresa_id INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -2738,15 +2739,19 @@ class DatabaseManager:
         query = f"SELECT {columns} FROM lancamentos WHERE 1=1"
         params = []
         
-        # NOTA: Tabela lancamentos ainda não tem coluna proprietario_id ou empresa_id
-        # Filtro de multi-tenancy temporariamente desabilitado até migração
-        # TODO: Adicionar coluna empresa_id à tabela lancamentos
-        # if empresa_id is not None:
-        #     query += " AND empresa_id = %s"
-        #     params.append(empresa_id)
-        # if filtro_cliente_id is not None:
-        #     query += " AND empresa_id = %s"
-        #     params.append(filtro_cliente_id)
+        # 🔒 FILTRO CRÍTICO DE SEGURANÇA: Isolamento por empresa
+        # OBRIGATÓRIO: Sempre filtrar por empresa_id para evitar vazamento de dados
+        if empresa_id is not None:
+            query += " AND empresa_id = %s"
+            params.append(empresa_id)
+        elif filtro_cliente_id is not None:
+            query += " AND empresa_id = %s"
+            params.append(filtro_cliente_id)
+        else:
+            # ⚠️ SEGURANÇA: Se não houver empresa_id, não retornar nada
+            # Evita vazamento de dados entre empresas
+            log("⚠️ AVISO: listar_lancamentos chamado sem empresa_id - retornando lista vazia")
+            return []
         
         if filtros:
             if 'tipo' in filtros:
@@ -2830,13 +2835,25 @@ class DatabaseManager:
         return_to_pool(conn)  # Devolver ao pool
         return lancamentos
     
-    def obter_lancamento(self, lancamento_id: int) -> Optional[Lancamento]:
-        """Obti?m um lani?amento especi?fico por ID"""
-        print(f"\n?? obter_lancamento() chamado com ID: {lancamento_id}")
-        conn = self.get_connection()
-        cursor = conn.cursor()
+    def obter_lancamento(self, lancamento_id: int, empresa_id: int = None) -> Optional[Lancamento]:
+        """Obtém um lançamento específico por ID COM filtro de empresa"""
+        print(f"\n🔍 obter_lancamento() chamado com ID: {lancamento_id}, empresa_id: {empresa_id}")
         
-        query = "SELECT * FROM lancamentos WHERE id = %s"
+        # 🔒 Se empresa_id fornecido, usar get_db_connection com RLS
+        if empresa_id:
+            with get_db_connection(empresa_id=empresa_id) as conn:
+                cursor = conn.cursor()
+                query = "SELECT * FROM lancamentos WHERE id = %s AND empresa_id = %s"
+                print(f"🔒 Query com filtro de empresa: {query}")
+                cursor.execute(query, (lancamento_id, empresa_id))
+                row = cursor.fetchone()
+                cursor.close()
+        else:
+            # ⚠️ Fallback sem filtro (compatibilidade retroativa, NÃO RECOMENDADO)
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            query = "SELECT * FROM lancamentos WHERE id = %s"
+            print(f"⚠️ Query SEM filtro de empresa: {query}")
         print(f"?? Query: {query}")
         print(f"?? Params: ({lancamento_id},)")
         
@@ -2894,17 +2911,29 @@ class DatabaseManager:
         return_to_pool(conn)  # Devolver ao pool
         return lancamento
     
-    def excluir_lancamento(self, lancamento_id: int) -> bool:
-        """Exclui um lani?amento"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
+    def excluir_lancamento(self, lancamento_id: int, empresa_id: int = None) -> bool:
+        """Exclui um lançamento COM filtro de empresa"""
+        print(f"🗑️ excluir_lancamento() chamado - ID: {lancamento_id}, empresa_id: {empresa_id}")
         
-        cursor.execute("DELETE FROM lancamentos WHERE id = %s", (lancamento_id,))
-        sucesso = cursor.rowcount > 0
-        
-        cursor.close()
-        return_to_pool(conn)  # Devolver ao pool
-        return sucesso
+        # 🔒 Se empresa_id fornecido, usar get_db_connection com RLS
+        if empresa_id:
+            with get_db_connection(empresa_id=empresa_id) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM lancamentos WHERE id = %s AND empresa_id = %s", (lancamento_id, empresa_id))
+                sucesso = cursor.rowcount > 0
+                cursor.close()
+                print(f"🔒 Exclusão com filtro de empresa - Sucesso: {sucesso}")
+                return sucesso
+        else:
+            # ⚠️ Fallback sem filtro (compatibilidade retroativa, NÃO RECOMENDADO)
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM lancamentos WHERE id = %s", (lancamento_id,))
+            sucesso = cursor.rowcount > 0
+            cursor.close()
+            return_to_pool(conn)
+            print(f"⚠️ Exclusão SEM filtro de empresa - Sucesso: {sucesso}")
+            return sucesso
     
     def atualizar_lancamento(self, lancamento: Lancamento, empresa_id: int) -> bool:
         """Atualiza um lançamento existente COM Row Level Security"""
@@ -2996,10 +3025,11 @@ class DatabaseManager:
     
     def pagar_lancamento(self, lancamento_id: int, conta: str = '', data_pagamento: date = None,
                         juros: float = 0, desconto: float = 0, observacoes: str = '',
-                        valor_pago: Optional[Decimal] = None) -> bool:
-        """Marca um lani?amento como pago"""
-        print(f"\n?? DatabaseManager.pagar_lancamento() chamada:")
+                        valor_pago: Optional[Decimal] = None, empresa_id: int = None) -> bool:
+        """Marca um lançamento como pago COM filtro de empresa"""
+        print(f"\n💰 DatabaseManager.pagar_lancamento() chamada:")
         print(f"   - lancamento_id: {lancamento_id} (tipo: {type(lancamento_id)})")
+        print(f"   - empresa_id: {empresa_id}")
         print(f"   - conta: {conta} (tipo: {type(conta)})")
         print(f"   - data_pagamento: {data_pagamento} (tipo: {type(data_pagamento)})")
         print(f"   - juros: {juros} (tipo: {type(juros)})")
@@ -3007,65 +3037,115 @@ class DatabaseManager:
         print(f"   - observacoes: {observacoes} (tipo: {type(observacoes)})")
         print(f"   - valor_pago: {valor_pago} (tipo: {type(valor_pago)})")
         
-        conn = self.get_connection()
-        cursor = conn.cursor()
+        # 🔒 Determinar qual conexão usar
+        if empresa_id:
+            conn_context = get_db_connection(empresa_id=empresa_id)
+            usar_rls = True
+        else:
+            conn_context = None
+            usar_rls = False
         
-        # Se ni?o passar data_pagamento, usar a data atual
+        # Executar com ou sem RLS
+        if usar_rls:
+            with conn_context as conn:
+                cursor = conn.cursor()
+                where_clause = "WHERE id = %s AND empresa_id = %s"
+                extra_param = empresa_id
+                return self._executar_pagamento(cursor, lancamento_id, conta, data_pagamento, 
+                                               juros, desconto, observacoes, valor_pago, 
+                                               where_clause, extra_param)
+        else:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            where_clause = "WHERE id = %s"
+            extra_param = None
+            result = self._executar_pagamento(cursor, lancamento_id, conta, data_pagamento, 
+                                             juros, desconto, observacoes, valor_pago, 
+                                             where_clause, extra_param)
+            cursor.close()
+            return_to_pool(conn)
+            return result
+    
+    def _executar_pagamento(self, cursor, lancamento_id: int, conta: str, data_pagamento: date,
+                           juros: float, desconto: float, observacoes: str, 
+                           valor_pago: Optional[Decimal], where_clause: str, extra_param) -> bool:
+        """Método auxiliar para executar o pagamento"""
+        
+        # Se não passar data_pagamento, usar a data atual
         if not data_pagamento:
             data_pagamento = date.today()
-            print(f"??  Data ni?o fornecida, usando hoje: {data_pagamento}")
+            print(f"ℹ️  Data não fornecida, usando hoje: {data_pagamento}")
         
         if valor_pago:
-            query = """
+            query = f"""
                 UPDATE lancamentos 
                 SET status = %s, data_pagamento = %s, valor = %s, 
                     conta_bancaria = %s, juros = %s, desconto = %s, observacoes = %s,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s
+                {where_clause}
             """
             params = (StatusLancamento.PAGO.value, data_pagamento, float(valor_pago), 
                   conta, juros, desconto, observacoes, lancamento_id)
-            print(f"?? Query COM valor_pago:")
+            if extra_param:
+                params = params + (extra_param,)
+            print(f"💰 Query COM valor_pago:")
             print(f"   SQL: {query}")
             print(f"   Params: {params}")
             cursor.execute(query, params)
         else:
-            query = """
+            query = f"""
                 UPDATE lancamentos 
                 SET status = %s, data_pagamento = %s,
                     conta_bancaria = %s, juros = %s, desconto = %s, observacoes = %s,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s
+                {where_clause}
             """
             params = (StatusLancamento.PAGO.value, data_pagamento, 
                   conta, juros, desconto, observacoes, lancamento_id)
-            print(f"?? Query SEM valor_pago:")
+            if extra_param:
+                params = params + (extra_param,)
+            print(f"💰 Query SEM valor_pago:")
             print(f"   SQL: {query}")
             print(f"   Params: {params}")
             cursor.execute(query, params)
         
         sucesso = cursor.rowcount > 0
-        print(f"? Linhas afetadas: {cursor.rowcount}, Sucesso: {sucesso}")
-        cursor.close()
-        return_to_pool(conn)  # Devolver ao pool
+        print(f"✅ Linhas afetadas: {cursor.rowcount}, Sucesso: {sucesso}")
         return sucesso
     
-    def cancelar_lancamento(self, lancamento_id: int) -> bool:
-        """Cancela um lani?amento"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
+    def cancelar_lancamento(self, lancamento_id: int, empresa_id: int = None) -> bool:
+        """Cancela um lançamento COM filtro de empresa"""
+        print(f"❌ cancelar_lancamento() chamado - ID: {lancamento_id}, empresa_id: {empresa_id}")
         
-        cursor.execute("""
-            UPDATE lancamentos 
-            SET status = %s, data_pagamento = NULL,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-        """, (StatusLancamento.PENDENTE.value, lancamento_id))
-        
-        sucesso = cursor.rowcount > 0
-        cursor.close()
-        return_to_pool(conn)  # Devolver ao pool
-        return sucesso
+        # 🔒 Se empresa_id fornecido, usar get_db_connection com RLS
+        if empresa_id:
+            with get_db_connection(empresa_id=empresa_id) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE lancamentos 
+                    SET status = %s, data_pagamento = NULL,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %s AND empresa_id = %s
+                """, (StatusLancamento.PENDENTE.value, lancamento_id, empresa_id))
+                sucesso = cursor.rowcount > 0
+                cursor.close()
+                print(f"🔒 Cancelamento com filtro de empresa - Sucesso: {sucesso}")
+                return sucesso
+        else:
+            # ⚠️ Fallback sem filtro (compatibilidade retroativa, NÃO RECOMENDADO)
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE lancamentos 
+                SET status = %s, data_pagamento = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (StatusLancamento.PENDENTE.value, lancamento_id))
+            sucesso = cursor.rowcount > 0
+            cursor.close()
+            return_to_pool(conn)
+            print(f"⚠️ Cancelamento SEM filtro de empresa - Sucesso: {sucesso}")
+            return sucesso
     
     def migrar_dados_json(self, json_path: str, empresa_id: int = None):
         """
@@ -3873,20 +3953,64 @@ def excluir_lancamento(empresa_id: int, lancamento_id: int) -> bool:
     db = DatabaseManager()
     return db.excluir_lancamento(lancamento_id)
 
-def pagar_lancamento(lancamento_id: int, conta: str = '', data_pagamento: date = None,
+def pagar_lancamento(empresa_id: int, lancamento_id: int, conta: str = '', data_pagamento: date = None,
                     juros: float = 0, desconto: float = 0, observacoes: str = '',
                     valor_pago: Optional[Decimal] = None) -> bool:
-    print(f"\n?? pagar_lancamento() wrapper chamada:")
-    print(f"   Args: ({lancamento_id}, {conta}, {data_pagamento}, {juros}, {desconto}, {observacoes}, {valor_pago})")
+    """
+    Marca um lançamento como pago
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        lancamento_id (int): ID do lançamento
+        conta (str): Conta bancária
+        data_pagamento (date): Data do pagamento
+        juros (float): Valor de juros
+        desconto (float): Valor de desconto
+        observacoes (str): Observações
+        valor_pago (Decimal): Valor efetivamente pago
+    
+    Returns:
+        bool: True se pago com sucesso
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - paga apenas se lançamento pertence à empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para pagar_lancamento")
+    print(f"\n💵 pagar_lancamento() wrapper chamada:")
+    print(f"   Args: empresa_id={empresa_id}, lancamento_id={lancamento_id}, conta={conta}, data={data_pagamento}")
+    print(f"   juros={juros}, desconto={desconto}, valor_pago={valor_pago}")
     db = DatabaseManager()
     print(f"   DatabaseManager criado: {type(db)}")
-    resultado = db.pagar_lancamento(lancamento_id, conta, data_pagamento, juros, desconto, observacoes, valor_pago)
+    resultado = db.pagar_lancamento(lancamento_id, conta, data_pagamento, juros, desconto, 
+                                    observacoes, valor_pago, empresa_id)
     print(f"   Resultado: {resultado}\n")
     return resultado
 
-def cancelar_lancamento(lancamento_id: int) -> bool:
+def cancelar_lancamento(empresa_id: int, lancamento_id: int) -> bool:
+    """
+    Cancela um lançamento (volta para status PENDENTE)
+    
+    Args:
+        empresa_id (int): ID da empresa [OBRIGATÓRIO]
+        lancamento_id (int): ID do lançamento a cancelar
+    
+    Returns:
+        bool: True se cancelado com sucesso
+        
+    Raises:
+        ValueError: Se empresa_id não fornecido
+        
+    Security:
+        🔒 RLS aplicado - cancela apenas se lançamento pertence à empresa
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório para cancelar_lancamento")
     db = DatabaseManager()
-    return db.cancelar_lancamento(lancamento_id)
+    return db.cancelar_lancamento(lancamento_id, empresa_id)
 
 def migrar_dados_json(json_path: str):
     db = DatabaseManager()

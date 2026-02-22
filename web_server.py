@@ -3526,7 +3526,13 @@ def gerenciar_lancamento(lancamento_id):
     # DELETE
     try:
         print(f"\n=== Excluindo lançamento ID: {lancamento_id} ===")
-        success = db.excluir_lancamento(lancamento_id)
+        
+        # 🔒 VALIDAÇÃO DE SEGURANÇA
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+        
+        success = db_excluir_lancamento(empresa_id, lancamento_id)
         print(f"Resultado da exclusão: {success}")
         
         if not success:
@@ -7349,6 +7355,11 @@ def relatorio_analise_contas():
 def pagar_lancamento(lancamento_id):
     """Marca um lançamento como pago"""
     try:
+        # 🔒 Obter empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'empresa_id não encontrado na sessão'}), 403
+        
         data = request.json
         conta = data.get('conta_bancaria', '') if data else ''
         data_pagamento = datetime.fromisoformat(data.get('data_pagamento', datetime.now().isoformat())).date() if data else date.today()
@@ -7356,7 +7367,7 @@ def pagar_lancamento(lancamento_id):
         desconto = float(data.get('desconto', 0)) if data else 0
         observacoes = data.get('observacoes', '') if data else ''
         
-        success = db_pagar_lancamento(lancamento_id, conta, data_pagamento, juros, desconto, observacoes)
+        success = db_pagar_lancamento(empresa_id, lancamento_id, conta, data_pagamento, juros, desconto, observacoes)
         return jsonify({'success': success})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -7370,6 +7381,13 @@ def liquidar_lancamento(lancamento_id):
         print("\n" + "="*80)
         print(f"🔍 DEBUG LIQUIDAÇÃO - ID: {lancamento_id}")
         print("="*80)
+        
+        # 🔒 Obter empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            print("❌ ERRO: empresa_id não encontrado na sessão")
+            return jsonify({'success': False, 'error': 'empresa_id não encontrado na sessão'}), 403
+        print(f"🏢 Empresa ID: {empresa_id}")
         
         data = request.json or {}
         print(f"📥 Dados recebidos: {data}")
@@ -7399,9 +7417,9 @@ def liquidar_lancamento(lancamento_id):
         print(f"📅 Data convertida: {data_pagamento} (tipo: {type(data_pagamento)})")
         
         print(f"🔧 Chamando db_pagar_lancamento...")
-        print(f"   Argumentos: ({lancamento_id}, {conta}, {data_pagamento}, {juros}, {desconto}, {observacoes})")
+        print(f"   Argumentos: ({empresa_id}, {lancamento_id}, {conta}, {data_pagamento}, {juros}, {desconto}, {observacoes})")
         
-        success = db_pagar_lancamento(lancamento_id, conta, data_pagamento, juros, desconto, observacoes)
+        success = db_pagar_lancamento(empresa_id, lancamento_id, conta, data_pagamento, juros, desconto, observacoes)
         
         print(f"✅ Resultado: {success}")
         print("="*80 + "\n")
@@ -7422,7 +7440,12 @@ def liquidar_lancamento(lancamento_id):
 def cancelar_lancamento_route(lancamento_id):
     """Cancela um lançamento"""
     try:
-        success = db_cancelar_lancamento(lancamento_id)
+        # 🔒 Obter empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'empresa_id não encontrado na sessão'}), 403
+        
+        success = db_cancelar_lancamento(empresa_id, lancamento_id)
         return jsonify({'success': success})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
