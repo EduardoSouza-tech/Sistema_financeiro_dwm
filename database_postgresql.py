@@ -8008,19 +8008,19 @@ def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
         
         resumo_row = cursor.fetchone()
         
-        total_contratos = resumo_row[0] or 0
-        contratos_ativos = resumo_row[1] or 0
-        contratos_com_controle = resumo_row[2] or 0
-        total_horas_contratadas = float(resumo_row[3] or 0)
-        total_horas_utilizadas = float(resumo_row[4] or 0)
-        total_horas_extras = float(resumo_row[5] or 0)
+        total_contratos = resumo_row['total_contratos'] or 0
+        contratos_ativos = resumo_row['contratos_ativos'] or 0
+        contratos_com_controle = resumo_row['contratos_com_controle_horas'] or 0
+        total_horas_contratadas = float(resumo_row['total_horas_contratadas'] or 0)
+        total_horas_utilizadas = float(resumo_row['total_horas_utilizadas'] or 0)
+        total_horas_extras = float(resumo_row['total_horas_extras'] or 0)
         total_horas_restantes = total_horas_contratadas - total_horas_utilizadas
         
         # Contar total de sessões
         cursor.execute("""
-            SELECT COUNT(*) FROM sessoes WHERE empresa_id = %s
+            SELECT COUNT(*) as total_sessoes FROM sessoes WHERE empresa_id = %s
         """, (empresa_id,))
-        total_sessoes = cursor.fetchone()[0] or 0
+        total_sessoes = cursor.fetchone()['total_sessoes'] or 0
         
         resumo = {
             'total_contratos': total_contratos,
@@ -8062,21 +8062,21 @@ def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
         
         for row in contratos_rows:
             # Parse observacoes JSON
-            obs_text = row[7]
+            obs_text = row['observacoes']
             try:
                 obs_json = json.loads(obs_text) if obs_text else {}
             except:
                 obs_json = {}
             
-            horas_totais = float(row[8] or 0)
-            horas_utilizadas = float(row[9] or 0)
-            horas_extras = float(row[10] or 0)
+            horas_totais = float(row['horas_totais'] or 0)
+            horas_utilizadas = float(row['horas_utilizadas'] or 0)
+            horas_extras = float(row['horas_extras'] or 0)
             horas_restantes = horas_totais - horas_utilizadas
             
             # Calcular percentual utilizado
             percentual_utilizado = (horas_utilizadas / horas_totais * 100) if horas_totais > 0 else 0
             
-            contrato_id = row[0]
+            contrato_id = row['id']
             
             # Buscar sessões deste contrato
             cursor.execute("""
@@ -8099,7 +8099,7 @@ def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
             
             for sessao_row in sessoes_rows:
                 # Parse dados_json
-                dados_json_text = sessao_row[4]
+                dados_json_text = sessao_row['dados_json']
                 try:
                     dados_json = json.loads(dados_json_text) if dados_json_text else {}
                 except:
@@ -8109,33 +8109,33 @@ def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
                 quantidade_horas = dados_json.get('quantidade_horas') or dados_json.get('horas_trabalhadas') or 0
                 
                 sessao = {
-                    'id': sessao_row[0],
-                    'data': sessao_row[1].isoformat() if sessao_row[1] else None,
-                    'descricao': sessao_row[2],
-                    'status': sessao_row[3],
+                    'id': sessao_row['id'],
+                    'data': sessao_row['data'].isoformat() if sessao_row['data'] else None,
+                    'descricao': sessao_row['descricao'],
+                    'status': sessao_row['status'],
                     'horas_trabalhadas': float(quantidade_horas),
                     'horario': dados_json.get('horario'),
-                    'cliente_nome': sessao_row[5]
+                    'cliente_nome': sessao_row['cliente_nome']
                 }
                 sessoes.append(sessao)
             
             contrato = {
                 'id': contrato_id,
-                'numero': row[1],
-                'descricao': row[2],
-                'valor_contrato': float(row[3] or 0),
-                'data_vigencia_inicio': row[4].isoformat() if row[4] else None,
-                'data_vigencia_fim': row[5].isoformat() if row[5] else None,
-                'status_pagamento': row[6],
+                'numero': row['numero'],
+                'descricao': row['descricao'],
+                'valor_contrato': float(row['valor'] or 0),
+                'data_vigencia_inicio': row['data_inicio'].isoformat() if row['data_inicio'] else None,
+                'data_vigencia_fim': row['data_fim'].isoformat() if row['data_fim'] else None,
+                'status_pagamento': row['status'],
                 'observacoes_json': obs_json,
                 'horas_totais': horas_totais,
                 'horas_utilizadas': horas_utilizadas,
                 'horas_extras': horas_extras,
                 'horas_restantes': horas_restantes,
                 'percentual_utilizado': percentual_utilizado,
-                'controle_horas_ativo': row[11],
-                'cliente_nome': row[12],
-                'cliente_id': row[13],
+                'controle_horas_ativo': row['controle_horas_ativo'],
+                'cliente_nome': row['cliente_nome'],
+                'cliente_id': row['cliente_id'],
                 'sessoes': sessoes,
                 'total_sessoes': len(sessoes)
             }
