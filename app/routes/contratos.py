@@ -18,43 +18,68 @@ contratos_bp = Blueprint('contratos', __name__, url_prefix='/api/contratos')
 
 
 @contratos_bp.route('', methods=['GET', 'POST'])
-@require_permission('contratos_view')
 def contratos():
     """
     Gerenciar contratos - Listar todos ou criar novo
     
     Security:
-        🔒 Validado empresa_id da sessão
+        🔒 Validado empresa_id da sessão e permissões
     """
+    # Validar sessão e permissões
+    from flask import session
+    
+    # Validar autenticação
+    usuario = session.get('usuario')
+    if not usuario:
+        return jsonify({'error': 'Usuário não autenticado'}), 401
+    
+    # Validar permissões
+    permissoes = usuario.get('permissoes', [])
+    if 'contratos_view' not in permissoes and 'admin' not in permissoes:
+        return jsonify({'error': 'Sem permissão para visualizar contratos'}), 403
+    
+    # Validar empresa
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'error': 'Empresa não selecionada'}), 403
+    
     if request.method == 'GET':
         try:
-            # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
-            from flask import session
-            empresa_id = session.get('empresa_id')
-            if not empresa_id:
-                return jsonify({'erro': 'Empresa não selecionada'}), 403
+            print(f"📋 [CONTRATOS] GET - empresa_id: {empresa_id}, usuario_id: {usuario.get('id')}")
             
             # 🔒 Passar empresa_id explicitamente
             contratos = db.listar_contratos(empresa_id=empresa_id)
+            
+            print(f"📋 [CONTRATOS] Total de contratos: {len(contratos)}")
             
             # Adicionar cliente_id para cada contrato
             for contrato in contratos:
                 contrato['cliente_id'] = contrato.get('cliente')
             
-            # Aplicar filtro por cliente
+            # Aplicar filtro por cliente se necessário
+            # Criar objeto request.usuario para compatibilidade
+            class RequestUsuario:
+                def __init__(self, user_data):
+                    self.tipo = user_data.get('tipo')
+                    self.cliente_id = user_data.get('cliente_id')
+            
+            request.usuario = RequestUsuario(usuario)
             contratos_filtrados = filtrar_por_cliente(contratos, request.usuario)
+            
+            print(f"📋 [CONTRATOS] Após filtro por cliente: {len(contratos_filtrados)}")
             
             return jsonify(contratos_filtrados)
         except Exception as e:
+            print(f"❌ [CONTRATOS] Erro no GET: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'error': str(e)}), 500
     else:  # POST
-        try:
-            # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
-            from flask import session
-            empresa_id = session.get('empresa_id')
-            if not empresa_id:
-                return jsonify({'erro': 'Empresa não selecionada'}), 403
+        # Validar permissão de edição para POST
+        if 'contratos_edit' not in permissoes and 'admin' not in permissoes:
+            return jsonify({'error': 'Sem permissão para criar contratos'}), 403
             
+        try:
             data = request.json
             print(f"🔍 Criando contrato com dados: {data}")
             
@@ -78,9 +103,19 @@ def contratos():
 
 
 @contratos_bp.route('/proximo-numero', methods=['GET'])
-@require_permission('contratos_view')
 def proximo_numero_contrato():
     """Retorna o próximo número de contrato disponível"""
+    # Validar autenticação e permissões
+    from flask import session
+    
+    usuario = session.get('usuario')
+    if not usuario:
+        return jsonify({'error': 'Usuário não autenticado'}), 401
+    
+    permissoes = usuario.get('permissoes', [])
+    if 'contratos_view' not in permissoes and 'admin' not in permissoes:
+        return jsonify({'error': 'Sem permissão para visualizar contratos'}), 403
+    
     try:
         print("🔍 Gerando próximo número de contrato...")
         numero = db.gerar_proximo_numero_contrato()
@@ -94,16 +129,30 @@ def proximo_numero_contrato():
 
 
 @contratos_bp.route('/<int:contrato_id>', methods=['GET', 'PUT', 'DELETE'])
-@require_permission('contratos_view')
 def contrato_detalhes(contrato_id):
     """Buscar, atualizar ou excluir contrato específico"""
+    # Validar autenticação e permissões
+    from flask import session
+    
+    usuario = session.get('usuario')
+    if not usuario:
+        return jsonify({'error': 'Usuário não autenticado'}), 401
+    
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'error': 'Empresa não selecionada'}), 403
+    
+    # Validar permissões baseado no método
+    permissoes = usuario.get('permissoes', [])
+    if request.method == 'GET':
+        if 'contratos_view' not in permissoes and 'admin' not in permissoes:
+            return jsonify({'error': 'Sem permissão para visualizar contratos'}), 403
+    else:  # PUT ou DELETE
+        if 'contratos_edit' not in permissoes and 'admin' not in permissoes:
+            return jsonify({'error': 'Sem permissão para editar/excluir contratos'}), 403
+    
     if request.method == 'GET':
         try:
-            # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
-            from flask import session
-            empresa_id = session.get('empresa_id')
-            if not empresa_id:
-                return jsonify({'erro': 'Empresa não selecionada'}), 403
             
             print(f"🔍 Buscando contrato {contrato_id}")
             # 🔒 Passar empresa_id explicitamente
