@@ -64,14 +64,7 @@ def contratos():
                 contrato['cliente_id'] = contrato.get('cliente')
             
             # Aplicar filtro por cliente se necessário
-            # Criar objeto request.usuario para compatibilidade
-            class RequestUsuario:
-                def __init__(self, user_data):
-                    self.tipo = user_data.get('tipo')
-                    self.cliente_id = user_data.get('cliente_id')
-            
-            request.usuario = RequestUsuario(usuario)
-            contratos_filtrados = filtrar_por_cliente(contratos, request.usuario)
+            contratos_filtrados = filtrar_por_cliente(contratos, usuario)
             
             print(f"📋 [CONTRATOS] Após filtro por cliente: {len(contratos_filtrados)}")
             
