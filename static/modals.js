@@ -4364,7 +4364,7 @@ async function salvarTagRapida(event, tagId = null) {
 }
 
 /**
- * Renderiza interface de seleção múltipla de tags
+ * Renderiza interface de seleção múltipla de tags (formato lista compacta)
  */
 function renderizarSeletorTags(tagsSelecionadas = []) {
     const tags = window.tagsDisponiveis || [];
@@ -4385,32 +4385,53 @@ function renderizarSeletorTags(tagsSelecionadas = []) {
     }
     
     return `
-        <div id="tags-selector" style="display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
-            ${tags.map(tag => {
-                const selecionada = tagsSelecionadas.includes(tag.id) || tagsSelecionadas.includes(tag.nome);
-                return `
-                    <label style="cursor: pointer; user-select: none;">
-                        <input 
-                            type="checkbox" 
-                            class="tag-checkbox" 
-                            value="${tag.id}" 
-                            ${selecionada ? 'checked' : ''}
-                            style="display: none;">
-                        <span class="tag-badge ${selecionada ? 'tag-selected' : ''}" 
-                              data-tag-id="${tag.id}"
-                              style="display: inline-block; padding: 6px 12px; border-radius: 16px; background: ${tag.cor}; color: white; font-size: 13px; font-weight: 500; border: 2px solid ${selecionada ? '#1f2937' : 'transparent'}; transition: all 0.2s;">
-                            ${tag.icone} ${tag.nome}
-                        </span>
-                    </label>
-                `;
-            }).join('')}
+        <div id="tags-selector" style="background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; max-height: 300px; overflow-y: auto;">
+            <!-- Botão Nova Tag no topo -->
+            <div style="padding: 10px; border-bottom: 1px solid #e5e7eb; background: white;">
+                <button type="button" onclick="openModalAdicionarTag()" 
+                        class="btn btn-sm" 
+                        style="width: 100%; padding: 8px; background: #10b981; color: white; border-radius: 6px; font-size: 13px; border: none; cursor: pointer; font-weight: 500;"
+                        title="Adicionar Nova Tag">
+                    ➕ Nova Tag
+                </button>
+            </div>
             
-            <button type="button" onclick="openModalAdicionarTag()" 
-                    class="btn btn-sm" 
-                    style="padding: 6px 12px; background: #10b981; color: white; border-radius: 16px; font-size: 13px; border: none; cursor: pointer;"
-                    title="Adicionar Nova Tag">
-                ➕ Nova Tag
-            </button>
+            <!-- Lista de tags -->
+            <div style="padding: 8px;">
+                ${tags.map(tag => {
+                    const selecionada = tagsSelecionadas.includes(tag.id) || tagsSelecionadas.includes(tag.nome);
+                    return `
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin-bottom: 4px; background: white; border-radius: 6px; border: 1px solid ${selecionada ? '#10b981' : '#e5e7eb'}; transition: all 0.2s;">
+                            <!-- Checkbox para seleção -->
+                            <input 
+                                type="checkbox" 
+                                class="tag-checkbox" 
+                                value="${tag.id}" 
+                                ${selecionada ? 'checked' : ''}
+                                style="width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;">
+                            
+                            <!-- Badge da tag -->
+                            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 12px; background: ${tag.cor}; color: white; font-size: 12px; font-weight: 500; flex-grow: 1;">
+                                ${tag.icone} ${tag.nome}
+                            </span>
+                            
+                            <!-- Botões de ação -->
+                            <button type="button" 
+                                    onclick="event.stopPropagation(); editarTag(${tag.id})" 
+                                    style="padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; flex-shrink: 0;"
+                                    title="Editar tag">
+                                ✏️
+                            </button>
+                            <button type="button" 
+                                    onclick="event.stopPropagation(); deletarTag(${tag.id}, '${tag.nome.replace(/'/g, "\\'")}')" 
+                                    style="padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; flex-shrink: 0;"
+                                    title="Excluir tag">
+                                🗑️
+                            </button>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
         </div>
     `;
 }
