@@ -700,8 +700,9 @@ def login():
         )
         print(f"✅ Sessão criada: {token[:20]}...")
         
-        # Guardar token na sessão do Flask
+        # Guardar token e user_id na sessão do Flask
         session['session_token'] = token
+        session['user_id'] = usuario['id']  # ✅ Necessário para rotas que usam session.get('user_id')
         session.permanent = True
         
         # Registrar login bem-sucedido
