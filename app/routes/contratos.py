@@ -9,9 +9,14 @@ Autor: Sistema de Otimização - Fase 5
 Data: 20/01/2026
 """
 
-from flask import Blueprint, request, jsonify
-from auth_middleware import require_permission, filtrar_por_cliente
+from flask import Blueprint, request, jsonify, session
+from auth_middleware import require_permission, filtrar_por_cliente, get_usuario_logado
+from auth_functions import obter_permissoes_usuario_empresa
+from database_auth import DatabaseAuth
 import database_postgresql as db
+
+# Instância do banco de autenticação
+auth_db = DatabaseAuth()
 
 # Criar blueprint
 contratos_bp = Blueprint('contratos', __name__, url_prefix='/api/contratos')
@@ -25,23 +30,29 @@ def contratos():
     Security:
         🔒 Validado empresa_id da sessão e permissões
     """
-    # Validar sessão e permissões
-    from flask import session
-    
     # Validar autenticação
-    usuario = session.get('usuario')
+    usuario = get_usuario_logado()
     if not usuario:
+        print("❌ [CONTRATOS] Usuário não autenticado")
         return jsonify({'error': 'Usuário não autenticado'}), 401
-    
-    # Validar permissões
-    permissoes = usuario.get('permissoes', [])
-    if 'contratos_view' not in permissoes and 'admin' not in permissoes:
-        return jsonify({'error': 'Sem permissão para visualizar contratos'}), 403
     
     # Validar empresa
     empresa_id = session.get('empresa_id')
     if not empresa_id:
+        print("❌ [CONTRATOS] Empresa não selecionada")
         return jsonify({'error': 'Empresa não selecionada'}), 403
+    
+    # Admin tem todas as permissões
+    if usuario.get('tipo') == 'admin':
+        print("✅ [CONTRATOS] Admin - permissão concedida")
+    else:
+        # Buscar permissões da empresa
+        permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
+        print(f"🔒 [CONTRATOS] Permissões da empresa {empresa_id}: {permissoes}")
+        
+        if 'contratos_view' not in permissoes:
+            print("❌ [CONTRATOS] Sem permissão contratos_view")
+            return jsonify({'error': 'Sem permissão para visualizar contratos'}), 403
     
     if request.method == 'GET':
         try:
@@ -75,9 +86,12 @@ def contratos():
             traceback.print_exc()
             return jsonify({'error': str(e)}), 500
     else:  # POST
-        # Validar permissão de edição para POST
-        if 'contratos_edit' not in permissoes and 'admin' not in permissoes:
-            return jsonify({'error': 'Sem permissão para criar contratos'}), 403
+        # Validação de permissão de edição para POST
+        if usuario.get('tipo') != 'admin':
+            permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
+            if 'contratos_edit' not in permissoes:
+                print("❌ [CONTRATOS] Sem permissão contratos_edit")
+                return jsonify({'error': 'Sem permissão para criar contratos'}), 403
             
         try:
             data = request.json
@@ -105,16 +119,28 @@ def contratos():
 @contratos_bp.route('/proximo-numero', methods=['GET'])
 def proximo_numero_contrato():
     """Retorna o próximo número de contrato disponível"""
-    # Validar autenticação e permissões
-    from flask import session
-    
-    usuario = session.get('usuario')
+    # Validar autenticação
+    usuario = get_usuario_logado()
     if not usuario:
+        print("❌ [CONTRATOS] Usuário não autenticado")
         return jsonify({'error': 'Usuário não autenticado'}), 401
     
-    permissoes = usuario.get('permissoes', [])
-    if 'contratos_view' not in permissoes and 'admin' not in permissoes:
-        return jsonify({'error': 'Sem permissão para visualizar contratos'}), 403
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        print("❌ [CONTRATOS] Empresa não selecionada")
+        return jsonify({'error': 'Empresa não selecionada'}), 403
+    
+    # Admin tem todas as permissões
+    if usuario.get('tipo') == 'admin':
+        print("✅ [CONTRATOS] Admin - permissão concedida")
+    else:
+        # Buscar permissões da empresa
+        permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
+        print(f"🔒 [CONTRATOS] Permissões da empresa {empresa_id}: {permissoes}")
+        
+        if 'contratos_view' not in permissoes:
+            print("❌ [CONTRATOS] Sem permissão contratos_view")
+            return jsonify({'error': 'Sem permissão para visualizar contratos'}), 403
     
     try:
         print("🔍 Gerando próximo número de contrato...")
@@ -131,25 +157,32 @@ def proximo_numero_contrato():
 @contratos_bp.route('/<int:contrato_id>', methods=['GET', 'PUT', 'DELETE'])
 def contrato_detalhes(contrato_id):
     """Buscar, atualizar ou excluir contrato específico"""
-    # Validar autenticação e permissões
-    from flask import session
-    
-    usuario = session.get('usuario')
+    # Validar autenticação
+    usuario = get_usuario_logado()
     if not usuario:
+        print("❌ [CONTRATOS] Usuário não autenticado")
         return jsonify({'error': 'Usuário não autenticado'}), 401
     
     empresa_id = session.get('empresa_id')
     if not empresa_id:
+        print("❌ [CONTRATOS] Empresa não selecionada")
         return jsonify({'error': 'Empresa não selecionada'}), 403
     
     # Validar permissões baseado no método
-    permissoes = usuario.get('permissoes', [])
-    if request.method == 'GET':
-        if 'contratos_view' not in permissoes and 'admin' not in permissoes:
-            return jsonify({'error': 'Sem permissão para visualizar contratos'}), 403
-    else:  # PUT ou DELETE
-        if 'contratos_edit' not in permissoes and 'admin' not in permissoes:
-            return jsonify({'error': 'Sem permissão para editar/excluir contratos'}), 403
+    if usuario.get('tipo') != 'admin':
+        permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
+        print(f"🔒 [CONTRATOS] Permissões da empresa {empresa_id}: {permissoes}")
+        
+        if request.method == 'GET':
+            if 'contratos_view' not in permissoes:
+                print("❌ [CONTRATOS] Sem permissão contratos_view")
+                return jsonify({'error': 'Sem permissão para visualizar contratos'}), 403
+        else:  # PUT ou DELETE
+            if 'contratos_edit' not in permissoes:
+                print("❌ [CONTRATOS] Sem permissão contratos_edit")
+                return jsonify({'error': 'Sem permissão para editar/excluir contratos'}), 403
+    else:
+        print("✅ [CONTRATOS] Admin - permissão concedida")
     
     if request.method == 'GET':
         try:
