@@ -365,8 +365,14 @@ def finalizar_sessao_route(sessao_id):
     try:
         # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
         from flask import session
+        
+        # Obter usuario_id corretamente via get_usuario_logado()
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'success': False, 'error': 'Usuário não autenticado'}), 401
+        
         empresa_id = session.get('empresa_id')
-        usuario_id = session.get('usuario_id')
+        usuario_id = usuario.get('id')
         
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
@@ -378,6 +384,7 @@ def finalizar_sessao_route(sessao_id):
         horas_trabalhadas = data.get('horas_trabalhadas')  # Opcional
         
         print(f"\n📊 [POST /api/sessoes/{sessao_id}/finalizar]")
+        print(f"   - Usuario: {usuario.get('username')}")
         print(f"   - empresa_id: {empresa_id}")
         print(f"   - usuario_id: {usuario_id}")
         print(f"   - horas_trabalhadas: {horas_trabalhadas}")
@@ -432,8 +439,14 @@ def atualizar_status_route(sessao_id):
     """
     try:
         from flask import session
+        
+        # Obter usuario_id corretamente via get_usuario_logado()
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'success': False, 'error': 'Usuário não autenticado'}), 401
+        
         empresa_id = session.get('empresa_id')
-        usuario_id = session.get('usuario_id')
+        usuario_id = usuario.get('id')
         
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
@@ -445,6 +458,7 @@ def atualizar_status_route(sessao_id):
             return jsonify({'success': False, 'error': 'Campo "status" é obrigatório'}), 400
         
         print(f"\n📊 [PUT /api/sessoes/{sessao_id}/status]")
+        print(f"   - Usuario: {usuario.get('username')}")
         print(f"   - status: {novo_status}")
         
         resultado = db.atualizar_status_sessao(
@@ -484,8 +498,14 @@ def cancelar_sessao_route(sessao_id):
     """
     try:
         from flask import session
+        
+        # 🔒 Obter dados do usuário logado
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'success': False, 'error': 'Usuário não autenticado'}), 401
+        
         empresa_id = session.get('empresa_id')
-        usuario_id = session.get('usuario_id')
+        usuario_id = usuario.get('id')
         
         if not empresa_id or not usuario_id:
             return jsonify({'success': False, 'error': 'Autenticação inválida'}), 403
@@ -494,6 +514,9 @@ def cancelar_sessao_route(sessao_id):
         motivo = data.get('motivo')
         
         print(f"\n📊 [POST /api/sessoes/{sessao_id}/cancelar]")
+        print(f"   - Usuario: {usuario.get('username')}")
+        print(f"   - empresa_id: {empresa_id}")
+        print(f"   - usuario_id: {usuario_id}")
         print(f"   - motivo: {motivo}")
         
         resultado = db.cancelar_sessao(
@@ -530,13 +553,22 @@ def reabrir_sessao_route(sessao_id):
     """
     try:
         from flask import session
+        
+        # Obter usuario_id corretamente via get_usuario_logado()
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'success': False, 'error': 'Usuário não autenticado'}), 401
+        
         empresa_id = session.get('empresa_id')
-        usuario_id = session.get('usuario_id')
+        usuario_id = usuario.get('id')
         
         if not empresa_id or not usuario_id:
             return jsonify({'success': False, 'error': 'Autenticação inválida'}), 403
         
         print(f"\n📊 [POST /api/sessoes/{sessao_id}/reabrir]")
+        print(f"   - Usuario: {usuario.get('username')}")
+        print(f"   - empresa_id: {empresa_id}")
+        print(f"   - usuario_id: {usuario_id}")
         
         resultado = db.reabrir_sessao(
             empresa_id=empresa_id,
@@ -877,13 +909,19 @@ def gerar_lancamento_sessao(sessao_id):
     try:
         from flask import session
         
+        # Obter usuario_id corretamente via get_usuario_logado()
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'erro': 'Usuário não autenticado'}), 401
+        
         empresa_id = session.get('empresa_id')
-        usuario_id = session.get('usuario_id')
+        usuario_id = usuario.get('id')
         
         if not empresa_id or not usuario_id:
             return jsonify({'erro': 'Autenticação inválida'}), 403
         
         print(f"\n💰 [POST /api/sessoes/{sessao_id}/gerar-lancamento]")
+        print(f"   - Usuario: {usuario.get('username')}")
         
         # Verificar se sessão pertence à empresa
         sessao = db.buscar_sessao(sessao_id)
@@ -943,8 +981,13 @@ def estornar_lancamento_sessao(sessao_id):
     try:
         from flask import session
         
+        # Obter usuario_id corretamente via get_usuario_logado()
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'erro': 'Usuário não autenticado'}), 401
+        
         empresa_id = session.get('empresa_id')
-        usuario_id = session.get('usuario_id')
+        usuario_id = usuario.get('id')
         
         if not empresa_id or not usuario_id:
             return jsonify({'erro': 'Autenticação inválida'}), 403
@@ -1135,8 +1178,13 @@ def configurar_lancamento_automatico(sessao_id):
     try:
         from flask import session
         
+        # Obter usuario_id corretamente via get_usuario_logado()
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'erro': 'Usuário não autenticado'}), 401
+        
         empresa_id = session.get('empresa_id')
-        usuario_id = session.get('usuario_id')
+        usuario_id = usuario.get('id')
         
         if not empresa_id or not usuario_id:
             return jsonify({'erro': 'Autenticação inválida'}), 403
@@ -1145,6 +1193,10 @@ def configurar_lancamento_automatico(sessao_id):
         ativar = dados.get('ativar', True)
         
         print(f"\n💰 [PATCH /api/sessoes/{sessao_id}/configurar-lancamento-automatico] Ativar: {ativar}")
+        print(f"   - Usuario: {usuario.get('username')}")
+        print(f"   - empresa_id: {empresa_id}")
+        print(f"   - usuario_id: {usuario_id}")
+        print(f"   - Usuario: {usuario.get('username')}")
         
         # Verificar se sessão pertence à empresa
         sessao = db.buscar_sessao(sessao_id)

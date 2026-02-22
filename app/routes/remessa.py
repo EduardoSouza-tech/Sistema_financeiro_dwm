@@ -291,8 +291,15 @@ def gerar_remessa():
     Operação atômica com rollback em caso de erro
     """
     try:
+        from auth_middleware import get_usuario_logado
+        
+        # Obter usuario_id corretamente via get_usuario_logado()
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'success': False, 'error': 'Usuário não autenticado'}), 401
+        
         empresa_id = session.get('empresa_id')
-        usuario_id = session.get('usuario_id')
+        usuario_id = usuario.get('id')
         
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 401
