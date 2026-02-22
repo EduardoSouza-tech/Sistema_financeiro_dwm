@@ -2871,16 +2871,29 @@ async function abrirCompensacaoHoras(contratoId) {
     try {
         console.log(`🔄 Abrindo compensação de horas para contrato ${contratoId}`);
         
+        // Remover modal anterior se existir
+        const modalAnterior = document.getElementById('modal-compensacao-overlay');
+        if (modalAnterior) {
+            console.log('🗑️ Removendo modal anterior');
+            modalAnterior.remove();
+        }
+        
         // Buscar todos os contratos do mesmo cliente
         const response = await fetch(`${API_URL}/contratos`);
         const contratos = await response.json();
         
         // Buscar contrato selecionado
         const contratoAtual = contratos.find(c => c.id === contratoId);
+        console.log('📋 Contrato atual:', contratoAtual);
+        
         if (!contratoAtual) {
             showToast('Contrato não encontrado', 'error');
+            console.error('❌ Contrato não encontrado com ID:', contratoId);
             return;
         }
+        
+        console.log('👤 Cliente ID do contrato:', contratoAtual.cliente_id);
+        console.log('📊 Total de contratos disponíveis:', contratos.length);
         
         // Filtrar contratos do mesmo cliente com controle de horas
         const contratosMesmoCliente = contratos.filter(c => 
@@ -2889,8 +2902,11 @@ async function abrirCompensacaoHoras(contratoId) {
             c.id !== contratoId
         );
         
+        console.log(`🔍 Contratos do mesmo cliente encontrados: ${contratosMesmoCliente.length}`);
+        
         if (contratosMesmoCliente.length === 0) {
             showToast('Este cliente não possui outros contratos com controle de horas', 'info');
+            console.warn('⚠️ Nenhum outro contrato do mesmo cliente com controle de horas');
             return;
         }
         
@@ -2986,7 +3002,23 @@ async function abrirCompensacaoHoras(contratoId) {
         // Inserir modal no DOM
         document.body.insertAdjacentHTML('beforeend', modalHTML);
         
-        console.log('✅ Modal de compensação criado');
+        // Verificar se modal foi criado
+        const modalCriado = document.getElementById('modal-compensacao-overlay');
+        if (modalCriado) {
+            console.log('✅ Modal de compensação criado e encontrado no DOM');
+            console.log('📍 Display do modal:', window.getComputedStyle(modalCriado).display);
+            console.log('📍 Visibility do modal:', window.getComputedStyle(modalCriado).visibility);
+            console.log('📍 Z-index do modal:', window.getComputedStyle(modalCriado).zIndex);
+            
+            // Forçar visibilidade
+            modalCriado.style.display = 'flex';
+            modalCriado.style.opacity = '1';
+            modalCriado.style.visibility = 'visible';
+            
+            console.log('🎯 Modal forçado a ser visível');
+        } else {
+            console.error('❌ Modal NÃO foi encontrado no DOM após inserção!');
+        }
         
     } catch (error) {
         console.error('❌ Erro ao abrir compensação:', error);
