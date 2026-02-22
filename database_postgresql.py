@@ -8085,7 +8085,6 @@ def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
                     s.data,
                     s.descricao,
                     s.status,
-                    s.horas_trabalhadas,
                     s.dados_json,
                     cl.nome as cliente_nome
                 FROM sessoes s
@@ -8100,20 +8099,23 @@ def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
             
             for sessao_row in sessoes_rows:
                 # Parse dados_json
-                dados_json_text = sessao_row[5]
+                dados_json_text = sessao_row[4]
                 try:
                     dados_json = json.loads(dados_json_text) if dados_json_text else {}
                 except:
                     dados_json = {}
+                
+                # Tentar obter quantidade de horas de diferentes campos possíveis
+                quantidade_horas = dados_json.get('quantidade_horas') or dados_json.get('horas_trabalhadas') or 0
                 
                 sessao = {
                     'id': sessao_row[0],
                     'data': sessao_row[1].isoformat() if sessao_row[1] else None,
                     'descricao': sessao_row[2],
                     'status': sessao_row[3],
-                    'horas_trabalhadas': float(sessao_row[4] or 0),
+                    'horas_trabalhadas': float(quantidade_horas),
                     'horario': dados_json.get('horario'),
-                    'cliente_nome': sessao_row[6]
+                    'cliente_nome': sessao_row[5]
                 }
                 sessoes.append(sessao)
             
