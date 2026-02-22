@@ -705,6 +705,13 @@ def login():
         session['user_id'] = usuario['id']  # ✅ Necessário para rotas que usam session.get('user_id')
         session.permanent = True
         
+        # DEBUG: Confirmar que user_id foi setado
+        print(f"🔍 DEBUG - SESSÃO CRIADA:")
+        print(f"   🎫 session_token: {token[:20]}...")
+        print(f"   👤 user_id: {session.get('user_id')}")
+        print(f"   📋 Session keys: {list(session.keys())}")
+        print(f"   📦 Session completa: {dict(session)}")
+        
         # Registrar login bem-sucedido
         auth_db.registrar_log_acesso(
             usuario_id=usuario['id'],
@@ -836,6 +843,14 @@ def verify_session():
         print(f"\n{'='*80}")
         print(f"🔍 [VERIFY] Verificando sessão...")
         print(f"{'='*80}")
+        
+        # DEBUG: Conteúdo completo da sessão
+        print(f"🔍 DEBUG - SESSION em /api/auth/verify:")
+        print(f"   📋 Session keys: {list(session.keys())}")
+        print(f"   📦 Session completa: {dict(session)}")
+        print(f"   👤 user_id na session: {session.get('user_id')}")
+        print(f"   🎫 session_token na session: {session.get('session_token', 'None')[:20] if session.get('session_token') else 'None'}...")
+        print(f"   🏢 empresa_id na session: {session.get('empresa_id')}")
         
         usuario = get_usuario_logado()
         print(f"📊 Usuário logado: {usuario if usuario else 'NENHUM'}")
