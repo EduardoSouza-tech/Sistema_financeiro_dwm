@@ -2486,20 +2486,25 @@ button,
    ============================================================================ */
 
 .modal-overlay {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    background: rgba(0, 0, 0, 0.6) !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(4px);
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    z-index: 10000 !important;
+    display: none;  /* Oculto por padrão - será mostrado via JavaScript */
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
     animation: fadeIn 0.2s ease-out;
-    opacity: 1 !important;
-    visibility: visible !important;
+}
+
+/* Modal visível quando tem a classe 'show' ou style inline */
+.modal-overlay.show,
+.modal-overlay[style*="display: flex"],
+.modal-overlay[style*="display:flex"] {
+    display: flex !important;
 }
 
 .modal-dialog {
