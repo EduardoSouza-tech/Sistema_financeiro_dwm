@@ -2892,19 +2892,17 @@ async function abrirCompensacaoHoras(contratoId) {
             return;
         }
         
-        console.log('👤 Cliente nome do contrato:', contratoAtual.cliente_nome);
+        console.log('👤 Cliente ID do contrato:', contratoAtual.cliente_id);
         console.log('📊 Total de contratos disponíveis:', contratos.length);
         
         // Filtrar contratos do mesmo cliente com controle de horas
-        // Usa cliente_nome porque cliente_id pode ser null
         const contratosMesmoCliente = contratos.filter(c => 
-            c.cliente_nome === contratoAtual.cliente_nome &&
+            c.cliente_id === contratoAtual.cliente_id &&
             c.controle_horas_ativo &&
             c.id !== contratoId
         );
         
         console.log(`🔍 Contratos do mesmo cliente encontrados: ${contratosMesmoCliente.length}`);
-        console.log('📋 Contratos elegíveis:', contratosMesmoCliente.map(c => c.numero));
         
         if (contratosMesmoCliente.length === 0) {
             showToast('Este cliente não possui outros contratos com controle de horas', 'info');
@@ -3012,10 +3010,14 @@ async function abrirCompensacaoHoras(contratoId) {
             console.log('📍 Visibility do modal:', window.getComputedStyle(modalCriado).visibility);
             console.log('📍 Z-index do modal:', window.getComputedStyle(modalCriado).zIndex);
             
-            // Forçar visibilidade
-            modalCriado.style.display = 'flex';
-            modalCriado.style.opacity = '1';
-            modalCriado.style.visibility = 'visible';
+            // Forçar visibilidade e z-index com !important
+            modalCriado.style.cssText = `
+                display: flex !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                z-index: 10000 !important;
+            `;
+            modalCriado.style.zIndex = '10000';
             
             console.log('🎯 Modal forçado a ser visível');
         } else {
@@ -3083,24 +3085,17 @@ async function executarCompensacaoHoras(contratoAtualId) {
         
         console.log(`🔄 Executando compensação: ${origemId} → ${destinoId} (${quantidade}h)`);
         
-        // Obter token de autenticação
-        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-        console.log('🔑 Token disponível:', token ? 'Sim' : 'Não');
-        
-        if (!token) {
-            throw new Error('Token de autenticação não encontrado. Faça login novamente.');
-        }
-        
         // Executar compensação
         const response = await fetch(`${API_URL}/contratos/${origemId}/compensar-horas`, {
             method: 'POST',
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'X-CSRFToken': window.csrfToken || ''
             },
             body: JSON.stringify({
-                contrato_destino_id: parseInt(destinoId),
-                quantidade_horas: parseFloat(quantidade),
+                contrato_destino_id: destinoId,
+                quantidade_horas: quantidade,
                 observacao: observacao
             })
         });
