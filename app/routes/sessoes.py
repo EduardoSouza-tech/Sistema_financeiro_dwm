@@ -216,9 +216,9 @@ def sessoes():
                             })
             
             # 🔒 VALIDAÇÃO DE SEGURANÇA - Obter empresa_id da sessão
-            from flask import session
-            empresa_id = session.get('empresa_id')
-            if not empresa_id:
+            # (session já está importado no topo do arquivo)
+            empresa_id_post = session.get('empresa_id')
+            if not empresa_id_post:
                 return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
             
             dados_mapeados = {
@@ -243,7 +243,7 @@ def sessoes():
                 'equipamentos': data.get('equipamentos', []),
                 'equipamentos_alugados': data.get('equipamentos_alugados', []),
                 'custos_adicionais': data.get('custos_adicionais', []),
-                'empresa_id': empresa_id  # 🔒 Incluir empresa_id
+                'empresa_id': empresa_id_post  # 🔒 Incluir empresa_id
             }
             
             print(f"📡 Dados mapeados para o banco:")
