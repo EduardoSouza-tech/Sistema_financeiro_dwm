@@ -12,11 +12,7 @@ Data: 20/01/2026
 from flask import Blueprint, request, jsonify, session
 from auth_middleware import require_permission, filtrar_por_cliente, get_usuario_logado
 from auth_functions import obter_permissoes_usuario_empresa
-from database_auth import DatabaseAuth
 import database_postgresql as db
-
-# Instância do banco de autenticação
-auth_db = DatabaseAuth()
 
 # Criar blueprint
 contratos_bp = Blueprint('contratos', __name__, url_prefix='/api/contratos')
@@ -47,7 +43,7 @@ def contratos():
         print("✅ [CONTRATOS] Admin - permissão concedida")
     else:
         # Buscar permissões da empresa
-        permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
+        permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, db)
         print(f"🔒 [CONTRATOS] Permissões da empresa {empresa_id}: {permissoes}")
         
         if 'contratos_view' not in permissoes:
@@ -88,7 +84,7 @@ def contratos():
     else:  # POST
         # Validação de permissão de edição para POST
         if usuario.get('tipo') != 'admin':
-            permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
+            permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, db)
             if 'contratos_edit' not in permissoes:
                 print("❌ [CONTRATOS] Sem permissão contratos_edit")
                 return jsonify({'error': 'Sem permissão para criar contratos'}), 403
@@ -135,7 +131,7 @@ def proximo_numero_contrato():
         print("✅ [CONTRATOS] Admin - permissão concedida")
     else:
         # Buscar permissões da empresa
-        permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
+        permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, db)
         print(f"🔒 [CONTRATOS] Permissões da empresa {empresa_id}: {permissoes}")
         
         if 'contratos_view' not in permissoes:
@@ -170,7 +166,7 @@ def contrato_detalhes(contrato_id):
     
     # Validar permissões baseado no método
     if usuario.get('tipo') != 'admin':
-        permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
+        permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, db)
         print(f"🔒 [CONTRATOS] Permissões da empresa {empresa_id}: {permissoes}")
         
         if request.method == 'GET':
