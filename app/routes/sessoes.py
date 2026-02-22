@@ -1249,8 +1249,8 @@ def exportar_sessoes_pdf():
             return jsonify({'error': 'Empresa não selecionada'}), 403
         
         # Buscar dados da empresa
-        empresa = db.buscar_empresa(empresa_id)
-        nome_empresa = empresa.get('nome', 'Empresa') if empresa else 'Empresa'
+        empresa = db.obter_empresa(empresa_id)
+        nome_empresa = empresa.get('razao_social', 'Empresa') if empresa else 'Empresa'
         
         # Buscar sessões
         sessoes = db.listar_sessoes(empresa_id=empresa_id)
@@ -1289,8 +1289,8 @@ def exportar_sessoes_excel():
             return jsonify({'error': 'Empresa não selecionada'}), 403
         
         # Buscar dados da empresa
-        empresa = db.buscar_empresa(empresa_id)
-        nome_empresa = empresa.get('nome', 'Empresa') if empresa else 'Empresa'
+        empresa = db.obter_empresa(empresa_id)
+        nome_empresa = empresa.get('razao_social', 'Empresa') if empresa else 'Empresa'
         
         # Buscar sessões
         sessoes = db.listar_sessoes(empresa_id=empresa_id)
