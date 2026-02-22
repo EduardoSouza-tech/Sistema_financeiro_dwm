@@ -4656,8 +4656,6 @@ def cancelar_sessao(empresa_id: int, sessao_id: int, usuario_id: int, motivo: st
         
         sessao = cursor.fetchone()
         if not sessao:
-            cursor.close()
-            return_to_pool(conn)
             raise ValueError(f"Sessão {sessao_id} não encontrada")
         
         status_anterior = sessao.get('status', 'rascunho')
@@ -4676,8 +4674,7 @@ def cancelar_sessao(empresa_id: int, sessao_id: int, usuario_id: int, motivo: st
         """, (observacoes_cancelamento, sessao_id))
         
         conn.commit()
-        cursor.close()
-        return_to_pool(conn)
+        # Context manager fecha cursor e devolve conn automaticamente
         
         return {
             'success': True,
@@ -4718,16 +4715,12 @@ def reabrir_sessao(empresa_id: int, sessao_id: int, usuario_id: int) -> Dict:
         
         sessao = cursor.fetchone()
         if not sessao:
-            cursor.close()
-            return_to_pool(conn)
             raise ValueError(f"Sessão {sessao_id} não encontrada")
         
         status_anterior = sessao.get('status', 'rascunho')
         
         # Só pode reabrir se estiver finalizada ou cancelada
         if status_anterior not in ['finalizada', 'cancelada']:
-            cursor.close()
-            return_to_pool(conn)
             return {
                 'success': False,
                 'message': f'Apenas sessões finalizadas ou canceladas podem ser reabertas. Status atual: {status_anterior}'
@@ -4745,8 +4738,7 @@ def reabrir_sessao(empresa_id: int, sessao_id: int, usuario_id: int) -> Dict:
         """, (observacoes_reabertura, sessao_id))
         
         conn.commit()
-        cursor.close()
-        return_to_pool(conn)
+        # Context manager fecha cursor e devolve conn automaticamente
         
         aviso = ""
         if status_anterior == 'finalizada':
