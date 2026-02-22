@@ -360,30 +360,32 @@ _connection_pool = None
 _database_initialized = False  # Flag para controlar inicializai?i?o i?nica
 
 def _get_connection_pool():
-    """Obti?m ou cria o pool de conexi?es"""
+    """Obtém ou cria o pool de conexões"""
     global _connection_pool
     
     if _connection_pool is None:
         try:
             if 'dsn' in POSTGRESQL_CONFIG:
                 _connection_pool = pool.ThreadedConnectionPool(
-                    minconn=3,
-                    maxconn=20,
+                    minconn=5,
+                    maxconn=50,
                     dsn=POSTGRESQL_CONFIG['dsn'],
                     cursor_factory=RealDictCursor,
-                    connect_timeout=10
+                    connect_timeout=10,
+                    options='-c statement_timeout=30000'  # 30 segundos timeout por query
                 )
             else:
                 _connection_pool = pool.ThreadedConnectionPool(
-                    minconn=3,
-                    maxconn=20,
+                    minconn=5,
+                    maxconn=50,
                     cursor_factory=RealDictCursor,
                     connect_timeout=10,
+                    options='-c statement_timeout=30000',  # 30 segundos timeout por query
                     **POSTGRESQL_CONFIG
                 )
-            print("✅ Pool de conexões PostgreSQL criado (3-20 conexões, timeout=10s)")
+            print("✅ Pool de conexões PostgreSQL criado (5-50 conexões, timeout=10s, query_timeout=30s)")
         except Exception as e:
-            print(f"? Erro ao criar pool de conexi?es: {e}")
+            print(f"❌ Erro ao criar pool de conexões: {e}")
             raise
     
     return _connection_pool
@@ -447,7 +449,33 @@ def get_db_connection(empresa_id=None, allow_global=False):
         🔒 Conexões sem empresa_id são bloqueadas por padrão (segurança)
     """
     pool_obj = _get_connection_pool()
-    conn = pool_obj.getconn()
+    
+    # Tentar obter conexão com retry em caso de pool esgotado
+    max_retries = 3
+    retry_delay = 0.5  # 500ms
+    
+    for attempt in range(max_retries):
+        try:
+            conn = pool_obj.getconn()
+            break
+        except Exception as e:
+            if "connection pool exhausted" in str(e):
+                if attempt < max_retries - 1:
+                    # Log do status do pool
+                    pool_status = get_pool_status()
+                    log(f"⚠️ Pool esgotado (tentativa {attempt + 1}/{max_retries}): {pool_status}")
+                    
+                    # Aguardar um pouco antes de tentar novamente
+                    import time
+                    time.sleep(retry_delay)
+                else:
+                    # Última tentativa falhou - logar status completo
+                    pool_status = get_pool_status()
+                    log(f"❌ POOL CRÍTICO: {pool_status}")
+                    raise
+            else:
+                # Erro diferente de pool esgotado
+                raise
     
     # Se empresa_id não fornecido, tentar obter da sessão Flask
     if empresa_id is None and not allow_global:
@@ -516,8 +544,32 @@ def return_to_pool(conn):
 
 
 # ============================================================================
-# FUNi?i?ES AUXILIARES OTIMIZADAS
+# FUNÇÕES AUXILIARES OTIMIZADAS
 # ============================================================================
+
+def get_pool_status():
+    """Retorna status do pool de conexões para diagnóstico"""
+    pool_obj = _get_connection_pool()
+    try:
+        # Tentar acessar atributos internos do pool
+        status = {
+            'minconn': pool_obj.minconn,
+            'maxconn': pool_obj.maxconn,
+            'closed': pool_obj.closed,
+        }
+        
+        # Verificar conexões disponíveis (se possível)
+        try:
+            # psycopg2.pool ThreadedConnectionPool usa _used para rastrear conexões em uso
+            if hasattr(pool_obj, '_used'):
+                status['in_use'] = len(pool_obj._used)
+                status['available'] = pool_obj.maxconn - len(pool_obj._used)
+        except:
+            pass
+            
+        return status
+    except Exception as e:
+        return {'error': str(e)}
 
 def execute_query(query: str, params: tuple = None, fetch_one: bool = False, fetch_all: bool = True, empresa_id: int = None, allow_global: bool = False):
     """

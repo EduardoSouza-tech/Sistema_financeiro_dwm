@@ -10823,13 +10823,23 @@ logger.info("="*80)
 def pool_status():
     """Endpoint para monitorar status do pool de conexões"""
     try:
-        pool_obj = database._get_connection_pool()
-        # Tentar obter informações do pool
-        return jsonify({
-            'status': 'healthy',
-            'pool_type': 'ThreadedConnectionPool',
-            'note': 'Pool configurado para 5-50 conexões'
-        }), 200
+        status = database.get_pool_status()
+        
+        # Adicionar informações extras
+        status['status'] = 'healthy'
+        status['pool_type'] = 'ThreadedConnectionPool'
+        
+        # Verificar se há muitas conexões em uso
+        if 'in_use' in status and 'maxconn' in status:
+            usage_percent = (status['in_use'] / status['maxconn']) * 100
+            status['usage_percent'] = round(usage_percent, 2)
+            
+            if usage_percent > 90:
+                status['warning'] = 'Pool quase esgotado! Considere aumentar maxconn.'
+            elif usage_percent > 75:
+                status['notice'] = 'Pool com alto uso.'
+        
+        return jsonify(status), 200
     except Exception as e:
         return jsonify({
             'status': 'error',
