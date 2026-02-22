@@ -12,8 +12,9 @@ Autor: Sistema de Otimização - Fase 5
 Data: 20/01/2026
 """
 
-from flask import Blueprint, request, jsonify
-from auth_middleware import require_permission, filtrar_por_cliente
+from flask import Blueprint, request, jsonify, session
+from auth_middleware import require_permission, filtrar_por_cliente, get_usuario_logado
+from auth_functions import obter_permissoes_usuario_empresa
 import database_postgresql as db
 
 # Criar blueprint
@@ -21,21 +22,46 @@ sessoes_bp = Blueprint('sessoes', __name__, url_prefix='/api/sessoes')
 
 
 @sessoes_bp.route('', methods=['GET', 'POST'])
-@require_permission('sessoes_view')
 def sessoes():
     """
     Gerenciar sessões - Listar todas ou criar nova
     
     Security:
-        🔒 Validado empresa_id da sessão
+        🔒 Validado empresa_id da sessão e permissões
     """
+    # Validar autenticação
+    usuario = get_usuario_logado()
+    if not usuario:
+        print("❌ [SESSÕES] Usuário não autenticado")
+        return jsonify({'error': 'Usuário não autenticado'}), 401
+    
+    # Validar empresa
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        print("❌ [SESSÕES] Empresa não selecionada")
+        return jsonify({'error': 'Empresa não selecionada'}), 403
+    
+    # Validar permissões
+    if usuario.get('tipo') != 'admin':
+        permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, db)
+        print(f"🔒 [SESSÕES] Permissões da empresa {empresa_id}: {permissoes}")
+        
+        if request.method == 'GET':
+            if 'sessoes_view' not in permissoes:
+                print("❌ [SESSÕES] Sem permissão sessoes_view")
+                return jsonify({'error': 'Sem permissão para visualizar sessões'}), 403
+        else:  # POST
+            if 'sessoes_edit' not in permissoes and 'sessoes_create' not in permissoes:
+                print("❌ [SESSÕES] Sem permissão sessoes_edit/create")
+                return jsonify({'error': 'Sem permissão para criar sessões'}), 403
+    else:
+        print("✅ [SESSÕES] Admin - permissão concedida")
+    
     if request.method == 'GET':
         try:
+            print(f"📋 [SESSÕES] GET - empresa_id: {empresa_id}, usuario_id: {usuario.get('id')}")
+            
             # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
-            from flask import session
-            empresa_id = session.get('empresa_id')
-            if not empresa_id:
-                return jsonify({'erro': 'Empresa não selecionada'}), 403
             
             import json
             # 🔒 Passar empresa_id explicitamente
@@ -98,7 +124,7 @@ def sessoes():
                     print(f"   - endereco: {sessao.get('endereco')}")
             
             # Aplicar filtro por cliente
-            sessoes_filtradas = filtrar_por_cliente(sessoes, request.usuario)
+            sessoes_filtradas = filtrar_por_cliente(sessoes, usuario)
             
             print(f"✅ [GET /api/sessoes] Retornando {len(sessoes_filtradas)} sessões após filtro\n")
             

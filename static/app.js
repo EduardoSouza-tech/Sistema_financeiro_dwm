@@ -4329,7 +4329,11 @@ async function loadSessoes() {
         
         if (!sessoes || sessoes.length === 0) {
             console.log('📋 [DEBUG] Nenhuma sessão encontrada, mostrando mensagem');
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">Nenhuma sessão cadastrada</td></tr>';
+            const mensagem = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: #666;">Nenhuma sessão cadastrada</td></tr>';
+            tbody.innerHTML = mensagem;
+            console.log('📋 [DEBUG] tbody.innerHTML atualizado:', tbody.innerHTML);
+            console.log('📋 [DEBUG] tbody visível?', tbody.offsetParent !== null);
+            console.log('📋 [DEBUG] Tabela visível?', document.getElementById('table-sessoes')?.style.display);
             return;
         }
         
