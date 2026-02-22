@@ -50,76 +50,77 @@ def listar_contas_pagar_pendentes():
         tipo_pagamento = request.args.get('tipo_pagamento')
         vencimento = request.args.get('vencimento')
         
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
-        # Usar view otimizada criada na migration
-        query = """
-            SELECT 
-                id, descricao, fornecedor, data_vencimento, valor,
-                tipo_pagamento_sugerido, status_vencimento, categoria,
-                banco_favorecido, agencia_favorecido, conta_favorecido,
-                chave_pix, tipo_chave_pix, codigo_barras
-            FROM v_contas_pagar_pendentes_remessa
-            WHERE empresa_id = %s
-        """
-        params = [empresa_id]
-        
-        # Aplicar filtros
-        if data_inicio:
-            query += " AND data_vencimento >= %s"
-            params.append(data_inicio)
-        
-        if data_fim:
-            query += " AND data_vencimento <= %s"
-            params.append(data_fim)
-        
-        if tipo_pagamento and tipo_pagamento != 'TODOS':
-            query += " AND tipo_pagamento_sugerido = %s"
-            params.append(tipo_pagamento)
-        
-        if vencimento and vencimento != 'TODOS':
-            query += " AND status_vencimento = %s"
-            params.append(vencimento)
-        
-        query += " ORDER BY data_vencimento ASC"
-        
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
-        
-        contas = []
-        total_valor = 0
-        por_tipo = {}
-        
-        for row in rows:
-            conta = {
-                'id': row[0],
-                'descricao': row[1],
-                'fornecedor': row[2],
-                'data_vencimento': row[3].isoformat() if row[3] else None,
-                'valor': float(row[4]) if row[4] else 0,
-                'tipo_pagamento_sugerido': row[5],
-                'status_vencimento': row[6],
-                'categoria': row[7],
-                'banco_favorecido': row[8],
-                'agencia_favorecido': row[9],
-                'conta_favorecido': row[10],
-                'chave_pix': row[11],
-                'tipo_chave_pix': row[12],
-                'codigo_barras': row[13]
-            }
-            contas.append(conta)
+        # USAR CONTEXT MANAGER - conexão sempre retorna ao pool
+        with db.get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
             
-            # Estatísticas
-            total_valor += conta['valor']
-            tipo = conta['tipo_pagamento_sugerido']
-            if tipo not in por_tipo:
-                por_tipo[tipo] = {'quantidade': 0, 'valor': 0}
-            por_tipo[tipo]['quantidade'] += 1
-            por_tipo[tipo]['valor'] += conta['valor']
-        
-        cursor.close()
-        conn.close()
+            # Usar view otimizada criada na migration
+            query = """
+                SELECT 
+                    id, descricao, fornecedor, data_vencimento, valor,
+                    tipo_pagamento_sugerido, status_vencimento, categoria,
+                    banco_favorecido, agencia_favorecido, conta_favorecido,
+                    chave_pix, tipo_chave_pix, codigo_barras
+                FROM v_contas_pagar_pendentes_remessa
+                WHERE empresa_id = %s
+            """
+            params = [empresa_id]
+            
+            # Aplicar filtros
+            if data_inicio:
+                query += " AND data_vencimento >= %s"
+                params.append(data_inicio)
+            
+            if data_fim:
+                query += " AND data_vencimento <= %s"
+                params.append(data_fim)
+            
+            if tipo_pagamento and tipo_pagamento != 'TODOS':
+                query += " AND tipo_pagamento_sugerido = %s"
+                params.append(tipo_pagamento)
+            
+            if vencimento and vencimento != 'TODOS':
+                query += " AND status_vencimento = %s"
+                params.append(vencimento)
+            
+            query += " ORDER BY data_vencimento ASC"
+            
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            contas = []
+            total_valor = 0
+            por_tipo = {}
+            
+            for row in rows:
+                conta = {
+                    'id': row[0],
+                    'descricao': row[1],
+                    'fornecedor': row[2],
+                    'data_vencimento': row[3].isoformat() if row[3] else None,
+                    'valor': float(row[4]) if row[4] else 0,
+                    'tipo_pagamento_sugerido': row[5],
+                    'status_vencimento': row[6],
+                    'categoria': row[7],
+                    'banco_favorecido': row[8],
+                    'agencia_favorecido': row[9],
+                    'conta_favorecido': row[10],
+                    'chave_pix': row[11],
+                    'tipo_chave_pix': row[12],
+                    'codigo_barras': row[13]
+                }
+                contas.append(conta)
+                
+                # Estatísticas
+                total_valor += conta['valor']
+                tipo = conta['tipo_pagamento_sugerido']
+                if tipo not in por_tipo:
+                    por_tipo[tipo] = {'quantidade': 0, 'valor': 0}
+                por_tipo[tipo]['quantidade'] += 1
+                por_tipo[tipo]['valor'] += conta['valor']
+            
+            cursor.close()
+        # Conexão automaticamente retorna ao pool aqui
         
         return jsonify({
             'success': True,
@@ -147,49 +148,50 @@ def listar_historico():
         offset = int(request.args.get('offset', 0))
         status = request.args.get('status')
         
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
-        query = """
-            SELECT * FROM v_remessas_resumo
-            WHERE empresa_id = %s
-        """
-        params = [empresa_id]
-        
-        if status:
-            query += " AND status = %s"
-            params.append(status)
-        
-        query += " ORDER BY data_geracao DESC LIMIT %s OFFSET %s"
-        params.extend([limite, offset])
-        
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
-        
-        remessas = []
-        for row in rows:
-            remessas.append({
-                'id': row[0],
-                'numero_sequencial': row[2],
-                'nome_arquivo': row[4],
-                'quantidade_pagamentos': row[6],
-                'quantidade_ted': row[7],
-                'quantidade_pix': row[8],
-                'quantidade_boleto': row[9],
-                'quantidade_tributo': row[10],
-                'valor_total': float(row[11]) if row[11] else 0,
-                'status': row[12],
-                'data_geracao': row[13].isoformat() if row[13] else None,
-                'empresa_nome': row[21] if len(row) > 21 else None,
-                'criado_por_nome': row[22] if len(row) > 22 else None
-            })
-        
-        # Contar total
-        cursor.execute("SELECT COUNT(*) FROM remessas_pagamento WHERE empresa_id = %s", [empresa_id])
-        total = cursor.fetchone()[0]
-        
-        cursor.close()
-        conn.close()
+        # USAR CONTEXT MANAGER - conexão sempre retorna ao pool
+        with db.get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            query = """
+                SELECT * FROM v_remessas_resumo
+                WHERE empresa_id = %s
+            """
+            params = [empresa_id]
+            
+            if status:
+                query += " AND status = %s"
+                params.append(status)
+            
+            query += " ORDER BY data_geracao DESC LIMIT %s OFFSET %s"
+            params.extend([limite, offset])
+            
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            remessas = []
+            for row in rows:
+                remessas.append({
+                    'id': row[0],
+                    'numero_sequencial': row[2],
+                    'nome_arquivo': row[4],
+                    'quantidade_pagamentos': row[6],
+                    'quantidade_ted': row[7],
+                    'quantidade_pix': row[8],
+                    'quantidade_boleto': row[9],
+                    'quantidade_tributo': row[10],
+                    'valor_total': float(row[11]) if row[11] else 0,
+                    'status': row[12],
+                    'data_geracao': row[13].isoformat() if row[13] else None,
+                    'empresa_nome': row[21] if len(row) > 21 else None,
+                    'criado_por_nome': row[22] if len(row) > 22 else None
+                })
+            
+            # Contar total
+            cursor.execute("SELECT COUNT(*) FROM remessas_pagamento WHERE empresa_id = %s", [empresa_id])
+            total = cursor.fetchone()[0]
+            
+            cursor.close()
+        # Conexão automaticamente retorna ao pool aqui
         
         return jsonify({
             'success': True,
@@ -213,61 +215,62 @@ def obter_detalhes(remessa_id):
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 401
         
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
-        # Buscar remessa (validar empresa_id para segurança)
-        cursor.execute("""
-            SELECT * FROM remessas_pagamento 
-            WHERE id = %s AND empresa_id = %s
-        """, [remessa_id, empresa_id])
-        
-        row = cursor.fetchone()
-        if not row:
-            return jsonify({'success': False, 'error': 'Remessa não encontrada'}), 404
-        
-        remessa = {
-            'id': row[0],
-            'numero_sequencial': row[2],
-            'tipo_arquivo': row[3],
-            'nome_arquivo': row[4],
-            'hash_arquivo': row[5],
-            'quantidade_pagamentos': row[6],
-            'valor_total': float(row[11]) if row[11] else 0,
-            'status': row[12],
-            'data_geracao': row[13].isoformat() if row[13] else None,
-            'observacoes': row[20]
-        }
-        
-        # Buscar itens
-        cursor.execute("""
-            SELECT * FROM remessas_pagamento_itens 
-            WHERE remessa_id = %s 
-            ORDER BY sequencial_lote, sequencial_registro
-        """, [remessa_id])
-        
-        itens_rows = cursor.fetchall()
-        itens = []
-        
-        for item_row in itens_rows:
-            itens.append({
-                'id': item_row[0],
-                'tipo_pagamento': item_row[3],
-                'nome_favorecido': item_row[6],
-                'cpf_cnpj_favorecido': item_row[7],
-                'banco_favorecido': item_row[8],
-                'agencia_favorecido': item_row[9],
-                'conta_favorecido': item_row[10],
-                'chave_pix': item_row[12],
-                'valor_total': float(item_row[20]) if item_row[20] else 0,
-                'data_pagamento': item_row[22].isoformat() if item_row[22] else None,
-                'status': item_row[25]
-            })
-        
-        remessa['itens'] = itens
-        
-        cursor.close()
-        conn.close()
+        # USAR CONTEXT MANAGER - conexão sempre retorna ao pool
+        with db.get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            # Buscar remessa (validar empresa_id para segurança)
+            cursor.execute("""
+                SELECT * FROM remessas_pagamento 
+                WHERE id = %s AND empresa_id = %s
+            """, [remessa_id, empresa_id])
+            
+            row = cursor.fetchone()
+            if not row:
+                return jsonify({'success': False, 'error': 'Remessa não encontrada'}), 404
+            
+            remessa = {
+                'id': row[0],
+                'numero_sequencial': row[2],
+                'tipo_arquivo': row[3],
+                'nome_arquivo': row[4],
+                'hash_arquivo': row[5],
+                'quantidade_pagamentos': row[6],
+                'valor_total': float(row[11]) if row[11] else 0,
+                'status': row[12],
+                'data_geracao': row[13].isoformat() if row[13] else None,
+                'observacoes': row[20]
+            }
+            
+            # Buscar itens
+            cursor.execute("""
+                SELECT * FROM remessas_pagamento_itens 
+                WHERE remessa_id = %s 
+                ORDER BY sequencial_lote, sequencial_registro
+            """, [remessa_id])
+            
+            itens_rows = cursor.fetchall()
+            itens = []
+            
+            for item_row in itens_rows:
+                itens.append({
+                    'id': item_row[0],
+                    'tipo_pagamento': item_row[3],
+                    'nome_favorecido': item_row[6],
+                    'cpf_cnpj_favorecido': item_row[7],
+                    'banco_favorecido': item_row[8],
+                    'agencia_favorecido': item_row[9],
+                    'conta_favorecido': item_row[10],
+                    'chave_pix': item_row[12],
+                    'valor_total': float(item_row[20]) if item_row[20] else 0,
+                    'data_pagamento': item_row[22].isoformat() if item_row[22] else None,
+                    'status': item_row[25]
+                })
+            
+            remessa['itens'] = itens
+            
+            cursor.close()
+        # Conexão automaticamente retorna ao pool aqui
         
         return jsonify({'success': True, 'remessa': remessa})
         
@@ -506,6 +509,15 @@ def gerar_remessa():
         except Exception as e:
             # Rollback em caso de erro
             conn.rollback()
+            # IMPORTANTE: Fechar conexão mesmo após rollback
+            try:
+                cursor.close()
+            except:
+                pass
+            try:
+                conn.close()
+            except:
+                pass
             raise e
         
     except Exception as e:
@@ -524,24 +536,25 @@ def download_remessa(remessa_id):
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 401
         
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT nome_arquivo, arquivo_retorno
-            FROM remessas_pagamento
-            WHERE id = %s AND empresa_id = %s
-        """, [remessa_id, empresa_id])
-        
-        row = cursor.fetchone()
-        if not row:
-            return jsonify({'success': False, 'error': 'Remessa não encontrada'}), 404
-        
-        nome_arquivo = row[0]
-        conteudo = row[1]
-        
-        cursor.close()
-        conn.close()
+        # USAR CONTEXT MANAGER - conexão sempre retorna ao pool
+        with db.get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT nome_arquivo, arquivo_retorno
+                FROM remessas_pagamento
+                WHERE id = %s AND empresa_id = %s
+            """, [remessa_id, empresa_id])
+            
+            row = cursor.fetchone()
+            if not row:
+                return jsonify({'success': False, 'error': 'Remessa não encontrada'}), 404
+            
+            nome_arquivo = row[0]
+            conteudo = row[1]
+            
+            cursor.close()
+        # Conexão automaticamente retorna ao pool aqui
         
         # Retornar arquivo para download
         return send_file(
@@ -569,80 +582,81 @@ def gerenciar_configuracao():
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 401
         
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
-        if request.method == 'GET':
-            # Buscar configuração existente
-            cursor.execute("""
-                SELECT * FROM sicredi_configuracao
-                WHERE empresa_id = %s
-            """, [empresa_id])
+        # USAR CONTEXT MANAGER - conexão sempre retorna ao pool
+        with db.get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
             
-            row = cursor.fetchone()
+            if request.method == 'GET':
+                # Buscar configuração existente
+                cursor.execute("""
+                    SELECT * FROM sicredi_configuracao
+                    WHERE empresa_id = %s
+                """, [empresa_id])
+                
+                row = cursor.fetchone()
+                
+                if row:
+                    config = {
+                        'id': row[0],
+                        'empresa_id': row[1],
+                        'codigo_beneficiario': row[2],
+                        'codigo_convenio': row[3],
+                        'posto': row[4],
+                        'codigo_cedente': row[5],
+                        'banco': row[6],
+                        'agencia': row[7],
+                        'agencia_dv': row[8],
+                        'conta': row[9],
+                        'conta_dv': row[10],
+                        'ultimo_sequencial_remessa': row[15]
+                    }
+                else:
+                    config = None
+                
+                cursor.close()
+                # Conexão automaticamente retorna ao pool aqui
+                
+                return jsonify({'success': True, 'configuracao': config})
             
-            if row:
-                config = {
-                    'id': row[0],
-                    'empresa_id': row[1],
-                    'codigo_beneficiario': row[2],
-                    'codigo_convenio': row[3],
-                    'posto': row[4],
-                    'codigo_cedente': row[5],
-                    'banco': row[6],
-                    'agencia': row[7],
-                    'agencia_dv': row[8],
-                    'conta': row[9],
-                    'conta_dv': row[10],
-                    'ultimo_sequencial_remessa': row[15]
-                }
-            else:
-                config = None
-            
-            cursor.close()
-            conn.close()
-            
-            return jsonify({'success': True, 'configuracao': config})
-        
-        else:  # POST ou PUT
-            data = request.get_json()
-            
-            # Validar campos obrigatórios
-            campos_obrigatorios = ['codigo_beneficiario', 'codigo_convenio', 'agencia', 'conta']
-            for campo in campos_obrigatorios:
-                if not data.get(campo):
-                    return jsonify({'success': False, 'error': f'Campo {campo} é obrigatório'}), 400
-            
-            # Upsert (inserir ou atualizar)
-            cursor.execute("""
-                INSERT INTO sicredi_configuracao (
-                    empresa_id, codigo_beneficiario, codigo_convenio,
-                    posto, codigo_cedente, agencia, conta, ativo
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, TRUE
-                )
-                ON CONFLICT (empresa_id) 
-                DO UPDATE SET
-                    codigo_beneficiario = EXCLUDED.codigo_beneficiario,
-                    codigo_convenio = EXCLUDED.codigo_convenio,
-                    posto = EXCLUDED.posto,
-                    codigo_cedente = EXCLUDED.codigo_cedente,
-                    agencia = EXCLUDED.agencia,
-                    conta = EXCLUDED.conta,
-                    updated_at = CURRENT_TIMESTAMP
-            """, [
-                empresa_id,
-                data['codigo_beneficiario'],
-                data['codigo_convenio'],
-                data.get('posto'),
-                data.get('codigo_cedente'),
-                data['agencia'],
-                data['conta']
-            ])
-            
-            conn.commit()
-            cursor.close()
-            conn.close()
+            else:  # POST ou PUT
+                data = request.get_json()
+                
+                # Validar campos obrigatórios
+                campos_obrigatorios = ['codigo_beneficiario', 'codigo_convenio', 'agencia', 'conta']
+                for campo in campos_obrigatorios:
+                    if not data.get(campo):
+                        return jsonify({'success': False, 'error': f'Campo {campo} é obrigatório'}), 400
+                
+                # Upsert (inserir ou atualizar)
+                cursor.execute("""
+                    INSERT INTO sicredi_configuracao (
+                        empresa_id, codigo_beneficiario, codigo_convenio,
+                        posto, codigo_cedente, agencia, conta, ativo
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, TRUE
+                    )
+                    ON CONFLICT (empresa_id) 
+                    DO UPDATE SET
+                        codigo_beneficiario = EXCLUDED.codigo_beneficiario,
+                        codigo_convenio = EXCLUDED.codigo_convenio,
+                        posto = EXCLUDED.posto,
+                        codigo_cedente = EXCLUDED.codigo_cedente,
+                        agencia = EXCLUDED.agencia,
+                        conta = EXCLUDED.conta,
+                        updated_at = CURRENT_TIMESTAMP
+                """, [
+                    empresa_id,
+                    data['codigo_beneficiario'],
+                    data['codigo_convenio'],
+                    data.get('posto'),
+                    data.get('codigo_cedente'),
+                    data['agencia'],
+                    data['conta']
+                ])
+                
+                conn.commit()
+                cursor.close()
+            # Conexão automaticamente retorna ao pool aqui
             
             return jsonify({
                 'success': True,
