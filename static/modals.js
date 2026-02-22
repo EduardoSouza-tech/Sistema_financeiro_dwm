@@ -2985,6 +2985,7 @@ async function openModalSessao(sessaoEdit = null) {
     const modal = createModal(titulo, `
         <form id="form-sessao" onsubmit="salvarSessao(event)" style="max-height: 85vh; overflow-y: auto;">
             <input type="hidden" id="sessao-id" value="${isEdit ? sessaoEdit.id : ''}">
+            <input type="hidden" id="sessao-status" value="${isEdit ? (sessaoEdit.status || 'rascunho') : 'rascunho'}">
             
             <!-- Linha 1: Cliente e Contrato -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -3424,7 +3425,8 @@ async function salvarSessao(event) {
         equipamentos: equipamentos,
         equipamentos_alugados: equipamentos_alugados,
         custos_adicionais: custos_adicionais,
-        observacoes: document.getElementById('sessao-observacoes').value
+        observacoes: document.getElementById('sessao-observacoes').value,
+        status: document.getElementById('sessao-status') ? document.getElementById('sessao-status').value : 'rascunho'
     };
     
     console.log('📦 Dados a enviar:', JSON.stringify(data, null, 2));
