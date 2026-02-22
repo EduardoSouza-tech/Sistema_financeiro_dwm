@@ -63,8 +63,12 @@ def contratos():
             for contrato in contratos:
                 contrato['cliente_id'] = contrato.get('cliente')
             
+            # 🔧 FIX: Adicionar empresa_id ao dict do usuario para o filtro funcionar
+            usuario_com_empresa = usuario.copy()
+            usuario_com_empresa['empresa_id'] = empresa_id
+            
             # Aplicar filtro por cliente se necessário
-            contratos_filtrados = filtrar_por_cliente(contratos, usuario)
+            contratos_filtrados = filtrar_por_cliente(contratos, usuario_com_empresa)
             
             print(f"📋 [CONTRATOS] Após filtro por cliente: {len(contratos_filtrados)}")
             

@@ -123,8 +123,12 @@ def sessoes():
                     print(f"   - tipo_foto: {sessao.get('tipo_foto')}")
                     print(f"   - endereco: {sessao.get('endereco')}")
             
+            # 🔧 FIX: Adicionar empresa_id ao dict do usuario para o filtro funcionar
+            usuario_com_empresa = usuario.copy()
+            usuario_com_empresa['empresa_id'] = empresa_id
+            
             # Aplicar filtro por cliente
-            sessoes_filtradas = filtrar_por_cliente(sessoes, usuario)
+            sessoes_filtradas = filtrar_por_cliente(sessoes, usuario_com_empresa)
             
             print(f"✅ [GET /api/sessoes] Retornando {len(sessoes_filtradas)} sessões após filtro\n")
             
