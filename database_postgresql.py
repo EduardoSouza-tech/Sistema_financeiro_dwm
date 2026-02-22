@@ -4247,7 +4247,7 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
             SELECT 
                 s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
                 s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
-                s.created_at, s.updated_at, s.empresa_id,
+                s.created_at, s.updated_at, s.empresa_id, s.status,
                 c.nome AS cliente_nome,
                 ct.numero AS contrato_numero, ct.descricao AS contrato_nome
             FROM sessoes s
@@ -4294,7 +4294,8 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
                 'equipamentos': dados_json.get('equipamentos', []),
                 'equipamentos_alugados': dados_json.get('equipamentos_alugados', []),
                 'custos_adicionais': dados_json.get('custos_adicionais', []),
-                'observacoes': row['observacoes']
+                'observacoes': row['observacoes'],
+                'status': row.get('status', 'rascunho')  # 🔒 Campo status (default: rascunho)
             }
             
             sessoes.append(sessao)
