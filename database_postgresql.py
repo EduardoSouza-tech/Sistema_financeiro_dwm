@@ -4242,20 +4242,22 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
     with get_db_connection(empresa_id=empresa_id) as conn:
         cursor = conn.cursor()
         
+        # 🔒 FILTRO OBRIGATÓRIO: Adicionar WHERE empresa_id para garantir isolamento
         query = """
             SELECT 
                 s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
                 s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
-                s.created_at, s.updated_at,
+                s.created_at, s.updated_at, s.empresa_id,
                 c.nome AS cliente_nome,
                 ct.numero AS contrato_numero, ct.descricao AS contrato_nome
             FROM sessoes s
             LEFT JOIN clientes c ON s.cliente_id = c.id
             LEFT JOIN contratos ct ON s.contrato_id = ct.id
+            WHERE s.empresa_id = %s
             ORDER BY s.data DESC, s.id DESC
         """
         
-        cursor.execute(query)
+        cursor.execute(query, [empresa_id])
         rows = cursor.fetchall()
         
         sessoes = []
@@ -4271,6 +4273,7 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
             
             sessao = {
                 'id': row['id'],
+                'empresa_id': row['empresa_id'],  # 🔒 Incluir empresa_id para filtros
                 'cliente_id': row['cliente_id'],
                 'cliente_nome': row['cliente_nome'] or '-',
                 'contrato_id': row['contrato_id'],
