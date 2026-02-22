@@ -311,3 +311,144 @@ def exportar_contratos_excel():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# COMPENSAÇÃO DE HORAS ENTRE CONTRATOS
+# ============================================================================
+
+@contratos_bp.route('/<int:origem_id>/compensar-horas', methods=['POST'])
+@require_permission('contratos_edit')
+def compensar_horas_contratos(origem_id: int):
+    """
+    Transfere horas de um contrato para outro do mesmo cliente
+    
+    POST /api/contratos/32/compensar-horas
+    {
+        "contrato_destino_id": 33,
+        "quantidade_horas": 10.5,
+        "observacao": "Compensação por excesso em eventos"
+    }
+    
+    Returns:
+        200: Compensação realizada com sucesso
+        400: Validação falhou (saldo insuficiente, clientes diferentes, etc.)
+        403: Sem permissão
+        500: Erro interno
+    """
+    try:
+        print("=" * 80)
+        print(f"🔄 COMPENSAÇÃO DE HORAS: Contrato Origem {origem_id}")
+        print("=" * 80)
+        
+        empresa_id = session.get('empresa_id')
+        usuario_id = session.get('user_id')
+        
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        if not usuario_id:
+            return jsonify({'success': False, 'error': 'Usuário não identificado'}), 403
+        
+        data = request.json
+        print(f"📦 Dados recebidos: {data}")
+        
+        destino_id = data.get('contrato_destino_id')
+        quantidade_horas = data.get('quantidade_horas')
+        observacao = data.get('observacao', '')
+        
+        # Validações de entrada
+        if not destino_id:
+            return jsonify({'success': False, 'error': 'Contrato destino não informado'}), 400
+        
+        if not quantidade_horas:
+            return jsonify({'success': False, 'error': 'Quantidade de horas não informada'}), 400
+        
+        try:
+            quantidade_horas = float(quantidade_horas)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'Quantidade de horas inválida'}), 400
+        
+        if quantidade_horas <= 0:
+            return jsonify({'success': False, 'error': 'Quantidade deve ser maior que zero'}), 400
+        
+        if origem_id == destino_id:
+            return jsonify({'success': False, 'error': 'Origem e destino não podem ser iguais'}), 400
+        
+        print(f"✅ Validações básicas OK")
+        print(f"   - Origem: {origem_id}")
+        print(f"   - Destino: {destino_id}")
+        print(f"   - Quantidade: {quantidade_horas}h")
+        print(f"   - Observação: {observacao[:50]}..." if len(observacao) > 50 else f"   - Observação: {observacao}")
+        
+        # Executar compensação
+        resultado = db.compensar_horas_contratos(
+            empresa_id=empresa_id,
+            origem_id=origem_id,
+            destino_id=destino_id,
+            quantidade_horas=quantidade_horas,
+            observacao=observacao,
+            usuario_id=usuario_id
+        )
+        
+        print(f"✅ Compensação {resultado['compensacao_id']} realizada com sucesso!")
+        print(f"   📤 {resultado['origem']['numero']}: {resultado['origem']['horas_restantes']}h restantes")
+        print(f"   📥 {resultado['destino']['numero']}: {resultado['destino']['horas_restantes']}h restantes")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Compensadas {quantidade_horas}h com sucesso',
+            'data': resultado
+        }), 200
+        
+    except ValueError as e:
+        # Erros de validação de negócio
+        print(f"⚠️ Validação falhou: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 400
+        
+    except Exception as e:
+        print(f"❌ Erro ao compensar horas: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Erro interno: {str(e)}'}), 500
+
+
+@contratos_bp.route('/compensacoes-horas', methods=['GET'])
+@require_permission('contratos_view')
+def listar_compensacoes_horas():
+    """
+    Lista histórico de compensações de horas
+    
+    GET /api/contratos/compensacoes-horas?contrato_id=32
+    
+    Query params:
+        contrato_id (opcional): Filtrar por contrato específico
+    
+    Returns:
+        200: Lista de compensações
+        403: Sem permissão
+        500: Erro interno
+    """
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        contrato_id = request.args.get('contrato_id', type=int)
+        
+        compensacoes = db.listar_compensacoes_horas(
+            empresa_id=empresa_id,
+            contrato_id=contrato_id
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': compensacoes,
+            'total': len(compensacoes)
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Erro ao listar compensações: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500

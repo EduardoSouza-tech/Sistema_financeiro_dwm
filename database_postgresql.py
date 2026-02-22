@@ -8146,3 +8146,241 @@ def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
             'resumo': resumo,
             'contratos': contratos
         }
+
+# ============================================================================
+# COMPENSAÇÃO DE HORAS ENTRE CONTRATOS
+# ============================================================================
+
+def compensar_horas_contratos(
+    empresa_id: int,
+    origem_id: int,
+    destino_id: int,
+    quantidade_horas: float,
+    observacao: str,
+    usuario_id: int
+) -> Dict:
+    """
+    Transfere horas de um contrato para outro do mesmo cliente
+    
+    Lógica:
+    1. Valida que ambos contratos pertencem ao mesmo cliente
+    2. Valida saldo disponível no contrato origem
+    3. Subtrai horas do contrato origem (horas_totais)
+    4. Adiciona horas ao contrato destino (horas_totais)
+    5. Registra log da compensação para auditoria
+    
+    Args:
+        empresa_id: ID da empresa
+        origem_id: ID do contrato que vai doar horas
+        destino_id: ID do contrato que vai receber horas
+        quantidade_horas: Quantidade de horas a transferir
+        observacao: Motivo da compensação
+        usuario_id: ID do usuário que está fazendo a operação
+        
+    Returns:
+        Dict com estado atualizado dos contratos origem e destino
+        
+    Raises:
+        ValueError: Se contratos não pertencem ao mesmo cliente
+        ValueError: Se saldo insuficiente no origem
+        
+    Example:
+        resultado = compensar_horas_contratos(
+            empresa_id=19,
+            origem_id=32,
+            destino_id=33,
+            quantidade_horas=10.0,
+            observacao="Compensar excesso de horas extras",
+            usuario_id=9
+        )
+    """
+    import json
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        # 1. Buscar contratos e validar
+        cursor.execute("""
+            SELECT id, numero, cliente_id, horas_totais, horas_utilizadas, horas_extras
+            FROM contratos
+            WHERE id IN (%s, %s) AND empresa_id = %s
+        """, (origem_id, destino_id, empresa_id))
+        
+        contratos = cursor.fetchall()
+        
+        if len(contratos) != 2:
+            raise ValueError('Um ou ambos contratos não foram encontrados')
+        
+        # Mapear contratos
+        contrato_origem = None
+        contrato_destino = None
+        
+        for c in contratos:
+            if c['id'] == origem_id:
+                contrato_origem = c
+            elif c['id'] == destino_id:
+                contrato_destino = c
+        
+        # Validar mesmo cliente
+        if contrato_origem['cliente_id'] != contrato_destino['cliente_id']:
+            raise ValueError(
+                f"Contratos pertencem a clientes diferentes: "
+                f"{contrato_origem['numero']} e {contrato_destino['numero']}"
+            )
+        
+        # Validar saldo disponível
+        saldo_origem = float(contrato_origem['horas_totais'] or 0) - float(contrato_origem['horas_utilizadas'] or 0)
+        
+        if saldo_origem < quantidade_horas:
+            raise ValueError(
+                f"Saldo insuficiente no contrato {contrato_origem['numero']}. "
+                f"Disponível: {saldo_origem}h, Solicitado: {quantidade_horas}h"
+            )
+        
+        # 2. Criar tabela de auditoria se não existir
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS compensacoes_horas (
+                id SERIAL PRIMARY KEY,
+                empresa_id INTEGER NOT NULL,
+                contrato_origem_id INTEGER NOT NULL,
+                contrato_destino_id INTEGER NOT NULL,
+                quantidade_horas DECIMAL(10,2) NOT NULL,
+                observacao TEXT,
+                usuario_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (contrato_origem_id) REFERENCES contratos(id),
+                FOREIGN KEY (contrato_destino_id) REFERENCES contratos(id)
+            )
+        """)
+        
+        # 3. Remover horas do origem
+        cursor.execute("""
+            UPDATE contratos
+            SET horas_totais = horas_totais - %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND empresa_id = %s
+            RETURNING horas_totais, horas_utilizadas, horas_extras
+        """, (quantidade_horas, origem_id, empresa_id))
+        
+        origem_result = cursor.fetchone()
+        
+        # 4. Adicionar horas ao destino
+        cursor.execute("""
+            UPDATE contratos
+            SET horas_totais = horas_totais + %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND empresa_id = %s
+            RETURNING horas_totais, horas_utilizadas, horas_extras
+        """, (quantidade_horas, destino_id, empresa_id))
+        
+        destino_result = cursor.fetchone()
+        
+        # 5. Registrar log de compensação
+        cursor.execute("""
+            INSERT INTO compensacoes_horas 
+            (empresa_id, contrato_origem_id, contrato_destino_id, quantidade_horas, observacao, usuario_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (empresa_id, origem_id, destino_id, quantidade_horas, observacao, usuario_id))
+        
+        compensacao_id = cursor.fetchone()['id']
+        
+        conn.commit()
+        
+        log(f"✅ Compensação {compensacao_id}: {quantidade_horas}h de {contrato_origem['numero']} → {contrato_destino['numero']}")
+        
+        return {
+            'compensacao_id': compensacao_id,
+            'origem': {
+                'contrato_id': origem_id,
+                'numero': contrato_origem['numero'],
+                'horas_totais': float(origem_result['horas_totais'] or 0),
+                'horas_utilizadas': float(origem_result['horas_utilizadas'] or 0),
+                'horas_extras': float(origem_result['horas_extras'] or 0),
+                'horas_restantes': float(origem_result['horas_totais'] or 0) - float(origem_result['horas_utilizadas'] or 0)
+            },
+            'destino': {
+                'contrato_id': destino_id,
+                'numero': contrato_destino['numero'],
+                'horas_totais': float(destino_result['horas_totais'] or 0),
+                'horas_utilizadas': float(destino_result['horas_utilizadas'] or 0),
+                'horas_extras': float(destino_result['horas_extras'] or 0),
+                'horas_restantes': float(destino_result['horas_totais'] or 0) - float(destino_result['horas_utilizadas'] or 0)
+            },
+            'quantidade_compensada': quantidade_horas
+        }
+
+
+def listar_compensacoes_horas(empresa_id: int, contrato_id: int = None) -> List[Dict]:
+    """
+    Lista histórico de compensações de horas
+    
+    Args:
+        empresa_id: ID da empresa
+        contrato_id: ID do contrato (opcional - filtra por contrato específico)
+        
+    Returns:
+        Lista de compensações com detalhes dos contratos
+    """
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        if contrato_id:
+            query = """
+                SELECT 
+                    ch.id,
+                    ch.created_at,
+                    ch.quantidade_horas,
+                    ch.observacao,
+                    co.numero as origem_numero,
+                    co.id as origem_id,
+                    cd.numero as destino_numero,
+                    cd.id as destino_id,
+                    u.nome as usuario_nome
+                FROM compensacoes_horas ch
+                JOIN contratos co ON ch.contrato_origem_id = co.id
+                JOIN contratos cd ON ch.contrato_destino_id = cd.id
+                LEFT JOIN usuarios u ON ch.usuario_id = u.id
+                WHERE ch.empresa_id = %s
+                  AND (ch.contrato_origem_id = %s OR ch.contrato_destino_id = %s)
+                ORDER BY ch.created_at DESC
+            """
+            cursor.execute(query, (empresa_id, contrato_id, contrato_id))
+        else:
+            query = """
+                SELECT 
+                    ch.id,
+                    ch.created_at,
+                    ch.quantidade_horas,
+                    ch.observacao,
+                    co.numero as origem_numero,
+                    co.id as origem_id,
+                    cd.numero as destino_numero,
+                    cd.id as destino_id,
+                    u.nome as usuario_nome
+                FROM compensacoes_horas ch
+                JOIN contratos co ON ch.contrato_origem_id = co.id
+                JOIN contratos cd ON ch.contrato_destino_id = cd.id
+                LEFT JOIN usuarios u ON ch.usuario_id = u.id
+                WHERE ch.empresa_id = %s
+                ORDER BY ch.created_at DESC
+            """
+            cursor.execute(query, (empresa_id,))
+        
+        compensacoes = cursor.fetchall()
+        
+        return [{
+            'id': c['id'],
+            'data': c['created_at'].isoformat() if c['created_at'] else None,
+            'quantidade_horas': float(c['quantidade_horas']),
+            'observacao': c['observacao'],
+            'origem': {
+                'id': c['origem_id'],
+                'numero': c['origem_numero']
+            },
+            'destino': {
+                'id': c['destino_id'],
+                'numero': c['destino_numero']
+            },
+            'usuario_nome': c['usuario_nome']
+        } for c in compensacoes]

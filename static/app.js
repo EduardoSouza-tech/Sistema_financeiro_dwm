@@ -2767,6 +2767,7 @@ async function loadControleHoras() {
                         <th style="padding: 12px; text-align: center; font-size: 13px;">% Utilizado</th>
                         <th style="padding: 12px; text-align: center; font-size: 13px;">Status</th>
                         <th style="padding: 12px; text-align: center; font-size: 13px;">Sessões</th>
+                        <th style="padding: 12px; text-align: center; font-size: 13px;">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2816,6 +2817,16 @@ async function loadControleHoras() {
                         </span>
                     </td>
                     <td style="padding: 12px; text-align: center; font-size: 13px;">${contrato.total_sessoes}</td>
+                    <td style="padding: 12px; text-align: center; font-size: 13px;">
+                        <button 
+                            onclick="abrirCompensacaoHoras(${contrato.id})" 
+                            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; transition: transform 0.2s;"
+                            onmouseover="this.style.transform='scale(1.05)'"
+                            onmouseout="this.style.transform='scale(1)'"
+                            title="Compensar horas entre contratos do mesmo cliente">
+                            🔄 Compensar
+                        </button>
+                    </td>
                 </tr>
             `;
         });
@@ -2849,6 +2860,240 @@ function exportarControleHorasPDF() {
 function exportarControleHorasExcel() {
     console.log('📊 Exportando controle de horas para Excel');
     window.location.href = '/api/relatorios/controle-horas/exportar/excel';
+}
+
+// === COMPENSAÇÃO DE HORAS ENTRE CONTRATOS ===
+
+/**
+ * Abre modal de compensação de horas entre contratos
+ */
+async function abrirCompensacaoHoras(contratoId) {
+    try {
+        console.log(`🔄 Abrindo compensação de horas para contrato ${contratoId}`);
+        
+        // Buscar todos os contratos do mesmo cliente
+        const response = await fetch(`${API_URL}/contratos`);
+        const contratos = await response.json();
+        
+        // Buscar contrato selecionado
+        const contratoAtual = contratos.find(c => c.id === contratoId);
+        if (!contratoAtual) {
+            showToast('Contrato não encontrado', 'error');
+            return;
+        }
+        
+        // Filtrar contratos do mesmo cliente com controle de horas
+        const contratosMesmoCliente = contratos.filter(c => 
+            c.cliente_id === contratoAtual.cliente_id &&
+            c.controle_horas_ativo &&
+            c.id !== contratoId
+        );
+        
+        if (contratosMesmoCliente.length === 0) {
+            showToast('Este cliente não possui outros contratos com controle de horas', 'info');
+            return;
+        }
+        
+        // Calcular saldo disponível do contrato atual
+        const saldoAtual = (parseFloat(contratoAtual.horas_totais) || 0) - (parseFloat(contratoAtual.horas_utilizadas) || 0);
+        
+        // Criar modal
+        const modalHTML = `
+            <div class="modal-overlay" id="modal-compensacao-overlay" onclick="if(event.target === this) fecharCompensacaoHoras()">
+                <div class="modal-dialog" style="max-width: 600px;" onclick="event.stopPropagation()">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 style="margin: 0; color: #2c3e50; display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 24px;">🔄</span>
+                                Compensar Horas Entre Contratos
+                            </h3>
+                            <button type="button" class="close" onclick="fecharCompensacaoHoras()" style="font-size: 28px; border: none; background: none; cursor: pointer; color: #95a5a6;">
+                                &times;
+                            </button>
+                        </div>
+                        <div class="modal-body" style="padding: 25px;">
+                            <!-- Info do Contrato Atual -->
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; color: white; margin-bottom: 20px;">
+                                <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">Contrato Selecionado</div>
+                                <div style="font-size: 18px; font-weight: bold;">${contratoAtual.numero}</div>
+                                <div style="font-size: 14px; margin-top: 5px;">${contratoAtual.cliente_nome}</div>
+                                <div style="font-size: 13px; margin-top: 8px; opacity: 0.95;">
+                                    💰 Saldo Disponível: <strong>${saldoAtual.toFixed(1)}h</strong>
+                                </div>
+                            </div>
+                            
+                            <!-- Tipo de Operação -->
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #2c3e50;">
+                                    Tipo de Compensação
+                                </label>
+                                <select id="tipo-compensacao" class="form-control" onchange="atualizarOpcoesCompensacao(${contratoId})" style="padding: 10px; border-radius: 6px; border: 1px solid #ddd;">
+                                    <option value="doar">Doar horas deste contrato para outro</option>
+                                    <option value="receber">Receber horas de outro contrato</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Contrato Origem/Destino -->
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label id="label-outro-contrato" style="display: block; font-weight: 600; margin-bottom: 8px; color: #2c3e50;">
+                                    Contrato Destino (receberá as horas)
+                                </label>
+                                <select id="outro-contrato" class="form-control" style="padding: 10px; border-radius: 6px; border: 1px solid #ddd;">
+                                    ${contratosMesmoCliente.map(c => {
+                                        const saldo = (parseFloat(c.horas_totais) || 0) - (parseFloat(c.horas_utilizadas) || 0);
+                                        return `<option value="${c.id}" data-saldo="${saldo}">${c.numero} - Saldo: ${saldo.toFixed(1)}h</option>`;
+                                    }).join('')}
+                                </select>
+                            </div>
+                            
+                            <!-- Quantidade de Horas -->
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #2c3e50;">
+                                    Quantidade de Horas
+                                </label>
+                                <input type="number" id="quantidade-horas-compensacao" class="form-control" 
+                                    step="0.5" min="0.5" max="${saldoAtual}" 
+                                    placeholder="Ex: 10.5"
+                                    style="padding: 10px; border-radius: 6px; border: 1px solid #ddd;">
+                                <small id="max-horas-info" style="color: #7f8c8d; font-size: 12px; margin-top: 5px; display: block;">
+                                    Máximo disponível: ${saldoAtual.toFixed(1)}h
+                                </small>
+                            </div>
+                            
+                            <!-- Observação/Motivo -->
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #2c3e50;">
+                                    Motivo da Compensação
+                                </label>
+                                <textarea id="observacao-compensacao" class="form-control" rows="3" 
+                                    placeholder="Ex: Compensar excesso de horas extras em eventos..."
+                                    style="padding: 10px; border-radius: 6px; border: 1px solid #ddd; resize: vertical;"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="padding: 15px 25px; background: #f8f9fa; border-top: 1px solid #dee2e6; display: flex; gap: 10px; justify-content: flex-end;">
+                            <button type="button" class="btn btn-secondary" onclick="fecharCompensacaoHoras()" style="padding: 10px 20px;">
+                                Cancelar
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="executarCompensacaoHoras(${contratoId})" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                                🔄 Confirmar Compensação
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Inserir modal no DOM
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        console.log('✅ Modal de compensação criado');
+        
+    } catch (error) {
+        console.error('❌ Erro ao abrir compensação:', error);
+        showToast('Erro ao abrir modal de compensação', 'error');
+    }
+}
+
+/**
+ * Atualiza opções do modal baseado no tipo de compensação
+ */
+function atualizarOpcoesCompensacao(contratoId) {
+    const tipo = document.getElementById('tipo-compensacao').value;
+    const label = document.getElementById('label-outro-contrato');
+    const maxHorasInfo = document.getElementById('max-horas-info');
+    const inputHoras = document.getElementById('quantidade-horas-compensacao');
+    
+    if (tipo === 'doar') {
+        label.textContent = 'Contrato Destino (receberá as horas)';
+        // Máximo é o saldo do contrato atual
+    } else {
+        label.textContent = 'Contrato Origem (doará as horas)';
+        // Máximo é o saldo do contrato selecionado
+        const select = document.getElementById('outro-contrato');
+        const saldoOutro = parseFloat(select.selectedOptions[0].dataset.saldo);
+        inputHoras.max = saldoOutro;
+        maxHorasInfo.textContent = `Máximo disponível: ${saldoOutro.toFixed(1)}h`;
+    }
+}
+
+/**
+ * Executa a compensação de horas
+ */
+async function executarCompensacaoHoras(contratoAtualId) {
+    try {
+        const tipo = document.getElementById('tipo-compensacao').value;
+        const outroContratoId = parseInt(document.getElementById('outro-contrato').value);
+        const quantidade = parseFloat(document.getElementById('quantidade-horas-compensacao').value);
+        const observacao = document.getElementById('observacao-compensacao').value;
+        
+        // Validações
+        if (!quantidade || quantidade <= 0) {
+            showToast('Informe uma quantidade válida de horas', 'warning');
+            return;
+        }
+        
+        if (!observacao.trim()) {
+            showToast('Informe o motivo da compensação', 'warning');
+            return;
+        }
+        
+        // Determinar origem e destino baseado no tipo
+        let origemId, destinoId;
+        if (tipo === 'doar') {
+            origemId = contratoAtualId;
+            destinoId = outroContratoId;
+        } else {
+            origemId = outroContratoId;
+            destinoId = contratoAtualId;
+        }
+        
+        console.log(`🔄 Executando compensação: ${origemId} → ${destinoId} (${quantidade}h)`);
+        
+        // Executar compensação
+        const response = await fetch(`${API_URL}/contratos/${origemId}/compensar-horas`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contrato_destino_id: destinoId,
+                quantidade_horas: quantidade,
+                observacao: observacao
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || 'Erro ao compensar horas');
+        }
+        
+        console.log('✅ Compensação realizada:', result);
+        
+        showToast(`✅ Compensadas ${quantidade}h com sucesso!`, 'success');
+        
+        // Fechar modal
+        fecharCompensacaoHoras();
+        
+        // Recarregar controle de horas se estiver na tela
+        if (typeof loadControleHoras === 'function') {
+            setTimeout(() => loadControleHoras(), 500);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao compensar horas:', error);
+        showToast(error.message || 'Erro ao compensar horas', 'error');
+    }
+}
+
+/**
+ * Fecha modal de compensação
+ */
+function fecharCompensacaoHoras() {
+    const overlay = document.getElementById('modal-compensacao-overlay');
+    if (overlay) {
+        overlay.remove();
+    }
 }
 
 /**
@@ -5416,6 +5661,12 @@ window.exportarControleHorasPDF = exportarControleHorasPDF;
 window.exportarControleHorasExcel = exportarControleHorasExcel;
 window.exportarInadimplenciaPDF = exportarInadimplenciaPDF;
 window.exportarInadimplenciaExcel = exportarInadimplenciaExcel;
+
+// Funções de Compensação de Horas
+window.abrirCompensacaoHoras = abrirCompensacaoHoras;
+window.executarCompensacaoHoras = executarCompensacaoHoras;
+window.fecharCompensacaoHoras = fecharCompensacaoHoras;
+window.atualizarOpcoesCompensacao = atualizarOpcoesCompensacao;
 
 // Funções de Interface
 window.showPage = showPage;
