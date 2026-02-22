@@ -358,20 +358,21 @@ def compensar_horas_contratos(origem_id: int):
         else:
             print(f"   ⚠️ request.usuario NÃO EXISTE")
         
+        # ✅ CORREÇÃO: Usar request.usuario ao invés de session
+        # O middleware @require_permission já garante que request.usuario existe
+        usuario_id = request.usuario.get('id') if hasattr(request, 'usuario') else None
         empresa_id = session.get('empresa_id')
-        usuario_id = session.get('user_id')
         
         print(f"🔍 DEBUG - VALORES EXTRAÍDOS:")
         print(f"   🏢 empresa_id: {empresa_id}")
-        print(f"   👤 usuario_id: {usuario_id}")
+        print(f"   👤 usuario_id: {usuario_id} (de request.usuario)")
         
         if not empresa_id:
             print(f"❌ ERRO: empresa_id não encontrada na sessão")
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
         if not usuario_id:
-            print(f"❌ ERRO: usuario_id não encontrada na sessão")
-            print(f"   💡 DICA: Se request.usuario existe, use request.usuario['id']")
+            print(f"❌ ERRO: usuario_id não encontrado em request.usuario")
             return jsonify({'success': False, 'error': 'Usuário não identificado'}), 403
         
         data = request.json
