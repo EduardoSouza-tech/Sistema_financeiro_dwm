@@ -175,45 +175,48 @@ def sessoes():
             # Converter IDs de funcionários em objetos com nome
             if equipe_original:
                 for item in equipe_original:
-                    if isinstance(item, dict) and 'funcionario_id' in item:
-                        # Dict com funcionario_id - buscar nome diretamente no banco
-                        funcionario_id = int(item['funcionario_id'])
-                        
-                        # Query direta para buscar funcionário
-                        conn = db.get_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("SELECT nome FROM funcionarios WHERE id = %s", (funcionario_id,))
-                        funcionario = cursor.fetchone()
-                        cursor.close()
-                        db.return_to_pool(conn)
-                        
-                        if funcionario:
-                            nome_funcionario = funcionario['nome'] if isinstance(funcionario, dict) else funcionario[0]
-                            equipe_mapeada.append({
-                                'nome': nome_funcionario,
-                                'funcao': item.get('funcao', 'Membro da Equipe'),
-                                'pagamento': item.get('pagamento')
-                            })
-                    elif isinstance(item, dict) and 'nome' in item:
-                        # Dict já tem nome - usar diretamente
-                        equipe_mapeada.append(item)
-                    elif isinstance(item, (int, str)):
-                        # Apenas ID - buscar funcionário
-                        funcionario_id = int(item)
-                        
-                        conn = db.get_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("SELECT nome FROM funcionarios WHERE id = %s", (funcionario_id,))
-                        funcionario = cursor.fetchone()
-                        cursor.close()
-                        db.return_to_pool(conn)
-                        
-                        if funcionario:
-                            nome_funcionario = funcionario['nome'] if isinstance(funcionario, dict) else funcionario[0]
-                            equipe_mapeada.append({
-                                'nome': nome_funcionario,
-                                'funcao': 'Membro da Equipe'
-                            })
+                    try:
+                        if isinstance(item, dict) and 'funcionario_id' in item:
+                            # Dict com funcionario_id - buscar nome diretamente no banco
+                            funcionario_id = int(item['funcionario_id'])
+                            
+                            # Query direta para buscar funcionário - USAR CONTEXT MANAGER
+                            with db.get_db_connection(empresa_id=empresa_id) as conn:
+                                cursor = conn.cursor()
+                                cursor.execute("SELECT nome FROM funcionarios WHERE id = %s AND empresa_id = %s", (funcionario_id, empresa_id))
+                                funcionario = cursor.fetchone()
+                                cursor.close()
+                            
+                            if funcionario:
+                                nome_funcionario = funcionario['nome'] if isinstance(funcionario, dict) else funcionario[0]
+                                equipe_mapeada.append({
+                                    'nome': nome_funcionario,
+                                    'funcao': item.get('funcao', 'Membro da Equipe'),
+                                    'pagamento': item.get('pagamento')
+                                })
+                        elif isinstance(item, dict) and 'nome' in item:
+                            # Dict já tem nome - usar diretamente
+                            equipe_mapeada.append(item)
+                        elif isinstance(item, (int, str)):
+                            # Apenas ID - buscar funcionário
+                            funcionario_id = int(item)
+                            
+                            # Query usando context manager - NUNCA vaza conexão
+                            with db.get_db_connection(empresa_id=empresa_id) as conn:
+                                cursor = conn.cursor()
+                                cursor.execute("SELECT nome FROM funcionarios WHERE id = %s AND empresa_id = %s", (funcionario_id, empresa_id))
+                                funcionario = cursor.fetchone()
+                                cursor.close()
+                            
+                            if funcionario:
+                                nome_funcionario = funcionario['nome'] if isinstance(funcionario, dict) else funcionario[0]
+                                equipe_mapeada.append({
+                                    'nome': nome_funcionario,
+                                    'funcao': 'Membro da Equipe'
+                                })
+                    except Exception as e:
+                        print(f"⚠️ Erro ao processar item da equipe: {e}")
+                        continue
             
             # 🔒 VALIDAÇÃO DE SEGURANÇA - Obter empresa_id da sessão
             # (session já está importado no topo do arquivo)
