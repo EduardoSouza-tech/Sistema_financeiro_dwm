@@ -227,3 +227,87 @@ def contrato_detalhes(contrato_id):
             import traceback
             traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# EXPORTAÇÕES
+# ============================================================================
+
+@contratos_bp.route('/exportar/pdf', methods=['GET'])
+@require_permission('contratos_view')
+def exportar_contratos_pdf():
+    """Exporta contratos para PDF"""
+    try:
+        from flask import send_file, session
+        import database_postgresql as db
+        from pdf_export import gerar_contratos_pdf
+        from datetime import datetime
+        
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não selecionada'}), 403
+        
+        # Buscar dados da empresa
+        empresa = db.buscar_empresa(empresa_id)
+        nome_empresa = empresa.get('nome', 'Empresa') if empresa else 'Empresa'
+        
+        # Buscar contratos
+        contratos = db.listar_contratos(empresa_id=empresa_id)
+        
+        # Gerar PDF
+        buffer = gerar_contratos_pdf(contratos, nome_empresa)
+        
+        filename = f"contratos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        print(f"Erro ao exportar PDF: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@contratos_bp.route('/exportar/excel', methods=['GET'])
+@require_permission('contratos_view')
+def exportar_contratos_excel():
+    """Exporta contratos para Excel"""
+    try:
+        from flask import send_file, session
+        import database_postgresql as db
+        from pdf_export import gerar_contratos_excel
+        from datetime import datetime
+        
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não selecionada'}), 403
+        
+        # Buscar dados da empresa
+        empresa = db.buscar_empresa(empresa_id)
+        nome_empresa = empresa.get('nome', 'Empresa') if empresa else 'Empresa'
+        
+        # Buscar contratos
+        contratos = db.listar_contratos(empresa_id=empresa_id)
+        
+        # Gerar Excel
+        buffer = gerar_contratos_excel(contratos, nome_empresa)
+        
+        filename = f"contratos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        
+        return send_file(
+            buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        print(f"Erro ao exportar Excel: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500

@@ -135,6 +135,7 @@
                 'kits': 'loadKits',
                 'contratos': 'loadContratos',
                 'sessoes': 'loadSessoes',
+                'controle-horas': 'loadControleHoras',
                 'comissoes': 'loadComissoes',
                 'funcionarios': 'loadFuncionariosRH',
                 'remessa-pagamento': 'loadRemessaPagamento',
@@ -1416,6 +1417,7 @@
                 <button class="submenu-button" onclick="showSection('fluxo-caixa')" data-permission="relatorios_view">📈 Fluxo de Caixa</button>
                 <button class="submenu-button" onclick="showSection('analise-detalhada')" data-permission="relatorios_view">📊 Análise Detalhada</button>
                 <button class="submenu-button" onclick="showSection('comparativo-periodos')" data-permission="relatorios_view">📉 Comparativo de Períodos</button>
+                <button class="submenu-button" onclick="showSection('controle-horas')" data-permission="contratos_view">⏱️ Controle de Horas</button>
                 <button class="submenu-button" onclick="showSection('inadimplencia')" data-permission="relatorios_view">⚠️ Inadimplência <span id="badge-inadimplencia" class="badge-inadimplencia">0</span></button>
                 <button class="submenu-button" onclick="showSection('fiscal')" data-permission="relatorios_view">📑 NF-e e CT-e - Documentos Fiscais</button>
                 <button class="submenu-button" onclick="showSection('nfse')" data-permission="nfse_view">📄 NFS-e - Notas Fiscais</button>
@@ -4472,6 +4474,39 @@
             </div>
 
             <!-- ================================================================= -->
+            <!-- RELATÓRIOS - CONTROLE DE HORAS -->
+            <!-- ================================================================= -->
+            <div id="controle-horas-section" class="content-card hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">⏱️ Controle de Horas</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" onclick="exportarControleHorasPDF()" style="padding: 8px 16px; font-size: 13px; background: #e74c3c;">📄 Exportar PDF</button>
+                        <button class="btn btn-primary" onclick="exportarControleHorasExcel()" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📊 Exportar Excel</button>
+                    </div>
+                </div>
+
+                <!-- Resumo Geral -->
+                <div id="controle-horas-resumo" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                    <!-- Cards serão inseridos aqui via JavaScript -->
+                </div>
+
+                <!-- Tabela de Contratos -->
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="margin: 0 0 15px 0; font-size: 16px; color: #2c3e50;">📋 Detalhamento por Contrato</h3>
+                    <div id="controle-horas-contratos" style="overflow-x: auto;">
+                        <!-- Tabela será inserida aqui via JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Estado vazio -->
+                <div id="controle-horas-empty" style="text-align: center; padding: 60px 20px; color: #7f8c8d; display: none;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">⏱️</div>
+                    <h3 style="color: #34495e; margin-bottom: 10px;">Nenhum Contrato com Controle de Horas</h3>
+                    <p style="margin: 0; font-size: 14px;">Configure contratos com controle de horas ativo para visualizar este relatório.</p>
+                </div>
+            </div>
+
+            <!-- ================================================================= -->
             <!-- CONTABILIDADE - PLANO DE CONTAS -->
             <!-- ================================================================= -->
             <div id="plano-contas-section" class="content-card hidden">
@@ -5411,6 +5446,7 @@
                     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                         <button class="btn btn-primary" onclick="openModalContrato()">➕ Novo Contrato</button>
                         <button class="btn" onclick="exportarContratosPDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
+                        <button class="btn" onclick="exportarContratosExcel()" style="background: #27ae60; color: white;">📊 Exportar Excel</button>
                     </div>
                     <div class="table-scroll-container">
                         <table id="table-contratos">
@@ -5440,6 +5476,7 @@
                 <div id="tab-content-sessoes" style="display: none;">
                     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                         <button class="btn btn-primary" onclick="openModalSessao()">➕ Nova Sessão</button>
+                        <button class="btn" onclick="exportarSessoesExcel()" style="background: #27ae60; color: white;">📊 Exportar Excel</button>
                         <button class="btn" onclick="exportarSessoesPDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
                     </div>
                     <div class="table-scroll-container">

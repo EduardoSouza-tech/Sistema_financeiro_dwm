@@ -7818,7 +7818,7 @@ def atualizar_cpf_funcionario(funcionario_id: int, novo_cpf: str, empresa_id: in
               AND ativo = TRUE
         """, (novo_cpf, funcionario_id, empresa_id))
         
-        # Verificar se realmente atualizou alguma linha
+        #Verificar se realmente atualizou alguma linha
         rows_affected = cursor.rowcount
         conn.commit()
         
@@ -7841,3 +7841,182 @@ def atualizar_cpf_funcionario(funcionario_id: int, novo_cpf: str, empresa_id: in
             conn.close()
 
 
+# ============================================================================
+# RELATÓRIO DE CONTROLE DE HORAS
+# ============================================================================
+
+def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
+    """
+    Gera relatório completo de controle de horas da empresa
+    
+    Retorna:
+        - Resumo geral (total de horas, contratos ativos, etc)
+        - Detalhamento por contrato (horas totais, utilizadas, restantes, extras)
+        - Sessões associadas a cada contrato
+        
+    Args:
+        empresa_id: ID da empresa
+        
+    Returns:
+        Dict com estrutura:
+        {
+            'resumo': {...},
+            'contratos': [{...sessoes: [...]}, ...]
+        }
+    """
+    import json
+    
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        
+        # 1. RESUMO GERAL
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_contratos,
+                COUNT(*) FILTER (WHERE status != 'cancelado' AND status != 'encerrado') as contratos_ativos,
+                COUNT(*) FILTER (WHERE controle_horas_ativo = true) as contratos_com_controle_horas,
+                COALESCE(SUM(horas_totais), 0) as total_horas_contratadas,
+                COALESCE(SUM(horas_utilizadas), 0) as total_horas_utilizadas,
+                COALESCE(SUM(horas_extras), 0) as total_horas_extras
+            FROM contratos
+            WHERE empresa_id = %s
+        """, (empresa_id,))
+        
+        resumo_row = cursor.fetchone()
+        
+        total_contratos = resumo_row[0] or 0
+        contratos_ativos = resumo_row[1] or 0
+        contratos_com_controle = resumo_row[2] or 0
+        total_horas_contratadas = float(resumo_row[3] or 0)
+        total_horas_utilizadas = float(resumo_row[4] or 0)
+        total_horas_extras = float(resumo_row[5] or 0)
+        total_horas_restantes = total_horas_contratadas - total_horas_utilizadas
+        
+        # Contar total de sessões
+        cursor.execute("""
+            SELECT COUNT(*) FROM sessoes WHERE empresa_id = %s
+        """, (empresa_id,))
+        total_sessoes = cursor.fetchone()[0] or 0
+        
+        resumo = {
+            'total_contratos': total_contratos,
+            'contratos_ativos': contratos_ativos,
+            'contratos_com_controle_horas': contratos_com_controle,
+            'total_sessoes': total_sessoes,
+            'total_horas_contratadas': total_horas_contratadas,
+            'total_horas_utilizadas': total_horas_utilizadas,
+            'total_horas_restantes': total_horas_restantes,
+            'total_horas_extras': total_horas_extras
+        }
+        
+        # 2. DETALHAMENTO POR CONTRATO
+        cursor.execute("""
+            SELECT 
+                c.id,
+                c.numero,
+                c.descricao,
+                c.valor,
+                c.data_inicio,
+                c.data_fim,
+                c.status,
+                c.observacoes,
+                c.horas_totais,
+                c.horas_utilizadas,
+                c.horas_extras,
+                c.controle_horas_ativo,
+                cl.nome as cliente_nome,
+                cl.id as cliente_id
+            FROM contratos c
+            LEFT JOIN clientes cl ON c.cliente_id = cl.id
+            WHERE c.empresa_id = %s
+              AND c.controle_horas_ativo = true
+            ORDER BY c.numero
+        """, (empresa_id,))
+        
+        contratos_rows = cursor.fetchall()
+        contratos = []
+        
+        for row in contratos_rows:
+            # Parse observacoes JSON
+            obs_text = row[7]
+            try:
+                obs_json = json.loads(obs_text) if obs_text else {}
+            except:
+                obs_json = {}
+            
+            horas_totais = float(row[8] or 0)
+            horas_utilizadas = float(row[9] or 0)
+            horas_extras = float(row[10] or 0)
+            horas_restantes = horas_totais - horas_utilizadas
+            
+            # Calcular percentual utilizado
+            percentual_utilizado = (horas_utilizadas / horas_totais * 100) if horas_totais > 0 else 0
+            
+            contrato_id = row[0]
+            
+            # Buscar sessões deste contrato
+            cursor.execute("""
+                SELECT 
+                    s.id,
+                    s.data,
+                    s.descricao,
+                    s.status,
+                    s.horas_trabalhadas,
+                    s.dados_json,
+                    cl.nome as cliente_nome
+                FROM sessoes s
+                LEFT JOIN clientes cl ON s.cliente_id = cl.id
+                WHERE s.contrato_id = %s
+                  AND s.empresa_id = %s
+                ORDER BY s.data DESC
+            """, (contrato_id, empresa_id))
+            
+            sessoes_rows = cursor.fetchall()
+            sessoes = []
+            
+            for sessao_row in sessoes_rows:
+                # Parse dados_json
+                dados_json_text = sessao_row[5]
+                try:
+                    dados_json = json.loads(dados_json_text) if dados_json_text else {}
+                except:
+                    dados_json = {}
+                
+                sessao = {
+                    'id': sessao_row[0],
+                    'data': sessao_row[1].isoformat() if sessao_row[1] else None,
+                    'descricao': sessao_row[2],
+                    'status': sessao_row[3],
+                    'horas_trabalhadas': float(sessao_row[4] or 0),
+                    'horario': dados_json.get('horario'),
+                    'cliente_nome': sessao_row[6]
+                }
+                sessoes.append(sessao)
+            
+            contrato = {
+                'id': contrato_id,
+                'numero': row[1],
+                'descricao': row[2],
+                'valor_contrato': float(row[3] or 0),
+                'data_vigencia_inicio': row[4].isoformat() if row[4] else None,
+                'data_vigencia_fim': row[5].isoformat() if row[5] else None,
+                'status_pagamento': row[6],
+                'observacoes_json': obs_json,
+                'horas_totais': horas_totais,
+                'horas_utilizadas': horas_utilizadas,
+                'horas_extras': horas_extras,
+                'horas_restantes': horas_restantes,
+                'percentual_utilizado': percentual_utilizado,
+                'controle_horas_ativo': row[11],
+                'cliente_nome': row[12],
+                'cliente_id': row[13],
+                'sessoes': sessoes,
+                'total_sessoes': len(sessoes)
+            }
+            
+            contratos.append(contrato)
+        
+        return {
+            'resumo': resumo,
+            'contratos': contratos
+        }

@@ -42,3 +42,35 @@ GOOGLE_SCOPES = [
     'https://www.googleapis.com/auth/calendar.events',
     'https://www.googleapis.com/auth/calendar.readonly'
 ]
+# =========================================
+# EMAIL/SMTP CONFIGURATION
+# =========================================
+# Configurações de e-mail para notificações
+EMAIL_NOTIFICATIONS_ENABLED = os.getenv('EMAIL_NOTIFICATIONS_ENABLED', 'False').lower() == 'true'
+
+# Configurações SMTP (Gmail, Outlook, etc.)
+SMTP_HOST = os.getenv('SMTP_HOST', 'smtp.gmail.com')  # Gmail por padrão
+SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
+SMTP_USE_TLS = os.getenv('SMTP_USE_TLS', 'True').lower() == 'true'
+SMTP_USER = os.getenv('SMTP_USER', '')  # Seu e-mail
+SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')  # Senha de app (Gmail) ou senha normal
+SMTP_FROM_EMAIL = os.getenv('SMTP_FROM_EMAIL', SMTP_USER)
+SMTP_FROM_NAME = os.getenv('SMTP_FROM_NAME', 'Sistema Financeiro DWM')
+
+# Exemplos de configuração para diferentes provedores:
+# Gmail:
+#   SMTP_HOST = 'smtp.gmail.com'
+#   SMTP_PORT = 587
+#   SMTP_USE_TLS = True
+#   SMTP_PASSWORD = 'senha de app gerada em https://myaccount.google.com/apppasswords'
+#
+# Outlook/Hotmail:
+#   SMTP_HOST = 'smtp-mail.outlook.com'
+#   SMTP_PORT = 587
+#   SMTP_USE_TLS = True
+#
+# SendGrid:
+#   SMTP_HOST = 'smtp.sendgrid.net'
+#   SMTP_PORT = 587
+#   SMTP_USER = 'apikey'
+#   SMTP_PASSWORD = 'sua_api_key'

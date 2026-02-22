@@ -264,3 +264,124 @@ def google_calendar_status():
     except Exception as e:
         print(f"❌ Erro ao verificar status: {e}")
         return jsonify({'error': str(e)}), 500
+@agenda_bp.route('/notifications/test', methods=['POST'])
+def test_notifications():
+    """Testar envio de notificações (endpoint manual)"""
+    try:
+        empresa_id = session.get('empresa_id', 1)
+        
+        # Importar serviço de notificações
+        import notification_service
+        
+        # Executar verificação manual
+        notification_service.send_notification_batch(empresa_id)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Notificações de teste enviadas. Verifique sua caixa de entrada.'
+        })
+    except Exception as e:
+        print(f"❌ Erro ao testar notificações: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@agenda_bp.route('/notifications/settings', methods=['GET', 'POST'])
+def notification_settings():
+    """Gerenciar configurações de notificações (SMTP)"""
+    if request.method == 'GET':
+        try:
+            settings = load_email_settings()
+            # Não expor senha
+            safe_settings = {
+                'smtp_enabled': settings.get('smtp_enabled', False),
+                'smtp_host': settings.get('smtp_host', ''),
+                'smtp_port': settings.get('smtp_port', 587),
+                'smtp_user': settings.get('smtp_user', ''),
+                'smtp_from_email': settings.get('smtp_from_email', ''),
+                'smtp_from_name': settings.get('smtp_from_name', 'Sistema Financeiro DWM'),
+                'notification_emails': settings.get('notification_emails', [])
+            }
+            return jsonify(safe_settings)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    else:  # POST
+        try:
+            data = request.json
+            settings = load_email_settings()
+            
+            # Atualizar configurações SMTP
+            settings['smtp_enabled'] = data.get('smtp_enabled', False)
+            settings['smtp_host'] = data.get('smtp_host', '')
+            settings['smtp_port'] = data.get('smtp_port', 587)
+            settings['smtp_user'] = data.get('smtp_user', '')
+            settings['smtp_from_email'] = data.get('smtp_from_email', '')
+            settings['smtp_from_name'] = data.get('smtp_from_name', 'Sistema Financeiro DWM')
+            
+            # Atualizar senha somente se fornecida
+            if data.get('smtp_password'):
+                settings['smtp_password'] = data.get('smtp_password')
+            
+            save_email_settings(settings)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Configurações de notificações salvas'
+            })
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+@agenda_bp.route('/scheduler/status', methods=['GET'])
+def scheduler_status():
+    """Verificar status do scheduler de notificações"""
+    try:
+        import notification_scheduler
+        
+        status = notification_scheduler.get_scheduler_status()
+        return jsonify(status)
+    except Exception as e:
+        print(f"❌ Erro ao verificar scheduler: {e}")
+        return jsonify({'error': str(e), 'running': False}), 500
+
+@agenda_bp.route('/scheduler/start', methods=['POST'])
+def scheduler_start():
+    """Iniciar scheduler de notificações"""
+    try:
+        import notification_scheduler
+        
+        success = notification_scheduler.start_scheduler()
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Scheduler iniciado com sucesso'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Scheduler já está rodando'
+            })
+    except Exception as e:
+        print(f"❌ Erro ao iniciar scheduler: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@agenda_bp.route('/scheduler/stop', methods=['POST'])
+def scheduler_stop():
+    """Parar scheduler de notificações"""
+    try:
+        import notification_scheduler
+        
+        success = notification_scheduler.stop_scheduler()
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Scheduler parado'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Scheduler não está rodando'
+            })
+    except Exception as e:
+        print(f"❌ Erro ao parar scheduler: {e}")
+        return jsonify({'error': str(e)}), 500

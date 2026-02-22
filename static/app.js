@@ -2690,6 +2690,183 @@ async function loadInadimplencia() {
     }
 }
 
+// === CONTROLE DE HORAS ===
+async function loadControleHoras() {
+    try {
+        console.log('⏱️ Carregando relatório de controle de horas...');
+        
+        const response = await fetch(`${API_URL}/relatorios/controle-horas`);
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Erro ao carregar relatório');
+        }
+        
+        const dados = result.dados;
+        const resumo = dados.resumo;
+        const contratos = dados.contratos;
+        
+        // Renderizar resumo em cards
+        const resumoContainer = document.getElementById('controle-horas-resumo');
+        resumoContainer.innerHTML = `
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">Total de Contratos</div>
+                <div style="font-size: 28px; font-weight: bold;">${resumo.total_contratos}</div>
+                <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">${resumo.contratos_ativos} ativos</div>
+            </div>
+            <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 10px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">Com Controle de Horas</div>
+                <div style="font-size: 28px; font-weight: bold;">${resumo.contratos_com_controle_horas}</div>
+                <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">${resumo.total_sessoes} sessões</div>
+            </div>
+            <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 10px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">Horas Contratadas</div>
+                <div style="font-size: 28px; font-weight: bold;">${parseFloat(resumo.total_horas_contratadas).toFixed(1)}h</div>
+                <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">Total disponível</div>
+            </div>
+            <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); padding: 20px; border-radius: 10px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">Horas Utilizadas</div>
+                <div style="font-size: 28px; font-weight: bold;">${parseFloat(resumo.total_horas_utilizadas).toFixed(1)}h</div>
+                <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">${(resumo.total_horas_contratadas > 0 ? (resumo.total_horas_utilizadas / resumo.total_horas_contratadas * 100) : 0).toFixed(1)}% usado</div>
+            </div>
+            <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); padding: 20px; border-radius: 10px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">Horas Restantes</div>
+                <div style="font-size: 28px; font-weight: bold;">${parseFloat(resumo.total_horas_restantes).toFixed(1)}h</div>
+                <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">Disponível</div>
+            </div>
+            <div style="background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%); padding: 20px; border-radius: 10px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">Horas Extras</div>
+                <div style="font-size: 28px; font-weight: bold;">${parseFloat(resumo.total_horas_extras).toFixed(1)}h</div>
+                <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">Acima do contratado</div>
+            </div>
+        `;
+        
+        // Renderizar tabela de contratos
+        const contratosContainer = document.getElementById('controle-horas-contratos');
+        const emptyContainer = document.getElementById('controle-horas-empty');
+        
+        if (contratos.length === 0) {
+            contratosContainer.style.display = 'none';
+            emptyContainer.style.display = 'block';
+            return;
+        }
+        
+        contratosContainer.style.display = 'block';
+        emptyContainer.style.display = 'none';
+        
+        let tabelaHTML = `
+            <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden;">
+                <thead>
+                    <tr style="background: #34495e; color: white;">
+                        <th style="padding: 12px; text-align: left; font-size: 13px;">Nº Contrato</th>
+                        <th style="padding: 12px; text-align: left; font-size: 13px;">Cliente</th>
+                        <th style="padding: 12px; text-align: center; font-size: 13px;">H. Totais</th>
+                        <th style="padding: 12px; text-align: center; font-size: 13px;">H. Utilizadas</th>
+                        <th style="padding: 12px; text-align: center; font-size: 13px;">H. Restantes</th>
+                        <th style="padding: 12px; text-align: center; font-size: 13px;">H. Extras</th>
+                        <th style="padding: 12px; text-align: center; font-size: 13px;">% Utilizado</th>
+                        <th style="padding: 12px; text-align: center; font-size: 13px;">Status</th>
+                        <th style="padding: 12px; text-align: center; font-size: 13px;">Sessões</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        contratos.forEach((contrato, index) => {
+            const bgColor = index % 2 === 0 ? '#f8f9fa' : '#ffffff';
+            const percentual = contrato.percentual_utilizado || 0;
+            
+            let statusIcon = '✅';
+            let statusText = 'OK';
+            let statusColor = '#27ae60';
+            
+            if (contrato.horas_extras > 0) {
+                statusIcon = '⚠️';
+                statusText = 'Extras';
+                statusColor = '#e74c3c';
+            } else if (contrato.horas_restantes <= 5) {
+                statusIcon = '⚡';
+                statusText = 'Baixo';
+                statusColor = '#f39c12';
+            }
+            
+            tabelaHTML += `
+                <tr style="background: ${bgColor}; border-bottom: 1px solid #ecf0f1;">
+                    <td style="padding: 12px; font-size: 13px; font-weight: bold;">${contrato.numero}</td>
+                    <td style="padding: 12px; font-size: 13px;">${contrato.cliente_nome}</td>
+                    <td style="padding: 12px; text-align: center; font-size: 13px;">${parseFloat(contrato.horas_totais).toFixed(1)}h</td>
+                    <td style="padding: 12px; text-align: center; font-size: 13px;">${parseFloat(contrato.horas_utilizadas).toFixed(1)}h</td>
+                    <td style="padding: 12px; text-align: center; font-size: 13px; font-weight: bold; color: ${contrato.horas_restantes < 0 ? '#e74c3c' : '#27ae60'};">
+                        ${parseFloat(contrato.horas_restantes).toFixed(1)}h
+                    </td>
+                    <td style="padding: 12px; text-align: center; font-size: 13px; ${contrato.horas_extras > 0 ? 'color: #e74c3c; font-weight: bold;' : ''}">
+                        ${parseFloat(contrato.horas_extras).toFixed(1)}h
+                    </td>
+                    <td style="padding: 12px; text-align: center; font-size: 13px;">
+                        <div style="background: #ecf0f1; border-radius: 10px; height: 20px; overflow: hidden; position: relative;">
+                            <div style="background: ${percentual > 90 ? '#e74c3c' : percentual > 75 ? '#f39c12' : '#27ae60'}; height: 100%; width: ${Math.min(percentual, 100)}%;"></div>
+                            <span style="position: absolute; top: 0; left: 0; right: 0; text-align: center; line-height: 20px; font-size: 11px; font-weight: bold; color: #2c3e50;">
+                                ${percentual.toFixed(1)}%
+                            </span>
+                        </div>
+                    </td>
+                    <td style="padding: 12px; text-align: center; font-size: 13px;">
+                        <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: bold;">
+                            ${statusIcon} ${statusText}
+                        </span>
+                    </td>
+                    <td style="padding: 12px; text-align: center; font-size: 13px;">${contrato.total_sessoes}</td>
+                </tr>
+            `;
+        });
+        
+        tabelaHTML += `
+                </tbody>
+            </table>
+        `;
+        
+        contratosContainer.innerHTML = tabelaHTML;
+        
+        console.log('✅ Relatório de controle de horas carregado com sucesso');
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar controle de horas:', error);
+        showToast('Erro ao carregar relatório de controle de horas', 'error');
+    }
+}
+
+/**
+ * Exporta relatório de controle de horas para PDF
+ */
+function exportarControleHorasPDF() {
+    console.log('📄 Exportando controle de horas para PDF');
+    window.location.href = '/api/relatorios/controle-horas/exportar/pdf';
+}
+
+/**
+ * Exporta relatório de controle de horas para Excel
+ */
+function exportarControleHorasExcel() {
+    console.log('📊 Exportando controle de horas para Excel');
+    window.location.href = '/api/relatorios/controle-horas/exportar/excel';
+}
+
+/**
+ * Exporta relatório de inadimplência para PDF
+ */
+function exportarInadimplenciaPDF() {
+    console.log('📄 Exportando inadimplência para PDF');
+    showToast('Exportação PDF em desenvolvimento', 'info');
+}
+
+/**
+ * Exporta relatório de inadimplência para Excel
+ */
+function exportarInadimplenciaExcel() {
+    console.log('📊 Exportando inadimplência para Excel');
+    showToast('Exportação Excel em desenvolvimento', 'info');
+}
+
 // === FLUXO PROJETADO ===
 async function loadFluxoProjetado() {
     try {
@@ -5219,6 +5396,7 @@ window.loadContasPagar = loadContasPagar;
 window.loadFluxoCaixa = loadFluxoCaixa;
 window.loadAnaliseCategorias = loadAnaliseCategorias;
 window.loadInadimplencia = loadInadimplencia;
+window.loadControleHoras = loadControleHoras;
 window.loadFluxoProjetado = loadFluxoProjetado;
 window.loadAnaliseContas = loadAnaliseContas;
 window.loadFornecedores = loadFornecedores;
@@ -5231,6 +5409,10 @@ window.loadComissoes = loadComissoes;
 // Funções de Exportação
 window.exportarFluxoExcel = exportarFluxoExcel;
 window.exportarContratosPDF = exportarContratosPDF;
+window.exportarControleHorasPDF = exportarControleHorasPDF;
+window.exportarControleHorasExcel = exportarControleHorasExcel;
+window.exportarInadimplenciaPDF = exportarInadimplenciaPDF;
+window.exportarInadimplenciaExcel = exportarInadimplenciaExcel;
 
 // Funções de Interface
 window.showPage = showPage;

@@ -1595,6 +1595,46 @@ window.mostrarSelecaoContrato = mostrarSelecaoContrato;
 window.gerarRelatorioFornecedores = gerarRelatorioFornecedores;
 window.verDetalhesFornecedor = verDetalhesFornecedor;
 
+// ===== EXPORTAÇÕES =====
+
+/**
+ * Exporta contratos para PDF
+ */
+function exportarContratosPDF() {
+    console.log('📄 Exportando contratos para PDF');
+    window.location.href = '/api/contratos/exportar/pdf';
+}
+
+/**
+ * Exporta contratos para Excel
+ */
+function exportarContratosExcel() {
+    console.log('📊 Exportando contratos para Excel');
+    window.location.href = '/api/contratos/exportar/excel';
+}
+
+/**
+ * Exporta sessões para PDF
+ */
+function exportarSessoesPDF() {
+    console.log('📄 Exportando sessões para PDF');
+    window.location.href = '/api/sessoes/exportar/pdf';
+}
+
+/**
+ * Exporta sessões para Excel
+ */
+function exportarSessoesExcel() {
+    console.log('📊 Exportando sessões para Excel');
+    window.location.href = '/api/sessoes/exportar/excel';
+}
+
+// Exportar funções de exportação
+window.exportarContratosPDF = exportarContratosPDF;
+window.exportarContratosExcel = exportarContratosExcel;
+window.exportarSessoesPDF = exportarSessoesPDF;
+window.exportarSessoesExcel = exportarSessoesExcel;
+
 console.log('✅ Funções de Contratos e Sessões exportadas para window');
 console.log('📋 Funções disponíveis:', {
     novoContrato: typeof window.novoContrato,

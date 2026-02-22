@@ -438,16 +438,214 @@ function openEmailSettings() {
     modal.id = 'email-settings-modal';
     modal.className = 'modal-overlay';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
-                <h3>⚙️ Configurações de E-mail e Notificações</h3>
+        <div class="modal-content" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h3>⚙️ Configurações de Notificações</h3>
                 <button class="modal-close" onclick="closeModal('email-settings-modal')">✕</button>
             </div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label>📧 E-mails para Notificações</label>
-                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Adicione os e-mails que receberão notificações sobre sessões</p>
+                <!-- Seção 1: E-mails de Notificação -->
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 10px 0; color: #2c3e50;">📧 E-mails para Notificações</h4>
+                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                        Estes e-mails receberão notificações sobre sessões e contratos
+                    </p>
                     <div id="email-list" style="margin-bottom: 10px;"></div>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="email" id="new-email-input" class="form-control" placeholder="email@exemplo.com" style="flex: 1;">
+                        <button class="btn btn-primary" onclick="addNotificationEmail()">➕ Adicionar</button>
+                    </div>
+                </div>
+                
+                <!-- Seção 2: Configurações SMTP -->
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 10px 0; color: #2c3e50;">📮 Servidor SMTP (E-mail)</h4>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="smtp-enabled" 
+                                   ${emailSettings.smtp_enabled ? 'checked' : ''}
+                                   onchange="toggleSmtpConfig(this.checked)">
+                            Habilitar envio de e-mails
+                        </label>
+                    </div>
+                    
+                    <div id="smtp-config" style="display: ${emailSettings.smtp_enabled ? 'block' : 'none'}; margin-top: 15px;">
+                        <div class="form-group">
+                            <label>Servidor SMTP</label>
+                            <input type="text" id="smtp-host" class="form-control" 
+                                   value="${emailSettings.smtp_host || 'smtp.gmail.com'}"
+                                   placeholder="smtp.gmail.com">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group">
+                                <label>Porta</label>
+                                <input type="number" id="smtp-port" class="form-control" 
+                                       value="${emailSettings.smtp_port || 587}"
+                                       placeholder="587">
+                            </div>
+                            <div class="form-group">
+                                <label>Nome do Remetente</label>
+                                <input type="text" id="smtp-from-name" class="form-control" 
+                                       value="${emailSettings.smtp_from_name || 'Sistema Financeiro DWM'}"
+                                       placeholder="Seu Nome">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>E-mail do Remetente</label>
+                            <input type="email" id="smtp-from-email" class="form-control" 
+                                   value="${emailSettings.smtp_from_email || ''}"
+                                   placeholder="seu-email@gmail.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Usuário SMTP</label>
+                            <input type="text" id="smtp-user" class="form-control" 
+                                   value="${emailSettings.smtp_user || ''}"
+                                   placeholder="seu-email@gmail.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Senha / App Password</label>
+                            <input type="password" id="smtp-password" class="form-control" 
+                                   placeholder="••••••••••••••••">
+                            <p style="font-size: 11px; color: #666; margin-top: 5px;">
+                                💡 Gmail: Use "Senha de App" gerada em 
+                                <a href="https://myaccount.google.com/apppasswords" target="_blank">myaccount.google.com/apppasswords</a>
+                            </p>
+                        </div>
+                        <button class="btn btn-sm" style="background: #3498db; color: white;" onclick="testSmtpConnection()">
+                            🧪 Testar Conexão SMTP
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Seção 3: Google Calendar -->
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0; color: #2c3e50;">🗓️ Google Calendar</h4>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="google-calendar-enabled" 
+                                   ${emailSettings.google_calendar_enabled ? 'checked' : ''}
+                                   onchange="toggleGoogleCalendar(this.checked)">
+                            Sincronizar com Google Calendar
+                        </label>
+                    </div>
+                    
+                    <div id="google-calendar-config" style="display: ${emailSettings.google_calendar_enabled ? 'block' : 'none'}; margin-top: 15px;">
+                        <div class="form-group">
+                            <label>ID do Calendário</label>
+                            <input type="text" id="google-calendar-id" class="form-control" 
+                                   value="${emailSettings.google_calendar_id || ''}"
+                                   placeholder="seu-email@gmail.com">
+                            <p style="font-size: 11px; color: #666; margin-top: 5px;">
+                                Encontre em: Google Calendar → Configurações → ID do calendário
+                            </p>
+                        </div>
+                        <button class="btn" style="background: #DB4437; color: white;" onclick="authorizeGoogleCalendar()">
+                            🔐 Autorizar Google Calendar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('email-settings-modal')">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveAllNotificationSettings()">💾 Salvar Todas Configurações</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    renderEmailList();
+}
+
+/**
+ * Alternar configuração SMTP
+ */
+function toggleSmtpConfig(enabled) {
+    const configEl = document.getElementById('smtp-config');
+    if (configEl) {
+        configEl.style.display = enabled ? 'block' : 'none';
+    }
+}
+
+/**
+ * Testar conexão SMTP
+ */
+async function testSmtpConnection() {
+    try {
+        showNotification('🧪 Testando conexão SMTP...', 'info');
+        
+        const response = await fetch('/api/notifications/test', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': getCsrfToken()
+            }
+        });
+        
+        if (response.ok) {
+            showNotification('✅ E-mail de teste enviado! Verifique sua caixa de entrada.', 'success');
+        } else {
+            throw new Error('Falha no teste');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao testar SMTP:', error);
+        showNotification('❌ Erro ao testar conexão SMTP. Verifique as configurações.', 'error');
+    }
+}
+
+/**
+ * Salvar todas as configurações de notificações
+ */
+async function saveAllNotificationSettings() {
+    try {
+        // Configurações de e-mail
+        emailSettings.notification_emails = emailSettings.notification_emails || [];
+        emailSettings.google_calendar_id = document.getElementById('google-calendar-id')?.value || '';
+        emailSettings.google_calendar_enabled = document.getElementById('google-calendar-enabled')?.checked || false;
+        
+        // Configurações SMTP
+        emailSettings.smtp_enabled = document.getElementById('smtp-enabled')?.checked || false;
+        emailSettings.smtp_host = document.getElementById('smtp-host')?.value || '';
+        emailSettings.smtp_port = parseInt(document.getElementById('smtp-port')?.value) || 587;
+        emailSettings.smtp_user = document.getElementById('smtp-user')?.value || '';
+        emailSettings.smtp_from_email = document.getElementById('smtp-from-email')?.value || '';
+        emailSettings.smtp_from_name = document.getElementById('smtp-from-name')?.value || '';
+        
+        const smtpPassword = document.getElementById('smtp-password')?.value;
+        if (smtpPassword) {
+            emailSettings.smtp_password = smtpPassword;
+        }
+        
+        // Salvar configurações de e-mail
+        const response1 = await fetch('/api/email-settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': getCsrfToken()
+            },
+            body: JSON.stringify(emailSettings)
+        });
+        
+        // Salvar configurações de notificações (SMTP)
+        const response2 = await fetch('/api/notifications/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': getCsrfToken()
+            },
+            body: JSON.stringify(emailSettings)
+        });
+        
+        if (response1.ok && response2.ok) {
+            showNotification('✅ Todas as configurações salvas com sucesso!', 'success');
+            closeModal('email-settings-modal');
+        } else {
+            throw new Error('Falha ao salvar');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao salvar configurações:', error);
+        showNotification('❌ Erro ao salvar configurações', 'error');
+    }
+}
                     <div style="display: flex; gap: 10px;">
                         <input type="email" id="new-email-input" class="form-control" placeholder="email@exemplo.com">
                         <button class="btn btn-primary" onclick="addNotificationEmail()">➕ Adicionar</button>
@@ -659,7 +857,9 @@ function getCsrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }
 
-console.log('✅ Módulo agenda_calendar.js carregado');// Expor funções globalmente
+console.log('✅ Módulo agenda_calendar.js carregado');
+
+// Expor funções globalmente
 window.initAgendaCalendar = initAgendaCalendar;
 window.toggleCalendarView = toggleCalendarView;
 window.syncGoogleCalendar = syncGoogleCalendar;
@@ -667,7 +867,10 @@ window.openEmailSettings = openEmailSettings;
 window.addNotificationEmail = addNotificationEmail;
 window.removeNotificationEmail = removeNotificationEmail;
 window.toggleGoogleCalendar = toggleGoogleCalendar;
+window.toggleSmtpConfig = toggleSmtpConfig;
 window.authorizeGoogleCalendar = authorizeGoogleCalendar;
 window.saveEmailSettings = saveEmailSettings;
+window.saveAllNotificationSettings = saveAllNotificationSettings;
+window.testSmtpConnection = testSmtpConnection;
 
-console.log('✅ agenda_calendar.js carregado');
+console.log('✅ agenda_calendar.js carregado com funções de notificação');

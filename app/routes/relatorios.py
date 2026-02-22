@@ -1058,3 +1058,118 @@ def relatorio_inadimplencia():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# RELATÓRIO DE CONTROLE DE HORAS
+# ============================================================================
+
+@relatorios_bp.route('/controle-horas', methods=['GET'])
+@require_permission('contratos_view')
+def relatorio_controle_horas():
+    """
+    Relatório de controle de horas dos contratos
+    
+    Retorna resumo geral e detalhamento por contrato com sessões
+    
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    try:
+        from flask import session
+        
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não selecionada'}), 403
+        
+        # Gerar relatório
+        dados = db.gerar_relatorio_controle_horas(empresa_id=empresa_id)
+        
+        return jsonify({
+            'success': True,
+            'dados': dados
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Erro ao gerar relatório de controle de horas: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@relatorios_bp.route('/controle-horas/exportar/pdf', methods=['GET'])
+@require_permission('contratos_view')
+def exportar_controle_horas_pdf():
+    """Exporta relatório de controle de horas para PDF"""
+    try:
+        from flask import send_file, session
+        from pdf_export import gerar_relatorio_controle_horas_pdf
+        from datetime import datetime
+        
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não selecionada'}), 403
+        
+        # Buscar dados da empresa
+        empresa = db.buscar_empresa(empresa_id)
+        nome_empresa = empresa.get('nome', 'Empresa') if empresa else 'Empresa'
+        
+        # Gerar dados do relatório
+        dados = db.gerar_relatorio_controle_horas(empresa_id=empresa_id)
+        
+        # Gerar PDF
+        buffer = gerar_relatorio_controle_horas_pdf(dados, nome_empresa)
+        
+        filename = f"controle_horas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        print(f"Erro ao exportar PDF: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@relatorios_bp.route('/controle-horas/exportar/excel', methods=['GET'])
+@require_permission('contratos_view')
+def exportar_controle_horas_excel():
+    """Exporta relatório de controle de horas para Excel"""
+    try:
+        from flask import send_file, session
+        from pdf_export import gerar_relatorio_controle_horas_excel
+        from datetime import datetime
+        
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não selecionada'}), 403
+        
+        # Buscar dados da empresa
+        empresa = db.buscar_empresa(empresa_id)
+        nome_empresa = empresa.get('nome', 'Empresa') if empresa else 'Empresa'
+        
+        # Gerar dados do relatório
+        dados = db.gerar_relatorio_controle_horas(empresa_id=empresa_id)
+        
+        # Gerar Excel
+        buffer = gerar_relatorio_controle_horas_excel(dados, nome_empresa)
+        
+        filename = f"controle_horas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        
+        return send_file(
+            buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        print(f"Erro ao exportar Excel: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500

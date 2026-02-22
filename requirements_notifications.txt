@@ -1,0 +1,17 @@
+# Dependências para Sistema de Notificações e Google Calendar
+
+# Google API
+google-auth==2.27.0
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
+google-api-python-client==2.116.0
+
+# Scheduler
+schedule==1.2.1
+
+# As outras dependências já devem estar instaladas:
+# Flask==2.3.3
+# psycopg2-binary==2.9.9
+# python-dotenv==1.0.0
+# reportlab==4.0.7
+# openpyxl==3.1.2

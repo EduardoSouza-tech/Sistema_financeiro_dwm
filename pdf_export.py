@@ -1416,3 +1416,839 @@ def gerar_dashboard_excel(
     buffer.seek(0)
     
     return buffer
+
+
+# ============================================================================
+# EXPORTAÇÃO DE CONTRATOS
+# ============================================================================
+
+def gerar_contratos_pdf(contratos: list, nome_empresa: str = "Empresa") -> BytesIO:
+    """
+    Gera PDF com lista de contratos
+    
+    Args:
+        contratos: Lista de contratos retornada pelo backend
+        nome_empresa: Nome da empresa para o cabeçalho
+    
+    Returns:
+        BytesIO com o PDF gerado
+    """
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=15*mm,
+        leftMargin=15*mm,
+        topMargin=15*mm,
+        bottomMargin=15*mm
+    )
+    
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Título
+    titulo_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        textColor=colors.HexColor('#2c3e50'),
+        spaceAfter=12,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    elements.append(Paragraph(nome_empresa, titulo_style))
+    elements.append(Paragraph("RELATÓRIO DE CONTRATOS", titulo_style))
+    elements.append(Paragraph(f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", 
+                             ParagraphStyle('DataStyle', parent=styles['Normal'], fontSize=8, 
+                                          textColor=colors.grey, alignment=TA_RIGHT)))
+    elements.append(Spacer(1, 10*mm))
+    
+    # Preparar dados da tabela
+    dados_tabela = [[
+        'Nº',
+        'Cliente',
+        'Tipo',
+        'Valor',
+        'Vigência',
+        'Horas',
+        'Status'
+    ]]
+    
+    for contrato in contratos:
+        # Extrair dados do observacoes JSON
+        obs = contrato.get('observacoes_json', {}) or {}
+        tipo = obs.get('tipo', 'N/A')
+        nome_contrato = obs.get('nome', contrato.get('descricao', 'N/A'))[:30]
+        
+        # Calcular saldo de horas
+        horas_totais = float(contrato.get('horas_totais', 0))
+        horas_utilizadas = float(contrato.get('horas_utilizadas', 0))
+        horas_restantes = horas_totais - horas_utilizadas
+        horas_extras = float(contrato.get('horas_extras', 0))
+        
+        # Montar string de horas
+        if contrato.get('controle_horas_ativo'):
+            horas_str = f"{horas_totais:.1f}h\n{horas_restantes:.1f}h rest."
+            if horas_extras > 0:
+                horas_str += f"\n+{horas_extras:.1f}h extra"
+        else:
+            horas_str = "N/A"
+        
+        # Vigência
+        data_inicio = contrato.get('data_vigencia_inicio', contrato.get('data_inicio', ''))
+        data_fim = contrato.get('data_vigencia_fim', contrato.get('data_fim', ''))
+        if data_inicio:
+            vigencia = f"{data_inicio[:10]}\naté\n{data_fim[:10] if data_fim else 'Indeterminado'}"
+        else:
+            vigencia = "N/A"
+        
+        dados_tabela.append([
+            contrato.get('numero', 'N/A'),
+            Paragraph(contrato.get('cliente_nome', 'N/A')[:25], styles['Normal']),
+            tipo,
+            formatar_moeda_pdf(float(contrato.get('valor_contrato', contrato.get('valor', 0)))),
+            Paragraph(vigencia, ParagraphStyle('SmallStyle', parent=styles['Normal'], fontSize=7)),
+            Paragraph(horas_str, ParagraphStyle('SmallStyle', parent=styles['Normal'], fontSize=7)),
+            contrato.get('status_pagamento', contrato.get('status', 'N/A'))[:10]
+        ])
+    
+    # Criar tabela
+    tabela = Table(dados_tabela, colWidths=[20*mm, 35*mm, 20*mm, 25*mm, 30*mm, 25*mm, 20*mm])
+    
+    estilo_tabela = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+    ])
+    
+    tabela.setStyle(estilo_tabela)
+    elements.append(tabela)
+    
+    # Estatísticas
+    elements.append(Spacer(1, 10*mm))
+    
+    total_contratos = len(contratos)
+    valor_total = sum(float(c.get('valor_contrato', c.get('valor', 0))) for c in contratos)
+    contratos_com_horas = len([c for c in contratos if c.get('controle_horas_ativo')])
+    
+    stats_data = [
+        ['📊 ESTATÍSTICAS', ''],
+        ['Total de Contratos:', str(total_contratos)],
+        ['Valor Total:', formatar_moeda_pdf(valor_total)],
+        ['Contratos com Controle de Horas:', str(contratos_com_horas)]
+    ]
+    
+    stats_table = Table(stats_data, colWidths=[60*mm, 40*mm])
+    stats_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('SPAN', (0, 0), (-1, 0)),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+        ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
+    ]))
+    
+    elements.append(stats_table)
+    
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+
+def gerar_contratos_excel(contratos: list, nome_empresa: str = "Empresa") -> BytesIO:
+    """
+    Gera Excel com lista de contratos
+    
+    Args:
+        contratos: Lista de contratos retornada pelo backend
+        nome_empresa: Nome da empresa para o cabeçalho
+    
+    Returns:
+        BytesIO com o Excel gerado
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Contratos"
+    
+    # Estilos
+    font_titulo = Font(name='Arial', size=14, bold=True, color='FFFFFF')
+    font_header = Font(name='Arial', size=10, bold=True, color='FFFFFF')
+    fill_titulo = PatternFill(start_color='2c3e50', end_color='2c3e50', fill_type='solid')
+    fill_header = PatternFill(start_color='3498db', end_color='3498db', fill_type='solid')
+    align_center = Alignment(horizontal='center', vertical='center')
+    align_right = Alignment(horizontal='right', vertical='center')
+    borda = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Título
+    ws.merge_cells('A1:K1')
+    cell = ws['A1']
+    cell.value = f"{nome_empresa} - RELATÓRIO DE CONTRATOS"
+    cell.font = font_titulo
+    cell.fill = fill_titulo
+    cell.alignment = align_center
+    
+    # Subtítulo
+    ws.merge_cells('A2:K2')
+    cell = ws['A2']
+    cell.value = f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    cell.alignment = align_center
+    
+    # Cabeçalhos
+    headers = ['Nº', 'Cliente', 'Tipo', 'Nome/Descrição', 'Valor', 'Data Início', 'Data Fim', 
+               'Horas Totais', 'Horas Utilizadas', 'Horas Restantes', 'Horas Extras', 'Status']
+    
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=4, column=col_idx)
+        cell.value = header
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = align_center
+        cell.border = borda
+    
+    # Dados
+    row = 5
+    for contrato in contratos:
+        obs = contrato.get('observacoes_json', {}) or {}
+        
+        ws.cell(row=row, column=1, value=contrato.get('numero', 'N/A')).border = borda
+        ws.cell(row=row, column=2, value=contrato.get('cliente_nome', 'N/A')).border = borda
+        ws.cell(row=row, column=3, value=obs.get('tipo', 'N/A')).border = borda
+        ws.cell(row=row, column=4, value=obs.get('nome', contrato.get('descricao', 'N/A'))).border = borda
+        
+        cell = ws.cell(row=row, column=5, value=float(contrato.get('valor_contrato', contrato.get('valor', 0))))
+        cell.number_format = 'R$ #,##0.00'
+        cell.border = borda
+        cell.alignment = align_right
+        
+        ws.cell(row=row, column=6, value=contrato.get('data_vigencia_inicio', contrato.get('data_inicio', ''))).border = borda
+        ws.cell(row=row, column=7, value=contrato.get('data_vigencia_fim', contrato.get('data_fim', ''))).border = borda
+        
+        ws.cell(row=row, column=8, value=float(contrato.get('horas_totais', 0))).border = borda
+        ws.cell(row=row, column=9, value=float(contrato.get('horas_utilizadas', 0))).border = borda
+        
+        horas_restantes = float(contrato.get('horas_totais', 0)) - float(contrato.get('horas_utilizadas', 0))
+        ws.cell(row=row, column=10, value=horas_restantes).border = borda
+        ws.cell(row=row, column=11, value=float(contrato.get('horas_extras', 0))).border = borda
+        ws.cell(row=row, column=12, value=contrato.get('status_pagamento', contrato.get('status', 'N/A'))).border = borda
+        
+        row += 1
+    
+    # Ajustar larguras
+    ws.column_dimensions['A'].width = 12
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 12
+    ws.column_dimensions['D'].width = 35
+    ws.column_dimensions['E'].width = 15
+    ws.column_dimensions['F'].width = 12
+    ws.column_dimensions['G'].width = 12
+    ws.column_dimensions['H'].width = 12
+    ws.column_dimensions['I'].width = 15
+    ws.column_dimensions['J'].width = 15
+    ws.column_dimensions['K'].width = 12
+    ws.column_dimensions['L'].width = 12
+    
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+# ============================================================================
+# EXPORTAÇÃO DE SESSÕES
+# ============================================================================
+
+def gerar_sessoes_pdf(sessoes: list, nome_empresa: str = "Empresa") -> BytesIO:
+    """
+    Gera PDF com lista de sessões
+    
+    Args:
+        sessoes: Lista de sessões retornada pelo backend
+        nome_empresa: Nome da empresa para o cabeçalho
+    
+    Returns:
+        BytesIO com o PDF gerado
+    """
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=15*mm,
+        leftMargin=15*mm,
+        topMargin=15*mm,
+        bottomMargin=15*mm
+    )
+    
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Título
+    titulo_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        textColor=colors.HexColor('#2c3e50'),
+        spaceAfter=12,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    elements.append(Paragraph(nome_empresa, titulo_style))
+    elements.append(Paragraph("RELATÓRIO DE SESSÕES", titulo_style))
+    elements.append(Paragraph(f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", 
+                             ParagraphStyle('DataStyle', parent=styles['Normal'], fontSize=8, 
+                                          textColor=colors.grey, alignment=TA_RIGHT)))
+    elements.append(Spacer(1, 10*mm))
+    
+    # Preparar dados da tabela
+    dados_tabela = [[
+        'ID',
+        'Cliente',
+        'Contrato',
+        'Data',
+        'Horas',
+        'Status',
+        'Descrição'
+    ]]
+    
+    for sessao in sessoes:
+        # Extrair horas trabalhadas
+        horas_trab = float(sessao.get('horas_trabalhadas', 0))
+        dados_json = sessao.get('dados_json', {}) or {}
+        qtd_horas = dados_json.get('quantidade_horas', 0)
+        
+        horas_str = f"{horas_trab}h" if horas_trab > 0 else (f"{qtd_horas}h" if qtd_horas else "N/A")
+        
+        # Status com emoji
+        status = sessao.get('status', 'N/A')
+        status_emoji = {
+            'rascunho': '📝',
+            'agendada': '📅',
+            'em_andamento': '🔄',
+            'finalizada': '✅',
+            'cancelada': '❌',
+            'reaberta': '🔄'
+        }.get(status, '❓')
+        
+        dados_tabela.append([
+            str(sessao.get('id', '')),
+            Paragraph(sessao.get('cliente_nome', 'N/A')[:20], styles['Normal']),
+            sessao.get('contrato_numero', 'N/A')[:10],
+            sessao.get('data', '')[:10] if sessao.get('data') else 'N/A',
+            horas_str,
+            f"{status_emoji} {status}",
+            Paragraph(sessao.get('descricao', 'N/A')[:40], 
+                     ParagraphStyle('SmallStyle', parent=styles['Normal'], fontSize=7))
+        ])
+    
+    # Criar tabela
+    tabela = Table(dados_tabela, colWidths=[12*mm, 30*mm, 20*mm, 20*mm, 15*mm, 25*mm, 50*mm])
+    
+    estilo_tabela = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+    ])
+    
+    tabela.setStyle(estilo_tabela)
+    elements.append(tabela)
+    
+    # Estatísticas
+    elements.append(Spacer(1, 10*mm))
+    
+    total_sessoes = len(sessoes)
+    sessoes_finalizadas = len([s for s in sessoes if s.get('status') == 'finalizada'])
+    total_horas = sum(float(s.get('horas_trabalhadas', 0)) for s in sessoes)
+    
+    stats_data = [
+        ['📊 ESTATÍSTICAS', ''],
+        ['Total de Sessões:', str(total_sessoes)],
+        ['Sessões Finalizadas:', str(sessoes_finalizadas)],
+        ['Total de Horas Trabalhadas:', f"{total_horas:.1f}h"]
+    ]
+    
+    stats_table = Table(stats_data, colWidths=[60*mm, 40*mm])
+    stats_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('SPAN', (0, 0), (-1, 0)),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+        ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
+    ]))
+    
+    elements.append(stats_table)
+    
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+
+def gerar_sessoes_excel(sessoes: list, nome_empresa: str = "Empresa") -> BytesIO:
+    """
+    Gera Excel com lista de sessões
+    
+    Args:
+        sessoes: Lista de sessões retornada pelo backend
+        nome_empresa: Nome da empresa para o cabeçalho
+    
+    Returns:
+        BytesIO com o Excel gerado
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sessões"
+    
+    # Estilos
+    font_titulo = Font(name='Arial', size=14, bold=True, color='FFFFFF')
+    font_header = Font(name='Arial', size=10, bold=True, color='FFFFFF')
+    fill_titulo = PatternFill(start_color='2c3e50', end_color='2c3e50', fill_type='solid')
+    fill_header = PatternFill(start_color='3498db', end_color='3498db', fill_type='solid')
+    align_center = Alignment(horizontal='center', vertical='center')
+    align_right = Alignment(horizontal='right', vertical='center')
+    borda = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Título
+    ws.merge_cells('A1:J1')
+    cell = ws['A1']
+    cell.value = f"{nome_empresa} - RELATÓRIO DE SESSÕES"
+    cell.font = font_titulo
+    cell.fill = fill_titulo
+    cell.alignment = align_center
+    
+    # Subtítulo
+    ws.merge_cells('A2:J2')
+    cell = ws['A2']
+    cell.value = f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    cell.alignment = align_center
+    
+    # Cabeçalhos
+    headers = ['ID', 'Cliente', 'Contrato Nº', 'Contrato Nome', 'Data', 'Horário', 
+               'Horas Trabalhadas', 'Status', 'Endereço', 'Descrição']
+    
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=4, column=col_idx)
+        cell.value = header
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = align_center
+        cell.border = borda
+    
+    # Dados
+    row = 5
+    for sessao in sessoes:
+        dados_json = sessao.get('dados_json', {}) or {}
+        
+        ws.cell(row=row, column=1, value=sessao.get('id', '')).border = borda
+        ws.cell(row=row, column=2, value=sessao.get('cliente_nome', 'N/A')).border = borda
+        ws.cell(row=row, column=3, value=sessao.get('contrato_numero', 'N/A')).border = borda
+        ws.cell(row=row, column=4, value=sessao.get('contrato_nome', 'N/A')).border = borda
+        ws.cell(row=row, column=5, value=sessao.get('data', '')).border = borda
+        ws.cell(row=row, column=6, value=dados_json.get('horario', 'N/A')).border = borda
+        
+        horas_trab = float(sessao.get('horas_trabalhadas', 0))
+        ws.cell(row=row, column=7, value=horas_trab).border = borda
+        ws.cell(row=row, column=7).number_format = '0.0'
+        
+        ws.cell(row=row, column=8, value=sessao.get('status', 'N/A')).border = borda
+        ws.cell(row=row, column=9, value=sessao.get('endereco', 'N/A')).border = borda
+        ws.cell(row=row, column=10, value=sessao.get('descricao', 'N/A')).border = borda
+        
+        row += 1
+    
+    # Ajustar larguras
+    ws.column_dimensions['A'].width = 8
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 12
+    ws.column_dimensions['D'].width = 30
+    ws.column_dimensions['E'].width = 12
+    ws.column_dimensions['F'].width = 10
+    ws.column_dimensions['G'].width = 15
+    ws.column_dimensions['H'].width = 15
+    ws.column_dimensions['I'].width = 30
+    ws.column_dimensions['J'].width = 40
+    
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+# ============================================================================
+# RELATÓRIO DE CONTROLE DE HORAS
+# ============================================================================
+
+def gerar_relatorio_controle_horas_pdf(dados: dict, nome_empresa: str = "Empresa") -> BytesIO:
+    """
+    Gera PDF do Relatório de Controle de Horas
+    
+    Args:
+        dados: Dicionário com dados retornados pelo backend
+        nome_empresa: Nome da empresa para o cabeçalho
+    
+    Returns:
+        BytesIO com o PDF gerado
+    """
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=15*mm,
+        leftMargin=15*mm,
+        topMargin=15*mm,
+        bottomMargin=15*mm
+    )
+    
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Título
+    titulo_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        textColor=colors.HexColor('#2c3e50'),
+        spaceAfter=12,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    elements.append(Paragraph(nome_empresa, titulo_style))
+    elements.append(Paragraph("⏱️ RELATÓRIO DE CONTROLE DE HORAS", titulo_style))
+    elements.append(Paragraph(f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", 
+                             ParagraphStyle('DataStyle', parent=styles['Normal'], fontSize=8, 
+                                          textColor=colors.grey, alignment=TA_RIGHT)))
+    elements.append(Spacer(1, 10*mm))
+    
+    # Resumo Geral
+    resumo = dados.get('resumo', {})
+    
+    resumo_data = [
+        ['📊 RESUMO GERAL', '', '', ''],
+        ['Total de Contratos:', str(resumo.get('total_contratos', 0)), 
+         'Contratos Ativos:', str(resumo.get('contratos_ativos', 0))],
+        ['Contratos com Controle de Horas:', str(resumo.get('contratos_com_controle_horas', 0)),
+         'Total de Sessões:', str(resumo.get('total_sessoes', 0))],
+        ['Horas Totais Contratadas:', f"{resumo.get('total_horas_contratadas', 0):.1f}h",
+         'Horas Utilizadas:', f"{resumo.get('total_horas_utilizadas', 0):.1f}h"],
+        ['Horas Restantes:', f"{resumo.get('total_horas_restantes', 0):.1f}h",
+         'Horas Extras:', f"{resumo.get('total_horas_extras', 0):.1f}h"]
+    ]
+    
+    resumo_table = Table(resumo_data, colWidths=[50*mm, 40*mm, 50*mm, 40*mm])
+    resumo_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('SPAN', (0, 0), (-1, 0)),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+        ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
+        ('ALIGN', (2, 1), (2, -1), 'LEFT'),
+        ('FONTNAME', (2, 1), (2, -1), 'Helvetica-Bold'),
+        ('ALIGN', (3, 1), (3, -1), 'RIGHT'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+    ]))
+    
+    elements.append(resumo_table)
+    elements.append(Spacer(1, 10*mm))
+    
+    # Detalhamento por Contrato
+    elements.append(Paragraph("📋 DETALHAMENTO POR CONTRATO", 
+                             ParagraphStyle('SubTitle', parent=styles['Heading2'], 
+                                          fontSize=12, textColor=colors.HexColor('#2c3e50'))))
+    elements.append(Spacer(1, 5*mm))
+    
+    contratos = dados.get('contratos', [])
+    
+    dados_contratos = [[
+        'Nº',
+        'Cliente',
+        'Totais',
+        'Utilizadas',
+        'Restantes',
+        'Extras',
+        'Status'
+    ]]
+    
+    for contrato in contratos:
+        horas_totais = float(contrato.get('horas_totais', 0))
+        horas_utilizadas = float(contrato.get('horas_utilizadas', 0))
+        horas_restantes = float(contrato.get('horas_restantes', 0))
+        horas_extras = float(contrato.get('horas_extras', 0))
+        
+        # Determinar status do saldo
+        if horas_extras > 0:
+            status = "⚠️ Extras"
+            cor_status = colors.HexColor('#e74c3c')
+        elif horas_restantes <= 5:
+            status = "⚡ Baixo"
+            cor_status = colors.HexColor('#f39c12')
+        elif horas_restantes > 0:
+            status = "✅ OK"
+            cor_status = colors.HexColor('#27ae60')
+        else:
+            status = "N/A"
+            cor_status = colors.grey
+        
+        dados_contratos.append([
+            contrato.get('numero', 'N/A'),
+            Paragraph(contrato.get('cliente_nome', 'N/A')[:20], styles['Normal']),
+            f"{horas_totais:.1f}h",
+            f"{horas_utilizadas:.1f}h",
+            f"{horas_restantes:.1f}h",
+            f"{horas_extras:.1f}h" if horas_extras > 0 else "-",
+            status
+        ])
+    
+    tabela_contratos = Table(dados_contratos, colWidths=[20*mm, 40*mm, 20*mm, 25*mm, 25*mm, 20*mm, 20*mm])
+    
+    estilo_contratos = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ALIGN', (2, 1), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+    ])
+    
+    tabela_contratos.setStyle(estilo_contratos)
+    elements.append(tabela_contratos)
+    
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+
+def gerar_relatorio_controle_horas_excel(dados: dict, nome_empresa: str = "Empresa") -> BytesIO:
+    """
+    Gera Excel do Relatório de Controle de Horas
+    
+    Args:
+        dados: Dicionário com dados retornados pelo backend
+        nome_empresa: Nome da empresa para o cabeçalho
+    
+    Returns:
+        BytesIO com o Excel gerado
+    """
+    wb = Workbook()
+    
+    # ABA 1: Resumo
+    ws_resumo = wb.active
+    ws_resumo.title = "Resumo"
+    
+    # Estilos
+    font_titulo = Font(name='Arial', size=14, bold=True, color='FFFFFF')
+    font_header = Font(name='Arial', size=10, bold=True, color='FFFFFF')
+    fill_titulo = PatternFill(start_color='2c3e50', end_color='2c3e50', fill_type='solid')
+    fill_header = PatternFill(start_color='3498db', end_color='3498db', fill_type='solid')
+    align_center = Alignment(horizontal='center', vertical='center')
+    align_right = Alignment(horizontal='right', vertical='center')
+    borda = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Título
+    ws_resumo.merge_cells('A1:D1')
+    cell = ws_resumo['A1']
+    cell.value = f"{nome_empresa} - CONTROLE DE HORAS"
+    cell.font = font_titulo
+    cell.fill = fill_titulo
+    cell.alignment = align_center
+    
+    ws_resumo.merge_cells('A2:D2')
+    cell = ws_resumo['A2']
+    cell.value = f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    cell.alignment = align_center
+    
+    # Resumo
+    resumo = dados.get('resumo', {})
+    
+    row = 4
+    dados_resumo = [
+        ['INDICADOR', 'VALOR'],
+        ['Total de Contratos', resumo.get('total_contratos', 0)],
+        ['Contratos Ativos', resumo.get('contratos_ativos', 0)],
+        ['Contratos com Controle de Horas', resumo.get('contratos_com_controle_horas', 0)],
+        ['Total de Sessões', resumo.get('total_sessoes', 0)],
+        ['Horas Totais Contratadas', f"{resumo.get('total_horas_contratadas', 0):.1f}"],
+        ['Horas Utilizadas', f"{resumo.get('total_horas_utilizadas', 0):.1f}"],
+        ['Horas Restantes', f"{resumo.get('total_horas_restantes', 0):.1f}"],
+        ['Horas Extras', f"{resumo.get('total_horas_extras', 0):.1f}"],
+    ]
+    
+    for col_idx, header in enumerate(dados_resumo[0], start=1):
+        cell = ws_resumo.cell(row=row, column=col_idx)
+        cell.value = header
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = align_center
+        cell.border = borda
+    
+    row += 1
+    for item in dados_resumo[1:]:
+        ws_resumo.cell(row=row, column=1, value=item[0]).border = borda
+        cell = ws_resumo.cell(row=row, column=2, value=item[1])
+        cell.border = borda
+        cell.alignment = align_right
+        row += 1
+    
+    ws_resumo.column_dimensions['A'].width = 40
+    ws_resumo.column_dimensions['B'].width = 20
+    
+    # ABA 2: Contratos
+    ws_contratos = wb.create_sheet("Contratos")
+    
+    ws_contratos.merge_cells('A1:I1')
+    cell = ws_contratos['A1']
+    cell.value = "CONTRATOS - CONTROLE DE HORAS"
+    cell.font = font_titulo
+    cell.fill = fill_titulo
+    cell.alignment = align_center
+    
+    headers = ['Nº Contrato', 'Cliente', 'Tipo', 'Horas Totais', 'Horas Utilizadas', 
+               'Horas Restantes', 'Horas Extras', '% Utilizado', 'Status']
+    
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws_contratos.cell(row=3, column=col_idx)
+        cell.value = header
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = align_center
+        cell.border = borda
+    
+    contratos = dados.get('contratos', [])
+    row = 4
+    
+    for contrato in contratos:
+        ws_contratos.cell(row=row, column=1, value=contrato.get('numero', 'N/A')).border = borda
+        ws_contratos.cell(row=row, column=2, value=contrato.get('cliente_nome', 'N/A')).border = borda
+        
+        obs = contrato.get('observacoes_json', {}) or {}
+        ws_contratos.cell(row=row, column=3, value=obs.get('tipo', 'N/A')).border = borda
+        
+        ws_contratos.cell(row=row, column=4, value=float(contrato.get('horas_totais', 0))).border = borda
+        ws_contratos.cell(row=row, column=5, value=float(contrato.get('horas_utilizadas', 0))).border = borda
+        ws_contratos.cell(row=row, column=6, value=float(contrato.get('horas_restantes', 0))).border = borda
+        ws_contratos.cell(row=row, column=7, value=float(contrato.get('horas_extras', 0))).border = borda
+        
+        perc_utilizado = float(contrato.get('percentual_utilizado', 0))
+        cell = ws_contratos.cell(row=row, column=8, value=perc_utilizado / 100)
+        cell.number_format = '0.0%'
+        cell.border = borda
+        
+        # Determinar status
+        horas_extras = float(contrato.get('horas_extras', 0))
+        horas_restantes = float(contrato.get('horas_restantes', 0))
+        
+        if horas_extras > 0:
+            status = "EXTRAS"
+        elif horas_restantes <= 5:
+            status = "BAIXO"
+        elif horas_restantes > 0:
+            status = "OK"
+        else:
+            status = "N/A"
+        
+        ws_contratos.cell(row=row, column=9, value=status).border = borda
+        row += 1
+    
+    ws_contratos.column_dimensions['A'].width = 15
+    ws_contratos.column_dimensions['B'].width = 30
+    ws_contratos.column_dimensions['C'].width = 12
+    ws_contratos.column_dimensions['D'].width = 12
+    ws_contratos.column_dimensions['E'].width = 15
+    ws_contratos.column_dimensions['F'].width = 15
+    ws_contratos.column_dimensions['G'].width = 12
+    ws_contratos.column_dimensions['H'].width = 12
+    ws_contratos.column_dimensions['I'].width = 12
+    
+    # ABA 3: Sessões por Contrato
+    ws_sessoes = wb.create_sheet("Sessões")
+    
+    ws_sessoes.merge_cells('A1:G1')
+    cell = ws_sessoes['A1']
+    cell.value = "SESSÕES POR CONTRATO"
+    cell.font = font_titulo
+    cell.fill = fill_titulo
+    cell.alignment = align_center
+    
+    headers_sessoes = ['Contrato', 'Cliente', 'Data', 'Horas Trabalhadas', 'Status', 'Descrição']
+    
+    for col_idx, header in enumerate(headers_sessoes, start=1):
+        cell = ws_sessoes.cell(row=3, column=col_idx)
+        cell.value = header
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = align_center
+        cell.border = borda
+    
+    row = 4
+    for contrato in contratos:
+        sessoes = contrato.get('sessoes', [])
+        if sessoes:
+            for sessao in sessoes:
+                ws_sessoes.cell(row=row, column=1, value=contrato.get('numero', 'N/A')).border = borda
+                ws_sessoes.cell(row=row, column=2, value=contrato.get('cliente_nome', 'N/A')).border = borda
+                ws_sessoes.cell(row=row, column=3, value=sessao.get('data', 'N/A')).border = borda
+                ws_sessoes.cell(row=row, column=4, value=float(sessao.get('horas_trabalhadas', 0))).border = borda
+                ws_sessoes.cell(row=row, column=5, value=sessao.get('status', 'N/A')).border = borda
+                ws_sessoes.cell(row=row, column=6, value=sessao.get('descricao', 'N/A')).border = borda
+                row += 1
+    
+    ws_sessoes.column_dimensions['A'].width = 15
+    ws_sessoes.column_dimensions['B'].width = 30
+    ws_sessoes.column_dimensions['C'].width = 12
+    ws_sessoes.column_dimensions['D'].width = 15
+    ws_sessoes.column_dimensions['E'].width = 15
+    ws_sessoes.column_dimensions['F'].width = 40
+    
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
