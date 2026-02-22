@@ -9633,14 +9633,28 @@ def tags():
 
 
 @app.route('/api/tags/<int:tag_id>', methods=['GET', 'PUT', 'DELETE'])
-@require_permission('operacional_view')
 def tag_detalhes(tag_id):
     """Buscar, atualizar ou excluir tag"""
+    
+    # Validar empresa_id
     empresa_id = session.get('empresa_id')
     if not empresa_id:
         return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
     
+    # Validar permissões baseado no método
     if request.method == 'GET':
+        # GET requer apenas visualização
+        from auth_middleware import require_permission
+        decorator = require_permission('operacional_view')
+        # Aplicar validação manualmente
+        usuario = session.get('usuario')
+        if not usuario:
+            return jsonify({'success': False, 'error': 'Usuário não autenticado'}), 401
+        
+        permissoes = usuario.get('permissoes', [])
+        if 'operacional_view' not in permissoes and 'admin' not in permissoes:
+            return jsonify({'success': False, 'error': 'Sem permissão para visualizar tags'}), 403
+            
         try:
             tag = database.obter_tag(empresa_id, tag_id)
             if tag:
@@ -9648,23 +9662,39 @@ def tag_detalhes(tag_id):
             return jsonify({'success': False, 'error': 'Tag não encontrada'}), 404
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
-    elif request.method == 'PUT':
-        try:
-            data = request.json
-            success = database.atualizar_tag(empresa_id, tag_id, data)
-            if success:
-                return jsonify({'success': True, 'message': 'Tag atualizada com sucesso'})
-            return jsonify({'success': False, 'error': 'Tag não encontrada'}), 404
-        except Exception as e:
-            return jsonify({'success': False, 'error': str(e)}), 500
-    else:  # DELETE
-        try:
-            success = database.deletar_tag(empresa_id, tag_id)
-            if success:
-                return jsonify({'success': True, 'message': 'Tag excluída com sucesso'})
-            return jsonify({'success': False, 'error': 'Tag não encontrada'}), 404
-        except Exception as e:
-            return jsonify({'success': False, 'error': str(e)}), 500
+            
+    elif request.method in ['PUT', 'DELETE']:
+        # PUT e DELETE requerem permissão de edição
+        usuario = session.get('usuario')
+        if not usuario:
+            return jsonify({'success': False, 'error': 'Usuário não autenticado'}), 401
+        
+        permissoes = usuario.get('permissoes', [])
+        if 'operacional_edit' not in permissoes and 'admin' not in permissoes:
+            return jsonify({'success': False, 'error': 'Sem permissão para editar/excluir tags'}), 403
+        
+        if request.method == 'PUT':
+            try:
+                data = request.json
+                success = database.atualizar_tag(empresa_id, tag_id, data)
+                if success:
+                    return jsonify({'success': True, 'message': 'Tag atualizada com sucesso'})
+                return jsonify({'success': False, 'error': 'Tag não encontrada'}), 404
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        else:  # DELETE
+            try:
+                print(f"🗑️ [DEBUG TAG] DELETE tag_id={tag_id}, empresa_id={empresa_id}")
+                success = database.deletar_tag(empresa_id, tag_id)
+                print(f"🗑️ [DEBUG TAG] DELETE result: {success}")
+                if success:
+                    return jsonify({'success': True, 'message': 'Tag excluída com sucesso'})
+                return jsonify({'success': False, 'error': 'Tag não encontrada'}), 404
+            except Exception as e:
+                print(f"❌ [DEBUG TAG] DELETE exception: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/funcoes-responsaveis', methods=['GET', 'POST'])

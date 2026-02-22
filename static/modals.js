@@ -4035,12 +4035,18 @@ async function editarTag(tagId) {
  * Exclui uma tag
  */
 async function deletarTag(tagId, tagNome) {
+    console.log('🗑️ [DELETE TAG] Função deletarTag chamada');
+    console.log('🗑️ [DELETE TAG] tagId:', tagId, 'tipo:', typeof tagId);
+    console.log('🗑️ [DELETE TAG] tagNome:', tagNome);
+    
     if (!confirm(`❗ Tem certeza que deseja excluir a tag "${tagNome}"?\n\nEsta ação não pode ser desfeita.`)) {
+        console.log('🗑️ [DELETE TAG] Usuário cancelou a exclusão');
         return;
     }
     
     try {
-        console.log('🗑️ Excluindo tag ID:', tagId);
+        console.log('🗑️ [DELETE TAG] Confirmação aceita, iniciando exclusão...');
+        console.log('🗑️ [DELETE TAG] URL:', `/api/tags/${tagId}`);
         
         const response = await fetch(`/api/tags/${tagId}`, {
             method: 'DELETE',
@@ -4049,28 +4055,37 @@ async function deletarTag(tagId, tagNome) {
             }
         });
         
+        console.log('🗑️ [DELETE TAG] Response status:', response.status);
+        console.log('🗑️ [DELETE TAG] Response ok:', response.ok);
+        
         const result = await response.json();
+        console.log('🗑️ [DELETE TAG] Response JSON:', result);
         
         if (!response.ok || !result.success) {
+            console.error('🔴 [DELETE TAG] Erro na resposta:', result);
             throw new Error(result.error || 'Erro ao excluir tag');
         }
         
-        console.log('✅ Tag excluída com sucesso');
+        console.log('✅ [DELETE TAG] Tag excluída com sucesso!');
         
         if (typeof showToast === 'function') {
-            showToast('Tag excluída com sucesso!', 'success');
+            showToast('✅ Tag excluída com sucesso!', 'success');
         } else {
             alert('Tag excluída com sucesso!');
         }
         
         // Recarregar tabela
+        console.log('🗑️ [DELETE TAG] Recarregando tabela...');
         loadTagsTable();
     } catch (error) {
-        console.error('❌ Erro ao excluir tag:', error);
+        console.error('❌ [DELETE TAG] Exception capturada:', error);
+        console.error('❌ [DELETE TAG] Error message:', error.message);
+        console.error('❌ [DELETE TAG] Error stack:', error.stack);
+        
         if (typeof showToast === 'function') {
-            showToast('Erro ao excluir tag: ' + error.message, 'error');
+            showToast('❌ Erro ao excluir tag: ' + error.message, 'error');
         } else {
-            alert('Erro ao excluir tag: ' + error.message);
+            alert('❌ Erro ao excluir tag: ' + error.message);
         }
     }
 }
