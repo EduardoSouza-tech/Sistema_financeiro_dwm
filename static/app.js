@@ -4310,9 +4310,15 @@ async function loadSessoes() {
     
     try {
         console.log('📷 Carregando sessões...');
+        console.log('🔍 [DEBUG] Iniciando apiGet para /sessoes');
         
         const sessoes = await apiGet('/sessoes');
+        console.log('🔍 [DEBUG] apiGet retornou:', sessoes);
+        console.log('🔍 [DEBUG] Tipo:', typeof sessoes, 'É array?', Array.isArray(sessoes));
+        console.log('🔍 [DEBUG] Sessões length:', sessoes?.length);
+        
         const tbody = document.getElementById('tbody-sessoes');
+        console.log('🔍 [DEBUG] tbody encontrado?', !!tbody);
         
         if (!tbody) {
             console.error('❌ tbody-sessoes não encontrado');
@@ -4321,10 +4327,13 @@ async function loadSessoes() {
         
         tbody.innerHTML = '';
         
-        if (sessoes.length === 0) {
+        if (!sessoes || sessoes.length === 0) {
+            console.log('📋 [DEBUG] Nenhuma sessão encontrada, mostrando mensagem');
             tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">Nenhuma sessão cadastrada</td></tr>';
             return;
         }
+        
+        console.log('📋 [DEBUG] Renderizando', sessoes.length, 'sessões');
         
         sessoes.forEach(sessao => {
             // Tipos de captação
