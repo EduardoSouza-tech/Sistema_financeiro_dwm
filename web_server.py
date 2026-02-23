@@ -275,7 +275,8 @@ def renovar_sessao():
     if 'session_token' in session:
         session.modified = True  # Força renovação do cookie de sessão
         # O Flask automaticamente atualiza o timestamp da sessão
-        logger.debug(f"♻️ [SESSÃO] Renovada automaticamente para token: {session.get('session_token', '')[:20]}...")
+        # logger.debug desabilitado para evitar 500+ logs/sec em produção
+        # logger.debug(f"♻️ [SESSÃO] Renovada automaticamente para token: {session.get('session_token', '')[:20]}...")
 
 # ============================================================================
 # INICIALIZAR CSRF PROTECTION
@@ -6705,18 +6706,12 @@ def dashboard():
         return jsonify({'erro': 'Empresa não selecionada'}), 403
     
     try:
-        print("=" * 80)
-        print("📊 DASHBOARD - Iniciando carregamento...")
-        
         # Pegar filtros opcionais
         ano = request.args.get('ano', type=int)
         mes = request.args.get('mes', type=int)
-        print(f"📅 Filtros: ano={ano}, mes={mes}")
         
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
         contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
-        print(f"📋 Total de lançamentos: {len(lancamentos)}")
-        print(f"🏦 Total de contas: {len(contas)}")
         
         # Filtrar lançamentos por cliente se necessário
         usuario = request.usuario
@@ -9528,8 +9523,6 @@ def extrair_schema_debug():
 @require_permission('operacional_view')
 def tags():
     """Gerenciar tags"""
-    print(f"🔵 [DEBUG TAG] Rota /api/tags acessada - Method: {request.method}")
-    
     empresa_id = session.get('empresa_id')
     if not empresa_id:
         return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
@@ -10701,14 +10694,15 @@ def estatisticas_empresa_api(empresa_id):
 # ============================================================================
 # LISTAR ROTAS (NIVEL DE MODULO - EXECUTA SEMPRE)
 # ============================================================================
-logger.info("="*80)
-logger.info("ROTAS REGISTRADAS:")
-logger.info("="*80)
-for rule in app.url_map.iter_rules():
-    if 'api' in rule.rule and 'static' not in rule.rule:
-        methods = ', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))
-        logger.info(f"  {rule.rule:<45} [{methods}]")
-logger.info("="*80)
+# DESABILITADO: Gera centenas de logs na inicialização, causando rate limit no Railway
+# logger.info("="*80)
+# logger.info("ROTAS REGISTRADAS:")
+# logger.info("="*80)
+# for rule in app.url_map.iter_rules():
+#     if 'api' in rule.rule and 'static' not in rule.rule:
+#         methods = ', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))
+#         logger.info(f"  {rule.rule:<45} [{methods}]")
+# logger.info("="*80)
 
 
 # ============================================================================
@@ -16728,10 +16722,11 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"⚠️ Erro ao inicializar tabelas de importação: {e}")
     
-    # Ativar logging do Flask/Werkzeug
+    # Configurar logging para produção (WARNING/ERROR apenas)
     import logging
-    logging.basicConfig(level=logging.DEBUG)
-    app.logger.setLevel(logging.DEBUG)
+    log_level = logging.WARNING if os.getenv('RAILWAY_ENVIRONMENT') else logging.INFO
+    logging.basicConfig(level=log_level)
+    app.logger.setLevel(log_level)
     
     # Porta configurável (Railway usa variável de ambiente PORT)
     port = int(os.getenv('PORT', 5000))
@@ -16741,31 +16736,8 @@ if __name__ == '__main__':
     print("="*60)
     print(f"Servidor iniciado em: http://0.0.0.0:{port}")
     print(f"Banco de dados: {os.getenv('DATABASE_TYPE', 'sqlite')}")
-    
-    # Listar TODAS as rotas registradas
-    print("\n🔍 TODAS as rotas registradas:")
-    total_rotas = 0
-    for rule in app.url_map.iter_rules():
-        print(f"   • {rule.rule} - Métodos: {', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))}")
-        total_rotas += 1
-    print(f"\n📊 Total de rotas: {total_rotas}")
-    
-    print("\n🔍 Rotas de /api/empresas especificamente:")
-    empresas_rotas = 0
-    for rule in app.url_map.iter_rules():
-        if 'empresas' in rule.rule:
-            print(f"   ✅ {rule.rule} - Métodos: {', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))}")
-            empresas_rotas += 1
-    if empresas_rotas == 0:
-        print("   ❌ NENHUMA ROTA DE EMPRESAS ENCONTRADA!")
-        print("   ⚠️  Possível erro na definição das rotas de empresas")
-    else:
-        print(f"   ✅ {empresas_rotas} rotas de empresas encontradas")
-    
+    print(f"Log level: {logging.getLevelName(log_level)}")
     print("="*60)
-    
-    logger.info("="*80)
-    logger.info("FIM DO ARQUIVO WEB_SERVER.PY - TODAS AS ROTAS CARREGADAS")
 
 
 # ==============================================================================
@@ -16941,17 +16913,18 @@ def fix_contratos_cliente_id():
         })
         
     except Exception as e:
-        print(f"\n❌ ERRO: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Erro ao corrigir contratos: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
-    logger.info("="*80)
     
-    # Habilitar debug do Flask
-    app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)
+    # Habilitar debug apenas em desenvolvimento local
+    is_production = bool(os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('RAILWAY_PROJECT_ID'))
+    debug_mode = not is_production
+    
+    logger.info(f"Iniciando servidor - Modo: {'DESENVOLVIMENTO' if debug_mode else 'PRODUÇÃO'}")
+    app.run(debug=debug_mode, host='0.0.0.0', port=port, use_reloader=False)
 
 
 
