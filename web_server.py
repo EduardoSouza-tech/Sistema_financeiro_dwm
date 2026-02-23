@@ -16712,34 +16712,6 @@ def sped_interface():
     return render_template('sped_interface.html')
 
 
-if __name__ == '__main__':
-    # Inicializar tabelas de importação
-    try:
-        from database_import_manager import DatabaseImportManager
-        import_manager = DatabaseImportManager()
-        import_manager.create_import_tables()
-        print("✅ Tabelas de importação inicializadas")
-    except Exception as e:
-        print(f"⚠️ Erro ao inicializar tabelas de importação: {e}")
-    
-    # Configurar logging para produção (WARNING/ERROR apenas)
-    import logging
-    log_level = logging.WARNING if os.getenv('RAILWAY_ENVIRONMENT') else logging.INFO
-    logging.basicConfig(level=log_level)
-    app.logger.setLevel(log_level)
-    
-    # Porta configurável (Railway usa variável de ambiente PORT)
-    port = int(os.getenv('PORT', 5000))
-    
-    print("="*60)
-    print("Sistema Financeiro - Versão Web")
-    print("="*60)
-    print(f"Servidor iniciado em: http://0.0.0.0:{port}")
-    print(f"Banco de dados: {os.getenv('DATABASE_TYPE', 'sqlite')}")
-    print(f"Log level: {logging.getLevelName(log_level)}")
-    print("="*60)
-
-
 # ==============================================================================
 # 🔧 ENDPOINT ADMINISTRATIVO TEMPORÁRIO: Corrigir cliente_id nos contratos
 # ==============================================================================
@@ -16918,6 +16890,34 @@ def fix_contratos_cliente_id():
             'success': False,
             'error': str(e)
         }), 500
+
+
+if __name__ == '__main__':
+    # Inicializar tabelas de importação
+    try:
+        from database_import_manager import DatabaseImportManager
+        import_manager = DatabaseImportManager()
+        import_manager.create_import_tables()
+        print("✅ Tabelas de importação inicializadas")
+    except Exception as e:
+        print(f"⚠️ Erro ao inicializar tabelas de importação: {e}")
+    
+    # Configurar logging para produção (WARNING/ERROR apenas)
+    import logging
+    log_level = logging.WARNING if os.getenv('RAILWAY_ENVIRONMENT') else logging.INFO
+    logging.basicConfig(level=log_level)
+    app.logger.setLevel(log_level)
+    
+    # Porta configurável (Railway usa variável de ambiente PORT)
+    port = int(os.getenv('PORT', 5000))
+    
+    print("="*60)
+    print("Sistema Financeiro - Versão Web")
+    print("="*60)
+    print(f"Servidor iniciado em: http://0.0.0.0:{port}")
+    print(f"Banco de dados: {os.getenv('DATABASE_TYPE', 'sqlite')}")
+    print(f"Log level: {logging.getLevelName(log_level)}")
+    print("="*60)
     
     # Habilitar debug apenas em desenvolvimento local
     is_production = bool(os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('RAILWAY_PROJECT_ID'))
