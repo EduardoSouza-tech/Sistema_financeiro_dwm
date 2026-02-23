@@ -705,13 +705,6 @@ def login():
         session['user_id'] = usuario['id']  # ✅ Necessário para rotas que usam session.get('user_id')
         session.permanent = True
         
-        # DEBUG: Confirmar que user_id foi setado
-        print(f"🔍 DEBUG - SESSÃO CRIADA:")
-        print(f"   🎫 session_token: {token[:20]}...")
-        print(f"   👤 user_id: {session.get('user_id')}")
-        print(f"   📋 Session keys: {list(session.keys())}")
-        print(f"   📦 Session completa: {dict(session)}")
-        
         # Registrar login bem-sucedido
         auth_db.registrar_log_acesso(
             usuario_id=usuario['id'],
@@ -840,33 +833,13 @@ def logout():
 def verify_session():
     """Verifica se a sessão está válida"""
     try:
-        print(f"\n{'='*80}")
-        print(f"🔍 [VERIFY] Verificando sessão...")
-        print(f"{'='*80}")
-        
-        # DEBUG: Conteúdo completo da sessão
-        print(f"🔍 DEBUG - SESSION em /api/auth/verify:")
-        print(f"   📋 Session keys: {list(session.keys())}")
-        print(f"   📦 Session completa: {dict(session)}")
-        print(f"   👤 user_id na session: {session.get('user_id')}")
-        print(f"   🎫 session_token na session: {session.get('session_token', 'None')[:20] if session.get('session_token') else 'None'}...")
-        print(f"   🏢 empresa_id na session: {session.get('empresa_id')}")
-        
         usuario = get_usuario_logado()
-        print(f"📊 Usuário logado: {usuario if usuario else 'NENHUM'}")
         
         if not usuario:
-            print(f"❌ Usuário não autenticado - retornando False")
-            print(f"{'='*80}\n")
             return jsonify({
                 'success': False,
                 'authenticated': False
             })
-        
-        print(f"✅ Usuário autenticado:")
-        print(f"   - id: {usuario.get('id')}")
-        print(f"   - username: {usuario.get('username')}")
-        print(f"   - tipo: {usuario.get('tipo')}")
         
         # ============================================================
         # MULTI-EMPRESA: Carregar empresa atual e empresas disponíveis
@@ -875,41 +848,29 @@ def verify_session():
         empresas_disponiveis = []
         
         if usuario['tipo'] == 'admin':
-            print(f"👑 Tipo: Admin")
             # Super admin
             permissoes = ['*']
             empresas_disponiveis = database.listar_empresas({})
-            print(f"   - Empresas disponíveis: {len(empresas_disponiveis)}")
             empresa_id = session.get('empresa_id')
-            print(f"   - empresa_id na sessão: {empresa_id}")
             if empresa_id:
                 empresa_atual = database.obter_empresa(empresa_id)
-                print(f"   - Empresa atual: {empresa_atual.get('razao_social') if empresa_atual else 'Não encontrada'}")
         else:
-            print(f"👤 Tipo: Cliente")
             # Usuário normal
             from auth_functions import listar_empresas_usuario
             empresas_disponiveis = listar_empresas_usuario(usuario['id'], auth_db)
-            print(f"   - Empresas disponíveis: {len(empresas_disponiveis)}")
-            print(f"   - IDs: {[e.get('empresa_id') for e in empresas_disponiveis]}")
             
             empresa_id = session.get('empresa_id')
-            print(f"   - empresa_id na sessão: {empresa_id}")
             
             if empresa_id:
                 # Carregar permissões específicas da empresa
                 from auth_functions import obter_permissoes_usuario_empresa
                 permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
-                print(f"   - Permissões da empresa: {len(permissoes)} itens")
                 
                 # Buscar dados da empresa atual
                 empresa_atual = next((e for e in empresas_disponiveis if e.get('empresa_id') == empresa_id), None)
-                print(f"   - Empresa atual: {empresa_atual.get('razao_social') if empresa_atual else 'Não encontrada'}")
             else:
                 # Sem empresa selecionada
-                print(f"   ⚠️ Sem empresa na sessão - usando permissões globais")
                 permissoes = auth_db.obter_permissoes_usuario(usuario['id'])
-                print(f"   - Permissões globais: {len(permissoes)} itens")
         
         response = {
             'success': True,
@@ -937,8 +898,6 @@ def verify_session():
                 'razao_social': empresa_atual.get('razao_social')
             }
         
-        print(f"✅ Sessão válida - retornando dados")
-        print(f"{'='*80}\n")
         return jsonify(response)
         
     except Exception as e:
@@ -1110,35 +1069,18 @@ def switch_empresa():
             print(f"👑 Admin - acesso total")
         
         # Buscar dados da empresa
-        print(f"🔍 Buscando dados da empresa {empresa_id}...")
         empresa = database.obter_empresa(empresa_id)
-        print(f"📊 Resultado da busca: {empresa}")
         if not empresa:
-            print(f"❌ Empresa {empresa_id} não encontrada no banco de dados")
             return jsonify({
                 'success': False,
                 'error': 'Empresa não encontrada'
             }), 404
         
-        print(f"✅ Empresa encontrada: {empresa.get('razao_social')}")
-        
-        # Atualizar sessão - PRESERVANDO TODOS OS DADOS EXISTENTES
-        print(f"💾 Atualizando sessão com empresa_id={empresa_id}")
-        print(f"🔍 Sessão ANTES do switch: {dict(session)}")
-        
-        # Verificar se o token ainda está na sessão
-        if 'token' not in session:
-            print(f"⚠️ AVISO: Token não encontrado na sessão durante switch!")
-            print(f"⚠️ Dados disponíveis: {list(session.keys())}")
-        
+        # Atualizar sessão com nova empresa
         session['empresa_id'] = empresa_id
         session.modified = True
         
-        print(f"🔍 Sessão DEPOIS do switch: {dict(session)}")
-        print(f"✅ Sessão atualizada (empresa_id={session.get('empresa_id')})")
-        
         # Registrar troca de empresa
-        print(f"📝 Registrando log de troca de empresa...")
         auth_db.registrar_log_acesso(
             usuario_id=usuario['id'],
             acao='switch_empresa',
@@ -1146,7 +1088,6 @@ def switch_empresa():
             ip_address=request.remote_addr,
             sucesso=True
         )
-        print(f"✅ Log registrado")
         
         # Carregar permissões da nova empresa
         print(f"🔐 Carregando permissões...")
@@ -2295,23 +2236,11 @@ def criar_transferencia():
 def listar_categorias():
     """Lista todas as categorias"""
     try:
-        print('\n' + '='*80)
-        print('🔍 GET /api/categorias - Iniciando listagem de categorias')
-        print(f'   📍 Empresa na sessão: {session.get("empresa_id")}')
-        print(f'   👤 Usuário na sessão: {session.get("usuario_id")}')
-        print(f'   🔑 Session completa: {dict(session)}')
-        
         # Filtrar por empresa_id da sessão
         empresa_id = session.get('empresa_id')
         
-        # PRIMEIRO: Listar TODAS sem filtro para debug
-        todas_categorias = db.listar_categorias(empresa_id=None)
-        print(f'   📊 Total de categorias SEM filtro: {len(todas_categorias)}')
-        
-        # DEPOIS: Listar com filtro
+        # Listar categorias da empresa
         categorias = db.listar_categorias(empresa_id=empresa_id)
-        
-        print(f'   📊 Total de categorias COM filtro (empresa_id={empresa_id}): {len(categorias)}')
         for i, c in enumerate(categorias):
             print(f'   [{i+1}] {c.nome} (tipo: {c.tipo.value}, empresa_id: {getattr(c, "empresa_id", "N/A")})')
         

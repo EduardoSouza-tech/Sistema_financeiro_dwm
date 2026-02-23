@@ -337,42 +337,15 @@ def compensar_horas_contratos(origem_id: int):
         500: Erro interno
     """
     try:
-        print("=" * 80)
-        print(f"🔄 COMPENSAÇÃO DE HORAS: Contrato Origem {origem_id}")
-        print("=" * 80)
-        
-        # DEBUG: Informações da sessão
-        print(f"🔍 DEBUG - SESSION:")
-        print(f"   📋 Session keys: {list(session.keys())}")
-        print(f"   📦 Session completa: {dict(session)}")
-        
-        # DEBUG: Informações do request
-        print(f"🔍 DEBUG - REQUEST:")
-        print(f"   🌐 Headers: {dict(request.headers)}")
-        print(f"   🍪 Cookies: {request.cookies}")
-        print(f"   📍 Remote Addr: {request.remote_addr}")
-        
-        # DEBUG: request.usuario (do middleware)
-        if hasattr(request, 'usuario'):
-            print(f"   👤 request.usuario: {request.usuario}")
-        else:
-            print(f"   ⚠️ request.usuario NÃO EXISTE")
-        
-        # ✅ CORREÇÃO: Usar request.usuario ao invés de session
+        # ✅ Usar request.usuario ao invés de session
         # O middleware @require_permission já garante que request.usuario existe
         usuario_id = request.usuario.get('id') if hasattr(request, 'usuario') else None
         empresa_id = session.get('empresa_id')
         
-        print(f"🔍 DEBUG - VALORES EXTRAÍDOS:")
-        print(f"   🏢 empresa_id: {empresa_id}")
-        print(f"   👤 usuario_id: {usuario_id} (de request.usuario)")
-        
         if not empresa_id:
-            print(f"❌ ERRO: empresa_id não encontrada na sessão")
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
         if not usuario_id:
-            print(f"❌ ERRO: usuario_id não encontrado em request.usuario")
             return jsonify({'success': False, 'error': 'Usuário não identificado'}), 403
         
         data = request.json
