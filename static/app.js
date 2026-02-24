@@ -3491,32 +3491,43 @@ async function loadContasForExtrato() {
         
         console.log('🔍 Tentando preencher datas:', { inicio: dataInicioFormatada, fim: dataHojeFormatada });
         
-        // Tentar com pequeno delay para garantir que elementos existam
+        // Tentar com pequeno delay para garantir que elementos existam e seção esteja ativa
         setTimeout(() => {
+            // Verificar se seção está ativa
+            const secaoExtrato = document.getElementById('extrato-bancario-section');
+            console.log('🔍 Seção extrato-bancario-section:', secaoExtrato ? 'ENCONTRADA' : 'NÃO ENCONTRADA');
+            console.log('🔍 Seção está ativa?', secaoExtrato && !secaoExtrato.classList.contains('hidden'));
+            
             const dataInicioEl = document.getElementById('filtro-data-inicio-extrato') || document.getElementById('extrato-filter-data-inicio');
             const dataFimEl = document.getElementById('filtro-data-fim-extrato') || document.getElementById('extrato-filter-data-fim');
             
             console.log('🔍 Elementos encontrados:', { 
-                dataInicio: dataInicioEl ? 'SIM' : 'NÃO', 
-                dataFim: dataFimEl ? 'SIM' : 'NÃO' 
+                dataInicio: dataInicioEl ? 'SIM ✅' : 'NÃO ❌', 
+                dataFim: dataFimEl ? 'SIM ✅' : 'NÃO ❌'
             });
             
             if (dataInicioEl) {
                 dataInicioEl.value = dataInicioFormatada;
-                console.log('📅 Data início preenchida:', dataInicioEl.value);
+                console.log('📅 ✅ Data início preenchida com:', dataInicioEl.value);
             } else {
                 console.error('❌ Elemento filtro-data-inicio-extrato NÃO ENCONTRADO');
+                console.log('🔍 Tentando buscar todos inputs date na página...');
+                const todosInputsDate = document.querySelectorAll('input[type="date"]');
+                console.log('📋 Total de inputs date encontrados:', todosInputsDate.length);
+                todosInputsDate.forEach((input, idx) => {
+                    console.log(`   [${idx}] ID: ${input.id || 'sem-id'}, Name: ${input.name || 'sem-name'}`);
+                });
             }
             
             if (dataFimEl) {
                 dataFimEl.value = dataHojeFormatada;
-                console.log('📅 Data fim preenchida:', dataFimEl.value);
+                console.log('📅 ✅ Data fim preenchida com:', dataFimEl.value);
             } else {
                 console.error('❌ Elemento filtro-data-fim-extrato NÃO ENCONTRADO');
             }
             
-            console.log('✅ Filtros de data processados');
-        }, 100);
+            console.log('✅ Processamento de filtros de data concluído');
+        }, 200);
         
     } catch (error) {
         console.error('Erro ao carregar contas para extrato:', error);
