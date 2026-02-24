@@ -101,13 +101,39 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
         filtros: dict opcional com conta, data_inicio, data_fim, conciliado
     
     Returns:
-        list: lista de transacoes
+        dict: {'transacoes': list, 'saldo_anterior': float}
     """
     try:
         # 🔒 Passar empresa_id para RLS
         with database.get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=database.RealDictCursor)
             
+            # 🏦 BUSCAR SALDO ANTERIOR ao período filtrado
+            saldo_anterior = None
+            if filtros and filtros.get('data_inicio'):
+                query_saldo = """
+                    SELECT saldo
+                    FROM transacoes_extrato
+                    WHERE empresa_id = %s
+                      AND data < %s
+                """
+                params_saldo = [empresa_id, filtros['data_inicio']]
+                
+                # Se filtrou por conta, buscar saldo daquela conta específica
+                if filtros.get('conta_bancaria'):
+                    query_saldo += " AND conta_bancaria = %s"
+                    params_saldo.append(filtros['conta_bancaria'])
+                
+                query_saldo += " ORDER BY data DESC, id DESC LIMIT 1"
+                
+                cursor.execute(query_saldo, params_saldo)
+                resultado_saldo = cursor.fetchone()
+                
+                if resultado_saldo:
+                    saldo_anterior = float(resultado_saldo['saldo'])
+                    log(f"🏦 Saldo anterior ao período: R$ {saldo_anterior:,.2f}")
+            
+            # Query principal de transações
             query = """
                 SELECT t.*, l.descricao as lancamento_descricao
                 FROM transacoes_extrato t
@@ -150,11 +176,15 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
                     elif isinstance(val, Decimal):
                         d[key] = float(val)
                 result.append(d)
-            return result
+            
+            return {
+                'transacoes': result,
+                'saldo_anterior': saldo_anterior
+            }
         
     except Exception as e:
         log(f"Erro ao listar transacoes: {e}")
-        return []
+        return {'transacoes': [], 'saldo_anterior': None}
 
 
 def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):

@@ -3870,13 +3870,28 @@ def listar_extratos():
         if filtros['conciliado'] is not None:
             filtros['conciliado'] = filtros['conciliado'].lower() == 'true'
         
-        transacoes = extrato_functions.listar_transacoes_extrato(
+        # Função agora retorna dict com 'transacoes' e 'saldo_anterior'
+        resultado = extrato_functions.listar_transacoes_extrato(
             database,
             empresa_id,
             filtros
         )
         
-        return jsonify(transacoes), 200
+        # Manter compatibilidade: se retornou lista (código antigo), converter
+        if isinstance(resultado, list):
+            transacoes = resultado
+            saldo_anterior = None
+        else:
+            transacoes = resultado.get('transacoes', [])
+            saldo_anterior = resultado.get('saldo_anterior')
+        
+        # Retornar no formato esperado pelo frontend
+        resposta = {
+            'transacoes': transacoes,
+            'saldo_anterior': saldo_anterior
+        }
+        
+        return jsonify(resposta), 200
         
     except Exception as e:
         logger.info(f"Erro ao listar extratos: {e}")

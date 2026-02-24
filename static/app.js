@@ -3659,8 +3659,22 @@ async function loadExtratos() {
         
         if (!response.ok) throw new Error('Erro ao carregar extratos');
         
-        extratos = await response.json();
-        console.log(`✅ ${extratos.length} transações recebidas do backend`);
+        const responseData = await response.json();
+        
+        // Suportar novo formato (objeto com transacoes + saldo_anterior) e formato antigo (array direto)
+        let extratos, saldoAnterior;
+        
+        if (Array.isArray(responseData)) {
+            // Formato antigo (array direto)
+            extratos = responseData;
+            saldoAnterior = null;
+            console.log(`✅ ${extratos.length} transações recebidas (formato antigo)`);
+        } else {
+            // Novo formato (objeto com transacoes e saldo_anterior)
+            extratos = responseData.transacoes || [];
+            saldoAnterior = responseData.saldo_anterior;
+            console.log(`✅ ${extratos.length} transações recebidas, saldo anterior: R$ ${saldoAnterior?.toFixed(2) || 'N/A'}`);
+        }
         
         // Renderizar tabela
         const tbody = document.getElementById('tbody-extrato');
@@ -3678,9 +3692,18 @@ async function loadExtratos() {
         
         // 🏦 ADICIONAR LINHA DE SALDO INICIAL (como nos extratos bancários reais)
         if (extratos.length > 0) {
-            const primeiraTransacao = extratos[0];
-            // Calcular saldo inicial = saldo atual da primeira transação - valor dela
-            const saldoInicial = primeiraTransacao.saldo - primeiraTransacao.valor;
+            let saldoInicial;
+            
+            // Usar saldo_anterior do backend se disponível, senão calcular
+            if (saldoAnterior !== null && saldoAnterior !== undefined) {
+                saldoInicial = saldoAnterior;
+                console.log('🏦 Usando saldo anterior do backend:', saldoInicial);
+            } else {
+                // Fallback: calcular como antes (saldo da primeira transação - seu valor)
+                const primeiraTransacao = extratos[0];
+                saldoInicial = primeiraTransacao.saldo - primeiraTransacao.valor;
+                console.log('🏦 Calculando saldo inicial (fallback):', saldoInicial);
+            }
             const saldoInicialFormatado = formatarMoeda(saldoInicial);
             const saldoInicialColor = saldoInicial >= 0 ? '#27ae60' : '#c0392b';
             
