@@ -272,6 +272,65 @@ const tbody = document.getElementById('tbody-extrato');
 
 ---
 
+### 6. ✅ Saldo Consistente em Todos os Módulos (24/02/2026)
+
+**Objetivo**: Garantir que o saldo do extrato bancário seja exibido consistentemente em todos os módulos do sistema.
+
+**Análise dos Módulos**:
+
+| Módulo | Status | Fonte do Saldo |
+|--------|--------|----------------|
+| 🏦 Extrato Bancário | ✅ | `transacoes_extrato.saldo` (ORDER BY DESC) |
+| 📊 Dashboard | ✅ | `/api/contas` → extrato → fallback lançamentos |
+| 💰 Contas Bancárias | ✅ | `/api/contas` → extrato → fallback lançamentos |
+| 🔴 Contas a Pagar | ✅ | `atualizarSaldoTotalBancos()` → `/api/contas` |
+| 🟢 Contas a Receber | ✅ | `atualizarSaldoTotalBancos()` → `/api/contas` |
+| 📈 Fluxo Projetado | ✅ | **CORRIGIDO** - agora usa extrato |
+
+**Problema Encontrado**: Endpoint `/api/relatorios/fluxo-projetado` calculava saldo manualmente (saldo_inicial + lançamentos), ignorando extrato.
+
+**Solução Implementada**:
+```python
+# 🏦 PRIORIDADE 1: Buscar saldo do extrato
+for c in contas:
+    cursor.execute("""
+        SELECT saldo, data, id
+        FROM transacoes_extrato
+        WHERE empresa_id = %s
+        AND conta_bancaria = %s
+        ORDER BY data DESC, id DESC
+        LIMIT 1
+    """, (empresa_id, c.nome))
+    
+    ultima_transacao_extrato = cursor.fetchone()
+    
+    if ultima_transacao_extrato:
+        # ✅ Usar saldo do extrato
+        saldo_conta = Decimal(str(ultima_transacao_extrato['saldo']))
+    else:
+        # 💰 Fallback: Calcular com lançamentos
+        saldo_conta = saldo_inicial + receitas - despesas
+```
+
+**Commit**: `7f7fac3` - "Corrige endpoint de fluxo projetado para usar saldo do extrato bancário"
+
+**Impacto**: Projeções de fluxo de caixa agora refletem saldo real do banco.
+
+**Arquitetura de Consistência**:
+```
+transacoes_extrato.saldo (banco - fonte de verdade)
+    ↓
+GET /api/contas (single source of truth)
+    ↓
+┌─────────────────┬──────────────┬────────────────┐
+│ Dashboard       │ Contas       │ Fluxo Projetado│
+└─────────────────┴──────────────┴────────────────┘
+         ↓                ↓               ↓
+    Sempre o mesmo valor (consistência garantida)
+```
+
+---
+
 ## 📥 Importação de Arquivos OFX
 
 ### Como Importar:
