@@ -3639,8 +3639,15 @@ def upload_extrato_ofx():
                 soma_transacoes = sum(t['valor_correto'] for t in transacoes_processadas)
                 saldo_inicial_calculado_ofx = saldo_final - soma_transacoes
                 
-                # Verificar se temos data_inicio configurada e se é anterior às transações
-                data_primeira_transacao = transactions_list[0].date.date() if hasattr(transactions_list[0].date, 'date') else transactions_list[0].date
+                # 🐛 FIX: Extrair data da primeira transação ignorando timezone
+                if hasattr(transactions_list[0].date, 'year'):
+                    data_primeira_transacao = date(transactions_list[0].date.year, 
+                                                   transactions_list[0].date.month, 
+                                                   transactions_list[0].date.day)
+                elif hasattr(transactions_list[0].date, 'date'):
+                    data_primeira_transacao = transactions_list[0].date.date()
+                else:
+                    data_primeira_transacao = transactions_list[0].date
                 
                 usar_saldo_conta = False
                 if hasattr(conta_info, 'data_inicio') and conta_info.data_inicio:
@@ -3687,12 +3694,22 @@ def upload_extrato_ofx():
                 # Atualizar saldo: saldo += valor (negativo diminui, positivo aumenta)
                 saldo_atual += valor_correto
                 
-                data_str = str(trans.date.date() if hasattr(trans.date, 'date') else trans.date)
+                # 🐛 FIX: Extrair data ignorando timezone (previne bug -1 dia no Railway/UTC)
+                # Em vez de trans.date.date() que pode ser afetado por timezone do servidor,
+                # usar componentes year/month/day direto do datetime
+                if hasattr(trans.date, 'year'):
+                    data_transacao = date(trans.date.year, trans.date.month, trans.date.day)
+                elif hasattr(trans.date, 'date'):
+                    data_transacao = trans.date.date()
+                else:
+                    data_transacao = trans.date
+                
+                data_str = str(data_transacao)
                 tipo_label = '🔴 DÉBITO' if tipo == 'debito' else '🟢 CRÉDITO'
                 print(f"{data_str:<12} {tipo_label:<15} {valor_ofx:>+15.2f} {valor_correto:>+15.2f} {saldo_atual:>15.2f}")
                 
                 transacoes.append({
-                    'data': trans.date.date() if hasattr(trans.date, 'date') else trans.date,
+                    'data': data_transacao,
                     'descricao': trans.payee or trans.memo or 'Sem descricao',
                     'valor': valor_correto,  # Guardar valor com sinal (negativo para débito, positivo para crédito)
                     'tipo': tipo.upper(),  # DEBITO ou CREDITO (maiúsculo)
