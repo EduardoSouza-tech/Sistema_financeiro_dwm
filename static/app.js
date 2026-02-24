@@ -3501,6 +3501,8 @@ async function loadContasForExtrato() {
             console.log('📅 Data fim preenchida:', dataHojeFormatada);
         }
         
+        console.log('✅ Filtros de data preenchidos - pronto para carregar extratos');
+        
     } catch (error) {
         console.error('Erro ao carregar contas para extrato:', error);
         showToast('Erro ao carregar contas bancárias', 'error');
@@ -3635,8 +3637,8 @@ async function loadExtratos() {
             const saldoFormatado = formatarMoeda(transacao.saldo);
             const saldoColor = transacao.saldo >= 0 ? '#27ae60' : '#c0392b';
             
-            // Nome da conta bancária
-            const nomeConta = transacao.conta_nome || 'Sem conta';
+            // Nome da conta bancária (campo correto: conta_bancaria)
+            const nomeConta = transacao.conta_bancaria || 'Sem conta';
             
             // Determinar qual botão exibir
             const botaoAcao = !transacao.conciliado ? 
