@@ -3986,7 +3986,13 @@ def diagnostico_extrato():
         if not conta_bancaria:
             return jsonify({'success': False, 'error': 'Conta bancária não informada'}), 400
         
-        with db.get_connection() as conn:
+        logger.info(f"🔍 Diagnóstico do extrato - empresa_id: {empresa_id}, conta: {conta_bancaria}")
+        
+        # Criar instância local do DatabaseManager
+        db_manager = DatabaseManager()
+        conn = db_manager.get_connection()
+        
+        try:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
             # 1. Total de transações
@@ -3996,6 +4002,7 @@ def diagnostico_extrato():
                 WHERE empresa_id = %s AND conta_bancaria = %s
             """, (empresa_id, conta_bancaria))
             resumo = cursor.fetchone()
+            logger.info(f"   📊 Total transações: {resumo['total'] if resumo else 0}")
             
             # 2. Saldo atual (última transação)
             cursor.execute("""
@@ -4006,6 +4013,8 @@ def diagnostico_extrato():
                 LIMIT 1
             """, (empresa_id, conta_bancaria))
             ultima = cursor.fetchone()
+            if ultima:
+                logger.info(f"   💰 Saldo atual: R$ {ultima['saldo']}")
             
             # 3. Verificar duplicatas por FITID
             cursor.execute("""
@@ -4019,6 +4028,7 @@ def diagnostico_extrato():
                 ORDER BY qtd DESC
             """, (empresa_id, conta_bancaria))
             duplicatas_fitid = cursor.fetchall()
+            logger.info(f"   ⚠️ Duplicatas FITID: {len(duplicatas_fitid)}")
             
             # 4. Verificar duplicatas por data+valor+descrição
             cursor.execute("""
@@ -4031,6 +4041,7 @@ def diagnostico_extrato():
                 ORDER BY qtd DESC, data DESC
             """, (empresa_id, conta_bancaria))
             duplicatas_conteudo = cursor.fetchall()
+            logger.info(f"   ⚠️ Duplicatas conteúdo: {len(duplicatas_conteudo)}")
             
             # 5. Importações
             cursor.execute("""
@@ -4041,6 +4052,7 @@ def diagnostico_extrato():
                 ORDER BY importacao_id DESC
             """, (empresa_id, conta_bancaria))
             importacoes = cursor.fetchall()
+            logger.info(f"   📦 Importações: {len(importacoes)}")
             
             # 6. Saldo da conta cadastrada
             cursor.execute("""
@@ -4052,23 +4064,23 @@ def diagnostico_extrato():
             
             cursor.close()
             
-            return jsonify({
+            resultado = {
                 'success': True,
                 'conta': conta_bancaria,
                 'resumo': {
-                    'total_transacoes': resumo['total'] if resumo else 0,
+                    'total_transacoes': int(resumo['total']) if resumo else 0,
                     'periodo': {
                         'inicio': str(resumo['data_inicio']) if resumo and resumo['data_inicio'] else None,
                         'fim': str(resumo['data_fim']) if resumo and resumo['data_fim'] else None
                     }
                 },
                 'saldo_atual': {
-                    'valor': float(ultima['saldo']) if ultima else 0,
+                    'valor': float(ultima['saldo']) if ultima and ultima['saldo'] is not None else 0,
                     'data': str(ultima['data']) if ultima else None,
                     'descricao': ultima['descricao'] if ultima else None
                 } if ultima else None,
                 'conta_cadastrada': {
-                    'saldo_inicial': float(conta['saldo_inicial']) if conta else 0,
+                    'saldo_inicial': float(conta['saldo_inicial']) if conta and conta['saldo_inicial'] is not None else 0,
                     'data_inicio': str(conta['data_inicio']) if conta and conta['data_inicio'] else None
                 } if conta else None,
                 'duplicatas': {
@@ -4079,10 +4091,17 @@ def diagnostico_extrato():
                 },
                 'importacoes': [dict(i) for i in importacoes],
                 'problemas_detectados': []
-            }), 200
+            }
+            
+            logger.info(f"✅ Diagnóstico concluído com sucesso")
+            return jsonify(resultado), 200
+            
+        finally:
+            if conn:
+                conn.close()
         
     except Exception as e:
-        logger.error(f"Erro no diagnóstico: {e}")
+        logger.error(f"❌ Erro no diagnóstico: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
