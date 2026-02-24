@@ -111,12 +111,10 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
             # 🏦 BUSCAR SALDO ANTERIOR ao período filtrado
             saldo_anterior = None
             if filtros and filtros.get('data_inicio'):
-                # ESTRATÉGIA: Recalcular saldo somando todas as transações anteriores
-                # Isso evita problemas com duplicatas e múltiplas importações
+                # ESTRATÉGIA: Pegar o campo 'saldo' da ÚLTIMA transação antes do período
+                # O campo 'saldo' vem do OFX e representa o saldo real da conta naquele momento
                 query_saldo = """
-                    SELECT 
-                        COALESCE(SUM(valor), 0) as saldo_calculado,
-                        COUNT(*) as total_transacoes
+                    SELECT saldo
                     FROM transacoes_extrato
                     WHERE empresa_id = %s
                       AND data < %s
@@ -128,12 +126,15 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
                     query_saldo += " AND conta_bancaria = %s"
                     params_saldo.append(filtros['conta_bancaria'])
                 
+                # Ordenar por data DESC para pegar a transação mais recente antes do período
+                query_saldo += " ORDER BY data DESC, id DESC LIMIT 1"
+                
                 cursor.execute(query_saldo, params_saldo)
                 resultado_saldo = cursor.fetchone()
                 
-                if resultado_saldo and resultado_saldo['total_transacoes'] > 0:
-                    saldo_anterior = float(resultado_saldo['saldo_calculado'])
-                    log(f"🏦 Saldo anterior recalculado: R$ {saldo_anterior:,.2f} ({resultado_saldo['total_transacoes']} transações)")
+                if resultado_saldo:
+                    saldo_anterior = float(resultado_saldo['saldo'])
+                    log(f"🏦 Saldo anterior (última transação antes do período): R$ {saldo_anterior:,.2f}")
                 else:
                     log(f"🏦 Nenhuma transação anterior ao período - saldo inicial = R$ 0,00")
             
