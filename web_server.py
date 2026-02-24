@@ -1816,45 +1816,65 @@ def listar_contas():
         
         contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
         
-        # Preparar resposta - CALCULAR saldo real com base nos lançamentos pagos
+        # Preparar resposta - CALCULAR saldo real com base nos lançamentos pagos OU extrato bancário
         contas_com_saldo = []
         for c in contas:
-            # Calcular saldo real = saldo_inicial + receitas pagas - despesas pagas
-            saldo_real = float(c.saldo_inicial)
+            # 🏦 PRIORIDADE 1: Buscar saldo do extrato bancário (fonte de verdade)
+            saldo_real = None
             
             try:
-                # Buscar lançamentos PAGOS desta conta
                 with get_db_connection(empresa_id=empresa_id) as conn:
                     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                     
-                    # Somar receitas pagas
+                    # Verificar se existem transações de extrato para esta conta
                     cursor.execute("""
-                        SELECT COALESCE(SUM(valor), 0) as total_receitas
-                        FROM lancamentos
+                        SELECT saldo, data, id
+                        FROM transacoes_extrato
                         WHERE empresa_id = %s
                         AND conta_bancaria = %s
-                        AND tipo = 'receita'
-                        AND status = 'pago'
+                        ORDER BY data DESC, id DESC
+                        LIMIT 1
                     """, (empresa_id, c.nome))
-                    resultado_receitas = cursor.fetchone()
-                    total_receitas = float(resultado_receitas['total_receitas'] or 0)
                     
-                    # Somar despesas pagas
-                    cursor.execute("""
-                        SELECT COALESCE(SUM(valor), 0) as total_despesas
-                        FROM lancamentos
-                        WHERE empresa_id = %s
-                        AND conta_bancaria = %s
-                        AND tipo = 'despesa'
-                        AND status = 'pago'
-                    """, (empresa_id, c.nome))
-                    resultado_despesas = cursor.fetchone()
-                    total_despesas = float(resultado_despesas['total_despesas'] or 0)
+                    ultima_transacao_extrato = cursor.fetchone()
+                    
+                    if ultima_transacao_extrato and ultima_transacao_extrato['saldo'] is not None:
+                        # ✅ USAR SALDO DO EXTRATO (mais recente e confiável)
+                        saldo_real = float(ultima_transacao_extrato['saldo'])
+                        print(f"🏦 Conta {c.nome}: Saldo do extrato = R$ {saldo_real:.2f} (data: {ultima_transacao_extrato['data']})")
+                    else:
+                        # 💰 FALLBACK: Calcular com base nos lançamentos manuais
+                        print(f"📝 Conta {c.nome}: Sem extrato, calculando com lançamentos...")
+                        
+                        # Somar receitas pagas
+                        cursor.execute("""
+                            SELECT COALESCE(SUM(valor), 0) as total_receitas
+                            FROM lancamentos
+                            WHERE empresa_id = %s
+                            AND conta_bancaria = %s
+                            AND tipo = 'receita'
+                            AND status = 'pago'
+                        """, (empresa_id, c.nome))
+                        resultado_receitas = cursor.fetchone()
+                        total_receitas = float(resultado_receitas['total_receitas'] or 0)
+                        
+                        # Somar despesas pagas
+                        cursor.execute("""
+                            SELECT COALESCE(SUM(valor), 0) as total_despesas
+                            FROM lancamentos
+                            WHERE empresa_id = %s
+                            AND conta_bancaria = %s
+                            AND tipo = 'despesa'
+                            AND status = 'pago'
+                        """, (empresa_id, c.nome))
+                        resultado_despesas = cursor.fetchone()
+                        total_despesas = float(resultado_despesas['total_despesas'] or 0)
+                        
+                        # Calcular saldo real
+                        saldo_real = float(c.saldo_inicial) + total_receitas - total_despesas
+                        print(f"💰 Conta {c.nome}: Saldo calculado = R$ {saldo_real:.2f} (inicial: {c.saldo_inicial} + receitas: {total_receitas} - despesas: {total_despesas})")
                     
                     cursor.close()
-                    
-                    # Calcular saldo real
-                    saldo_real = float(c.saldo_inicial) + total_receitas - total_despesas
                     
             except Exception as e:
                 print(f"⚠️ Erro ao calcular saldo real da conta {c.nome}: {e}")
