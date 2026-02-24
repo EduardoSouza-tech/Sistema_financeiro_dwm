@@ -3615,30 +3615,34 @@ async function loadExtratos() {
             const saldoFormatado = formatarMoeda(transacao.saldo);
             const saldoColor = transacao.saldo >= 0 ? '#27ae60' : '#c0392b';
             
+            // Nome da conta bancária
+            const nomeConta = transacao.conta_nome || 'Sem conta';
+            
             // Determinar qual botão exibir
             const botaoAcao = !transacao.conciliado ? 
-                `<button class="btn btn-sm btn-primary" onclick="console.log('🔵 Botão Conciliar clicado! ID:', ${transacao.id}); mostrarSugestoesConciliacao(${transacao.id})">
+                `<button class="btn btn-sm btn-primary" onclick="console.log('🔵 Botão Conciliar clicado! ID:', ${transacao.id}); mostrarSugestoesConciliacao(${transacao.id})" style="background: #3498db; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
                     🔗 Conciliar
                 </button>` 
                 : 
-                `<button class="btn btn-sm btn-secondary" onclick="console.log('🔵 Botão Ver clicado! ID:', ${transacao.id}); mostrarDetalheConciliacao(${transacao.id})">
-                    👁️ Ver
+                `<button class="btn btn-sm btn-warning" onclick="console.log('🔵 Botão Desconciliar clicado! ID:', ${transacao.id}); window.desconciliarTransacao(${transacao.id})" style="background: #9b59b6; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                    ⚠️ Desconciliar
                 </button>`;
             
-            console.log(`      ➡️ Botão renderizado para transação ${transacao.id}:`, transacao.conciliado ? 'Ver (conciliado)' : 'Conciliar (pendente)');
+            console.log(`      ➡️ Botão renderizado para transação ${transacao.id}:`, transacao.conciliado ? 'Desconciliar (conciliado)' : 'Conciliar (pendente)');
             
             tr.innerHTML = `
                 <td>${formatarData(transacao.data)}</td>
                 <td style="max-width: 300px;">${transacao.descricao}</td>
-                <td style="color: ${valorColor}; font-weight: bold;">${valorFormatado}</td>
-                <td><span class="badge badge-${isCredito ? 'success' : 'danger'}">${tipoLabel}</span></td>
-                <td style="font-weight: bold; color: ${saldoColor};">${saldoFormatado}</td>
-                <td>
+                <td style="color: ${valorColor}; font-weight: bold; text-align: right;">${valorFormatado}</td>
+                <td style="text-align: center;"><span class="badge badge-${isCredito ? 'success' : 'danger'}">${tipoLabel}</span></td>
+                <td style="font-weight: bold; color: ${saldoColor}; text-align: right;">${saldoFormatado}</td>
+                <td>${nomeConta}</td>
+                <td style="text-align: center;">
                     <span style="color: ${statusColor}; font-weight: bold;">
                         ${statusIcon} ${statusText}
                     </span>
                 </td>
-                <td>
+                <td style="text-align: center;">
                     ${botaoAcao}
                 </td>
             `;
