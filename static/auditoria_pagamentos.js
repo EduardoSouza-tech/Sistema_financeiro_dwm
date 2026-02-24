@@ -219,11 +219,8 @@ function renderizarDuplicatasLancamentos(duplicatas) {
                         <div style="font-size: 16px; font-weight: 600; color: #2c3e50; margin-bottom: 8px;">
                             ${dup.beneficiario}
                         </div>
-                        <div style="color: #7f8c8d; font-size: 13px; margin-bottom: 4px;">
-                            ${dup.cpf_cnpj ? `📄 CPF/CNPJ: ${dup.cpf_cnpj}` : ''}
-                        </div>
                         <div style="color: #7f8c8d; font-size: 13px;">
-                            📁 Categoria: ${dup.categoria_nome || 'Sem categoria'} • 🏦 ${dup.conta_bancaria}
+                            📁 Categoria: ${dup.categoria || 'Sem categoria'} • 🏦 ${dup.conta_bancaria || 'Sem conta'}
                         </div>
                     </div>
                     <div style="text-align: right;">

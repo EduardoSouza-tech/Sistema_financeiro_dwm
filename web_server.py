@@ -4312,41 +4312,39 @@ def auditoria_pagamentos_duplicados():
             logger.info(f"   📊 Duplicatas no extrato: {len(duplicatas_extrato)}")
             
             # Query para detectar duplicatas nos LANÇAMENTOS (Contas a Pagar)
+            # Nota: tabela lancamentos usa colunas cliente_fornecedor/pessoa para nomes, não IDs
             query_lancamentos = """
                 SELECT 
-                    l.data_vencimento as data,
-                    l.valor,
-                    COALESCE(f.razao_social, f.nome_fantasia, c.nome, 'Sem beneficiário') as beneficiario,
-                    COALESCE(f.cpf_cnpj, c.cpf_cnpj, '') as cpf_cnpj,
-                    l.categoria_nome,
-                    l.conta_bancaria,
+                    data_vencimento as data,
+                    valor,
+                    COALESCE(cliente_fornecedor, pessoa, 'Sem beneficiário') as beneficiario,
+                    categoria,
+                    conta_bancaria,
                     COUNT(*) as quantidade,
-                    STRING_AGG(CAST(l.id AS TEXT), ', ' ORDER BY l.id) as ids,
+                    STRING_AGG(CAST(id AS TEXT), ', ' ORDER BY id) as ids,
                     'lancamentos' as origem
-                FROM lancamentos l
-                LEFT JOIN fornecedores f ON l.fornecedor_id = f.id
-                LEFT JOIN clientes c ON l.cliente_id = c.id
-                WHERE l.empresa_id = %s
-                  AND l.tipo = 'despesa'
-                  AND l.status = 'pago'
+                FROM lancamentos
+                WHERE empresa_id = %s
+                  AND UPPER(tipo) = 'DESPESA'
+                  AND UPPER(status) = 'PAGO'
             """
             params_lancamentos = [empresa_id]
             
             if data_inicio:
-                query_lancamentos += " AND l.data_vencimento >= %s"
+                query_lancamentos += " AND data_vencimento >= %s"
                 params_lancamentos.append(data_inicio)
             
             if data_fim:
-                query_lancamentos += " AND l.data_vencimento <= %s"
+                query_lancamentos += " AND data_vencimento <= %s"
                 params_lancamentos.append(data_fim)
             
             if conta_bancaria:
-                query_lancamentos += " AND l.conta_bancaria = %s"
+                query_lancamentos += " AND conta_bancaria = %s"
                 params_lancamentos.append(conta_bancaria)
             
             query_lancamentos += """
-                GROUP BY l.data_vencimento, l.valor, COALESCE(f.razao_social, f.nome_fantasia, c.nome, 'Sem beneficiário'), 
-                         COALESCE(f.cpf_cnpj, c.cpf_cnpj, ''), l.categoria_nome, l.conta_bancaria
+                GROUP BY data_vencimento, valor, COALESCE(cliente_fornecedor, pessoa, 'Sem beneficiário'), 
+                         categoria, conta_bancaria
                 HAVING COUNT(*) > 1
                 ORDER BY quantidade DESC, data DESC, ABS(valor) DESC
             """
