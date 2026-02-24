@@ -3481,6 +3481,26 @@ async function loadContasForExtrato() {
             });
         }
         
+        // 🚀 Preencher filtros de data automaticamente (início do mês até hoje)
+        const hoje = new Date();
+        const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        
+        // Formatar datas para YYYY-MM-DD (formato do input date)
+        const dataInicioFormatada = primeiroDiaMes.toISOString().split('T')[0];
+        const dataHojeFormatada = hoje.toISOString().split('T')[0];
+        
+        const dataInicioEl = document.getElementById('filtro-data-inicio-extrato') || document.getElementById('extrato-filter-data-inicio');
+        const dataFimEl = document.getElementById('filtro-data-fim-extrato') || document.getElementById('extrato-filter-data-fim');
+        
+        if (dataInicioEl) {
+            dataInicioEl.value = dataInicioFormatada;
+            console.log('📅 Data início preenchida:', dataInicioFormatada);
+        }
+        if (dataFimEl) {
+            dataFimEl.value = dataHojeFormatada;
+            console.log('📅 Data fim preenchida:', dataHojeFormatada);
+        }
+        
     } catch (error) {
         console.error('Erro ao carregar contas para extrato:', error);
         showToast('Erro ao carregar contas bancárias', 'error');
