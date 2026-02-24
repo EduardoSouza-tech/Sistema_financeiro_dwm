@@ -6765,18 +6765,63 @@ def dashboard():
         if usuario['tipo'] != 'admin' and usuario.get('cliente_id'):
             lancamentos = [l for l in lancamentos if getattr(l, 'pessoa', None) == usuario['cliente_id']]
         
-        # Calcular saldos
+        # Calcular saldos - USAR SALDO REAL DAS CONTAS (inclui extrato bancário)
         saldo_total = Decimal('0')
-        for c in contas:
-            saldo_total += Decimal(str(c.saldo_inicial))
         
-        for lanc in lancamentos:
-            if lanc.status == StatusLancamento.PAGO and lanc.tipo != TipoLancamento.TRANSFERENCIA:
-                valor_decimal = Decimal(str(lanc.valor))
-                if lanc.tipo == TipoLancamento.RECEITA:
-                    saldo_total += valor_decimal
-                else:
-                    saldo_total -= valor_decimal
+        # 🏦 Para cada conta, buscar saldo real (prioriza extrato bancário)
+        for c in contas:
+            try:
+                with get_db_connection(empresa_id=empresa_id) as conn:
+                    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                    
+                    # Verificar se existem transações de extrato para esta conta
+                    cursor.execute("""
+                        SELECT saldo
+                        FROM transacoes_extrato
+                        WHERE empresa_id = %s
+                        AND conta_bancaria = %s
+                        ORDER BY data DESC, id DESC
+                        LIMIT 1
+                    """, (empresa_id, c.nome))
+                    
+                    ultima_transacao_extrato = cursor.fetchone()
+                    
+                    if ultima_transacao_extrato and ultima_transacao_extrato['saldo'] is not None:
+                        # ✅ Usar saldo do extrato (fonte de verdade)
+                        saldo_conta = Decimal(str(ultima_transacao_extrato['saldo']))
+                        print(f"🏦 Dashboard - Conta {c.nome}: Saldo do extrato = R$ {saldo_conta}")
+                    else:
+                        # 💰 Fallback: Calcular com lançamentos manuais
+                        cursor.execute("""
+                            SELECT COALESCE(SUM(valor), 0) as total_receitas
+                            FROM lancamentos
+                            WHERE empresa_id = %s
+                            AND conta_bancaria = %s
+                            AND tipo = 'receita'
+                            AND status = 'pago'
+                        """, (empresa_id, c.nome))
+                        total_receitas = Decimal(str(cursor.fetchone()['total_receitas'] or 0))
+                        
+                        cursor.execute("""
+                            SELECT COALESCE(SUM(valor), 0) as total_despesas
+                            FROM lancamentos
+                            WHERE empresa_id = %s
+                            AND conta_bancaria = %s
+                            AND tipo = 'despesa'
+                            AND status = 'pago'
+                        """, (empresa_id, c.nome))
+                        total_despesas = Decimal(str(cursor.fetchone()['total_despesas'] or 0))
+                        
+                        saldo_conta = Decimal(str(c.saldo_inicial)) + total_receitas - total_despesas
+                        print(f"💰 Dashboard - Conta {c.nome}: Saldo calculado = R$ {saldo_conta}")
+                    
+                    cursor.close()
+                    saldo_total += saldo_conta
+                    
+            except Exception as e:
+                print(f"⚠️ Dashboard - Erro ao calcular saldo da conta {c.nome}: {e}")
+                # Em caso de erro, usar saldo_inicial
+                saldo_total += Decimal(str(c.saldo_inicial))
         
         # Contas pendentes
         hoje = date.today()
