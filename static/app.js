@@ -3724,8 +3724,19 @@ async function loadExtratos() {
             console.log('🏦 Linha de saldo inicial adicionada:', saldoInicialFormatado);
         }
         
+        // 🔄 RECALCULAR SALDOS: Se temos saldo_anterior, recalcular todos os saldos progressivamente
+        // Isso corrige problemas de saldos incorretos causados por duplicatas/múltiplas importações
+        let saldoCorrente = saldoAnterior !== null && saldoAnterior !== undefined ? saldoAnterior : 
+                            (extratos.length > 0 ? extratos[0].saldo - extratos[0].valor : 0);
+        
+        console.log(`🔄 Recalculando saldos a partir de R$ ${saldoCorrente.toFixed(2)}`);
+        
         extratos.forEach((transacao, index) => {
-            console.log(`   [${index + 1}/${extratos.length}] Renderizando transação ID:`, transacao.id, 'Conciliado:', transacao.conciliado);
+            // 🔄 RECALCULAR SALDO: somar valor da transação ao saldo corrente
+            saldoCorrente += parseFloat(transacao.valor);
+            const saldoRecalculado = saldoCorrente;
+            
+            console.log(`   [${index + 1}/${extratos.length}] ID:${transacao.id} Valor:${transacao.valor} SaldoArmazenado:${transacao.saldo} SaldoRecalculado:${saldoRecalculado.toFixed(2)}`);
             
             const tr = document.createElement('tr');
             const statusIcon = transacao.conciliado ? '✅' : '⏳';
@@ -3740,9 +3751,9 @@ async function loadExtratos() {
             // Formatar valor com sinal correto
             const valorFormatado = formatarMoeda(transacao.valor);
             
-            // Formatar saldo (pode ser positivo ou negativo)
-            const saldoFormatado = formatarMoeda(transacao.saldo);
-            const saldoColor = transacao.saldo >= 0 ? '#27ae60' : '#c0392b';
+            // 🔄 USAR SALDO RECALCULADO ao invés do saldo armazenado (que pode estar errado)
+            const saldoFormatado = formatarMoeda(saldoRecalculado);
+            const saldoColor = saldoRecalculado >= 0 ? '#27ae60' : '#c0392b';
             
             // Nome da conta bancária (campo correto: conta_bancaria)
             const nomeConta = transacao.conta_bancaria || 'Sem conta';
