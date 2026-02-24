@@ -3599,6 +3599,20 @@ async function loadExtratos() {
         const contaEl = document.getElementById('filtro-conta-extrato') || document.getElementById('extrato-filter-conta');
         const dataInicioEl = document.getElementById('filtro-data-inicio-extrato') || document.getElementById('extrato-filter-data-inicio');
         const dataFimEl = document.getElementById('filtro-data-fim-extrato') || document.getElementById('extrato-filter-data-fim');
+        
+        // 🚀 PREENCHER DATAS AUTOMATICAMENTE SE ESTIVEREM VAZIAS (fallback)
+        if (dataInicioEl && !dataInicioEl.value) {
+            const hoje = new Date();
+            const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            dataInicioEl.value = primeiroDiaMes.toISOString().split('T')[0];
+            console.log('📅 FALLBACK: Data início preenchida com:', dataInicioEl.value);
+        }
+        if (dataFimEl && !dataFimEl.value) {
+            const hoje = new Date();
+            dataFimEl.value = hoje.toISOString().split('T')[0];
+            console.log('📅 FALLBACK: Data fim preenchida com:', dataFimEl.value);
+        }
+        
         const conciliadoEl = document.getElementById('filtro-conciliado-extrato') || document.getElementById('extrato-filter-conciliado');
         
         const conta = contaEl ? contaEl.value : '';
