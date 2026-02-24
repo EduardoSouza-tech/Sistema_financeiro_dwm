@@ -2176,19 +2176,64 @@ async function loadContasReceber() {
         console.log('   ✅ Elemento tbody-receber encontrado');
         tbody.innerHTML = '';
         
-        // Filtros (opcionais)
+        // Filtros
         const filterTextElement = document.getElementById('filter-receber');
         const filterStatusElement = document.getElementById('filter-status-receber');
+        const filterCategoriaElement = document.getElementById('filter-categoria-receber');
+        const filterClienteElement = document.getElementById('filter-cliente');
+        const filterAnoElement = document.getElementById('filter-ano-receber');
+        const filterMesElement = document.getElementById('filter-mes-receber');
+        const filterDataInicioElement = document.getElementById('filter-data-inicio-receber');
+        const filterDataFimElement = document.getElementById('filter-data-fim-receber');
+        
         const filterText = filterTextElement ? filterTextElement.value.toLowerCase() : '';
         const filterStatus = filterStatusElement ? filterStatusElement.value : '';
+        const filterCategoria = filterCategoriaElement ? filterCategoriaElement.value : '';
+        const filterCliente = filterClienteElement ? filterClienteElement.value : '';
+        const filterAno = filterAnoElement ? filterAnoElement.value : '';
+        const filterMes = filterMesElement ? filterMesElement.value : '';
+        const filterDataInicio = filterDataInicioElement ? filterDataInicioElement.value : '';
+        const filterDataFim = filterDataFimElement ? filterDataFimElement.value : '';
         
-        // Filtrar apenas receitas
+        // Filtrar receitas
         const receitas = todosLancamentos.filter(lanc => {
             const isReceita = lanc.tipo && lanc.tipo.toUpperCase() === 'RECEITA';
+            if (!isReceita) return false;
+            
             const matchText = !filterText || lanc.descricao.toLowerCase().includes(filterText) || 
                              (lanc.pessoa && lanc.pessoa.toLowerCase().includes(filterText));
             const matchStatus = !filterStatus || lanc.status === filterStatus;
-            return isReceita && matchText && matchStatus;
+            const matchCategoria = !filterCategoria || lanc.categoria === filterCategoria;
+            const matchCliente = !filterCliente || lanc.pessoa === filterCliente;
+            
+            // Filtro por ano
+            if (filterAno) {
+                const dataVenc = new Date(lanc.data_vencimento);
+                if (dataVenc.getFullYear() !== parseInt(filterAno)) return false;
+            }
+            
+            // Filtro por mês
+            if (filterMes) {
+                const dataVenc = new Date(lanc.data_vencimento);
+                const mes = String(dataVenc.getMonth() + 1).padStart(2, '0');
+                if (mes !== filterMes) return false;
+            }
+            
+            // Filtro por data inicial
+            if (filterDataInicio) {
+                const dataVenc = new Date(lanc.data_vencimento);
+                const dataInicio = new Date(filterDataInicio);
+                if (dataVenc < dataInicio) return false;
+            }
+            
+            // Filtro por data final
+            if (filterDataFim) {
+                const dataVenc = new Date(lanc.data_vencimento);
+                const dataFim = new Date(filterDataFim);
+                if (dataVenc > dataFim) return false;
+            }
+            
+            return matchText && matchStatus && matchCategoria && matchCliente;
         });
         
         console.log('   💰 Total de receitas filtradas:', receitas.length);
@@ -2233,6 +2278,12 @@ async function loadContasReceber() {
             tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 30px;">💰 Nenhuma conta a receber</td></tr>';
         }
         
+        // Atualizar contador de registros
+        const contadorElement = document.getElementById('total-registros-receber');
+        if (contadorElement) {
+            contadorElement.textContent = receitas.length;
+        }
+        
         // Atualizar saldo total dos bancos e carregar select
         await atualizarSaldoTotalBancos('receber');
         await carregarSelectBancos('receber');
@@ -2250,20 +2301,71 @@ async function loadContasPagar() {
         const tbody = document.getElementById('tbody-pagar');
         tbody.innerHTML = '';
         
-        // Filtros (opcionais)
+        // Filtros
         const filterTextElement = document.getElementById('filter-pagar');
         const filterStatusElement = document.getElementById('filter-status-pagar');
+        const filterCategoriaElement = document.getElementById('filter-categoria-pagar');
+        const filterFornecedorElement = document.getElementById('filter-fornecedor');
+        const filterAnoElement = document.getElementById('filter-ano-pagar');
+        const filterMesElement = document.getElementById('filter-mes-pagar');
+        const filterDataInicioElement = document.getElementById('filter-data-inicio-pagar');
+        const filterDataFimElement = document.getElementById('filter-data-fim-pagar');
+        
         const filterText = filterTextElement ? filterTextElement.value.toLowerCase() : '';
         const filterStatus = filterStatusElement ? filterStatusElement.value : '';
+        const filterCategoria = filterCategoriaElement ? filterCategoriaElement.value : '';
+        const filterFornecedor = filterFornecedorElement ? filterFornecedorElement.value : '';
+        const filterAno = filterAnoElement ? filterAnoElement.value : '';
+        const filterMes = filterMesElement ? filterMesElement.value : '';
+        const filterDataInicio = filterDataInicioElement ? filterDataInicioElement.value : '';
+        const filterDataFim = filterDataFimElement ? filterDataFimElement.value : '';
         
-        // Filtrar apenas despesas
+        // Filtrar despesas
         const despesas = todosLancamentos.filter(lanc => {
             const isDespesa = lanc.tipo && lanc.tipo.toUpperCase() === 'DESPESA';
+            if (!isDespesa) return false;
+            
             const matchText = !filterText || lanc.descricao.toLowerCase().includes(filterText) || 
                              (lanc.pessoa && lanc.pessoa.toLowerCase().includes(filterText));
             const matchStatus = !filterStatus || lanc.status === filterStatus;
-            return isDespesa && matchText && matchStatus;
+            const matchCategoria = !filterCategoria || lanc.categoria === filterCategoria;
+            const matchFornecedor = !filterFornecedor || lanc.pessoa === filterFornecedor;
+            
+            // Filtro por ano
+            if (filterAno) {
+                const dataVenc = new Date(lanc.data_vencimento);
+                if (dataVenc.getFullYear() !== parseInt(filterAno)) return false;
+            }
+            
+            // Filtro por mês
+            if (filterMes) {
+                const dataVenc = new Date(lanc.data_vencimento);
+                const mes = String(dataVenc.getMonth() + 1).padStart(2, '0');
+                if (mes !== filterMes) return false;
+            }
+            
+            // Filtro por data inicial
+            if (filterDataInicio) {
+                const dataVenc = new Date(lanc.data_vencimento);
+                const dataInicio = new Date(filterDataInicio);
+                if (dataVenc < dataInicio) return false;
+            }
+            
+            // Filtro por data final
+            if (filterDataFim) {
+                const dataVenc = new Date(lanc.data_vencimento);
+                const dataFim = new Date(filterDataFim);
+                if (dataVenc > dataFim) return false;
+            }
+            
+            return matchText && matchStatus && matchCategoria && matchFornecedor;
         });
+        
+        // Atualizar contador de registros
+        const contadorElement = document.getElementById('total-registros-pagar');
+        if (contadorElement) {
+            contadorElement.textContent = despesas.length;
+        }
         
         despesas.forEach(lanc => {
             const tr = document.createElement('tr');
