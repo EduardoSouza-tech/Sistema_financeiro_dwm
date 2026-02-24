@@ -7629,28 +7629,73 @@ def relatorio_fluxo_projetado():
         if usuario['tipo'] != 'admin' and usuario.get('cliente_id'):
             lancamentos = [l for l in lancamentos if getattr(l, 'pessoa', None) == usuario['cliente_id']]
         
-        # Saldo atual (saldo inicial + todos os lançamentos pagos até hoje)
+        # 🏦 PRIORIDADE 1: Buscar saldo atual do EXTRATO BANCÁRIO (fonte de verdade)
         saldo_atual = Decimal('0')
-        for c in contas:
-            saldo_atual += Decimal(str(c.saldo_inicial))
         
-        # Adicionar todas as receitas e despesas JÁ PAGAS até hoje (exceto transferências)
-        for l in lancamentos:
-            # Converter data_pagamento para date se for datetime
-            if l.data_pagamento:
-                if isinstance(l.data_pagamento, datetime):
-                    data_pgto = l.data_pagamento.date()
-                else:
-                    data_pgto = l.data_pagamento
-            else:
-                data_pgto = None
-            
-            if l.status == StatusLancamento.PAGO and data_pgto and data_pgto <= hoje and l.tipo != TipoLancamento.TRANSFERENCIA:
-                valor_decimal = Decimal(str(l.valor))
-                if l.tipo == TipoLancamento.RECEITA:
-                    saldo_atual += valor_decimal
-                else:
-                    saldo_atual -= valor_decimal
+        try:
+            with get_db_connection(empresa_id=empresa_id) as conn:
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                
+                for c in contas:
+                    # Verificar se existem transações de extrato para esta conta
+                    cursor.execute("""
+                        SELECT saldo, data, id
+                        FROM transacoes_extrato
+                        WHERE empresa_id = %s
+                        AND conta_bancaria = %s
+                        ORDER BY data DESC, id DESC
+                        LIMIT 1
+                    """, (empresa_id, c.nome))
+                    
+                    ultima_transacao_extrato = cursor.fetchone()
+                    
+                    if ultima_transacao_extrato and ultima_transacao_extrato['saldo'] is not None:
+                        # ✅ USAR SALDO DO EXTRATO (mais recente e confiável)
+                        saldo_conta = Decimal(str(ultima_transacao_extrato['saldo']))
+                        print(f"🏦 Fluxo Projetado - Conta {c.nome}: Saldo do extrato = R$ {saldo_conta:.2f}")
+                    else:
+                        # 💰 FALLBACK: Calcular com base nos lançamentos manuais
+                        print(f"📝 Fluxo Projetado - Conta {c.nome}: Sem extrato, calculando com lançamentos...")
+                        
+                        # Somar receitas pagas
+                        cursor.execute("""
+                            SELECT COALESCE(SUM(valor), 0) as total_receitas
+                            FROM lancamentos
+                            WHERE empresa_id = %s
+                            AND conta_bancaria = %s
+                            AND tipo = 'receita'
+                            AND status = 'pago'
+                        """, (empresa_id, c.nome))
+                        resultado_receitas = cursor.fetchone()
+                        total_receitas = Decimal(str(resultado_receitas['total_receitas'] or 0))
+                        
+                        # Somar despesas pagas
+                        cursor.execute("""
+                            SELECT COALESCE(SUM(valor), 0) as total_despesas
+                            FROM lancamentos
+                            WHERE empresa_id = %s
+                            AND conta_bancaria = %s
+                            AND tipo = 'despesa'
+                            AND status = 'pago'
+                        """, (empresa_id, c.nome))
+                        resultado_despesas = cursor.fetchone()
+                        total_despesas = Decimal(str(resultado_despesas['total_despesas'] or 0))
+                        
+                        # Calcular saldo
+                        saldo_conta = Decimal(str(c.saldo_inicial)) + total_receitas - total_despesas
+                        print(f"💰 Fluxo Projetado - Conta {c.nome}: Saldo calculado = R$ {saldo_conta:.2f}")
+                    
+                    saldo_atual += saldo_conta
+                
+                cursor.close()
+                
+        except Exception as e:
+            print(f"⚠️ Erro ao calcular saldo atual no fluxo projetado: {e}")
+            import traceback
+            traceback.print_exc()
+            # FALLBACK em caso de erro: usar saldo inicial
+            for c in contas:
+                saldo_atual += Decimal(str(c.saldo_inicial))
         
         # Buscar lançamentos PENDENTES para projeção (vencidos + futuros)
         lancamentos_futuros = []
