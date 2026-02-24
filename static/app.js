@@ -3676,6 +3676,31 @@ async function loadExtratos() {
         
         console.log('🔄 Renderizando', extratos.length, 'transações...');
         
+        // 🏦 ADICIONAR LINHA DE SALDO INICIAL (como nos extratos bancários reais)
+        if (extratos.length > 0) {
+            const primeiraTransacao = extratos[0];
+            // Calcular saldo inicial = saldo atual da primeira transação - valor dela
+            const saldoInicial = primeiraTransacao.saldo - primeiraTransacao.valor;
+            const saldoInicialFormatado = formatarMoeda(saldoInicial);
+            const saldoInicialColor = saldoInicial >= 0 ? '#27ae60' : '#c0392b';
+            
+            const trSaldo = document.createElement('tr');
+            trSaldo.style.backgroundColor = '#f8f9fa';
+            trSaldo.style.fontWeight = 'bold';
+            trSaldo.innerHTML = `
+                <td></td>
+                <td style="text-transform: uppercase; color: #555;">SALDO</td>
+                <td></td>
+                <td></td>
+                <td style="text-align: right; color: ${saldoInicialColor}; font-size: 16px;">${saldoInicialFormatado}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+            `;
+            tbody.appendChild(trSaldo);
+            console.log('🏦 Linha de saldo inicial adicionada:', saldoInicialFormatado);
+        }
+        
         extratos.forEach((transacao, index) => {
             console.log(`   [${index + 1}/${extratos.length}] Renderizando transação ID:`, transacao.id, 'Conciliado:', transacao.conciliado);
             
