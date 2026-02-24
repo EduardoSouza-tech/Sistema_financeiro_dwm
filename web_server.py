@@ -2703,11 +2703,16 @@ def adicionar_cliente():
         cliente_id = db.adicionar_cliente(data, proprietario_id=proprietario_id)  # type: ignore
         print(f"   ✅ Cliente criado com ID: {cliente_id}")
         return jsonify({'success': True, 'id': cliente_id})
+    except ValueError as e:
+        # Erro de validação (ex: CPF/CNPJ duplicado)
+        error_msg = str(e)
+        print(f"   ⚠️ Validação: {error_msg}")
+        return jsonify({'success': False, 'error': error_msg}), 400
     except Exception as e:
         print(f"   ❌ Erro ao criar cliente: {str(e)}")
         import traceback
         traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 400
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/clientes/<path:nome>', methods=['GET'])
@@ -2914,11 +2919,16 @@ def adicionar_fornecedor():
         fornecedor_id = db.adicionar_fornecedor(data, proprietario_id=proprietario_id)  # type: ignore
         print(f"   ✅ Fornecedor criado com ID: {fornecedor_id}")
         return jsonify({'success': True, 'id': fornecedor_id})
+    except ValueError as e:
+        # Erro de validação (ex: CPF/CNPJ duplicado)
+        error_msg = str(e)
+        print(f"   ⚠️ Validação: {error_msg}")
+        return jsonify({'success': False, 'error': error_msg}), 400
     except Exception as e:
         print(f"   ❌ Erro: {str(e)}")
         import traceback
         traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 400
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/fornecedores/<path:nome>', methods=['GET'])

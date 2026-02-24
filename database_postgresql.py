@@ -2260,6 +2260,27 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
         
+        # 🔒 Verificar se CPF/CNPJ já existe (se fornecido)
+        if cpf_cnpj:
+            if empresa_id:
+                # Multi-tenant: verificar apenas na mesma empresa
+                cursor.execute("""
+                    SELECT id, nome FROM clientes 
+                    WHERE cpf_cnpj = %s AND empresa_id = %s
+                """, (cpf_cnpj, empresa_id))
+            else:
+                # Admin: verificar globalmente
+                cursor.execute("""
+                    SELECT id, nome FROM clientes 
+                    WHERE cpf_cnpj = %s
+                """, (cpf_cnpj,))
+            
+            cliente_existente = cursor.fetchone()
+            if cliente_existente:
+                cursor.close()
+                conn.close()
+                raise ValueError(f"CPF/CNPJ {cpf_cnpj} já cadastrado para o cliente '{cliente_existente['nome']}'")
+        
         # ✅ INSERT usando APENAS as colunas que existem no schema
         cursor.execute("""
             INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco, empresa_id, proprietario_id)
@@ -2536,6 +2557,27 @@ class DatabaseManager:
         
         conn = self.get_connection()
         cursor = conn.cursor()
+        
+        # 🔒 Verificar se CPF/CNPJ já existe (se fornecido)
+        if cpf_cnpj:
+            if empresa_id:
+                # Multi-tenant: verificar apenas na mesma empresa
+                cursor.execute("""
+                    SELECT id, nome FROM fornecedores 
+                    WHERE cpf_cnpj = %s AND empresa_id = %s
+                """, (cpf_cnpj, empresa_id))
+            else:
+                # Admin: verificar globalmente
+                cursor.execute("""
+                    SELECT id, nome FROM fornecedores 
+                    WHERE cpf_cnpj = %s
+                """, (cpf_cnpj,))
+            
+            fornecedor_existente = cursor.fetchone()
+            if fornecedor_existente:
+                cursor.close()
+                conn.close()
+                raise ValueError(f"CPF/CNPJ {cpf_cnpj} já cadastrado para o fornecedor '{fornecedor_existente['nome']}'")
         
         # ✅ INSERT usando APENAS as colunas que existem no schema
         cursor.execute("""

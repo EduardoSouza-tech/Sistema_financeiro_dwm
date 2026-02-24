@@ -3461,9 +3461,9 @@ async function loadContasForExtrato() {
         // Filtrar apenas contas ativas
         const contasAtivas = contas.filter(c => c.ativa !== false);
         
-        // Preencher selects
-        const selectImportar = document.getElementById('extrato-conta-importar');
-        const selectFiltro = document.getElementById('extrato-filter-conta');
+        // Preencher selects (ambos IDs por compatibilidade)
+        const selectImportar = document.getElementById('conta-bancaria-extrato') || document.getElementById('extrato-conta-importar');
+        const selectFiltro = document.getElementById('filtro-conta-extrato') || document.getElementById('extrato-filter-conta');
         
         if (selectImportar) {
             selectImportar.innerHTML = '<option value="">Selecione a conta</option>';
@@ -3547,10 +3547,11 @@ async function loadExtratos() {
         console.log('📋 loadExtratos: INICIANDO carregamento de extratos...');
         
         // Obter filtros (com proteção contra null)
-        const contaEl = document.getElementById('extrato-filter-conta');
-        const dataInicioEl = document.getElementById('extrato-filter-data-inicio');
-        const dataFimEl = document.getElementById('extrato-filter-data-fim');
-        const conciliadoEl = document.getElementById('extrato-filter-conciliado');
+        // Tentar ambos os IDs por compatibilidade (extrato-filter-* e filtro-*-extrato)
+        const contaEl = document.getElementById('filtro-conta-extrato') || document.getElementById('extrato-filter-conta');
+        const dataInicioEl = document.getElementById('filtro-data-inicio-extrato') || document.getElementById('extrato-filter-data-inicio');
+        const dataFimEl = document.getElementById('filtro-data-fim-extrato') || document.getElementById('extrato-filter-data-fim');
+        const conciliadoEl = document.getElementById('filtro-conciliado-extrato') || document.getElementById('extrato-filter-conciliado');
         
         const conta = contaEl ? contaEl.value : '';
         const dataInicio = dataInicioEl ? dataInicioEl.value : '';
@@ -3652,6 +3653,9 @@ async function loadExtratos() {
         showToast('Erro ao carregar transações do extrato', 'error');
     }
 }
+
+// Alias para compatibilidade com HTML (onChange chama loadExtratoTransacoes)
+window.loadExtratoTransacoes = function() { return loadExtratos(); };
 
 // Mostrar modal com sugestões de conciliação
 async function mostrarSugestoesConciliacao(transacaoId) {
@@ -4267,12 +4271,21 @@ function aplicarFiltrosExtrato() {
 
 // Limpar filtros do extrato
 function limparFiltrosExtrato() {
-    document.getElementById('extrato-filter-conta').value = '';
-    document.getElementById('extrato-filter-data-inicio').value = '';
-    document.getElementById('extrato-filter-data-fim').value = '';
-    document.getElementById('extrato-filter-conciliado').value = '';
+    // Tentar ambos os IDs por compatibilidade
+    const contaEl = document.getElementById('filtro-conta-extrato') || document.getElementById('extrato-filter-conta');
+    const dataInicioEl = document.getElementById('filtro-data-inicio-extrato') || document.getElementById('extrato-filter-data-inicio');
+    const dataFimEl = document.getElementById('filtro-data-fim-extrato') || document.getElementById('extrato-filter-data-fim');
+    const conciliadoEl = document.getElementById('filtro-conciliado-extrato') || document.getElementById('extrato-filter-conciliado');
+    
+    if (contaEl) contaEl.value = '';
+    if (dataInicioEl) dataInicioEl.value = '';
+    if (dataFimEl) dataFimEl.value = '';
+    if (conciliadoEl) conciliadoEl.value = '';
     loadExtratos();
 }
+
+// Alias para compatibilidade com HTML (botão limpar chama limparFiltrosExtratoOFX)
+window.limparFiltrosExtratoOFX = limparFiltrosExtrato;
 
 // ============================================================================
 // FUNÇÕES AUXILIARES PARA SESSÕES
