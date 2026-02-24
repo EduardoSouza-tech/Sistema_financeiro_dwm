@@ -4107,6 +4107,78 @@ def diagnostico_extrato():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/extratos/deletar-tudo-conta', methods=['DELETE'])
+@require_permission('lancamentos_delete')
+def deletar_tudo_extrato_conta():
+    """
+    Deleta TODAS as transações do extrato de uma conta específica
+    ⚠️ CUIDADO: Ação irreversível!
+    """
+    try:
+        usuario = get_usuario_logado()
+        
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        conta_bancaria = request.args.get('conta')
+        if not conta_bancaria:
+            return jsonify({'success': False, 'error': 'Conta bancária não informada'}), 400
+        
+        logger.info(f"🗑️ Deletando TODAS transações - empresa_id: {empresa_id}, conta: {conta_bancaria}")
+        
+        # Criar instância local do DatabaseManager
+        db_manager = DatabaseManager()
+        conn = db_manager.get_connection()
+        
+        try:
+            conn.autocommit = False
+            cursor = conn.cursor()
+            
+            #  Contar quantas transações serão deletadas (para log)
+            cursor.execute("""
+                SELECT COUNT(*) FROM transacoes_extrato
+                WHERE empresa_id = %s AND conta_bancaria = %s
+            """, (empresa_id, conta_bancaria))
+            total_antes = cursor.fetchone()[0]
+            
+            logger.info(f"   📊 Total de transações a deletar: {total_antes}")
+            
+            # Deletar TODAS as transações desta conta/empresa
+            cursor.execute("""
+                DELETE FROM transacoes_extrato
+                WHERE empresa_id = %s AND conta_bancaria = %s
+            """, (empresa_id, conta_bancaria))
+            
+            deletados = cursor.rowcount
+            
+            conn.commit()
+            cursor.close()
+            
+            logger.info(f"   ✅ {deletados} transações deletadas com sucesso")
+            
+            return jsonify({
+                'success': True,
+                'deletados': deletados,
+                'message': f'✅ {deletados} transação(ões) deletada(s) com sucesso. Agora você pode reimportar o arquivo OFX.'
+            }), 200
+            
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            raise e
+        finally:
+            if conn:
+                conn.close()
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao deletar extratos: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/extratos/deletar-filtrado', methods=['DELETE'])
 @require_permission('lancamentos_delete')
 def deletar_extrato_filtrado():
