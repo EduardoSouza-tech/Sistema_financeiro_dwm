@@ -3606,6 +3606,86 @@ def upload_extrato_ofx():
         except Exception as e:
             return jsonify({'success': False, 'error': f'Erro ao processar OFX: {str(e)}'}), 400
         
+        # 🔒 VALIDAÇÃO: Verificar se já existe importação no período (ANTES de processar)
+        try:
+            for account in ofx.accounts:
+                # Extrair período do OFX (ignorar timezone para evitar bugs)
+                start_date_ofx = account.statement.start_date
+                end_date_ofx = account.statement.end_date
+                
+                # Converter para date (ignorar timezone)
+                if hasattr(start_date_ofx, 'year'):
+                    periodo_inicio = date(start_date_ofx.year, start_date_ofx.month, start_date_ofx.day)
+                elif hasattr(start_date_ofx, 'date'):
+                    periodo_inicio = start_date_ofx.date()
+                else:
+                    periodo_inicio = start_date_ofx
+                
+                if hasattr(end_date_ofx, 'year'):
+                    periodo_fim = date(end_date_ofx.year, end_date_ofx.month, end_date_ofx.day)
+                elif hasattr(end_date_ofx, 'date'):
+                    periodo_fim = end_date_ofx.date()
+                else:
+                    periodo_fim = end_date_ofx
+                
+                print(f"\n🔍 VALIDANDO PERÍODO: {periodo_inicio} até {periodo_fim}")
+                
+                # Consultar períodos já importados para esta conta/empresa
+                with db.get_connection() as conn:
+                    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                    
+                    cursor.execute("""
+                        SELECT 
+                            importacao_id,
+                            MIN(data) as inicio,
+                            MAX(data) as fim,
+                            COUNT(*) as qtd_transacoes
+                        FROM transacoes_extrato
+                        WHERE empresa_id = %s AND conta_bancaria = %s
+                        GROUP BY importacao_id
+                        ORDER BY importacao_id DESC
+                    """, (empresa_id, conta_bancaria))
+                    
+                    periodos_existentes = cursor.fetchall()
+                    cursor.close()
+                
+                # Verificar sobreposição com cada período existente
+                for periodo_existente in periodos_existentes:
+                    inicio_existente = periodo_existente['inicio']
+                    fim_existente = periodo_existente['fim']
+                    
+                    # Lógica de sobreposição: novo_inicio <= existente_fim AND novo_fim >= existente_inicio
+                    if periodo_inicio <= fim_existente and periodo_fim >= inicio_existente:
+                        print(f"❌ SOBREPOSIÇÃO DETECTADA!")
+                        print(f"   Período tentando importar: {periodo_inicio} até {periodo_fim}")
+                        print(f"   Período já existente (ID {periodo_existente['importacao_id']}): {inicio_existente} até {fim_existente}")
+                        
+                        return jsonify({
+                            'success': False,
+                            'error': f'Já existe uma importação no período {inicio_existente.strftime("%d/%m/%Y")} até {fim_existente.strftime("%d/%m/%Y")}',
+                            'details': {
+                                'periodo_tentado': {
+                                    'inicio': periodo_inicio.strftime('%d/%m/%Y'),
+                                    'fim': periodo_fim.strftime('%d/%m/%Y')
+                                },
+                                'periodo_existente': {
+                                    'importacao_id': periodo_existente['importacao_id'],
+                                    'inicio': inicio_existente.strftime('%d/%m/%Y'),
+                                    'fim': fim_existente.strftime('%d/%m/%Y'),
+                                    'transacoes': periodo_existente['qtd_transacoes']
+                                },
+                                'mensagem': 'Para importar este período, primeiro exclua a importação existente na tela de Extrato Bancário.'
+                            }
+                        }), 409  # 409 Conflict
+                
+                print(f"✅ Período válido, sem sobreposição com importações existentes")
+        
+        except Exception as e:
+            logger.error(f"Erro na validação de período: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': f'Erro ao validar período: {str(e)}'}), 500
+        
         # Extrair transacoes
         transacoes = []
         for account in ofx.accounts:

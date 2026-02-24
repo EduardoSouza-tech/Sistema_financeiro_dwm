@@ -3571,12 +3571,27 @@ async function importarExtrato() {
         
         const result = await response.json();
         
+        // 🔒 Tratamento especial para conflito de período (409)
+        if (response.status === 409 && result.details) {
+            const details = result.details;
+            showToast(
+                `⚠️ Período já importado!\n\n` +
+                `📅 Período do arquivo: ${details.periodo_tentado.inicio} até ${details.periodo_tentado.fim}\n` +
+                `📦 Período existente: ${details.periodo_existente.inicio} até ${details.periodo_existente.fim}\n` +
+                `📊 Transações existentes: ${details.periodo_existente.transacoes}\n\n` +
+                `${details.mensagem}`,
+                'warning',
+                10000  // 10 segundos
+            );
+            return;
+        }
+        
         if (!response.ok) throw new Error(result.error || 'Erro ao importar extrato');
         
         showToast(
             `✅ Importação concluída!\n` +
-            `✔️ ${result.inseridas} transações inseridas\n` +
-            `⚠️ ${result.duplicadas} transações duplicadas (ignoradas)`,
+            `✔️ ${result.transacoes_importadas || result.inseridas || 0} transações inseridas\n` +
+            `⚠️ ${result.transacoes_duplicadas || result.duplicadas || 0} transações duplicadas (ignoradas)`,
             'success'
         );
         
