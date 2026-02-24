@@ -3582,8 +3582,8 @@ async function loadExtratos() {
         console.log(`✅ ${extratos.length} transações recebidas do backend`);
         
         // Renderizar tabela
-        const tbody = document.getElementById('tbody-extratos');
-        console.log('📍 Elemento tbody-extratos:', tbody);
+        const tbody = document.getElementById('tbody-extrato');
+        console.log('📍 Elemento tbody-extrato:', tbody);
         
         tbody.innerHTML = '';
         
