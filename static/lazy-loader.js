@@ -524,4 +524,7 @@ async function loadLancamentosLazy(filters = {}) {
 // EXPORTAR PARA USO GLOBAL
 // ============================================================================
 
+// Expor LazyLoaders globalmente para acesso aos contadores
+window.LazyLoaders = LazyLoaders;
+
 console.log('✅ Lazy Loading Module carregado (Fase 7.5)');

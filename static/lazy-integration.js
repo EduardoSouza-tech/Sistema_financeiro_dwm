@@ -23,15 +23,40 @@ async function loadContasReceber() {
     if (LAZY_LOADING_ENABLED && typeof loadContasReceberLazy !== 'undefined') {
         console.log('⚡ Usando lazy loading para Contas a Receber');
         
-        // Obter filtros atuais
+        // Obter TODOS os filtros
         const filterText = document.getElementById('filter-receber')?.value || '';
         const filterStatus = document.getElementById('filter-status-receber')?.value || '';
+        const filterAno = document.getElementById('filter-ano-receber')?.value || '';
+        const filterMes = document.getElementById('filter-mes-receber')?.value || '';
+        const filterDataInicio = document.getElementById('filter-data-inicio-receber')?.value || '';
+        const filterDataFim = document.getElementById('filter-data-fim-receber')?.value || '';
+        const filterCategoria = document.getElementById('filter-categoria-receber')?.value || '';
+        const filterCliente = document.getElementById('filter-cliente')?.value || '';
         
         const filters = {};
         if (filterText) filters.search = filterText;
         if (filterStatus) filters.status = filterStatus;
+        if (filterAno) filters.ano = filterAno;
+        if (filterMes) filters.mes = filterMes;
+        if (filterDataInicio) filters.data_inicio = filterDataInicio;
+        if (filterDataFim) filters.data_fim = filterDataFim;
+        if (filterCategoria) filters.categoria = filterCategoria;
+        if (filterCliente) filters.cliente = filterCliente;
         
+        console.log('📋 Filtros aplicados:', filters);
         await loadContasReceberLazy(filters);
+        
+        // Atualizar contador de registros
+        setTimeout(() => {
+            if (window.LazyLoaders && window.LazyLoaders.contasReceber) {
+                const total = window.LazyLoaders.contasReceber.totalItems || 0;
+                const contadorElement = document.getElementById('total-registros-receber');
+                if (contadorElement) {
+                    contadorElement.textContent = total;
+                    console.log(`📊 Contador atualizado: ${total} registros`);
+                }
+            }
+        }, 500);
         
         // Atualizar saldo e selects
         await window.atualizarSaldoTotalBancos('receber');
@@ -53,14 +78,40 @@ async function loadContasPagar() {
     if (LAZY_LOADING_ENABLED && typeof loadContasPagarLazy !== 'undefined') {
         console.log('⚡ Usando lazy loading para Contas a Pagar');
         
+        // Obter TODOS os filtros
         const filterText = document.getElementById('filter-pagar')?.value || '';
         const filterStatus = document.getElementById('filter-status-pagar')?.value || '';
+        const filterAno = document.getElementById('filter-ano-pagar')?.value || '';
+        const filterMes = document.getElementById('filter-mes-pagar')?.value || '';
+        const filterDataInicio = document.getElementById('filter-data-inicio-pagar')?.value || '';
+        const filterDataFim = document.getElementById('filter-data-fim-pagar')?.value || '';
+        const filterCategoria = document.getElementById('filter-categoria-pagar')?.value || '';
+        const filterFornecedor = document.getElementById('filter-fornecedor')?.value || '';
         
         const filters = {};
         if (filterText) filters.search = filterText;
         if (filterStatus) filters.status = filterStatus;
+        if (filterAno) filters.ano = filterAno;
+        if (filterMes) filters.mes = filterMes;
+        if (filterDataInicio) filters.data_inicio = filterDataInicio;
+        if (filterDataFim) filters.data_fim = filterDataFim;
+        if (filterCategoria) filters.categoria = filterCategoria;
+        if (filterFornecedor) filters.fornecedor = filterFornecedor;
         
+        console.log('📋 Filtros aplicados:', filters);
         await loadContasPagarLazy(filters);
+        
+        // Atualizar contador de registros
+        setTimeout(() => {
+            if (window.LazyLoaders && window.LazyLoaders.contasPagar) {
+                const total = window.LazyLoaders.contasPagar.totalItems || 0;
+                const contadorElement = document.getElementById('total-registros-pagar');
+                if (contadorElement) {
+                    contadorElement.textContent = total;
+                    console.log(`📊 Contador atualizado: ${total} registros`);
+                }
+            }
+        }, 500);
         
         await window.atualizarSaldoTotalBancos('pagar');
         await window.carregarSelectBancos('pagar');
