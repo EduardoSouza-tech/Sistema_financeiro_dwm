@@ -3890,6 +3890,124 @@ def deletar_importacao_extrato(importacao_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/extratos/diagnostico', methods=['GET'])
+@require_permission('lancamentos_view')
+def diagnostico_extrato():
+    """Verifica problemas no extrato (duplicatas, saldo, etc.)"""
+    try:
+        usuario = get_usuario_logado()
+        
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        conta_bancaria = request.args.get('conta')
+        if not conta_bancaria:
+            return jsonify({'success': False, 'error': 'Conta bancária não informada'}), 400
+        
+        with db.get_connection() as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            # 1. Total de transações
+            cursor.execute("""
+                SELECT COUNT(*) as total, MIN(data) as data_inicio, MAX(data) as data_fim
+                FROM transacoes_extrato
+                WHERE empresa_id = %s AND conta_bancaria = %s
+            """, (empresa_id, conta_bancaria))
+            resumo = cursor.fetchone()
+            
+            # 2. Saldo atual (última transação)
+            cursor.execute("""
+                SELECT data, saldo, descricao
+                FROM transacoes_extrato
+                WHERE empresa_id = %s AND conta_bancaria = %s
+                ORDER BY data DESC, id DESC
+                LIMIT 1
+            """, (empresa_id, conta_bancaria))
+            ultima = cursor.fetchone()
+            
+            # 3. Verificar duplicatas por FITID
+            cursor.execute("""
+                SELECT fitid, COUNT(*) as qtd,
+                       STRING_AGG(CAST(id AS TEXT), ', ') as ids,
+                       STRING_AGG(CAST(data AS TEXT), ', ') as datas
+                FROM transacoes_extrato
+                WHERE empresa_id = %s AND conta_bancaria = %s AND fitid IS NOT NULL
+                GROUP BY fitid
+                HAVING COUNT(*) > 1
+                ORDER BY qtd DESC
+            """, (empresa_id, conta_bancaria))
+            duplicatas_fitid = cursor.fetchall()
+            
+            # 4. Verificar duplicatas por data+valor+descrição
+            cursor.execute("""
+                SELECT data, valor, descricao, COUNT(*) as qtd,
+                       STRING_AGG(CAST(id AS TEXT), ', ') as ids
+                FROM transacoes_extrato
+                WHERE empresa_id = %s AND conta_bancaria = %s
+                GROUP BY data, valor, descricao
+                HAVING COUNT(*) > 1
+                ORDER BY qtd DESC, data DESC
+            """, (empresa_id, conta_bancaria))
+            duplicatas_conteudo = cursor.fetchall()
+            
+            # 5. Importações
+            cursor.execute("""
+                SELECT importacao_id, COUNT(*) as transacoes, MIN(data) as inicio, MAX(data) as fim
+                FROM transacoes_extrato
+                WHERE empresa_id = %s AND conta_bancaria = %s
+                GROUP BY importacao_id
+                ORDER BY importacao_id DESC
+            """, (empresa_id, conta_bancaria))
+            importacoes = cursor.fetchall()
+            
+            # 6. Saldo da conta cadastrada
+            cursor.execute("""
+                SELECT saldo_inicial, data_inicio
+                FROM contas_bancariasempresa
+                WHERE empresa_id = %s AND nome = %s
+            """, (empresa_id, conta_bancaria))
+            conta = cursor.fetchone()
+            
+            cursor.close()
+            
+            return jsonify({
+                'success': True,
+                'conta': conta_bancaria,
+                'resumo': {
+                    'total_transacoes': resumo['total'] if resumo else 0,
+                    'periodo': {
+                        'inicio': str(resumo['data_inicio']) if resumo and resumo['data_inicio'] else None,
+                        'fim': str(resumo['data_fim']) if resumo and resumo['data_fim'] else None
+                    }
+                },
+                'saldo_atual': {
+                    'valor': float(ultima['saldo']) if ultima else 0,
+                    'data': str(ultima['data']) if ultima else None,
+                    'descricao': ultima['descricao'] if ultima else None
+                } if ultima else None,
+                'conta_cadastrada': {
+                    'saldo_inicial': float(conta['saldo_inicial']) if conta else 0,
+                    'data_inicio': str(conta['data_inicio']) if conta and conta['data_inicio'] else None
+                } if conta else None,
+                'duplicatas': {
+                    'por_fitid': [dict(d) for d in duplicatas_fitid],
+                    'por_conteudo': [dict(d) for d in duplicatas_conteudo],
+                    'total_fitid': len(duplicatas_fitid),
+                    'total_conteudo': len(duplicatas_conteudo)
+                },
+                'importacoes': [dict(i) for i in importacoes],
+                'problemas_detectados': []
+            }), 200
+        
+    except Exception as e:
+        logger.error(f"Erro no diagnóstico: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/extratos/deletar-filtrado', methods=['DELETE'])
 @require_permission('lancamentos_delete')
 def deletar_extrato_filtrado():
