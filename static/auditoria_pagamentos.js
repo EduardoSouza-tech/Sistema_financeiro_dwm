@@ -3,6 +3,9 @@
  * v1.0 - 24/02/2026
  */
 
+// Definir API_URL (compatibilidade com CONFIG.API_URL de app.js)
+const API_URL = (typeof CONFIG !== 'undefined' && CONFIG.API_URL) ? CONFIG.API_URL : '/api';
+
 // Estado global da auditoria
 let auditoriaAtual = {
     extrato: [],

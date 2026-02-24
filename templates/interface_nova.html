@@ -7664,7 +7664,17 @@
                     throw new Error('Erro ao carregar transações');
                 }
                 
-                const transacoes = await response.json();
+                const responseData = await response.json();
+                
+                // 🔄 Adaptar para novo formato da API: {transacoes: [], saldo_anterior: float}
+                let transacoes;
+                if (Array.isArray(responseData)) {
+                    // Formato antigo (array direto)
+                    transacoes = responseData;
+                } else {
+                    // Novo formato (objeto com transacoes e saldo_anterior)
+                    transacoes = responseData.transacoes || [];
+                }
                 
                 // 🔧 Salvar transações globalmente para a função mostrarSugestoesConciliacao
                 window.extratos = transacoes;
