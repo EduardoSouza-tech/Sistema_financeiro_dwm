@@ -4243,6 +4243,164 @@ def deletar_extrato_filtrado():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/auditoria/pagamentos-duplicados', methods=['GET'])
+@require_permission('relatorios_view')
+def auditoria_pagamentos_duplicados():
+    """
+    Auditoria de Pagamentos - Detecta pagamentos duplicados
+    Critério: Mesma data + Mesmo valor + Mesmo beneficiário (nome/CPF)
+    """
+    try:
+        usuario = get_usuario_logado()
+        
+        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        
+        # Filtros opcionais
+        data_inicio = request.args.get('data_inicio')
+        data_fim = request.args.get('data_fim')
+        conta_bancaria = request.args.get('conta')
+        
+        logger.info(f"🔍 Auditoria de Pagamentos - empresa_id: {empresa_id}")
+        
+        # Criar instância local do DatabaseManager
+        db_manager = DatabaseManager()
+        conn = db_manager.get_connection()
+        
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            # Query para detectar duplicatas no EXTRATO BANCÁRIO
+            query_extrato = """
+                SELECT 
+                    data,
+                    valor,
+                    descricao,
+                    conta_bancaria,
+                    COUNT(*) as quantidade,
+                    STRING_AGG(CAST(id AS TEXT), ', ' ORDER BY id) as ids,
+                    'extrato' as origem
+                FROM transacoes_extrato
+                WHERE empresa_id = %s
+                  AND tipo = 'DEBITO'  -- Apenas débitos (saídas/pagamentos)
+            """
+            params_extrato = [empresa_id]
+            
+            if data_inicio:
+                query_extrato += " AND data >= %s"
+                params_extrato.append(data_inicio)
+            
+            if data_fim:
+                query_extrato += " AND data <= %s"
+                params_extrato.append(data_fim)
+            
+            if conta_bancaria:
+                query_extrato += " AND conta_bancaria = %s"
+                params_extrato.append(conta_bancaria)
+            
+            query_extrato += """
+                GROUP BY data, valor, descricao, conta_bancaria
+                HAVING COUNT(*) > 1
+                ORDER BY quantidade DESC, data DESC, ABS(valor) DESC
+            """
+            
+            cursor.execute(query_extrato, params_extrato)
+            duplicatas_extrato = cursor.fetchall()
+            
+            logger.info(f"   📊 Duplicatas no extrato: {len(duplicatas_extrato)}")
+            
+            # Query para detectar duplicatas nos LANÇAMENTOS (Contas a Pagar)
+            query_lancamentos = """
+                SELECT 
+                    l.data_vencimento as data,
+                    l.valor,
+                    COALESCE(f.razao_social, f.nome_fantasia, c.nome, 'Sem beneficiário') as beneficiario,
+                    COALESCE(f.cpf_cnpj, c.cpf_cnpj, '') as cpf_cnpj,
+                    l.categoria_nome,
+                    l.conta_bancaria,
+                    COUNT(*) as quantidade,
+                    STRING_AGG(CAST(l.id AS TEXT), ', ' ORDER BY l.id) as ids,
+                    'lancamentos' as origem
+                FROM lancamentos l
+                LEFT JOIN fornecedores f ON l.fornecedor_id = f.id
+                LEFT JOIN clientes c ON l.cliente_id = c.id
+                WHERE l.empresa_id = %s
+                  AND l.tipo = 'despesa'
+                  AND l.status = 'pago'
+            """
+            params_lancamentos = [empresa_id]
+            
+            if data_inicio:
+                query_lancamentos += " AND l.data_vencimento >= %s"
+                params_lancamentos.append(data_inicio)
+            
+            if data_fim:
+                query_lancamentos += " AND l.data_vencimento <= %s"
+                params_lancamentos.append(data_fim)
+            
+            if conta_bancaria:
+                query_lancamentos += " AND l.conta_bancaria = %s"
+                params_lancamentos.append(conta_bancaria)
+            
+            query_lancamentos += """
+                GROUP BY l.data_vencimento, l.valor, COALESCE(f.razao_social, f.nome_fantasia, c.nome, 'Sem beneficiário'), 
+                         COALESCE(f.cpf_cnpj, c.cpf_cnpj, ''), l.categoria_nome, l.conta_bancaria
+                HAVING COUNT(*) > 1
+                ORDER BY quantidade DESC, data DESC, ABS(valor) DESC
+            """
+            
+            cursor.execute(query_lancamentos, params_lancamentos)
+            duplicatas_lancamentos = cursor.fetchall()
+            
+            logger.info(f"   📊 Duplicatas em lançamentos: {len(duplicatas_lancamentos)}")
+            
+            # Calcular valor total duplicado
+            total_duplicado_extrato = sum(
+                abs(float(d['valor'])) * (int(d['quantidade']) - 1) 
+                for d in duplicatas_extrato
+            )
+            
+            total_duplicado_lancamentos = sum(
+                abs(float(d['valor'])) * (int(d['quantidade']) - 1) 
+                for d in duplicatas_lancamentos
+            )
+            
+            cursor.close()
+            
+            resultado = {
+                'success': True,
+                'resumo': {
+                    'total_grupos_extrato': len(duplicatas_extrato),
+                    'total_grupos_lancamentos': len(duplicatas_lancamentos),
+                    'valor_duplicado_extrato': float(total_duplicado_extrato),
+                    'valor_duplicado_lancamentos': float(total_duplicado_lancamentos),
+                    'total_valor_duplicado': float(total_duplicado_extrato + total_duplicado_lancamentos)
+                },
+                'duplicatas_extrato': [dict(d) for d in duplicatas_extrato],
+                'duplicatas_lancamentos': [dict(d) for d in duplicatas_lancamentos],
+                'filtros_aplicados': {
+                    'data_inicio': data_inicio,
+                    'data_fim': data_fim,
+                    'conta_bancaria': conta_bancaria
+                }
+            }
+            
+            logger.info(f"✅ Auditoria concluída - Total duplicado: R$ {total_duplicado_extrato + total_duplicado_lancamentos:,.2f}")
+            return jsonify(resultado), 200
+            
+        finally:
+            if conn:
+                conn.close()
+        
+    except Exception as e:
+        logger.error(f"❌ Erro na auditoria: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 print("🔧 Registrando rota: /api/extratos/conciliacao-geral")
 
 @app.route('/api/extratos/conciliacao-geral', methods=['POST'])

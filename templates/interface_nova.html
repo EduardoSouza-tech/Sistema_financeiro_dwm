@@ -1417,6 +1417,7 @@
                 <button class="submenu-button" onclick="showSection('fluxo-caixa')" data-permission="relatorios_view">📈 Fluxo de Caixa</button>
                 <button class="submenu-button" onclick="showSection('analise-detalhada')" data-permission="relatorios_view">📊 Análise Detalhada</button>
                 <button class="submenu-button" onclick="showSection('comparativo-periodos')" data-permission="relatorios_view">📉 Comparativo de Períodos</button>
+                <button class="submenu-button" onclick="showSection('auditoria-pagamentos')" data-permission="relatorios_view">🔍 Auditoria de Pagamentos</button>
                 <button class="submenu-button" onclick="showSection('inadimplencia')" data-permission="relatorios_view">⚠️ Inadimplência <span id="badge-inadimplencia" class="badge-inadimplencia">0</span></button>
                 <button class="submenu-button" onclick="showSection('fiscal')" data-permission="relatorios_view">📑 NF-e e CT-e - Documentos Fiscais</button>
                 <button class="submenu-button" onclick="showSection('nfse')" data-permission="nfse_view">📄 NFS-e - Notas Fiscais</button>
@@ -4119,6 +4120,77 @@
                     <div style="font-size: 48px; margin-bottom: 20px;">📊</div>
                     <h3 style="color: #34495e; margin-bottom: 10px;">Compare Períodos Financeiros</h3>
                     <p style="margin: 0; font-size: 14px;">Selecione os períodos acima e clique em <strong>🔍 Comparar Períodos</strong> para visualizar a análise comparativa.</p>
+                </div>
+            </div>
+
+            <!-- Auditoria de Pagamentos -->
+            <div id="auditoria-pagamentos-section" class="content-card hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                    <h2 style="margin: 0;">🔍 Auditoria de Pagamentos Duplicados</h2>
+                </div>
+
+                <!-- Filtros -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">Data Início:</label>
+                            <input type="date" id="auditoria-data-inicio" class="form-control">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">Data Fim:</label>
+                            <input type="date" id="auditoria-data-fim" class="form-control">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">Conta Bancária:</label>
+                            <select id="auditoria-conta" class="form-control">
+                                <option value="">Todas as contas</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: flex-end;">
+                            <button class="btn btn-primary" onclick="carregarAuditoriaPagamentos()" style="width: 100%; padding: 8px 16px;">
+                                🔍 Buscar Duplicatas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumo da Auditoria -->
+                <div id="auditoria-resumo" style="display: none; margin-bottom: 25px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;" id="auditoria-total-grupos">0</div>
+                            <div style="font-size: 13px; opacity: 0.9;">Grupos de Duplicatas</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;" id="auditoria-valor-duplicado">R$ 0,00</div>
+                            <div style="font-size: 13px; opacity: 0.9;">Valor Total Duplicado</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs: Extrato / Lançamentos -->
+                <div style="border-bottom: 2px solid #e0e0e0; margin-bottom: 20px;">
+                    <button class="tab-button active" onclick="trocarAbaAuditoria('extrato')" id="tab-auditoria-extrato" style="padding: 10px 20px; background: none; border: none; border-bottom: 3px solid #3498db; color: #3498db; font-weight: 600; cursor: pointer; margin-right: 10px;">
+                        🏦 Extrato Bancário<span id="badge-duplicatas-extrato" style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px;">0</span>
+                    </button>
+                    <button class="tab-button" onclick="trocarAbaAuditoria('lancamentos')" id="tab-auditoria-lancamentos" style="padding: 10px 20px; background: none; border: none; color: #7f8c8d; font-weight: 600; cursor: pointer;">
+                        📋 Lançamentos<span id="badge-duplicatas-lancamentos" style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px; display: none;">0</span>
+                    </button>
+                </div>
+
+                <!-- Conteúdo: Duplicatas do Extrato -->
+                <div id="auditoria-tab-extrato">
+                    <div id="auditoria-extrato-vazio" style="text-align: center; padding: 60px 20px; color: #7f8c8d;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">🔍</div>
+                        <h3 style="color: #34495e; margin-bottom: 10px;">Auditoria de Pagamentos</h3>
+                        <p style="margin: 0; font-size: 14px;">Selecione os filtros acima e clique em <strong>🔍 Buscar Duplicatas</strong> para identificar pagamentos duplicados.</p>
+                    </div>
+                    <div id="auditoria-extrato-lista" style="display: none;"></div>
+                </div>
+
+                <!-- Conteúdo: Duplicatas dos Lançamentos -->
+                <div id="auditoria-tab-lancamentos" style="display: none;">
+                    <div id="auditoria-lancamentos-lista"></div>
                 </div>
             </div>
 
@@ -12264,6 +12336,7 @@
     <!-- Módulos DRE e Dashboard Gerencial -->
     <script src="/static/dre_module.js?v={{ build_timestamp }}"></script>
     <script src="/static/dashboard_module.js?v={{ build_timestamp }}"></script>
+    <script src="/static/auditoria_pagamentos.js?v={{ build_timestamp }}"></script>
     
     <!-- Inicialização dos módulos DRE e Dashboard -->
     <script>
@@ -12284,6 +12357,9 @@
                 } else if (sectionName === 'dashboard-gerencial' && typeof window.inicializarModuloDashboard === 'function') {
                     console.log('🎯 Inicializando módulo Dashboard Gerencial...');
                     await window.inicializarModuloDashboard();
+                } else if (sectionName === 'auditoria-pagamentos' && typeof window.carregarContasAuditoria === 'function') {
+                    console.log('🎯 Inicializando Auditoria de Pagamentos...');
+                    await window.carregarContasAuditoria();
                 }
             };
             
