@@ -1,15 +1,20 @@
 # 🏦 Documentação - Extrato Bancário
 
+**Última atualização**: 24/02/2026  
+**Versão**: 2.5 - Padrões UI/UX Implementados
+
 ## 📋 Índice
 1. [Visão Geral](#visão-geral)
-2. [Importação de Arquivos OFX](#importação-de-arquivos-ofx)
-3. [Cálculo do Saldo Inicial](#cálculo-do-saldo-inicial)
-4. [Lógica de Débitos e Créditos](#lógica-de-débitos-e-créditos)
-5. [Ordem de Exibição](#ordem-de-exibição)
-6. [Filtros Disponíveis](#filtros-disponíveis)
-7. [Conciliação de Transações](#conciliação-de-transações)
-8. [Deletar Extratos](#deletar-extratos)
-9. [Solução de Problemas](#solução-de-problemas)
+2. [Padrões UI/UX do Sistema](#padrões-uiux-do-sistema) ⭐ **NOVO**
+3. [Importação de Arquivos OFX](#importação-de-arquivos-ofx)
+4. [Cálculo do Saldo Inicial](#cálculo-do-saldo-inicial)
+5. [Lógica de Débitos e Créditos](#lógica-de-débitos-e-créditos)
+6. [Ordem de Exibição](#ordem-de-exibição)
+7. [Filtros Disponíveis](#filtros-disponíveis)
+8. [Conciliação de Transações](#conciliação-de-transações)
+9. [Deletar Extratos](#deletar-extratos)
+10. [Correções Críticas Aplicadas](#correções-críticas-aplicadas) ⭐ **NOVO**
+11. [Solução de Problemas](#solução-de-problemas)
 
 ---
 
@@ -23,8 +28,247 @@ O módulo de **Extrato Bancário** permite importar transações de arquivos OFX
 - ✅ Detecção automática de débitos e créditos
 - ✅ Conciliação com lançamentos manuais
 - ✅ Filtros por conta, data e status
+- ✅ **Filtros de data preenchidos automaticamente** 🆕
 - ✅ Prevenção de duplicatas
 - ✅ Exibição cronológica (do passado para o presente)
+- ✅ **Correção de timezone para datas OFX** 🆕
+
+---
+
+## ⚙️ Padrões UI/UX do Sistema
+
+### 🔍 Filtros Automáticos
+
+**Comportamento Padrão**: Ao abrir a seção de Extrato Bancário, os filtros de data são preenchidos automaticamente para otimizar a performance.
+
+#### Valores Padrão:
+```javascript
+Data Início: Primeiro dia do mês atual (ex: 01/02/2026)
+Data Fim:    Data atual (ex: 24/02/2026)
+```
+
+#### Benefícios:
+- ⚡ **Performance**: Carrega apenas transações do mês atual
+- 📉 **Redução de tráfego**: Menos dados trafegados entre servidor e cliente  
+- 🎯 **Foco**: Usuário vê imediatamente as transações mais relevantes
+- 🔄 **Flexível**: Usuário pode alterar as datas se precisar visualizar outros períodos
+
+#### Implementação Técnica:
+
+**Dupla Proteção** para garantir preenchimento:
+
+**1. Método Principal** (`loadContasForExtrato`):
+```javascript
+// Preenche ao carregar contas bancárias
+const hoje = new Date();
+const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+
+setTimeout(() => {
+    document.getElementById('filtro-data-inicio-extrato').value = 
+        primeiroDiaMes.toISOString().split('T')[0];
+    document.getElementById('filtro-data-fim-extrato').value = 
+        hoje.toISOString().split('T')[0];
+}, 200);
+```
+
+**2. Método Fallback** (`loadExtratos`):
+```javascript
+// Se os campos ainda estiverem vazios, preenche novamente
+if (dataInicioEl && !dataInicioEl.value) {
+    const hoje = new Date();
+    const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    dataInicioEl.value = primeiroDiaMes.toISOString().split('T')[0];
+}
+```
+
+---
+
+### 📊 Estrutura da Tabela
+
+**8 Colunas Obrigatórias** (sempre nesta ordem):
+
+| # | Coluna | ID do Campo Backend | Formato | Observações |
+|---|--------|---------------------|---------|-------------|
+| 1 | 📅 Data | `data` | DD/MM/YYYY | Formato brasileiro |
+| 2 | 📝 Descrição | `descricao` | Texto | Truncado se muito longo |
+| 3 | 💰 Valor | `valor` | R$ X.XXX,XX | Verde (crédito) / Vermelho (débito) |
+| 4 | 📊 Tipo | `tipo` | Badge | "Crédito" ou "Débito" |
+| 5 | 💵 Saldo | `saldo` | R$ X.XXX,XX | Verde (positivo) / Vermelho (negativo) |
+| 6 | 🏦 Conta | `conta_bancaria` | Texto | **Campo correto!** |
+| 7 | ⚡ Status | `conciliado` | Badge | "✅ Conciliado" ou "⏳ Pendente" |
+| 8 | ⚙️ Ações | - | Botões | Conciliar ou Desconciliar |
+
+#### ⚠️ IMPORTANTE - Campo da Conta:
+
+```javascript
+// ✅ CORRETO (campo que vem do backend)
+const nomeConta = transacao.conta_bancaria || 'Sem conta';
+
+// ❌ ERRADO (campo que NÃO existe)
+const nomeConta = transacao.conta_nome || 'Sem conta';
+```
+
+**Motivo**: O backend retorna o campo `conta_bancaria`, não `conta_nome`.
+
+---
+
+### 🎨 Botões de Ação
+
+**Comportamento Dinâmico** baseado no status de conciliação:
+
+#### Transação NÃO Conciliada:
+```html
+<button onclick="mostrarSugestoesConciliacao(id)" 
+        style="background: #3498db; color: white;">
+    🔗 Conciliar
+</button>
+```
+
+#### Transação Conciliada:
+```html
+<button onclick="window.desconciliarTransacao(id)" 
+        style="background: #9b59b6; color: white;">
+    ⚠️ Desconciliar
+</button>
+```
+
+**⚠️ IMPORTANTE**: Usar `window.desconciliarTransacao()` (função global), não `desconciliarExtrato()`.
+
+---
+
+### 🎯 IDs dos Elementos HTML
+
+**Padrão de Nomenclatura** para filtros:
+
+```html
+<!-- Importação -->
+<select id="conta-bancaria-extrato">...</select>
+<input type="file" id="arquivo-ofx">
+
+<!-- Filtros -->
+<select id="filtro-conta-extrato">...</select>
+<input type="date" id="filtro-data-inicio-extrato">
+<input type="date" id="filtro-data-fim-extrato">
+<select id="filtro-conciliado-extrato">...</select>
+
+<!-- Tabela -->
+<tbody id="tbody-extrato">...</tbody>
+```
+
+**Compatibilidade**: JavaScript busca ambos os padrões (`filtro-*-extrato` e `extrato-filter-*`) para retrocompatibilidade.
+
+---
+
+## 🐛 Correções Críticas Aplicadas
+
+### 1. ❌ → ✅ Bug de Timezone OFX (24/02/2026)
+
+**Problema**: Transações mostravam data com -1 dia em produção (Railway/UTC).
+
+**Exemplo**:
+```xml
+<!-- OFX -->
+<DTPOSTED>20260223000000[-3:GMT]</DTPOSTED>
+
+<!-- Sistema mostrava (ERRADO) -->
+22/02/2026
+
+<!-- Sistema mostra agora (CORRETO) -->
+23/02/2026
+```
+
+**Causa Raiz**: Método `.date()` do Python afetado pelo timezone do servidor.
+
+**Solução Implementada**:
+```python
+# ❌ ANTES (buggy)
+data_transacao = trans.date.date()
+
+# ✅ AGORA (timezone-safe)
+if hasattr(trans.date, 'year'):
+    data_transacao = date(trans.date.year, trans.date.month, trans.date.day)
+```
+
+**Commit**: `98a8437` - "fix(critical): OFX date extraction now timezone-safe"
+
+**Impacto**: Afetava TODAS as transações OFX importadas. Reconciliações devem ser refeitas.
+
+---
+
+### 2. ❌ → ✅ Coluna "Conta" Vazia (24/02/2026)
+
+**Problema**: Coluna "Conta" mostrava "Sem conta" em todas as linhas.
+
+**Causa**: JavaScript buscava campo errado.
+
+```javascript
+// ❌ ANTES
+const nomeConta = transacao.conta_nome || 'Sem conta';
+
+// ✅ AGORA
+const nomeConta = transacao.conta_bancaria || 'Sem conta';
+```
+
+**Commit**: `3febf33` - "fix(crítico): corrigido campo conta_bancaria no extrato"
+
+---
+
+### 3. ❌ → ✅ Botão "Desconciliar" Ausente (24/02/2026)
+
+**Problema**: Transações conciliadas mostravam botão "👁️ Ver" (inútil).
+
+**Solução**:
+```javascript
+// ❌ ANTES
+`<button onclick="mostrarDetalheConciliacao(${transacao.id})">
+    👁️ Ver
+</button>`
+
+// ✅ AGORA
+`<button onclick="window.desconciliarTransacao(${transacao.id})">
+    ⚠️ Desconciliar
+</button>`
+```
+
+**Commit**: `80d4518` - "fix(urgente): restaurado coluna Conta e botão Desconciliar"
+
+---
+
+### 4. ❌ → ✅ Tabela com 7 colunas ao invés de 8 (24/02/2026)
+
+**Problema**: HTML tem 8 colunas, JavaScript renderizava apenas 7.
+
+**Solução**: Adicionada coluna "Conta" na renderização.
+
+```javascript
+tr.innerHTML = `
+    <td>${formatarData(transacao.data)}</td>
+    <td>${transacao.descricao}</td>
+    <td>${valorFormatado}</td>
+    <td>${tipoLabel}</td>
+    <td>${saldoFormatado}</td>
+    <td>${nomeConta}</td>          <!-- ← COLUNA FALTANTE -->
+    <td>${statusIcon} ${statusText}</td>
+    <td>${botaoAcao}</td>
+`;
+```
+
+---
+
+### 5. ❌ → ✅ Elemento tbody Não Encontrado (24/02/2026)
+
+**Problema**: JavaScript buscava `tbody-extratos` (com 's'), HTML tem `tbody-extrato` (sem 's').
+
+**Solução**:
+```javascript
+// ❌ ANTES
+const tbody = document.getElementById('tbody-extratos');
+
+// ✅ AGORA
+const tbody = document.getElementById('tbody-extrato');
+```
+
+**Commit**: `124c1b7` - "fix: corrigido ID da tabela de extrato"
 
 ---
 
