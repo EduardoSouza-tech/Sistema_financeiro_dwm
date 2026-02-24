@@ -1612,6 +1612,10 @@
                 <div class="filters">
                     <div class="filter-row">
                         <div class="form-group">
+                            <label>🔍 Buscar:</label>
+                            <input type="text" id="filter-receber" placeholder="Buscar por descrição ou pessoa..." oninput="loadContasReceber()" style="width: 300px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div class="form-group">
                             <label>Status:</label>
                             <select id="filter-status-receber" onchange="loadContasReceber()">
                                 <option value="" selected>Todos</option>
@@ -1735,6 +1739,10 @@
                 
                 <div class="filters">
                     <div class="filter-row">
+                        <div class="form-group">
+                            <label>🔍 Buscar:</label>
+                            <input type="text" id="filter-pagar" placeholder="Buscar por descrição ou fornecedor..." oninput="loadContasPagar()" style="width: 300px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
                         <div class="form-group">
                             <label>Status:</label>
                             <select id="filter-status-pagar" onchange="loadContasPagar()">
