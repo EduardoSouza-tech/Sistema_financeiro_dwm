@@ -3489,19 +3489,34 @@ async function loadContasForExtrato() {
         const dataInicioFormatada = primeiroDiaMes.toISOString().split('T')[0];
         const dataHojeFormatada = hoje.toISOString().split('T')[0];
         
-        const dataInicioEl = document.getElementById('filtro-data-inicio-extrato') || document.getElementById('extrato-filter-data-inicio');
-        const dataFimEl = document.getElementById('filtro-data-fim-extrato') || document.getElementById('extrato-filter-data-fim');
+        console.log('🔍 Tentando preencher datas:', { inicio: dataInicioFormatada, fim: dataHojeFormatada });
         
-        if (dataInicioEl) {
-            dataInicioEl.value = dataInicioFormatada;
-            console.log('📅 Data início preenchida:', dataInicioFormatada);
-        }
-        if (dataFimEl) {
-            dataFimEl.value = dataHojeFormatada;
-            console.log('📅 Data fim preenchida:', dataHojeFormatada);
-        }
-        
-        console.log('✅ Filtros de data preenchidos - pronto para carregar extratos');
+        // Tentar com pequeno delay para garantir que elementos existam
+        setTimeout(() => {
+            const dataInicioEl = document.getElementById('filtro-data-inicio-extrato') || document.getElementById('extrato-filter-data-inicio');
+            const dataFimEl = document.getElementById('filtro-data-fim-extrato') || document.getElementById('extrato-filter-data-fim');
+            
+            console.log('🔍 Elementos encontrados:', { 
+                dataInicio: dataInicioEl ? 'SIM' : 'NÃO', 
+                dataFim: dataFimEl ? 'SIM' : 'NÃO' 
+            });
+            
+            if (dataInicioEl) {
+                dataInicioEl.value = dataInicioFormatada;
+                console.log('📅 Data início preenchida:', dataInicioEl.value);
+            } else {
+                console.error('❌ Elemento filtro-data-inicio-extrato NÃO ENCONTRADO');
+            }
+            
+            if (dataFimEl) {
+                dataFimEl.value = dataHojeFormatada;
+                console.log('📅 Data fim preenchida:', dataFimEl.value);
+            } else {
+                console.error('❌ Elemento filtro-data-fim-extrato NÃO ENCONTRADO');
+            }
+            
+            console.log('✅ Filtros de data processados');
+        }, 100);
         
     } catch (error) {
         console.error('Erro ao carregar contas para extrato:', error);
