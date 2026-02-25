@@ -3,7 +3,7 @@ Diagnóstico de duplicatas em lançamentos
 Verifica se há lançamentos duplicados no banco de dados
 """
 import os
-from database_postgresql import DatabasePostgreSQL
+from database_postgresql import DatabaseManager
 
 def diagnosticar_duplicatas():
     """Detecta lançamentos duplicados"""
@@ -17,7 +17,7 @@ def diagnosticar_duplicatas():
         print("❌ DATABASE_URL não encontrada!")
         return
     
-    db = DatabasePostgreSQL(database_url)
+    db = DatabaseManager(database_url)
     conn = db.get_connection()
     cursor = conn.cursor()
     

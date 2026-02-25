@@ -10781,6 +10781,147 @@ def limpar_duplicatas_categorias():
             'error': str(e)
         }), 500
 
+
+@app.route('/api/admin/limpar-duplicatas-extrato', methods=['POST'])
+@require_admin
+def limpar_duplicatas_extrato():
+    """
+    Remove lançamentos duplicados com [EXTRATO] mantendo apenas o mais recente
+    Duplicata = mesma descrição + mesmo valor + mesma data + mesmo tipo + mesma empresa
+    """
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        print('\n' + '='*80)
+        print('🧹 ADMIN: Limpando lançamentos duplicados [EXTRATO]')
+        print('='*80)
+        
+        # 1. ANÁLISE INICIAL
+        cursor.execute("SELECT COUNT(*) as total FROM lancamentos")
+        total = cursor.fetchone()['total']
+        print(f'📊 Total de lançamentos: {total:,}')
+        
+        cursor.execute("SELECT COUNT(*) as total FROM lancamentos WHERE descricao LIKE '[EXTRATO]%'")
+        total_extrato = cursor.fetchone()['total']
+        print(f'📋 Lançamentos com [EXTRATO]: {total_extrato:,}')
+        
+        # Contar registros duplicados (exceto o que será mantido)
+        cursor.execute("""
+            SELECT COUNT(*) as total
+            FROM lancamentos l
+            WHERE l.descricao LIKE '[EXTRATO]%'
+              AND l.id NOT IN (
+                SELECT MAX(id) 
+                FROM lancamentos
+                WHERE descricao LIKE '[EXTRATO]%'
+                GROUP BY descricao, valor, data_vencimento, tipo, empresa_id
+              )
+        """)
+        registros_para_deletar = cursor.fetchone()['total']
+        print(f'🗑️  Registros duplicados a serem removidos: {registros_para_deletar:,}')
+        
+        if registros_para_deletar == 0:
+            print('✅ Nenhuma duplicata encontrada!')
+            cursor.close()
+            db.return_to_pool(conn)
+            return jsonify({
+                'success': True,
+                'message': 'Nenhuma duplicata encontrada',
+                'removidas': 0,
+                'total_antes': total,
+                'total_depois': total
+            })
+        
+        # 2. CRIAR BACKUP
+        print('\n💾 Criando backup...')
+        cursor.execute("DROP TABLE IF EXISTS lancamentos_backup_duplicatas")
+        cursor.execute("""
+            CREATE TABLE lancamentos_backup_duplicatas AS
+            SELECT l.*
+            FROM lancamentos l
+            WHERE l.descricao LIKE '[EXTRATO]%'
+              AND l.id NOT IN (
+                SELECT MAX(id) 
+                FROM lancamentos
+                WHERE descricao LIKE '[EXTRATO]%'
+                GROUP BY descricao, valor, data_vencimento, tipo, empresa_id
+              )
+        """)
+        conn.commit()
+        
+        cursor.execute("SELECT COUNT(*) as total FROM lancamentos_backup_duplicatas")
+        backup_count = cursor.fetchone()['total']
+        print(f'✅ Backup criado: {backup_count:,} registros salvos')
+        
+        # 3. DELETAR DUPLICATAS
+        print('\n🗑️  Removendo duplicatas...')
+        cursor.execute("""
+            DELETE FROM lancamentos
+            WHERE descricao LIKE '[EXTRATO]%'
+              AND id NOT IN (
+                SELECT MAX(id) 
+                FROM lancamentos
+                WHERE descricao LIKE '[EXTRATO]%'
+                GROUP BY descricao, valor, data_vencimento, tipo, empresa_id
+              )
+        """)
+        deletados = cursor.rowcount
+        conn.commit()
+        
+        print(f'✅ Removidos {deletados:,} lançamentos duplicados')
+        
+        # 4. ANÁLISE FINAL
+        cursor.execute("SELECT COUNT(*) as total FROM lancamentos")
+        total_apos = cursor.fetchone()['total']
+        print(f'📊 Total de lançamentos após limpeza: {total_apos:,}')
+        
+        # Verificar saldo da conta
+        cursor.execute("""
+            SELECT banco, agencia, conta, saldo_inicial, saldo_atual
+            FROM contas_bancarias
+            WHERE id = 6
+        """)
+        conta = cursor.fetchone()
+        saldo_info = None
+        if conta:
+            saldo_info = {
+                'banco': conta['banco'],
+                'agencia': conta['agencia'],
+                'conta': conta['conta'],
+                'saldo_inicial': float(conta['saldo_inicial']),
+                'saldo_atual': float(conta['saldo_atual'])
+            }
+            print(f'\n💰 Saldo atualizado: R$ {saldo_info["saldo_atual"]:,.2f}')
+        
+        cursor.close()
+        db.return_to_pool(conn)
+        
+        print('✅ Limpeza concluída com sucesso!')
+        print('='*80 + '\n')
+        
+        return jsonify({
+            'success': True,
+            'message': f'{deletados:,} lançamento(s) duplicado(s) removido(s)',
+            'removidas': deletados,
+            'total_antes': total,
+            'total_depois': total_apos,
+            'backup_table': 'lancamentos_backup_duplicatas',
+            'saldo': saldo_info
+        })
+        
+    except Exception as e:
+        print(f'❌ Erro ao limpar duplicatas: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        if conn:
+            conn.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # ==================== ROTAS DE PREFERÊNCIAS DO USUÁRIO ====================
 @app.route('/api/preferencias/menu-order', methods=['GET'])
 @require_auth
