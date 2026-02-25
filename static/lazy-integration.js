@@ -58,9 +58,13 @@ async function loadContasReceber() {
             }
         }, 500);
         
-        // Atualizar saldo e selects
-        await window.atualizarSaldoTotalBancos('receber');
-        await window.carregarSelectBancos('receber');
+        // Atualizar saldo e selects (com verificação de segurança)
+        if (typeof window.atualizarSaldoTotalBancos === 'function') {
+            await window.atualizarSaldoTotalBancos('receber');
+        }
+        if (typeof window.carregarSelectBancos === 'function') {
+            await window.carregarSelectBancos('receber');
+        }
     } else if (loadContasReceberOriginal) {
         console.log('📊 Usando carregamento tradicional para Contas a Receber');
         await loadContasReceberOriginal();
@@ -109,8 +113,13 @@ async function loadContasPagar() {
                 if (contadorElement) {
                     contadorElement.textContent = total;
                     console.log(`📊 Contador atualizado: ${total} registros`);
-                }
-            }
+        // Atualizar saldo e selects (com verificação de segurança)
+        if (typeof window.atualizarSaldoTotalBancos === 'function') {
+            await window.atualizarSaldoTotalBancos('pagar');
+        }
+        if (typeof window.carregarSelectBancos === 'function') {
+            await window.carregarSelectBancos('pagar');
+        }
         }, 500);
         
         await window.atualizarSaldoTotalBancos('pagar');

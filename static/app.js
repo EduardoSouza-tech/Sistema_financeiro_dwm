@@ -4482,37 +4482,6 @@ async function conciliarTransacao(transacaoId, lancamentoId) {
     }
 }
 
-// Desconciliar transação
-async function desconciliarTransacao() {
-    if (!transacaoSelecionada) return;
-    
-    if (!confirm('Deseja realmente desconciliar esta transação?')) return;
-    
-    try {
-        const response = await fetch(`${API_URL}/extratos/${transacaoSelecionada.id}/conciliar`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify({ lancamento_id: null })
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok) throw new Error(result.error || 'Erro ao desconciliar');
-        
-        showToast('✅ Transação desconciliada com sucesso!', 'success');
-        
-        // Recarregar extratos
-        loadExtratos();
-        
-    } catch (error) {
-        console.error('Erro ao desconciliar:', error);
-        showToast(`Erro ao desconciliar: ${error.message}`, 'error');
-    }
-}
-
 // 🆕 Conciliar transação individual (criar lançamento + conciliar)
 window.conciliarTransacaoIndividual = async function() {
     try {
@@ -4671,25 +4640,6 @@ function limparFiltrosExtrato() {
     const dataInicioEl = document.getElementById('filtro-data-inicio-extrato') || document.getElementById('extrato-filter-data-inicio');
     const dataFimEl = document.getElementById('filtro-data-fim-extrato') || document.getElementById('extrato-filter-data-fim');
     const conciliadoEl = document.getElementById('filtro-conciliado-extrato') || document.getElementById('extrato-filter-conciliado');
-    
-    if (contaEl) contaEl.value = '';
-    if (dataInicioEl) dataInicioEl.value = '';
-    if (dataFimEl) dataFimEl.value = '';
-    if (conciliadoEl) conciliadoEl.value = '';
-    loadExtratos();
-}
-
-// Alias para compatibilidade com HTML (botão limpar chama limparFiltrosExtratoOFX)
-window.limparFiltrosExtratoOFX = limparFiltrosExtrato;
-
-// ============================================================================
-// FUNÇÕES AUXILIARES PARA SESSÕES
-// ============================================================================
-
-/**
- * Carrega lista de funcionários/RH para uso em modais
- */
-async function loadFuncionariosRH() {
     try {
         console.log('👥 Carregando funcionários RH...');
         

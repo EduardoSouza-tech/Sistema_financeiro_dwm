@@ -260,7 +260,9 @@ class LazyLoader {
             params.set('sort_order', this.sortOrder);
         }
 
-        return `${window.CONFIG.API_URL}${this.endpoint}?${params.toString()}`;
+        // Fallback para quando CONFIG ainda não estiver carregado
+        const apiUrl = (window.CONFIG && window.CONFIG.API_URL) ? window.CONFIG.API_URL : '/api';
+        return `${apiUrl}${this.endpoint}?${params.toString()}`;
     }
 
     _renderPage(items, page) {
