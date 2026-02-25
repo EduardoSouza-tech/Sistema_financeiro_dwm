@@ -4627,6 +4627,25 @@ function limparFiltrosExtrato() {
     const dataInicioEl = document.getElementById('filtro-data-inicio-extrato') || document.getElementById('extrato-filter-data-inicio');
     const dataFimEl = document.getElementById('filtro-data-fim-extrato') || document.getElementById('extrato-filter-data-fim');
     const conciliadoEl = document.getElementById('filtro-conciliado-extrato') || document.getElementById('extrato-filter-conciliado');
+    
+    if (contaEl) contaEl.value = '';
+    if (dataInicioEl) dataInicioEl.value = '';
+    if (dataFimEl) dataFimEl.value = '';
+    if (conciliadoEl) conciliadoEl.value = '';
+    loadExtratos();
+}
+
+// Alias para compatibilidade com HTML (botão limpar chama limparFiltrosExtratoOFX)
+window.limparFiltrosExtratoOFX = limparFiltrosExtrato;
+
+// ============================================================================
+// RECURSOS HUMANOS - FUNCIONÁRIOS
+// ============================================================================
+
+/**
+ * Carrega lista de funcionários (RH)
+ */
+async function carregarFuncionariosRH() {
     try {
         console.log('👥 Carregando funcionários RH...');
         
