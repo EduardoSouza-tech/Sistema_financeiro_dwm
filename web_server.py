@@ -3976,6 +3976,8 @@ def listar_extratos():
         # Usar empresa_id da sessão (empresa selecionada pelo usuário)
         empresa_id = session.get('empresa_id') or usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         
+        logger.info(f"🔍 /api/extratos: empresa_id={empresa_id}, usuario={usuario.get('nome', 'N/A')}")
+        
         filtros = {
             'conta_bancaria': request.args.get('conta'),
             'data_inicio': request.args.get('data_inicio'),
@@ -3983,16 +3985,21 @@ def listar_extratos():
             'conciliado': request.args.get('conciliado')
         }
         
+        logger.info(f"📋 Filtros recebidos: {filtros}")
+        
         # Converter conciliado para boolean
         if filtros['conciliado'] is not None:
             filtros['conciliado'] = filtros['conciliado'].lower() == 'true'
         
         # Função agora retorna dict com 'transacoes' e 'saldo_anterior'
+        logger.info(f"📞 Chamando extrato_functions.listar_transacoes_extrato...")
         resultado = extrato_functions.listar_transacoes_extrato(
             database,
             empresa_id,
             filtros
         )
+        
+        logger.info(f"📊 Resultado tipo: {type(resultado)}, conteúdo: {resultado if not isinstance(resultado, dict) else f'dict com {len(resultado.get(\"transacoes\", []))} transações'}")
         
         # Manter compatibilidade: se retornou lista (código antigo), converter
         if isinstance(resultado, list):
@@ -4001,6 +4008,8 @@ def listar_extratos():
         else:
             transacoes = resultado.get('transacoes', [])
             saldo_anterior = resultado.get('saldo_anterior')
+        
+        logger.info(f"✅ Retornando {len(transacoes)} transação(ões) para o frontend")
         
         # Retornar no formato esperado pelo frontend
         resposta = {
@@ -4011,7 +4020,9 @@ def listar_extratos():
         return jsonify(resposta), 200
         
     except Exception as e:
-        logger.info(f"Erro ao listar extratos: {e}")
+        logger.error(f"❌ ERRO ao listar extratos: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 
@@ -17862,6 +17873,52 @@ def fix_contratos_cliente_id():
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 500
+
+
+@app.route('/api/test/db-connection', methods=['GET'])
+def test_db_connection():
+    """Endpoint de teste para verificar conexão ao banco"""
+    try:
+        empresa_id = session.get('empresa_id', 20)
+        
+        logger.info(f"🔧 TEST: Testando conexão com empresa_id={empresa_id}")
+        
+        # Testar se o método existe
+        if not hasattr(database, 'get_db_connection'):
+            return jsonify({
+                'success': False,
+                'error': 'Método get_db_connection NÃO ENCONTRADO na classe DatabaseManager',
+                'available_methods': [m for m in dir(database) if not m.startswith('_')]
+            }), 500
+        
+        logger.info(f"✅ TEST: Método get_db_connection existe!")
+        
+        # Testar a conexão
+        with database.get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM transacoes_extrato WHERE empresa_id = %s", (empresa_id,))
+            total = cursor.fetchone()[0]
+            cursor.close()
+            
+            logger.info(f"✅ TEST: Conexão funcionou! {total} transações encontradas")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Conexão funcionando corretamente',
+                'empresa_id': empresa_id,
+                'total_transacoes': total
+            })
+            
+    except Exception as e:
+        logger.error(f"❌ TEST: Erro ao testar conexão: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
         }), 500
 
 
