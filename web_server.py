@@ -3999,7 +3999,12 @@ def listar_extratos():
             filtros
         )
         
-        logger.info(f"📊 Resultado tipo: {type(resultado)}, conteúdo: {resultado if not isinstance(resultado, dict) else f'dict com {len(resultado.get(\"transacoes\", []))} transações'}")
+        # Log do resultado (evitar backslash em f-string)
+        if isinstance(resultado, dict):
+            qtd_transacoes = len(resultado.get('transacoes', []))
+            logger.info(f"📊 Resultado tipo: dict com {qtd_transacoes} transações")
+        else:
+            logger.info(f"📊 Resultado tipo: {type(resultado)}, conteúdo: {resultado}")
         
         # Manter compatibilidade: se retornou lista (código antigo), converter
         if isinstance(resultado, list):
