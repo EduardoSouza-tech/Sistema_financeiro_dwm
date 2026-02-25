@@ -3716,6 +3716,23 @@ def upload_extrato_ofx():
                 with db.get_connection() as conn:
                     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                     
+                    # 🔍 DIAGNÓSTICO: Contar transações órfãs (sem importacao_id)
+                    cursor.execute("""
+                        SELECT COUNT(*) as total_orfas
+                        FROM transacoes_extrato
+                        WHERE empresa_id = %s 
+                        AND conta_bancaria = %s 
+                        AND (importacao_id IS NULL OR importacao_id = '')
+                    """, (empresa_id, conta_bancaria))
+                    
+                    resultado_orfas = cursor.fetchone()
+                    total_orfas = resultado_orfas['total_orfas'] if resultado_orfas else 0
+                    
+                    if total_orfas > 0:
+                        print(f"⚠️ ATENÇÃO: {total_orfas} transações órfãs detectadas (sem importacao_id)")
+                        logger.warning(f"Conta {conta_bancaria}: {total_orfas} transações sem importacao_id")
+                    
+                    # Buscar apenas importações válidas (com importacao_id preenchido)
                     cursor.execute("""
                         SELECT 
                             importacao_id,
@@ -3723,40 +3740,58 @@ def upload_extrato_ofx():
                             MAX(data) as fim,
                             COUNT(*) as qtd_transacoes
                         FROM transacoes_extrato
-                        WHERE empresa_id = %s AND conta_bancaria = %s
+                        WHERE empresa_id = %s 
+                        AND conta_bancaria = %s
+                        AND importacao_id IS NOT NULL 
+                        AND importacao_id != ''
                         GROUP BY importacao_id
-                        ORDER BY importacao_id DESC
+                        HAVING COUNT(*) > 0
+                        ORDER BY MAX(data) DESC
                     """, (empresa_id, conta_bancaria))
                     
                     periodos_existentes = cursor.fetchall()
+                    
+                    print(f"📊 Total de importações encontradas: {len(periodos_existentes)}")
+                    for i, p in enumerate(periodos_existentes, 1):
+                        print(f"   [{i}] ID: {p['importacao_id'][:8]}... | {p['inicio']} a {p['fim']} ({p['qtd_transacoes']} transações)")
+                    
                     cursor.close()
                 
                 # Verificar sobreposição com cada período existente
                 for periodo_existente in periodos_existentes:
                     inicio_existente = periodo_existente['inicio']
                     fim_existente = periodo_existente['fim']
+                    importacao_id_existente = periodo_existente['importacao_id']
                     
                     # Lógica de sobreposição: novo_inicio <= existente_fim AND novo_fim >= existente_inicio
                     if periodo_inicio <= fim_existente and periodo_fim >= inicio_existente:
                         print(f"❌ SOBREPOSIÇÃO DETECTADA!")
                         print(f"   Período tentando importar: {periodo_inicio} até {periodo_fim}")
-                        print(f"   Período já existente (ID {periodo_existente['importacao_id']}): {inicio_existente} até {fim_existente}")
+                        print(f"   Período já existente (ID {importacao_id_existente[:8]}...): {inicio_existente} até {fim_existente}")
+                        
+                        # Mensagem detalhada para o usuário
+                        erro_msg = f'❌ Já existe uma importação no período de {inicio_existente.strftime("%d/%m/%Y")} até {fim_existente.strftime("%d/%m/%Y")}'
+                        
+                        if total_orfas > 0:
+                            erro_msg = f'⚠️ ATENÇÃO: {total_orfas} transação(ões) órfã(s) detectada(s) sem ID de importação! Exclua manualmente na tela de Extrato Bancário antes de reimportar.'
                         
                         return jsonify({
                             'success': False,
-                            'error': f'Já existe uma importação no período {inicio_existente.strftime("%d/%m/%Y")} até {fim_existente.strftime("%d/%m/%Y")}',
+                            'error': erro_msg,
                             'details': {
                                 'periodo_tentado': {
                                     'inicio': periodo_inicio.strftime('%d/%m/%Y'),
                                     'fim': periodo_fim.strftime('%d/%m/%Y')
                                 },
                                 'periodo_existente': {
-                                    'importacao_id': periodo_existente['importacao_id'],
+                                    'importacao_id': importacao_id_existente,
                                     'inicio': inicio_existente.strftime('%d/%m/%Y'),
                                     'fim': fim_existente.strftime('%d/%m/%Y'),
                                     'transacoes': periodo_existente['qtd_transacoes']
                                 },
-                                'mensagem': 'Para importar este período, primeiro exclua a importação existente na tela de Extrato Bancário.'
+                                'transacoes_orfas': total_orfas,
+                                'mensagem': 'Use o botão "Deletar Extrato" na tela de Extrato Bancário (filtrar por período e clicar em "Deletar Extrato").',
+                                'solucao': f'DELETE FROM transacoes_extrato WHERE importacao_id = \'{importacao_id_existente}\' AND empresa_id = {empresa_id};'
                             }
                         }), 409  # 409 Conflict
                 
@@ -4053,6 +4088,31 @@ def deletar_importacao_extrato(importacao_id):
         if not empresa_id:
             return jsonify({'erro': 'Empresa não selecionada'}), 403
         
+        # ⚠️ VERIFICAR SE HÁ TRANSAÇÕES CONCILIADAS
+        conn = database.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM transacoes_extrato 
+            WHERE importacao_id = %s AND empresa_id = %s AND conciliado = TRUE
+        """, (importacao_id, empresa_id))
+        
+        total_conciliados = cursor.fetchone()[0]
+        cursor.close()
+        from database_postgresql import return_to_pool
+        return_to_pool(conn)
+        
+        # Se houver conciliações, avisar o usuário
+        if total_conciliados > 0:
+            logger.warning(f"⚠️ Tentativa de deletar extrato com {total_conciliados} transações conciliadas")
+            return jsonify({
+                'success': False,
+                'error': f'⚠️ ATENÇÃO: Este extrato contém {total_conciliados} transação(ões) conciliada(s). A exclusão irá desfazer todas as conciliações. Confirme para continuar.',
+                'transacoes_conciliadas': total_conciliados,
+                'requer_confirmacao': True
+            }), 409  # 409 Conflict
+        
         # 🔒 Passar empresa_id explicitamente
         resultado = extrato_functions.deletar_transacoes_extrato(
             database,
@@ -4151,6 +4211,26 @@ def diagnostico_extrato():
             importacoes = cursor.fetchall()
             logger.info(f"   📦 Importações: {len(importacoes)}")
             
+            # 🔍 5.1. Detectar transações órfãs (sem importacao_id)
+            cursor.execute("""
+                SELECT COUNT(*) as total_orfas,
+                       MIN(data) as data_inicio,
+                       MAX(data) as data_fim,
+                       STRING_AGG(CAST(id AS TEXT), ', ' ORDER BY data DESC LIMIT 10) as ids_exemplo
+                FROM transacoes_extrato
+                WHERE empresa_id = %s 
+                AND conta_bancaria = %s
+                AND (importacao_id IS NULL OR importacao_id = '')
+            """, (empresa_id, conta_bancaria))
+            orfas_info = cursor.fetchone()
+            total_orfas = orfas_info['total_orfas'] if orfas_info else 0
+            
+            if total_orfas > 0:
+                logger.warning(f"   ⚠️ TRANSAÇÕES ÓRFÃS: {total_orfas} (sem importacao_id)")
+                logger.warning(f"      Período: {orfas_info['data_inicio']} a {orfas_info['data_fim']}")
+            else:
+                logger.info(f"   ✅ Nenhuma transação órfã detectada")
+            
             # 6. Saldo da conta cadastrada
             cursor.execute("""
                 SELECT saldo_inicial, data_inicio
@@ -4187,8 +4267,34 @@ def diagnostico_extrato():
                     'total_conteudo': len(duplicatas_conteudo)
                 },
                 'importacoes': [dict(i) for i in importacoes],
+                'transacoes_orfas': {
+                    'total': total_orfas,
+                    'periodo': {
+                        'inicio': str(orfas_info['data_inicio']) if orfas_info and orfas_info['data_inicio'] else None,
+                        'fim': str(orfas_info['data_fim']) if orfas_info and orfas_info['data_fim'] else None
+                    } if total_orfas > 0 else None,
+                    'ids_exemplo': orfas_info['ids_exemplo'] if orfas_info else None
+                },
                 'problemas_detectados': []
             }
+            
+            # Adicionar problemas detectados
+            if total_orfas > 0:
+                resultado['problemas_detectados'].append({
+                    'tipo': 'transacoes_orfas',
+                    'severidade': 'ALTA',
+                    'mensagem': f'{total_orfas} transação(ões) sem ID de importação detectada(s)',
+                    'solucao': 'Use o botão "Deletar Extrato" filtrando pelo período para remover estas transações',
+                    'periodo': f"{orfas_info['data_inicio']} até {orfas_info['data_fim']}"
+                })
+            
+            if len(duplicatas_fitid) > 0:
+                resultado['problemas_detectados'].append({
+                    'tipo': 'duplicatas_fitid',
+                    'severidade': 'MÉDIA',
+                    'mensagem': f'{len(duplicatas_fitid)} grupo(s) de transações duplicadas por FITID',
+                    'solucao': 'Execute o script de limpeza de duplicatas'
+                })
             
             logger.info(f"✅ Diagnóstico concluído com sucesso")
             return jsonify(resultado), 200
@@ -4223,6 +4329,9 @@ def deletar_tudo_extrato_conta():
         if not conta_bancaria:
             return jsonify({'success': False, 'error': 'Conta bancária não informada'}), 400
         
+        # Verificar se usuário confirmou a exclusão (caso haja conciliações)
+        confirmado = request.args.get('confirmar', 'false').lower() == 'true'
+        
         logger.info(f"🗑️ Deletando TODAS transações - empresa_id: {empresa_id}, conta: {conta_bancaria}")
         
         # Criar instância local do DatabaseManager
@@ -4240,7 +4349,29 @@ def deletar_tudo_extrato_conta():
             """, (empresa_id, conta_bancaria))
             total_antes = cursor.fetchone()[0]
             
-            logger.info(f"   📊 Total de transações a deletar: {total_antes}")
+            # ⚠️ VERIFICAR SE HÁ TRANSAÇÕES CONCILIADAS
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM transacoes_extrato 
+                WHERE empresa_id = %s AND conta_bancaria = %s AND conciliado = TRUE
+            """, (empresa_id, conta_bancaria))
+            
+            total_conciliados = cursor.fetchone()[0]
+            
+            # Se houver conciliações e não foi confirmado, avisar o usuário
+            if total_conciliados > 0 and not confirmado:
+                cursor.close()
+                conn.close()
+                logger.warning(f"⚠️ Tentativa de deletar extrato com {total_conciliados} transações conciliadas")
+                return jsonify({
+                    'success': False,
+                    'error': f'⚠️ ATENÇÃO: {total_conciliados} de {total_antes} transação(ões) está(ão) conciliada(s). A exclusão irá desfazer todas as conciliações. Confirme para continuar.',
+                    'transacoes_conciliadas': total_conciliados,
+                    'total_transacoes': total_antes,
+                    'requer_confirmacao': True
+                }), 409  # 409 Conflict
+            
+            logger.info(f"   📊 Total de transações a deletar: {total_antes} ({total_conciliados} conciliadas)")
             
             # Deletar TODAS as transações desta conta/empresa
             cursor.execute("""
@@ -4255,10 +4386,16 @@ def deletar_tudo_extrato_conta():
             
             logger.info(f"   ✅ {deletados} transações deletadas com sucesso")
             
+            mensagem = f'✅ {deletados} transação(ões) deletada(s) com sucesso.'
+            if total_conciliados > 0:
+                mensagem += f' {total_conciliados} conciliação(ões) foi(ram) desfeita(s).'
+            mensagem += ' Agora você pode reimportar o arquivo OFX.'
+            
             return jsonify({
                 'success': True,
                 'deletados': deletados,
-                'message': f'✅ {deletados} transação(ões) deletada(s) com sucesso. Agora você pode reimportar o arquivo OFX.'
+                'conciliacoes_desfeitas': total_conciliados,
+                'message': mensagem
             }), 200
             
         except Exception as e:
@@ -4270,9 +4407,9 @@ def deletar_tudo_extrato_conta():
                 conn.close()
         
     except Exception as e:
-        logger.error(f"❌ Erro ao deletar extratos: {e}")
+        logger.info(f"Erro ao deletar todas transaç ões: {e}")
         import traceback
-        traceback.print_exc()
+        traceback.print_exc(file=sys.stderr)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -4301,11 +4438,45 @@ def deletar_extrato_filtrado():
                 'error': 'Pelo menos um filtro deve ser fornecido (conta, data_inicio ou data_fim)'
             }), 400
         
+        # Verificar se usuário confirmou a exclusão (caso haja conciliações)
+        confirmado = request.args.get('confirmar', 'false').lower() == 'true'
+        
         # Deletar transações que correspondem aos filtros
         with db.get_connection() as conn:
             conn.autocommit = False
             cursor = conn.cursor()
             
+            # Primeiro verificar quantas transações conciliadas serão afetadas
+            query_count = "SELECT COUNT(*) FROM transacoes_extrato WHERE empresa_id = %s AND conciliado = TRUE"
+            params = [empresa_id]
+            
+            if filtros['conta_bancaria']:
+                query_count += " AND conta_bancaria = %s"
+                params.append(filtros['conta_bancaria'])
+            
+            if filtros['data_inicio']:
+                query_count += " AND data >= %s"
+                params.append(filtros['data_inicio'])
+            
+            if filtros['data_fim']:
+                query_count += " AND data <= %s"
+                params.append(filtros['data_fim'])
+            
+            cursor.execute(query_count, params)
+            total_conciliados = cursor.fetchone()[0]
+            
+            # Se houver conciliações e não foi confirmado, avisar o usuário
+            if total_conciliados > 0 and not confirmado:
+                cursor.close()
+                logger.warning(f"⚠️ Tentativa de deletar extrato com {total_conciliados} transações conciliadas")
+                return jsonify({
+                    'success': False,
+                    'error': f'⚠️ ATENÇÃO: {total_conciliados} transação(ões) conciliada(s) será(ão) afetada(s). A exclusão irá desfazer todas as conciliações. Confirme para continuar.',
+                    'transacoes_conciliadas': total_conciliados,
+                    'requer_confirmacao': True
+                }), 409  # 409 Conflict
+            
+            # Executar a deleção
             query = "DELETE FROM transacoes_extrato WHERE empresa_id = %s"
             params = [empresa_id]
             
@@ -4327,10 +4498,15 @@ def deletar_extrato_filtrado():
             conn.commit()
             cursor.close()
             
+            mensagem = f'{deletados} transação(ões) deletada(s) com sucesso'
+            if total_conciliados > 0:
+                mensagem += f'. {total_conciliados} conciliação(ões) foi(ram) desfeita(s)'
+            
             return jsonify({
                 'success': True,
                 'deletados': deletados,
-                'message': f'{deletados} transação(ões) deletada(s) com sucesso'
+                'conciliacoes_desfeitas': total_conciliados,
+                'message': mensagem
             }), 200
         
     except Exception as e:
@@ -4615,77 +4791,54 @@ def conciliacao_geral_extrato():
                     else:
                         razao_social = fornecedores_dict.get(cpf_cnpj_encontrado, '')
                 
-                # Determinar tipo de lançamento
-                tipo = TipoLancamento.RECEITA if transacao['tipo'].upper() == 'CREDITO' else TipoLancamento.DESPESA
+                # 🔧 FIX: NÃO criar lançamento duplicado!
+                # Conciliação apenas atualiza a transação do extrato
+                # Transação já existe em transacoes_extrato - não duplicar!
                 
-                # Criar lançamento
                 from datetime import datetime
-                data_transacao = transacao['data']
-                if isinstance(data_transacao, str):
-                    data_transacao = datetime.fromisoformat(data_transacao.replace('Z', '+00:00')).date()
                 
-                # Transação do extrato já foi paga/recebida (já passou pelo banco)
-                # Usar descrição personalizada se fornecida, senão usar a original do extrato
-                descricao_final = descricao_personalizada if descricao_personalizada else descricao
+                print(f"🔄 Conciliando transação {transacao_id}...")
+                logger.info(f"🔄 Conciliando transação {transacao_id} - empresa_id: {empresa_id}")
                 
-                lancamento = Lancamento(
-                    descricao=f"[EXTRATO] {descricao_final}",
-                    valor=abs(float(transacao['valor'])),
-                    tipo=tipo,
-                    categoria=categoria,
-                    subcategoria=subcategoria,
-                    data_vencimento=data_transacao,
-                    data_pagamento=data_transacao,  # PAGO - transação já aconteceu no banco
-                    conta_bancaria=transacao['conta_bancaria'],
-                    pessoa=razao_social,
-                    observacoes=f"Conciliado do extrato bancário. ID Extrato: {transacao_id}",
-                    status=StatusLancamento.PAGO  # PAGO porque já passou pelo banco
-                )
-                
-                lancamento_id = db.adicionar_lancamento(lancamento, empresa_id=empresa_id)
-                print(f"✅ Lançamento criado: ID={lancamento_id} para transação {transacao_id}")
-                logger.info(f"✅ Lançamento criado: ID={lancamento_id} para transação {transacao_id}")
-                
-                # 🔥 FIX CRÍTICO: Usar conexão direta sem context manager
-                # porque adicionar_lancamento já fez commit e devolveu ao pool
-                print(f"🔄 Executando UPDATE: transacao_id={transacao_id}, lancamento_id={lancamento_id}")
-                logger.info(f"🔄 Executando UPDATE em transacoes_extrato: transacao_id={transacao_id}, lancamento_id={lancamento_id}")
+                # Atualizar transação do extrato com dados de conciliação
                 conn_update = db.get_connection()
                 cursor_update = conn_update.cursor()
                 
-                # Verificar se transação existe ANTES do UPDATE
-                cursor_update.execute("SELECT id, conciliado, empresa_id FROM transacoes_extrato WHERE id = %s", (transacao_id,))
-                trans_antes = cursor_update.fetchone()
-                print(f"📊 ANTES UPDATE: {trans_antes}")
-                logger.info(f"📊 Transação ANTES do UPDATE: {trans_antes}")
+                cursor_update.execute("""
+                    UPDATE transacoes_extrato 
+                    SET 
+                        conciliado = TRUE,
+                        categoria = %s,
+                        subcategoria = %s,
+                        pessoa = %s,
+                        observacoes = %s
+                    WHERE id = %s AND empresa_id = %s
+                """, (
+                    categoria,
+                    subcategoria if subcategoria else None,
+                    razao_social if razao_social else None,
+                    f"Conciliado automaticamente em {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                    transacao_id,
+                    empresa_id
+                ))
                 
-                cursor_update.execute(
-                    "UPDATE transacoes_extrato SET conciliado = TRUE, lancamento_id = %s WHERE id = %s",
-                    (lancamento_id, transacao_id)
-                )
                 affected_rows = cursor_update.rowcount
+                conn_update.commit()
+                
                 print(f"📝 UPDATE: {affected_rows} linha(s) afetada(s)")
                 logger.info(f"📝 UPDATE executado: {affected_rows} linha(s) afetada(s)")
-                
-                # Forçar commit explícito (mesmo com autocommit=True, garantir)
-                try:
-                    conn_update.commit()
-                    print(f"✅ COMMIT OK")
-                    logger.info(f"✅ COMMIT executado com sucesso")
-                except Exception as commit_err:
-                    print(f"⚠️ Erro no commit: {commit_err}")
-                    logger.warning(f"⚠️ Erro no commit (pode ser normal com autocommit): {commit_err}")
-                
-                # Verificar se transação foi atualizada DEPOIS do UPDATE
-                cursor_update.execute("SELECT id, conciliado, lancamento_id, empresa_id FROM transacoes_extrato WHERE id = %s", (transacao_id,))
-                trans_depois = cursor_update.fetchone()
-                print(f"📊 DEPOIS UPDATE: {trans_depois}")
-                print("="*80 + "\n")
-                logger.info(f"📊 Transação DEPOIS do UPDATE: {trans_depois}")
                 
                 cursor_update.close()
                 from database_postgresql import return_to_pool
                 return_to_pool(conn_update)
+                
+                if affected_rows > 0:
+                    print(f"✅ Transação {transacao_id} conciliada com sucesso")
+                    logger.info(f"✅ Transação {transacao_id} conciliada com sucesso")
+                else:
+                    erros.append(f"Transação {transacao_id} não pôde ser conciliada")
+                    logger.error(f"❌ Falha ao conciliar transação {transacao_id}")
+                    continue
                 
                 criados += 1
                 

@@ -1045,10 +1045,12 @@ class DatabaseManager:
                 memo TEXT,
                 checknum VARCHAR(50),
                 conciliado BOOLEAN DEFAULT FALSE,
-                lancamento_id INTEGER,
+                categoria VARCHAR(255),
+                subcategoria VARCHAR(255),
+                pessoa VARCHAR(255),
+                observacoes TEXT,
                 importacao_id VARCHAR(100),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (lancamento_id) REFERENCES lancamentos(id) ON DELETE SET NULL
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
@@ -1068,6 +1070,18 @@ class DatabaseManager:
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_extrato_fitid 
             ON transacoes_extrato(fitid)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_extrato_importacao 
+            ON transacoes_extrato(importacao_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_extrato_categoria 
+            ON transacoes_extrato(categoria)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_extrato_pessoa 
+            ON transacoes_extrato(pessoa)
         """)
         
         # Tabela de contratos
