@@ -42,7 +42,6 @@ async function loadContasReceber() {
         if (filterDataFim) filters.data_fim = filterDataFim;
         if (filterCategoria) filters.categoria = filterCategoria;
         if (filterCliente) filters.cliente = filterCliente;
-        
         console.log('📋 Filtros aplicados:', filters);
         await loadContasReceberLazy(filters);
         
@@ -72,6 +71,9 @@ async function loadContasReceber() {
         console.error('❌ Nenhuma função de carregamento disponível para Contas a Receber');
     }
 }
+
+// Expor função no window para ser acessível globalmente
+window.loadContasReceber = loadContasReceber;
 
 /**
  * Substitui loadContasPagar pela versão com lazy loading
@@ -113,6 +115,10 @@ async function loadContasPagar() {
                 if (contadorElement) {
                     contadorElement.textContent = total;
                     console.log(`📊 Contador atualizado: ${total} registros`);
+                }
+            }
+        }, 500);
+        
         // Atualizar saldo e selects (com verificação de segurança)
         if (typeof window.atualizarSaldoTotalBancos === 'function') {
             await window.atualizarSaldoTotalBancos('pagar');
@@ -120,10 +126,6 @@ async function loadContasPagar() {
         if (typeof window.carregarSelectBancos === 'function') {
             await window.carregarSelectBancos('pagar');
         }
-        }, 500);
-        
-        await window.atualizarSaldoTotalBancos('pagar');
-        await window.carregarSelectBancos('pagar');
     } else if (loadContasPagarOriginal) {
         console.log('📊 Usando carregamento tradicional para Contas a Pagar');
         await loadContasPagarOriginal();
@@ -131,6 +133,9 @@ async function loadContasPagar() {
         console.error('❌ Nenhuma função de carregamento disponível para Contas a Pagar');
     }
 }
+
+// Expor função no window para ser acessível globalmente
+window.loadContasPagar = loadContasPagar;
 
 /**
  * Substitui loadLancamentos pela versão com lazy loading
