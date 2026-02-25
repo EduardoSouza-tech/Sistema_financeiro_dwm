@@ -370,29 +370,29 @@ def _get_connection_pool():
         with _pool_lock:
             # Verificar novamente dentro do lock (outra thread pode ter criado)
             if _connection_pool is None:
-        try:
-            if 'dsn' in POSTGRESQL_CONFIG:
-                _connection_pool = pool.ThreadedConnectionPool(
-                    minconn=5,
-                    maxconn=50,
-                    dsn=POSTGRESQL_CONFIG['dsn'],
-                    cursor_factory=RealDictCursor,
-                    connect_timeout=10,
-                    options='-c statement_timeout=30000'  # 30 segundos timeout por query
-                )
-            else:
-                _connection_pool = pool.ThreadedConnectionPool(
-                    minconn=5,
-                    maxconn=50,
-                    cursor_factory=RealDictCursor,
-                    connect_timeout=10,
-                    options='-c statement_timeout=30000',  # 30 segundos timeout por query
-                    **POSTGRESQL_CONFIG
-                )
-                print("✅ Pool de conexões PostgreSQL criado (5-50 conexões, timeout=10s, query_timeout=30s)")
-        except Exception as e:
-            print(f"❌ Erro ao criar pool de conexões: {e}")
-            raise
+                try:
+                    if 'dsn' in POSTGRESQL_CONFIG:
+                        _connection_pool = pool.ThreadedConnectionPool(
+                            minconn=5,
+                            maxconn=50,
+                            dsn=POSTGRESQL_CONFIG['dsn'],
+                            cursor_factory=RealDictCursor,
+                            connect_timeout=10,
+                            options='-c statement_timeout=30000'  # 30 segundos timeout por query
+                        )
+                    else:
+                        _connection_pool = pool.ThreadedConnectionPool(
+                            minconn=5,
+                            maxconn=50,
+                            cursor_factory=RealDictCursor,
+                            connect_timeout=10,
+                            options='-c statement_timeout=30000',  # 30 segundos timeout por query
+                            **POSTGRESQL_CONFIG
+                        )
+                    print("✅ Pool de conexões PostgreSQL criado (5-50 conexões, timeout=10s, query_timeout=30s)")
+                except Exception as e:
+                    print(f"❌ Erro ao criar pool de conexões: {e}")
+                    raise
     
     return _connection_pool
 
