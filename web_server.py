@@ -4909,62 +4909,87 @@ def desconciliar_extrato(transacao_id):
         if not empresa_id:
             return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
         
-        # Buscar transação do extrato
-        with db.get_connection() as conn:
-            import psycopg2.extras
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        conn = db.get_connection()
+        import psycopg2.extras
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        try:
+            # Buscar transação do extrato
             cursor.execute(
                 "SELECT * FROM transacoes_extrato WHERE id = %s AND empresa_id = %s",
                 (transacao_id, empresa_id)
             )
             transacao = cursor.fetchone()
-            cursor.close()
-        
-        if not transacao:
-            return jsonify({'success': False, 'error': 'Transação não encontrada'}), 404
-        
-        if not transacao['conciliado']:
-            return jsonify({'success': False, 'error': 'Transação não está conciliada'}), 400
-        
-        lancamento_id = transacao['lancamento_id']
-        
-        print(f"📌 Transação: ID={transacao_id}, Conciliado={transacao['conciliado']}, Lançamento ID={lancamento_id}")
-        
-        # Excluir lançamento se existir
-        if lancamento_id:
-            print(f"🗑️ Excluindo lançamento ID={lancamento_id}")
-            db.excluir_lancamento(lancamento_id)
-            print(f"✅ Lançamento {lancamento_id} excluído")
-        
-        # Atualizar transação: desconciliar
-        conn_update = db.get_connection()
-        cursor_update = conn_update.cursor()
-        
-        print(f"🔄 Desconciliando transação {transacao_id}")
-        cursor_update.execute(
-            "UPDATE transacoes_extrato SET conciliado = FALSE, lancamento_id = NULL WHERE id = %s",
-            (transacao_id,)
-        )
-        affected_rows = cursor_update.rowcount
-        print(f"📝 UPDATE executado: {affected_rows} linha(s) afetada(s)")
-        
-        try:
-            conn_update.commit()
+            
+            if not transacao:
+                cursor.close()
+                from database_postgresql import return_to_pool
+                return_to_pool(conn)
+                return jsonify({'success': False, 'error': 'Transação não encontrada'}), 404
+            
+            if not transacao['conciliado']:
+                cursor.close()
+                from database_postgresql import return_to_pool
+                return_to_pool(conn)
+                return jsonify({'success': False, 'error': 'Transação não está conciliada'}), 400
+            
+            print(f"📌 Transação: ID={transacao_id}, Conciliado={transacao['conciliado']}")
+            
+            # Buscar lancamento_id da tabela conciliacoes
+            cursor.execute(
+                "SELECT lancamento_id FROM conciliacoes WHERE transacao_extrato_id = %s AND empresa_id = %s",
+                (transacao_id, empresa_id)
+            )
+            conciliacao = cursor.fetchone()
+            
+            lancamento_id = conciliacao['lancamento_id'] if conciliacao else None
+            print(f"📌 Lançamento ID: {lancamento_id}")
+            
+            # Excluir lançamento se existir
+            if lancamento_id:
+                print(f"🗑️ Excluindo lançamento ID={lancamento_id}")
+                db.excluir_lancamento(lancamento_id)
+                print(f"✅ Lançamento {lancamento_id} excluído")
+            
+            # Deletar da tabela conciliacoes
+            print(f"🗑️ Removendo da tabela conciliacoes...")
+            cursor.execute(
+                "DELETE FROM conciliacoes WHERE transacao_extrato_id = %s AND empresa_id = %s",
+                (transacao_id, empresa_id)
+            )
+            affected_conciliacoes = cursor.rowcount
+            print(f"📝 DELETE conciliacoes: {affected_conciliacoes} linha(s) deletada(s)")
+            
+            # Atualizar transação: desconciliar
+            print(f"🔄 Atualizando flag conciliado -> FALSE")
+            cursor.execute(
+                "UPDATE transacoes_extrato SET conciliado = FALSE WHERE id = %s AND empresa_id = %s",
+                (transacao_id, empresa_id)
+            )
+            affected_rows = cursor.rowcount
+            print(f"📝 UPDATE transacoes_extrato: {affected_rows} linha(s) atualizada(s)")
+            
+            conn.commit()
             print("✅ COMMIT OK")
-        except Exception as commit_err:
-            print(f"⚠️ Erro no commit: {commit_err}")
-        
-        cursor_update.close()
-        from database_postgresql import return_to_pool
-        return_to_pool(conn_update)
-        
-        print(f"✅ Desconciliação concluída com sucesso!")
-        print("="*80 + "\n")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Desconciliação realizada com sucesso'
-        }), 200
+            
+            cursor.close()
+            from database_postgresql import return_to_pool
+            return_to_pool(conn)
+            
+            print(f"✅ Desconciliação concluída com sucesso!")
+            print("="*80 + "\n")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Desconciliação realizada com sucesso'
+            }), 200
+            
+        except Exception as e:
+            conn.rollback()
+            cursor.close()
+            from database_postgresql import return_to_pool
+            return_to_pool(conn)
+            raise
         
     except Exception as e:
         print(f"❌ Erro na desconciliação: {e}")
