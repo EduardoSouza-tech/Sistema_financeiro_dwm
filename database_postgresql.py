@@ -6963,7 +6963,7 @@ def validar_sessao(token: str) -> Optional[Dict]:
         if cursor:
             cursor.close()
         if conn:
-            pool.putconn(conn)  # ✅ Devolver conexão ao pool global
+            return_to_pool(conn)  # ✅ Usar função segura anti-duplo-retorno
 
 def invalidar_sessao(token: str) -> bool:
     """
@@ -6990,7 +6990,7 @@ def invalidar_sessao(token: str) -> bool:
         if cursor:
             cursor.close()
         if conn:
-            pool.putconn(conn)
+            return_to_pool(conn)  # ✅ Usar função segura anti-duplo-retorno
 
 def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
     """Lista todos os usui?rios do sistema"""
