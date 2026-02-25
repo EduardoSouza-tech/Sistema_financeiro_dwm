@@ -4543,7 +4543,8 @@ window.conciliarTransacaoIndividual = async function() {
             status: 'pago',
             categoria: categoria,
             subcategoria: subcategoria,
-            razao_social: razaoSocial,
+            pessoa: razaoSocial,  // Campo correto: pessoa (exibido como "Razão Social" na interface)
+            associacao: transacao.fitid || `EXT-${transacao.id}`,  // Campo correto: associacao (exibido como "Nº Documento")
             conta_bancaria: transacao.conta_bancaria,
             observacoes: `Importado do extrato bancário (${transacao.fitid || transacao.id})`
         };
@@ -4603,10 +4604,10 @@ window.conciliarTransacaoIndividual = async function() {
         // Fechar modal
         closeModal('modal-conciliacao');
         
-        // Recarregar extratos
-        const extratoSection = document.getElementById('extrato-bancario-section');
-        if (extratoSection && extratoSection.classList.contains('active')) {
-            loadExtratos();
+        // Sempre recarregar extratos (independentemente da seção ativa)
+        if (typeof loadExtratos === 'function') {
+            await loadExtratos();
+            console.log('✅ Extrato atualizado após conciliação');
         }
         
     } catch (error) {
