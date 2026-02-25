@@ -47,6 +47,9 @@ let lancamentos = AppState.lancamentos;
 let currentPage = AppState.currentPage;
 const API_URL = CONFIG.API_URL; // Alias para código legado
 
+// Debug: Confirmar que app.js foi carregado
+console.log('📦 app.js carregado - versão 2.0.0');
+
 // ============================================================================
 // UTILITÁRIOS - TRATAMENTO DE ERROS
 // ============================================================================
@@ -4410,6 +4413,9 @@ window.desconciliarTransacao = async function(transacaoId) {
     console.log('🏁 desconciliarTransacao finalizada');
 };
 
+// Debug: Confirmar que a função foi registrada
+console.log('✅ window.desconciliarTransacao definida:', typeof window.desconciliarTransacao);
+
 // Mostrar detalhe de transação já conciliada
 async function mostrarDetalheConciliacao(transacaoId) {
     try {
@@ -4608,25 +4614,6 @@ window.conciliarTransacaoIndividual = async function() {
         showToast(`❌ Erro: ${error.message}`, 'error');
     }
 };
-
-// Desconciliar transação (antigo)
-async function desconciliarTransacaoAntigo() {
-        
-        const result = await response.json();
-        
-        if (!response.ok) throw new Error(result.error || 'Erro ao desconciliar');
-        
-        showToast('✅ Transação desconciliada!', 'success');
-        
-        // Fechar modal e recarregar
-        closeModal('modal-conciliacao');
-        loadExtratos();
-        
-    } catch (error) {
-        console.error('Erro ao desconciliar:', error);
-        showToast(`Erro ao desconciliar: ${error.message}`, 'error');
-    }
-}
 
 // Aplicar filtros do extrato
 function aplicarFiltrosExtrato() {
