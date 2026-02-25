@@ -4540,7 +4540,7 @@ window.conciliarTransacaoIndividual = async function() {
             valor: Math.abs(parseFloat(transacao.valor)),
             data_vencimento: transacao.data,
             data_pagamento: transacao.data, // Já foi pago (consta no extrato)
-            status: 'PAGO',
+            status: 'pago',
             categoria: categoria,
             subcategoria: subcategoria,
             razao_social: razaoSocial,
