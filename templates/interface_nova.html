@@ -7856,7 +7856,16 @@
                     throw new Error('Erro ao carregar transações');
                 }
                 
-                const transacoes = await response.json();
+                const responseData = await response.json();
+                
+                // Suportar novo formato (objeto com transacoes + saldo_anterior) e formato antigo (array direto)
+                let transacoes;
+                if (Array.isArray(responseData)) {
+                    transacoes = responseData;
+                } else {
+                    transacoes = responseData.transacoes || [];
+                }
+                
                 console.log('📊 Transações não conciliadas:', transacoes.length);
                 
                 if (transacoes.length === 0) {
