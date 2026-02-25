@@ -4502,6 +4502,151 @@ async function desconciliarTransacao() {
         
         if (!response.ok) throw new Error(result.error || 'Erro ao desconciliar');
         
+        showToast('✅ Transação desconciliada com sucesso!', 'success');
+        
+        // Recarregar extratos
+        loadExtratos();
+        
+    } catch (error) {
+        console.error('Erro ao desconciliar:', error);
+        showToast(`Erro ao desconciliar: ${error.message}`, 'error');
+    }
+}
+
+// 🆕 Conciliar transação individual (criar lançamento + conciliar)
+window.conciliarTransacaoIndividual = async function() {
+    try {
+        console.log('🔄 Conciliando transação individual...');
+        
+        // Verificar se  temos transação selecionada
+        const transacao = window.transacaoIndividual;
+        if (!transacao) {
+            showToast('❌ Nenhuma transação selecionada', 'error');
+            return;
+        }
+        
+        // Ler dados do formulário
+        const razaoSocial = document.getElementById('razao-individual')?.value?.trim();
+        const categoria = document.getElementById('categoria-individual')?.value?.trim();
+        const subcategoria = document.getElementById('subcategoria-individual')?.value?.trim();
+        const descricaoCustom = document.getElementById('descricao-individual')?.value?.trim();
+        
+        console.log('📋 Dados do formulário:', { razaoSocial, categoria, subcategoria, descricaoCustom });
+        
+        // Validações
+        if (!razaoSocial) {
+            showToast('⚠️ Selecione o cliente/fornecedor', 'warning');
+            document.getElementById('razao-individual')?.focus();
+            return;
+        }
+        
+        if (!categoria) {
+            showToast('⚠️ Selecione a categoria', 'warning');
+            document.getElementById('categoria-individual')?.focus();
+            return;
+        }
+        
+        if (!subcategoria) {
+            showToast('⚠️ Selecione a subcategoria', 'warning');
+            document.getElementById('subcategoria-individual')?.focus();
+            return;
+        }
+        
+        // Determinar tipo do lançamento baseado no valor da transação
+        const isCredito = transacao.tipo?.toUpperCase() === 'CREDITO' || parseFloat(transacao.valor) > 0;
+        const tipo = isCredito ? 'RECEITA' : 'DESPESA';
+        
+        console.log('💰 Tipo detectado:', tipo, '(Crédito:', isCredito, ')');
+        
+        // Preparar dados do lançamento
+        const lancamentoData = {
+            tipo: tipo,
+            descricao: descricaoCustom || transacao.descricao,
+            valor: Math.abs(parseFloat(transacao.valor)),
+            data_vencimento: transacao.data,
+            data_pagamento: transacao.data, // Já foi pago (consta no extrato)
+            status: 'PAGO',
+            categoria: categoria,
+            subcategoria: subcategoria,
+            razao_social: razaoSocial,
+            conta_bancaria: transacao.conta_bancaria,
+            observacoes: `Importado do extrato bancário (${transacao.fitid || transacao.id})`
+        };
+        
+        console.log('📦 Dados do lançamento a criar:', lancamentoData);
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        
+        // 1️⃣ CRIAR O LANÇAMENTO
+        console.log('1️⃣ Criando lançamento...');
+        const responseLancamento = await fetch(`${API_URL}/lancamentos`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(lancamentoData)
+        });
+        
+        if (!responseLancamento.ok) {
+            const error = await responseLancamento.json();
+            throw new Error(error.error || 'Erro ao criar lançamento');
+        }
+        
+        const resultLancamento = await responseLancamento.json();
+        const lancamentoId = resultLancamento.id || resultLancamento.data?.id;
+        
+        if (!lancamentoId) {
+            throw new Error('ID do lançamento não retornado pelo servidor');
+        }
+        
+        console.log('✅ Lançamento criado com ID:', lancamentoId);
+        
+        // 2️⃣ CONCILIAR A TRANSAÇÃO COM O LANÇAMENTO
+        console.log('2️⃣ Conciliando transação', transacao.id, 'com lançamento', lancamentoId);
+        const responseConciliacao = await fetch(`${API_URL}/extratos/${transacao.id}/conciliar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ lancamento_id: lancamentoId })
+        });
+        
+        if (!responseConciliacao.ok) {
+            const error = await responseConciliacao.json();
+            throw new Error(error.error || 'Erro ao conciliar');
+        }
+        
+        console.log('✅ Conciliação realizada com sucesso!');
+        
+        // 3️⃣ SUCESSO!
+        showToast('✅ Lançamento criado e conciliado com sucesso!', 'success');
+        
+        // Fechar modal
+        closeModal('modal-conciliacao');
+        
+        // Recarregar extratos
+        const extratoSection = document.getElementById('extrato-bancario-section');
+        if (extratoSection && extratoSection.classList.contains('active')) {
+            loadExtratos();
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao conciliar transação individual:', error);
+        showToast(`❌ Erro: ${error.message}`, 'error');
+    }
+};
+
+// Desconciliar transação (antigo)
+async function desconciliarTransacaoAntigo() {
+        
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.error || 'Erro ao desconciliar');
+        
         showToast('✅ Transação desconciliada!', 'success');
         
         // Fechar modal e recarregar
