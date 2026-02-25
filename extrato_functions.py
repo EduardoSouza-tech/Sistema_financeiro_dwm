@@ -143,11 +143,14 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
                     log(f"🏦 Nenhuma transação anterior ao período - saldo inicial = R$ 0,00")
             
             # Query principal de transações
-            # ⚠️ TEMPORÁRIO: Usar schema atual (sem tabela conciliacoes)
-            # TODO: Criar tabela conciliacoes e migrar dados
+            # Usar tabela conciliacoes para verificar conciliação
             query = """
-                SELECT t.*
+                SELECT t.*, 
+                       c.lancamento_id,
+                       l.descricao as lancamento_descricao
                 FROM transacoes_extrato t
+                LEFT JOIN conciliacoes c ON c.transacao_extrato_id = t.id AND c.empresa_id = t.empresa_id
+                LEFT JOIN lancamentos l ON l.id = c.lancamento_id AND l.empresa_id = t.empresa_id
                 WHERE t.empresa_id = %s
             """
             params = [empresa_id]
@@ -229,11 +232,39 @@ def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):
             conn.autocommit = False
             cursor = conn.cursor()
             
-            cursor.execute("""
-                UPDATE transacoes_extrato
-                SET lancamento_id = %s, conciliado = %s
-                WHERE id = %s
-            """, (lancamento_id, lancamento_id is not None, transacao_id))
+            if lancamento_id is None:
+                # DESCONCILIAR: Deletar da tabela conciliacoes
+                cursor.execute("""
+                    DELETE FROM conciliacoes
+                    WHERE transacao_extrato_id = %s AND empresa_id = %s
+                """, (transacao_id, empresa_id))
+                
+                # Atualizar flag conciliado em transacoes_extrato
+                cursor.execute("""
+                    UPDATE transacoes_extrato
+                    SET conciliado = FALSE
+                    WHERE id = %s AND empresa_id = %s
+                """, (transacao_id, empresa_id))
+                
+            else:
+                # CONCILIAR: Inserir ou atualizar na tabela conciliacoes
+                cursor.execute("""
+                    INSERT INTO conciliacoes (
+                        empresa_id, transacao_extrato_id, lancamento_id
+                    ) VALUES (%s, %s, %s)
+                    ON CONFLICT (transacao_extrato_id) 
+                    DO UPDATE SET 
+                        lancamento_id = EXCLUDED.lancamento_id,
+                        data_conciliacao = CURRENT_TIMESTAMP,
+                        updated_at = CURRENT_TIMESTAMP
+                """, (empresa_id, transacao_id, lancamento_id))
+                
+                # Atualizar flag conciliado em transacoes_extrato
+                cursor.execute("""
+                    UPDATE transacoes_extrato
+                    SET conciliado = TRUE
+                    WHERE id = %s AND empresa_id = %s
+                """, (transacao_id, empresa_id))
             
             conn.commit()
             cursor.close()
@@ -242,6 +273,8 @@ def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):
         
     except Exception as e:
         log(f"Erro ao conciliar: {e}")
+        import traceback
+        log(traceback.format_exc())
         return {'success': False, 'error': str(e)}
 
 

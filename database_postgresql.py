@@ -1103,6 +1103,77 @@ class DatabaseManager:
             ON transacoes_extrato(pessoa)
         """)
         
+        # Tabela de conciliacoes (relaciona transacoes_extrato com lancamentos)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conciliacoes (
+                id SERIAL PRIMARY KEY,
+                empresa_id INTEGER NOT NULL,
+                transacao_extrato_id INTEGER NOT NULL,
+                lancamento_id INTEGER NOT NULL,
+                data_conciliacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                usuario_id INTEGER,
+                observacoes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                
+                -- Constraints
+                CONSTRAINT fk_conciliacoes_empresa 
+                    FOREIGN KEY (empresa_id) 
+                    REFERENCES empresas(id) ON DELETE CASCADE,
+                    
+                CONSTRAINT fk_conciliacoes_transacao 
+                    FOREIGN KEY (transacao_extrato_id) 
+                    REFERENCES transacoes_extrato(id) ON DELETE CASCADE,
+                    
+                CONSTRAINT fk_conciliacoes_lancamento 
+                    FOREIGN KEY (lancamento_id) 
+                    REFERENCES lancamentos(id) ON DELETE CASCADE,
+                
+                -- Garantir uma conciliação única por transação
+                CONSTRAINT unique_transacao_conciliacao 
+                    UNIQUE (transacao_extrato_id)
+            )
+        """)
+        
+        # Indices para conciliacoes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_conciliacoes_empresa 
+            ON conciliacoes(empresa_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_conciliacoes_transacao 
+            ON conciliacoes(transacao_extrato_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_conciliacoes_lancamento 
+            ON conciliacoes(lancamento_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_conciliacoes_data 
+            ON conciliacoes(data_conciliacao)
+        """)
+        
+        # Habilitar Row Level Security para conciliacoes
+        try:
+            cursor.execute("ALTER TABLE conciliacoes ENABLE ROW LEVEL SECURITY")
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_policies 
+                        WHERE tablename = 'conciliacoes' 
+                        AND policyname = 'conciliacoes_empresa_isolation'
+                    ) THEN
+                        CREATE POLICY conciliacoes_empresa_isolation 
+                        ON conciliacoes
+                        FOR ALL
+                        USING (empresa_id = current_setting('app.empresa_id', TRUE)::INTEGER);
+                    END IF;
+                END $$;
+            """)
+        except Exception as e:
+            print(f"⚠️  Aviso ao configurar RLS para conciliacoes: {e}")
+        
         # Tabela de contratos
         # Primeiro, dropar tabela antiga se existir com estrutura incompati?vel
         try:
