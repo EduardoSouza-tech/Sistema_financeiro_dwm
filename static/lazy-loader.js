@@ -109,18 +109,22 @@ class LazyLoader {
      * Inicializa o lazy loader
      */
     async init(initialFilters = {}) {
+        console.log(`🚀 LazyLoader.init() - Container: ${this.containerId}, Filtros:`, initialFilters);
+        
         this.filters = initialFilters;
         this.currentPage = 1;
         this.hasMore = true;
         
         const container = document.getElementById(this.containerId);
         if (!container) {
-            console.error(`Container ${this.containerId} não encontrado`);
+            console.error(`❌ Container ${this.containerId} não encontrado`);
             return;
         }
 
         // Limpar conteúdo anterior
+        const beforeCount = container.children.length;
         container.innerHTML = '';
+        console.log(`   🗑️ Limpou ${beforeCount} elementos do container`);
         
         // Criar sentinel (elemento que dispara o carregamento)
         this._createSentinel(container);
@@ -263,21 +267,31 @@ class LazyLoader {
         const container = document.getElementById(this.containerId);
         if (!container) return;
 
+        console.log(`🎨 _renderPage chamada - Page: ${page}, Items: ${items.length}, Container: ${this.containerId}`);
+
         // Se for primeira página, limpar container E recriar sentinel
         if (page === 1) {
+            console.log(`🗑️ Limpando container (page=1)...`);
+            const beforeCount = container.children.length;
             container.innerHTML = '';
+            console.log(`   Removidos ${beforeCount} elementos`);
             // Recriar sentinel após limpar
             this._createSentinel(container);
         }
 
         // Renderizar items
-        items.forEach(item => {
+        console.log(`📋 Renderizando ${items.length} items...`);
+        items.forEach((item, idx) => {
             const element = this.renderFunction(item);
             if (element) {
                 // Inserir antes do sentinel
                 container.insertBefore(element, this.sentinel);
+                if (idx < 3) {
+                    console.log(`   [${idx}] ID: ${item.id}, Desc: ${item.descricao?.substring(0, 30)}`);
+                }
             }
         });
+        console.log(`✅ Renderização concluída. Total elementos no container: ${container.children.length}`);
 
         // Mensagem se vazio
         if (page === 1 && items.length === 0) {
@@ -373,10 +387,21 @@ class LazyLoader {
     }
 
     destroy() {
+        console.log(`💥 LazyLoader.destroy() - Container: ${this.containerId}`);
         if (this.observer) {
             this.observer.disconnect();
+            console.log('   ✅ Observer desconectado');
         }
         this.cache.clear();
+        console.log('   ✅ Cache limpo');
+        
+        // Limpar container HTML também
+        const container = document.getElementById(this.containerId);
+        if (container) {
+            const beforeCount = container.children.length;
+            container.innerHTML = '';
+            console.log(`   🗑️ Container limpo (${beforeCount} elementos removidos)`);
+        }
     }
 }
 

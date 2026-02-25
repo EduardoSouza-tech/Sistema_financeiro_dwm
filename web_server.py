@@ -3233,6 +3233,18 @@ def listar_lancamentos():
         
         print(f"✅ Retornaram {len(lancamentos)} lançamentos")
         
+        # VERIFICAR DUPLICATAS
+        if lancamentos:
+            ids = [l.id for l in lancamentos if hasattr(l, 'id')]
+            ids_unicos = set(ids)
+            if len(ids) != len(ids_unicos):
+                duplicados = [id for id in ids if ids.count(id) > 1]
+                print(f"⚠️ ATENÇÃO: QUERY RETORNOU IDs DUPLICADOS!")
+                print(f"   Total IDs: {len(ids)}, Únicos: {len(ids_unicos)}")
+                print(f"   IDs duplicados: {set(duplicados)}")
+            else:
+                print(f"✅ Todos os IDs são únicos ({len(ids_unicos)} registros)")
+        
         # Converter para lista de dicts
         lancamentos_list = []
         for idx, l in enumerate(lancamentos):
