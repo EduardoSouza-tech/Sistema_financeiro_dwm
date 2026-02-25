@@ -115,7 +115,11 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 # AUTO-EXECUTAR MIGRATION DE EVENTOS (STARTUP)
 # ============================================================================
 def auto_execute_migrations():
-    """Executa migrations automaticamente no startup"""
+    """Executa migrations automaticamente no startup - DESABILITADA TEMPORARIAMENTE"""
+    logger.info("⚠️ auto_execute_migrations desabilitada (causa timeout no deploy)")
+    return  # DESABILITADO - causava timeout no Railway
+    
+    # Código comentado abaixo para referência futura
     try:
         logger.info("="*80)
         logger.info("🚀 AUTO-EXECUTANDO MIGRATIONS DE EVENTOS")
@@ -449,12 +453,18 @@ def handle_exception(e):
 # ============================================================================
 # CONFIGURAÇÃO E INICIALIZAÇÃO DO SISTEMA
 # ============================================================================
+
+# Flag para controlar execução de migrations no startup
+# ATENÇÃO: Desabilitado pois causava timeout no Railway (deploy > 10 min)
+EXECUTAR_MIGRATIONS_STARTUP = False
+
 print("\n" + "="*70)
 print("🚀 SISTEMA FINANCEIRO - INICIALIZAÇÃO")
 print("="*70)
 print(f"📊 Banco de Dados: PostgreSQL (Pool de Conexões)")
 print(f"🔐 DATABASE_URL: {'✅ Configurado' if os.getenv('DATABASE_URL') else '❌ Não configurado'}")
 print(f"🌐 Ambiente: {'Produção (Railway)' if os.getenv('RAILWAY_ENVIRONMENT') else 'Desenvolvimento'}")
+print(f"⚙️ Migrations no Startup: {'✅ Ativado' if EXECUTAR_MIGRATIONS_STARTUP else '❌ Desabilitado'}")
 print("="*70 + "\n")
 
 # Inicializar banco de dados com pool de conexões
@@ -464,174 +474,49 @@ try:
     print("DatabaseManager inicializado com sucesso!")
     print(f"   Pool de conexoes: 2-20 conexoes simultaneas")
     
-    # ================================================
-    # ⚠️ MIGRATIONS DESABILITADAS NO STARTUP
-    # ================================================
-    # MOTIVO: Causam timeout e travam o deploy no Railway
-    # SOLUÇÃO: Executar migrations manualmente via endpoint /admin/migrations
-    # ================================================
+    # Executar migrações necessárias (controlado por flag EXECUTAR_MIGRATIONS_STARTUP)
+    if EXECUTAR_MIGRATIONS_STARTUP:
+        try:
+            print("\n👥 Executando migração Usuário Multi-Empresa...")
+            from migration_usuario_multi_empresa import executar_migracao as migrar_usuario_multi_empresa
+            if migrar_usuario_multi_empresa(db):
+                print("✅ Sistema Usuário Multi-Empresa configurado com sucesso!\n")
+            else:
+                print("⚠️ Migração Usuário Multi-Empresa falhou (pode já estar aplicada)\n")
+        except Exception as e:
+            print(f"⚠️ Aviso: Não foi possível executar migração usuário multi-empresa: {e}")
+        
+        try:
+            print("\n💰 Executando migração Tipo Saldo Inicial...")
+            from migration_tipo_saldo_inicial import executar_migracao as migrar_tipo_saldo
+            if migrar_tipo_saldo(db):
+                print("✅ Coluna tipo_saldo_inicial adicionada com sucesso!\n")
+            else:
+                print("⚠️ Migração tipo_saldo_inicial falhou (pode já estar aplicada)\n")
+        except Exception as e:
+            print(f"⚠️ Aviso: Não foi possível executar migração tipo_saldo_inicial: {e}")
+        
+        # 🚀 AUTO-EXECUTAR MIGRATIONS DE EVENTOS (após db estar pronto)
+        try:
+            print("\n🎉 Executando migração de Eventos...")
+            auto_execute_migrations()
+            print("✅ Migration de eventos verificada!\n")
+        except Exception as e:
+            print(f"⚠️ Aviso: Não foi possível executar auto-migration de eventos: {e}")
+        
+        try:
+            print("\n📅 Executando migração Data de Início...")
+            from migration_data_inicio import executar_migracao as migrar_data_inicio
+            if migrar_data_inicio(db):
+                print("✅ Coluna data_inicio adicionada com sucesso!\n")
+            else:
+                print("⚠️ Migração data_inicio falhou (pode já estar aplicada)\n")
+        except Exception as e:
+            print(f"⚠️ Aviso: Não foi possível executar migração data_inicio: {e}")
+    else:
+        print("⚠️ Migrations de startup desabilitadas (EXECUTAR_MIGRATIONS_STARTUP=False)")
     
-    # # Executar migrações necessárias
-    # try:
-    #     print("\n👥 Executando migração Usuário Multi-Empresa...")
-    #     from migration_usuario_multi_empresa import executar_migracao as migrar_usuario_multi_empresa
-    #     if migrar_usuario_multi_empresa(db):
-    #         print("✅ Sistema Usuário Multi-Empresa configurado com sucesso!\n")
-    #     else:
-    #         print("⚠️ Migração Usuário Multi-Empresa falhou (pode já estar aplicada)\n")
-    # except Exception as e:
-    #     print(f"⚠️ Aviso: Não foi possível executar migração usuário multi-empresa: {e}")
-    
-    # try:
-    #     print("\n💰 Executando migração Tipo Saldo Inicial...")
-    #     from migration_tipo_saldo_inicial import executar_migracao as migrar_tipo_saldo
-    #     if migrar_tipo_saldo(db):
-    #         print("✅ Coluna tipo_saldo_inicial adicionada com sucesso!\n")
-    #     else:
-    #         print("⚠️ Migração tipo_saldo_inicial falhou (pode já estar aplicada)\n")
-    # except Exception as e:
-    #     print(f"⚠️ Aviso: Não foi possível executar migração tipo_saldo_inicial: {e}")
-    
-    # # 🚀 AUTO-EXECUTAR MIGRATIONS DE EVENTOS (após db estar pronto)
-    # try:
-    #     print("\n🎉 Executando migração de Eventos...")
-    #     auto_execute_migrations()
-    #     print("✅ Migration de eventos verificada!\n")
-    # except Exception as e:
-    #     print(f"⚠️ Aviso: Não foi possível executar auto-migration de eventos: {e}")
-    
-    # try:
-    #     print("\n📅 Executando migração Data de Início...")
-    #     from migration_data_inicio import executar_migracao as migrar_data_inicio
-    #     if migrar_data_inicio(db):
-    #         print("✅ Coluna data_inicio adicionada com sucesso!\n")
-    #     else:
-    #         print("⚠️ Migração data_inicio falhou (pode já estar aplicada)\n")
-    # except Exception as e:
-    #     print(f"⚠️ Aviso: Não foi possível executar migração data_inicio: {e}")
-    
-    # # Criar tabela de extratos bancários se não existir
-    # try:
-    #     print("\n🏦 Verificando tabela de extratos bancários...")
-    #     with db.get_connection() as conn:
-    #         cursor = conn.cursor()
-    #         cursor.execute("""
-    #             CREATE TABLE IF NOT EXISTS transacoes_extrato (
-    #                 id SERIAL PRIMARY KEY,
-    #                 empresa_id INTEGER NOT NULL,
-    #                 conta_bancaria VARCHAR(255) NOT NULL,
-    #                 data DATE NOT NULL,
-    #                 descricao TEXT,
-    #                 valor DECIMAL(15, 2) NOT NULL,
-    #                 tipo VARCHAR(20) NOT NULL,
-    #                 saldo DECIMAL(15, 2),
-    #                 fitid VARCHAR(255),
-    #                 memo TEXT,
-    #                 checknum VARCHAR(50),
-    #                 importacao_id VARCHAR(100),
-    #                 conciliado BOOLEAN DEFAULT FALSE,
-    #                 lancamento_id INTEGER,
-    #                 data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    #                 data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    #                 CONSTRAINT uk_fitid_empresa UNIQUE (fitid, empresa_id)
-    #             )
-    #         """)
-    #         
-    #         # Criar índices
-    #         cursor.execute("CREATE INDEX IF NOT EXISTS idx_transacoes_extrato_empresa ON transacoes_extrato(empresa_id)")
-    #         cursor.execute("CREATE INDEX IF NOT EXISTS idx_transacoes_extrato_conta ON transacoes_extrato(conta_bancaria)")
-    #         cursor.execute("CREATE INDEX IF NOT EXISTS idx_transacoes_extrato_data ON transacoes_extrato(data)")
-    #         cursor.execute("CREATE INDEX IF NOT EXISTS idx_transacoes_extrato_importacao ON transacoes_extrato(importacao_id)")
-    #         cursor.execute("CREATE INDEX IF NOT EXISTS idx_transacoes_extrato_conciliado ON transacoes_extrato(conciliado)")
-    #         
-    #         conn.commit()
-    #         cursor.close()
-    #         print("✅ Tabela transacoes_extrato verificada/criada com sucesso!\n")
-    # except Exception as e:
-    #     print(f"⚠️ Aviso: Não foi possível criar tabela de extratos: {e}\n")
-    
-    # # Criar tabelas de Funcionários e Eventos
-    # try:
-    #     print("\n👥 Verificando tabelas de Folha de Pagamento e Eventos...")
-    #     with db.get_connection() as conn:
-    #         cursor = conn.cursor()
-    #         
-    #         # Tabela de Funcionários
-    #         cursor.execute("""
-    #             CREATE TABLE IF NOT EXISTS funcionarios (
-    #                 id SERIAL PRIMARY KEY,
-    #                 empresa_id INTEGER NOT NULL,
-    #                 nome VARCHAR(255) NOT NULL,
-    #                 cpf VARCHAR(11) NOT NULL,
-    #                 endereco TEXT,
-    #                 tipo_chave_pix VARCHAR(50) NOT NULL,
-    #                 chave_pix VARCHAR(255),
-    #                 ativo BOOLEAN DEFAULT TRUE,
-    #                 data_admissao DATE,
-    #                 data_demissao DATE,
-    #                 observacoes TEXT,
-    #                 data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    #                 data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    #                 CONSTRAINT uk_cpf_empresa UNIQUE (cpf, empresa_id)
-    #             )
-    #         """)
-    #         
-    #         cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_empresa ON funcionarios(empresa_id)")
-    #         cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_cpf ON funcionarios(cpf)")
-    #         cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_ativo ON funcionarios(ativo)")
-    #         
-    #         # Adicionar coluna email se não existir
-    #         try:
-    #             cursor.execute("""
-    #                 ALTER TABLE funcionarios 
-    #                 ADD COLUMN IF NOT EXISTS email VARCHAR(255)
-    #             """)
-    #             logger.info("✅ Coluna email adicionada/verificada em funcionarios")
-    #         except Exception as e:
-    #             logger.warning(f"⚠️ Erro ao adicionar coluna email: {e}")
-    #         
-    #         # Migração: Alterar tipo da coluna CPF se necessário
-    #         try:
-    #             cursor.execute("""
-    #                 ALTER TABLE funcionarios 
-    #                 ALTER COLUMN cpf TYPE VARCHAR(11)
-    #             """)
-    #             print("✅ Coluna CPF migrada para VARCHAR(11)")
-    #         except Exception as e:
-    #             # Já está correto ou erro não crítico
-    #             pass
-    #         
-    #         # Tabela de Eventos
-    #         cursor.execute("""
-    #             CREATE TABLE IF NOT EXISTS eventos (
-    #                 id SERIAL PRIMARY KEY,
-    #                 empresa_id INTEGER NOT NULL,
-    #                 nome_evento VARCHAR(255) NOT NULL,
-    #                 data_evento DATE NOT NULL,
-    #                 nf_associada VARCHAR(100),
-    #                 valor_liquido_nf DECIMAL(15, 2),
-    #                 custo_evento DECIMAL(15, 2),
-    #                 margem DECIMAL(15, 2),
-    #                 tipo_evento VARCHAR(100),
-    #                 status VARCHAR(50) DEFAULT 'PENDENTE',
-    #                 observacoes TEXT,
-    #                 data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    #                 data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    #             )
-    #         """)
-    #         
-    #         cursor.execute("CREATE INDEX IF NOT EXISTS idx_eventos_empresa ON eventos(empresa_id)")
-    #         cursor.execute("CREATE INDEX IF NOT EXISTS idx_eventos_data ON eventos(data_evento)")
-    #         cursor.execute("CREATE INDEX IF NOT EXISTS idx_eventos_status ON eventos(status)")
-    #         cursor.execute("CREATE INDEX IF NOT EXISTS idx_eventos_tipo ON eventos(tipo_evento)")
-    #         
-    #         conn.commit()
-    #         cursor.close()
-    #         print("✅ Tabelas funcionarios e eventos verificadas/criadas com sucesso!\n")
-    # except Exception as e:
-    #     print(f"⚠️ Aviso: Não foi possível criar tabelas de folha/eventos: {e}\n")
-    
-    print("✅ DatabaseManager pronto (migrations desabilitadas no startup)")
+    print("✅ DatabaseManager pronto!")
     print("="*70 + "\n")
         
 except Exception as e:
