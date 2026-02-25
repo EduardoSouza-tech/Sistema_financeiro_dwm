@@ -6898,7 +6898,7 @@ def validar_sessao(token: str) -> Optional[Dict]:
     
     try:
         conn = pool.getconn()
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)  # ✅ CRITICAL: Retornar dict
         
         cursor.execute("""
             SELECT s.usuario_id, s.expira_em, s.ativo,
@@ -6976,7 +6976,7 @@ def invalidar_sessao(token: str) -> bool:
     
     try:
         conn = pool.getconn()
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         cursor.execute("""
             UPDATE sessoes_login SET ativo = FALSE WHERE session_token = %s
