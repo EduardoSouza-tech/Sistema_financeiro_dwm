@@ -3778,6 +3778,10 @@ async function loadExtratos() {
             console.log(`✅ ${extratos.length} transações recebidas, saldo anterior: R$ ${saldoAnterior?.toFixed(2) || 'N/A'}`);
         }
         
+        // 🔥 IMPORTANTE: Salvar em variável global para uso nas funções de conciliação
+        window.extratos = extratos;
+        console.log('💾 Transações salvas em window.extratos:', window.extratos.length);
+        
         // Renderizar tabela
         const tbody = document.getElementById('tbody-extrato');
         console.log('📍 Elemento tbody-extrato:', tbody);
@@ -7056,7 +7060,16 @@ window.abrirConciliacaoGeral = async function() {
         
         if (!response.ok) throw new Error('Erro ao carregar extratos');
         
-        const transacoes = await response.json();
+        const responseData = await response.json();
+        
+        // Suportar novo formato (objeto com transacoes + saldo_anterior) e formato antigo (array direto)
+        let transacoes;
+        if (Array.isArray(responseData)) {
+            transacoes = responseData;
+        } else {
+            transacoes = responseData.transacoes || [];
+        }
+        
         console.log('📊 Transações não conciliadas:', transacoes.length);
         
         if (transacoes.length === 0) {
