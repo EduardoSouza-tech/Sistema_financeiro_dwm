@@ -5211,6 +5211,7 @@ def atualizar_config_extrato():
 
 
 @app.route('/api/regras-conciliacao/detectar', methods=['POST'])
+@limiter.exempt  # Excluir do rate limiting (pode receber 694+ requisições paralelas)
 @require_permission('lancamentos_view')
 def detectar_regra_conciliacao():
     """
