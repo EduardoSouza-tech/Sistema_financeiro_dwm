@@ -3823,6 +3823,106 @@ class DatabaseManager:
                 cursor.close()
             if conn:
                 return_to_pool(conn)
+    
+    def buscar_regra_aplicavel(self, empresa_id: int, descricao: str) -> Optional[Dict]:
+        """
+        Busca uma regra de auto-conciliação aplicável para uma descrição
+        
+        Args:
+            empresa_id: ID da empresa
+            descricao: Descrição da transação
+            
+        Returns:
+            Dicionário com a regra encontrada ou None
+        """
+        conn = None
+        cursor = None
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            # Buscar regra mais específica que match com a descrição (case-insensitive)
+            cursor.execute("""
+                SELECT 
+                    id, 
+                    empresa_id,
+                    palavra_chave,
+                    categoria,
+                    subcategoria,
+                    cliente_padrao,
+                    usa_integracao_folha,
+                    descricao,
+                    ativo
+                FROM regras_conciliacao
+                WHERE empresa_id = %s 
+                    AND ativo = TRUE
+                    AND UPPER(%s) LIKE '%%' || UPPER(palavra_chave) || '%%'
+                ORDER BY LENGTH(palavra_chave) DESC
+                LIMIT 1
+            """, (empresa_id, descricao))
+            
+            regra = cursor.fetchone()
+            return dict(regra) if regra else None
+            
+        except Exception as e:
+            print(f"❌ Erro ao buscar regra aplicável: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                return_to_pool(conn)
+    
+    def buscar_funcionario_por_cpf(self, empresa_id: int, cpf: str) -> Optional[Dict]:
+        """
+        Busca um funcionário pelo CPF
+        
+        Args:
+            empresa_id: ID da empresa
+            cpf: CPF do funcionário (11 dígitos, sem formatação)
+            
+        Returns:
+            Dicionário com dados do funcionário ou None
+        """
+        conn = None
+        cursor = None
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            # Buscar funcionário ativo pelo CPF
+            cursor.execute("""
+                SELECT 
+                    id,
+                    empresa_id,
+                    nome,
+                    cpf,
+                    cargo,
+                    salario,
+                    data_admissao,
+                    ativo
+                FROM funcionarios
+                WHERE empresa_id = %s 
+                    AND cpf = %s
+                    AND ativo = TRUE
+                LIMIT 1
+            """, (empresa_id, cpf))
+            
+            funcionario = cursor.fetchone()
+            return dict(funcionario) if funcionario else None
+            
+        except Exception as e:
+            print(f"❌ Erro ao buscar funcionário por CPF: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                return_to_pool(conn)
 
 
 # Funi?i?es standalone para compatibilidade
