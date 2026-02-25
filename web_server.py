@@ -486,12 +486,13 @@ try:
         print(f"⚠️ Aviso: Não foi possível executar migração tipo_saldo_inicial: {e}")
     
     # 🚀 AUTO-EXECUTAR MIGRATIONS DE EVENTOS (após db estar pronto)
-    try:
-        print("\n🎉 Executando migração de Eventos...")
-        auto_execute_migrations()
-        print("✅ Migration de eventos verificada!\n")
-    except Exception as e:
-        print(f"⚠️ Aviso: Não foi possível executar auto-migration de eventos: {e}")
+    # TEMPORARIAMENTE DESABILITADO - pode estar travando deploy
+    # try:
+    #     print("\n🎉 Executando migração de Eventos...")
+    #     auto_execute_migrations()
+    #     print("✅ Migration de eventos verificada!\n")
+    # except Exception as e:
+    #     print(f"⚠️ Aviso: Não foi possível executar auto-migration de eventos: {e}")
     
     try:
         print("\n📅 Executando migração Data de Início...")
