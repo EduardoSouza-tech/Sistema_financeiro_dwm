@@ -18,6 +18,7 @@ import logging
 from contextlib import contextmanager
 from urllib.parse import urlparse
 import weakref
+import threading
 
 # Configurar logger
 logger = logging.getLogger(__name__)
@@ -357,13 +358,18 @@ def get_nfse_db_params() -> dict:
 
 # Pool de conexões global para reutilização eficiente
 _connection_pool = None
+_pool_lock = threading.Lock()  # Lock para prevenir race condition em ambiente multi-threaded
 _database_initialized = False  # Flag para controlar inicializai?i?o i?nica
 
 def _get_connection_pool():
-    """Obtém ou cria o pool de conexões"""
+    """Obtém ou cria o pool de conexões (thread-safe)"""
     global _connection_pool
     
+    # Double-check locking pattern para performance
     if _connection_pool is None:
+        with _pool_lock:
+            # Verificar novamente dentro do lock (outra thread pode ter criado)
+            if _connection_pool is None:
         try:
             if 'dsn' in POSTGRESQL_CONFIG:
                 _connection_pool = pool.ThreadedConnectionPool(
@@ -383,7 +389,7 @@ def _get_connection_pool():
                     options='-c statement_timeout=30000',  # 30 segundos timeout por query
                     **POSTGRESQL_CONFIG
                 )
-            print("✅ Pool de conexões PostgreSQL criado (5-50 conexões, timeout=10s, query_timeout=30s)")
+                print("✅ Pool de conexões PostgreSQL criado (5-50 conexões, timeout=10s, query_timeout=30s)")
         except Exception as e:
             print(f"❌ Erro ao criar pool de conexões: {e}")
             raise
