@@ -3150,6 +3150,16 @@ def listar_lancamentos():
         
         # Parâmetros de filtro
         tipo_filtro = request.args.get('tipo')
+        status_filtro = request.args.get('status')
+        categoria_filtro = request.args.get('categoria')
+        conta_bancaria_filtro = request.args.get('conta_bancaria')
+        data_inicio_filtro = request.args.get('data_inicio')
+        data_fim_filtro = request.args.get('data_fim')
+        ano_filtro = request.args.get('ano')
+        mes_filtro = request.args.get('mes')
+        search_filtro = request.args.get('search')
+        cliente_filtro = request.args.get('cliente')
+        fornecedor_filtro = request.args.get('fornecedor')
         filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
         
         # Parâmetros de paginação
@@ -3159,6 +3169,16 @@ def listar_lancamentos():
         print(f"📋 Parâmetros recebidos:")
         print(f"   - empresa_id: {empresa_id}")
         print(f"   - tipo_filtro: {tipo_filtro}")
+        print(f"   - status_filtro: {status_filtro}")
+        print(f"   - categoria_filtro: {categoria_filtro}")
+        print(f"   - conta_bancaria_filtro: {conta_bancaria_filtro}")
+        print(f"   - data_inicio_filtro: {data_inicio_filtro}")
+        print(f"   - data_fim_filtro: {data_fim_filtro}")
+        print(f"   - ano_filtro: {ano_filtro}")
+        print(f"   - mes_filtro: {mes_filtro}")
+        print(f"   - search_filtro: {search_filtro}")
+        print(f"   - cliente_filtro: {cliente_filtro}")
+        print(f"   - fornecedor_filtro: {fornecedor_filtro}")
         print(f"   - filtro_cliente_id: {filtro_cliente_id}")
         print(f"   - page: {page}")
         print(f"   - per_page: {per_page}")
@@ -3167,6 +3187,37 @@ def listar_lancamentos():
         filtros = {}
         if tipo_filtro:
             filtros['tipo'] = tipo_filtro.upper()
+        if status_filtro:
+            filtros['status'] = status_filtro.upper()
+        if categoria_filtro:
+            filtros['categoria'] = categoria_filtro
+        if conta_bancaria_filtro:
+            filtros['conta_bancaria'] = conta_bancaria_filtro
+        if data_inicio_filtro:
+            filtros['data_inicio'] = data_inicio_filtro
+        if data_fim_filtro:
+            filtros['data_fim'] = data_fim_filtro
+        
+        # Filtros especiais: ano e mês (converter para data_inicio/data_fim)
+        if ano_filtro:
+            from datetime import date
+            ano = int(ano_filtro)
+            if mes_filtro:
+                mes = int(mes_filtro)
+                # Filtrar por mês específico
+                import calendar
+                ultimo_dia = calendar.monthrange(ano, mes)[1]
+                filtros['data_inicio'] = date(ano, mes, 1).isoformat()
+                filtros['data_fim'] = date(ano, mes, ultimo_dia).isoformat()
+                print(f"   🗓️ Filtro ano+mês: {filtros['data_inicio']} até {filtros['data_fim']}")
+            else:
+                # Filtrar por ano inteiro
+                filtros['data_inicio'] = date(ano, 1, 1).isoformat()
+                filtros['data_fim'] = date(ano, 12, 31).isoformat()
+                print(f"   🗓️ Filtro ano: {filtros['data_inicio']} até {filtros['data_fim']}")
+        
+        # Filtro de busca textual (search) - será aplicado após consulta
+        # Filtro de cliente/fornecedor - será aplicado após consulta
         
         print(f"🔍 Filtros montados: {filtros}")
         
@@ -3210,6 +3261,25 @@ def listar_lancamentos():
             except Exception as e:
                 print(f"⚠️ Erro ao converter lançamento {idx} (ID: {getattr(l, 'id', '?')}): {e}")
                 continue
+        
+        # Aplicar filtros adicionais (search, cliente, fornecedor) em memória
+        if search_filtro:
+            search_lower = search_filtro.lower()
+            lancamentos_list = [
+                l for l in lancamentos_list 
+                if (search_lower in (l.get('descricao') or '').lower() or
+                    search_lower in (l.get('pessoa') or '').lower() or
+                    search_lower in (l.get('observacoes') or '').lower())
+            ]
+            print(f"🔍 Após filtro search: {len(lancamentos_list)} registros")
+        
+        if cliente_filtro:
+            lancamentos_list = [l for l in lancamentos_list if l.get('pessoa') == cliente_filtro]
+            print(f"👤 Após filtro cliente: {len(lancamentos_list)} registros")
+        
+        if fornecedor_filtro:
+            lancamentos_list = [l for l in lancamentos_list if l.get('pessoa') == fornecedor_filtro]
+            print(f"🏭 Após filtro fornecedor: {len(lancamentos_list)} registros")
         
         print(f"📦 Retornando {len(lancamentos_list)} lançamentos no JSON")
         print("="*80 + "\n")
