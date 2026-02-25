@@ -143,10 +143,14 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
                     log(f"🏦 Nenhuma transação anterior ao período - saldo inicial = R$ 0,00")
             
             # Query principal de transações
+            # ⚠️ lancamento_id foi removido! Agora usamos tabela conciliacoes
             query = """
-                SELECT t.*, l.descricao as lancamento_descricao
+                SELECT t.*, 
+                       c.lancamento_id,
+                       l.descricao as lancamento_descricao
                 FROM transacoes_extrato t
-                LEFT JOIN lancamentos l ON t.lancamento_id = l.id
+                LEFT JOIN conciliacoes c ON c.transacao_extrato_id = t.id AND c.empresa_id = t.empresa_id
+                LEFT JOIN lancamentos l ON l.id = c.lancamento_id AND l.empresa_id = t.empresa_id
                 WHERE t.empresa_id = %s
             """
             params = [empresa_id]
