@@ -8048,9 +8048,9 @@
                                 const response = await fetch('/api/regras-conciliacao/detectar', {
                                     method: 'POST',
                                     headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                        'Content-Type': 'application/json'
                                     },
+                                    credentials: 'include',  // ✅ Enviar cookies de sessão
                                     body: JSON.stringify({ descricao: transacao.descricao })
                                 });
                                 
