@@ -318,6 +318,10 @@ else:
             def decorator(f):
                 return f
             return decorator
+        
+        def exempt(self, f):
+            """Decorador exempt dummy - retorna função sem modificação"""
+            return f
     limiter = DummyLimiter()
     print("⚠️ Rate Limiting desabilitado (flask-limiter não instalado)")
 
