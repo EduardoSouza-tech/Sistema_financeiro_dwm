@@ -6886,15 +6886,20 @@ def validar_sessao(token: str) -> Optional[Dict]:
     """
     Valida uma sessão e retorna os dados do usuário
     ATUALIZADO: 2026-02-04 18:30 - Incluir empresas associadas
+    OTIMIZADO: 2026-02-25 20:30 - Usar pool global (fix "too many clients")
     
     Returns:
         Dict com dados do usuário se sessão válida, None caso contrário
     """
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
+    # ✅ USAR POOL GLOBAL ao invés de criar novo DatabaseManager
+    pool = _get_connection_pool()
+    conn = None
+    cursor = None
     
     try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        
         cursor.execute("""
             SELECT s.usuario_id, s.expira_em, s.ativo,
                    u.username, u.tipo, u.nome_completo, u.email, u.cliente_id
@@ -6955,27 +6960,37 @@ def validar_sessao(token: str) -> Optional[Dict]:
         print(f"✅ [validar_sessao DB] Retornando: empresa_id={empresa_id}, empresas={empresas}")
         return usuario_retorno
     finally:
-        cursor.close()
-        return_to_pool(conn)  # Devolver ao pool
+        if cursor:
+            cursor.close()
+        if conn:
+            pool.putconn(conn)  # ✅ Devolver conexão ao pool global
 
 def invalidar_sessao(token: str) -> bool:
-    """Invalida uma sessi?o (logout)"""
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
+    """
+    Invalida uma sessão (logout)
+    OTIMIZADO: 2026-02-25 20:30 - Usar pool global
+    """
+    pool = _get_connection_pool()
+    conn = None
+    cursor = None
     
     try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        
         cursor.execute("""
             UPDATE sessoes_login SET ativo = FALSE WHERE session_token = %s
         """, (token,))
         conn.commit()
         return True
     except Exception as e:
-        print(f"Erro ao invalidar sessi?o: {e}")
+        print(f"Erro ao invalidar sessão: {e}")
         return False
     finally:
-        cursor.close()
-        return_to_pool(conn)  # Devolver ao pool
+        if cursor:
+            cursor.close()
+        if conn:
+            pool.putconn(conn)
 
 def listar_usuarios(apenas_ativos: bool = True) -> List[Dict]:
     """Lista todos os usui?rios do sistema"""
