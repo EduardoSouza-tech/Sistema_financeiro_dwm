@@ -373,23 +373,23 @@ def _get_connection_pool():
                 try:
                     if 'dsn' in POSTGRESQL_CONFIG:
                         _connection_pool = pool.ThreadedConnectionPool(
-                            minconn=5,
-                            maxconn=50,
+                            minconn=10,
+                            maxconn=100,  # Aumentado de 50 para 100 (suportar 694 reqs paralelas)
                             dsn=POSTGRESQL_CONFIG['dsn'],
                             cursor_factory=RealDictCursor,
-                            connect_timeout=10,
-                            options='-c statement_timeout=30000'  # 30 segundos timeout por query
+                            connect_timeout=5,  # Reduzido de 10 para 5s
+                            options='-c statement_timeout=15000'  # Reduzido de 30s para 15s
                         )
                     else:
                         _connection_pool = pool.ThreadedConnectionPool(
-                            minconn=5,
-                            maxconn=50,
+                            minconn=10,
+                            maxconn=100,  # Aumentado de 50 para 100 (suportar 694 reqs paralelas)
                             cursor_factory=RealDictCursor,
-                            connect_timeout=10,
-                            options='-c statement_timeout=30000',  # 30 segundos timeout por query
+                            connect_timeout=5,  # Reduzido de 10 para 5s
+                            options='-c statement_timeout=15000',  # Reduzido de 30s para 15s
                             **POSTGRESQL_CONFIG
                         )
-                    print("✅ Pool de conexões PostgreSQL criado (5-50 conexões, timeout=10s, query_timeout=30s)")
+                    print("✅ Pool de conexões PostgreSQL criado (10-100 conexões, timeout=5s, query_timeout=15s)")
                 except Exception as e:
                     print(f"❌ Erro ao criar pool de conexões: {e}")
                     raise
@@ -3841,45 +3841,51 @@ class DatabaseManager:
         Returns:
             Dicionário com a regra encontrada ou None
         """
-        conn = None
-        cursor = None
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            
-            # Buscar regra mais específica que match com a descrição (case-insensitive)
-            cursor.execute("""
-                SELECT 
-                    id, 
-                    empresa_id,
-                    palavra_chave,
-                    categoria,
-                    subcategoria,
-                    cliente_padrao,
-                    usa_integracao_folha,
-                    descricao,
-                    ativo
-                FROM regras_conciliacao
-                WHERE empresa_id = %s 
-                    AND ativo = TRUE
-                    AND UPPER(%s) LIKE '%%' || UPPER(palavra_chave) || '%%'
-                ORDER BY LENGTH(palavra_chave) DESC
-                LIMIT 1
-            """, (empresa_id, descricao))
-            
-            regra = cursor.fetchone()
-            return dict(regra) if regra else None
-            
-        except Exception as e:
-            print(f"❌ Erro ao buscar regra aplicável: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
-        finally:
-            if cursor:
-                cursor.close()
-            if conn:
-                return_to_pool(conn)
+        # Usar context manager para garantir devolução automática da conexão
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                with get_db_connection(empresa_id=empresa_id) as conn:
+                    cursor = conn.cursor(cursor_factory=RealDictCursor)
+                    
+                    # Buscar regra mais específica que match com a descrição (case-insensitive)
+                    cursor.execute("""
+                        SELECT 
+                            id, 
+                            empresa_id,
+                            palavra_chave,
+                            categoria,
+                            subcategoria,
+                            cliente_padrao,
+                            usa_integracao_folha,
+                            descricao,
+                            ativo
+                        FROM regras_conciliacao
+                        WHERE empresa_id = %s 
+                            AND ativo = TRUE
+                            AND UPPER(%s) LIKE '%%' || UPPER(palavra_chave) || '%%'
+                        ORDER BY LENGTH(palavra_chave) DESC
+                        LIMIT 1
+                    """, (empresa_id, descricao))
+                    
+                    regra = cursor.fetchone()
+                    cursor.close()
+                    return dict(regra) if regra else None
+                    
+            except pool.PoolError as e:
+                if attempt < max_retries - 1:
+                    time.sleep(0.1 * (attempt + 1))  # Backoff exponencial
+                    continue
+                print(f"❌ Pool esgotado após {max_retries} tentativas: {e}")
+                return None
+            except Exception as e:
+                print(f"❌ Erro ao buscar regra aplicável: {e}")
+                import traceback
+                traceback.print_exc()
+                return None
+        
+        return None
+
     
     def buscar_funcionario_por_cpf(self, empresa_id: int, cpf: str) -> Optional[Dict]:
         """
@@ -3892,43 +3898,48 @@ class DatabaseManager:
         Returns:
             Dicionário com dados do funcionário ou None
         """
-        conn = None
-        cursor = None
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            
-            # Buscar funcionário ativo pelo CPF
-            cursor.execute("""
-                SELECT 
-                    id,
-                    empresa_id,
-                    nome,
-                    cpf,
-                    cargo,
-                    salario,
-                    data_admissao,
-                    ativo
-                FROM funcionarios
-                WHERE empresa_id = %s 
-                    AND cpf = %s
-                    AND ativo = TRUE
-                LIMIT 1
-            """, (empresa_id, cpf))
-            
-            funcionario = cursor.fetchone()
-            return dict(funcionario) if funcionario else None
-            
-        except Exception as e:
-            print(f"❌ Erro ao buscar funcionário por CPF: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
-        finally:
-            if cursor:
-                cursor.close()
-            if conn:
-                return_to_pool(conn)
+        # Usar context manager para garantir devolução automática da conexão
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                with get_db_connection(empresa_id=empresa_id) as conn:
+                    cursor = conn.cursor(cursor_factory=RealDictCursor)
+                    
+                    # Buscar funcionário ativo pelo CPF
+                    cursor.execute("""
+                        SELECT 
+                            id,
+                            empresa_id,
+                            nome,
+                            cpf,
+                            cargo,
+                            salario,
+                            data_admissao,
+                            ativo
+                        FROM funcionarios
+                        WHERE empresa_id = %s 
+                            AND cpf = %s
+                            AND ativo = TRUE
+                        LIMIT 1
+                    """, (empresa_id, cpf))
+                    
+                    funcionario = cursor.fetchone()
+                    cursor.close()
+                    return dict(funcionario) if funcionario else None
+                    
+            except pool.PoolError as e:
+                if attempt < max_retries - 1:
+                    time.sleep(0.1 * (attempt + 1))  # Backoff exponencial
+                    continue
+                print(f"❌ Pool esgotado após {max_retries} tentativas: {e}")
+                return None
+            except Exception as e:
+                print(f"❌ Erro ao buscar funcionário por CPF: {e}")
+                import traceback
+                traceback.print_exc()
+                return None
+        
+        return None
 
 
 # Funi?i?es standalone para compatibilidade
