@@ -516,6 +516,14 @@ try:
     else:
         print("⚠️ Migrations de startup desabilitadas (EXECUTAR_MIGRATIONS_STARTUP=False)")
     
+    # 🔧 MIGRATION CRÍTICA: Sempre executar (independente de flag)
+    try:
+        print("\n🔧 Verificando coluna usa_integracao_folha...")
+        from migration_add_usa_integracao_folha import executar_migration
+        executar_migration()
+    except Exception as e:
+        print(f"⚠️ Aviso: {e}")
+    
     print("✅ DatabaseManager pronto!")
     print("="*70 + "\n")
         
