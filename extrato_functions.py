@@ -104,8 +104,12 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
         dict: {'transacoes': list, 'saldo_anterior': float}
     """
     try:
+        log(f"🔍 listar_transacoes_extrato: empresa_id={empresa_id}, filtros={filtros}")
+        
         # 🔒 Passar empresa_id para RLS
+        log(f"🔍 Tentando obter conexão com empresa_id={empresa_id}")
         with database.get_db_connection(empresa_id=empresa_id) as conn:
+            log(f"✅ Conexão obtida com sucesso!")
             cursor = conn.cursor(cursor_factory=database.RealDictCursor)
             
             # 🏦 BUSCAR SALDO ANTERIOR ao período filtrado
@@ -167,8 +171,14 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
             # Ordenar do passado para o presente (ASC) para que o saldo faça sentido visual
             query += " ORDER BY t.data ASC, t.id ASC LIMIT 1000"
             
+            log(f"📊 Executando query: {query}")
+            log(f"📊 Parâmetros: {params}")
+            
             cursor.execute(query, params)
             transacoes = cursor.fetchall()
+            
+            log(f"📊 Query retornou {len(transacoes)} transação(ões)")
+            
             cursor.close()
             
             # Converter date/datetime/Decimal para tipos JSON-safe
@@ -182,13 +192,17 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
                         d[key] = float(val)
                 result.append(d)
             
+            log(f"✅ Retornando {len(result)} transação(ões) para o frontend")
+            
             return {
                 'transacoes': result,
                 'saldo_anterior': saldo_anterior
             }
         
     except Exception as e:
-        log(f"Erro ao listar transacoes: {e}")
+        log(f"❌ ERRO ao listar transacoes: {e}")
+        import traceback
+        log(traceback.format_exc())
         return {'transacoes': [], 'saldo_anterior': None}
 
 
