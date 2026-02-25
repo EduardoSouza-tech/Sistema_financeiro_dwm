@@ -646,48 +646,6 @@ async function saveAllNotificationSettings() {
         showNotification('❌ Erro ao salvar configurações', 'error');
     }
 }
-                    <div style="display: flex; gap: 10px;">
-                        <input type="email" id="new-email-input" class="form-control" placeholder="email@exemplo.com">
-                        <button class="btn btn-primary" onclick="addNotificationEmail()">➕ Adicionar</button>
-                    </div>
-                </div>
-                
-                <hr style="margin: 20px 0;">
-                
-                <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="google-calendar-enabled" 
-                               ${emailSettings.google_calendar_enabled ? 'checked' : ''}
-                               onchange="toggleGoogleCalendar(this.checked)">
-                        🗓️ Sincronizar com Google Calendar
-                    </label>
-                </div>
-                
-                <div id="google-calendar-config" style="display: ${emailSettings.google_calendar_enabled ? 'block' : 'none'}; margin-top: 15px;">
-                    <div class="form-group">
-                        <label>ID do Calendário do Google</label>
-                        <input type="text" id="google-calendar-id" class="form-control" 
-                               value="${emailSettings.google_calendar_id || ''}"
-                               placeholder="seu-email@gmail.com ou ID do calendário">
-                        <p style="font-size: 12px; color: #666; margin-top: 5px;">
-                            Encontre em: Google Calendar → Configurações → ID do calendário
-                        </p>
-                    </div>
-                    <button class="btn" style="background: #DB4437; color: white;" onclick="authorizeGoogleCalendar()">
-                        🔐 Autorizar Google Calendar
-                    </button>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn" onclick="closeModal('email-settings-modal')">Cancelar</button>
-                <button class="btn btn-primary" onclick="saveEmailSettings()">💾 Salvar Configurações</button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    renderEmailList();
-}
 
 /**
  * Renderizar lista de e-mails
