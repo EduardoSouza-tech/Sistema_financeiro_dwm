@@ -796,6 +796,25 @@ class DatabaseManager:
         
         raise Error("Falha ao obter conexão após múltiplas tentativas")
     
+    def get_db_connection(self, empresa_id=None, allow_global=False):
+        """
+        Context manager para obter conexão com Row Level Security
+        Wrapper que delega para a função global get_db_connection()
+        
+        Args:
+            empresa_id: ID da empresa para RLS
+            allow_global: Se True, permite acesso sem empresa_id
+        
+        Example:
+            with db.get_db_connection(empresa_id=18) as conn:
+                cursor = conn.cursor()
+                ...
+        """
+        return get_db_connection(empresa_id=empresa_id, allow_global=allow_global)
+    
+    # Aliases para compatibilidade
+    RealDictCursor = psycopg2.extras.RealDictCursor
+    
     def criar_tabelas(self):
         """Cria as tabelas no banco de dados"""
         conn = self.get_connection()

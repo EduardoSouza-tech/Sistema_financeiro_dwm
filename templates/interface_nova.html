@@ -8161,13 +8161,18 @@
 
         // Deletar extratos filtrados
         async function deletarExtratoFiltradoOFX() {
+            console.log('🗑️ deletarExtratoFiltradoOFX: Iniciando deleção de extrato...');
+            
             const contaId = document.getElementById('filtro-conta-extrato').value;
             const dataInicio = document.getElementById('filtro-data-inicio-extrato').value;
             const dataFim = document.getElementById('filtro-data-fim-extrato').value;
             
+            console.log('📋 Filtros aplicados:', {contaId, dataInicio, dataFim});
+            
             // Verificar se há filtros aplicados
             if (!contaId && !dataInicio && !dataFim) {
                 alert('⚠️ Por favor, aplique pelo menos um filtro (conta ou período) antes de deletar!\n\nIsso evita deletar todos os extratos acidentalmente.');
+                console.log('⚠️ Deleção cancelada: nenhum filtro aplicado');
                 return;
             }
             
@@ -8183,6 +8188,7 @@
             mensagem += '\n\nDeseja continuar?';
             
             if (!confirm(mensagem)) {
+                console.log('⚠️ Deleção cancelada pelo usuário');
                 return;
             }
             
@@ -8193,22 +8199,64 @@
                 if (dataInicio) params.append('data_inicio', dataInicio);
                 if (dataFim) params.append('data_fim', dataFim);
                 
-                const response = await fetch(`/api/extratos/deletar-filtrado?${params.toString()}`, {
+                const url = `/api/extratos/deletar-filtrado?${params.toString()}`;
+                console.log('📡 Enviando DELETE para:', url);
+                
+                const response = await fetch(url, {
                     method: 'DELETE'
                 });
                 
+                console.log('📡 Response status:', response.status);
+                
                 const result = await response.json();
+                console.log('📦 Response data:', result);
                 
                 if (response.ok) {
                     alert(`✅ Extratos deletados com sucesso!\n\n📊 Total deletado: ${result.deletados || 0} transação(ões)`);
+                    console.log(`✅ ${result.deletados} transação(ões) deletada(s)`);
                     
                     // Limpar filtros e recarregar
                     limparFiltrosExtratoOFX();
+                } else if (response.status === 409) {
+                    // Conflito - provavelmente transações conciliadas
+                    console.warn('⚠️ Conflito detectado:', result);
+                    
+                    if (result.requer_confirmacao) {
+                        const confirmar = confirm(`${result.error}\n\nDeseja continuar mesmo assim?`);
+                        if (confirmar) {
+                            // Tentar novamente com parâmetro de confirmação
+                            params.append('confirmar', 'true');
+                            console.log('🔄 Tentando novamente com confirmação...');
+                            
+                            const response2 = await fetch(`/api/extratos/deletar-filtrado?${params.toString()}`, {
+                                method: 'DELETE'
+                            });
+                            
+                            const result2 = await response2.json();
+                            
+                            if (response2.ok) {
+                                alert(`✅ Extratos deletados com sucesso!\n\n📊 Total deletado: ${result2.deletados || 0} transação(ões)\n⚠️ ${result2.conciliacoes_desfeitas || 0} conciliação(ões) desfeita(s)`);
+                                console.log('✅ Deleção confirmada executada com sucesso');
+                                limparFiltrosExtratoOFX();
+                            } else {
+                                alert(`❌ Erro ao deletar extratos:\n${result2.error || 'Erro desconhecido'}`);
+                                console.error('❌ Erro na segunda tentativa:', result2);
+                            }
+                        } else {
+                            console.log('⚠️ Usuário cancelou a deleção de transações conciliadas');
+                        }
+                    } else {
+                        alert(`❌ Erro:\n${result.error || 'Erro desconhecido'}`);
+                    }
+                } else if (response.status === 403) {
+                    alert('❌ PERMISSÃO NEGADA!\n\nVocê não tem permissão para deletar extratos.\nEntre em contato com o administrador do sistema.');
+                    console.error('❌ Sem permissão lancamentos_delete');
                 } else {
                     alert(`❌ Erro ao deletar extratos:\n${result.error || 'Erro desconhecido'}`);
+                    console.error('❌ Erro ao deletar:', result);
                 }
             } catch (error) {
-                console.error('Erro ao deletar extratos:', error);
+                console.error('❌ Exceção ao deletar extratos:', error);
                 alert('❌ Erro ao deletar extratos. Verifique sua conexão e tente novamente.');
             }
         }
