@@ -8035,6 +8035,108 @@
                 console.log('✅ HTML da Conciliação Geral montado com campo Descrição');
                 document.getElementById('conciliacao-transacoes-lista').innerHTML = html;
                 
+                // 🤖 APLICAR REGRAS DE AUTO-CONCILIAÇÃO (Usando endpoint de detecção inteligente)
+                console.log('📋 Aplicando regras de auto-conciliação...');
+                let aplicadas = 0;
+                let funcionariosDetectados = 0;
+                
+                // Processar cada transação em paralelo (Promise.all)
+                try {
+                    const deteccoes = await Promise.all(
+                        transacoes.map(async (transacao) => {
+                            try {
+                                const response = await fetch('/api/regras-conciliacao/detectar', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                    },
+                                    body: JSON.stringify({ descricao: transacao.descricao })
+                                });
+                                
+                                if (response.ok) {
+                                    const resultado = await response.json();
+                                    return { transacao, resultado };
+                                }
+                            } catch (e) {
+                                console.warn(`⚠️ Erro ao detectar regra para transação ${transacao.id}:`, e);
+                            }
+                            return { transacao, resultado: null };
+                        })
+                    );
+                    
+                    console.log('📊 Detecções concluídas:', deteccoes.length);
+                    
+                    // Aplicar resultados
+                    deteccoes.forEach(({ transacao, resultado }) => {
+                        if (!resultado || !resultado.regra_encontrada) return;
+                        
+                        const regra = resultado.regra;
+                        console.log(`   ✓ Regra detectada para #${transacao.id}:`, regra.palavra_chave);
+                        
+                        // Auto-preencher categoria
+                        const categoriaSelect = document.getElementById(`categoria-${transacao.id}`);
+                        if (categoriaSelect && regra.categoria) {
+                            categoriaSelect.value = regra.categoria;
+                            
+                            // Carregar subcategorias
+                            const selectedOption = categoriaSelect.options[categoriaSelect.selectedIndex];
+                            if (selectedOption && selectedOption.value) {
+                                const subcategoriaSelect = document.getElementById(`subcategoria-${transacao.id}`);
+                                if (subcategoriaSelect) {
+                                    try {
+                                        const subcats = JSON.parse(selectedOption.dataset.subcategorias || '[]');
+                                        subcategoriaSelect.innerHTML = '<option value="">Selecione...</option>';
+                                        subcats.forEach(sub => {
+                                            const opt = document.createElement('option');
+                                            opt.value = sub;
+                                            opt.textContent = sub;
+                                            subcategoriaSelect.appendChild(opt);
+                                        });
+                                        
+                                        // Auto-preencher subcategoria
+                                        if (regra.subcategoria) {
+                                            subcategoriaSelect.value = regra.subcategoria;
+                                        }
+                                    } catch (e) {
+                                        console.error('Erro ao parsear subcategorias:', e);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 👤 Auto-preencher funcionário (se detectado por integração com folha)
+                        if (resultado.funcionario) {
+                            const clienteSelect = document.getElementById(`cliente-${transacao.id}`);
+                            if (clienteSelect) {
+                                clienteSelect.value = resultado.funcionario.nome;
+                                console.log(`      👤 Funcionário detectado: ${resultado.funcionario.nome}`);
+                                funcionariosDetectados++;
+                            }
+                        }
+                        // Senão, usar cliente_padrao da regra
+                        else if (regra.cliente_padrao) {
+                            const clienteSelect = document.getElementById(`cliente-${transacao.id}`);
+                            if (clienteSelect) {
+                                clienteSelect.value = regra.cliente_padrao;
+                            }
+                        }
+                        
+                        aplicadas++;
+                    });
+                    
+                    if (aplicadas > 0) {
+                        console.log(`✅ ${aplicadas} regra(s) aplicada(s) automaticamente!`);
+                        if (funcionariosDetectados > 0) {
+                            console.log(`👤 ${funcionariosDetectados} funcionário(s) detectado(s) via integração com folha!`);
+                        }
+                    } else {
+                        console.log('⚠️ Nenhuma regra aplicada (nenhum match encontrado)');
+                    }
+                } catch (error) {
+                    console.error('❌ Erro ao aplicar regras:', error);
+                }
+                
                 // Mostrar modal
                 document.getElementById('modal-conciliacao-geral').style.display = 'flex';
                 
