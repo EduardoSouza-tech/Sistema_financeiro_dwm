@@ -3338,17 +3338,28 @@ def adicionar_lancamento():
         # Validar se a conta bancária está ativa
         if data and data.get('conta_bancaria'):
             conta_nome = data['conta_bancaria']
-            contas = db.listar_contas_bancarias()
-            conta = next((c for c in contas if c.nome == conta_nome), None)
-            
-            if conta:
-                # Verificar se a conta está inativa
-                if hasattr(conta, 'ativa') and not conta.ativa:
+            try:
+                # Buscar conta diretamente do banco de dados
+                conn = db.get_connection()
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+                cursor.execute(
+                    "SELECT nome, ativa FROM contas_bancarias WHERE nome = %s AND empresa_id = %s",
+                    (conta_nome, empresa_id)
+                )
+                conta = cursor.fetchone()
+                cursor.close()
+                from database_postgresql import return_to_pool
+                return_to_pool(conn)
+                
+                if conta and 'ativa' in conta and not conta['ativa']:
                     print(f"❌ Tentativa de criar lançamento em conta inativa: {conta_nome}")
                     return jsonify({
                         'success': False,
                         'error': f'Não é possível criar lançamento. A conta bancária "{conta_nome}" está inativa. Reative a conta antes de criar novos lançamentos.'
                     }), 400
+            except Exception as e:
+                print(f"⚠️ Erro ao validar conta bancária: {e}")
+                # Continuar mesmo se a validação falhar (não bloquear criação)
         
         parcelas = int(data.get('parcelas', 1)) if data else 1
         
