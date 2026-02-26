@@ -1094,21 +1094,28 @@
 
         /* Sidebar Footer Copyright */
         .sidebar-footer {
-            position: absolute;
+            position: fixed;
             bottom: 0;
             left: 0;
-            right: 0;
-            padding: 15px 20px;
-            background: rgba(0, 0, 0, 0.2);
-            border-top: 1px solid #34495e;
+            width: 280px;
+            padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
             text-align: center;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar.hidden ~ .sidebar-footer,
+        .sidebar-footer.hidden {
+            transform: translateX(-100%);
         }
         
         .sidebar-footer p {
             margin: 0;
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 11px;
-            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 10px;
+            line-height: 1.3;
         }
         
         /* ============================================================================
@@ -1126,6 +1133,11 @@
             
             .sidebar.hidden {
                 display: none;
+            }
+            
+            .sidebar-footer {
+                width: 100%;
+                position: relative;
             }
             
             .content-wrapper {
@@ -7303,10 +7315,14 @@
             const sidebar = document.querySelector('.sidebar');
             const mainContent = document.querySelector('.main-content');
             const toggleBtn = document.querySelector('.toggle-sidebar-btn');
+            const footer = document.querySelector('.sidebar-footer');
             
             if (sidebar && mainContent) {
                 sidebar.classList.toggle('hidden');
                 mainContent.classList.toggle('expanded');
+                if (footer) {
+                    footer.classList.toggle('hidden');
+                }
                 
                 // Mudar o ícone do botão
                 if (sidebar.classList.contains('hidden')) {
