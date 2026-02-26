@@ -2,7 +2,7 @@
 # Para sistemafinanceirodwm-production.up.railway.app
 
 [build]
-builder = "heroku/buildpacks:20"
+builder = "nixpacks"
 
 [deploy]
 startCommand = "python web_server.py"
