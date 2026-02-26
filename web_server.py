@@ -5170,6 +5170,83 @@ def detectar_regra_conciliacao():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/regras-conciliacao/detectar-batch', methods=['POST'])
+@limiter.exempt
+@require_permission('lancamentos_view')
+def detectar_regras_batch():
+    """
+    Detecta regras aplicáveis em lote para múltiplas descrições.
+    Reduz 694 requisições para 1 única requisição = MUITO mais rápido!
+    
+    Recebe: { "transacoes": [ { "id": 8745, "descricao": "PAGAMENTO PIX..." }, ... ] }
+    Retorna: { "success": true, "resultados": [ { "id": 8745, "regra": {...}, "funcionario": {...} }, ... ] }
+    """
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+        
+        dados = request.json
+        transacoes = dados.get('transacoes', [])
+        
+        if not transacoes or not isinstance(transacoes, list):
+            return jsonify({'success': False, 'error': 'Lista de transações é obrigatória'}), 400
+        
+        resultados = []
+        import re
+        
+        # Processar cada transação
+        for transacao in transacoes:
+            transacao_id = transacao.get('id')
+            descricao = transacao.get('descricao', '')
+            
+            if not descricao:
+                resultados.append({
+                    'id': transacao_id,
+                    'regra_encontrada': False,
+                    'regra': None,
+                    'funcionario': None
+                })
+                continue
+            
+            # Buscar regra aplicável
+            regra = db.buscar_regra_aplicavel(empresa_id=empresa_id, descricao=descricao)
+            
+            resultado = {
+                'id': transacao_id,
+                'regra_encontrada': regra is not None,
+                'regra': regra,
+                'funcionario': None
+            }
+            
+            # Se regra tem integração com folha, buscar CPF na descrição
+            if regra and regra.get('usa_integracao_folha'):
+                cpf_match = re.search(r'\b(\d{11})\b', descricao)
+                
+                if cpf_match:
+                    cpf = cpf_match.group(1)
+                    funcionario = db.buscar_funcionario_por_cpf(empresa_id=empresa_id, cpf=cpf)
+                    
+                    if funcionario:
+                        resultado['funcionario'] = {
+                            'nome': funcionario.get('nome'),
+                            'cpf': funcionario.get('cpf'),
+                            'cargo': funcionario.get('cargo')
+                        }
+            
+            resultados.append(resultado)
+        
+        return jsonify({
+            'success': True,
+            'resultados': resultados,
+            'total_processadas': len(resultados)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Erro ao detectar regras em lote: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # === ROTAS DE FOLHA DE PAGAMENTO (FUNCIONÁRIOS) ===
 
 @app.route('/api/funcionarios', methods=['GET'])

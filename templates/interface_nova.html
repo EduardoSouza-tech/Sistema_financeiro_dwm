@@ -8040,49 +8040,53 @@
                 let aplicadas = 0;
                 let funcionariosDetectados = 0;
                 
-                // Processar cada transação em paralelo (Promise.all)
+                // ⚡ OTIMIZAÇÃO: Usar endpoint batch (1 requisição ao invés de 694!)
                 try {
-                    const deteccoes = await Promise.all(
-                        transacoes.map(async (transacao) => {
-                            try {
-                                const response = await fetch('/api/regras-conciliacao/detectar', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json'
-                                    },
-                                    credentials: 'include',  // ✅ Enviar cookies de sessão
-                                    body: JSON.stringify({ descricao: transacao.descricao })
-                                });
-                                
-                                if (response.ok) {
-                                    const resultado = await response.json();
-                                    return { transacao, resultado };
-                                }
-                            } catch (e) {
-                                console.warn(`⚠️ Erro ao detectar regra para transação ${transacao.id}:`, e);
-                            }
-                            return { transacao, resultado: null };
-                        })
-                    );
+                    // Preparar payload para detecção em lote
+                    const transacoesParaDetectar = transacoes.map(t => ({
+                        id: t.id,
+                        descricao: t.descricao
+                    }));
                     
-                    console.log('📊 Detecções concluídas:', deteccoes.length);
+                    // Fazer UMA única requisição para todas as transações
+                    const response = await fetch('/api/regras-conciliacao/detectar-batch', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ transacoes: transacoesParaDetectar })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (!data.success) {
+                        throw new Error(data.error || 'Erro desconhecido');
+                    }
+                    
+                    console.log(`📊 Detecções concluídas: ${data.total_processadas}`);
                     
                     // Aplicar resultados
-                    deteccoes.forEach(({ transacao, resultado }) => {
-                        if (!resultado || !resultado.regra_encontrada) return;
+                    data.resultados.forEach(resultado => {
+                        if (!resultado.regra_encontrada) return;
                         
                         const regra = resultado.regra;
-                        console.log(`   ✓ Regra detectada para #${transacao.id}:`, regra.palavra_chave);
+                        const transacaoId = resultado.id;
+                        console.log(`   ✓ Regra detectada para #${transacaoId}:`, regra.palavra_chave);
                         
                         // Auto-preencher categoria
-                        const categoriaSelect = document.getElementById(`categoria-${transacao.id}`);
+                        const categoriaSelect = document.getElementById(`categoria-${transacaoId}`);
                         if (categoriaSelect && regra.categoria) {
                             categoriaSelect.value = regra.categoria;
                             
                             // Carregar subcategorias
                             const selectedOption = categoriaSelect.options[categoriaSelect.selectedIndex];
                             if (selectedOption && selectedOption.value) {
-                                const subcategoriaSelect = document.getElementById(`subcategoria-${transacao.id}`);
+                                const subcategoriaSelect = document.getElementById(`subcategoria-${transacaoId}`);
                                 if (subcategoriaSelect) {
                                     try {
                                         const subcats = JSON.parse(selectedOption.dataset.subcategorias || '[]');
@@ -8107,7 +8111,7 @@
                         
                         // 👤 Auto-preencher funcionário (se detectado por integração com folha)
                         if (resultado.funcionario) {
-                            const clienteSelect = document.getElementById(`cliente-${transacao.id}`);
+                            const clienteSelect = document.getElementById(`cliente-${transacaoId}`);
                             if (clienteSelect) {
                                 clienteSelect.value = resultado.funcionario.nome;
                                 console.log(`      👤 Funcionário detectado: ${resultado.funcionario.nome}`);
@@ -8116,7 +8120,7 @@
                         }
                         // Senão, usar cliente_padrao da regra
                         else if (regra.cliente_padrao) {
-                            const clienteSelect = document.getElementById(`cliente-${transacao.id}`);
+                            const clienteSelect = document.getElementById(`cliente-${transacaoId}`);
                             if (clienteSelect) {
                                 clienteSelect.value = regra.cliente_padrao;
                             }
