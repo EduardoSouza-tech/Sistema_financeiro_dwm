@@ -249,7 +249,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.85);
             z-index: 9999;
             justify-content: center;
             align-items: center;
@@ -402,6 +402,41 @@
             cursor: not-allowed;
             opacity: 0.5;
         }
+        
+        /* Animações de Ocultar/Mostrar Login */
+        .login-container.hidden {
+            animation: fadeOutDown 0.3s ease forwards;
+            pointer-events: none;
+        }
+        
+        .login-container.visible {
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeOutDown {
+            from {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+        }
+        
+        .empresa-modal-overlay.show {
+            display: flex !important;
+            animation: overlayFadeIn 0.3s ease;
+        }
+        
+        @keyframes overlayFadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -421,7 +456,7 @@
         </div>
     </div>
 
-    <div class="login-container">
+    <div class="login-container visible" id="loginContainer">
         <div class="login-header">
             <h1>💼 Sistema Financeiro DWM</h1>
             <p>Faça login para continuar</p>
@@ -616,8 +651,17 @@
                 empresasList.appendChild(div);
             });
 
-            // Mostrar modal
-            document.getElementById('empresaModalOverlay').style.display = 'flex';
+            // Ocultar login com animação
+            const loginContainer = document.querySelector('.login-container');
+            loginContainer.classList.add('hidden');
+            loginContainer.classList.remove('visible');
+            
+            // Aguardar animação de fade out antes de mostrar modal
+            setTimeout(() => {
+                const overlay = document.getElementById('empresaModalOverlay');
+                overlay.classList.add('show');
+                overlay.style.display = 'flex';
+            }, 300);
             
             // Ocultar botões de login
             document.getElementById('btnLogin').style.display = 'none';
@@ -674,7 +718,13 @@
                     localStorage.setItem('usuario', JSON.stringify(usuarioData));
                     
                     showAlert('Empresa selecionada com sucesso! Redirecionando...', 'success');
-                    document.getElementById('empresaModalOverlay').style.display = 'none';
+                    
+                    // Fechar modal
+                    const overlay = document.getElementById('empresaModalOverlay');
+                    overlay.classList.remove('show');
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                    }, 300);
                     
                     setTimeout(() => {
                         window.location.href = '/';
