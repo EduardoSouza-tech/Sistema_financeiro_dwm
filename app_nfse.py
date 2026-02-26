@@ -136,22 +136,6 @@ def health_check():
         }), 503
 
 
-@app.route('/debug/routes')
-def debug_routes():
-    """🔍 DEBUG: Lista todas as rotas registradas no Flask"""
-    routes = []
-    for rule in app.url_map.iter_rules():
-        routes.append({
-            'endpoint': rule.endpoint,
-            'methods': list(rule.methods),
-            'path': str(rule)
-        })
-    return jsonify({
-        'total_routes': len(routes),
-        'routes': sorted(routes, key=lambda x: x['path'])
-    }), 200
-
-
 @app.route('/')
 def index():
     """Página inicial"""
