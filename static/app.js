@@ -9463,7 +9463,7 @@ function renderizarTabelaPC(contas) {
             </td>
             <td style="padding: 8px 12px; text-align: center;">${bloqueadaBadge}</td>
             <td style="padding: 8px 12px; text-align: center;">
-                <button onclick="editarConta(${c.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
+                <button onclick="editarContaContabil(${c.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
                 <button onclick="excluirContaPC(${c.id}, '${c.codigo}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
             </td>
         </tr>`;
@@ -9543,7 +9543,7 @@ function renderizarNodoArvore(nodos, nivel = 0) {
                 <span style="flex: 1; font-size: 13px; ${isSintetica ? 'font-weight: 600;' : ''}">${isSintetica ? '📁' : '📄'} ${n.descricao}</span>
                 <span style="font-size: 11px; color: #999; margin-right: 8px;">${n.natureza === 'devedora' ? 'D' : 'C'}</span>
                 ${n.is_bloqueada ? '<span style="font-size: 11px;">🔒</span>' : ''}
-                <button onclick="event.stopPropagation(); editarConta(${n.id})" style="background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px;">✏️</button>
+                <button onclick="event.stopPropagation(); editarContaContabil(${n.id})" style="background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px;">✏️</button>
                 <button onclick="event.stopPropagation(); excluirContaPC(${n.id}, '${n.codigo}')" style="background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px;">🗑️</button>
             </div>
             ${hasChildren ? `<div id="${nodeId}" style="display: none;">${renderizarNodoArvore(n.children, nivel + 1)}</div>` : ''}
@@ -9611,10 +9611,10 @@ async function carregarListaPais(selectedParentId) {
     });
 }
 
-// Editar conta existente
-window.editarConta = async function(contaId) {
+// Editar conta contábil existente (Plano de Contas)
+window.editarContaContabil = async function(contaId) {
     const conta = window.pcContas.find(c => c.id === contaId);
-    if (!conta) { showToast('❌ Conta não encontrada', 'error'); return; }
+    if (!conta) { showToast('❌ Conta contábil não encontrada', 'error'); return; }
     
     document.getElementById('modalContaTitulo').textContent = '✏️ Editar Conta';
     document.getElementById('contaEditId').value = conta.id;
