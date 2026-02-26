@@ -266,6 +266,10 @@ class NFSeDatabase:
             ID da NFS-e salva ou None em caso de erro
         """
         try:
+            # Garantir que danfse_path existe no dict (backward compatibility)
+            if 'danfse_path' not in nfse:
+                nfse['danfse_path'] = None
+            
             with self.conn.cursor() as cursor:
                 sql = """
                 INSERT INTO nfse_baixadas (

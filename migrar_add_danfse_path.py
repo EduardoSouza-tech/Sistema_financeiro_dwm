@@ -12,7 +12,7 @@ gerar PDFs genéricos.
 
 import psycopg2
 import logging
-from database_postgresql import get_nfse_db_params
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,10 +22,30 @@ def aplicar_migracao():
     """
     Adiciona coluna danfse_path à tabela nfse_baixadas
     """
-    db_params = get_nfse_db_params()
+    # Tentar obter DATABASE_URL do ambiente (Railway/produção)
+    database_url = os.getenv('DATABASE_URL')
+    
+    if not database_url:
+        # Fallback: tentar importar do módulo local
+        try:
+            from database_postgresql import get_nfse_db_params
+            db_params = get_nfse_db_params()
+            conn = psycopg2.connect(**db_params)
+            logger.info("✅ Conectado via database_postgresql local")
+        except Exception as e:
+            logger.error(f"❌ Erro ao conectar: {e}")
+            logger.error("Configure DATABASE_URL ou execute no Railway")
+            return False
+    else:
+        # Conectar via URL completa (Railway)
+        try:
+            conn = psycopg2.connect(database_url)
+            logger.info("✅ Conectado via DATABASE_URL do Railway")
+        except Exception as e:
+            logger.error(f"❌ Erro ao conectar via DATABASE_URL: {e}")
+            return False
     
     try:
-        conn = psycopg2.connect(**db_params)
         cursor = conn.cursor()
         
         logger.info("🔄 Iniciando migração: adicionar coluna danfse_path...")
