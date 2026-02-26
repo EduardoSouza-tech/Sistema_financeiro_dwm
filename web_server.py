@@ -12745,7 +12745,10 @@ def delete_config_nfse(config_id):
 @require_auth
 @require_permission('nfse_buscar')
 def buscar_nfse():
-    """Busca NFS-e via API SOAP municipal"""
+    """
+    Proxy para busca pesada de NFS-e
+    Redireciona requisição para microserviço de busca
+    """
     try:
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
@@ -12765,119 +12768,71 @@ def buscar_nfse():
                 'error': 'Datas inicial e final são obrigatórias'
             }), 400
         
-        # Buscar CNPJ da empresa
-        with get_db_connection(empresa_id=empresa_id) as conn:
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cursor.execute("SELECT cnpj FROM empresas WHERE id = %s", (empresa_id,))
-            empresa = cursor.fetchone()
-            cursor.close()
+        # Obter URL do microserviço de busca
+        nfse_service_url = os.getenv('NFSE_SERVICE_URL')
         
-        if not empresa:
+        if not nfse_service_url:
+            # Fallback: processar localmente (modo legacy)
+            logger.warning("⚠️ NFSE_SERVICE_URL não configurada - processando localmente")
+            return _buscar_nfse_local(empresa_id, usuario, data, request.remote_addr)
+        
+        # ========== CHAMADA AO MICROSERVIÇO ==========
+        logger.info(f"🔄 Redirecionando busca de NFS-e para microserviço: {nfse_service_url}")
+        
+        import requests
+        
+        # Preparar headers para autenticação no microserviço
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': request.headers.get('Authorization', ''),
+            'X-Empresa-ID': str(empresa_id)
+        }
+        
+        # Fazer requisição ao microserviço (timeout 10 minutos - busca pode ser longa)
+        try:
+            response = requests.post(
+                f"{nfse_service_url}/api/nfse/buscar",
+                json=data,
+                headers=headers,
+                timeout=600  # 10 minutos
+            )
+            
+            resultado = response.json()
+            
+            # Log de auditoria
+            from nfse_functions import registrar_operacao
+            from database_postgresql import get_nfse_db_params
+            
+            db_params = get_nfse_db_params()
+            registrar_operacao(
+                db_params=db_params,
+                empresa_id=empresa_id,
+                usuario_id=usuario['id'],
+                operacao='BUSCA_VIA_MICROSERVICO',
+                detalhes={
+                    'data_inicial': data['data_inicial'],
+                    'data_final': data['data_final'],
+                    'metodo': data.get('metodo', 'ambiente_nacional'),
+                    'total_nfse': resultado.get('total_nfse', 0)
+                },
+                ip_address=request.remote_addr
+            )
+            
+            return jsonify(resultado), response.status_code
+            
+        except requests.exceptions.Timeout:
+            logger.error("⏱️ Timeout ao buscar NFS-e no microserviço")
             return jsonify({
                 'success': False,
-                'error': 'Empresa não encontrada'
-            }), 404
-        
-        cnpj_prestador = empresa['cnpj'].replace('.', '').replace('/', '').replace('-', '')
-        
-        # Buscar certificado da empresa do banco de dados
-        from nfse_functions import get_certificado_para_soap
-        from database_postgresql import get_nfse_db_params
-        
-        # Usar configuração centralizada do banco
-        db_params = get_nfse_db_params()
-        
-        cert_data = get_certificado_para_soap(db_params, empresa_id)
-        
-        if cert_data:
-            # Certificado do banco - salvar temporariamente para uso SOAP
-            import tempfile
-            pfx_bytes, cert_senha = cert_data
-            temp_cert = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
-            temp_cert.write(pfx_bytes)
-            temp_cert.close()
-            certificado_path = temp_cert.name
-            certificado_senha = cert_senha
-        else:
-            # Fallback para variáveis de ambiente
-            certificado_path = os.getenv('CERTIFICADO_A1_PATH', '/app/certificados/certificado.pfx')
-            certificado_senha = os.getenv('CERTIFICADO_A1_SENHA', '')
+                'error': 'A busca está demorando muito. Tente reduzir o período ou número de municípios.'
+            }), 504
             
-            if not os.path.exists(certificado_path):
-                return jsonify({
-                    'success': False,
-                    'error': 'Certificado A1 não configurado. Faça o upload do certificado digital nas Configurações da NFS-e.'
-                }), 400
-        
-        # Converter datas
-        data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
-        data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
-        
-        # Municípios específicos ou todos
-        codigos_municipios = data.get('codigos_municipios')
-        
-        # Verificar método de busca (SOAP municipal ou Ambiente Nacional)
-        metodo = data.get('metodo', 'soap')  # Padrão: SOAP municipal
-        
-        if metodo == 'ambiente_nacional':
-            # 🌐 BUSCA VIA AMBIENTE NACIONAL (API REST)
-            # Usa consulta incremental por NSU, similar a NF-e e CT-e
-            # Vantagem: uma única API para todos os municípios
-            from nfse_functions import buscar_nfse_ambiente_nacional
-            
-            logger.info("🌐 Usando Ambiente Nacional (API REST) para busca de NFS-e")
-            
-            resultado = buscar_nfse_ambiente_nacional(
-                db_params=db_params,
-                empresa_id=empresa_id,
-                cnpj_informante=cnpj_prestador,
-                certificado_path=certificado_path,
-                certificado_senha=certificado_senha,
-                ambiente=data.get('ambiente', 'producao'),
-                busca_completa=data.get('busca_completa', False),
-                max_documentos=data.get('max_documentos', 50)
-            )
-        else:
-            # 📡 BUSCA VIA SOAP MUNICIPAL (método tradicional)
-            # Requer configuração de URL para cada município
-            from nfse_functions import buscar_nfse_periodo
-            
-            logger.info("📡 Usando APIs SOAP municipais para busca de NFS-e")
-            
-            resultado = buscar_nfse_periodo(
-                db_params=db_params,
-                empresa_id=empresa_id,
-                cnpj_prestador=cnpj_prestador,
-                data_inicial=data_inicial,
-                data_final=data_final,
-                certificado_path=certificado_path,
-                certificado_senha=certificado_senha,
-                codigos_municipios=codigos_municipios
-            )
-        
-        # Limpar arquivo temporário de certificado se foi criado
-        if cert_data and os.path.exists(certificado_path):
-            try:
-                os.unlink(certificado_path)
-            except:
-                pass
-        
-        # Log de auditoria
-        from nfse_functions import registrar_operacao
-        registrar_operacao(
-            db_params=db_params,
-            empresa_id=empresa_id,
-            usuario_id=usuario['id'],
-            operacao='BUSCA',
-            detalhes={
-                'data_inicial': data['data_inicial'],
-                'data_final': data['data_final'],
-                'total_nfse': resultado['total_nfse']
-            },
-            ip_address=request.remote_addr
-        )
-        
-        return jsonify(resultado)
+        except requests.exceptions.ConnectionError:
+            logger.error("❌ Erro de conexão com microserviço de busca")
+            return jsonify({
+                'success': False,
+                'error': 'Serviço de busca de notas temporariamente indisponível'
+            }), 503
         
     except Exception as e:
         logger.error(f"Erro ao buscar NFS-e: {e}")
@@ -12886,6 +12841,112 @@ def buscar_nfse():
             'success': False,
             'error': str(e)
         }), 500
+
+
+def _buscar_nfse_local(empresa_id, usuario, data, ip_address):
+    """
+    MODO LEGACY: Processamento local quando microserviço não está disponível
+    ⚠️ Mantido para compatibilidade, mas não recomendado (busca pesada bloqueia o ERP)
+    """
+    logger.warning("⚠️ Processando busca de NFS-e localmente (MODO LEGACY)")
+    
+    # Buscar CNPJ da empresa
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute("SELECT cnpj FROM empresas WHERE id = %s", (empresa_id,))
+        empresa = cursor.fetchone()
+        cursor.close()
+    
+    if not empresa:
+        return jsonify({
+            'success': False,
+            'error': 'Empresa não encontrada'
+        }), 404
+    
+    cnpj_prestador = empresa['cnpj'].replace('.', '').replace('/', '').replace('-', '')
+    
+    # Buscar certificado
+    from nfse_functions import get_certificado_para_soap
+    from database_postgresql import get_nfse_db_params
+    
+    db_params = get_nfse_db_params()
+    cert_data = get_certificado_para_soap(db_params, empresa_id)
+    
+    if cert_data:
+        import tempfile
+        pfx_bytes, cert_senha = cert_data
+        temp_cert = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
+        temp_cert.write(pfx_bytes)
+        temp_cert.close()
+        certificado_path = temp_cert.name
+        certificado_senha = cert_senha
+    else:
+        certificado_path = os.getenv('CERTIFICADO_A1_PATH', '/app/certificados/certificado.pfx')
+        certificado_senha = os.getenv('CERTIFICADO_A1_SENHA', '')
+        
+        if not os.path.exists(certificado_path):
+            return jsonify({
+                'success': False,
+                'error': 'Certificado A1 não configurado'
+            }), 400
+    
+    # Converter datas
+    data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
+    data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
+    
+    codigos_municipios = data.get('codigos_municipios')
+    metodo = data.get('metodo', 'ambiente_nacional')
+    
+    if metodo == 'ambiente_nacional':
+        from nfse_functions import buscar_nfse_ambiente_nacional
+        
+        resultado = buscar_nfse_ambiente_nacional(
+            db_params=db_params,
+            empresa_id=empresa_id,
+            cnpj_informante=cnpj_prestador,
+            certificado_path=certificado_path,
+            certificado_senha=certificado_senha,
+            ambiente=data.get('ambiente', 'producao'),
+            busca_completa=data.get('busca_completa', False),
+            max_documentos=data.get('max_documentos', 50)
+        )
+    else:
+        from nfse_functions import buscar_nfse_periodo
+        
+        resultado = buscar_nfse_periodo(
+            db_params=db_params,
+            empresa_id=empresa_id,
+            cnpj_prestador=cnpj_prestador,
+            data_inicial=data_inicial,
+            data_final=data_final,
+            certificado_path=certificado_path,
+            certificado_senha=certificado_senha,
+            codigos_municipios=codigos_municipios
+        )
+    
+    # Limpar certificado temporário
+    if cert_data and os.path.exists(certificado_path):
+        try:
+            os.unlink(certificado_path)
+        except:
+            pass
+    
+    # Log de auditoria
+    from nfse_functions import registrar_operacao
+    registrar_operacao(
+        db_params=db_params,
+        empresa_id=empresa_id,
+        usuario_id=usuario['id'],
+        operacao='BUSCA_LOCAL',
+        detalhes={
+            'data_inicial': data['data_inicial'],
+            'data_final': data['data_final'],
+            'total_nfse': resultado['total_nfse']
+        },
+        ip_address=ip_address
+    )
+    
+    return jsonify(resultado)
 
 
 @app.route('/api/nfse/consultar', methods=['POST'])
