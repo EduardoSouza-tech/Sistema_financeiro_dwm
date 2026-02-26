@@ -12776,6 +12776,11 @@ def buscar_nfse():
             logger.warning("⚠️ NFSE_SERVICE_URL não configurada - processando localmente")
             return _buscar_nfse_local(empresa_id, usuario, data, request.remote_addr)
         
+        # Garantir que a URL tenha o protocolo https://
+        if not nfse_service_url.startswith(('http://', 'https://')):
+            nfse_service_url = f"https://{nfse_service_url}"
+            logger.info(f"✅ Protocolo https:// adicionado automaticamente")
+        
         # ========== CHAMADA AO MICROSERVIÇO ==========
         logger.info(f"🔄 Redirecionando busca de NFS-e para microserviço: {nfse_service_url}")
         
