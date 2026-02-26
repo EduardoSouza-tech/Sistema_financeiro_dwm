@@ -75,17 +75,11 @@ CORS(app, resources={
 # Configuração do banco
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
-    logger.error("DATABASE_URL não configurada!")
+    logger.error("❌ DATABASE_URL não configurada!")
     sys.exit(1)
 
-# Inicializar módulos NFS-e
-try:
-    nfse_db = NFSeDatabase(DATABASE_URL)
-    nfse_service = NFSeService()
-    logger.info("✅ Módulos NFS-e inicializados com sucesso")
-except Exception as e:
-    logger.error(f"❌ Erro ao inicializar módulos NFS-e: {e}")
-    sys.exit(1)
+logger.info("✅ DATABASE_URL configurada")
+logger.info("✅ Microserviço de busca inicializado (modo stateless)")
 
 
 def get_db_connection():
@@ -148,96 +142,66 @@ def index():
 @app.route('/api/nfse/config', methods=['GET'])
 @require_auth
 def listar_configuracoes():
-    """Lista configurações de municípios"""
-    try:
-        empresa_id = get_empresa_id_from_token(request.headers.get('Authorization'))
-        
-        configs = nfse_db.obter_configuracoes_municipio(empresa_id)
-        
-        return jsonify({
-            'success': True,
-            'configuracoes': configs
-        })
-        
-    except Exception as e:
-        logger.error(f"Erro ao listar configurações: {e}")
-        return jsonify({'error': str(e)}), 500
+    """
+    ⚠️ REDIRECIONAMENTO
+    Configurações devem ser gerenciadas no ERP Financeiro.
+    """
+    return jsonify({
+        'success': False,
+        'error': 'Use o endpoint /api/nfse/config no ERP Financeiro'
+    }), 301
 
 
 @app.route('/api/nfse/config', methods=['POST'])
 @require_auth
 def criar_configuracao():
-    """Cadastra nova configuração de município"""
-    try:
-        empresa_id = get_empresa_id_from_token(request.headers.get('Authorization'))
-        data = request.json
-        
-        # Validações
-        campos_obrigatorios = ['codigo_municipio', 'cnpj_prestador', 'inscricao_municipal', 'provedor']
-        for campo in campos_obrigatorios:
-            if not data.get(campo):
-                return jsonify({'error': f'Campo {campo} é obrigatório'}), 400
-        
-        # Criar configuração
-        resultado = configurar_municipio(
-            empresa_id=empresa_id,
-            codigo_municipio=data['codigo_municipio'],
-            nome_municipio=data.get('nome_municipio', ''),
-            cnpj_prestador=data['cnpj_prestador'],
-            inscricao_municipal=data['inscricao_municipal'],
-            provedor=data['provedor'],
-            url_webservice=data.get('url_webservice'),
-            usuario=data.get('usuario'),
-            senha=data.get('senha')
-        )
-        
-        if resultado.get('success'):
-            return jsonify(resultado), 201
-        else:
-            return jsonify(resultado), 400
-            
-    except Exception as e:
-        logger.error(f"Erro ao criar configuração: {e}")
-        return jsonify({'error': str(e)}), 500
+    """
+    ⚠️ REDIRECIONAMENTO
+    Configurações devem ser gerenciadas no ERP Financeiro.
+    """
+    return jsonify({
+        'success': False,
+        'error': 'Use o endpoint /api/nfse/config no ERP Financeiro'
+    }), 301
+
+
+@app.route('/api/nfse/config', methods=['POST'])
+@require_auth
+def criar_configuracao():
+    """
+    ⚠️ REDIRECIONAMENTO
+    Configurações devem ser gerenciadas no ERP Financeiro.
+    """
+    return jsonify({
+        'success': False,
+        'error': 'Use o endpoint /api/nfse/config no ERP Financeiro'
+    }), 301
 
 
 @app.route('/api/nfse/config/<int:config_id>', methods=['PUT'])
 @require_auth
 def atualizar_configuracao(config_id):
-    """Atualiza configuração de município"""
-    try:
-        empresa_id = get_empresa_id_from_token(request.headers.get('Authorization'))
-        data = request.json
-        
-        resultado = nfse_db.atualizar_configuracao_municipio(
-            config_id=config_id,
-            empresa_id=empresa_id,
-            dados=data
-        )
-        
-        if resultado:
-            return jsonify({'success': True, 'message': 'Configuração atualizada'})
-        else:
-            return jsonify({'error': 'Configuração não encontrada'}), 404
-            
-    except Exception as e:
-        logger.error(f"Erro ao atualizar configuração: {e}")
-        return jsonify({'error': str(e)}), 500
+    """
+    ⚠️ REDIRECIONAMENTO
+    Configurações devem ser gerenciadas no ERP Financeiro.
+    """
+    return jsonify({
+        'success': False,
+        'error': 'Use o endpoint /api/nfse/config no ERP Financeiro'
+    }), 301
 
 
 @app.route('/api/nfse/config/<int:config_id>', methods=['DELETE'])
 @require_auth
 def deletar_configuracao(config_id):
-    """Desativa configuração de município"""
-    try:
-        empresa_id = get_empresa_id_from_token(request.headers.get('Authorization'))
-        
-        resultado = nfse_db.desativar_configuracao_municipio(config_id, empresa_id)
-        
-        if resultado:
-            return jsonify({'success': True, 'message': 'Configuração desativada'})
-        else:
-            return jsonify({'error': 'Configuração não encontrada'}), 404
+    """
+    ⚠️ REDIRECIONAMENTO
+    Configurações devem ser gerenciadas no ERP Financeiro.
+    """
+    return jsonify({
+        'success': False,
+        'error': 'Use o endpoint /api/nfse/config no ERP Financeiro'
+    }), 301
             
     except Exception as e:
         logger.error(f"Erro ao deletar configuração: {e}")
