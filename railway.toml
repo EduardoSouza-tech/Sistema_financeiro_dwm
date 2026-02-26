@@ -2,10 +2,8 @@
 
 [build]
 builder = "nixpacks"
-buildCommand = "pip install -r requirements_nfse.txt"
 
 [deploy]
-startCommand = "gunicorn app_nfse:app --bind 0.0.0.0:$PORT --workers 2 --timeout 1800 --log-level info"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"

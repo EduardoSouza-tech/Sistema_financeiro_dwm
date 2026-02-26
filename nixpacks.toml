@@ -1,0 +1,13 @@
+# nixpacks.toml - Configuração do Nixpacks para Railway
+
+[phases.setup]
+nixPkgs = ["python311", "pip"]
+
+[phases.install]
+cmds = ["pip install -r requirements_nfse.txt"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "gunicorn app_nfse:app --bind 0.0.0.0:$PORT --workers 2 --timeout 1800 --log-level info"
