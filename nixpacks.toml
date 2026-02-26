@@ -1,13 +1,17 @@
 # nixpacks.toml - Configuração do Nixpacks para Railway
 
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip"]
+nixPkgs = ["python311", "python311Packages.pip", "python311Packages.virtualenv"]
 
 [phases.install]
-cmds = ["pip install --upgrade pip setuptools wheel", "pip install -r requirements_nfse.txt"]
+cmds = [
+  "python3 -m venv /tmp/venv",
+  ". /tmp/venv/bin/activate && pip install --upgrade pip setuptools wheel",
+  ". /tmp/venv/bin/activate && pip install -r requirements_nfse.txt"
+]
 
 [phases.build]
 cmds = []
 
 [start]
-cmd = "gunicorn app_nfse:app --bind 0.0.0.0:$PORT --workers 2 --timeout 1800 --log-level info"
+cmd = ". /tmp/venv/bin/activate && gunicorn app_nfse:app --bind 0.0.0.0:$PORT --workers 2 --timeout 1800 --log-level info"
