@@ -1163,9 +1163,15 @@ def get_certificado_para_soap(db_params: Dict, empresa_id: int) -> Optional[Tupl
 def gerar_pdf_nfse(db_params: Dict, nfse_id: int) -> Optional[bytes]:
     """
     Gera PDF (DANFSE) da NFS-e usando os dados armazenados no banco.
+    
+    PRIORIDADE:
+    1. Se existe PDF oficial (danfse_path), retorna ele
+    2. Senão, gera PDF genérico usando FPDF
+    
     Retorna bytes do PDF ou None se falhar.
     """
     from io import BytesIO
+    from pathlib import Path
     
     try:
         # Buscar dados da NFS-e
@@ -1175,6 +1181,20 @@ def gerar_pdf_nfse(db_params: Dict, nfse_id: int) -> Optional[bytes]:
         if not nfse:
             logger.error(f"❌ NFS-e ID {nfse_id} não encontrada")
             return None
+        
+        # PRIORIDADE 1: Tentar usar PDF oficial se existir
+        danfse_path = nfse.get('danfse_path')
+        if danfse_path:
+            pdf_file = Path(danfse_path)
+            if pdf_file.exists():
+                logger.info(f"✅ Usando PDF oficial: {danfse_path}")
+                with open(pdf_file, 'rb') as f:
+                    return f.read()
+            else:
+                logger.warning(f"⚠️ PDF oficial não encontrado: {danfse_path}")
+                logger.info(f"📝 Gerando PDF genérico como fallback...")
+        else:
+            logger.info(f"📝 PDF oficial não disponível, gerando PDF genérico...")
         
         # Gerar PDF com reportlab-like approach usando fpdf2
         try:
@@ -1848,6 +1868,7 @@ def buscar_nfse_ambiente_nacional(
                                 logger.warning(f"   ⚠️ Erro ao salvar XML: {e_xml}")
                             
                             # Tentar baixar DANFSe (PDF oficial)
+                            pdf_path = None
                             try:
                                 # Extrair chave de acesso (formato: "NFS" + 50 dígitos)
                                 inf_nfse = tree.find('.//nfse:infNFSe', namespaces=ns)
@@ -1870,6 +1891,8 @@ def buscar_nfse_ambiente_nacional(
                                             )
                                             if pdf_path:
                                                 logger.info(f"   ✅ DANFSe salvo: {pdf_path}")
+                                                # Atualizar dict nfse_data com o caminho do PDF
+                                                nfse_data['danfse_path'] = pdf_path
                                             else:
                                                 logger.warning(f"   ⚠️ Erro ao salvar DANFSe")
                                         else:
@@ -1877,6 +1900,10 @@ def buscar_nfse_ambiente_nacional(
                             
                             except Exception as e_pdf:
                                 logger.debug(f"   ⚠️ Erro ao baixar/salvar PDF: {e_pdf}")
+                            
+                            # Garantir que danfse_path existe no dict (mesmo que None)
+                            if 'danfse_path' not in nfse_data:
+                                nfse_data['danfse_path'] = None
                     
                     except Exception as e:
                         logger.error(f"❌ Erro ao processar NSU {doc_nsu}: {e}")

@@ -275,7 +275,7 @@ class NFSeDatabase:
                     valor_liquido, codigo_servico, discriminacao, provedor,
                     codigo_municipio, nome_municipio, uf, situacao,
                     numero_rps, serie_rps, protocolo, codigo_verificacao,
-                    xml_content, xml_path
+                    xml_content, xml_path, danfse_path
                 ) VALUES (
                     %(numero_nfse)s, %(empresa_id)s, %(cnpj_prestador)s,
                     %(cnpj_tomador)s, %(razao_social_tomador)s, %(data_emissao)s,
@@ -284,12 +284,13 @@ class NFSeDatabase:
                     %(codigo_servico)s, %(discriminacao)s, %(provedor)s,
                     %(codigo_municipio)s, %(nome_municipio)s, %(uf)s,
                     %(situacao)s, %(numero_rps)s, %(serie_rps)s,
-                    %(protocolo)s, %(codigo_verificacao)s, %(xml)s, %(xml_path)s
+                    %(protocolo)s, %(codigo_verificacao)s, %(xml)s, %(xml_path)s, %(danfse_path)s
                 )
                 ON CONFLICT (numero_nfse, codigo_municipio) 
                 DO UPDATE SET
                     situacao = EXCLUDED.situacao,
                     xml_content = EXCLUDED.xml_content,
+                    danfse_path = COALESCE(EXCLUDED.danfse_path, nfse_baixadas.danfse_path),
                     atualizado_em = CURRENT_TIMESTAMP
                 RETURNING id
                 """
