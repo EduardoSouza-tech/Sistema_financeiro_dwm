@@ -1868,7 +1868,7 @@ def buscar_nfse_ambiente_nacional(
                                 logger.warning(f"   ⚠️ Erro ao salvar XML: {e_xml}")
                             
                             # Tentar baixar DANFSe (PDF oficial)
-                            pdf_path = None
+                            pdf_base64 = None
                             try:
                                 # Extrair chave de acesso (formato: "NFS" + 50 dígitos)
                                 inf_nfse = tree.find('.//nfse:infNFSe', namespaces=ns)
@@ -1881,29 +1881,30 @@ def buscar_nfse_ambiente_nacional(
                                         pdf_content = cliente.consultar_danfse(chave_acesso, retry=2)
                                         
                                         if pdf_content:
-                                            # Salvar PDF no storage
-                                            pdf_path = salvar_pdf_nfse(
-                                                pdf_content=pdf_content,
-                                                numero_nfse=numero_nfse,
-                                                cnpj_prestador=cnpj_prestador,
-                                                codigo_municipio=codigo_municipio,
-                                                data_emissao=data_emissao
-                                            )
-                                            if pdf_path:
-                                                logger.info(f"   ✅ DANFSe salvo: {pdf_path}")
-                                                # Atualizar dict nfse_data com o caminho do PDF
-                                                nfse_data['danfse_path'] = pdf_path
-                                            else:
-                                                logger.warning(f"   ⚠️ Erro ao salvar DANFSe")
+                                            # Converter para base64 (será salvo pelo ERP)
+                                            import base64
+                                            pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
+                                            logger.info(f"   ✅ DANFSe oficial obtido ({len(pdf_content):,} bytes)")
+                                            
+                                            # Adicionar PDF ao resultado para o ERP salvar
+                                            if 'pdfs_oficiais' not in resultado:
+                                                resultado['pdfs_oficiais'] = {}
+                                            
+                                            resultado['pdfs_oficiais'][numero_nfse] = {
+                                                'pdf_base64': pdf_base64,
+                                                'numero_nfse': numero_nfse,
+                                                'cnpj_prestador': cnpj_prestador,
+                                                'codigo_municipio': codigo_municipio,
+                                                'data_emissao': data_emissao
+                                            }
                                         else:
                                             logger.info(f"   ℹ️ DANFSe não disponível na API")
                             
                             except Exception as e_pdf:
-                                logger.debug(f"   ⚠️ Erro ao baixar/salvar PDF: {e_pdf}")
+                                logger.debug(f"   ⚠️ Erro ao baixar PDF: {e_pdf}")
                             
-                            # Garantir que danfse_path existe no dict (mesmo que None)
-                            if 'danfse_path' not in nfse_data:
-                                nfse_data['danfse_path'] = None
+                            # danfse_path será definido pelo ERP após salvar
+                            nfse_data['danfse_path'] = None
                     
                     except Exception as e:
                         logger.error(f"❌ Erro ao processar NSU {doc_nsu}: {e}")
