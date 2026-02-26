@@ -7895,6 +7895,18 @@ window.buscarNFSeAPI = async function() {
         return;
     }
     
+    // Validar período máximo (12 meses / 365 dias)
+    const dtInicial = new Date(dataInicial);
+    const dtFinal = new Date(dataFinal);
+    const diffTime = Math.abs(dtFinal - dtInicial);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays > 365) {
+        showToast(`⚠️ Período muito grande: ${diffDays} dias\n\n📌 Máximo permitido: 365 dias (12 meses)\n\n💡 Divida a busca em períodos menores`, 'error', 8000);
+        alert(`⚠️ PERÍODO MUITO GRANDE\n\n📊 Período selecionado: ${diffDays} dias\n🔒 Máximo permitido: 365 dias (12 meses)\n\n💡 SOLUÇÃO:\nDivida a busca em períodos menores.\n\nExemplo:\n• 2020-01-01 a 2020-12-31 (12 meses) ✅\n• 2021-01-01 a 2021-12-31 (12 meses) ✅\n\nIsso evita timeout no servidor.`);
+        return;
+    }
+    
     console.log('⬇️ Baixando NFS-e via API SOAP:', { dataInicial, dataFinal, codigoMunicipio });
     
     // Confirmar ação (pode demorar)
@@ -7941,9 +7953,41 @@ window.buscarNFSeAPI = async function() {
             body: JSON.stringify(body)
         });
         
-        const data = await response.json();
-        
         loading.style.display = 'none';
+        
+        // Tratar erros HTTP
+        if (!response.ok) {
+            let errorMsg = 'Erro desconhecido';
+            let errorDetail = '';
+            
+            if (response.status === 502) {
+                errorMsg = '⏱️ Busca demorou muito';
+                errorDetail = 'O período selecionado é muito grande (máximo: 12 meses).<br><br><strong>💡 Solução:</strong> Divida a busca em períodos menores (ex: 3 meses por vez).';
+            } else if (response.status === 504) {
+                errorMsg = '⏱️ Timeout na busca';
+                errorDetail = 'A busca está demorando muito. Tente reduzir o período ou número de municípios.';
+            } else if (response.status === 400) {
+                try {
+                    const data = await response.json();
+                    errorMsg = data.error || 'Requisição inválida';
+                } catch {
+                    errorMsg = 'Requisição inválida';
+                }
+            } else {
+                try {
+                    const data = await response.json();
+                    errorMsg = data.error || `Erro ${response.status}`;
+                } catch {
+                    errorMsg = `Erro ${response.status}`;
+                }
+            }
+            
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>${errorMsg}</h3><p>${errorDetail}</p></td></tr>`;
+            showToast(`❌ ${errorMsg}`, 'error', 8000);
+            return;
+        }
+        
+        const data = await response.json();
         
         if (data.success) {
             const resultado = data.resultado;
@@ -7959,7 +8003,7 @@ window.buscarNFSeAPI = async function() {
     } catch (error) {
         console.error('❌ Erro ao buscar NFS-e via API:', error);
         loading.style.display = 'none';
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro de Conexão</h3><p>Não foi possível conectar ao servidor.</p></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro de Conexão</h3><p>Não foi possível conectar ao servidor.</p><p style="font-size: 12px; color: #7f8c8d; margin-top: 10px;">Se o período for muito grande (mais de 12 meses), divida em buscas menores.</p></td></tr>';
         showToast('❌ Erro ao buscar NFS-e', 'error');
     }
 };
