@@ -260,9 +260,12 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 15px;
             max-width: 450px;
+            max-height: 85vh;
             width: 90%;
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
             animation: slideIn 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
 
         @keyframes slideIn {
@@ -292,7 +295,38 @@
 
         .empresa-modal-body {
             padding: 30px;
+            padding-bottom: 20px;
             background: transparent;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(85vh - 150px);
+        }
+        
+        #empresasList {
+            overflow-y: auto;
+            margin-bottom: 20px;
+            flex: 1;
+            min-height: 0;
+        }
+        
+        /* Scrollbar customizada para a lista */
+        #empresasList::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #empresasList::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            margin: 5px 0;
+        }
+        
+        #empresasList::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+        
+        #empresasList::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
         }
 
         .empresa-option {
@@ -352,9 +386,9 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 20px;
             transition: all 0.3s;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            flex-shrink: 0;
         }
 
         .btn-confirm-empresa:hover {
