@@ -12787,10 +12787,16 @@ def buscar_nfse():
         import requests
         
         # Preparar headers para autenticação no microserviço
+        # Como o usuário já foi autenticado no ERP (@require_auth), 
+        # criamos um token de serviço interno para o microserviço
+        service_token = f"Bearer ERP-{empresa_id}-{usuario['id']}-{app.secret_key[:16]}"
+        
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': request.headers.get('Authorization', ''),
-            'X-Empresa-ID': str(empresa_id)
+            'Authorization': service_token,
+            'X-Empresa-ID': str(empresa_id),
+            'X-Usuario-ID': str(usuario['id']),
+            'X-Usuario-Nome': usuario.get('nome', 'Unknown')
         }
         
         # Fazer requisição ao microserviço (timeout 10 minutos - busca pode ser longa)
