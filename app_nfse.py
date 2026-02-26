@@ -37,6 +37,7 @@ Provedores NFS-e suportados:
 import os
 import sys
 from datetime import datetime, timedelta, date
+from functools import wraps
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
 import psycopg2
@@ -101,15 +102,17 @@ def get_empresa_id_from_token(token):
 
 def require_auth(f):
     """Decorator simples de autenticação"""
+    @wraps(f)
     def decorated_function(*args, **kwargs):
         token = request.headers.get('Authorization')
         if not token:
+            logger.warning(f"❌ Requisição sem token para {request.path}")
             return jsonify({'error': 'Token não fornecido'}), 401
         
+        logger.info(f"✅ Token recebido para {request.path}")
         # TODO: Validar token JWT
         return f(*args, **kwargs)
     
-    decorated_function.__name__ = f.__name__
     return decorated_function
 
 
