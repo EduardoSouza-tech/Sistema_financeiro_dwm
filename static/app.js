@@ -4794,7 +4794,7 @@ async function deletarFuncionario(id) {
         showToast('Funcionário excluído com sucesso!', 'success');
         
         // Recarregar lista
-        await loadFuncionariosRH();
+        await loadFuncionarios();
         
     } catch (error) {
         console.error('❌ Erro ao deletar funcionário:', error);
@@ -4845,7 +4845,7 @@ async function toggleAtivoFuncionario(id, ativoAtual) {
         showToast(`Funcionário ${acao}do com sucesso!`, 'success');
         
         // Recarregar lista
-        await loadFuncionariosRH();
+        await loadFuncionarios();
         
     } catch (error) {
         console.error('❌ Erro ao alterar status do funcionário:', error);
@@ -4857,7 +4857,7 @@ async function toggleAtivoFuncionario(id, ativoAtual) {
 window.editarFuncionario = editarFuncionario;
 window.deletarFuncionario = deletarFuncionario;
 window.toggleAtivoFuncionario = toggleAtivoFuncionario;
-window.loadFuncionariosRH = loadFuncionariosRH;
+// window.loadFuncionariosRH = loadFuncionariosRH; // ❌ FUNÇÃO NÃO DEFINIDA - comentado para evitar erro
 
 /**
  * Carrega lista de funcionários para uso em modais (endpoint simplificado)
@@ -6052,7 +6052,7 @@ window.loadFluxoProjetado = loadFluxoProjetado;
 window.loadAnaliseContas = loadAnaliseContas;
 window.loadFornecedores = loadFornecedores;
 window.loadExtratos = loadExtratos;
-window.loadFuncionariosRH = loadFuncionariosRH;
+// window.loadFuncionariosRH = loadFuncionariosRH; // ❌ FUNÇÃO NÃO DEFINIDA - comentado
 window.loadKits = loadKits;
 window.loadSessoes = loadSessoes;
 window.loadComissoes = loadComissoes;
