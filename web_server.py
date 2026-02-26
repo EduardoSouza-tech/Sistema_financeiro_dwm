@@ -12843,6 +12843,7 @@ def buscar_nfse():
                             
                             # Decodificar base64
                             pdf_content = base64.b64decode(pdf_info['pdf_base64'])
+                            logger.info(f"   📥 PDF {numero_nfse}: {len(pdf_content):,} bytes decodificados")
                             
                             # Salvar no storage LOCAL do ERP
                             pdf_path = salvar_pdf_nfse(
@@ -12853,8 +12854,12 @@ def buscar_nfse():
                                 data_emissao=pdf_info['data_emissao']
                             )
                             
+                            logger.info(f"   💾 PDF salvo em: {pdf_path}")
+                            
                             if pdf_path:
                                 # Atualizar danfse_path no banco
+                                logger.info(f"   📝 Atualizando banco: numero_nfse={numero_nfse}, codigo_municipio={pdf_info['codigo_municipio']}")
+                                
                                 with NFSeDatabase(db_params) as db:
                                     cursor = db.conn.cursor()
                                     cursor.execute("""
@@ -12862,11 +12867,22 @@ def buscar_nfse():
                                         SET danfse_path = %s, atualizado_em = CURRENT_TIMESTAMP
                                         WHERE numero_nfse = %s AND codigo_municipio = %s
                                     """, (pdf_path, numero_nfse, pdf_info['codigo_municipio']))
+                                    
+                                    rows_affected = cursor.rowcount
                                     db.conn.commit()
                                     cursor.close()
+                                    
+                                    logger.info(f"   ✅ Banco atualizado: {rows_affected} linha(s) afetada(s)")
+                                    
+                                    if rows_affected == 0:
+                                        logger.warning(f"   ⚠️ NENHUMA linha foi atualizada! NFS-e pode não existir no banco")
+                                    else:
+                                        logger.info(f"   🎯 danfse_path salvo: {pdf_path}")
                                 
                                 pdfs_salvos += 1
-                                logger.debug(f"   ✅ PDF salvo: {numero_nfse} -> {pdf_path}")
+                                logger.info(f"   ✅ PDF {numero_nfse} processado com sucesso")
+                            else:
+                                logger.error(f"   ❌ salvar_pdf_nfse retornou None para {numero_nfse}")
                         
                         except Exception as e_pdf:
                             logger.error(f"   ❌ Erro ao processar PDF {numero_nfse}: {e_pdf}")
@@ -13933,6 +13949,8 @@ def delete_certificado_nfse(cert_id):
 def gerar_pdf_nfse_route(nfse_id):
     """Gera e retorna o PDF (DANFSE) de uma NFS-e"""
     try:
+        logger.info(f"🌐 API /api/nfse/{nfse_id}/pdf chamada")
+        
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
         
@@ -13944,13 +13962,18 @@ def gerar_pdf_nfse_route(nfse_id):
         
         db_params = get_nfse_db_params()
         
+        logger.info(f"📞 Chamando gerar_pdf_nfse(nfse_id={nfse_id})...")
         pdf_bytes = gerar_pdf_nfse(db_params, nfse_id)
         
         if pdf_bytes:
+            logger.info(f"✅ PDF gerado com sucesso: {len(pdf_bytes):,} bytes")
+            
             import tempfile
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
             temp_file.write(pdf_bytes)
             temp_file.close()
+            
+            logger.info(f"📤 Enviando PDF para cliente: {temp_file.name}")
             
             return send_file(
                 temp_file.name,
@@ -13959,13 +13982,16 @@ def gerar_pdf_nfse_route(nfse_id):
                 download_name=f'nfse_{nfse_id}.pdf'
             )
         else:
+            logger.error(f"❌ gerar_pdf_nfse retornou None")
             return jsonify({
                 'success': False,
                 'error': 'Não foi possível gerar o PDF desta NFS-e'
             }), 400
         
     except Exception as e:
-        logger.error(f"Erro ao gerar PDF NFS-e: {e}")
+        logger.error(f"❌ Erro ao gerar PDF NFS-e: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # ============================================================================

@@ -1175,29 +1175,46 @@ def gerar_pdf_nfse(db_params: Dict, nfse_id: int) -> Optional[bytes]:
     from pathlib import Path
     
     try:
+        logger.info(f"📄 gerar_pdf_nfse: Iniciando para ID {nfse_id}")
+        
         # Buscar dados da NFS-e
         with NFSeDatabase(db_params) as db:
             nfse = db.get_nfse_by_id(nfse_id)
         
         if not nfse:
-            logger.error(f"❌ NFS-e ID {nfse_id} não encontrada")
+            logger.error(f"❌ NFS-e ID {nfse_id} não encontrada no banco")
             return None
+        
+        logger.info(f"✅ NFS-e encontrada: {nfse.get('numero_nfse', 'N/A')}")
         
         # PRIORIDADE 1: Tentar usar PDF oficial se existir
         danfse_path = nfse.get('danfse_path')
-        if danfse_path:
+        logger.info(f"🔍 danfse_path no banco: {danfse_path}")
+        
+        if danfse_path and danfse_path.strip():
             pdf_file = Path(danfse_path)
+            logger.info(f"📂 Caminho absoluto: {pdf_file.absolute()}")
+            logger.info(f"📊 Arquivo existe? {pdf_file.exists()}")
+            
             if pdf_file.exists():
-                logger.info(f"✅ Usando PDF oficial: {danfse_path}")
-                with open(pdf_file, 'rb') as f:
-                    return f.read()
+                try:
+                    with open(pdf_file, 'rb') as f:
+                        pdf_bytes = f.read()
+                    logger.info(f"✅ PDF oficial lido com sucesso: {len(pdf_bytes):,} bytes")
+                    logger.info(f"🎯 RETORNANDO PDF OFICIAL: {danfse_path}")
+                    return pdf_bytes
+                except Exception as e:
+                    logger.error(f"❌ Erro ao ler PDF oficial: {e}")
+                    logger.info(f"📝 Gerando PDF genérico como fallback...")
             else:
-                logger.warning(f"⚠️ PDF oficial não encontrado: {danfse_path}")
+                logger.warning(f"⚠️ PDF oficial não encontrado no filesystem")
+                logger.warning(f"   Caminho esperado: {pdf_file.absolute()}")
                 logger.info(f"📝 Gerando PDF genérico como fallback...")
         else:
-            logger.info(f"📝 PDF oficial não disponível, gerando PDF genérico...")
+            logger.info(f"ℹ️ danfse_path vazio ou None, gerando PDF genérico...")
         
-        # Gerar PDF com reportlab-like approach usando fpdf2
+        # PRIORIDADE 2: Gerar PDF genérico
+        logger.info(f"🖨️ Gerando PDF genérico para NFS-e {nfse.get('numero_nfse', 'N/A')}...")
         try:
             from fpdf import FPDF
         except ImportError:
