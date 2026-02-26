@@ -165,19 +165,6 @@ def criar_configuracao():
     }), 301
 
 
-@app.route('/api/nfse/config', methods=['POST'])
-@require_auth
-def criar_configuracao():
-    """
-    ⚠️ REDIRECIONAMENTO
-    Configurações devem ser gerenciadas no ERP Financeiro.
-    """
-    return jsonify({
-        'success': False,
-        'error': 'Use o endpoint /api/nfse/config no ERP Financeiro'
-    }), 301
-
-
 @app.route('/api/nfse/config/<int:config_id>', methods=['PUT'])
 @require_auth
 def atualizar_configuracao(config_id):
@@ -202,10 +189,6 @@ def deletar_configuracao(config_id):
         'success': False,
         'error': 'Use o endpoint /api/nfse/config no ERP Financeiro'
     }), 301
-            
-    except Exception as e:
-        logger.error(f"Erro ao deletar configuração: {e}")
-        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/nfse/buscar', methods=['POST'])
