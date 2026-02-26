@@ -651,6 +651,62 @@
             }
         }
 
+        /* Loading Overlay Animation */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255, 255, 255, 0.2);
+            border-top: 5px solid #27ae60;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            color: white;
+            font-size: 18px;
+            font-weight: 500;
+            text-align: center;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .loading-subtext {
+            margin-top: 10px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
         .toast.hiding {
             animation: slideOutRight 0.3s ease-in forwards;
         }
@@ -5777,6 +5833,13 @@
         </div>
     </div>
     
+    <!-- Loading Overlay para Conciliação Geral -->
+    <div id="loading-conciliacao" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">⚡ Carregando Conciliação Geral...</div>
+        <div class="loading-subtext">Processando 694 transações em lote</div>
+    </div>
+    
     <!-- Modal Conciliação Geral Extrato -->
     <div id="modal-conciliacao-geral" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; overflow-y: auto; padding: 20px;">
         <div style="background: white; margin: 0 auto; border-radius: 12px; max-width: 1200px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
@@ -7843,6 +7906,9 @@
         async function abrirConciliacaoGeral() {
             console.log('🔄 Abrindo Conciliação Geral...');
             
+            // Mostrar loading overlay
+            document.getElementById('loading-conciliacao').style.display = 'flex';
+            
             try {
                 // Buscar transações não conciliadas
                 console.log('📡 Buscando transações não conciliadas...');
@@ -7869,6 +7935,7 @@
                 console.log('📊 Transações não conciliadas:', transacoes.length);
                 
                 if (transacoes.length === 0) {
+                    document.getElementById('loading-conciliacao').style.display = 'none';
                     alert('✅ Não há transações pendentes de conciliação!');
                     return;
                 }
@@ -8141,11 +8208,13 @@
                     console.error('❌ Erro ao aplicar regras:', error);
                 }
                 
-                // Mostrar modal
-                document.getElementById('modal-conciliacao-geral').style.display = 'flex';
+            // Esconder loading e mostrar modal
+            document.getElementById('loading-conciliacao').style.display = 'none';
+            document.getElementById('modal-conciliacao-geral').style.display = 'flex';
                 
             } catch (error) {
                 console.error('❌ Erro ao abrir conciliação geral:', error);
+                document.getElementById('loading-conciliacao').style.display = 'none';
                 alert('❌ Erro ao carregar transações para conciliação. Verifique o console.');
             }
         }
