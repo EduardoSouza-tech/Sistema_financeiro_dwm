@@ -1,7 +1,7 @@
 # nixpacks.toml - Configuração do Nixpacks para Railway
 
 [phases.setup]
-nixPkgs = ["python311", "pip"]
+nixPkgs = ["python311"]
 
 [phases.install]
 cmds = ["pip install -r requirements_nfse.txt"]
