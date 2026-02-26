@@ -2,72 +2,59 @@
 
 Este repositório contém **2 serviços independentes** que devem ser deployados separadamente no Railway.
 
+> **⚠️ IMPORTANTE**: Railway agora usa **Railpack** por padrão (substituiu Nixpacks em 2025-2026).
+
 ## 📋 ARQUIVOS DE CONFIGURAÇÃO
 
 ```
-├── nixpacks.toml          → ERP Principal APENAS
-├── nixpacks_nfse.toml     → Microserviço APENAS
-├── Procfile               → Backup (ERP)
-└── Procfile_nfse          → Backup (Microserviço)
+├── nixpacks.toml          → ERP Principal (Nixpacks/Railpack compatível)
+├── nixpacks_nfse.toml     → Microserviço (Nixpacks/Railpack compatível)
+├── requirements.txt       → Dependências ERP
+├── requirements_nfse.txt  → Dependências Microserviço
+├── Procfile               → Start command ERP
+└── Procfile_nfse          → Start command Microserviço
 ```
 
 ---
 
 ## 🎯 SERVIÇO 1: ERP Principal (sistemafinanceirodwm-production)
 
-### Arquivo: `nixpacks.toml`
-```toml
-[phases.setup]
-nixPkgs = ["python311", "python311Packages.pip"]
-
-[phases.install]
-cmds = ["pip install --upgrade pip setuptools wheel", "pip install -r requirements.txt"]
-
-[start]
-cmd = "python web_server.py"
-```
-
 ### Configuração no Railway:
-- **NADA A FAZER** - Railway detecta `nixpacks.toml` automaticamente
-- Build: Automático (pip install requirements.txt)
-- Start: Automático (python web_server.py)
+- **Build Command**: `pip install -r requirements.txt`
+- **Start Command**: `python web_server.py`
+- **Python Version**: 3.11 (via nixpacks.toml ou runtime.txt)
+
+✅ Railway detecta automaticamente via `nixpacks.toml` ou `Procfile`.
 
 ---
 
 ## 🎯 SERVIÇO 2: Microserviço Busca NFS-e (busca-de-notas-production)
 
-### Arquivo: `nixpacks_nfse.toml`
-```toml
-[phases.setup]
-nixPkgs = ["python311", "python311Packages.pip", "python311Packages.virtualenv", "zlib"]
+### 🔧 CONFIGURAÇÃO MANUAL OBRIGATÓRIA (Railpack):
 
-[phases.install]
-cmds = [
-  "python3 -m venv /tmp/venv",
-  ". /tmp/venv/bin/activate && pip install --upgrade pip setuptools wheel",
-  ". /tmp/venv/bin/activate && pip install -r requirements_nfse.txt"
-]
+**1. Remover Comandos Antigos:**
+- Settings → Deploy → Pre-deploy command: **DELETAR** qualquer comando (especialmente "npm run migrate")
+- Settings → Variables → **DELETAR** `NIXPACKS_CONFIG_FILE` (se existir)
 
-[start]
-cmd = ". /tmp/venv/bin/activate && gunicorn app_nfse:app --bind 0.0.0.0:$PORT --workers 2 --timeout 1800 --log-level info"
+**2. Configurar Build & Start Commands:**
+
+**Settings → Deploy:**
+```bash
+Build Command:
+pip install --upgrade pip setuptools wheel && pip install -r requirements_nfse.txt
+
+Start Command:
+gunicorn app_nfse:app --bind 0.0.0.0:$PORT --workers 2 --timeout 1800 --log-level info
 ```
 
-### ⚠️ AÇÃO OBRIGATÓRIA no Railway Dashboard:
+**3. Variáveis de Ambiente Obrigatórias:**
 
-**Opção 1 - Variável de Ambiente (RECOMENDADO):**
+Settings → Variables → Add:
 ```
-Settings → Variables → Add Variable:
-Nome: NIXPACKS_CONFIG_FILE  
-Valor: nixpacks_nfse.toml
+FRONTEND_URL=https://sistemafinanceirodwm-production.up.railway.app
+PORT=8080
+PYTHON_VERSION=3.11
 ```
-
-**Opção 2 - Config-as-code:**
-```
-Settings → Config-as-code → Railway Config File:
-Adicionar path: nixpacks_nfse.toml
-```
-
-**Depois:** Clicar em **Redeploy**
 
 ---
 
@@ -93,6 +80,8 @@ SECRET_KEY="..."
 FLASK_ENV="production"
 LOG_LEVEL="INFO"
 FRONTEND_URL="https://sistemafinanceirodwm-production.up.railway.app"
+PORT=8080
+PYTHON_VERSION=3.11
 ```
 
 ---
@@ -108,30 +97,50 @@ FRONTEND_URL="https://sistemafinanceirodwm-production.up.railway.app"
 - [ ] URL acessível: sistemafinanceirodwm-production.up.railway.app
 
 ### Microserviço:
-- [ ] Build completa sem erros
-- [ ] Detectou Python (não Node.js)
-- [ ] Criou virtualenv em `/tmp/venv`
-- [ ] Instalou requirements_nfse.txt dentro do venv
-- [ ] Iniciou com gunicorn + timeout 1800s
-- [ ] Healthcheck `/health` passou
+- [ ] Build completa sem erros (Railpack)
+- [ ] Detectou Python 3.11
+- [ ] Instalou requirements_nfse.txt
+- [ ] Iniciou com gunicorn (timeout 1800s, 2 workers)
+- [ ] Healthcheck `/health` passou (retry window 30s)
 - [ ] URL acessível: busca-de-notas-production.up.railway.app
+- [ ] Log: "Listening at: http://0.0.0.0:8080"
 
 ---
 
-## ❌ ERROS COMUNS
+## ❌ ERROS COMUNS E SOLUÇÕES
 
-### "Provider: Node" no Microserviço
-**Causa:** Railway não está usando `nixpacks_nfse.toml`
-**Solução:** Adicionar variável `NIXPACKS_CONFIG_FILE=nixpacks_nfse.toml`
+### 🔴 "/tmp/venv/bin/activate: No such file or directory" (ATUAL - RAILPACK)
+**Causa:** Railpack não persiste `/tmp` entre build e deploy
+**Logs:** 
+```
+Build: Successfully installed Flask-3.0.0...
+Deploy: /bin/bash: line 1: /tmp/venv/bin/activate: No such file or directory
+Healthcheck failed!
+```
+**Solução:**
+1. Settings → Deploy → **Start Command**:
+   ```
+   gunicorn app_nfse:app --bind 0.0.0.0:$PORT --workers 2 --timeout 1800 --log-level info
+   ```
+2. Settings → Deploy → **Build Command**:
+   ```
+   pip install --upgrade pip setuptools wheel && pip install -r requirements_nfse.txt
+   ```
+3. **Redeploy** o serviço
 
-### "python: command not found"
-**Causa:** Removido package.json mas Railway ainda com cache
-**Solução:** Redeploy forçado ou limpar cache
+### 🟠 "Provider: Node" no Microserviço
+**Causa:** Railway detectando Node.js ao invés de Python
+**Solução:** 
+- Confirmar que `package.json` foi renomeado para `package.json.dev`
+- Adicionar arquivo `runtime.txt` com `python-3.11`
+- Redeploy forçado
 
-### "/tmp/venv/bin/activate: No such file or directory"
-**Causa:** Microserviço usando `nixpacks.toml` (sem virtualenv)
-**Solução:** Configurar `NIXPACKS_CONFIG_FILE=nixpacks_nfse.toml`
+### 🟡 "python: command not found"
+**Causa:** Cache do Railway ou detecção incorreta de runtime
+**Solução:** 
+- Settings → Deploy → Clear build cache
+- Redeploy forçado
 
-### "Pre-deploy: npm run migrate"
+### 🟢 "Pre-deploy: npm run migrate" executando
 **Causa:** Comando Node.js residual de detecção anterior
-**Solução:** Settings → Deploy → Remover Pre-deploy command
+**Solução:** Settings → Deploy → Pre-deploy command → **DELETAR TUDO**

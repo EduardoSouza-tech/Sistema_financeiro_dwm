@@ -1,20 +1,17 @@
 # nixpacks.toml - Configuração do Nixpacks para Railway
+# NOTA: Railway agora usa Railpack por padrão. Este arquivo é mantido para compatibilidade.
+# Para o microserviço NFS-e, configure no Railway Dashboard:
+# - Build Command: pip install -r requirements_nfse.txt
+# - Start Command: gunicorn app_nfse:app --bind 0.0.0.0:$PORT --workers 2 --timeout 1800 --log-level info
 
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip", "python311Packages.virtualenv", "zlib"]
+nixPkgs = ["python311", "python311Packages.pip"]
 
 [phases.install]
 cmds = [
-  "python3 -m venv /tmp/venv",
-  ". /tmp/venv/bin/activate && pip install --upgrade pip setuptools wheel",
-  ". /tmp/venv/bin/activate && pip install -r requirements_nfse.txt"
+  "pip install --upgrade pip setuptools wheel",
+  "pip install -r requirements_nfse.txt"
 ]
 
-[phases.build]
-cmds = []
-
-[phases.release]
-cmds = []
-
 [start]
-cmd = ". /tmp/venv/bin/activate && gunicorn app_nfse:app --bind 0.0.0.0:$PORT --workers 2 --timeout 1800 --log-level info"
+cmd = "gunicorn app_nfse:app --bind 0.0.0.0:$PORT --workers 2 --timeout 1800 --log-level info"
