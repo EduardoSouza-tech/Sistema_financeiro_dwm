@@ -7895,15 +7895,15 @@ window.buscarNFSeAPI = async function() {
         return;
     }
     
-    // Validar período máximo (12 meses / 365 dias)
+    // Validar período máximo (2 anos / 730 dias)
     const dtInicial = new Date(dataInicial);
     const dtFinal = new Date(dataFinal);
     const diffTime = Math.abs(dtFinal - dtInicial);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays > 365) {
-        showToast(`⚠️ Período muito grande: ${diffDays} dias\n\n📌 Máximo permitido: 365 dias (12 meses)\n\n💡 Divida a busca em períodos menores`, 'error', 8000);
-        alert(`⚠️ PERÍODO MUITO GRANDE\n\n📊 Período selecionado: ${diffDays} dias\n🔒 Máximo permitido: 365 dias (12 meses)\n\n💡 SOLUÇÃO:\nDivida a busca em períodos menores.\n\nExemplo:\n• 2020-01-01 a 2020-12-31 (12 meses) ✅\n• 2021-01-01 a 2021-12-31 (12 meses) ✅\n\nIsso evita timeout no servidor.`);
+    if (diffDays > 730) {
+        showToast(`⚠️ Período muito grande: ${diffDays} dias\n\n📌 Máximo permitido: 730 dias (2 anos)\n\n💡 Divida a busca em períodos menores`, 'error', 8000);
+        alert(`⚠️ PERÍODO MUITO GRANDE\n\n📊 Período selecionado: ${diffDays} dias\n🔒 Máximo permitido: 730 dias (2 anos)\n\n💡 SOLUÇÃO:\nDivida a busca em períodos menores.\n\nExemplo:\n• 2024-01-01 a 2025-12-31 (2 anos) ✅\n• 2022-01-01 a 2023-12-31 (2 anos) ✅\n\nBuscas muito longas podem causar timeout.`);
         return;
     }
     

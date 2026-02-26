@@ -12768,17 +12768,17 @@ def buscar_nfse():
                 'error': 'Datas inicial e final são obrigatórias'
             }), 400
         
-        # Validar período máximo (Railway tem timeout de 30s)
+        # Validar período máximo (worker timeout = 300s)
         from datetime import datetime, timedelta
         try:
             dt_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d')
             dt_final = datetime.strptime(data['data_final'], '%Y-%m-%d')
             dias_periodo = (dt_final - dt_inicial).days
             
-            if dias_periodo > 365:  # Máximo 12 meses
+            if dias_periodo > 730:  # Máximo 2 anos
                 return jsonify({
                     'success': False,
-                    'error': f'Período muito grande ({dias_periodo} dias). Máximo permitido: 365 dias (12 meses). Divida a busca em períodos menores.'
+                    'error': f'Período muito grande ({dias_periodo} dias). Máximo permitido: 730 dias (2 anos). Divida a busca em períodos menores.'
                 }), 400
             
             if dias_periodo < 0:
@@ -12825,13 +12825,13 @@ def buscar_nfse():
         }
         
         # Fazer requisição ao microserviço
-        # Timeout reduzido para 25s (Railway tem timeout de 30s no proxy)
+        # Timeout 280s (worker timeout = 300s, deixa margem de 20s)
         try:
             response = requests.post(
                 f"{nfse_service_url}/api/nfse/buscar",
                 json=data,
                 headers=headers,
-                timeout=25  # 25 segundos (Railway timeout é 30s)
+                timeout=280  # 280 segundos (worker timeout = 300s)
             )
             
             # Verificar se microserviço retornou erro
