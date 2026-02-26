@@ -7895,18 +7895,6 @@ window.buscarNFSeAPI = async function() {
         return;
     }
     
-    // Validar período máximo (2 anos / 730 dias)
-    const dtInicial = new Date(dataInicial);
-    const dtFinal = new Date(dataFinal);
-    const diffTime = Math.abs(dtFinal - dtInicial);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays > 730) {
-        showToast(`⚠️ Período muito grande: ${diffDays} dias\n\n📌 Máximo permitido: 730 dias (2 anos)\n\n💡 Divida a busca em períodos menores`, 'error', 8000);
-        alert(`⚠️ PERÍODO MUITO GRANDE\n\n📊 Período selecionado: ${diffDays} dias\n🔒 Máximo permitido: 730 dias (2 anos)\n\n💡 SOLUÇÃO:\nDivida a busca em períodos menores.\n\nExemplo:\n• 2024-01-01 a 2025-12-31 (2 anos) ✅\n• 2022-01-01 a 2023-12-31 (2 anos) ✅\n\nBuscas muito longas podem causar timeout.`);
-        return;
-    }
-    
     console.log('⬇️ Baixando NFS-e via API SOAP:', { dataInicial, dataFinal, codigoMunicipio });
     
     // Confirmar ação (pode demorar)

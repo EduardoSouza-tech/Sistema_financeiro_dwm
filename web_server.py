@@ -12768,20 +12768,13 @@ def buscar_nfse():
                 'error': 'Datas inicial e final são obrigatórias'
             }), 400
         
-        # Validar período máximo (worker timeout = 300s)
-        from datetime import datetime, timedelta
+        # Validar ordem das datas
+        from datetime import datetime
         try:
             dt_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d')
             dt_final = datetime.strptime(data['data_final'], '%Y-%m-%d')
-            dias_periodo = (dt_final - dt_inicial).days
             
-            if dias_periodo > 730:  # Máximo 2 anos
-                return jsonify({
-                    'success': False,
-                    'error': f'Período muito grande ({dias_periodo} dias). Máximo permitido: 730 dias (2 anos). Divida a busca em períodos menores.'
-                }), 400
-            
-            if dias_periodo < 0:
+            if dt_final < dt_inicial:
                 return jsonify({
                     'success': False,
                     'error': 'Data final deve ser maior que data inicial'
@@ -12825,13 +12818,13 @@ def buscar_nfse():
         }
         
         # Fazer requisição ao microserviço
-        # Timeout 280s (worker timeout = 300s, deixa margem de 20s)
+        # Timeout 1700s (worker timeout = 1800s, deixa margem de 100s)
         try:
             response = requests.post(
                 f"{nfse_service_url}/api/nfse/buscar",
                 json=data,
                 headers=headers,
-                timeout=280  # 280 segundos (worker timeout = 300s)
+                timeout=1700  # 1700 segundos (28min 20s) - worker timeout = 1800s (30min)
             )
             
             # Verificar se microserviço retornou erro
