@@ -4,6 +4,25 @@ Este repositório contém **2 serviços independentes** que devem ser deployados
 
 > **⚠️ IMPORTANTE**: Railway agora usa **Railpack** por padrão (substituiu Nixpacks em 2025-2026).
 
+---
+
+## ✅ **CONFIGURAÇÃO VALIDADA E FUNCIONANDO (Fev/2026)**
+
+### 🎯 Microserviço NFS-e: **DEPLOY CONFIRMADO** ✅
+
+**Logs de sucesso:**
+```
+INFO:app_nfse:✅ DATABASE_URL configurada
+[2026-02-26 22:43:22] [INFO] Starting gunicorn 21.2.0
+[2026-02-26 22:43:22] [INFO] Listening at: http://0.0.0.0:8080 (1)
+[2026-02-26 22:43:22] [INFO] Using worker: sync
+[2026-02-26 22:43:22] [INFO] Booting worker with pid: 4
+[2026-02-26 22:43:22] [INFO] Booting worker with pid: 5
+INFO:app_nfse:✅ Microserviço de busca inicializado (modo stateless)
+```
+
+---
+
 ## 📋 ARQUIVOS DE CONFIGURAÇÃO
 
 ```
@@ -30,30 +49,75 @@ Este repositório contém **2 serviços independentes** que devem ser deployados
 
 ## 🎯 SERVIÇO 2: Microserviço Busca NFS-e (busca-de-notas-production)
 
-### 🔧 CONFIGURAÇÃO MANUAL OBRIGATÓRIA (Railpack):
+### 🔧 CONFIGURAÇÃO MANUAL (TESTADA E VALIDADA ✅)
 
-**1. Remover Comandos Antigos:**
-- Settings → Deploy → Pre-deploy command: **DELETAR** qualquer comando (especialmente "npm run migrate")
-- Settings → Variables → **DELETAR** `NIXPACKS_CONFIG_FILE` (se existir)
+**Status:** Deploy bem-sucedido em 26/Fev/2026
 
-**2. Configurar Build & Start Commands:**
+#### Settings → Deploy:
 
-**Settings → Deploy:**
+**Build Command:**
 ```bash
-Build Command:
 pip install --upgrade pip setuptools wheel && pip install -r requirements_nfse.txt
+```
 
-Start Command:
+**Start Command:**
+```bash
 gunicorn app_nfse:app --bind 0.0.0.0:$PORT --workers 2 --timeout 1800 --log-level info
 ```
 
-**3. Variáveis de Ambiente Obrigatórias:**
+**Pre-deploy Command:** *(DEIXAR VAZIO)*
 
-Settings → Variables → Add:
+---
+
+#### Settings → Variables (CONFIGURAÇÃO EXATA QUE FUNCIONOU):
+
+```bash
+DATABASE_URL = ${{Postgres.DATABASE_URL}}
+SECRET_KEY = 1f6bd55450dcd979e30bd2a6a3c643fd4f428f3486071ad9f709c13483689b45
+FLASK_ENV = production
+PORT = 8080
+PYTHON_VERSION = 3.11
+LOG_LEVEL = INFO
+FRONTEND_URL = https://sistemafinanceirodwm-production.up.railway.app
 ```
-FRONTEND_URL=https://sistemafinanceirodwm-production.up.railway.app
-PORT=8080
-PYTHON_VERSION=3.11
+
+**⚠️ NÃO ADICIONAR:**
+- ❌ `NIXPACKS_CONFIG_FILE` (obsoleto com Railpack)
+- ❌ Qualquer configuração de virtualenv customizado
+
+---
+
+#### Settings → Healthcheck:
+
+```
+Path: /health
+Timeout: 30s
+```
+
+---
+
+### ✅ RESULTADO ESPERADO (CONFIRMADO):
+
+**Build Logs:**
+```
+Successfully installed Flask-3.0.0 Jinja2-3.1.6 ... gunicorn-21.2.0
+Build time: ~24s
+```
+
+**Deploy Logs:**
+```
+INFO:app_nfse:✅ DATABASE_URL configurada
+[INFO] Starting gunicorn 21.2.0
+[INFO] Listening at: http://0.0.0.0:8080 (1)
+[INFO] Using worker: sync
+[INFO] Booting worker with pid: 4
+[INFO] Booting worker with pid: 5
+INFO:app_nfse:✅ Microserviço de busca inicializado (modo stateless)
+```
+
+**Healthcheck:**
+```
+✅ PASSED - Service healthy
 ```
 
 ---
