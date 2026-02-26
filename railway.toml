@@ -1,9 +1,11 @@
-# railway.toml - Configuração para Railway (Microserviço NFS-e)
+# railway.toml - Configuração para ERP Principal (Sistema Financeiro DWM)
+# Para sistemafinanceirodwm-production.up.railway.app
 
 [build]
-builder = "nixpacks"
+builder = "heroku/buildpacks:20"
 
 [deploy]
+startCommand = "python web_server.py"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"

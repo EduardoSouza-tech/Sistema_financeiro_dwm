@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Limpar Duplicatas</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .alert {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .alert strong { display: block; margin-bottom: 10px; color: #856404; }
+        .alert ul { margin-left: 20px; color: #856404; }
+        .alert li { margin: 5px 0; }
+        .btn-container { text-align: center; margin: 30px 0; }
+        button {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 25px rgba(245, 87, 108, 0.4);
+        }
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(245, 87, 108, 0.6);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        #resultado {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.6;
+            display: none;
+        }
+        #resultado.show { display: block; }
+        #resultado.success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+        #resultado.error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #f5576c;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        .loader.show { display: block; }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🧹 Limpar Duplicatas [EXTRATO]</h1>
+        
+        <div class="alert">
+            <strong>⚠️ IMPORTANTE:</strong>
+            <ul>
+                <li>Você deve estar autenticado como <strong>ADMIN</strong></li>
+                <li>Esta ação irá remover ~1.445 lançamentos duplicados</li>
+                <li>Um backup será criado automaticamente</li>
+                <li>Processo seguro e reversível</li>
+            </ul>
+        </div>
+        
+        <div class="btn-container">
+            <button id="btnLimpar" onclick="executarLimpeza()">
+                🗑️ REMOVER DUPLICATAS AGORA
+            </button>
+        </div>
+        
+        <div class="loader" id="loader"></div>
+        <div id="resultado"></div>
+    </div>
+    
+    <script>
+        async function executarLimpeza() {
+            const btn = document.getElementById('btnLimpar');
+            const loader = document.getElementById('loader');
+            const resultado = document.getElementById('resultado');
+            
+            // Desabilitar botão e mostrar loader
+            btn.disabled = true;
+            btn.textContent = '⏳ PROCESSANDO...';
+            loader.classList.add('show');
+            resultado.classList.remove('show', 'success', 'error');
+            resultado.textContent = '';
+            
+            try {
+                console.log('🚀 Iniciando limpeza de duplicatas...');
+                
+                const response = await fetch('https://sistemafinanceirodwm-production.up.railway.app/api/admin/limpar-duplicatas-extrato', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                console.log('📡 Resposta recebida:', response.status);
+                
+                const data = await response.json();
+                console.log('📦 Dados:', data);
+                
+                loader.classList.remove('show');
+                resultado.classList.add('show');
+                
+                if (data.success) {
+                    resultado.classList.add('success');
+                    
+                    let msg = '✅ DUPLICATAS REMOVIDAS COM SUCESSO!\n\n';
+                    msg += '═══════════════════════════════════════════\n\n';
+                    msg += `📊 Total de lançamentos antes: ${data.total_antes?.toLocaleString()}\n`;
+                    msg += `📊 Total de lançamentos depois: ${data.total_depois?.toLocaleString()}\n`;
+                    msg += `🗑️  Duplicatas removidas: ${data.removidas?.toLocaleString()}\n\n`;
+                    
+                    if (data.saldo) {
+                        msg += '💰 SALDO ATUALIZADO:\n';
+                        msg += `   Banco: ${data.saldo.banco}\n`;
+                        msg += `   Agência/Conta: ${data.saldo.agencia}/${data.saldo.conta}\n`;
+                        msg += `   Saldo: R$ ${data.saldo.saldo_atual?.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n\n`;
+                    }
+                    
+                    msg += `💾 Backup: ${data.backup_table}\n\n`;
+                    msg += '🔄 Recarregando página em 3 segundos...';
+                    
+                    resultado.textContent = msg;
+                    
+                    // Recarregar após 3 segundos
+                    setTimeout(() => {
+                        window.opener.location.reload();
+                        window.close();
+                    }, 3000);
+                    
+                } else {
+                    resultado.classList.add('error');
+                    resultado.textContent = '❌ ERRO: ' + (data.error || data.message);
+                    btn.disabled = false;
+                    btn.textContent = '🗑️ REMOVER DUPLICATAS AGORA';
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro:', error);
+                loader.classList.remove('show');
+                resultado.classList.add('show', 'error');
+                resultado.textContent = '❌ Erro na requisição: ' + error.message + '\n\nVerifique se você está logado como ADMIN no sistema!';
+                btn.disabled = false;
+                btn.textContent = '🗑️ REMOVER DUPLICATAS AGORA';
+            }
+        }
+        
+        // Log de carregamento
+        console.log('✅ Página carregada! Pronto para limpar duplicatas.');
+    </script>
+</body>
+</html>
