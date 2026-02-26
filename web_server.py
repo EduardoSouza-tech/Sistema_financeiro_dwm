@@ -12808,53 +12808,81 @@ def buscar_nfse():
                 timeout=600  # 10 minutos
             )
             
+            # Verificar se microserviço retornou erro
+            if response.status_code != 200:
+                logger.error(f"❌ Microserviço retornou status {response.status_code}")
+                try:
+                    erro_json = response.json()
+                    logger.error(f"   Detalhes: {erro_json}")
+                except:
+                    logger.error(f"   Resposta: {response.text[:500]}")
+                
+                return jsonify({
+                    'success': False,
+                    'error': f'Microserviço retornou erro (status {response.status_code})'
+                }), response.status_code
+            
             resultado = response.json()
             
-            # Processar PDFs oficiais recebidos do microserviço
-            if 'pdfs_oficiais' in resultado and resultado['pdfs_oficiais']:
-                logger.info(f"📦 Processando {len(resultado['pdfs_oficiais'])} PDFs oficiais recebidos...")
-                
-                import base64
-                from nfse_functions import salvar_pdf_nfse
-                from nfse_database import NFSeDatabase
-                
-                pdfs_salvos = 0
-                for numero_nfse, pdf_info in resultado['pdfs_oficiais'].items():
-                    try:
-                        # Decodificar base64
-                        pdf_content = base64.b64decode(pdf_info['pdf_base64'])
-                        
-                        # Salvar no storage LOCAL do ERP
-                        pdf_path = salvar_pdf_nfse(
-                            pdf_content=pdf_content,
-                            numero_nfse=pdf_info['numero_nfse'],
-                            cnpj_prestador=pdf_info['cnpj_prestador'],
-                            codigo_municipio=pdf_info['codigo_municipio'],
-                            data_emissao=pdf_info['data_emissao']
-                        )
-                        
-                        if pdf_path:
-                            # Atualizar danfse_path no banco
-                            with NFSeDatabase(db_params) as db:
-                                cursor = db.conn.cursor()
-                                cursor.execute("""
-                                    UPDATE nfse_baixadas 
-                                    SET danfse_path = %s, atualizado_em = CURRENT_TIMESTAMP
-                                    WHERE numero_nfse = %s AND codigo_municipio = %s
-                                """, (pdf_path, numero_nfse, pdf_info['codigo_municipio']))
-                                db.conn.commit()
-                                cursor.close()
-                            
-                            pdfs_salvos += 1
-                            logger.debug(f"   ✅ PDF salvo: {numero_nfse} -> {pdf_path}")
+            # Processar PDFs oficiais recebidos do microserviço (se houver)
+            try:
+                if 'pdfs_oficiais' in resultado and resultado['pdfs_oficiais']:
+                    logger.info(f"📦 Processando {len(resultado['pdfs_oficiais'])} PDFs oficiais recebidos...")
                     
-                    except Exception as e_pdf:
-                        logger.warning(f"   ⚠️ Erro ao processar PDF {numero_nfse}: {e_pdf}")
-                
-                logger.info(f"✅ {pdfs_salvos} PDFs oficiais salvos no storage do ERP")
-                
-                # Remover PDFs do resultado (não precisam ir pro frontend)
-                del resultado['pdfs_oficiais']
+                    import base64
+                    from nfse_functions import salvar_pdf_nfse
+                    from nfse_database import NFSeDatabase
+                    
+                    pdfs_salvos = 0
+                    for numero_nfse, pdf_info in resultado['pdfs_oficiais'].items():
+                        try:
+                            # Validar dados do PDF
+                            if not pdf_info.get('pdf_base64'):
+                                logger.warning(f"   ⚠️ PDF {numero_nfse} sem base64, pulando")
+                                continue
+                            
+                            # Decodificar base64
+                            pdf_content = base64.b64decode(pdf_info['pdf_base64'])
+                            
+                            # Salvar no storage LOCAL do ERP
+                            pdf_path = salvar_pdf_nfse(
+                                pdf_content=pdf_content,
+                                numero_nfse=pdf_info['numero_nfse'],
+                                cnpj_prestador=pdf_info['cnpj_prestador'],
+                                codigo_municipio=pdf_info['codigo_municipio'],
+                                data_emissao=pdf_info['data_emissao']
+                            )
+                            
+                            if pdf_path:
+                                # Atualizar danfse_path no banco
+                                with NFSeDatabase(db_params) as db:
+                                    cursor = db.conn.cursor()
+                                    cursor.execute("""
+                                        UPDATE nfse_baixadas 
+                                        SET danfse_path = %s, atualizado_em = CURRENT_TIMESTAMP
+                                        WHERE numero_nfse = %s AND codigo_municipio = %s
+                                    """, (pdf_path, numero_nfse, pdf_info['codigo_municipio']))
+                                    db.conn.commit()
+                                    cursor.close()
+                                
+                                pdfs_salvos += 1
+                                logger.debug(f"   ✅ PDF salvo: {numero_nfse} -> {pdf_path}")
+                        
+                        except Exception as e_pdf:
+                            logger.error(f"   ❌ Erro ao processar PDF {numero_nfse}: {e_pdf}")
+                            import traceback
+                            logger.error(traceback.format_exc())
+                    
+                    logger.info(f"✅ {pdfs_salvos} PDFs oficiais salvos no storage do ERP")
+                    
+                    # Remover PDFs do resultado (não precisam ir pro frontend)
+                    del resultado['pdfs_oficiais']
+            
+            except Exception as e_pdfs:
+                logger.error(f"❌ Erro ao processar PDFs oficiais: {e_pdfs}")
+                import traceback
+                logger.error(traceback.format_exc())
+                # Continua mesmo com erro nos PDFs (dados principais foram salvos)
             
             # Log de auditoria
             from nfse_functions import registrar_operacao

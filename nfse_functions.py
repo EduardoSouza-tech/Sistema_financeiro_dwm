@@ -19,6 +19,7 @@ from typing import Dict, List, Optional, Tuple
 import logging
 import os
 import re
+import base64
 from nfse_database import NFSeDatabase
 from nfse_service import NFSeService, descobrir_provedor, testar_conexao
 from pathlib import Path
@@ -1878,30 +1879,39 @@ def buscar_nfse_ambiente_nacional(
                                         chave_acesso = chave_id[3:]  # Remove prefixo "NFS"
                                         
                                         logger.info(f"   📄 Baixando DANFSe oficial...")
-                                        pdf_content = cliente.consultar_danfse(chave_acesso, retry=2)
                                         
-                                        if pdf_content:
-                                            # Converter para base64 (será salvo pelo ERP)
-                                            import base64
-                                            pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
-                                            logger.info(f"   ✅ DANFSe oficial obtido ({len(pdf_content):,} bytes)")
+                                        try:
+                                            pdf_content = cliente.consultar_danfse(chave_acesso, retry=2)
                                             
-                                            # Adicionar PDF ao resultado para o ERP salvar
-                                            if 'pdfs_oficiais' not in resultado:
-                                                resultado['pdfs_oficiais'] = {}
-                                            
-                                            resultado['pdfs_oficiais'][numero_nfse] = {
-                                                'pdf_base64': pdf_base64,
-                                                'numero_nfse': numero_nfse,
-                                                'cnpj_prestador': cnpj_prestador,
-                                                'codigo_municipio': codigo_municipio,
-                                                'data_emissao': data_emissao
-                                            }
-                                        else:
-                                            logger.info(f"   ℹ️ DANFSe não disponível na API")
+                                            if pdf_content and isinstance(pdf_content, bytes):
+                                                # Converter para base64 (será salvo pelo ERP)
+                                                pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
+                                                logger.info(f"   ✅ DANFSe oficial obtido ({len(pdf_content):,} bytes)")
+                                                
+                                                # Inicializar dict se não existir
+                                                if 'pdfs_oficiais' not in resultado:
+                                                    resultado['pdfs_oficiais'] = {}
+                                                    logger.debug("   📦 Inicializou resultado['pdfs_oficiais']")
+                                                
+                                                # Adicionar PDF ao resultado para o ERP salvar
+                                                resultado['pdfs_oficiais'][numero_nfse] = {
+                                                    'pdf_base64': pdf_base64,
+                                                    'numero_nfse': str(numero_nfse),
+                                                    'cnpj_prestador': str(cnpj_prestador),
+                                                    'codigo_municipio': str(codigo_municipio),
+                                                    'data_emissao': str(data_emissao)
+                                                }
+                                                logger.debug(f"   📝 PDF {numero_nfse} adicionado ao resultado")
+                                            else:
+                                                logger.info(f"   ℹ️ DANFSe não disponível na API")
+                                        
+                                        except Exception as e_download:
+                                            logger.warning(f"   ⚠️ Erro ao baixar DANFSe: {e_download}")
                             
                             except Exception as e_pdf:
-                                logger.debug(f"   ⚠️ Erro ao baixar PDF: {e_pdf}")
+                                logger.error(f"   ❌ Erro ao processar PDF: {e_pdf}")
+                                import traceback
+                                logger.error(traceback.format_exc())
                             
                             # danfse_path será definido pelo ERP após salvar
                             nfse_data['danfse_path'] = None
