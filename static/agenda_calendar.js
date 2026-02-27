@@ -348,9 +348,9 @@ async function loadAgendaListView() {
                 <td>${getTiposCaptacao(sessao)}</td>
                 <td>${sessao.prazo_entrega ? new Date(sessao.prazo_entrega).toLocaleDateString('pt-BR') : '-'}</td>
                 <td><span class="badge" style="background: ${color};">${statusText}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-primary" onclick="editarSessao(${sessao.id})" title="Editar">✏️</button>
-                    <button class="btn btn-sm btn-danger" onclick="excluirSessao(${sessao.id})" title="Excluir">🗑️</button>
+                <td style="text-align: center;">
+                    <button onclick="editarSessao(${sessao.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
+                    <button onclick="excluirSessao(${sessao.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);

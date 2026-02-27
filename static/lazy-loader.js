@@ -435,8 +435,8 @@ function renderLancamento(lanc) {
         <td>${formatarData(lanc.data_vencimento)}</td>
         <td>${lanc.categoria || '-'}</td>
         <td><span class="badge badge-${lanc.status.toLowerCase()}">${lanc.status}</span></td>
-        <td>
-            <button class="btn btn-danger" onclick="excluirLancamento(${lanc.id})">🗑️</button>
+        <td style="white-space: nowrap; text-align: center;">
+            <button onclick="excluirLancamento(${lanc.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
         </td>
     `;
     return tr;

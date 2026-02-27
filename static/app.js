@@ -970,10 +970,10 @@ async function loadContas() {
                     <td>${conta.conta}</td>
                     <td>${formatarMoeda(conta.saldo_inicial)}</td>
                     <td>${formatarMoeda(conta.saldo_real !== undefined ? conta.saldo_real : conta.saldo_inicial)}</td>
-                    <td style="white-space: nowrap;">
-                        <button class="btn btn-primary" onclick="editarConta('${conta.nome}')" title="Editar conta" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;">✏️ Editar</button>
+                    <td style="white-space: nowrap; text-align: center;">
+                        <button onclick="editarConta('${conta.nome}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar conta">✏️</button>
                         ${botaoToggle}
-                        <button class="btn btn-danger" onclick="excluirConta('${conta.nome}')" title="Excluir conta" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;">🗑️ Excluir</button>
+                        <button onclick="excluirConta('${conta.nome}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir conta">🗑️</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1064,10 +1064,10 @@ function filtrarPorBanco() {
             <td>${conta.conta}</td>
             <td>${formatarMoeda(conta.saldo_inicial)}</td>
             <td>${formatarMoeda(conta.saldo_real !== undefined ? conta.saldo_real : conta.saldo_inicial)}</td>
-            <td style="white-space: nowrap;">
-                <button class="btn btn-primary" onclick="editarConta('${conta.nome}')" title="Editar conta" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;">✏️ Editar</button>
+            <td style="white-space: nowrap; text-align: center;">
+                <button onclick="editarConta('${conta.nome}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar conta">✏️</button>
                 ${botaoToggle}
-                <button class="btn btn-danger" onclick="excluirConta('${conta.nome}')" title="Excluir conta" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;">🗑️ Excluir</button>
+                <button onclick="excluirConta('${conta.nome}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir conta">🗑️</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -1399,9 +1399,9 @@ async function loadCategorias() {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${escapeHtml(cat.nome)}</td>
-                        <td>
-                            <button class="btn btn-sm btn-primary" onclick="editarCategoria('${escapeHtml(cat.nome)}', '${escapeHtml(cat.tipo)}')" title="Editar categoria">✏️</button>
-                            <button class="btn btn-sm btn-danger" onclick="excluirCategoria('${escapeHtml(cat.nome)}')" title="Excluir categoria">🗑️</button>
+                        <td style="text-align: center;">
+                            <button onclick="editarCategoria('${escapeHtml(cat.nome)}', '${escapeHtml(cat.tipo)}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar categoria">✏️</button>
+                            <button onclick="excluirCategoria('${escapeHtml(cat.nome)}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir categoria">🗑️</button>
                         </td>
                     `;
                     tbodyReceita.appendChild(tr);
@@ -1423,9 +1423,9 @@ async function loadCategorias() {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${escapeHtml(cat.nome)}</td>
-                        <td>
-                            <button class="btn btn-sm btn-primary" onclick="editarCategoria('${escapeHtml(cat.nome)}', '${escapeHtml(cat.tipo)}')" title="Editar categoria">✏️</button>
-                            <button class="btn btn-sm btn-danger" onclick="excluirCategoria('${escapeHtml(cat.nome)}')" title="Excluir categoria">🗑️</button>
+                        <td style="text-align: center;">
+                            <button onclick="editarCategoria('${escapeHtml(cat.nome)}', '${escapeHtml(cat.tipo)}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar categoria">✏️</button>
+                            <button onclick="excluirCategoria('${escapeHtml(cat.nome)}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir categoria">🗑️</button>
                         </td>
                     `;
                     tbodyDespesa.appendChild(tr);
@@ -1726,12 +1726,12 @@ async function loadClientes(ativos = true) {
             
             // Botões diferentes para ativos e inativos
             const botoesAcao = ativos ? `
-                <button class="btn btn-sm btn-primary" onclick="editarCliente('${nomeEscaped}')" title="Editar cliente">✏️</button>
-                <button class="btn btn-sm btn-warning" onclick="inativarCliente('${nomeEscaped}')" title="Desativar cliente">⏸️</button>
-                <button class="btn btn-sm btn-danger" onclick="excluirCliente('${nomeEscaped}')" title="Excluir cliente">🗑️</button>
+                <button onclick="editarCliente('${nomeEscaped}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar cliente">✏️</button>
+                <button onclick="inativarCliente('${nomeEscaped}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Desativar cliente">⏸️</button>
+                <button onclick="excluirCliente('${nomeEscaped}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir cliente">🗑️</button>
             ` : `
-                <button class="btn btn-sm btn-success" onclick="ativarCliente('${nomeEscaped}')" title="Reativar cliente">▶️ Ativar</button>
-                <button class="btn btn-sm btn-danger" onclick="excluirCliente('${nomeEscaped}')" title="Excluir cliente">🗑️</button>
+                <button onclick="ativarCliente('${nomeEscaped}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Reativar cliente">▶️</button>
+                <button onclick="excluirCliente('${nomeEscaped}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir cliente">🗑️</button>
             `;
             
             const dataInativacaoCell = ativos ? '' : `<td>${cliente.data_inativacao || '-'}</td>`;
@@ -2020,8 +2020,8 @@ async function loadFornecedores() {
                 <td>${fornecedor.documento || '-'}</td>
                 <td>${fornecedor.telefone || '-'}</td>
                 <td>${fornecedor.email || '-'}</td>
-                <td>
-                    <button class="btn btn-danger" onclick="excluirFornecedor('${fornecedor.nome}')">🗑️</button>
+                <td style="text-align: center;">
+                    <button onclick="excluirFornecedor('${fornecedor.nome}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -2223,8 +2223,8 @@ async function loadLancamentos() {
                 <td>${formatarData(lanc.data_vencimento)}</td>
                 <td>${lanc.categoria || '-'}</td>
                 <td><span class="badge badge-${lanc.status.toLowerCase()}">${lanc.status}</span></td>
-                <td>
-                    <button class="btn btn-danger" onclick="excluirLancamento(${lanc.id})">🗑️</button>
+                <td style="text-align: center;">
+                    <button onclick="excluirLancamento(${lanc.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -4778,11 +4778,11 @@ async function carregarFuncionariosRH() {
                     </span>
                 </td>
                 <td style="padding: 12px 15px; text-align: center;">
-                    <button onclick="editarFuncionario(${func.id})" class="btn-icon" title="Editar">✏️</button>
-                    <button onclick="toggleAtivoFuncionario(${func.id}, ${func.ativo})" class="btn-icon" title="${func.ativo ? 'Inativar' : 'Ativar'}">
+                    <button onclick="editarFuncionario(${func.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
+                    <button onclick="toggleAtivoFuncionario(${func.id}, ${func.ativo})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="${func.ativo ? 'Inativar' : 'Ativar'}">
                         ${func.ativo ? '🔴' : '🟢'}
                     </button>
-                    <button onclick="deletarFuncionario(${func.id})" class="btn-icon" title="Excluir">🗑️</button>
+                    <button onclick="deletarFuncionario(${func.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
                 </td>
             </tr>
         `).join('');
@@ -5054,11 +5054,11 @@ async function loadKitsTable() {
                     <td>${descricaoLimpa || '-'}</td>
                     <td>${itensExtraidos || '-'}</td>
                     <td>${precoFormatado}</td>
-                    <td>
-                        <button class="btn-icon" onclick='editarKit(${JSON.stringify(kit).replace(/'/g, "\\'")})'
+                    <td style="text-align: center;">
+                        <button onclick='editarKit(${JSON.stringify(kit).replace(/'/g, "\\'")})' style="background: none; border: none; cursor: pointer; font-size: 16px;"
                             title="Editar">✏️</button>
-                        <button class="btn-icon" onclick="excluirKit(${kit.id})"
-                            title="Excluir" style="color: #e74c3c;">🗑️</button>
+                        <button onclick="excluirKit(${kit.id})"
+                            style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
                     </td>
                 </tr>
             `;
@@ -5184,9 +5184,9 @@ async function loadContratos() {
                 <td>${dataFormatada}</td>
                 <td><span style="font-size: 11px;">${escapeHtml(contrato.forma_pagamento || '-')}</span></td>
                 <td><span class="status-badge status-${contrato.status || 'ativo'}">${contrato.status || 'Ativo'}</span></td>
-                <td style="white-space: nowrap;">
-                    <button class="btn btn-sm btn-primary" onclick="editarContrato(${contrato.id})" title="Editar">✏️</button>
-                    <button class="btn btn-sm btn-danger" onclick="excluirContrato(${contrato.id})" title="Excluir">🗑️</button>
+                <td style="white-space: nowrap; text-align: center;">
+                    <button onclick="editarContrato(${contrato.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
+                    <button onclick="excluirContrato(${contrato.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -5295,9 +5295,9 @@ async function loadSessoes() {
                     <br>
                     <span class="badge ${statusPrazoClass}">${statusPrazoText}</span>
                 </td>
-                <td>
-                    <button class="btn btn-sm btn-primary" onclick="editarSessao(${sessao.id})" title="Editar">✏️</button>
-                    <button class="btn btn-sm btn-danger" onclick="excluirSessao(${sessao.id})" title="Excluir">🗑️</button>
+                <td style="text-align: center;">
+                    <button onclick="editarSessao(${sessao.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
+                    <button onclick="excluirSessao(${sessao.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -5346,9 +5346,9 @@ async function loadComissoes() {
                 <td>${escapeHtml(comissao.tipo || '')}</td>
                 <td>${formatarMoeda(comissao.valor || 0)}</td>
                 <td>${comissao.percentual || 0}%</td>
-                <td>
-                    <button class="btn btn-sm btn-primary" onclick="editarComissao(${comissao.id})" title="Editar">✏️</button>
-                    <button class="btn btn-sm btn-danger" onclick="excluirComissao(${comissao.id})" title="Excluir">🗑️</button>
+                <td style="text-align: center;">
+                    <button onclick="editarComissao(${comissao.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
+                    <button onclick="excluirComissao(${comissao.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -6215,12 +6215,17 @@ async function loadFornecedores(ativos = true) {
             const dataInativacaoCell = ativos ? '' : `<td>${forn.data_inativacao || '-'}</td>`;
             
             const botoesAcao = ativos ? `
-                <button class="btn-edit" onclick="editarFornecedor('${forn.nome.replace(/'/g, "\\'")}')">✏️ Editar</button>
-                <button class="btn-delete" onclick="inativarFornecedor('${forn.nome.replace(/'/g, "\\'")}')">⏸️ Inativar</button>
+                <button onclick="editarFornecedor('${forn.nome.replace(/'/g, "\\'")}')"
+                    style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
+                <button onclick="inativarFornecedor('${forn.nome.replace(/'/g, "\\'")}')"
+                    style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Inativar">⏸️</button>
             ` : `
-                <button class="btn-edit" onclick="editarFornecedor('${forn.nome.replace(/'/g, "\\'")}')">✏️ Editar</button>
-                <button class="btn-success" onclick="reativarFornecedor('${forn.nome.replace(/'/g, "\\'")}')">▶️ Reativar</button>
-                <button class="btn-delete" onclick="excluirFornecedor('${forn.nome.replace(/'/g, "\\'")}')">🗑️ Excluir</button>
+                <button onclick="editarFornecedor('${forn.nome.replace(/'/g, "\\'")}')"
+                    style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
+                <button onclick="reativarFornecedor('${forn.nome.replace(/'/g, "\\'")}')"
+                    style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Reativar">▶️</button>
+                <button onclick="excluirFornecedor('${forn.nome.replace(/'/g, "\\'")}')"
+                    style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
             `;
             
             tr.innerHTML = `
@@ -6525,16 +6530,12 @@ window.loadContasBancarias = async function() {
                 <td style="font-weight: bold; color: ${(conta.saldo || 0) >= 0 ? '#27ae60' : '#e74c3c'};">
                     ${(conta.saldo || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </td>
-                <td>
-                    <button class="btn btn-sm btn-info" onclick="editarConta('${conta.nome.replace(/'/g, "\\'")}')"
-                            style="background: #3498db; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">
-                        ✏️ Editar
-                    </button>
+                <td style="text-align: center;">
+                    <button onclick="editarConta('${conta.nome.replace(/'/g, "\\'")}')"
+                            style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar conta">✏️</button>
                     ${toggleButton}
-                    <button class="btn btn-sm btn-danger" onclick="excluirConta('${conta.nome.replace(/'/g, "\\'")}')"
-                            style="background: #e74c3c; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer;">
-                        🗑️ Excluir
-                    </button>
+                    <button onclick="excluirConta('${conta.nome.replace(/'/g, "\\'")}')"
+                            style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir conta">🗑️</button>
                 </td>
             </tr>
         `;
@@ -8132,7 +8133,7 @@ window.exibirNFSe = function(nfses) {
             <td style="text-align: center; white-space: nowrap;">
                 <button onclick="verDetalhesNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; background: #3498db;" title="Ver Detalhes">👁️</button>
                 <button onclick="gerarPdfNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; background: #e74c3c; margin-left: 2px;" title="Gerar PDF">📄</button>
-                <button onclick="excluirNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; background: #c0392b; margin-left: 2px;" title="Excluir NFS-e">🗑️</button>
+                <button onclick="excluirNFSe(${nfse.id})" style="background: none; border: none; cursor: pointer; font-size: 16px; margin-left: 2px;" title="Excluir NFS-e">🗑️</button>
             </td>
         `;
         
@@ -8633,8 +8634,8 @@ window.carregarListaMunicipiosNFSe = async function() {
                     <td style="text-align: center;">${config.provedor || '-'}</td>
                     <td style="text-align: center;">${statusBadge}</td>
                     <td style="text-align: center;">
-                        <button onclick="editarMunicipioNFSe(${config.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; background: #3498db; margin-right: 5px;">✏️</button>
-                        <button onclick="excluirMunicipioNFSe(${config.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; background: #e74c3c;">🗑️</button>
+                        <button onclick="editarMunicipioNFSe(${config.id})" style="background: none; border: none; cursor: pointer; font-size: 16px; margin-right: 5px;" title="Editar">✏️</button>
+                        <button onclick="excluirMunicipioNFSe(${config.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
                     </td>
                 `;
                 
@@ -9004,8 +9005,7 @@ window.carregarCertificadoNFSe = async function() {
                         <div style="font-size: 12px;">${cert.emitente || '-'}</div>
                     </div>
                     <div style="display: flex; align-items: flex-end;">
-                        <button onclick="excluirCertificadoNFSe(${cert.id})" class="btn" 
-                            style="padding: 5px 12px; font-size: 12px; background: rgba(231,76,60,0.8); color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        <button onclick="excluirCertificadoNFSe(${cert.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Remover Certificado">
                             🗑️ Remover Certificado
                         </button>
                     </div>
@@ -9835,7 +9835,7 @@ async function carregarListaVersoes() {
                     </div>
                     <div style="display: flex; gap: 8px;">
                         ${!v.is_ativa ? `<button onclick="ativarVersao(${v.id})" style="background: #27ae60; color: white; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Ativar</button>` : ''}
-                        <button onclick="excluirVersaoPlano(${v.id}, '${v.nome_versao}')" style="background: #e74c3c; color: white; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️</button>
+                        <button onclick="excluirVersaoPlano(${v.id}, '${v.nome_versao}')" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
                     </div>
                 </div>
             `).join('');

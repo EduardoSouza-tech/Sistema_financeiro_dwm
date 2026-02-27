@@ -3991,8 +3991,8 @@ async function loadTagsTable() {
             
             // Botões de ação
             const botoesAcao = `
-                <button class="btn-edit" onclick="editarTag(${tag.id})" title="Editar tag">✏️</button>
-                <button class="btn-delete" onclick="deletarTag(${tag.id}, '${tag.nome.replace(/'/g, "\\'")}' )" title="Excluir tag">🗑️</button>
+                <button onclick="editarTag(${tag.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar tag">✏️</button>
+                <button onclick="deletarTag(${tag.id}, '${tag.nome.replace(/'/g, "\\'")}' )" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir tag">🗑️</button>
             `;
             
             tr.innerHTML = `
