@@ -13749,6 +13749,19 @@
                 const erro    = parsed.erro    || parsed.error || 'Erro desconhecido';
 
                 if (sucesso) {
+                    const detalhes = parsed.documentos_detalhes || [];
+                    const errosDetalhados = detalhes.filter(d => !d.sucesso);
+                    let errosHtml = '';
+                    if (errosDetalhados.length > 0) {
+                        const itens = errosDetalhados.map(e =>
+                            `<li style="margin-bottom:4px;">NSU <strong>${e.nsu || '?'}</strong> (${e.schema || '?'}): ${e.erro || 'Erro desconhecido'}</li>`
+                        ).join('');
+                        errosHtml = `
+                            <details style="margin-top:10px;font-size:12px;">
+                                <summary style="cursor:pointer;color:#856404;">⚠️ Ver detalhes dos erros (${errosDetalhados.length})</summary>
+                                <ul style="margin:6px 0 0 0;padding-left:20px;color:#856404;">${itens}</ul>
+                            </details>`;
+                    }
                     resultDiv.innerHTML = `
                         <div style="background:#d4edda;border:1px solid #c3e6cb;padding:15px;border-radius:6px;margin-top:10px;">
                             <h6 style="margin:0 0 10px 0;">✅ Busca concluída!</h6>
@@ -13760,6 +13773,7 @@
                                 <li>Erros: <strong>${parsed.erros || 0}</strong></li>
                                 <li>Novo NSU: <strong>${parsed.novo_nsu || '-'}</strong></li>
                             </ul>
+                            ${errosHtml}
                         </div>`;
                     carregarEstatisticasFiscais();
                 } else {

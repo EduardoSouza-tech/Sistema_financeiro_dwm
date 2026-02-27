@@ -484,6 +484,10 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
                 
                 if not xml_content:
                     stats['erros'] += 1
+                    stats['documentos_detalhes'].append({
+                        'sucesso': False, 'nsu': nsu, 'schema': schema,
+                        'erro': 'XML vazio ou erro ao descomprimir'
+                    })
                     continue
                 
                 # Detecta schema
@@ -491,6 +495,10 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
                 
                 if not schema_info['sucesso']:
                     stats['erros'] += 1
+                    stats['documentos_detalhes'].append({
+                        'sucesso': False, 'nsu': nsu, 'schema': schema,
+                        'erro': schema_info.get('erro', 'Erro ao detectar schema')
+                    })
                     continue
                 
                 # Processa de acordo com o tipo
@@ -499,6 +507,8 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
                         empresa_id, certificado_id, cnpj, nsu, schema, 
                         xml_content, usuario_id, cursor
                     )
+                    resultado_proc.setdefault('nsu', nsu)
+                    resultado_proc.setdefault('schema', schema)
                     if resultado_proc['sucesso']:
                         stats['nfes_processadas'] += 1
                     else:
@@ -511,6 +521,8 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
                         empresa_id, certificado_id, cnpj, nsu, schema,
                         xml_content, usuario_id, cursor
                     )
+                    resultado_proc.setdefault('nsu', nsu)
+                    resultado_proc.setdefault('schema', schema)
                     if resultado_proc['sucesso']:
                         stats['ctes_processados'] += 1
                     else:
@@ -523,10 +535,20 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
                         empresa_id, certificado_id, nsu, schema,
                         xml_content, usuario_id, cursor
                     )
+                    resultado_proc.setdefault('nsu', nsu)
+                    resultado_proc.setdefault('schema', schema)
                     if resultado_proc['sucesso']:
                         stats['eventos_processados'] += 1
                     else:
                         stats['erros'] += 1
+                    stats['documentos_detalhes'].append(resultado_proc)
+                
+                else:
+                    stats['erros'] += 1
+                    stats['documentos_detalhes'].append({
+                        'sucesso': False, 'nsu': nsu, 'schema': schema,
+                        'erro': f'Tipo não suportado: {schema_info.get("categoria", "?")} ({schema_info.get("tag_raiz", "??")})'
+                    })
                 
                 stats['total_baixados'] += 1
             
