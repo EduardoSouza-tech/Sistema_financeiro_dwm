@@ -185,13 +185,20 @@ def consultar_ultimo_nsu_sefaz(certificado: CertificadoA1, cnpj: str, cuf: int,
         Dict com maxNSU e ultNSU
     """
     try:
-        # Monta XML SOAP
+        # Monta XML SOAP  — especificação NFeDistribuicaoDFe 1.01
         soap_body = f'''<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
-    <soap:Header/>
+<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <soap:Header>
+        <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
+            <cUF>{cuf}</cUF>
+            <versaoDados>1.01</versaoDados>
+        </nfeCabecMsg>
+    </soap:Header>
     <soap:Body>
-        <nfe:nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe">
-            <nfeDist versao="1.01">
+        <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
+            <nfeDist versao="1.01" xmlns="http://www.portalfiscal.inf.br/nfe">
                 <tpAmb>{2 if ambiente == 'homologacao' else 1}</tpAmb>
                 <cUFAutor>{cuf}</cUFAutor>
                 <CNPJ>{cnpj}</CNPJ>
@@ -199,7 +206,7 @@ def consultar_ultimo_nsu_sefaz(certificado: CertificadoA1, cnpj: str, cuf: int,
                     <ultNSU>000000000000000</ultNSU>
                 </distNSU>
             </nfeDist>
-        </nfe:nfeDistDFeInteresse>
+        </nfeDistDFeInteresse>
     </soap:Body>
 </soap:Envelope>'''
         
@@ -287,13 +294,20 @@ def baixar_documentos_dfe(certificado: CertificadoA1, cnpj: str, cuf: int,
         Dict com documentos baixados e novo ultNSU
     """
     try:
-        # Monta XML SOAP
+        # Monta XML SOAP  — especificação NFeDistribuicaoDFe 1.01
         soap_body = f'''<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
-    <soap:Header/>
+<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <soap:Header>
+        <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
+            <cUF>{cuf}</cUF>
+            <versaoDados>1.01</versaoDados>
+        </nfeCabecMsg>
+    </soap:Header>
     <soap:Body>
-        <nfe:nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe">
-            <nfeDist versao="1.01">
+        <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
+            <nfeDist versao="1.01" xmlns="http://www.portalfiscal.inf.br/nfe">
                 <tpAmb>{2 if ambiente == 'homologacao' else 1}</tpAmb>
                 <cUFAutor>{cuf}</cUFAutor>
                 <CNPJ>{cnpj}</CNPJ>
@@ -301,7 +315,7 @@ def baixar_documentos_dfe(certificado: CertificadoA1, cnpj: str, cuf: int,
                     <ultNSU>{ultimo_nsu}</ultNSU>
                 </distNSU>
             </nfeDist>
-        </nfe:nfeDistDFeInteresse>
+        </nfeDistDFeInteresse>
     </soap:Body>
 </soap:Envelope>'''
         
@@ -321,7 +335,7 @@ def baixar_documentos_dfe(certificado: CertificadoA1, cnpj: str, cuf: int,
         if response.status_code != 200:
             return {
                 'sucesso': False,
-                'erro': f'Erro HTTP {response.status_code}'
+                'erro': f'Erro HTTP {response.status_code}: {response.text[:500]}'
             }
         
         # Parse resposta
