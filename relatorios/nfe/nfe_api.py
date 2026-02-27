@@ -367,7 +367,8 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
 # BUSCA E PROCESSAMENTO DE DOCUMENTOS
 # ============================================================================
 
-def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = None) -> Dict[str, any]:
+def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = None,
+                                        nsu_override: str = None) -> Dict[str, any]:
     """
     Busca novos documentos na SEFAZ e processa.
     
@@ -383,6 +384,7 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
     Args:
         certificado_id: ID do certificado
         usuario_id: ID do usuário (para auditoria)
+        nsu_override: Se fornecido, ignora o NSU salvo e usa este valor (ex: '000000000000000')
         
     Returns:
         Dict com estatísticas da busca
@@ -415,6 +417,11 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
             ultimo_nsu  = row['ultimo_nsu']
             cuf         = row['cuf']
             ambiente    = row['ambiente']
+
+        # Permite forçar um NSU específico (ex: re-busca desde o início)
+        if nsu_override is not None:
+            logger.info(f"[SEFAZ] nsu_override={nsu_override!r} — ignorando NSU do banco ({ultimo_nsu!r})")
+            ultimo_nsu = nsu_override
 
         # ── Valida CNPJ: o CNPJ no SOAP DEVE ser o mesmo gravado no PFX ──────
         # A SEFAZ autentica via mTLS usando o certificado; se o CNPJ no <CNPJ>

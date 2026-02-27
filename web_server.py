@@ -17463,9 +17463,13 @@ def buscar_documentos():
 
         from relatorios.nfe import nfe_api
 
+        # nsu_override permite re-buscar desde um NSU específico (ex: '000000000000000')
+        nsu_override = data.get('nsu_override')  # optional, string or null
+
         resultado = nfe_api.buscar_e_processar_novos_documentos(
             certificado_id=certificado_id,
-            usuario_id=usuario['id']
+            usuario_id=usuario['id'],
+            nsu_override=nsu_override
         )
 
         # Se ainda falhou, inclui diagnóstico na resposta para debug

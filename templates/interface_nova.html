@@ -4616,6 +4616,9 @@
                             <button class="btn btn-primary" onclick="executarBuscaAutomaticaFiscal()" style="width: 100%; margin-top: 10px;">
                                 🔄 Iniciar Busca Automática
                             </button>
+                            <button class="btn btn-outline-secondary" onclick="executarBuscaAutomaticaFiscal('000000000000000')" style="width: 100%; margin-top: 6px; font-size: 12px;" title="Rebusca desde o NSU 0, re-baixando todos os documentos da SEFAZ">
+                                ↩️ Rebuscar desde o início (NSU 0)
+                            </button>
                             <div id="fiscal-buscaAutoResultado" style="margin-top: 15px;"></div>
                         </div>
 
@@ -13719,11 +13722,11 @@
         }
 
         // Buscar Documentos
-        async function executarBuscaAutomaticaFiscal() {
+        async function executarBuscaAutomaticaFiscal(nsuOverride) {
             const resultDiv = document.getElementById('fiscal-buscaAutoResultado');
             const token = localStorage.getItem('token');
 
-            resultDiv.innerHTML = `<p style="color: #3498db;">⏳ Buscando documentos na SEFAZ...</p>`;
+            resultDiv.innerHTML = `<p style="color: #3498db;">⏳ ${nsuOverride !== undefined ? 'Rebuscando desde NSU ' + nsuOverride + '...' : 'Buscando documentos na SEFAZ...'}</p>`;
 
             try {
                 const resp = await fetch('/api/relatorios/buscar-documentos', {
@@ -13732,7 +13735,7 @@
                         'Content-Type': 'application/json',
                         ...(token ? {'Authorization': `Bearer ${token}`} : {})
                     },
-                    body: JSON.stringify({})
+                    body: JSON.stringify(nsuOverride !== undefined ? { nsu_override: nsuOverride } : {})
                 });
 
                 let parsed;
