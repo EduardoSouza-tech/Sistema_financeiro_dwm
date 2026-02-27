@@ -3071,7 +3071,8 @@ def listar_lancamentos():
         
         # Parâmetros de paginação
         page = request.args.get('page', type=int)
-        per_page = request.args.get('per_page', default=50, type=int)
+        per_page = request.args.get('per_page', default=300, type=int)
+        per_page = min(per_page, 300)  # Máximo de 300 registros por página
         
         print(f"📋 Parâmetros recebidos:")
         print(f"   - empresa_id: {empresa_id}")

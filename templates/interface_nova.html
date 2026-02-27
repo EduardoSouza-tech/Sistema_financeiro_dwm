@@ -1889,11 +1889,22 @@
                     </div>
                 </div>
 
-                <div style="margin-bottom: 5px; display: flex; gap: 10px; align-items: center;">
+                <div style="margin-bottom: 5px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <button class="btn btn-success" onclick="liquidarEmMassa('RECEITA')" style="display: none;" id="btn-liquidar-massa-receber">💰 Liquidar Selecionados</button>
                     <button class="btn btn-danger" onclick="excluirEmMassa('RECEITA')" style="display: none;" id="btn-excluir-massa-receber">🗑️ Excluir Selecionados</button>
                     <div id="contador-registros-receber" style="padding: 8px 16px; background: #e8f5e9; border: 2px solid #4caf50; border-radius: 4px; font-weight: bold; color: #2e7d32; font-size: 14px;">
                         📊 Exibindo: <span id="total-registros-receber">0</span> registros
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: #f1f8e9; border: 2px solid #4caf50; border-radius: 4px;">
+                        <label for="per-page-receber" style="font-size: 13px; font-weight: 600; color: #2e7d32; white-space: nowrap; margin: 0;">📋 Registros por página:</label>
+                        <select id="per-page-receber" onchange="loadContasReceber()" style="padding: 4px 8px; border: 1px solid #4caf50; border-radius: 4px; font-size: 13px; font-weight: 600; color: #2e7d32; background: white; cursor: pointer;">
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="150">150</option>
+                            <option value="200">200</option>
+                            <option value="300" selected>300</option>
+                        </select>
                     </div>
                     <div id="soma-selecionados-receber" style="display: none; margin-left: auto; padding: 8px 16px; background: #e3f2fd; border: 2px solid #2196F3; border-radius: 4px; font-weight: bold; color: #1976D2; font-size: 14px;">
                         Total Selecionado: <span id="valor-soma-receber">R$ 0,00</span>
@@ -2017,11 +2028,22 @@
                     </div>
                 </div>
 
-                <div style="margin-bottom: 5px; display: flex; gap: 10px; align-items: center;">
+                <div style="margin-bottom: 5px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <button class="btn btn-success" onclick="liquidarEmMassa('DESPESA')" style="display: none;" id="btn-liquidar-massa-pagar">💰 Liquidar Selecionados</button>
                     <button class="btn btn-danger" onclick="excluirEmMassa('DESPESA')" style="display: none;" id="btn-excluir-massa-pagar">🗑️ Excluir Selecionados</button>
                     <div id="contador-registros-pagar" style="padding: 8px 16px; background: #e3f2fd; border: 2px solid #2196f3; border-radius: 4px; font-weight: bold; color: #1565c0; font-size: 14px;">
                         📊 Exibindo: <span id="total-registros-pagar">0</span> registros
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: #e8eaf6; border: 2px solid #2196f3; border-radius: 4px;">
+                        <label for="per-page-pagar" style="font-size: 13px; font-weight: 600; color: #1565c0; white-space: nowrap; margin: 0;">📋 Registros por página:</label>
+                        <select id="per-page-pagar" onchange="loadContasPagar()" style="padding: 4px 8px; border: 1px solid #2196f3; border-radius: 4px; font-size: 13px; font-weight: 600; color: #1565c0; background: white; cursor: pointer;">
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="150">150</option>
+                            <option value="200">200</option>
+                            <option value="300" selected>300</option>
+                        </select>
                     </div>
                     <div id="soma-selecionados-pagar" style="display: none; margin-left: auto; padding: 8px 16px; background: #ffebee; border: 2px solid #f44336; border-radius: 4px; font-weight: bold; color: #c62828; font-size: 14px;">
                         Total Selecionado: <span id="valor-soma-pagar">R$ 0,00</span>

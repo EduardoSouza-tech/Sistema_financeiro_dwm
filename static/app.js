@@ -2163,7 +2163,9 @@ async function loadContasReceber() {
     console.log('🔄 loadContasReceber CHAMADA!');
     try {
         console.log('   📡 Buscando lançamentos...');
-        const response = await fetch(`${API_URL}/lancamentos`);
+        const perPageSelect = document.getElementById('per-page-receber');
+        const perPage = perPageSelect ? perPageSelect.value : 300;
+        const response = await fetch(`${API_URL}/lancamentos?per_page=${perPage}`);
         const todosLancamentos = await response.json();
         console.log('   📦 Total de lançamentos recebidos:', todosLancamentos.length);
         if (todosLancamentos.length > 0) {
@@ -2298,7 +2300,9 @@ async function loadContasReceber() {
 // === CONTAS A PAGAR ===
 async function loadContasPagar() {
     try {
-        const response = await fetch(`${API_URL}/lancamentos`);
+        const perPageSelect = document.getElementById('per-page-pagar');
+        const perPage = perPageSelect ? perPageSelect.value : 300;
+        const response = await fetch(`${API_URL}/lancamentos?per_page=${perPage}`);
         const todosLancamentos = await response.json();
         
         const tbody = document.getElementById('tbody-pagar');
