@@ -20,7 +20,10 @@ import requests
 import base64
 import gzip
 import os
+import ssl
 import logging
+import tempfile
+import urllib3
 from lxml import etree
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
@@ -30,6 +33,7 @@ from cryptography.hazmat.primitives.serialization import pkcs12
 from cryptography.hazmat.backends import default_backend
 
 logger = logging.getLogger(__name__)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 # ============================================================================
@@ -57,6 +61,10 @@ NAMESPACE_CTE = 'http://www.portalfiscal.inf.br/cte'
 # Número máximo de NSUs por consulta (limitado pela SEFAZ)
 MAX_NSUS_POR_CONSULTA = 50
 
+# URLs WSDL (com ?wsdl — usadas pelo zeep para montar o envelope SOAP correto)
+WSDL_DISTRIBUICAO_PRODUCAO  = 'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx?wsdl'
+WSDL_DISTRIBUICAO_HOMOLOG   = 'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx?wsdl'
+
 
 # ============================================================================
 # CERTIFICADO DIGITAL
@@ -77,10 +85,12 @@ class CertificadoA1:
         self.caminho_pfx = caminho_pfx
         self.pfx_base64 = pfx_base64
         self.senha = senha.encode('utf-8') if senha else b''
+        self.senha_str = senha  # mantida como str para requests_pkcs12
         
         self.cert_pem = None
         self.key_pem = None
         self.cert_data = None
+        self.pfx_bytes = None  # bytes brutos guardados para zeep/requests_pkcs12
         
         self._carregar_certificado()
     
@@ -95,6 +105,8 @@ class CertificadoA1:
                 pfx_data = base64.b64decode(self.pfx_base64)
             else:
                 raise ValueError("Nenhum certificado fornecido")
+            
+            self.pfx_bytes = pfx_data  # guarda para get_zeep_dist_client()
             
             # Carrega PFX
             private_key, certificate, additional_certs = pkcs12.load_key_and_certificates(
@@ -180,11 +192,8 @@ class CertificadoA1:
         return (self.cert_data['valido_de'] <= agora <= self.cert_data['valido_ate'])
     
     def get_session_requests(self) -> requests.Session:
-        """Retorna uma sessão requests configurada com o certificado."""
+        """Retorna uma sessão requests configurada com o certificado (PEM)."""
         session = requests.Session()
-        
-        # Cria arquivos temporários para cert e key (requests precisa de arquivos)
-        import tempfile
         
         with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.pem') as cert_file:
             cert_file.write(self.cert_pem)
@@ -194,11 +203,39 @@ class CertificadoA1:
             key_file.write(self.key_pem)
             key_path = key_file.name
         
-        # Configura sessão
         session.cert = (cert_path, key_path)
-        session.verify = True  # Verificar certificados SSL
+        session.verify = True
         
         return session
+
+    def get_zeep_dist_client(self, wsdl_url: str):
+        """
+        Retorna um cliente zeep para NFeDistribuicaoDFe autenticado via PKCS12.
+        Usa requests_pkcs12.Pkcs12Adapter — não extrai PEM, usa o .pfx diretamente.
+        SSL verify=False necessário pela infra da SEFAZ (certificado intermediário gov.br).
+        """
+        from requests_pkcs12 import Pkcs12Adapter
+        from zeep import Client
+        from zeep.transports import Transport
+
+        class _SefazPkcs12Adapter(Pkcs12Adapter):
+            """Adapter que desabilita verificação SSL (necessário para SEFAZ)."""
+            def init_poolmanager(self, *args, **kwargs):
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                kwargs['ssl_context'] = ctx
+                return super().init_poolmanager(*args, **kwargs)
+
+        sess = requests.Session()
+        sess.verify = False
+        sess.mount('https://', _SefazPkcs12Adapter(
+            pkcs12_data=self.pfx_bytes,
+            pkcs12_password=self.senha_str,
+        ))
+
+        transport = Transport(session=sess, timeout=120)
+        return Client(wsdl_url, transport=transport)
 
 
 # ============================================================================
@@ -226,300 +263,145 @@ def _extrair_soap_fault(content: bytes) -> str:
 
 
 # ============================================================================
-# CONSULTA DISTRIBUIÇÃO DFe (NSU)
+# CONSULTA DISTRIBUIÇÃO DFe (NSU)  — usa zeep + requests_pkcs12
 # ============================================================================
 
-def consultar_ultimo_nsu_sefaz(certificado: CertificadoA1, cnpj: str, cuf: int, 
-                                ambiente: str = 'producao') -> Dict[str, any]:
+def _chamar_dist_dfe(certificado: CertificadoA1, cnpj: str, cuf: int,
+                     ultimo_nsu: str, ambiente: str) -> Dict[str, any]:
     """
-    Consulta o último NSU disponível na SEFAZ.
-    
-    Args:
-        certificado: Certificado digital A1
-        cnpj: CNPJ da empresa
-        cuf: Código da UF (ex: 35 para SP)
-        ambiente: 'producao' ou 'homologacao'
-        
-    Returns:
-        Dict com maxNSU e ultNSU
+    Núcleo da chamada NFeDistribuicaoDFe via zeep.
+    Zeep lê o WSDL e monta o envelope SOAP correto (namespaces, SOAPAction, cUF=91 no header).
+    Retorna o XML de resposta como string, ou dict com erro.
     """
+    from zeep.exceptions import Fault as ZeepFault
+
+    wsdl = WSDL_DISTRIBUICAO_HOMOLOG if ambiente == 'homologacao' else WSDL_DISTRIBUICAO_PRODUCAO
+    logger.info(f"[ZEEP] WSDL: {wsdl}")
+
     try:
-        # ── Validação e normalização de entrada ──────────────────────────────────
-        cnpj = ''.join(filter(str.isdigit, str(cnpj or '')))
-        if len(cnpj) != 14:
-            return {'sucesso': False, 'erro': f'CNPJ inválido: "{cnpj}" (esperado 14 dígitos)'}
-
-        if not cuf:
-            return {'sucesso': False, 'erro': 'CUF da empresa não configurado. Acesse "🏢 Dados da Empresa" e verifique o cadastro do certificado.'}
-        cuf = int(cuf)
-
-        # ── Monta XML SOAP  — especificação NFeDistribuicaoDFe 1.01 ───────────
-        # ATENÇÃO: nfeCabecMsg/cUF DEVE ser 91 (Ambiente Nacional - AN).
-        # NFeDistribuicaoDFe só existe no AN; usar o CUF real (ex: 31=MG) causa
-        # NullReferenceException no servidor .NET da SEFAZ.
-        # cUFAutor dentro de nfeDist é o CUF real da empresa.
-        soap_body = f'''<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
-               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-               xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-    <soap:Header>
-        <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
-            <cUF>91</cUF>
-            <versaoDados>1.01</versaoDados>
-        </nfeCabecMsg>
-    </soap:Header>
-    <soap:Body>
-        <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
-            <nfeDist versao="1.01" xmlns="http://www.portalfiscal.inf.br/nfe">
-                <tpAmb>{2 if ambiente == 'homologacao' else 1}</tpAmb>
-                <cUFAutor>{cuf}</cUFAutor>
-                <CNPJ>{cnpj}</CNPJ>
-                <distNSU>
-                    <ultNSU>000000000000000</ultNSU>
-                </distNSU>
-            </nfeDist>
-        </nfeDistDFeInteresse>
-    </soap:Body>
-</soap:Envelope>'''
-        
-        # URL do webservice
-        url = WEBSERVICES_HOMOLOGACAO['NFeDistribuicaoDFe'] if ambiente == 'homologacao' else WEBSERVICES_PRODUCAO['NFeDistribuicaoDFe']
-        
-        # Headers — SOAP 1.2: action vai embutido no Content-Type
-        ACTION = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse'
-        headers = {
-            'Content-Type': f'application/soap+xml;charset=UTF-8;action="{ACTION}"',
-        }
-        
-        logger.info(f"[SOAP] URL: {url}")
-        logger.info(f"[SOAP] Content-Type: {headers['Content-Type']}")
-        logger.info(f"[SOAP] Body enviado:\n{soap_body}")
-
-        # Faz requisição
-        session = certificado.get_session_requests()
-        response = session.post(url, data=soap_body.encode('utf-8'), headers=headers, timeout=60)
-
-        logger.info(f"[SOAP] Resposta HTTP: {response.status_code}")
-        logger.info(f"[SOAP] Resposta body:\n{response.text[:2000]}")
-        
-        if response.status_code != 200:
-            # Tenta extrair mensagem do SOAP Fault
-            fault_msg = _extrair_soap_fault(response.content) or response.text[:500]
-            return {
-                'sucesso': False,
-                'erro': f'Erro HTTP {response.status_code}: {fault_msg}'
-            }
-        
-        # Parse resposta
-        root = etree.fromstring(response.content)
-        ns = {'nfe': NAMESPACE_NFE}
-        
-        # Busca status
-        ret_dist = root.find('.//nfe:retDistDFeInt', ns)
-        if ret_dist is None:
-            return {'sucesso': False, 'erro': 'Resposta inválida da SEFAZ'}
-        
-        c_stat = ret_dist.find('nfe:cStat', ns)
-        x_motivo = ret_dist.find('nfe:xMotivo', ns)
-        
-        if c_stat is None:
-            return {'sucesso': False, 'erro': 'Status não encontrado na resposta'}
-        
-        status_code = c_stat.text
-        motivo = x_motivo.text if x_motivo is not None else 'Sem descrição'
-        
-        # Verifica sucesso
-        if status_code != '138':  # 138 = Nenhum documento localizado (normal no início)
-            # Outros códigos de sucesso: 137 = Nenhum doc no NSU, 138 = Nenhum doc disponível
-            if status_code not in ['137', '138']:
-                return {
-                    'sucesso': False,
-                    'codigo_sefaz': status_code,
-                    'mensagem_sefaz': motivo
-                }
-        
-        # Extrai NSUs
-        max_nsu = ret_dist.find('nfe:maxNSU', ns)
-        ult_nsu = ret_dist.find('nfe:ultNSU', ns)
-        
-        return {
-            'sucesso': True,
-            'maxNSU': max_nsu.text if max_nsu is not None else '000000000000000',
-            'ultNSU': ult_nsu.text if ult_nsu is not None else '000000000000000',
-            'codigo_sefaz': status_code,
-            'mensagem_sefaz': motivo
-        }
-        
-    except requests.exceptions.Timeout:
-        return {'sucesso': False, 'erro': 'Timeout na conexão com SEFAZ'}
-    except requests.exceptions.RequestException as e:
-        return {'sucesso': False, 'erro': f'Erro de rede: {str(e)}'}
+        client = certificado.get_zeep_dist_client(wsdl)
     except Exception as e:
-        return {'sucesso': False, 'erro': f'Erro ao consultar NSU: {str(e)}'}
+        return {'sucesso': False, 'erro': f'Falha ao carregar WSDL: {e}'}
 
+    # Monta apenas o elemento interno distDFeInt (zeep cuida do envelope SOAP)
+    distInt = etree.Element(
+        "distDFeInt",
+        xmlns=NAMESPACE_NFE,
+        versao="1.01"
+    )
+    etree.SubElement(distInt, "tpAmb").text    = "2" if ambiente == 'homologacao' else "1"
+    etree.SubElement(distInt, "cUFAutor").text = str(cuf)
+    etree.SubElement(distInt, "CNPJ").text     = cnpj
+    sub = etree.SubElement(distInt, "distNSU")
+    etree.SubElement(sub, "ultNSU").text       = ultimo_nsu
 
-def baixar_documentos_dfe(certificado: CertificadoA1, cnpj: str, cuf: int, 
-                         ultimo_nsu: str = '000000000000000', 
-                         ambiente: str = 'producao') -> Dict[str, any]:
-    """
-    Baixa documentos DFe (NF-e, CT-e, eventos) a partir de um NSU.
-    
-    Args:
-        certificado: Certificado digital A1
-        cnpj: CNPJ da empresa
-        cuf: Código da UF
-        ultimo_nsu: Último NSU já processado
-        ambiente: 'producao' ou 'homologacao'
-        
-    Returns:
-        Dict com documentos baixados e novo ultNSU
-    """
+    xml_enviado = etree.tostring(distInt, encoding='unicode')
+    logger.info(f"[ZEEP] nfeDadosMsg enviado:\n{xml_enviado}")
+
     try:
-        # ── Validação e normalização de entrada ──────────────────────────────────
-        cnpj = ''.join(filter(str.isdigit, str(cnpj or '')))
-        if len(cnpj) != 14:
-            return {'sucesso': False, 'erro': f'CNPJ inválido: "{cnpj}" (esperado 14 dígitos)'}
-
-        if not cuf:
-            return {'sucesso': False, 'erro': 'CUF da empresa não configurado. Acesse "🏢 Dados da Empresa" e verifique o cadastro do certificado.'}
-        cuf = int(cuf)
-
-        # Garante 15 dígitos zero-padded no NSU
-        try:
-            ultimo_nsu = str(int(ultimo_nsu or '0')).zfill(15)
-        except (ValueError, TypeError):
-            ultimo_nsu = '000000000000000'
-
-        # ── Monta XML SOAP  — especificação NFeDistribuicaoDFe 1.01 ───────────
-        # ATENÇÃO: nfeCabecMsg/cUF DEVE ser 91 (Ambiente Nacional - AN).
-        # NFeDistribuicaoDFe só existe no AN; usar o CUF real (ex: 31=MG) causa
-        # NullReferenceException no servidor .NET da SEFAZ.
-        # cUFAutor dentro de nfeDist é o CUF real da empresa.
-        soap_body = f'''<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
-               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-               xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-    <soap:Header>
-        <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
-            <cUF>91</cUF>
-            <versaoDados>1.01</versaoDados>
-        </nfeCabecMsg>
-    </soap:Header>
-    <soap:Body>
-        <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
-            <nfeDist versao="1.01" xmlns="http://www.portalfiscal.inf.br/nfe">
-                <tpAmb>{2 if ambiente == 'homologacao' else 1}</tpAmb>
-                <cUFAutor>{cuf}</cUFAutor>
-                <CNPJ>{cnpj}</CNPJ>
-                <distNSU>
-                    <ultNSU>{ultimo_nsu}</ultNSU>
-                </distNSU>
-            </nfeDist>
-        </nfeDistDFeInteresse>
-    </soap:Body>
-</soap:Envelope>'''
-        
-        # URL do webservice
-        url = WEBSERVICES_HOMOLOGACAO['NFeDistribuicaoDFe'] if ambiente == 'homologacao' else WEBSERVICES_PRODUCAO['NFeDistribuicaoDFe']
-        
-        # Headers — SOAP 1.2: action vai embutido no Content-Type
-        ACTION = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse'
-        headers = {
-            'Content-Type': f'application/soap+xml;charset=UTF-8;action="{ACTION}"',
-        }
-        
-        logger.info(f"[SOAP] URL: {url}")
-        logger.info(f"[SOAP] Content-Type: {headers['Content-Type']}")
-        logger.info(f"[SOAP] Body enviado:\n{soap_body}")
-
-        # Faz requisição
-        session = certificado.get_session_requests()
-        response = session.post(url, data=soap_body.encode('utf-8'), headers=headers, timeout=120)
-
-        logger.info(f"[SOAP] Resposta HTTP: {response.status_code}")
-        logger.info(f"[SOAP] Resposta body:\n{response.text[:2000]}")
-        
-        if response.status_code != 200:
-            # Tenta extrair mensagem do SOAP Fault
-            fault_msg = _extrair_soap_fault(response.content) or response.text[:500]
-            return {
-                'sucesso': False,
-                'erro': f'Erro HTTP {response.status_code}: {fault_msg}'
-            }
-        
-        # Parse resposta
-        root = etree.fromstring(response.content)
-        ns = {'nfe': NAMESPACE_NFE}
-        
-        ret_dist = root.find('.//nfe:retDistDFeInt', ns)
-        if ret_dist is None:
-            return {'sucesso': False, 'erro': 'Resposta inválida da SEFAZ'}
-        
-        # Status
-        c_stat = ret_dist.find('nfe:cStat', ns)
-        x_motivo = ret_dist.find('nfe:xMotivo', ns)
-        
-        if c_stat is None:
-            return {'sucesso': False, 'erro': 'Status não encontrado'}
-        
-        status_code = c_stat.text
-        motivo = x_motivo.text if x_motivo is not None else 'Sem descrição'
-        
-        # Verifica sucesso (138 = Nenhum doc, não é erro)
-        if status_code not in ['137', '138']:
-            return {
-                'sucesso': False,
-                'codigo_sefaz': status_code,
-                'mensagem_sefaz': motivo
-            }
-        
-        # Extrai documentos
-        documentos = []
-        lot_dist = ret_dist.find('nfe:loteDistDFeInt', ns)
-        
-        if lot_dist is not None:
-            for doc_zip in lot_dist.findall('nfe:docZip', ns):
-                nsu = doc_zip.get('NSU')
-                schema = doc_zip.get('schema')
-                
-                # Descompacta conteúdo (base64 + gzip)
-                try:
-                    conteudo_base64 = doc_zip.text
-                    conteudo_gzip = base64.b64decode(conteudo_base64)
-                    xml_content = gzip.decompress(conteudo_gzip).decode('utf-8')
-                    
-                    documentos.append({
-                        'nsu': nsu,
-                        'schema': schema,
-                        'xml': xml_content
-                    })
-                    
-                except Exception as e:
-                    documentos.append({
-                        'nsu': nsu,
-                        'schema': schema,
-                        'erro': f'Erro ao descomprimir: {str(e)}'
-                    })
-        
-        # Novo ultNSU
-        ult_nsu = ret_dist.find('nfe:ultNSU', ns)
-        max_nsu = ret_dist.find('nfe:maxNSU', ns)
-        
-        return {
-            'sucesso': True,
-            'documentos': documentos,
-            'ultNSU': ult_nsu.text if ult_nsu is not None else ultimo_nsu,
-            'maxNSU': max_nsu.text if max_nsu is not None else '000000000000000',
-            'total_documentos': len(documentos),
-            'codigo_sefaz': status_code,
-            'mensagem_sefaz': motivo
-        }
-        
+        resp = client.service.nfeDistDFeInteresse(nfeDadosMsg=distInt)
+    except ZeepFault as fault:
+        logger.error(f"[ZEEP] SOAP Fault: {fault}")
+        return {'sucesso': False, 'erro': f'SOAP Fault: {fault}'}
     except Exception as e:
+        logger.error(f"[ZEEP] Erro na chamada: {type(e).__name__}: {e}")
+        return {'sucesso': False, 'erro': f'Erro na chamada SEFAZ: {e}'}
+
+    # zeep retorna lxml Element — serializa para string e parseia
+    xml_resp = etree.tostring(resp, encoding='unicode')
+    logger.info(f"[ZEEP] Resposta:\n{xml_resp[:2000]}")
+
+    return {'sucesso': True, 'xml': xml_resp}
+
+
+def _parsear_retDistDFeInt(xml_resp: str, ultimo_nsu_original: str) -> Dict[str, any]:
+    """Parseia a resposta retDistDFeInt e extrai status, docs e NSUs."""
+    ns = {'nfe': NAMESPACE_NFE}
+    try:
+        root = etree.fromstring(xml_resp.encode('utf-8'))
+    except Exception as e:
+        return {'sucesso': False, 'erro': f'Resposta inválida: {e}'}
+
+    ret = root.find('.//nfe:retDistDFeInt', ns) or root
+    c_stat  = ret.findtext('nfe:cStat', namespaces=ns) or ret.findtext(f'{{{NAMESPACE_NFE}}}cStat')
+    motivo  = ret.findtext('nfe:xMotivo', namespaces=ns) or ''
+
+    if not c_stat:
+        return {'sucesso': False, 'erro': f'cStat não encontrado. Resposta:\n{xml_resp[:500]}'}
+
+    logger.info(f"[SEFAZ] cStat={c_stat} - {motivo}")
+
+    # Códigos de sucesso: 137=nenhum doc no NSU, 138=nenhum doc disponível, 656=consumo indevido
+    # Documentos encontrados retornam outros códigos (ex: 134 = lote processado)
+    if c_stat not in ['137', '138', '134', '656']:
         return {
             'sucesso': False,
-            'erro': f'Erro ao baixar documentos: {str(e)}'
+            'codigo_sefaz': c_stat,
+            'mensagem_sefaz': motivo
         }
+
+    # Extrai documentos (docZip = XML gzipado em base64)
+    documentos = []
+    for doc_zip in root.findall('.//nfe:docZip', ns):
+        nsu    = doc_zip.get('NSU', '')
+        schema = doc_zip.get('schema', '')
+        try:
+            xml_content = gzip.decompress(base64.b64decode(doc_zip.text or '')).decode('utf-8')
+            documentos.append({'nsu': nsu, 'schema': schema, 'xml': xml_content})
+        except Exception as e:
+            documentos.append({'nsu': nsu, 'schema': schema, 'erro': str(e)})
+
+    ult_nsu_el = ret.find('nfe:ultNSU', ns)
+    max_nsu_el = ret.find('nfe:maxNSU', ns)
+
+    return {
+        'sucesso':          True,
+        'documentos':       documentos,
+        'ultNSU':           ult_nsu_el.text if ult_nsu_el is not None else ultimo_nsu_original,
+        'maxNSU':           max_nsu_el.text if max_nsu_el is not None else '000000000000000',
+        'total_documentos': len(documentos),
+        'codigo_sefaz':     c_stat,
+        'mensagem_sefaz':   motivo,
+    }
+
+
+def consultar_ultimo_nsu_sefaz(certificado: CertificadoA1, cnpj: str, cuf: int,
+                                ambiente: str = 'producao') -> Dict[str, any]:
+    """Consulta o maxNSU disponível (NSU=0 → SEFAZ retorna o máximo atual)."""
+    cnpj = ''.join(filter(str.isdigit, str(cnpj or '')))
+    if len(cnpj) != 14:
+        return {'sucesso': False, 'erro': f'CNPJ inválido: "{cnpj}"'}
+    if not cuf:
+        return {'sucesso': False, 'erro': 'CUF não configurado'}
+    cuf = int(cuf)
+
+    resultado = _chamar_dist_dfe(certificado, cnpj, cuf, '000000000000000', ambiente)
+    if not resultado['sucesso']:
+        return resultado
+    return _parsear_retDistDFeInt(resultado['xml'], '000000000000000')
+
+
+def baixar_documentos_dfe(certificado: CertificadoA1, cnpj: str, cuf: int,
+                          ultimo_nsu: str = '000000000000000',
+                          ambiente: str = 'producao') -> Dict[str, any]:
+    """Baixa documentos DFe (NF-e, CT-e, eventos) a partir de um NSU."""
+    cnpj = ''.join(filter(str.isdigit, str(cnpj or '')))
+    if len(cnpj) != 14:
+        return {'sucesso': False, 'erro': f'CNPJ inválido: "{cnpj}"'}
+    if not cuf:
+        return {'sucesso': False, 'erro': 'CUF não configurado'}
+    cuf = int(cuf)
+
+    try:
+        ultimo_nsu = str(int(ultimo_nsu or '0')).zfill(15)
+    except (ValueError, TypeError):
+        ultimo_nsu = '000000000000000'
+
+    resultado = _chamar_dist_dfe(certificado, cnpj, cuf, ultimo_nsu, ambiente)
+    if not resultado['sucesso']:
+        return resultado
+    return _parsear_retDistDFeInt(resultado['xml'], ultimo_nsu)
+
 
 
 # ============================================================================
