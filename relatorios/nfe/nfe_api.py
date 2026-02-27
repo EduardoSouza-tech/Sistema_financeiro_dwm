@@ -406,6 +406,12 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
             cuf         = row['cuf']
             ambiente    = row['ambiente']
 
+        logger.info(
+            f"[SEFAZ] Iniciando busca: empresa_id={empresa_id}, "
+            f"cnpj={cnpj!r}, cuf={cuf!r}, ambiente={ambiente!r}, "
+            f"ultimo_nsu={ultimo_nsu!r}"
+        )
+
         # Busca documentos na SEFAZ
         resultado_busca = nfe_busca.baixar_documentos_dfe(
             certificado=cert,

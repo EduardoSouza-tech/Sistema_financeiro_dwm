@@ -167,6 +167,30 @@ class CertificadoA1:
 
 
 # ============================================================================
+# HELPERS
+# ============================================================================
+
+def _extrair_soap_fault(content: bytes) -> str:
+    """Extrai mensagem de erro de uma resposta SOAP Fault (1.1 e 1.2), ou '' se não for fault."""
+    try:
+        root = etree.fromstring(content)
+        partes = []
+        for elem in root.iter():
+            tag = elem.tag.lower()
+            # SOAP 1.1: faultcode + faultstring
+            # SOAP 1.2: Code/Value + Reason/Text
+            if any(x in tag for x in ('faultstring', 'faultcode', '}text', '}value', '}reason')):
+                if elem.text and elem.text.strip():
+                    partes.append(elem.text.strip())
+        return ' | '.join(dict.fromkeys(partes))[:500] if partes else ''
+    except Exception:
+        try:
+            return content.decode('utf-8', errors='replace')[:400]
+        except Exception:
+            return ''
+
+
+# ============================================================================
 # CONSULTA DISTRIBUIÇÃO DFe (NSU)
 # ============================================================================
 
@@ -185,7 +209,16 @@ def consultar_ultimo_nsu_sefaz(certificado: CertificadoA1, cnpj: str, cuf: int,
         Dict com maxNSU e ultNSU
     """
     try:
-        # Monta XML SOAP  — especificação NFeDistribuicaoDFe 1.01
+        # ── Validação e normalização de entrada ──────────────────────────────────
+        cnpj = ''.join(filter(str.isdigit, str(cnpj or '')))
+        if len(cnpj) != 14:
+            return {'sucesso': False, 'erro': f'CNPJ inválido: "{cnpj}" (esperado 14 dígitos)'}
+
+        if not cuf:
+            return {'sucesso': False, 'erro': 'CUF da empresa não configurado. Acesse "🏢 Dados da Empresa" e verifique o cadastro do certificado.'}
+        cuf = int(cuf)
+
+        # ── Monta XML SOAP  — especificação NFeDistribuicaoDFe 1.01 ───────────
         soap_body = f'''<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -224,9 +257,11 @@ def consultar_ultimo_nsu_sefaz(certificado: CertificadoA1, cnpj: str, cuf: int,
         response = session.post(url, data=soap_body.encode('utf-8'), headers=headers, timeout=60)
         
         if response.status_code != 200:
+            # Tenta extrair mensagem do SOAP Fault
+            fault_msg = _extrair_soap_fault(response.content) or response.text[:500]
             return {
                 'sucesso': False,
-                'erro': f'Erro HTTP {response.status_code}: {response.text[:500]}'
+                'erro': f'Erro HTTP {response.status_code}: {fault_msg}'
             }
         
         # Parse resposta
@@ -294,7 +329,22 @@ def baixar_documentos_dfe(certificado: CertificadoA1, cnpj: str, cuf: int,
         Dict com documentos baixados e novo ultNSU
     """
     try:
-        # Monta XML SOAP  — especificação NFeDistribuicaoDFe 1.01
+        # ── Validação e normalização de entrada ──────────────────────────────────
+        cnpj = ''.join(filter(str.isdigit, str(cnpj or '')))
+        if len(cnpj) != 14:
+            return {'sucesso': False, 'erro': f'CNPJ inválido: "{cnpj}" (esperado 14 dígitos)'}
+
+        if not cuf:
+            return {'sucesso': False, 'erro': 'CUF da empresa não configurado. Acesse "🏢 Dados da Empresa" e verifique o cadastro do certificado.'}
+        cuf = int(cuf)
+
+        # Garante 15 dígitos zero-padded no NSU
+        try:
+            ultimo_nsu = str(int(ultimo_nsu or '0')).zfill(15)
+        except (ValueError, TypeError):
+            ultimo_nsu = '000000000000000'
+
+        # ── Monta XML SOAP  — especificação NFeDistribuicaoDFe 1.01 ───────────
         soap_body = f'''<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -333,9 +383,11 @@ def baixar_documentos_dfe(certificado: CertificadoA1, cnpj: str, cuf: int,
         response = session.post(url, data=soap_body.encode('utf-8'), headers=headers, timeout=120)
         
         if response.status_code != 200:
+            # Tenta extrair mensagem do SOAP Fault
+            fault_msg = _extrair_soap_fault(response.content) or response.text[:500]
             return {
                 'sucesso': False,
-                'erro': f'Erro HTTP {response.status_code}: {response.text[:500]}'
+                'erro': f'Erro HTTP {response.status_code}: {fault_msg}'
             }
         
         # Parse resposta
