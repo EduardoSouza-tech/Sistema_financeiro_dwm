@@ -2179,19 +2179,10 @@ async function loadContasReceber() {
         console.log('   ✅ Elemento tbody-receber encontrado');
         tbody.innerHTML = '';
         
-        // Pré-preencher filtros de data (início do mês → hoje)
+        // Filtros (sem pré-preenchimento de data para exibir todos os registros)
+        const filterTextElement = document.getElementById('filter-receber');
         const filterDataInicioElement = document.getElementById('filter-data-inicio-receber');
         const filterDataFimElement = document.getElementById('filter-data-fim-receber');
-        if (filterDataInicioElement && !filterDataInicioElement.value) {
-            const hoje = new Date();
-            const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-            filterDataInicioElement.value = primeiroDia.toISOString().split('T')[0];
-            filterDataFimElement.value = hoje.toISOString().split('T')[0];
-            console.log('   📅 Filtros de data pré-preenchidos:', filterDataInicioElement.value, '→', filterDataFimElement.value);
-        }
-        
-        // Filtros
-        const filterTextElement = document.getElementById('filter-receber');
         const filterStatusElement = document.getElementById('filter-status-receber');
         const filterCategoriaElement = document.getElementById('filter-categoria-receber');
         const filterClienteElement = document.getElementById('filter-cliente');
@@ -2313,18 +2304,10 @@ async function loadContasPagar() {
         const tbody = document.getElementById('tbody-pagar');
         tbody.innerHTML = '';
         
-        // Pré-preencher filtros de data (início do mês → hoje)
+        // Filtros (sem pré-preenchimento de data para exibir todos os registros)
+        const filterTextElement = document.getElementById('filter-pagar');
         const filterDataInicioElement = document.getElementById('filter-data-inicio-pagar');
         const filterDataFimElement = document.getElementById('filter-data-fim-pagar');
-        if (filterDataInicioElement && !filterDataInicioElement.value) {
-            const hoje = new Date();
-            const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-            filterDataInicioElement.value = primeiroDia.toISOString().split('T')[0];
-            filterDataFimElement.value = hoje.toISOString().split('T')[0];
-        }
-        
-        // Filtros
-        const filterTextElement = document.getElementById('filter-pagar');
         const filterStatusElement = document.getElementById('filter-status-pagar');
         const filterCategoriaElement = document.getElementById('filter-categoria-pagar');
         const filterFornecedorElement = document.getElementById('filter-fornecedor');

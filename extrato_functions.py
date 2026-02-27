@@ -286,7 +286,9 @@ def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):
                         return {'success': False, 'error': 'Transação não encontrada'}
                     
                     # Determinar tipo (débito = despesa, crédito = receita)
-                    tipo = 'despesa' if transacao['tipo'] == 'DÉBITO' else 'receita'
+                    # Aceita tanto DÉBITO (com acento) quanto DEBITO (sem acento)
+                    tipo_transacao = (transacao['tipo'] or '').upper()
+                    tipo = 'despesa' if tipo_transacao in ('DÉBITO', 'DEBITO') else 'receita'
                     valor_abs = abs(float(transacao['valor']))
                     
                     # Criar novo lançamento
