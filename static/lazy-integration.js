@@ -45,7 +45,7 @@ async function loadContasReceber() {
         const filterSubcategoriaReceber = document.getElementById('filter-subcategoria-receber')?.value || '';
         if (filterSubcategoriaReceber) filters.subcategoria = filterSubcategoriaReceber;
         // Popular filtros de categoria ao abrir a seção
-        if (typeof window.popularFiltrosCategorias === 'function') window.popularFiltrosCategorias();
+        if (typeof window.popularFiltrosCategorias === 'function') await window.popularFiltrosCategorias();
         // Respeitar seletor de registros por página
         const perPageSelect = document.getElementById('per-page-receber');
         filters.per_page = perPageSelect ? parseInt(perPageSelect.value) || 300 : 300;
@@ -113,7 +113,7 @@ async function loadContasPagar() {
         const filterSubcategoriaPagar = document.getElementById('filter-subcategoria-pagar')?.value || '';
         if (filterSubcategoriaPagar) filters.subcategoria = filterSubcategoriaPagar;
         // Popular filtros de categoria ao abrir a seção
-        if (typeof window.popularFiltrosCategorias === 'function') window.popularFiltrosCategorias();
+        if (typeof window.popularFiltrosCategorias === 'function') await window.popularFiltrosCategorias();
         // Respeitar seletor de registros por página
         const perPageSelectPagar = document.getElementById('per-page-pagar');
         filters.per_page = perPageSelectPagar ? parseInt(perPageSelectPagar.value) || 300 : 300;

@@ -1483,8 +1483,20 @@ window.loadCategorias = loadCategorias;
 /**
  * Popular selects de categoria nos filtros de Receber e Pagar
  */
-function popularFiltrosCategorias() {
-    const cats = window.categorias || [];
+async function popularFiltrosCategorias() {
+    let cats = window.categorias || [];
+    // Se ainda não carregou, buscar direto da API
+    if (!cats.length) {
+        try {
+            const resp = await fetch(`${API_URL}/categorias`);
+            const raw = await resp.json();
+            cats = Array.isArray(raw) ? raw : (raw.data || []);
+            window.categorias = cats;
+        } catch(e) {
+            console.warn('⚠️ popularFiltrosCategorias: erro ao buscar categorias', e);
+            return;
+        }
+    }
     if (!cats.length) return;
 
     function preencherSelect(elId, tipo) {
@@ -1504,6 +1516,7 @@ function popularFiltrosCategorias() {
 
     preencherSelect('filter-categoria-receber', 'receita');
     preencherSelect('filter-categoria-pagar', 'despesa');
+    console.log('✅ Filtros de categoria populados');
 }
 window.popularFiltrosCategorias = popularFiltrosCategorias;
 
