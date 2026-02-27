@@ -2179,6 +2179,17 @@ async function loadContasReceber() {
         console.log('   ✅ Elemento tbody-receber encontrado');
         tbody.innerHTML = '';
         
+        // Pré-preencher filtros de data (início do mês → hoje)
+        const filterDataInicioElement = document.getElementById('filter-data-inicio-receber');
+        const filterDataFimElement = document.getElementById('filter-data-fim-receber');
+        if (filterDataInicioElement && !filterDataInicioElement.value) {
+            const hoje = new Date();
+            const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            filterDataInicioElement.value = primeiroDia.toISOString().split('T')[0];
+            filterDataFimElement.value = hoje.toISOString().split('T')[0];
+            console.log('   📅 Filtros de data pré-preenchidos:', filterDataInicioElement.value, '→', filterDataFimElement.value);
+        }
+        
         // Filtros
         const filterTextElement = document.getElementById('filter-receber');
         const filterStatusElement = document.getElementById('filter-status-receber');
@@ -2186,8 +2197,6 @@ async function loadContasReceber() {
         const filterClienteElement = document.getElementById('filter-cliente');
         const filterAnoElement = document.getElementById('filter-ano-receber');
         const filterMesElement = document.getElementById('filter-mes-receber');
-        const filterDataInicioElement = document.getElementById('filter-data-inicio-receber');
-        const filterDataFimElement = document.getElementById('filter-data-fim-receber');
         
         const filterText = filterTextElement ? filterTextElement.value.toLowerCase() : '';
         const filterStatus = filterStatusElement ? filterStatusElement.value : '';
@@ -2205,7 +2214,7 @@ async function loadContasReceber() {
             
             const matchText = !filterText || lanc.descricao.toLowerCase().includes(filterText) || 
                              (lanc.pessoa && lanc.pessoa.toLowerCase().includes(filterText));
-            const matchStatus = !filterStatus || lanc.status === filterStatus;
+            const matchStatus = !filterStatus || (lanc.status && lanc.status.toUpperCase() === filterStatus.toUpperCase());
             const matchCategoria = !filterCategoria || lanc.categoria === filterCategoria;
             const matchCliente = !filterCliente || lanc.pessoa === filterCliente;
             
@@ -2304,6 +2313,16 @@ async function loadContasPagar() {
         const tbody = document.getElementById('tbody-pagar');
         tbody.innerHTML = '';
         
+        // Pré-preencher filtros de data (início do mês → hoje)
+        const filterDataInicioElement = document.getElementById('filter-data-inicio-pagar');
+        const filterDataFimElement = document.getElementById('filter-data-fim-pagar');
+        if (filterDataInicioElement && !filterDataInicioElement.value) {
+            const hoje = new Date();
+            const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            filterDataInicioElement.value = primeiroDia.toISOString().split('T')[0];
+            filterDataFimElement.value = hoje.toISOString().split('T')[0];
+        }
+        
         // Filtros
         const filterTextElement = document.getElementById('filter-pagar');
         const filterStatusElement = document.getElementById('filter-status-pagar');
@@ -2311,8 +2330,6 @@ async function loadContasPagar() {
         const filterFornecedorElement = document.getElementById('filter-fornecedor');
         const filterAnoElement = document.getElementById('filter-ano-pagar');
         const filterMesElement = document.getElementById('filter-mes-pagar');
-        const filterDataInicioElement = document.getElementById('filter-data-inicio-pagar');
-        const filterDataFimElement = document.getElementById('filter-data-fim-pagar');
         
         const filterText = filterTextElement ? filterTextElement.value.toLowerCase() : '';
         const filterStatus = filterStatusElement ? filterStatusElement.value : '';
@@ -2330,7 +2347,7 @@ async function loadContasPagar() {
             
             const matchText = !filterText || lanc.descricao.toLowerCase().includes(filterText) || 
                              (lanc.pessoa && lanc.pessoa.toLowerCase().includes(filterText));
-            const matchStatus = !filterStatus || lanc.status === filterStatus;
+            const matchStatus = !filterStatus || (lanc.status && lanc.status.toUpperCase() === filterStatus.toUpperCase());
             const matchCategoria = !filterCategoria || lanc.categoria === filterCategoria;
             const matchFornecedor = !filterFornecedor || lanc.pessoa === filterFornecedor;
             
