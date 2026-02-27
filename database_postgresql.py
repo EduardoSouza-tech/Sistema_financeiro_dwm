@@ -2919,6 +2919,8 @@ class DatabaseManager:
         """
         Lista lani?amentos com filtros opcionais, multi-tenancy e pagina??o
         
+        ATUALIZADO (2026-02-26): Adiciona informação de conciliação bancária
+        
         Args:
             empresa_id: ID da empresa para filtro (opcional)
             filtros: Dicionário com filtros (tipo, status, datas, etc)
@@ -2927,29 +2929,35 @@ class DatabaseManager:
             per_page: Itens por página (padrão: 50, máx: 500)
         
         Returns:
-            Lista de objetos Lancamento
+            Lista de objetos Lancamento (com atributo extra 'conciliado')
         """
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Colunas específicas (otimização: evitar SELECT *)
+        # Colunas específicas + informação de conciliação
         columns = """
-            id, tipo, descricao, valor, data_vencimento, data_pagamento,
-            categoria, subcategoria, conta_bancaria, cliente_fornecedor,
-            pessoa, status, observacoes, anexo, recorrente,
-            frequencia_recorrencia, dia_vencimento, associacao, numero_documento
+            l.id, l.tipo, l.descricao, l.valor, l.data_vencimento, l.data_pagamento,
+            l.categoria, l.subcategoria, l.conta_bancaria, l.cliente_fornecedor,
+            l.pessoa, l.status, l.observacoes, l.anexo, l.recorrente,
+            l.frequencia_recorrencia, l.dia_vencimento, l.associacao, l.numero_documento,
+            CASE WHEN c.transacao_extrato_id IS NOT NULL THEN TRUE ELSE FALSE END as conciliado
         """
         
-        query = f"SELECT {columns} FROM lancamentos WHERE 1=1"
+        query = f"""
+            SELECT {columns} 
+            FROM lancamentos l
+            LEFT JOIN conciliacoes c ON c.lancamento_id = l.id AND c.empresa_id = l.empresa_id
+            WHERE 1=1
+        """
         params = []
         
         # 🔒 FILTRO CRÍTICO DE SEGURANÇA: Isolamento por empresa
         # OBRIGATÓRIO: Sempre filtrar por empresa_id para evitar vazamento de dados
         if empresa_id is not None:
-            query += " AND empresa_id = %s"
+            query += " AND l.empresa_id = %s"
             params.append(empresa_id)
         elif filtro_cliente_id is not None:
-            query += " AND empresa_id = %s"
+            query += " AND l.empresa_id = %s"
             params.append(filtro_cliente_id)
         else:
             # ⚠️ SEGURANÇA: Se não houver empresa_id, não retornar nada
@@ -2959,25 +2967,25 @@ class DatabaseManager:
         
         if filtros:
             if 'tipo' in filtros:
-                query += " AND UPPER(tipo) = UPPER(%s)"
+                query += " AND UPPER(l.tipo) = UPPER(%s)"
                 params.append(filtros['tipo'])
             if 'status' in filtros:
-                query += " AND UPPER(status) = UPPER(%s)"
+                query += " AND UPPER(l.status) = UPPER(%s)"
                 params.append(filtros['status'])
             if 'data_inicio' in filtros:
-                query += " AND data_vencimento >= %s"
+                query += " AND l.data_vencimento >= %s"
                 params.append(filtros['data_inicio'])
             if 'data_fim' in filtros:
-                query += " AND data_vencimento <= %s"
+                query += " AND l.data_vencimento <= %s"
                 params.append(filtros['data_fim'])
             if 'categoria' in filtros:
-                query += " AND categoria = %s"
+                query += " AND l.categoria = %s"
                 params.append(filtros['categoria'])
             if 'conta_bancaria' in filtros:
-                query += " AND conta_bancaria = %s"
+                query += " AND l.conta_bancaria = %s"
                 params.append(filtros['conta_bancaria'])
         
-        query += " ORDER BY data_vencimento DESC"
+        query += " ORDER BY l.data_vencimento DESC"
         
         # Adicionar paginação se especificado
         if page is not None:
@@ -3028,8 +3036,9 @@ class DatabaseManager:
                     dia_vencimento=row['dia_vencimento'] or 0,
                     associacao=row.get('associacao', '') or ''
                 )
-                # Adicionar numero_documento como atributo extra (para compatibilidade)
+                # Adicionar atributos extras
                 lancamento.numero_documento = row.get('numero_documento', '') or ''
+                lancamento.conciliado = row.get('conciliado', False)  # ✅ NOVO: Flag de conciliação
                 lancamentos.append(lancamento)
             except Exception as e:
                 print(f"? Erro ao processar lani?amento ID {row.get('id', 'unknown')}: {e}")

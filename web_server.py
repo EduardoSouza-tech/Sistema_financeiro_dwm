@@ -4725,56 +4725,55 @@ def conciliacao_geral_extrato():
                     else:
                         razao_social = fornecedores_dict.get(cpf_cnpj_encontrado, '')
                 
-                # 🔧 FIX: NÃO criar lançamento duplicado!
-                # Conciliação apenas atualiza a transação do extrato
-                # Transação já existe em transacoes_extrato - não duplicar!
+                # 🔧 CONCILIAR TRANSAÇÃO E CRIAR LANÇAMENTO AUTOMATICAMENTE
+                # Usa a função conciliar_transacao() que agora cria lançamento com status='PAGO'
                 
-                from datetime import datetime
-                
-                print(f"🔄 Conciliando transação {transacao_id}...")
+                print(f"🔄 Conciliando transação {transacao_id} (criando lançamento)...")
                 logger.info(f"🔄 Conciliando transação {transacao_id} - empresa_id: {empresa_id}")
                 
-                # Atualizar transação do extrato com dados de conciliação
-                conn_update = db.get_connection()
-                cursor_update = conn_update.cursor()
+                # Importar função de conciliação
+                from extrato_functions import conciliar_transacao
                 
-                cursor_update.execute("""
-                    UPDATE transacoes_extrato 
-                    SET 
-                        conciliado = TRUE,
-                        categoria = %s,
-                        subcategoria = %s,
-                        pessoa = %s,
-                        observacoes = %s
-                    WHERE id = %s AND empresa_id = %s
-                """, (
-                    categoria,
-                    subcategoria if subcategoria else None,
-                    razao_social if razao_social else None,
-                    f"Conciliado automaticamente em {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                    transacao_id,
-                    empresa_id
-                ))
+                # Conciliar com criação automática de lançamento (lancamento_id='auto')
+                resultado = conciliar_transacao(
+                    database=db,
+                    empresa_id=empresa_id,
+                    transacao_id=transacao_id,
+                    lancamento_id='auto'  # Cria novo lançamento automaticamente
+                )
                 
-                affected_rows = cursor_update.rowcount
-                conn_update.commit()
-                
-                print(f"📝 UPDATE: {affected_rows} linha(s) afetada(s)")
-                logger.info(f"📝 UPDATE executado: {affected_rows} linha(s) afetada(s)")
-                
-                cursor_update.close()
-                from database_postgresql import return_to_pool
-                return_to_pool(conn_update)
-                
-                if affected_rows > 0:
-                    print(f"✅ Transação {transacao_id} conciliada com sucesso")
-                    logger.info(f"✅ Transação {transacao_id} conciliada com sucesso")
+                if resultado.get('success'):
+                    lancamento_id = resultado.get('lancamento_id')
+                    
+                    # Atualizar campos extras na transação do extrato (categoria, pessoa)
+                    if categoria or subcategoria or razao_social:
+                        with db.get_db_connection(empresa_id=empresa_id) as conn:
+                            cursor_update = conn.cursor()
+                            cursor_update.execute("""
+                                UPDATE transacoes_extrato 
+                                SET 
+                                    categoria = COALESCE(%s, categoria),
+                                    subcategoria = COALESCE(%s, subcategoria),
+                                    pessoa = COALESCE(%s, pessoa)
+                                WHERE id = %s AND empresa_id = %s
+                            """, (
+                                categoria if categoria else None,
+                                subcategoria if subcategoria else None,
+                                razao_social if razao_social else None,
+                                transacao_id,
+                                empresa_id
+                            ))
+                            conn.commit()
+                            cursor_update.close()
+                    
+                    print(f"✅ Transação {transacao_id} conciliada → lançamento #{lancamento_id} criado com status PAGO")
+                    logger.info(f"✅ Transação {transacao_id} conciliada → lançamento #{lancamento_id}")
+                    criados += 1
                 else:
-                    erros.append(f"Transação {transacao_id} não pôde ser conciliada")
-                    logger.error(f"❌ Falha ao conciliar transação {transacao_id}")
+                    erro_msg = resultado.get('error', 'Erro desconhecido')
+                    erros.append(f"Transação {transacao_id}: {erro_msg}")
+                    logger.error(f"❌ Falha ao conciliar transação {transacao_id}: {erro_msg}")
                     continue
-                
-                criados += 1
                 
             except Exception as e:
                 erro_msg = f"Erro na transação {item.get('transacao_id')}: {str(e)}"

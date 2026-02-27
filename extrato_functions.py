@@ -214,30 +214,49 @@ def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):
     """
     Concilia uma transacao do extrato com um lancamento
     
+    NOVO COMPORTAMENTO (2026-02-26):
+    - Se lancamento_id fornecido: Associa transação ao lançamento existente
+    - Se lancamento_id = 'auto' ou None: Cria novo lançamento automaticamente
+    - Sempre marca lançamento como status='PAGO' após conciliação
+    
     Args:
         database: instancia do DatabaseManager
         empresa_id: ID da empresa [OBRIGATÓRIO]
         transacao_id: ID da transacao do extrato
-        lancamento_id: ID do lancamento (ou None para desconciliar)
+        lancamento_id: ID do lancamento, 'auto' para criar, ou None para desconciliar
     
     Returns:
-        dict: {'success': bool}
+        dict: {'success': bool, 'lancamento_id': int (se criado)}
         
     Security:
         🔒 RLS aplicado via empresa_id
     """
+    from datetime import date
+    from decimal import Decimal
+    
     try:
         # 🔒 Passar empresa_id para RLS
         with database.get_db_connection(empresa_id=empresa_id) as conn:
             conn.autocommit = False
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=database.RealDictCursor)
             
-            if lancamento_id is None:
-                # DESCONCILIAR: Deletar da tabela conciliacoes
+            if lancamento_id is None or str(lancamento_id).lower() == 'none':
+                # DESCONCILIAR: Deletar da tabela conciliacoes e voltar status para PENDENTE
                 cursor.execute("""
                     DELETE FROM conciliacoes
                     WHERE transacao_extrato_id = %s AND empresa_id = %s
+                    RETURNING lancamento_id
                 """, (transacao_id, empresa_id))
+                
+                deleted = cursor.fetchone()
+                if deleted:
+                    # Voltar lançamento para PENDENTE
+                    cursor.execute("""
+                        UPDATE lancamentos
+                        SET status = 'pendente', data_pagamento = NULL
+                        WHERE id = %s AND empresa_id = %s
+                    """, (deleted['lancamento_id'], empresa_id))
+                    log(f"✅ Lançamento {deleted['lancamento_id']} voltou para PENDENTE")
                 
                 # Atualizar flag conciliado em transacoes_extrato
                 cursor.execute("""
@@ -246,7 +265,58 @@ def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):
                     WHERE id = %s AND empresa_id = %s
                 """, (transacao_id, empresa_id))
                 
+                conn.commit()
+                cursor.close()
+                log(f"✅ Transação {transacao_id} desconciliada com sucesso")
+                return {'success': True}
+                
             else:
+                # CRIAR LANÇAMENTO AUTOMATICAMENTE se lancamento_id = 'auto'
+                if str(lancamento_id).lower() == 'auto':
+                    # Buscar dados da transação do extrato
+                    cursor.execute("""
+                        SELECT * FROM transacoes_extrato 
+                        WHERE id = %s AND empresa_id = %s
+                    """, (transacao_id, empresa_id))
+                    
+                    transacao = cursor.fetchone()
+                    if not transacao:
+                        conn.rollback()
+                        cursor.close()
+                        return {'success': False, 'error': 'Transação não encontrada'}
+                    
+                    # Determinar tipo (débito = despesa, crédito = receita)
+                    tipo = 'despesa' if transacao['tipo'] == 'DÉBITO' else 'receita'
+                    valor_abs = abs(float(transacao['valor']))
+                    
+                    # Criar novo lançamento
+                    cursor.execute("""
+                        INSERT INTO lancamentos (
+                            empresa_id, tipo, descricao, valor, 
+                            data_vencimento, data_pagamento, status,
+                            conta_bancaria, categoria, observacoes
+                        ) VALUES (
+                            %s, %s, %s, %s,
+                            %s, %s, 'pago',
+                            %s, %s, %s
+                        )
+                        RETURNING id
+                    """, (
+                        empresa_id,
+                        tipo,
+                        transacao['descricao'] or 'Lançamento criado automaticamente via conciliação',
+                        valor_abs,
+                        transacao['data'],
+                        transacao['data'],  # data_pagamento = data da transação
+                        transacao['conta_bancaria'],
+                        'Conciliação Bancária',  # categoria padrão
+                        f"Criado automaticamente pela conciliação com transação #{transacao_id}"
+                    ))
+                    
+                    novo_lancamento = cursor.fetchone()
+                    lancamento_id = novo_lancamento['id']
+                    log(f"✅ Novo lançamento #{lancamento_id} criado automaticamente (tipo: {tipo}, valor: R$ {valor_abs:.2f})")
+                
                 # CONCILIAR: Inserir ou atualizar na tabela conciliacoes
                 cursor.execute("""
                     INSERT INTO conciliacoes (
@@ -259,20 +329,31 @@ def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):
                         updated_at = CURRENT_TIMESTAMP
                 """, (empresa_id, transacao_id, lancamento_id))
                 
+                # ✅ MARCAR LANÇAMENTO COMO PAGO (requisito do usuário)
+                cursor.execute("""
+                    UPDATE lancamentos
+                    SET status = 'pago',
+                        data_pagamento = COALESCE(data_pagamento, (SELECT data FROM transacoes_extrato WHERE id = %s))
+                    WHERE id = %s AND empresa_id = %s
+                """, (transacao_id, lancamento_id, empresa_id))
+                
+                log(f"✅ Lançamento #{lancamento_id} marcado como PAGO")
+                
                 # Atualizar flag conciliado em transacoes_extrato
                 cursor.execute("""
                     UPDATE transacoes_extrato
                     SET conciliado = TRUE
                     WHERE id = %s AND empresa_id = %s
                 """, (transacao_id, empresa_id))
-            
-            conn.commit()
-            cursor.close()
-            
-            return {'success': True}
+                
+                conn.commit()
+                cursor.close()
+                
+                log(f"✅ Conciliação bem-sucedida: transação #{transacao_id} ↔ lançamento #{lancamento_id}")
+                return {'success': True, 'lancamento_id': lancamento_id}
         
     except Exception as e:
-        log(f"Erro ao conciliar: {e}")
+        log(f"❌ Erro ao conciliar: {e}")
         import traceback
         log(traceback.format_exc())
         return {'success': False, 'error': str(e)}

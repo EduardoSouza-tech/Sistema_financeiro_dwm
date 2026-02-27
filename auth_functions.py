@@ -169,59 +169,55 @@ def autenticar_usuario(username: str, password: str, db) -> Optional[Dict]:
     Returns:
         Dict com dados do usuário se autenticado, None caso contrário
     """
-    conn = db.get_connection()
-    cursor = conn.cursor()
-    
     # Verificar se conta está bloqueada por tentativas
     if verificar_conta_bloqueada(username, db):
-        conn.close()
         return None
     
-    cursor.execute("""
-        SELECT id, username, password_hash, tipo, nome_completo, email, telefone, 
-               ativo, cliente_id
-        FROM usuarios 
-        WHERE username = %s AND ativo = TRUE
-    """, (username,))
-    
-    usuario = cursor.fetchone()
-    
-    if not usuario:
+    with db.get_db_connection() as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id, username, password_hash, tipo, nome_completo, email, telefone, 
+                   ativo, cliente_id
+            FROM usuarios 
+            WHERE username = %s AND ativo = TRUE
+        """, (username,))
+        
+        usuario = cursor.fetchone()
+        
+        if not usuario:
+            cursor.close()
+            return None
+        
+        # Verificar senha COM upgrade automático para bcrypt
+        from migration_upgrade_passwords import verificar_e_upgrade_senha
+        
+        try:
+            senha_correta, novo_hash = verificar_e_upgrade_senha(
+                username, 
+                password, 
+                usuario['password_hash'],
+                db
+            )
+        except ImportError:
+            # Fallback para método antigo se migration não disponível
+            senha_correta = verificar_senha(password, usuario['password_hash'])
+            novo_hash = None
+        
+        if not senha_correta:
+            # Registrar tentativa falha
+            registrar_tentativa_login(username, False, db)
+            cursor.close()
+            return None
+        
+        # Senha correta - limpar tentativas falhas
+        limpar_tentativas_login(username, db)
+        
+        # Log se houve upgrade de senha
+        if novo_hash:
+            print(f"🔐 Senha de {username} atualizada de SHA-256 para bcrypt")
+        
         cursor.close()
-        conn.close()
-        return None
-    
-    # Verificar senha COM upgrade automático para bcrypt
-    from migration_upgrade_passwords import verificar_e_upgrade_senha
-    
-    try:
-        senha_correta, novo_hash = verificar_e_upgrade_senha(
-            username, 
-            password, 
-            usuario['password_hash'],
-            db
-        )
-    except ImportError:
-        # Fallback para método antigo se migration não disponível
-        senha_correta = verificar_senha(password, usuario['password_hash'])
-        novo_hash = None
-    
-    if not senha_correta:
-        # Registrar tentativa falha
-        registrar_tentativa_login(username, False, db)
-        cursor.close()
-        conn.close()
-        return None
-    
-    # Senha correta - limpar tentativas falhas
-    limpar_tentativas_login(username, db)
-    
-    # Log se houve upgrade de senha
-    if novo_hash:
-        print(f"🔐 Senha de {username} atualizada de SHA-256 para bcrypt")
-    
-    cursor.close()
-    conn.close()
     
     # Retornar dados do usuário (sem o hash da senha)
     return {
@@ -279,56 +275,53 @@ def validar_sessao(token: str, db) -> Optional[Dict]:
     Returns:
         Dict com dados do usuário se sessão válida, None caso contrário
     """
-    conn = db.get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        SELECT s.usuario_id, s.expira_em, s.ativo,
-               u.username, u.tipo, u.nome_completo, u.email, u.cliente_id
-        FROM sessoes_login s
-        JOIN usuarios u ON s.usuario_id = u.id
-        WHERE s.session_token = %s AND s.ativo = TRUE AND u.ativo = TRUE
-    """, (token,))
-    
-    sessao = cursor.fetchone()
-    
-    if not sessao:
+    with db.get_db_connection() as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT s.usuario_id, s.expira_em, s.ativo,
+                   u.username, u.tipo, u.nome_completo, u.email, u.cliente_id
+            FROM sessoes_login s
+            JOIN usuarios u ON s.usuario_id = u.id
+            WHERE s.session_token = %s AND s.ativo = TRUE AND u.ativo = TRUE
+        """, (token,))
+        
+        sessao = cursor.fetchone()
+        
+        if not sessao:
+            cursor.close()
+            return None
+        
+        # Verificar expiração
+        if sessao['expira_em'] < datetime.now():
+            cursor.close()
+            # Sessão expirada - desativar
+            invalidar_sessao(token, db)
+            return None
+        
+        # Buscar empresas associadas ao usuário
+        cursor.execute("""
+            SELECT empresa_id
+            FROM usuario_empresas
+            WHERE usuario_id = %s
+            ORDER BY empresa_id
+        """, (sessao['usuario_id'],))
+        
+        empresas_rows = cursor.fetchall()
+        empresas = [row['empresa_id'] if isinstance(row, dict) else row[0] for row in empresas_rows]
+        
+        print(f"🔍 [validar_sessao] Usuario {sessao['username']} tem empresas: {empresas}")
+        
+        # Determinar empresa_id (da sessão ou primeira disponível)
+        empresa_id = flask_session.get('empresa_id')
+        print(f"🔍 [validar_sessao] empresa_id da sessão: {empresa_id}")
+        
+        if not empresa_id and empresas:
+            empresa_id = empresas[0]
+            flask_session['empresa_id'] = empresa_id
+            print(f"🔍 [validar_sessao] Definindo empresa_id como: {empresa_id}")
+        
         cursor.close()
-        conn.close()
-        return None
-    
-    # Verificar expiração
-    if sessao['expira_em'] < datetime.now():
-        cursor.close()
-        conn.close()
-        # Sessão expirada - desativar
-        invalidar_sessao(token, db)
-        return None
-    
-    # Buscar empresas associadas ao usuário
-    cursor.execute("""
-        SELECT empresa_id
-        FROM usuario_empresas
-        WHERE usuario_id = %s
-        ORDER BY empresa_id
-    """, (sessao['usuario_id'],))
-    
-    empresas_rows = cursor.fetchall()
-    empresas = [row['empresa_id'] if isinstance(row, dict) else row[0] for row in empresas_rows]
-    
-    print(f"🔍 [validar_sessao] Usuario {sessao['username']} tem empresas: {empresas}")
-    
-    # Determinar empresa_id (da sessão ou primeira disponível)
-    empresa_id = flask_session.get('empresa_id')
-    print(f"🔍 [validar_sessao] empresa_id da sessão: {empresa_id}")
-    
-    if not empresa_id and empresas:
-        empresa_id = empresas[0]
-        flask_session['empresa_id'] = empresa_id
-        print(f"🔍 [validar_sessao] Definindo empresa_id como: {empresa_id}")
-    
-    cursor.close()
-    conn.close()
     
     resultado = {
         'id': sessao['usuario_id'],
@@ -765,10 +758,9 @@ def listar_empresas_usuario(usuario_id: int, db) -> List[Dict]:
     Retorna lista de dicts com:
     - empresa_id, razao_social, cnpj, papel, permissoes_empresa, is_empresa_padrao, ativo
     """
-    conn = db.get_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with db.get_db_connection() as conn:
+        cursor = conn.cursor()
+        
         cursor.execute("""
             SELECT 
                 e.id AS empresa_id,
@@ -790,11 +782,8 @@ def listar_empresas_usuario(usuario_id: int, db) -> List[Dict]:
         """, (usuario_id,))
         
         empresas = cursor.fetchall()
-        return [dict(e) for e in empresas]
-        
-    finally:
         cursor.close()
-        conn.close()
+        return [dict(e) for e in empresas]
 
 
 def vincular_usuario_empresa(usuario_id: int, empresa_id: int, papel: str, 
@@ -963,10 +952,9 @@ def tem_acesso_empresa(usuario_id: int, empresa_id: int, db) -> bool:
 
 def obter_empresa_padrao(usuario_id: int, db) -> Optional[int]:
     """Retorna o ID da empresa padrão do usuário"""
-    conn = db.get_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with db.get_db_connection() as conn:
+        cursor = conn.cursor()
+        
         cursor.execute("""
             SELECT empresa_id
             FROM usuario_empresas
@@ -977,19 +965,18 @@ def obter_empresa_padrao(usuario_id: int, db) -> Optional[int]:
         """, (usuario_id,))
         
         result = cursor.fetchone()
-        return result['empresa_id'] if result else None
-        
-    finally:
         cursor.close()
-        conn.close()
+        return result['empresa_id'] if result else None
 
 
 def obter_permissoes_usuario_empresa(usuario_id: int, empresa_id: int, db) -> List[str]:
-    """Retorna lista de permissões do usuário em uma empresa específica"""
-    conn = db.get_connection()
-    cursor = conn.cursor()
+    """Retorna lista de permissões do usuário em uma empresa específica
     
-    try:
+    CRÍTICO: Usa context manager para garantir devolução da conexão ao pool
+    """
+    with db.get_db_connection() as conn:
+        cursor = conn.cursor()
+        
         cursor.execute("""
             SELECT permissoes_empresa
             FROM usuario_empresas
@@ -999,12 +986,10 @@ def obter_permissoes_usuario_empresa(usuario_id: int, empresa_id: int, db) -> Li
         """, (usuario_id, empresa_id))
         
         result = cursor.fetchone()
+        cursor.close()
+        
         if result and result['permissoes_empresa']:
             # Converter JSONB para lista Python
             import json
             return json.loads(result['permissoes_empresa']) if isinstance(result['permissoes_empresa'], str) else result['permissoes_empresa']
         return []
-        
-    finally:
-        cursor.close()
-        conn.close()
