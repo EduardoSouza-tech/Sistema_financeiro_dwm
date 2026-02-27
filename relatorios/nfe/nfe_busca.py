@@ -124,35 +124,42 @@ class CertificadoA1:
             }
             
             # ── Extrai CNPJ do certificado (padrão ICP-Brasil) ──────────────
-            # Fontes em ordem de confiabilidade:
-            #   1. OID 2.16.76.1.3.3 (ICP-Brasil: CNPJ da PJ)
-            #   2. serialNumber (OID 2.5.4.5) — costuma conter "CNPJ:XXXXXX"
-            #   3. CN (OID 2.5.4.3) — fallback, busca 14 dígitos consecutivos
+            # Formato ICP-Brasil no CN: "RAZAO SOCIAL:CNPJ" (ex: "EMPRESA MO:56237242000158")
+            # O OU pode conter o CNPJ da AC emissora — NÃO usar OU.
+            # Ordem de preferência:
+            #   1. OID 2.16.76.1.3.3        — OID ICP-Brasil específico do CNPJ da PJ
+            #   2. CN (2.5.4.3)             — últimos 14 dígitos após ":" no nome
+            #   3. serialNumber (2.5.4.5)   — fallback se não houver CN
             import re
             cnpj_encontrado = None
 
             for attr in certificate.subject:
                 dotted = attr.oid.dotted_string
-                val = attr.value
+                val = str(attr.value)
 
-                if dotted == '2.16.76.1.3.3':          # OID ICP-Brasil CNPJ PJ
+                if dotted == '2.16.76.1.3.3':     # OID ICP-Brasil: CNPJ da PJ
                     digits = ''.join(filter(str.isdigit, val))
                     if len(digits) == 14:
                         cnpj_encontrado = digits
-                        break
-
-                if dotted == '2.5.4.5':                 # serialNumber
-                    digits = ''.join(filter(str.isdigit, val))
-                    if len(digits) == 14:
-                        cnpj_encontrado = digits
-                        # Não dá break — OID prioritário pode vir depois
+                        break                      # Máxima confiança, para aqui
 
             if not cnpj_encontrado:
-                # Fallback: qualquer campo com 14 dígitos consecutivos
+                # CN ICP-Brasil: "NOME:CNPJ" — o CNPJ é a última seq de 14 dígitos
                 for attr in certificate.subject:
-                    match = re.search(r'(\d{14})', attr.value)
-                    if match:
-                        cnpj_encontrado = match.group(1)
+                    if attr.oid.dotted_string == '2.5.4.3':   # CN
+                        # Pega o último bloco de 14 dígitos consecutivos no CN
+                        matches = re.findall(r'\d{14}', attr.value)
+                        if matches:
+                            cnpj_encontrado = matches[-1]  # sempre o último
+                        break
+
+            if not cnpj_encontrado:
+                # Fallback: serialNumber apenas
+                for attr in certificate.subject:
+                    if attr.oid.dotted_string == '2.5.4.5':   # serialNumber
+                        digits = ''.join(filter(str.isdigit, attr.value))
+                        if len(digits) == 14:
+                            cnpj_encontrado = digits
                         break
 
             if cnpj_encontrado:
