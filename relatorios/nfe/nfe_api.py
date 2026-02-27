@@ -292,7 +292,9 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
                 logger.error(f"[CERT] Certificado ID {certificado_id} não encontrado no banco")
                 return None
             
-            pfx_base64, senha_cripto, ativo = row
+            pfx_base64  = row['pfx_base64']
+            senha_cripto = row['senha_pfx']
+            ativo        = row['ativo']
             logger.info(f"[CERT] Certificado encontrado, ativo={ativo}")
             
             if not ativo:
@@ -398,8 +400,12 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
             if not row:
                 return {'sucesso': False, 'erro': 'Certificado não encontrado'}
             
-            empresa_id, cnpj, ultimo_nsu, cuf, ambiente = row
-        
+            empresa_id  = row['empresa_id']
+            cnpj        = row['cnpj']
+            ultimo_nsu  = row['ultimo_nsu']
+            cuf         = row['cuf']
+            ambiente    = row['ambiente']
+
         # Busca documentos na SEFAZ
         resultado_busca = nfe_busca.baixar_documentos_dfe(
             certificado=cert,
@@ -728,20 +734,20 @@ def listar_documentos_periodo(empresa_id: int, data_inicio: datetime,
             documentos = []
             for row in rows:
                 documentos.append({
-                    'id': row[0],
-                    'nsu': row[1],
-                    'chave': row[2],
-                    'tipo': row[3],
-                    'numero': row[4],
-                    'serie': row[5],
-                    'valor': float(row[6]) if row[6] else 0.0,
-                    'emitente_cnpj': row[7],
-                    'emitente_nome': row[8],
-                    'destinatario_cnpj': row[9],
-                    'destinatario_nome': row[10],
-                    'data_emissao': row[11],
-                    'caminho_xml': row[12],
-                    'data_busca': row[13]
+                    'id':                row['id'],
+                    'nsu':               row['nsu'],
+                    'chave':             row['chave'],
+                    'tipo':              row['tipo_documento'],
+                    'numero':            row['numero_documento'],
+                    'serie':             row['serie'],
+                    'valor':             float(row['valor_total']) if row['valor_total'] else 0.0,
+                    'emitente_cnpj':     row['cnpj_emitente'],
+                    'emitente_nome':     row['nome_emitente'],
+                    'destinatario_cnpj': row['cnpj_destinatario'],
+                    'destinatario_nome': row['nome_destinatario'],
+                    'data_emissao':      row['data_emissao'],
+                    'caminho_xml':       row['caminho_xml'],
+                    'data_busca':        row['data_busca']
                 })
             
             return documentos
@@ -780,21 +786,21 @@ def obter_estatisticas_empresa(empresa_id: int) -> Dict[str, any]:
             row = cursor.fetchone()
             
             stats = {
-                'total_documentos': row[0] or 0,
-                'total_nfes': row[1] or 0,
-                'total_ctes': row[2] or 0,
-                'total_eventos': row[3] or 0,
-                'valor_total_nfes': float(row[4]) if row[4] else 0.0
+                'total_documentos': row['total'] or 0,
+                'total_nfes':       row['total_nfes'] or 0,
+                'total_ctes':       row['total_ctes'] or 0,
+                'total_eventos':    row['total_eventos'] or 0,
+                'valor_total_nfes': float(row['valor_total_nfes']) if row['valor_total_nfes'] else 0.0
             }
-            
+
             # Certificados ativos
             cursor.execute("""
-                SELECT COUNT(*)
+                SELECT COUNT(*) AS total_certs
                 FROM certificados_digitais
                 WHERE empresa_id = %s AND ativo = TRUE
             """, (empresa_id,))
-            
-            stats['certificados_ativos'] = cursor.fetchone()[0]
+
+            stats['certificados_ativos'] = cursor.fetchone()['total_certs']
             
             return stats
         
