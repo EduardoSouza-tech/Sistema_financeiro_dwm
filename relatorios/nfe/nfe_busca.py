@@ -20,6 +20,7 @@ import requests
 import base64
 import gzip
 import os
+import logging
 from lxml import etree
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
@@ -27,6 +28,8 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization import pkcs12
 from cryptography.hazmat.backends import default_backend
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -288,9 +291,16 @@ def consultar_ultimo_nsu_sefaz(certificado: CertificadoA1, cnpj: str, cuf: int,
             'Content-Type': f'application/soap+xml;charset=UTF-8;action="{ACTION}"',
         }
         
+        logger.info(f"[SOAP] URL: {url}")
+        logger.info(f"[SOAP] Content-Type: {headers['Content-Type']}")
+        logger.info(f"[SOAP] Body enviado:\n{soap_body}")
+
         # Faz requisição
         session = certificado.get_session_requests()
         response = session.post(url, data=soap_body.encode('utf-8'), headers=headers, timeout=60)
+
+        logger.info(f"[SOAP] Resposta HTTP: {response.status_code}")
+        logger.info(f"[SOAP] Resposta body:\n{response.text[:2000]}")
         
         if response.status_code != 200:
             # Tenta extrair mensagem do SOAP Fault
@@ -418,9 +428,16 @@ def baixar_documentos_dfe(certificado: CertificadoA1, cnpj: str, cuf: int,
             'Content-Type': f'application/soap+xml;charset=UTF-8;action="{ACTION}"',
         }
         
+        logger.info(f"[SOAP] URL: {url}")
+        logger.info(f"[SOAP] Content-Type: {headers['Content-Type']}")
+        logger.info(f"[SOAP] Body enviado:\n{soap_body}")
+
         # Faz requisição
         session = certificado.get_session_requests()
         response = session.post(url, data=soap_body.encode('utf-8'), headers=headers, timeout=120)
+
+        logger.info(f"[SOAP] Resposta HTTP: {response.status_code}")
+        logger.info(f"[SOAP] Resposta body:\n{response.text[:2000]}")
         
         if response.status_code != 200:
             # Tenta extrair mensagem do SOAP Fault
