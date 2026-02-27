@@ -282,10 +282,10 @@ def consultar_ultimo_nsu_sefaz(certificado: CertificadoA1, cnpj: str, cuf: int,
         # URL do webservice
         url = WEBSERVICES_HOMOLOGACAO['NFeDistribuicaoDFe'] if ambiente == 'homologacao' else WEBSERVICES_PRODUCAO['NFeDistribuicaoDFe']
         
-        # Headers
+        # Headers — SOAP 1.2: action vai embutido no Content-Type
+        ACTION = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse'
         headers = {
-            'Content-Type': 'application/soap+xml; charset=utf-8',
-            'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe'
+            'Content-Type': f'application/soap+xml;charset=UTF-8;action="{ACTION}"',
         }
         
         # Faz requisição
@@ -412,10 +412,10 @@ def baixar_documentos_dfe(certificado: CertificadoA1, cnpj: str, cuf: int,
         # URL do webservice
         url = WEBSERVICES_HOMOLOGACAO['NFeDistribuicaoDFe'] if ambiente == 'homologacao' else WEBSERVICES_PRODUCAO['NFeDistribuicaoDFe']
         
-        # Headers
+        # Headers — SOAP 1.2: action vai embutido no Content-Type
+        ACTION = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse'
         headers = {
-            'Content-Type': 'application/soap+xml; charset=utf-8',
-            'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe'
+            'Content-Type': f'application/soap+xml;charset=UTF-8;action="{ACTION}"',
         }
         
         # Faz requisição
