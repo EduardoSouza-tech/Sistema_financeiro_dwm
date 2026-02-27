@@ -42,6 +42,10 @@ async function loadContasReceber() {
         if (filterDataFim) filters.data_fim = filterDataFim;
         if (filterCategoria) filters.categoria = filterCategoria;
         if (filterCliente) filters.cliente = filterCliente;
+        const filterSubcategoriaReceber = document.getElementById('filter-subcategoria-receber')?.value || '';
+        if (filterSubcategoriaReceber) filters.subcategoria = filterSubcategoriaReceber;
+        // Popular filtros de categoria ao abrir a seção
+        if (typeof window.popularFiltrosCategorias === 'function') window.popularFiltrosCategorias();
         // Respeitar seletor de registros por página
         const perPageSelect = document.getElementById('per-page-receber');
         filters.per_page = perPageSelect ? parseInt(perPageSelect.value) || 300 : 300;
@@ -106,6 +110,10 @@ async function loadContasPagar() {
         if (filterDataFim) filters.data_fim = filterDataFim;
         if (filterCategoria) filters.categoria = filterCategoria;
         if (filterFornecedor) filters.fornecedor = filterFornecedor;
+        const filterSubcategoriaPagar = document.getElementById('filter-subcategoria-pagar')?.value || '';
+        if (filterSubcategoriaPagar) filters.subcategoria = filterSubcategoriaPagar;
+        // Popular filtros de categoria ao abrir a seção
+        if (typeof window.popularFiltrosCategorias === 'function') window.popularFiltrosCategorias();
         // Respeitar seletor de registros por página
         const perPageSelectPagar = document.getElementById('per-page-pagar');
         filters.per_page = perPageSelectPagar ? parseInt(perPageSelectPagar.value) || 300 : 300;

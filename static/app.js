@@ -1469,6 +1469,8 @@ async function loadCategorias() {
         }
         
         console.log('✅ Categorias carregadas com sucesso');
+        // Popular filtros de categoria em Contas a Receber/Pagar
+        popularFiltrosCategorias();
         
     } catch (error) {
         logError(context, error);
@@ -1477,6 +1479,67 @@ async function loadCategorias() {
 }
 // Expor globalmente para uso em showSection()
 window.loadCategorias = loadCategorias;
+
+/**
+ * Popular selects de categoria nos filtros de Receber e Pagar
+ */
+function popularFiltrosCategorias() {
+    const cats = window.categorias || [];
+    if (!cats.length) return;
+
+    function preencherSelect(elId, tipo) {
+        const sel = document.getElementById(elId);
+        if (!sel) return;
+        const valorAtual = sel.value;
+        sel.innerHTML = '<option value="">Todas</option>';
+        cats.filter(c => c.tipo.toLowerCase() === tipo).forEach(c => {
+            const o = document.createElement('option');
+            o.value = c.nome;
+            o.textContent = c.nome;
+            o.dataset.subcategorias = JSON.stringify(c.subcategorias || []);
+            sel.appendChild(o);
+        });
+        if (valorAtual) sel.value = valorAtual;
+    }
+
+    preencherSelect('filter-categoria-receber', 'receita');
+    preencherSelect('filter-categoria-pagar', 'despesa');
+}
+window.popularFiltrosCategorias = popularFiltrosCategorias;
+
+function atualizarSubcategoriasReceber() {
+    const catSel = document.getElementById('filter-categoria-receber');
+    const subSel = document.getElementById('filter-subcategoria-receber');
+    if (!subSel) return;
+    subSel.innerHTML = '<option value="">Todas</option>';
+    if (!catSel || !catSel.value) return;
+    const opt = catSel.options[catSel.selectedIndex];
+    if (opt && opt.dataset.subcategorias) {
+        JSON.parse(opt.dataset.subcategorias).forEach(s => {
+            const o = document.createElement('option');
+            o.value = s; o.textContent = s;
+            subSel.appendChild(o);
+        });
+    }
+}
+window.atualizarSubcategoriasReceber = atualizarSubcategoriasReceber;
+
+function atualizarSubcategoriasPagar() {
+    const catSel = document.getElementById('filter-categoria-pagar');
+    const subSel = document.getElementById('filter-subcategoria-pagar');
+    if (!subSel) return;
+    subSel.innerHTML = '<option value="">Todas</option>';
+    if (!catSel || !catSel.value) return;
+    const opt = catSel.options[catSel.selectedIndex];
+    if (opt && opt.dataset.subcategorias) {
+        JSON.parse(opt.dataset.subcategorias).forEach(s => {
+            const o = document.createElement('option');
+            o.value = s; o.textContent = s;
+            subSel.appendChild(o);
+        });
+    }
+}
+window.atualizarSubcategoriasPagar = atualizarSubcategoriasPagar;
 
 async function salvarCategoria(event) {
     event.preventDefault();

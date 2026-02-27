@@ -1823,14 +1823,14 @@
                         </div>
                         <div class="form-group">
                             <label>Categoria:</label>
-                            <select id="filter-categoria-receber" onchange="loadContasReceber()">
+                            <select id="filter-categoria-receber" onchange="atualizarSubcategoriasReceber(); loadContasReceber();">
                                 <option value="">Todas</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Razão Social:</label>
-                            <select id="filter-cliente" onchange="loadContasReceber()">
-                                <option value="">Todos</option>
+                            <label>Subcategoria:</label>
+                            <select id="filter-subcategoria-receber" onchange="loadContasReceber()">
+                                <option value="">Todas</option>
                             </select>
                         </div>
                     </div>
@@ -1960,14 +1960,14 @@
                         </div>
                         <div class="form-group">
                             <label>Categoria:</label>
-                            <select id="filter-categoria-pagar" onchange="loadContasPagar()">
+                            <select id="filter-categoria-pagar" onchange="atualizarSubcategoriasPagar(); loadContasPagar();">
                                 <option value="">Todas</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Razão Social:</label>
-                            <select id="filter-fornecedor" onchange="loadContasPagar()">
-                                <option value="">Todos</option>
+                            <label>Subcategoria:</label>
+                            <select id="filter-subcategoria-pagar" onchange="loadContasPagar()">
+                                <option value="">Todas</option>
                             </select>
                         </div>
                     </div>

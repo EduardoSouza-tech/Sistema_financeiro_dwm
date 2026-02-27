@@ -2981,6 +2981,9 @@ class DatabaseManager:
             if 'categoria' in filtros:
                 query += " AND l.categoria = %s"
                 params.append(filtros['categoria'])
+            if 'subcategoria' in filtros:
+                query += " AND l.subcategoria = %s"
+                params.append(filtros['subcategoria'])
             if 'conta_bancaria' in filtros:
                 query += " AND l.conta_bancaria = %s"
                 params.append(filtros['conta_bancaria'])

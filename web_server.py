@@ -3059,6 +3059,7 @@ def listar_lancamentos():
         tipo_filtro = request.args.get('tipo')
         status_filtro = request.args.get('status')
         categoria_filtro = request.args.get('categoria')
+        subcategoria_filtro = request.args.get('subcategoria')
         conta_bancaria_filtro = request.args.get('conta_bancaria')
         data_inicio_filtro = request.args.get('data_inicio')
         data_fim_filtro = request.args.get('data_fim')
@@ -3099,6 +3100,8 @@ def listar_lancamentos():
             filtros['status'] = status_filtro.upper()
         if categoria_filtro:
             filtros['categoria'] = categoria_filtro
+        if subcategoria_filtro:
+            filtros['subcategoria'] = subcategoria_filtro
         if conta_bancaria_filtro:
             filtros['conta_bancaria'] = conta_bancaria_filtro
         if data_inicio_filtro:
