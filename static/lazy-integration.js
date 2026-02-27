@@ -42,6 +42,9 @@ async function loadContasReceber() {
         if (filterDataFim) filters.data_fim = filterDataFim;
         if (filterCategoria) filters.categoria = filterCategoria;
         if (filterCliente) filters.cliente = filterCliente;
+        // Respeitar seletor de registros por página
+        const perPageSelect = document.getElementById('per-page-receber');
+        filters.per_page = perPageSelect ? parseInt(perPageSelect.value) || 300 : 300;
         console.log('📋 Filtros aplicados:', filters);
         await loadContasReceberLazy(filters);
         
@@ -103,6 +106,9 @@ async function loadContasPagar() {
         if (filterDataFim) filters.data_fim = filterDataFim;
         if (filterCategoria) filters.categoria = filterCategoria;
         if (filterFornecedor) filters.fornecedor = filterFornecedor;
+        // Respeitar seletor de registros por página
+        const perPageSelectPagar = document.getElementById('per-page-pagar');
+        filters.per_page = perPageSelectPagar ? parseInt(perPageSelectPagar.value) || 300 : 300;
         
         console.log('📋 Filtros aplicados:', filters);
         await loadContasPagarLazy(filters);

@@ -249,10 +249,13 @@ class LazyLoader {
     }
 
     _buildUrl(page) {
+        const perPage = this.filters.per_page || LazyLoadConfig.PAGE_SIZE;
+        // Remover per_page dos filtros para não duplicar no URLSearchParams
+        const { per_page: _removed, ...otherFilters } = this.filters;
         const params = new URLSearchParams({
             page: page,
-            per_page: LazyLoadConfig.PAGE_SIZE,
-            ...this.filters
+            per_page: perPage,
+            ...otherFilters
         });
 
         if (this.sortBy) {
