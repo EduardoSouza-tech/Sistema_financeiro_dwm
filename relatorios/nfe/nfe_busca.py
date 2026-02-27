@@ -219,13 +219,17 @@ def consultar_ultimo_nsu_sefaz(certificado: CertificadoA1, cnpj: str, cuf: int,
         cuf = int(cuf)
 
         # ── Monta XML SOAP  — especificação NFeDistribuicaoDFe 1.01 ───────────
+        # ATENÇÃO: nfeCabecMsg/cUF DEVE ser 91 (Ambiente Nacional - AN).
+        # NFeDistribuicaoDFe só existe no AN; usar o CUF real (ex: 31=MG) causa
+        # NullReferenceException no servidor .NET da SEFAZ.
+        # cUFAutor dentro de nfeDist é o CUF real da empresa.
         soap_body = f'''<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                xmlns:xsd="http://www.w3.org/2001/XMLSchema">
     <soap:Header>
         <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
-            <cUF>{cuf}</cUF>
+            <cUF>91</cUF>
             <versaoDados>1.01</versaoDados>
         </nfeCabecMsg>
     </soap:Header>
@@ -345,13 +349,17 @@ def baixar_documentos_dfe(certificado: CertificadoA1, cnpj: str, cuf: int,
             ultimo_nsu = '000000000000000'
 
         # ── Monta XML SOAP  — especificação NFeDistribuicaoDFe 1.01 ───────────
+        # ATENÇÃO: nfeCabecMsg/cUF DEVE ser 91 (Ambiente Nacional - AN).
+        # NFeDistribuicaoDFe só existe no AN; usar o CUF real (ex: 31=MG) causa
+        # NullReferenceException no servidor .NET da SEFAZ.
+        # cUFAutor dentro de nfeDist é o CUF real da empresa.
         soap_body = f'''<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                xmlns:xsd="http://www.w3.org/2001/XMLSchema">
     <soap:Header>
         <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
-            <cUF>{cuf}</cUF>
+            <cUF>91</cUF>
             <versaoDados>1.01</versaoDados>
         </nfeCabecMsg>
     </soap:Header>
