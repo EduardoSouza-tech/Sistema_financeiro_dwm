@@ -2339,10 +2339,8 @@ async function loadContasReceber() {
                 <td style="font-weight: bold; color: #27ae60;">${formatarMoeda(lanc.valor)}</td>
                 <td><span class="badge ${statusClass}">${lanc.status || 'PENDENTE'}</span></td>
                 <td style="white-space: nowrap;">
-                    <button class="btn btn-primary" onclick="editarReceita(${lanc.id})" title="Editar" 
-                            style="padding: 4px 8px; font-size: 12px; margin-right: 4px; border-radius: 4px; min-width: 32px;">✏️</button>
-                    <button class="btn btn-danger" onclick="excluirLancamento(${lanc.id})" title="Excluir" 
-                            style="padding: 4px 8px; font-size: 12px; border-radius: 4px; min-width: 32px;">🗑️</button>
+                    <button class="btn btn-primary" onclick="editarReceita(${lanc.id})" title="Editar" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px; margin-right: 4px;">✏️ Editar</button>
+                    <button class="btn btn-danger" onclick="excluirLancamento(${lanc.id})" title="Excluir" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;">🗑️ Excluir</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -2468,10 +2466,8 @@ async function loadContasPagar() {
                 <td style="font-weight: bold; color: #e74c3c;">${formatarMoeda(lanc.valor)}</td>
                 <td><span class="badge ${statusClass}">${lanc.status || 'PENDENTE'}</span></td>
                 <td style="white-space: nowrap;">
-                    <button class="btn btn-primary" onclick="editarDespesa(${lanc.id})" title="Editar" 
-                            style="padding: 4px 8px; font-size: 12px; margin-right: 4px; border-radius: 4px; min-width: 32px;">✏️</button>
-                    <button class="btn btn-danger" onclick="excluirLancamento(${lanc.id})" title="Excluir" 
-                            style="padding: 4px 8px; font-size: 12px; border-radius: 4px; min-width: 32px;">🗑️</button>
+                    <button class="btn btn-primary" onclick="editarDespesa(${lanc.id})" title="Editar" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px; margin-right: 4px;">✏️ Editar</button>
+                    <button class="btn btn-danger" onclick="excluirLancamento(${lanc.id})" title="Excluir" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;">🗑️ Excluir</button>
                 </td>
             `;
             tbody.appendChild(tr);

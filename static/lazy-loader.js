@@ -457,9 +457,9 @@ function renderContaReceber(lanc) {
         <td>${lanc.subcategoria || '-'}</td>
         <td style="font-weight: bold; color: #27ae60;">${formatarMoeda(lanc.valor)}</td>
         <td><span class="badge ${statusClass}">${lanc.status || 'PENDENTE'}</span></td>
-        <td>
-            <button class="btn btn-primary" onclick="editarReceita(${lanc.id})" title="Editar">✏️</button>
-            <button class="btn btn-danger" onclick="excluirLancamento(${lanc.id})" title="Excluir">🗑️</button>
+        <td style="white-space: nowrap;">
+            <button class="btn btn-primary" onclick="editarReceita(${lanc.id})" title="Editar" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px; margin-right: 4px;">✏️ Editar</button>
+            <button class="btn btn-danger" onclick="excluirLancamento(${lanc.id})" title="Excluir" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;">🗑️ Excluir</button>
         </td>
     `;
     return tr;
@@ -480,9 +480,9 @@ function renderContaPagar(lanc) {
         <td>${lanc.subcategoria || '-'}</td>
         <td style="font-weight: bold; color: #e74c3c;">${formatarMoeda(lanc.valor)}</td>
         <td><span class="badge ${statusClass}">${lanc.status || 'PENDENTE'}</span></td>
-        <td>
-            <button class="btn btn-primary" onclick="editarDespesa(${lanc.id})" title="Editar">✏️</button>
-            <button class="btn btn-danger" onclick="excluirLancamento(${lanc.id})" title="Excluir">🗑️</button>
+        <td style="white-space: nowrap;">
+            <button class="btn btn-primary" onclick="editarDespesa(${lanc.id})" title="Editar" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px; margin-right: 4px;">✏️ Editar</button>
+            <button class="btn btn-danger" onclick="excluirLancamento(${lanc.id})" title="Excluir" style="padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;">🗑️ Excluir</button>
         </td>
     `;
     return tr;
