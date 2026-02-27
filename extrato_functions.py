@@ -291,16 +291,16 @@ def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):
                     tipo = 'despesa' if tipo_transacao in ('DÉBITO', 'DEBITO') else 'receita'
                     valor_abs = abs(float(transacao['valor']))
                     
-                    # Criar novo lançamento
+                    # Criar novo lançamento (copiando categoria, subcategoria e pessoa da transação)
                     cursor.execute("""
                         INSERT INTO lancamentos (
                             empresa_id, tipo, descricao, valor, 
                             data_vencimento, data_pagamento, status,
-                            conta_bancaria, categoria, observacoes
+                            conta_bancaria, categoria, subcategoria, pessoa, observacoes
                         ) VALUES (
                             %s, %s, %s, %s,
                             %s, %s, 'pago',
-                            %s, %s, %s
+                            %s, %s, %s, %s, %s
                         )
                         RETURNING id
                     """, (
@@ -311,7 +311,9 @@ def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):
                         transacao['data'],
                         transacao['data'],  # data_pagamento = data da transação
                         transacao['conta_bancaria'],
-                        'Conciliação Bancária',  # categoria padrão
+                        transacao.get('categoria') or 'Conciliação Bancária',  # categoria da transação ou padrão
+                        transacao.get('subcategoria'),  # subcategoria da transação (pode ser None)
+                        transacao.get('pessoa'),  # pessoa da transação (pode ser None)
                         f"Criado automaticamente pela conciliação com transação #{transacao_id}"
                     ))
                     
