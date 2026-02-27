@@ -173,7 +173,7 @@ def autenticar_usuario(username: str, password: str, db) -> Optional[Dict]:
     if verificar_conta_bloqueada(username, db):
         return None
     
-    with db.get_db_connection() as conn:
+    with db.get_db_connection(allow_global=True) as conn:
         cursor = conn.cursor()
         
         cursor.execute("""
@@ -275,7 +275,7 @@ def validar_sessao(token: str, db) -> Optional[Dict]:
     Returns:
         Dict com dados do usuário se sessão válida, None caso contrário
     """
-    with db.get_db_connection() as conn:
+    with db.get_db_connection(allow_global=True) as conn:
         cursor = conn.cursor()
         
         cursor.execute("""
@@ -758,7 +758,7 @@ def listar_empresas_usuario(usuario_id: int, db) -> List[Dict]:
     Retorna lista de dicts com:
     - empresa_id, razao_social, cnpj, papel, permissoes_empresa, is_empresa_padrao, ativo
     """
-    with db.get_db_connection() as conn:
+    with db.get_db_connection(allow_global=True) as conn:
         cursor = conn.cursor()
         
         cursor.execute("""
@@ -952,7 +952,7 @@ def tem_acesso_empresa(usuario_id: int, empresa_id: int, db) -> bool:
 
 def obter_empresa_padrao(usuario_id: int, db) -> Optional[int]:
     """Retorna o ID da empresa padrão do usuário"""
-    with db.get_db_connection() as conn:
+    with db.get_db_connection(allow_global=True) as conn:
         cursor = conn.cursor()
         
         cursor.execute("""
@@ -974,7 +974,7 @@ def obter_permissoes_usuario_empresa(usuario_id: int, empresa_id: int, db) -> Li
     
     CRÍTICO: Usa context manager para garantir devolução da conexão ao pool
     """
-    with db.get_db_connection() as conn:
+    with db.get_db_connection(allow_global=True) as conn:
         cursor = conn.cursor()
         
         cursor.execute("""
