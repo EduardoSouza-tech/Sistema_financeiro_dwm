@@ -123,15 +123,40 @@ class CertificadoA1:
                 'serial_number': certificate.serial_number,
             }
             
-            # Extrai CNPJ do certificado (Subject CN ou OID específico)
+            # ── Extrai CNPJ do certificado (padrão ICP-Brasil) ──────────────
+            # Fontes em ordem de confiabilidade:
+            #   1. OID 2.16.76.1.3.3 (ICP-Brasil: CNPJ da PJ)
+            #   2. serialNumber (OID 2.5.4.5) — costuma conter "CNPJ:XXXXXX"
+            #   3. CN (OID 2.5.4.3) — fallback, busca 14 dígitos consecutivos
+            import re
+            cnpj_encontrado = None
+
             for attr in certificate.subject:
-                if attr.oid.dotted_string == '2.5.4.3':  # CN (Common Name)
-                    cn = attr.value
-                    # Tenta extrair CNPJ do CN
-                    import re
-                    match = re.search(r'(\d{14})', cn)
+                dotted = attr.oid.dotted_string
+                val = attr.value
+
+                if dotted == '2.16.76.1.3.3':          # OID ICP-Brasil CNPJ PJ
+                    digits = ''.join(filter(str.isdigit, val))
+                    if len(digits) == 14:
+                        cnpj_encontrado = digits
+                        break
+
+                if dotted == '2.5.4.5':                 # serialNumber
+                    digits = ''.join(filter(str.isdigit, val))
+                    if len(digits) == 14:
+                        cnpj_encontrado = digits
+                        # Não dá break — OID prioritário pode vir depois
+
+            if not cnpj_encontrado:
+                # Fallback: qualquer campo com 14 dígitos consecutivos
+                for attr in certificate.subject:
+                    match = re.search(r'(\d{14})', attr.value)
                     if match:
-                        self.cert_data['cnpj'] = match.group(1)
+                        cnpj_encontrado = match.group(1)
+                        break
+
+            if cnpj_encontrado:
+                self.cert_data['cnpj'] = cnpj_encontrado
             
         except Exception as e:
             raise ValueError(f"Erro ao carregar certificado: {str(e)}")

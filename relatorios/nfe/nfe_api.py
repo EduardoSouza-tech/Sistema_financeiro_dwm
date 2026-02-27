@@ -342,6 +342,16 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
                 return None
             
             logger.info(f"[CERT] Certificado ID {certificado_id} carregado com sucesso")
+            if cert.cert_data:
+                logger.info(
+                    f"[CERT] Subject: {cert.cert_data.get('subject', 'N/A')}"
+                )
+                logger.info(
+                    f"[CERT] CNPJ extraído do PFX: {cert.cert_data.get('cnpj', 'NÃO ENCONTRADO')}"
+                )
+                logger.info(
+                    f"[CERT] Válido até: {cert.cert_data.get('valido_ate', 'N/A')}"
+                )
             return cert
         
     except ValueError:
@@ -406,16 +416,38 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
             cuf         = row['cuf']
             ambiente    = row['ambiente']
 
+        # ── Valida CNPJ: o CNPJ no SOAP DEVE ser o mesmo gravado no PFX ──────
+        # A SEFAZ autentica via mTLS usando o certificado; se o CNPJ no <CNPJ>
+        # do XML diferir do CNPJ do certificado → NullReferenceException.
+        cnpj_cert = cert.cert_data.get('cnpj') if cert.cert_data else None
+        cnpj_banco = ''.join(filter(str.isdigit, str(cnpj or '')))
+
+        if cnpj_cert:
+            if cnpj_cert != cnpj_banco:
+                logger.warning(
+                    f"[SEFAZ] ⚠️ CNPJ DIVERGENTE: banco={cnpj_banco!r} vs certificado={cnpj_cert!r}. "
+                    "Usando o CNPJ do certificado (obrigatório para autenticação mTLS)."
+                )
+            else:
+                logger.info(f"[SEFAZ] ✅ CNPJ confirmado (banco == certificado): {cnpj_cert}")
+            cnpj_soap = cnpj_cert   # Sempre usa o CNPJ gravado no PFX
+        else:
+            logger.warning(
+                f"[SEFAZ] ⚠️ Não foi possível extrair CNPJ do certificado. "
+                f"Usando CNPJ do banco: {cnpj_banco!r}"
+            )
+            cnpj_soap = cnpj_banco
+
         logger.info(
             f"[SEFAZ] Iniciando busca: empresa_id={empresa_id}, "
-            f"cnpj={cnpj!r}, cuf={cuf!r}, ambiente={ambiente!r}, "
+            f"cnpj_soap={cnpj_soap!r}, cuf={cuf!r}, ambiente={ambiente!r}, "
             f"ultimo_nsu={ultimo_nsu!r}"
         )
 
         # Busca documentos na SEFAZ
         resultado_busca = nfe_busca.baixar_documentos_dfe(
             certificado=cert,
-            cnpj=cnpj,
+            cnpj=cnpj_soap,
             cuf=cuf,
             ultimo_nsu=ultimo_nsu or '000000000000000',
             ambiente=ambiente
