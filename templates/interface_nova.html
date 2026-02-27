@@ -1865,22 +1865,18 @@
                             <label>Data Final:</label>
                             <input type="date" id="filter-data-fim-receber" onchange="loadContasReceber()">
                         </div>
-                        <div style="display: flex; align-items: flex-end; gap: 8px; margin-left: auto;">
-                            <div id="contador-registros-receber" style="padding: 6px 12px; background: #e8f5e9; border: 2px solid #4caf50; border-radius: 4px; font-weight: bold; color: #2e7d32; font-size: 13px; white-space: nowrap;">
-                                📊 <span id="total-registros-receber">0</span> registros
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 5px; padding: 4px 8px; background: #f1f8e9; border: 2px solid #4caf50; border-radius: 4px;">
-                                <label for="per-page-receber" style="font-size: 12px; font-weight: 600; color: #2e7d32; white-space: nowrap; margin: 0;">📋 Exibir:</label>
-                                <select id="per-page-receber" onchange="loadContasReceber()" style="padding: 3px 6px; border: 1px solid #4caf50; border-radius: 4px; font-size: 13px; font-weight: 600; color: #2e7d32; background: white; cursor: pointer;">
-                                    <option value="25">25</option>
-                                    <option value="50">50</option>
-                                    <option value="100">100</option>
-                                    <option value="150">150</option>
-                                    <option value="200">200</option>
-                                    <option value="300" selected>300</option>
-                                </select>
-                            </div>
+                        <div class="form-group">
+                            <label>📋 Exibir:</label>
+                            <select id="per-page-receber" onchange="loadContasReceber()">
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="150">150</option>
+                                <option value="200">200</option>
+                                <option value="300" selected>300</option>
+                            </select>
                         </div>
+                        <div id="contador-registros-receber" style="display:none;"><span id="total-registros-receber">0</span></div>
                     </div>
                 </div>
 
@@ -2006,22 +2002,18 @@
                             <label>Data Final:</label>
                             <input type="date" id="filter-data-fim-pagar" onchange="loadContasPagar()">
                         </div>
-                        <div style="display: flex; align-items: flex-end; gap: 8px; margin-left: auto;">
-                            <div id="contador-registros-pagar" style="padding: 6px 12px; background: #e3f2fd; border: 2px solid #2196f3; border-radius: 4px; font-weight: bold; color: #1565c0; font-size: 13px; white-space: nowrap;">
-                                📊 <span id="total-registros-pagar">0</span> registros
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 5px; padding: 4px 8px; background: #e8eaf6; border: 2px solid #2196f3; border-radius: 4px;">
-                                <label for="per-page-pagar" style="font-size: 12px; font-weight: 600; color: #1565c0; white-space: nowrap; margin: 0;">📋 Exibir:</label>
-                                <select id="per-page-pagar" onchange="loadContasPagar()" style="padding: 3px 6px; border: 1px solid #2196f3; border-radius: 4px; font-size: 13px; font-weight: 600; color: #1565c0; background: white; cursor: pointer;">
-                                    <option value="25">25</option>
-                                    <option value="50">50</option>
-                                    <option value="100">100</option>
-                                    <option value="150">150</option>
-                                    <option value="200">200</option>
-                                    <option value="300" selected>300</option>
-                                </select>
-                            </div>
+                        <div class="form-group">
+                            <label>📋 Exibir:</label>
+                            <select id="per-page-pagar" onchange="loadContasPagar()">
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="150">150</option>
+                                <option value="200">200</option>
+                                <option value="300" selected>300</option>
+                            </select>
                         </div>
+                        <div id="contador-registros-pagar" style="display:none;"><span id="total-registros-pagar">0</span></div>
                     </div>
                 </div>
 
