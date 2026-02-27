@@ -2165,8 +2165,9 @@ async function loadContasReceber() {
         console.log('   📡 Buscando lançamentos...');
         const perPageSelect = document.getElementById('per-page-receber');
         const perPage = perPageSelect ? perPageSelect.value : 300;
-        const response = await fetch(`${API_URL}/lancamentos?per_page=${perPage}`);
-        const todosLancamentos = await response.json();
+        const response = await fetch(`${API_URL}/lancamentos?per_page=${perPage}&page=1`);
+        const responseData = await response.json();
+        const todosLancamentos = Array.isArray(responseData) ? responseData : (responseData.data || []);
         console.log('   📦 Total de lançamentos recebidos:', todosLancamentos.length);
         if (todosLancamentos.length > 0) {
             console.log('   🔍 Exemplo de lançamento:', todosLancamentos[0]);
@@ -2302,8 +2303,9 @@ async function loadContasPagar() {
     try {
         const perPageSelect = document.getElementById('per-page-pagar');
         const perPage = perPageSelect ? perPageSelect.value : 300;
-        const response = await fetch(`${API_URL}/lancamentos?per_page=${perPage}`);
-        const todosLancamentos = await response.json();
+        const response = await fetch(`${API_URL}/lancamentos?per_page=${perPage}&page=1`);
+        const responseData = await response.json();
+        const todosLancamentos = Array.isArray(responseData) ? responseData : (responseData.data || []);
         
         const tbody = document.getElementById('tbody-pagar');
         tbody.innerHTML = '';
