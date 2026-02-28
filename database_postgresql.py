@@ -5070,7 +5070,7 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
         # Validar transições (regras de negócio)
         transicoes_invalidas = [
             (status_anterior == 'finalizada' and novo_status not in ['reaberta', 'cancelada']),
-            (status_anterior == 'cancelada' and novo_status != 'reaberta'),
+            (status_anterior == 'cancelada' and novo_status not in ['reaberta', 'agendada']),
         ]
         
         if any(transicoes_invalidas):
