@@ -321,7 +321,7 @@ def exportar_contratos_excel():
 @require_permission('contratos_edit')
 def compensar_horas_contratos(origem_id: int):
     """
-    Transfere horas de um contrato para outro (pode ser de clientes diferentes)
+    Transfere horas de um contrato para outro do mesmo cliente
     
     POST /api/contratos/32/compensar-horas
     {
@@ -332,7 +332,7 @@ def compensar_horas_contratos(origem_id: int):
     
     Returns:
         200: Compensação realizada com sucesso
-        400: Validação falhou (saldo insuficiente, etc.)
+        400: Validação falhou (saldo insuficiente, clientes diferentes, etc.)
         403: Sem permissão
         500: Erro interno
     """

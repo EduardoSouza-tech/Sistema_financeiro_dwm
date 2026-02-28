@@ -3081,6 +3081,11 @@ async function abrirCompensacaoHoras(contratoId) {
         
         console.log('👤 Cliente ID do contrato:', contratoAtual.cliente_id);
         console.log('📊 Total de contratos disponíveis:', contratos.length);
+
+        if (!contratoAtual.cliente_id) {
+            showToast('Este contrato não possui cliente vinculado. Associe um cliente ao contrato para usar a compensação de horas.', 'error');
+            return;
+        }
         
         // Filtrar contratos do mesmo cliente com controle de horas
         const contratosMesmoCliente = contratos.filter(c => 

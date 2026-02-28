@@ -8586,6 +8586,13 @@ def compensar_horas_contratos(
             elif c['id'] == destino_id:
                 contrato_destino = c
         
+        # Validar mesmo cliente
+        if contrato_origem['cliente_id'] != contrato_destino['cliente_id']:
+            raise ValueError(
+                f"Contratos pertencem a clientes diferentes: "
+                f"{contrato_origem['numero']} e {contrato_destino['numero']}"
+            )
+
         # Validar saldo disponível
         saldo_origem = float(contrato_origem['horas_totais'] or 0) - float(contrato_origem['horas_utilizadas'] or 0)
         
