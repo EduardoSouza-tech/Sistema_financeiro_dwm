@@ -225,6 +225,21 @@ def auto_execute_migrations():
             logger.warning(f"⚠️ Erro ao adicionar coluna hora_fim: {e}")
             conn.rollback()
         
+        # Colunas para controle de horas nas sessões (finalizar_sessao)
+        for col_def in [
+            ("horas_trabalhadas", "DECIMAL(10,2)"),
+            ("finalizada_em",     "TIMESTAMP"),
+            ("finalizada_por",    "INTEGER"),
+        ]:
+            col_name, col_type = col_def
+            try:
+                cursor.execute(f"ALTER TABLE sessoes ADD COLUMN IF NOT EXISTS {col_name} {col_type}")
+                conn.commit()
+                logger.info(f"✅ Coluna {col_name} adicionada/verificada em sessoes")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao adicionar coluna {col_name} em sessoes: {e}")
+                conn.rollback()
+
         cursor.close()
         
         logger.info("="*80)
