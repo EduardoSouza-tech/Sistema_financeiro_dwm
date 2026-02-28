@@ -2922,7 +2922,11 @@ async function openModalSessao(sessaoEdit = null) {
         await loadContratos();
     }
     if (!window.funcionarios || window.funcionarios.length === 0) {
-        await loadFuncionariosRH();
+        if (typeof loadFuncionariosRH === 'function') {
+            await loadFuncionariosRH();
+        } else if (typeof loadFuncionarios === 'function') {
+            await loadFuncionarios();
+        }
     }
     if (!window.kits || window.kits.length === 0) {
         await loadKits();

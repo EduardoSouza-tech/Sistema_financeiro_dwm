@@ -4935,7 +4935,8 @@ async function toggleAtivoFuncionario(id, ativoAtual) {
 window.editarFuncionario = editarFuncionario;
 window.deletarFuncionario = deletarFuncionario;
 window.toggleAtivoFuncionario = toggleAtivoFuncionario;
-// window.loadFuncionariosRH = loadFuncionariosRH; // ❌ FUNÇÃO NÃO DEFINIDA - comentado para evitar erro
+// loadFuncionariosRH é um alias para loadFuncionarios (usada em modals.js)
+window.loadFuncionariosRH = async function() { return loadFuncionarios(); };
 
 /**
  * Carrega lista de funcionários para uso em modais (endpoint simplificado)
@@ -6130,7 +6131,7 @@ window.loadFluxoProjetado = loadFluxoProjetado;
 window.loadAnaliseContas = loadAnaliseContas;
 window.loadFornecedores = loadFornecedores;
 window.loadExtratos = loadExtratos;
-// window.loadFuncionariosRH = loadFuncionariosRH; // ❌ FUNÇÃO NÃO DEFINIDA - comentado
+// loadFuncionariosRH já exposto acima como alias de loadFuncionarios
 window.loadKits = loadKits;
 window.loadSessoes = loadSessoes;
 window.loadComissoes = loadComissoes;
