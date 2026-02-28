@@ -4790,6 +4790,7 @@ def buscar_sessao(sessao_id: int) -> Dict:
         SELECT 
             s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
             s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
+            s.status,
             c.nome AS cliente_nome,
             ct.numero AS contrato_numero, ct.descricao AS contrato_nome
         FROM sessoes s
@@ -4817,10 +4818,11 @@ def buscar_sessao(sessao_id: int) -> Dict:
     return {
         'id': row['id'],
         'cliente_id': row['cliente_id'],
-        'cliente_nome': row['cliente_nome'] or row['cliente_razao_social'],
+        'cliente_nome': row['cliente_nome'],
         'contrato_id': row['contrato_id'],
         'contrato_numero': row['contrato_numero'],
         'contrato_nome': row['contrato_nome'],
+        'status': row['status'] or 'rascunho',
         'data': row['data'].isoformat() if row['data'] else None,
         'horario': dados_json.get('horario'),
         'quantidade_horas': dados_json.get('quantidade_horas'),
