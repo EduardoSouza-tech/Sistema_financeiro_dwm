@@ -4950,8 +4950,17 @@ def finalizar_sessao(empresa_id: int, sessao_id: int, usuario_id: int, horas_tra
             }
         
         # 2. Determinar horas trabalhadas
+        # NOTA: duracao é em MINUTOS; quantidade_horas (em horas) fica em dados_json
         if horas_trabalhadas is None:
-            horas_trabalhadas = float(sessao.get('duracao') or 0)
+            import json as _json
+            _dados_json = sessao.get('dados_json') or {}
+            if isinstance(_dados_json, str):
+                _dados_json = _json.loads(_dados_json)
+            _qh = _dados_json.get('quantidade_horas')
+            if _qh is not None:
+                horas_trabalhadas = float(_qh)        # usa quantidade_horas do form (em horas)
+            else:
+                horas_trabalhadas = float(sessao.get('duracao') or 0) / 60.0  # duracao em minutos → horas
         else:
             horas_trabalhadas = float(horas_trabalhadas)
         
@@ -5055,8 +5064,9 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
         cursor = conn.cursor()
         
         # Buscar sessão atual (incluindo dados do contrato para dedução de horas)
+        # NOTA: quantidade_horas fica em dados_json, não é coluna direta
         cursor.execute("""
-            SELECT s.id, s.status, s.titulo, s.quantidade_horas, s.contrato_id,
+            SELECT s.id, s.status, s.titulo, s.dados_json, s.contrato_id,
                    c.controle_horas_ativo, c.horas_totais, c.horas_utilizadas, c.horas_extras
             FROM sessoes s
             LEFT JOIN contratos c ON s.contrato_id = c.id
@@ -5068,6 +5078,13 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
             cursor.close()
             return_to_pool(conn)
             raise ValueError(f"Sessão {sessao_id} não encontrada")
+        
+        # Extrair quantidade_horas de dados_json
+        import json as _json
+        _dados_json = sessao.get('dados_json') or {}
+        if isinstance(_dados_json, str):
+            _dados_json = _json.loads(_dados_json)
+        _quantidade_horas_sessao = _dados_json.get('quantidade_horas')
         
         status_anterior = sessao.get('status', 'rascunho')
         
@@ -5100,7 +5117,7 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
         horas_info = {}
         if novo_status == 'concluida' and sessao.get('contrato_id') and sessao.get('controle_horas_ativo'):
             contrato_id      = sessao['contrato_id']
-            horas_trabalhadas = float(sessao.get('quantidade_horas') or 0)
+            horas_trabalhadas = float(_quantidade_horas_sessao or 0)
             horas_totais      = float(sessao.get('horas_totais')     or 0)
             horas_utilizadas  = float(sessao.get('horas_utilizadas') or 0)
             saldo_atual       = horas_totais - horas_utilizadas
