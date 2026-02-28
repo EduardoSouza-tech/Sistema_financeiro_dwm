@@ -553,6 +553,7 @@ function openEmailSettings() {
     `;
     
     document.body.appendChild(modal);
+    modal.classList.add('show'); // tornar visível (modal-overlay é display:none por padrão)
     renderEmailList();
 }
 
