@@ -5263,6 +5263,7 @@ async function loadSessoes() {
                 'agendada': { cor: '#3b82f6', label: '📅 Agendada' },
                 'em_andamento': { cor: '#f59e0b', label: '⏳ Em Andamento' },
                 'finalizada': { cor: '#10b981', label: '✅ Finalizada' },
+                'concluida': { cor: '#059669', label: '🏁 Concluída' },
                 'cancelada': { cor: '#ef4444', label: '❌ Cancelada' },
                 'reaberta': { cor: '#8b5cf6', label: '🔄 Reaberta' }
             };

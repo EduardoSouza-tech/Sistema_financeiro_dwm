@@ -426,7 +426,7 @@ def atualizar_status_route(sessao_id):
     
     Body (JSON):
         {
-            "status": "agendada"  // rascunho, agendada, em_andamento, finalizada, cancelada, reaberta
+            "status": "agendada"  // rascunho, agendada, em_andamento, finalizada, concluida, cancelada, reaberta
         }
     
     Returns:

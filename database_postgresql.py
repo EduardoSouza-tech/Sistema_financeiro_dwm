@@ -5043,7 +5043,7 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
         raise ValueError("empresa_id é obrigatório")
     
     # Status válidos
-    STATUS_VALIDOS = ['rascunho', 'agendada', 'em_andamento', 'finalizada', 'cancelada', 'reaberta']
+    STATUS_VALIDOS = ['rascunho', 'agendada', 'em_andamento', 'finalizada', 'concluida', 'cancelada', 'reaberta']
     
     if novo_status not in STATUS_VALIDOS:
         raise ValueError(f"Status inválido: {novo_status}. Valores aceitos: {', '.join(STATUS_VALIDOS)}")
@@ -5052,11 +5052,13 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
     with get_db_connection(empresa_id=empresa_id) as conn:
         cursor = conn.cursor()
         
-        # Buscar sessão atual
+        # Buscar sessão atual (incluindo dados do contrato para dedução de horas)
         cursor.execute("""
-            SELECT id, status, titulo
-            FROM sessoes
-            WHERE id = %s
+            SELECT s.id, s.status, s.titulo, s.quantidade_horas, s.contrato_id,
+                   c.controle_horas_ativo, c.horas_totais, c.horas_utilizadas, c.horas_extras
+            FROM sessoes s
+            LEFT JOIN contratos c ON s.contrato_id = c.id
+            WHERE s.id = %s
         """, (sessao_id,))
         
         sessao = cursor.fetchone()
@@ -5069,8 +5071,9 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
         
         # Validar transições (regras de negócio)
         transicoes_invalidas = [
-            (status_anterior == 'finalizada' and novo_status not in ['reaberta', 'cancelada']),
-            (status_anterior == 'cancelada' and novo_status not in ['reaberta', 'agendada']),
+            (status_anterior == 'finalizada'  and novo_status not in ['reaberta', 'cancelada']),
+            (status_anterior == 'cancelada'   and novo_status not in ['reaberta', 'agendada']),
+            (status_anterior == 'concluida'   and novo_status not in ['reaberta']),
         ]
         
         if any(transicoes_invalidas):
@@ -5090,6 +5093,40 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
         """, (novo_status, sessao_id))
+
+        # -- Ao concluir: deduzir horas do contrato automaticamente ---------
+        horas_info = {}
+        if novo_status == 'concluida' and sessao.get('contrato_id') and sessao.get('controle_horas_ativo'):
+            contrato_id      = sessao['contrato_id']
+            horas_trabalhadas = float(sessao.get('quantidade_horas') or 0)
+            horas_totais      = float(sessao.get('horas_totais')     or 0)
+            horas_utilizadas  = float(sessao.get('horas_utilizadas') or 0)
+            saldo_atual       = horas_totais - horas_utilizadas
+
+            if saldo_atual >= horas_trabalhadas:
+                horas_deduzidas      = horas_trabalhadas
+                horas_extras_adicional = 0
+            else:
+                horas_deduzidas      = max(saldo_atual, 0)
+                horas_extras_adicional = horas_trabalhadas - horas_deduzidas
+
+            cursor.execute("""
+                UPDATE contratos
+                SET horas_utilizadas = horas_utilizadas + %s,
+                    horas_extras     = horas_extras     + %s,
+                    updated_at       = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (horas_deduzidas, horas_extras_adicional, contrato_id))
+
+            saldo_restante = max(horas_totais - (horas_utilizadas + horas_deduzidas), 0)
+            horas_info = {
+                'controle_horas_ativo':  True,
+                'horas_trabalhadas':     horas_trabalhadas,
+                'horas_deduzidas':       horas_deduzidas,
+                'horas_extras':          horas_extras_adicional,
+                'saldo_restante':        saldo_restante,
+            }
+        # -------------------------------------------------------------------
         
         conn.commit()
         cursor.close()
@@ -5099,7 +5136,8 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
             'success': True,
             'message': f'Status alterado: {status_anterior} → {novo_status}',
             'status_anterior': status_anterior,
-            'status_novo': novo_status
+            'status_novo': novo_status,
+            **horas_info
         }
 
 

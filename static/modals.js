@@ -2705,6 +2705,7 @@ function renderBotoesStatusSessao(sessao) {
         'agendada': { cor: '#3b82f6', label: '📅 Agendada', icone: '📅' },
         'em_andamento': { cor: '#f59e0b', label: '⏳ Em Andamento', icone: '⏳' },
         'finalizada': { cor: '#10b981', label: '✅ Finalizada', icone: '✅' },
+        'concluida': { cor: '#059669', label: '🏁 Concluída', icone: '🏁' },
         'cancelada': { cor: '#ef4444', label: '❌ Cancelada', icone: '❌' },
         'reaberta': { cor: '#8b5cf6', label: '🔄 Reaberta', icone: '🔄' }
     };
@@ -2736,6 +2737,9 @@ function renderBotoesStatusSessao(sessao) {
                 <button type="button" class="btn" style="background: #f59e0b; color: white; font-size: 13px; padding: 8px 16px;" onclick="iniciarSessao(${sessaoId})">
                     ▶️ Iniciar Sessão
                 </button>
+                <button type="button" class="btn" style="background: #059669; color: white; font-size: 13px; padding: 8px 16px;" onclick="concluirSessaoModal(${sessaoId})">
+                    🏁 Concluir Sessão
+                </button>
                 <button type="button" class="btn" style="background: #10b981; color: white; font-size: 13px; padding: 8px 16px;" onclick="finalizarSessaoModal(${sessaoId})">
                     ✅ Finalizar Diretamente
                 </button>
@@ -2747,11 +2751,22 @@ function renderBotoesStatusSessao(sessao) {
             
         case 'em_andamento':
             html += `
+                <button type="button" class="btn" style="background: #059669; color: white; font-size: 13px; padding: 8px 16px;" onclick="concluirSessaoModal(${sessaoId})">
+                    🏁 Concluir Sessão
+                </button>
                 <button type="button" class="btn" style="background: #10b981; color: white; font-size: 13px; padding: 8px 16px;" onclick="finalizarSessaoModal(${sessaoId})">
                     ✅ Finalizar Sessão
                 </button>
                 <button type="button" class="btn" style="background: #ef4444; color: white; font-size: 13px; padding: 8px 16px;" onclick="cancelarSessaoModal(${sessaoId})">
                     ❌ Cancelar Sessão
+                </button>
+            `;
+            break;
+            
+        case 'concluida':
+            html += `
+                <button type="button" class="btn" style="background: #8b5cf6; color: white; font-size: 13px; padding: 8px 16px;" onclick="reabrirSessaoModal(${sessaoId})">
+                    🔄 Reabrir Sessão
                 </button>
             `;
             break;
@@ -3490,6 +3505,47 @@ async function salvarSessao(event) {
     }
 }
 
+async function concluirSessaoModal(sessaoId) {
+    if (!confirm('🏁 Concluir esta sessão?\n\n✅ As horas planejadas (quantidade_horas) serão aplicadas automaticamente ao contrato.\n\nDeseja continuar?')) {
+        return;
+    }
+
+    try {
+        console.log('🏁 Concluindo sessão:', sessaoId);
+
+        const response = await fetch(`/api/sessoes/${sessaoId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'concluida' })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            let mensagem = '🏁 Sessão concluída com sucesso!\n\n';
+
+            if (result.controle_horas_ativo) {
+                mensagem += `⏱️ Horas aplicadas: ${result.horas_deduzidas}h\n`;
+                if (result.horas_extras > 0) {
+                    mensagem += `⚠️ Horas extras geradas: ${result.horas_extras}h\n`;
+                }
+                mensagem += `✅ Saldo restante no contrato: ${result.saldo_restante}h`;
+            }
+
+            showToast(mensagem, 'success');
+            closeModal();
+
+            if (typeof loadSessoes   === 'function') loadSessoes();
+            if (typeof loadContratos === 'function') loadContratos();
+        } else {
+            showToast('❌ ' + (result.message || result.error || 'Erro ao concluir sessão'), 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao concluir sessão:', error);
+        showToast('❌ Erro ao concluir sessão: ' + error.message, 'error');
+    }
+}
+
 async function finalizarSessaoModal(sessaoId) {
     if (!confirm('⚠️ Tem certeza que deseja FINALIZAR esta sessão?\n\n✅ As horas trabalhadas serão deduzidas do contrato\n❌ Esta ação não pode ser desfeita facilmente')) {
         return;
@@ -3543,6 +3599,7 @@ async function finalizarSessaoModal(sessaoId) {
 
 window.openModalSessao = openModalSessao;
 window.salvarSessao = salvarSessao;
+window.concluirSessaoModal = concluirSessaoModal;
 window.finalizarSessaoModal = finalizarSessaoModal;
 window.renderBotoesStatusSessao = renderBotoesStatusSessao;
 window.confirmarSessao = confirmarSessao;

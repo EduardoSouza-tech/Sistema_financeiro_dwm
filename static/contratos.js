@@ -1270,13 +1270,20 @@ function getCorStatusContrato(status) {
 
 function getCorStatusSessao(status) {
     const cores = {
-        'marcada': '#95a5a6',
-        'reagendada': '#7f8c8d',
-        'realizada': '#3498db',
-        'entrega_parcial': '#f39c12',
-        'entrega_completa': '#27ae60',
-        'entrega_atrasada': '#e67e22',
-        'cancelada': '#e74c3c'
+        'rascunho':      '#94a3b8',
+        'agendada':      '#3b82f6',
+        'em_andamento':  '#f59e0b',
+        'finalizada':    '#10b981',
+        'concluida':     '#059669',
+        'cancelada':     '#ef4444',
+        'reaberta':      '#8b5cf6',
+        // legacy values kept for backwards compat
+        'marcada':           '#95a5a6',
+        'reagendada':        '#7f8c8d',
+        'realizada':         '#3498db',
+        'entrega_parcial':   '#f39c12',
+        'entrega_completa':  '#27ae60',
+        'entrega_atrasada':  '#e67e22'
     };
     return cores[status] || '#95a5a6';
 }
