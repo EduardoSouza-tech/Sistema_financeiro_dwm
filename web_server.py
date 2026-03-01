@@ -136,7 +136,8 @@ def auto_execute_migrations():
             AND table_name IN ('funcoes_evento', 'evento_funcionarios')
         """)
         
-        count = cursor.fetchone()[0]
+        _row = cursor.fetchone()
+        count = _row['count'] if isinstance(_row, dict) else _row[0]
         
         if count == 2:
             logger.info("✅ Tabelas já existem. Verificando colunas adicionais...")
@@ -4078,7 +4079,8 @@ def deletar_importacao_extrato(importacao_id):
             WHERE importacao_id = %s AND empresa_id = %s AND conciliado = TRUE
         """, (importacao_id, empresa_id))
         
-        total_conciliados = cursor.fetchone()[0]
+        _row = cursor.fetchone()
+        total_conciliados = _row['count'] if isinstance(_row, dict) else _row[0]
         cursor.close()
         from database_postgresql import return_to_pool
         return_to_pool(conn)
@@ -4327,7 +4329,8 @@ def deletar_tudo_extrato_conta():
                 SELECT COUNT(*) FROM transacoes_extrato
                 WHERE empresa_id = %s AND conta_bancaria = %s
             """, (empresa_id, conta_bancaria))
-            total_antes = cursor.fetchone()[0]
+            _row_antes = cursor.fetchone()
+            total_antes = _row_antes['count'] if isinstance(_row_antes, dict) else _row_antes[0]
             
             # ⚠️ VERIFICAR SE HÁ TRANSAÇÕES CONCILIADAS
             cursor.execute("""
@@ -4336,7 +4339,8 @@ def deletar_tudo_extrato_conta():
                 WHERE empresa_id = %s AND conta_bancaria = %s AND conciliado = TRUE
             """, (empresa_id, conta_bancaria))
             
-            total_conciliados = cursor.fetchone()[0]
+            _row_conc = cursor.fetchone()
+            total_conciliados = _row_conc['count'] if isinstance(_row_conc, dict) else _row_conc[0]
             
             # Se houver conciliações e não foi confirmado, avisar o usuário
             if total_conciliados > 0 and not confirmado:
@@ -4443,7 +4447,8 @@ def deletar_extrato_filtrado():
                 params.append(filtros['data_fim'])
             
             cursor.execute(query_count, params)
-            total_conciliados = cursor.fetchone()[0]
+            _row = cursor.fetchone()
+            total_conciliados = _row['count'] if isinstance(_row, dict) else _row[0]
             
             # Se houver conciliações e não foi confirmado, avisar o usuário
             if total_conciliados > 0 and not confirmado:
@@ -18164,7 +18169,8 @@ def test_db_connection():
         with database.get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM transacoes_extrato WHERE empresa_id = %s", (empresa_id,))
-            total = cursor.fetchone()[0]
+            _row_t = cursor.fetchone()
+            total = _row_t['count'] if isinstance(_row_t, dict) else _row_t[0]
             cursor.close()
             
             logger.info(f"✅ TEST: Conexão funcionou! {total} transações encontradas")
