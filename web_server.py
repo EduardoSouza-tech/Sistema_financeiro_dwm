@@ -539,7 +539,28 @@ try:
         executar_migration()
     except Exception as e:
         print(f"⚠️ Aviso: {e}")
-    
+
+    # 🔧 Criar tabela ofx_filtros_memo (Ajuste de OFX)
+    try:
+        print("\n🔧 Verificando tabela ofx_filtros_memo...")
+        with db.get_connection() as _conn:
+            _cur = _conn.cursor()
+            _cur.execute("""
+                CREATE TABLE IF NOT EXISTS ofx_filtros_memo (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id INTEGER NOT NULL,
+                    conta_bancaria VARCHAR(500) NOT NULL,
+                    memo_filtro TEXT NOT NULL,
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    UNIQUE (empresa_id, conta_bancaria, memo_filtro)
+                )
+            """)
+            _conn.commit()
+            _cur.close()
+        print("✅ Tabela ofx_filtros_memo verificada/criada!")
+    except Exception as e:
+        print(f"⚠️ Aviso ao criar ofx_filtros_memo: {e}")
+
     print("✅ DatabaseManager pronto!")
     print("="*70 + "\n")
         
@@ -3539,6 +3560,92 @@ def gerenciar_lancamento(lancamento_id):
 # ROTAS DE EXTRATO BANCARIO (IMPORTACAO OFX)
 # ============================================================================
 
+# ---- Ajuste de OFX: CRUD de filtros de MEMO --------------------------------
+
+@app.route('/api/ofx-filtros', methods=['GET'])
+@require_permission('lancamentos_view')
+def listar_ofx_filtros():
+    """Lista filtros de MEMO configurados para a empresa atual"""
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        with db.get_connection() as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute(
+                "SELECT id, conta_bancaria, memo_filtro, criado_em FROM ofx_filtros_memo "
+                "WHERE empresa_id = %s ORDER BY conta_bancaria, memo_filtro",
+                (empresa_id,)
+            )
+            filtros = cursor.fetchall()
+            cursor.close()
+        return jsonify({'success': True, 'filtros': [dict(f) for f in filtros]})
+    except Exception as e:
+        logger.error(f"Erro ao listar ofx_filtros: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/ofx-filtros', methods=['POST'])
+@require_permission('lancamentos_edit')
+def criar_ofx_filtro():
+    """Cria um novo filtro de MEMO para a empresa atual"""
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        data = request.json or {}
+        conta_bancaria = (data.get('conta_bancaria') or '').strip()
+        memo_filtro = (data.get('memo_filtro') or '').strip()
+        if not conta_bancaria:
+            return jsonify({'success': False, 'error': 'Conta bancária obrigatória'}), 400
+        if not memo_filtro:
+            return jsonify({'success': False, 'error': 'Texto do MEMO obrigatório'}), 400
+        with db.get_connection() as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute(
+                "INSERT INTO ofx_filtros_memo (empresa_id, conta_bancaria, memo_filtro) "
+                "VALUES (%s, %s, %s) ON CONFLICT DO NOTHING RETURNING id",
+                (empresa_id, conta_bancaria, memo_filtro)
+            )
+            row = cursor.fetchone()
+            conn.commit()
+            cursor.close()
+        if row:
+            return jsonify({'success': True, 'id': row['id'], 'message': 'Filtro criado com sucesso'})
+        else:
+            return jsonify({'success': False, 'error': 'Filtro já existe para esta conta/MEMO'}), 409
+    except Exception as e:
+        logger.error(f"Erro ao criar ofx_filtro: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/ofx-filtros/<int:filtro_id>', methods=['DELETE'])
+@require_permission('lancamentos_edit')
+def deletar_ofx_filtro(filtro_id):
+    """Deleta um filtro de MEMO"""
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM ofx_filtros_memo WHERE id = %s AND empresa_id = %s",
+                (filtro_id, empresa_id)
+            )
+            deleted = cursor.rowcount
+            conn.commit()
+            cursor.close()
+        if deleted:
+            return jsonify({'success': True, 'message': 'Filtro removido com sucesso'})
+        else:
+            return jsonify({'success': False, 'error': 'Filtro não encontrado'}), 404
+    except Exception as e:
+        logger.error(f"Erro ao deletar ofx_filtro: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ---- Fim Ajuste de OFX -------------------------------------------------------
+
 import extrato_functions
 
 @app.route('/api/extratos/upload', methods=['POST'])
@@ -3770,6 +3877,26 @@ def upload_extrato_ofx():
         
         # Extrair transacoes
         transacoes = []
+
+        # --- Carregar filtros de MEMO (Ajuste de OFX) para esta empresa + conta ---
+        _memos_ignorar = set()
+        try:
+            with db.get_connection() as _fc:
+                _fcur = _fc.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                _fcur.execute(
+                    "SELECT memo_filtro FROM ofx_filtros_memo "
+                    "WHERE empresa_id = %s AND conta_bancaria = %s",
+                    (empresa_id, conta_bancaria)
+                )
+                for _fr in _fcur.fetchall():
+                    _memos_ignorar.add(_fr['memo_filtro'].strip().upper())
+                _fcur.close()
+            if _memos_ignorar:
+                logger.info(f"🔧 Ajuste OFX: {len(_memos_ignorar)} MEMO(s) serão ignorados: {_memos_ignorar}")
+        except Exception as _fe:
+            logger.warning(f"⚠️ Não foi possível carregar filtros de MEMO: {_fe}")
+        # --------------------------------------------------------------------------
+
         for account in ofx.accounts:
             # Obter saldo final do OFX
             saldo_final = float(account.statement.balance) if hasattr(account.statement, 'balance') else None
@@ -3784,6 +3911,19 @@ def upload_extrato_ofx():
             
             # Ordenar transações por data (mais antiga primeiro)
             transactions_list = sorted(account.statement.transactions, key=lambda t: t.date)
+            
+            # Aplicar filtros de MEMO (Ajuste de OFX) — remover transações ignoradas
+            if _memos_ignorar:
+                _antes = len(transactions_list)
+                transactions_list = [
+                    t for t in transactions_list
+                    if (t.memo or '').strip().upper() not in _memos_ignorar
+                    and (t.payee or '').strip().upper() not in _memos_ignorar
+                ]
+                _ignoradas = _antes - len(transactions_list)
+                if _ignoradas:
+                    logger.info(f"🔧 Ajuste OFX: {_ignoradas} transação(ões) ignorada(s) por filtro de MEMO")
+                    print(f"🔧 Ajuste OFX: {_ignoradas} transação(ões) ignorada(s) por filtro de MEMO")
             
             # PRIMEIRO: processar transações para corrigir sinais
             transacoes_processadas = []

@@ -2087,6 +2087,11 @@
                                 onmouseout="this.style.background='#9b59b6'">
                             ⚙️ Configuração de Extrato
                         </button>
+                        <button onclick="abrirAjusteOFX()" class="btn btn-warning" style="padding: 10px 20px; background: #e67e22; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s;"
+                                onmouseover="this.style.background='#d35400'"
+                                onmouseout="this.style.background='#e67e22'">
+                            🔧 Ajuste de OFX
+                        </button>
                         <button onclick="abrirConciliacaoGeral()" class="btn btn-success" style="padding: 10px 20px; background: #27ae60; font-weight: bold;">
                             🔄 Conciliação Geral
                         </button>
@@ -14557,5 +14562,192 @@
     <!-- Script Módulo Remessa Pagamento -->
     <script src="/static/remessa_pagamento.js?v={{ build_timestamp }}"></script>
     <script src="/static/regras_conciliacao.js?v={{ build_timestamp }}"></script>
+
+    <!-- ===== MODAL AJUSTE DE OFX ===== -->
+    <div id="modal-ajuste-ofx" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.55); z-index:10000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:10px; width:90%; max-width:680px; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 8px 32px rgba(0,0,0,0.25); overflow:hidden;">
+            <!-- Cabeçalho -->
+            <div style="background:linear-gradient(135deg,#e67e22,#d35400); color:#fff; padding:18px 24px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h3 style="margin:0; font-size:18px;">🔧 Ajuste de OFX — Filtros de MEMO</h3>
+                    <p style="margin:4px 0 0; font-size:13px; opacity:0.9;">Transações com o MEMO configurado serão ignoradas na importação</p>
+                </div>
+                <button onclick="fecharAjusteOFX()" style="background:rgba(255,255,255,0.2); border:none; color:#fff; font-size:22px; cursor:pointer; border-radius:50%; width:36px; height:36px; line-height:36px; text-align:center; padding:0;">&times;</button>
+            </div>
+
+            <!-- Corpo -->
+            <div style="padding:24px; overflow-y:auto; flex:1;">
+                <!-- Formulário de novo filtro -->
+                <div style="background:#fef9f0; border:1px solid #f39c12; border-radius:8px; padding:18px; margin-bottom:24px;">
+                    <h4 style="margin:0 0 14px; color:#d35400; font-size:15px;">➕ Adicionar Novo Filtro</h4>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                        <div style="flex:1; min-width:200px;">
+                            <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555; font-size:13px;">Conta Bancária:</label>
+                            <select id="ajuste-ofx-conta" style="width:100%; padding:9px 10px; border:1px solid #ddd; border-radius:6px; font-size:14px;">
+                                <option value="">Selecione a conta...</option>
+                            </select>
+                        </div>
+                        <div style="flex:1; min-width:200px;">
+                            <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555; font-size:13px;">Texto do MEMO a ignorar:</label>
+                            <input type="text" id="ajuste-ofx-memo"
+                                   placeholder="Ex: SALDO TOTAL DISPONÍVEL DIA"
+                                   style="width:100%; padding:9px 10px; border:1px solid #ddd; border-radius:6px; font-size:14px; box-sizing:border-box;">
+                        </div>
+                        <button onclick="salvarFiltroOFX()" style="padding:9px 22px; background:#27ae60; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:14px; white-space:nowrap;">
+                            💾 Salvar Filtro
+                        </button>
+                    </div>
+                    <p style="margin:10px 0 0; font-size:12px; color:#888;">
+                        💡 O texto é comparado de forma exata (sem diferenciação de maiúsculas/minúsculas) com o campo MEMO de cada transação no arquivo OFX.
+                    </p>
+                </div>
+
+                <!-- Lista de filtros existentes -->
+                <h4 style="margin:0 0 12px; color:#2c3e50; font-size:15px;">📋 Filtros Configurados</h4>
+                <div id="ajuste-ofx-lista" style="min-height:60px;">
+                    <p style="color:#999; text-align:center; padding:20px;">Carregando...</p>
+                </div>
+            </div>
+
+            <!-- Rodapé -->
+            <div style="padding:14px 24px; background:#f8f9fa; border-top:1px solid #eee; text-align:right;">
+                <button onclick="fecharAjusteOFX()" style="padding:9px 24px; background:#95a5a6; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:14px;">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ===== AJUSTE DE OFX =====
+    async function abrirAjusteOFX() {
+        const modal = document.getElementById('modal-ajuste-ofx');
+        modal.style.display = 'flex';
+        // Popultar select de contas (reutilizar mesmo select do extrato)
+        const contaSelectOrigem = document.getElementById('conta-bancaria-extrato');
+        const contaSelectDest   = document.getElementById('ajuste-ofx-conta');
+        contaSelectDest.innerHTML = '<option value="">Selecione a conta...</option>';
+        // Tentar copiar do select do extrato
+        const opcoesValidas = contaSelectOrigem
+            ? Array.from(contaSelectOrigem.options).filter(o => o.value)
+            : [];
+        if (opcoesValidas.length > 0) {
+            opcoesValidas.forEach(opt => {
+                const novo = document.createElement('option');
+                novo.value = opt.value;
+                novo.textContent = opt.text;
+                contaSelectDest.appendChild(novo);
+            });
+        } else {
+            // Fallback: buscar contas direto da API
+            try {
+                const r = await fetch('/api/contas-bancarias', {
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+                });
+                const d = await r.json();
+                const lista = d.contas || d.data || d || [];
+                lista.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.nome || c.name || c.id;
+                    opt.textContent = c.nome || c.name || c.id;
+                    contaSelectDest.appendChild(opt);
+                });
+            } catch(_) {}
+        }
+        await carregarFiltrosOFX();
+    }
+
+    function fecharAjusteOFX() {
+        document.getElementById('modal-ajuste-ofx').style.display = 'none';
+    }
+
+    async function carregarFiltrosOFX() {
+        const lista = document.getElementById('ajuste-ofx-lista');
+        lista.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">Carregando...</p>';
+        try {
+            const resp = await fetch('/api/ofx-filtros', {
+                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+            });
+            const data = await resp.json();
+            if (!data.success) throw new Error(data.error || 'Erro ao carregar filtros');
+            const filtros = data.filtros || [];
+            if (!filtros.length) {
+                lista.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">Nenhum filtro configurado. Adicione um filtro acima.</p>';
+                return;
+            }
+            // Agrupar por conta
+            const porConta = {};
+            filtros.forEach(f => {
+                if (!porConta[f.conta_bancaria]) porConta[f.conta_bancaria] = [];
+                porConta[f.conta_bancaria].push(f);
+            });
+            let html = '';
+            Object.entries(porConta).forEach(([conta, itens]) => {
+                html += `<div style="margin-bottom:16px;">
+                    <div style="background:#ecf0f1;padding:8px 14px;border-radius:6px 6px 0 0;font-weight:bold;color:#2c3e50;font-size:13px;">🏦 ${conta}</div>
+                    <div style="border:1px solid #ecf0f1;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;">`;
+                itens.forEach((f, idx) => {
+                    html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;${idx % 2 === 0 ? 'background:#fff' : 'background:#f9f9f9'};border-bottom:1px solid #f0f0f0;">
+                        <span style="font-family:monospace;font-size:13px;color:#34495e;">${escHtml(f.memo_filtro)}</span>
+                        <button onclick="deletarFiltroOFX(${f.id})" style="background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+                            🗑️ Remover
+                        </button>
+                    </div>`;
+                });
+                html += '</div></div>';
+            });
+            lista.innerHTML = html;
+        } catch (e) {
+            lista.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:20px;">❌ Erro: ${e.message}</p>`;
+        }
+    }
+
+    async function salvarFiltroOFX() {
+        const conta = document.getElementById('ajuste-ofx-conta').value.trim();
+        const memo  = document.getElementById('ajuste-ofx-memo').value.trim();
+        if (!conta) { alert('⚠️ Selecione uma conta bancária.'); return; }
+        if (!memo)  { alert('⚠️ Digite o texto do MEMO a ser ignorado.'); return; }
+        try {
+            const resp = await fetch('/api/ofx-filtros', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                body: JSON.stringify({ conta_bancaria: conta, memo_filtro: memo })
+            });
+            const data = await resp.json();
+            if (!data.success) throw new Error(data.error || 'Erro ao salvar');
+            document.getElementById('ajuste-ofx-memo').value = '';
+            await carregarFiltrosOFX();
+        } catch (e) {
+            alert('❌ ' + e.message);
+        }
+    }
+
+    async function deletarFiltroOFX(id) {
+        if (!confirm('Remover este filtro?')) return;
+        try {
+            const resp = await fetch(`/api/ofx-filtros/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+            });
+            const data = await resp.json();
+            if (!data.success) throw new Error(data.error || 'Erro ao remover');
+            await carregarFiltrosOFX();
+        } catch (e) {
+            alert('❌ ' + e.message);
+        }
+    }
+
+    function escHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // Fechar modal ao clicar fora
+    document.getElementById('modal-ajuste-ofx').addEventListener('click', function(e) {
+        if (e.target === this) fecharAjusteOFX();
+    });
+    </script>
 </body>
 </html>
