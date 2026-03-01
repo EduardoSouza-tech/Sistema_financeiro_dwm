@@ -4083,10 +4083,24 @@ def listar_extratos():
         
         logger.info(f"🔍 /api/extratos: empresa_id={empresa_id}, usuario={usuario.get('nome', 'N/A')}")
         
+        # Validar e sanitizar datas (rejeitar anos absurdos, ex: 0202 vindo de JS Date com ano truncado)
+        def _sanitize_date(value):
+            if not value:
+                return None
+            try:
+                from datetime import datetime as _dt
+                parsed = _dt.strptime(value, '%Y-%m-%d')
+                if parsed.year < 2000 or parsed.year > 2100:
+                    logger.warning(f"⚠️ Data com ano inválido ignorada: {value}")
+                    return None
+                return value
+            except (ValueError, TypeError):
+                return None
+
         filtros = {
             'conta_bancaria': request.args.get('conta'),
-            'data_inicio': request.args.get('data_inicio'),
-            'data_fim': request.args.get('data_fim'),
+            'data_inicio': _sanitize_date(request.args.get('data_inicio')),
+            'data_fim': _sanitize_date(request.args.get('data_fim')),
             'conciliado': request.args.get('conciliado')
         }
         

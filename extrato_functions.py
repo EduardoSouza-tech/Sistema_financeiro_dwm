@@ -112,35 +112,56 @@ def listar_transacoes_extrato(database, empresa_id, filtros=None):
             log(f"✅ Conexão obtida com sucesso!")
             cursor = conn.cursor(cursor_factory=database.RealDictCursor)
             
-            # 🏦 BUSCAR SALDO ANTERIOR ao período filtrado
+            # 🏦 CALCULAR SALDO ANTERIOR dinamicamente (imune a valores armazenados incorretos)
+            # ESTRATÉGIA: saldo_inicial_conta + SUM(transacoes desde data_inicio_conta até data_filtro)
+            # Isso é correto mesmo quando o campo 'saldo' armazenado foi calculado errado
+            # (ex: OFX com transações fake como "SALDO ANTERIOR" ou data_inicio errada na conta)
             saldo_anterior = None
-            if filtros and filtros.get('data_inicio'):
-                # ESTRATÉGIA: Pegar o campo 'saldo' da ÚLTIMA transação antes do período
-                # O campo 'saldo' vem do OFX e representa o saldo real da conta naquele momento
-                query_saldo = """
-                    SELECT saldo
+            data_inicio_filtro = filtros.get('data_inicio') if filtros else None
+
+            if data_inicio_filtro:
+                conta_bancaria_filtro = filtros.get('conta_bancaria') if filtros else None
+                saldo_base = 0.0
+                data_base = None
+
+                # 1) Obter saldo_inicial e data_inicio da conta (se filtro por conta específica)
+                if conta_bancaria_filtro:
+                    cursor.execute("""
+                        SELECT saldo_inicial, data_inicio
+                        FROM contas_bancarias
+                        WHERE empresa_id = %s AND nome = %s
+                        LIMIT 1
+                    """, (empresa_id, conta_bancaria_filtro))
+                    conta_row = cursor.fetchone()
+                    if conta_row:
+                        saldo_base = float(conta_row['saldo_inicial'] or 0)
+                        data_base = conta_row['data_inicio']
+                        log(f"🏦 Conta encontrada: saldo_inicial={saldo_base}, data_inicio={data_base}")
+
+                # 2) Somar transações: desde data_base (ou all-time) até data_filtro
+                query_soma = """
+                    SELECT COALESCE(SUM(valor), 0) AS soma
                     FROM transacoes_extrato
                     WHERE empresa_id = %s
                       AND data < %s
                 """
-                params_saldo = [empresa_id, filtros['data_inicio']]
-                
-                # Se filtrou por conta, buscar saldo daquela conta específica
-                if filtros.get('conta_bancaria'):
-                    query_saldo += " AND conta_bancaria = %s"
-                    params_saldo.append(filtros['conta_bancaria'])
-                
-                # Ordenar por data DESC para pegar a transação mais recente antes do período
-                query_saldo += " ORDER BY data DESC, id DESC LIMIT 1"
-                
-                cursor.execute(query_saldo, params_saldo)
-                resultado_saldo = cursor.fetchone()
-                
-                if resultado_saldo:
-                    saldo_anterior = float(resultado_saldo['saldo'])
-                    log(f"🏦 Saldo anterior (última transação antes do período): R$ {saldo_anterior:,.2f}")
-                else:
-                    log(f"🏦 Nenhuma transação anterior ao período - saldo inicial = R$ 0,00")
+                params_soma = [empresa_id, data_inicio_filtro]
+
+                if conta_bancaria_filtro:
+                    query_soma += " AND conta_bancaria = %s"
+                    params_soma.append(conta_bancaria_filtro)
+
+                # Só somar transações desde a data_inicio da conta (a partir de quando o saldo_inicial vale)
+                if data_base:
+                    query_soma += " AND data >= %s"
+                    params_soma.append(data_base)
+
+                cursor.execute(query_soma, params_soma)
+                soma_row = cursor.fetchone()
+                soma_anterior = float((soma_row['soma'] if isinstance(soma_row, dict) else soma_row[0]) or 0)
+
+                saldo_anterior = saldo_base + soma_anterior
+                log(f"🏦 Saldo anterior calculado: {saldo_base} (base) + {soma_anterior:.2f} (soma) = R$ {saldo_anterior:,.2f}")
             
             # Query principal de transações
             # Usar tabela conciliacoes para verificar conciliação
