@@ -3618,10 +3618,29 @@ def upload_extrato_ofx():
         
         print(f"✅ Conta está ativa, prosseguindo com o upload...")
         
-        # Parse OFX
+        # Parse OFX — ler bytes brutos e recodificar para evitar erros de charset
         try:
             import ofxparse
-            ofx = ofxparse.OfxParser.parse(file)
+            import io
+
+            raw_bytes = file.read()
+
+            # Tentar detectar/corrigir encoding: OFX pode vir em cp1252, latin-1, utf-8 ou utf-8-sig
+            decoded_content = None
+            for enc in ('utf-8-sig', 'utf-8', 'cp1252', 'latin-1', 'iso-8859-1'):
+                try:
+                    decoded_content = raw_bytes.decode(enc)
+                    break
+                except (UnicodeDecodeError, LookupError):
+                    continue
+
+            if decoded_content is None:
+                # Último recurso: decodificar com latin-1 (aceita todos os bytes 0x00-0xFF)
+                decoded_content = raw_bytes.decode('latin-1', errors='replace')
+
+            # Recodificar para UTF-8 limpo e passar ao ofxparse via BytesIO
+            clean_bytes = decoded_content.encode('utf-8', errors='replace')
+            ofx = ofxparse.OfxParser.parse(io.BytesIO(clean_bytes))
         except Exception as e:
             return jsonify({'success': False, 'error': f'Erro ao processar OFX: {str(e)}'}), 400
         
