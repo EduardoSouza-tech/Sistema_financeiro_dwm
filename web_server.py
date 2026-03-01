@@ -3619,24 +3619,32 @@ def upload_extrato_ofx():
         print(f"✅ Conta está ativa, prosseguindo com o upload...")
         
         # Parse OFX — ler bytes brutos e recodificar para evitar erros de charset
+        # Arquivos OFX de bancos brasileiros costumam usar CP1252/ISO-8859-1 com
+        # bytes invalidos (ex: 0x8d que nao existe no charmap/cp1252).
+        # Estrategia: latin-1 aceita TODOS os bytes 0x00-0xFF garantidamente,
+        # depois recodifica para UTF-8 limpo e normaliza o header CHARSET do OFX.
         try:
             import ofxparse
             import io
+            import re as _re
 
             raw_bytes = file.read()
 
-            # Tentar detectar/corrigir encoding: OFX pode vir em cp1252, latin-1, utf-8 ou utf-8-sig
-            decoded_content = None
-            for enc in ('utf-8-sig', 'utf-8', 'cp1252', 'latin-1', 'iso-8859-1'):
-                try:
-                    decoded_content = raw_bytes.decode(enc)
-                    break
-                except (UnicodeDecodeError, LookupError):
-                    continue
+            # latin-1 (ISO-8859-1) mapeia 1:1 bytes → unicode para 0x00-0xFF, nunca falha
+            decoded_content = raw_bytes.decode('latin-1', errors='replace')
 
-            if decoded_content is None:
-                # Último recurso: decodificar com latin-1 (aceita todos os bytes 0x00-0xFF)
-                decoded_content = raw_bytes.decode('latin-1', errors='replace')
+            # Normalizar header SGML do OFX para evitar que ofxparse tente
+            # redecodificar com charset errado (ex: CHARSET:1252 → CHARSET:0 / UTF-8)
+            # O header fica antes da tag <OFX> e tem linhas KEY:VALUE
+            decoded_content = _re.sub(
+                r'(?im)^(CHARSET\s*:\s*).*$', r'\g<1>0', decoded_content
+            )
+            decoded_content = _re.sub(
+                r'(?im)^(ENCODING\s*:\s*).*$', r'\g<1>UTF-8', decoded_content
+            )
+            # Remover caracteres de controle invisíveis que quebram o parser
+            # (manter \t, \n, \r que são válidos em XML/SGML)
+            decoded_content = _re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', decoded_content)
 
             # Recodificar para UTF-8 limpo e passar ao ofxparse via BytesIO
             clean_bytes = decoded_content.encode('utf-8', errors='replace')
