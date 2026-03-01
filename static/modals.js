@@ -717,7 +717,7 @@ function openModalConta(contaEdit = null) {
     }
     
     const modal = createModal(titulo, `
-        <form id="form-conta" onsubmit="salvarConta(event)">
+        <form id="form-conta" onsubmit="salvarContaBancaria(event)">
             <input type="hidden" id="conta-edit-mode" value="${isEdit}">
             <input type="hidden" id="conta-nome-original" value="${isEdit ? (contaEdit.nome || '') : ''}">
             
