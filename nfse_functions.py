@@ -184,8 +184,8 @@ def adicionar_municipio(
                 url_customizada = url_customizada or info_municipio['url']
                 logger.info(f"✅ Provedor detectado: {provedor}")
             else:
-                if not provedor:
-                    return False, None, "Provedor não especificado e não foi possível detectar automaticamente"
+                # Não bloquear cadastro — usuário pode informar provedor/URL depois
+                logger.warning(f"⚠️ Provedor não detectado para município {codigo_municipio} — salvo sem provedor")
         
         # Criar configuração
         config = {

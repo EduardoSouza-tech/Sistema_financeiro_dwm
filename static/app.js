@@ -7912,40 +7912,59 @@ window.consultarCNPJPreencherMunicipio = async function(cnpj) {
     const digits = cnpj.replace(/\D/g, '');
     if (digits.length !== 14) return;
 
-    const nomeInput   = document.getElementById('config-nome-municipio');
-    const ibgeInput   = document.getElementById('config-codigo-municipio');
-    const ufSelect    = document.getElementById('config-uf');
+    const nomeInput = document.getElementById('config-nome-municipio');
+    const ibgeInput = document.getElementById('config-codigo-municipio');
+    const ufSelect  = document.getElementById('config-uf');
     if (!nomeInput || !ibgeInput || !ufSelect) return;
 
-    // Feedback visual enquanto carrega
     const statusEl = document.getElementById('config-cnpj-status');
     if (statusEl) { statusEl.textContent = '⏳ Consultando CNPJ...'; statusEl.style.color = '#888'; }
 
     try {
+        // 1) Dados da empresa na Receita Federal
         const resp = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`, {
-            method: 'GET',
             headers: { 'Accept': 'application/json' }
         });
-
         if (!resp.ok) {
             if (statusEl) { statusEl.textContent = '⚠️ CNPJ não encontrado na Receita Federal'; statusEl.style.color = '#e67e22'; }
             return;
         }
-
         const empresa = await resp.json();
 
-        // Nome do Município (maiúsculas → title case)
-        const nomeMunicipio = (empresa.municipio || '')
-            .toLowerCase()
-            .replace(/\b\w/g, c => c.toUpperCase());
-
-        // Código IBGE: BrasilAPI retorna como `codigo_municipio` (7 dígitos)
-        const codigoIBGE = String(empresa.codigo_municipio || '').trim();
-
-        // UF
         const uf = (empresa.uf || '').toUpperCase().trim();
+        // BrasilAPI CNPJ retorna nome em maiúsculas — normalizar para Title Case
+        const nomeBruto = (empresa.municipio || '').toLowerCase();
+        const nomeMunicipio = nomeBruto.replace(/\b\w/g, c => c.toUpperCase());
 
-        // Preenche apenas campos vazios (não sobrescreve o que o usuário já digitou)
+        // 2) Buscar código IBGE de 7 dígitos via endpoint de municípios
+        //    (BrasilAPI CNPJ retorna código TOM de 4 dígitos da Receita Federal,
+        //     não o IBGE de 7 dígitos exigido pelos webservices NFS-e)
+        let codigoIBGE = '';
+        if (uf && nomeBruto) {
+            try {
+                const ibgeResp = await fetch(`https://brasilapi.com.br/api/ibge/municipios/v1/${uf}?providers=dados-abertos-br,gov,wikipedia`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (ibgeResp.ok) {
+                    const municipios = await ibgeResp.json();
+                    // Normalizar nome para comparação
+                    const normalizar = s => s.toLowerCase()
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^a-z0-9 ]/g, '').trim();
+                    const nomeBuscado = normalizar(nomeBruto);
+                    const encontrado = municipios.find(m =>
+                        normalizar(m.nome || '') === nomeBuscado
+                    );
+                    if (encontrado) {
+                        codigoIBGE = String(encontrado.codigo_ibge || '').trim();
+                    }
+                }
+            } catch (ibgeErr) {
+                console.warn('⚠️ Erro ao buscar IBGE:', ibgeErr);
+            }
+        }
+
+        // 3) Preencher campos (só se estiverem vazios)
         if (nomeMunicipio && (!nomeInput.value || nomeInput.value.trim() === '')) {
             nomeInput.value = nomeMunicipio;
         }
@@ -7953,17 +7972,18 @@ window.consultarCNPJPreencherMunicipio = async function(cnpj) {
             ibgeInput.value = codigoIBGE;
         }
         if (uf && ufSelect.value === '') {
-            // Seleciona a opção correspondente
             for (const opt of ufSelect.options) {
                 if (opt.value === uf) { ufSelect.value = uf; break; }
             }
         }
 
+        const ibgeDisplay = codigoIBGE || '(IBGE não encontrado — preencha manualmente)';
         if (statusEl) {
-            statusEl.textContent = nomeMunicipio ? `✅ ${nomeMunicipio}/${uf}` : '✅ CNPJ encontrado';
-            statusEl.style.color = '#27ae60';
+            statusEl.textContent = nomeMunicipio
+                ? `✅ ${nomeMunicipio}/${uf} — IBGE: ${ibgeDisplay}`
+                : '✅ CNPJ encontrado';
+            statusEl.style.color = codigoIBGE ? '#27ae60' : '#e67e22';
         }
-
         console.log(`✅ CNPJ lookup: municipio=${nomeMunicipio}, uf=${uf}, ibge=${codigoIBGE}`);
 
     } catch (err) {
