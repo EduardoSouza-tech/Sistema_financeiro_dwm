@@ -143,18 +143,24 @@ const FiscalFederal = (() => {
     // lazy-load
     const loaders = { dashboard: loadDashboard, logs: loadLogs, fila: loadFila };
     if (loaders[tabId]) loaders[tabId]();
-    // Ao abrir DARF: pré-preencher competência com mês atual e calcular vencimento
+    // Ao abrir DARF: pré-preencher competência com mês ANTERIOR (apuração fiscal)
     if (tabId === 'darf') {
       const fc = document.getElementById('fiscal-darf-comp');
-      if (fc && !fc.value) {
-        const now = new Date();
-        fc.value = String(now.getMonth()+1).padStart(2,'0') + String(now.getFullYear());
-      }
+      if (fc && !fc.value) fc.value = _compAnterior();
       _calcularEPreencherVencimento();
     }
   }
 
   // ─── Config Modal ─────────────────────────────────────────────────────────
+  // Retorna competência do mês ANTERIOR em formato MMAAAA (ex: mar/2026 → '022026')
+  function _compAnterior() {
+    const now = new Date();
+    let m = now.getMonth(); // 0-indexed: getMonth()=2 (mar) → m=2 = fevereiro (1-indexed)
+    let y = now.getFullYear();
+    if (m === 0) { m = 12; y -= 1; } // janeiro → dezembro do ano anterior
+    return String(m).padStart(2, '0') + String(y);
+  }
+
   function openConfigModal() {
     const cfg = getConfig();
     const cnpjEmpresa = _empresaCnpj();

@@ -291,14 +291,17 @@ const ReinfModule = (function () {
     _api('GET', '/api/reinf/competencias').then(r => {
       if (!r.success) return;
       const comps = r.data || [];
-      // Opção atual do mês — valor SEMPRE em MMAAAA (ex: 032026)
+      // Competência de apuração = mês ANTERIOR (no fiscal sempre apuramos o mês anterior)
       const now = new Date();
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const yyyy = now.getFullYear();
+      let prevM = now.getMonth(); // 0-indexed: 2 (mar) → 2 = fev (1-indexed)
+      let prevY = now.getFullYear();
+      if (prevM === 0) { prevM = 12; prevY -= 1; } // janeiro → dezembro ano anterior
+      const mm = String(prevM).padStart(2, '0');
+      const yyyy = prevY;
       const atualVal = `${mm}${yyyy}`;            // MMAAAA ← _comp usa este formato
       const atualDisplay = `${mm}/${yyyy}`;
 
-      let opts = `<option value="${atualVal}">${atualDisplay} — Atual</option>`;
+      let opts = `<option value="${atualVal}">${atualDisplay} — Apuração</option>`;
       comps.forEach(c => {
         // DB retorna AAAAMM — converte para MMAAAA para usar como value
         const s = String(c.competencia || '').replace(/\D/g, '');
