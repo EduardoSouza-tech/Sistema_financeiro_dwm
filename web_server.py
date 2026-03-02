@@ -12958,8 +12958,7 @@ def add_config_nfse():
         data = request.json
         
         # Validar campos obrigat�rios
-        required_fields = ['cnpj_cpf', 'codigo_municipio', 'nome_municipio', 
-                          'uf', 'inscricao_municipal']
+        required_fields = ['cnpj_cpf', 'codigo_municipio', 'nome_municipio', 'uf']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({
@@ -12980,7 +12979,7 @@ def add_config_nfse():
             codigo_municipio=data['codigo_municipio'],
             nome_municipio=data['nome_municipio'],
             uf=data['uf'],
-            inscricao_municipal=data['inscricao_municipal'],
+            inscricao_municipal=data.get('inscricao_municipal', ''),
             provedor=data.get('provedor'),
             url_customizada=data.get('url_customizada')
         )
@@ -13034,8 +13033,7 @@ def update_config_nfse(config_id):
         data = request.json
         
         # Validar campos obrigat�rios
-        required_fields = ['cnpj_cpf', 'codigo_municipio', 'nome_municipio', 
-                          'uf', 'inscricao_municipal']
+        required_fields = ['cnpj_cpf', 'codigo_municipio', 'nome_municipio', 'uf']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({
@@ -13057,7 +13055,7 @@ def update_config_nfse(config_id):
             codigo_municipio=data['codigo_municipio'],
             nome_municipio=data['nome_municipio'],
             uf=data['uf'],
-            inscricao_municipal=data['inscricao_municipal'],
+            inscricao_municipal=data.get('inscricao_municipal', ''),
             provedor=data.get('provedor'),
             url_customizada=data.get('url_customizada')
         )
