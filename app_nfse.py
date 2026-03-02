@@ -228,6 +228,12 @@ def buscar_nfse():
                 'error': 'Empresa não encontrada'
             }), 404
         
+        if not empresa.get('cnpj'):
+            return jsonify({
+                'success': False,
+                'error': 'CNPJ da empresa não cadastrado. Acesse Dados da Empresa e preencha o CNPJ antes de buscar NFS-e.'
+            }), 400
+        
         cnpj_prestador = empresa['cnpj'].replace('.', '').replace('/', '').replace('-', '')
         
         # Buscar certificado da empresa
