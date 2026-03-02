@@ -4110,6 +4110,112 @@
               .reinf-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:8px}
               .reinf-sinc-panel{background:#f8f9fa;border-radius:8px;padding:14px;margin-top:10px}
               .mb-2{margin-bottom:8px}
+
+              /* ══════════════════════════════════════════
+                 DCTFWeb / MIT — Visual Premium
+              ══════════════════════════════════════════ */
+              .dctf-query-bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:14px}
+              .dctf-qb-group{display:flex;flex-direction:column;gap:3px;flex:1;min-width:160px}
+              .dctf-qb-group label{font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+              .dctf-inp{padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;width:100%;box-sizing:border-box;background:#fff}
+              .dctf-inp:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+              .dctf-inp-sm{padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;background:#fff;min-width:130px}
+              .dctf-qb-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end}
+              .dctf-btn{padding:8px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;white-space:nowrap}
+              .dctf-btn-primary{background:#2563eb;color:#fff}.dctf-btn-primary:hover{background:#1d4ed8}
+              .dctf-btn-outline{background:#fff;color:#374151;border:1px solid #d1d5db}.dctf-btn-outline:hover{background:#f3f4f6}
+              .dctf-btn-xs{padding:4px 8px;font-size:11px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;cursor:pointer}
+              .dctf-btn.active{background:#059669;color:#fff;border-color:#059669}
+              /* Cards */
+              .dctf-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px;margin-bottom:14px}
+              .dctf-card{background:#fff;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);border-top:3px solid #e2e8f0;position:relative;transition:transform .15s}
+              .dctf-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
+              .dctf-card-icon{font-size:26px;line-height:1;flex-shrink:0}
+              .dctf-card-body{display:flex;flex-direction:column;min-width:0}
+              .dctf-card-label{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+              .dctf-card-value{font-size:18px;font-weight:700;color:#1e293b;white-space:nowrap}
+              .dctf-card-value-sm{font-size:12px;font-weight:600;color:#1e293b;word-break:break-all;line-height:1.3;margin-top:2px}
+              .dctf-card-tip{position:absolute;top:8px;right:8px;font-size:12px;color:#cbd5e1;cursor:help}
+              .dctf-card-red{border-top-color:#ef4444}.dctf-card-red .dctf-card-value{color:#dc2626}
+              .dctf-card-green{border-top-color:#22c55e}.dctf-card-green .dctf-card-value{color:#16a34a}
+              .dctf-card-yellow{border-top-color:#f59e0b}.dctf-card-yellow .dctf-card-value{color:#d97706}
+              .dctf-card-blue{border-top-color:#3b82f6}.dctf-card-blue .dctf-card-value{color:#2563eb}
+              .dctf-card-purple{border-top-color:#8b5cf6}
+              .dctf-card-gray{border-top-color:#94a3b8}
+              /* Filtros */
+              .dctf-filtros-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:8px 10px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0}
+              /* Tabela */
+              .dctf-table-wrap{overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px}
+              .dctf-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
+              .dctf-table thead th{background:#f1f5f9;padding:9px 12px;text-align:left;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;border-bottom:2px solid #e2e8f0;white-space:nowrap;cursor:pointer;user-select:none}
+              .dctf-table thead th:hover{background:#e2e8f0}
+              .dctf-table thead th.sorted-asc::after{content:" ↑"}
+              .dctf-table thead th.sorted-desc::after{content:" ↓"}
+              .dctf-table tbody tr{border-bottom:1px solid #f1f5f9;transition:background .1s;cursor:pointer}
+              .dctf-table tbody tr:hover td{background:#eff6ff}
+              .dctf-table tbody tr.row-vencido td{background:#fff5f5}
+              .dctf-table tbody tr.row-vencido:hover td{background:#fee2e2}
+              .dctf-table td{padding:9px 12px;color:#374151;vertical-align:middle}
+              .dctf-table td.td-valor{font-weight:600;text-align:right;font-family:monospace}
+              .dctf-table td.td-valor.negativo{color:#dc2626}
+              /* Badges status */
+              .dctf-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap}
+              .dctf-badge-EM_ABERTO{background:#fee2e2;color:#991b1b}
+              .dctf-badge-PAGO{background:#dcfce7;color:#166534}
+              .dctf-badge-PARCELADO{background:#dbeafe;color:#1e40af}
+              .dctf-badge-SUSPENSO{background:#f3f4f6;color:#374151}
+              .dctf-badge-EM_PROCESSAMENTO{background:#fef9c3;color:#854d0e}
+              .dctf-badge-default{background:#f1f5f9;color:#475569}
+              /* Conciliação */
+              .dctf-conc-ok{color:#16a34a;font-size:14px}
+              .dctf-conc-warn{color:#d97706;font-size:14px}
+              .dctf-conc-link{color:#2563eb;font-size:14px}
+              /* Drawer */
+              .dctf-drawer{position:fixed;inset:0;z-index:9999}
+              .dctf-drawer-overlay{position:absolute;inset:0;background:rgba(0,0,0,.4)}
+              .dctf-drawer-panel{position:absolute;right:0;top:0;bottom:0;width:400px;max-width:95vw;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden}
+              .dctf-drawer-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #e2e8f0;font-weight:700;font-size:14px;background:#f8fafc}
+              .dctf-drawer-close{background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;padding:0 4px}
+              .dctf-drawer-close:hover{color:#374151}
+              #dctf-drawer-body{overflow-y:auto;padding:16px;flex:1}
+              .dctf-drawer-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:12px}
+              .dctf-drawer-row:last-child{border-bottom:none}
+              .dctf-drawer-key{color:#64748b;font-weight:600;min-width:130px}
+              .dctf-drawer-val{color:#1e293b;text-align:right;word-break:break-all}
+              .dctf-drawer-btns{display:flex;flex-direction:column;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid #e2e8f0}
+              .dctf-drawer-btn{padding:10px 14px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;text-align:left;transition:background .15s}
+              .dctf-drawer-btn:hover{background:#eff6ff;border-color:#bfdbfe}
+              /* Empty state */
+              .dctf-empty-state{text-align:center;padding:40px 20px;color:#94a3b8;font-size:14px}
+              /* Alertas */
+              .dctf-alert-bar{padding:10px 14px;border-radius:6px;margin-bottom:6px;font-size:12px;font-weight:500;display:flex;align-items:center;gap:8px}
+              .dctf-alert-bar.danger{background:#fef2f2;color:#991b1b;border-left:3px solid #ef4444}
+              .dctf-alert-bar.warn{background:#fffbeb;color:#92400e;border-left:3px solid #f59e0b}
+              .dctf-alert-bar.info{background:#eff6ff;color:#1e40af;border-left:3px solid #3b82f6}
+              /* MIT Timeline */
+              .mit-item{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:10px;transition:box-shadow .15s}
+              .mit-item:hover{box-shadow:0 2px 10px rgba(0,0,0,.08)}
+              .mit-item-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+              .mit-item-proto{font-weight:700;font-size:13px;color:#1e293b}
+              .mit-timeline{display:flex;align-items:center;gap:0;margin:8px 0;overflow-x:auto}
+              .mit-tl-step{display:flex;flex-direction:column;align-items:center;position:relative;flex:1;min-width:70px}
+              .mit-tl-step:not(:last-child)::after{content:'';position:absolute;top:11px;left:50%;right:-50%;height:2px;background:#e2e8f0;z-index:0}
+              .mit-tl-dot{width:22px;height:22px;border-radius:50%;background:#e2e8f0;border:2px solid #cbd5e1;display:flex;align-items:center;justify-content:center;font-size:10px;z-index:1;position:relative}
+              .mit-tl-dot.done{background:#22c55e;border-color:#16a34a;color:#fff}
+              .mit-tl-dot.active{background:#3b82f6;border-color:#2563eb;color:#fff}
+              .mit-tl-dot.error{background:#ef4444;border-color:#dc2626;color:#fff}
+              .mit-tl-label{font-size:9px;color:#64748b;margin-top:3px;text-align:center;font-weight:600}
+              .mit-erros{margin-top:8px;background:#fef2f2;border-radius:5px;padding:8px 10px;font-size:11px;color:#991b1b}
+              .mit-erros li{margin:2px 0}
+              .dctf-textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:monospace;box-sizing:border-box;resize:vertical;background:#1e1e1e;color:#d4d4d4}
+              .dctf-lbl{font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:4px}
+              @media(max-width:600px){
+                .dctf-cards-grid{grid-template-columns:1fr 1fr}
+                .dctf-table-wrap{font-size:11px}
+                .dctf-drawer-panel{width:100vw}
+                .dctf-query-bar{flex-direction:column}
+                .dctf-qb-actions{width:100%}
+              }
             </style>
 
             <div id="integra-contador-section" class="content-card hidden">
@@ -4179,47 +4285,196 @@
                 </div>
 
                 <!-- ── DCTFWEB ── -->
+                <!-- ══════════════════════════════════════════════════════════
+                     DCTFWeb — Dashboard Executivo
+                ══════════════════════════════════════════════════════════ -->
                 <div id="fiscal-tab-dctfweb" class="fiscal-tab-pane">
-                    <div class="fiscal-field-row">
-                        <div class="fiscal-field">
-                            <label>CNPJ do Contribuinte</label>
-                            <input type="text" id="fiscal-dctf-cnpj" class="fiscal-cnpj-mask" data-fiscal-field="contribuinte_doc" placeholder="00.000.000/0001-00" maxlength="18">
-                        </div>
-                        <div class="fiscal-field">
-                            <label>Competência (MMAAAA)</label>
-                            <input type="text" id="fiscal-dctf-comp" placeholder="032026" maxlength="6">
-                        </div>
+
+                  <!-- Alertas inteligentes -->
+                  <div id="dctf-alertas-banner"></div>
+
+                  <!-- Barra de consulta -->
+                  <div class="dctf-query-bar">
+                    <div class="dctf-qb-group">
+                      <label>CNPJ Contribuinte</label>
+                      <input type="text" id="fiscal-dctf-cnpj" class="fiscal-cnpj-mask dctf-inp" data-fiscal-field="contribuinte_doc" placeholder="00.000.000/0001-00" maxlength="18">
                     </div>
-                    <div class="fiscal-actions">
-                        <button class="fiscal-btn fiscal-btn-primary" onclick="FiscalFederal.consultarDCTFWeb()">📊 Consultar DCTFWeb</button>
-                        <button class="fiscal-btn fiscal-btn-secondary" onclick="FiscalFederal.loadDCTFWebLista()">🔄 Atualizar Lista</button>
+                    <div class="dctf-qb-group">
+                      <label>Competência (MMAAAA)</label>
+                      <input type="text" id="fiscal-dctf-comp" class="dctf-inp" placeholder="032026" maxlength="6">
                     </div>
-                    <div class="fiscal-result-area" id="fiscal-dctf-result"></div>
-                    <div class="fiscal-section-title">📊 DCTFWeb Consultadas</div>
-                    <div id="fiscal-dctf-lista"></div>
+                    <div class="dctf-qb-actions">
+                      <button class="dctf-btn dctf-btn-primary" onclick="FiscalFederal.consultarDCTFWeb()">📊 Consultar</button>
+                      <button class="dctf-btn dctf-btn-outline" onclick="FiscalFederal.loadDCTFWebLista()">🔄 Atualizar</button>
+                      <button class="dctf-btn dctf-btn-outline" onclick="FiscalFederal.dctfPollToggle()" id="dctf-poll-btn" title="Atualização automática a cada 30s">⏱ Auto</button>
+                    </div>
+                  </div>
+
+                  <!-- Cards de indicadores -->
+                  <div class="dctf-cards-grid" id="dctf-cards-grid">
+                    <div class="dctf-card dctf-card-red">
+                      <div class="dctf-card-icon">🔴</div>
+                      <div class="dctf-card-body">
+                        <span class="dctf-card-label">Débitos em Aberto</span>
+                        <span class="dctf-card-value" id="dctf-c-aberto">R$ —</span>
+                      </div>
+                      <div class="dctf-card-tip" title="Total de débitos com situação EM_ABERTO">ℹ</div>
+                    </div>
+                    <div class="dctf-card dctf-card-green">
+                      <div class="dctf-card-icon">✅</div>
+                      <div class="dctf-card-body">
+                        <span class="dctf-card-label">Pago no Período</span>
+                        <span class="dctf-card-value" id="dctf-c-pago">R$ —</span>
+                      </div>
+                      <div class="dctf-card-tip" title="Total de débitos com situação PAGO">ℹ</div>
+                    </div>
+                    <div class="dctf-card dctf-card-yellow">
+                      <div class="dctf-card-icon">⏰</div>
+                      <div class="dctf-card-body">
+                        <span class="dctf-card-label">Vencidos</span>
+                        <span class="dctf-card-value" id="dctf-c-vencido">R$ —</span>
+                      </div>
+                      <div class="dctf-card-tip" title="Débitos com vencimento ultrapassado e ainda em aberto">ℹ</div>
+                    </div>
+                    <div class="dctf-card dctf-card-blue">
+                      <div class="dctf-card-icon">📅</div>
+                      <div class="dctf-card-body">
+                        <span class="dctf-card-label">A Vencer</span>
+                        <span class="dctf-card-value" id="dctf-c-vencer">R$ —</span>
+                      </div>
+                      <div class="dctf-card-tip" title="Débitos ainda dentro do prazo">ℹ</div>
+                    </div>
+                    <div class="dctf-card dctf-card-purple">
+                      <div class="dctf-card-icon">📡</div>
+                      <div class="dctf-card-body">
+                        <span class="dctf-card-label">Última Transmissão</span>
+                        <span class="dctf-card-value-sm" id="dctf-c-transmissao">—</span>
+                      </div>
+                    </div>
+                    <div class="dctf-card dctf-card-gray">
+                      <div class="dctf-card-icon">🧾</div>
+                      <div class="dctf-card-body">
+                        <span class="dctf-card-label">Último Recibo</span>
+                        <span class="dctf-card-value-sm" id="dctf-c-recibo">—</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Filtros da tabela -->
+                  <div class="dctf-filtros-bar">
+                    <input type="text" id="dctf-f-comp" class="dctf-inp-sm" placeholder="🗓 Competência" oninput="FiscalFederal.dctfFiltrar()">
+                    <select id="dctf-f-tributo" class="dctf-inp-sm" onchange="FiscalFederal.dctfFiltrar()">
+                      <option value="">Todos os tributos</option>
+                      <option>IRPJ</option><option>CSLL</option><option>INSS</option>
+                      <option>PIS</option><option>COFINS</option><option>IRRF</option>
+                      <option>ISSQN</option><option>CPRB</option>
+                    </select>
+                    <select id="dctf-f-status" class="dctf-inp-sm" onchange="FiscalFederal.dctfFiltrar()">
+                      <option value="">Todos os status</option>
+                      <option value="EM_ABERTO">Em Aberto</option>
+                      <option value="PAGO">Pago</option>
+                      <option value="PARCELADO">Parcelado</option>
+                      <option value="SUSPENSO">Suspenso</option>
+                      <option value="EM_PROCESSAMENTO">Processando</option>
+                    </select>
+                    <button class="dctf-btn dctf-btn-xs" onclick="FiscalFederal.dctfLimparFiltros()">✕ Limpar</button>
+                    <span id="dctf-f-count" style="margin-left:auto;font-size:12px;color:#64748b"></span>
+                  </div>
+
+                  <!-- Tabela inteligente -->
+                  <div class="dctf-table-wrap" id="fiscal-dctf-lista">
+                    <div class="dctf-empty-state">📊 Consulte uma competência para carregar os débitos.</div>
+                  </div>
+
+                  <!-- Drawer lateral de detalhes -->
+                  <div id="dctf-drawer" class="dctf-drawer" style="display:none">
+                    <div class="dctf-drawer-overlay" onclick="FiscalFederal.dctfDrawerClose()"></div>
+                    <div class="dctf-drawer-panel">
+                      <div class="dctf-drawer-header">
+                        <span>📋 Detalhes do Débito</span>
+                        <button class="dctf-drawer-close" onclick="FiscalFederal.dctfDrawerClose()">✕</button>
+                      </div>
+                      <div id="dctf-drawer-body"></div>
+                    </div>
+                  </div>
                 </div>
 
-                <!-- ── MIT ── -->
+                <!-- ══════════════════════════════════════════════════════════
+                     MIT — Módulo de Informações Tributárias
+                ══════════════════════════════════════════════════════════ -->
                 <div id="fiscal-tab-mit" class="fiscal-tab-pane">
-                    <div class="fiscal-field-row">
-                        <div class="fiscal-field">
-                            <label>CNPJ do Contribuinte</label>
-                            <input type="text" id="fiscal-mit-cnpj" class="fiscal-cnpj-mask" data-fiscal-field="contribuinte_doc" placeholder="00.000.000/0001-00" maxlength="18">
-                        </div>
-                        <div class="fiscal-field">
-                            <label>Protocolo (para consultar MIT existente)</label>
-                            <input type="text" id="fiscal-mit-protocolo" placeholder="Protocolo">
-                        </div>
+
+                  <!-- Alertas MIT -->
+                  <div id="mit-alertas-banner"></div>
+
+                  <!-- Barra de ações -->
+                  <div class="dctf-query-bar">
+                    <div class="dctf-qb-group">
+                      <label>CNPJ Contribuinte</label>
+                      <input type="text" id="fiscal-mit-cnpj" class="fiscal-cnpj-mask dctf-inp" data-fiscal-field="contribuinte_doc" placeholder="00.000.000/0001-00" maxlength="18">
                     </div>
-                    <div class="fiscal-field">
-                        <label>Dados MIT (JSON)</label>
-                        <textarea id="fiscal-mit-dados" placeholder='{"competencia": "202501", "tipoMIT": "1"}'></textarea>
+                    <div class="dctf-qb-group">
+                      <label>Protocolo (consultar MIT)</label>
+                      <input type="text" id="fiscal-mit-protocolo" class="dctf-inp" placeholder="Ex: 1.6.1234567890-8">
                     </div>
-                    <div class="fiscal-actions">
-                        <button class="fiscal-btn fiscal-btn-success" onclick="FiscalFederal.incluirMIT()">📋 Incluir MIT</button>
-                        <button class="fiscal-btn fiscal-btn-primary" onclick="FiscalFederal.consultarMIT()">🔍 Consultar MIT</button>
+                    <div class="dctf-qb-actions">
+                      <button class="dctf-btn dctf-btn-primary" onclick="FiscalFederal.consultarMIT()">🔍 Consultar</button>
+                      <button class="dctf-btn dctf-btn-outline" onclick="FiscalFederal.mitNovaModal()">➕ Nova MIT</button>
+                      <button class="dctf-btn dctf-btn-outline" onclick="FiscalFederal.loadMITLista()">🔄 Atualizar</button>
                     </div>
-                    <div class="fiscal-result-area" id="fiscal-mit-result"></div>
+                  </div>
+
+                  <!-- Cards MIT -->
+                  <div class="dctf-cards-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">
+                    <div class="dctf-card dctf-card-blue">
+                      <div class="dctf-card-icon">📤</div>
+                      <div class="dctf-card-body">
+                        <span class="dctf-card-label">Total Enviadas</span>
+                        <span class="dctf-card-value" id="mit-c-total">—</span>
+                      </div>
+                    </div>
+                    <div class="dctf-card dctf-card-green">
+                      <div class="dctf-card-icon">✅</div>
+                      <div class="dctf-card-body">
+                        <span class="dctf-card-label">Aceitas</span>
+                        <span class="dctf-card-value" id="mit-c-aceitas">—</span>
+                      </div>
+                    </div>
+                    <div class="dctf-card dctf-card-red">
+                      <div class="dctf-card-icon">❌</div>
+                      <div class="dctf-card-body">
+                        <span class="dctf-card-label">Rejeitadas</span>
+                        <span class="dctf-card-value" id="mit-c-rejeitadas">—</span>
+                      </div>
+                    </div>
+                    <div class="dctf-card dctf-card-yellow">
+                      <div class="dctf-card-icon">⏳</div>
+                      <div class="dctf-card-body">
+                        <span class="dctf-card-label">Pendentes</span>
+                        <span class="dctf-card-value" id="mit-c-pendentes">—</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Lista MIT com timeline -->
+                  <div id="mit-lista-cont">
+                    <div class="dctf-empty-state">📋 Nenhuma MIT carregada. Clique em Atualizar.</div>
+                  </div>
+
+                  <!-- Modal nova MIT -->
+                  <div id="mit-modal" style="display:none">
+                    <div class="dctf-drawer-overlay" onclick="FiscalFederal.mitFecharModal()"></div>
+                    <div class="modal-box" onclick="event.stopPropagation()" style="max-width:580px;margin:5vh auto;position:relative;z-index:1001">
+                      <h3 style="margin-top:0">📋 Incluir Nova MIT</h3>
+                      <label class="dctf-lbl">Dados MIT (JSON)</label>
+                      <textarea id="fiscal-mit-dados" class="dctf-textarea" rows="8" placeholder='{"competencia":"202503","tipoMIT":"1","tributos":[]}'></textarea>
+                      <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+                        <button class="dctf-btn dctf-btn-outline" onclick="FiscalFederal.mitFecharModal()">Cancelar</button>
+                        <button class="dctf-btn dctf-btn-primary" onclick="FiscalFederal.incluirMIT()">📤 Enviar MIT</button>
+                      </div>
+                      <div id="fiscal-mit-result" style="margin-top:12px"></div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- ── EFD-REINF (Módulo Completo) ── -->

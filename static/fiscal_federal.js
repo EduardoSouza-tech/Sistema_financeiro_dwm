@@ -326,50 +326,302 @@ const FiscalFederal = (() => {
     }
   }
 
-  // ─── DCTFWeb ──────────────────────────────────────────────────────────────
+  // ─── DCTFWeb — Dashboard Executivo ───────────────────────────────────────
+
+  // Mapa de status da API → apresentação visual
+  const API_STATUS_MAP = {
+    'EM_ABERTO':        { label: 'Em Aberto',    cls: 'EM_ABERTO',        risk: 'red'    },
+    'PAGO':             { label: 'Pago',          cls: 'PAGO',             risk: 'green'  },
+    'PARCELADO':        { label: 'Parcelado',     cls: 'PARCELADO',        risk: 'blue'   },
+    'SUSPENSO':         { label: 'Suspenso',      cls: 'SUSPENSO',         risk: 'gray'   },
+    'EM_PROCESSAMENTO': { label: 'Processando',   cls: 'EM_PROCESSAMENTO', risk: 'yellow' },
+  };
+
+  function _statusBadge(api) {
+    const m = API_STATUS_MAP[api] || { label: api || '—', cls: 'default' };
+    return `<span class="dctf-badge dctf-badge-${m.cls}">${m.label}</span>`;
+  }
+
+  function _riskIcon(row) {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    if (row.situacao === 'PAGO') return '<span class="dctf-conc-ok" title="Pago e conciliado">✔</span>';
+    if (row.data_vencimento) {
+      const venc = new Date(row.data_vencimento + 'T00:00:00');
+      if (venc < hoje && row.situacao !== 'PAGO') return '<span class="dctf-conc-warn" title="Vencido — pendente pagamento">⚠</span>';
+    }
+    return '<span class="dctf-conc-link" title="Não conciliado">🔗</span>';
+  }
+
+  let _dctfRows = [];           // cache das linhas originais
+  let _dctfSortCol = null;
+  let _dctfSortDir = 1;
+  let _dctfPollId = null;
+
   async function consultarDCTFWeb() {
     const cfg = getConfig();
     const competencia = document.getElementById('fiscal-dctf-comp').value.trim();
     if (!competencia) { toast('Informe a competência (MMAAAA — ex: 032026)', 'warning'); return; }
+    const btn = document.querySelector('.dctf-btn-primary');
+    if (btn) { btn.textContent = '⌛ Consultando...'; btn.disabled = true; }
     try {
-      const resp = await apiFiscal('dctfweb/consultar', 'POST', {
+      await apiFiscal('dctfweb/consultar', 'POST', {
         contratante_cnpj: cfg.contratante_cnpj,
         autor_doc: cfg.autor_doc,
         contribuinte_doc: rawCNPJ(document.getElementById('fiscal-dctf-cnpj').value || cfg.contribuinte_doc || ''),
         competencia: _toApiComp(competencia)
       });
-      document.getElementById('fiscal-dctf-result').innerHTML =
-        `<pre class="fiscal-json">${JSON.stringify(resp, null, 2)}</pre>`;
-      toast('DCTFWeb consultada!', 'success');
+      toast('DCTFWeb consultada com sucesso!', 'success');
       loadDCTFWebLista();
     } catch (e) { toast('Erro: ' + e.message, 'error'); }
+    finally { if (btn) { btn.textContent = '📊 Consultar'; btn.disabled = false; } }
   }
 
   async function loadDCTFWebLista() {
     const el = document.getElementById('fiscal-dctf-lista');
     if (!el) return;
+    el.innerHTML = '<div class="dctf-empty-state">⌛ Carregando...</div>';
     try {
       const resp = await apiFiscal('dctfweb/lista');
-      const rows = resp.data || [];
-      if (!rows.length) { el.innerHTML = '<p class="fiscal-empty">Nenhuma DCTFWeb.</p>'; return; }
-      el.innerHTML = `<table class="fiscal-table"><thead><tr>
-        <th>CNPJ</th><th>Competência</th><th>Situação</th><th>Valor Total</th><th>Consultado</th>
-      </tr></thead><tbody>${rows.map(r => `<tr>
-        <td>${r.cnpj || '—'}</td><td>${_fmtComp(r.competencia)}</td>
-        <td>${r.situacao || '—'}</td><td>${fmtBRL(r.valor_total)}</td>
-        <td>${fmtDateTime(r.consultado_em)}</td>
-      </tr>`).join('')}</tbody></table>`;
+      _dctfRows = resp.data || [];
+      _atualizarCards();
+      _renderDCTFAlerts();
+      _renderDCTFTable(_dctfRows);
     } catch (e) {
-      el.innerHTML = `<p class="fiscal-error">${e.message}</p>`;
+      el.innerHTML = `<div class="dctf-empty-state" style="color:#dc2626">❌ ${e.message}</div>`;
+    }
+  }
+
+  function _atualizarCards() {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    let aberto = 0, pago = 0, vencido = 0, aVencer = 0;
+    let ultimaTrans = '—', ultimoRecibo = '—';
+    _dctfRows.forEach(r => {
+      const val = Number(r.valor_total || r.valor || 0);
+      const status = (r.situacao || '').toUpperCase();
+      if (status === 'PAGO') { pago += val; return; }
+      if (status === 'EM_ABERTO' || !status) {
+        aberto += val;
+        if (r.data_vencimento) {
+          const venc = new Date(r.data_vencimento + 'T00:00:00');
+          if (venc < hoje) vencido += val; else aVencer += val;
+        } else { aVencer += val; }
+      }
+      if (r.consultado_em && ultimaTrans === '—') ultimaTrans = fmtDateTime(r.consultado_em);
+      if (r.recibo && ultimoRecibo === '—') ultimoRecibo = r.recibo;
+    });
+    const upd = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    upd('dctf-c-aberto', fmtBRL(aberto));
+    upd('dctf-c-pago', fmtBRL(pago));
+    upd('dctf-c-vencido', fmtBRL(vencido));
+    upd('dctf-c-vencer', fmtBRL(aVencer));
+    upd('dctf-c-transmissao', ultimaTrans);
+    upd('dctf-c-recibo', ultimoRecibo);
+  }
+
+  function _renderDCTFAlerts() {
+    const el = document.getElementById('dctf-alertas-banner');
+    if (!el) return;
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const em3 = new Date(hoje); em3.setDate(em3.getDate() + 3);
+    const alertas = [];
+    let semTransmissao = _dctfRows.length === 0;
+    _dctfRows.forEach(r => {
+      const status = (r.situacao || '').toUpperCase();
+      if (status === 'PAGO') return;
+      if (r.data_vencimento) {
+        const venc = new Date(r.data_vencimento + 'T00:00:00');
+        if (venc < hoje)   alertas.push({ tipo:'danger', msg:`⚠ Débito vencido: ${r.tributo || r.codigo_receita || ''} — ${_fmtComp(r.competencia)} (${fmtBRL(r.valor_total || 0)})` });
+        else if (venc <= em3) alertas.push({ tipo:'warn',   msg:`⏰ Vence em breve: ${r.tributo || r.codigo_receita || ''} — ${_fmtComp(r.competencia)} (${fmtBRL(r.valor_total || 0)})` });
+      }
+    });
+    if (semTransmissao) alertas.push({ tipo:'info', msg:'ℹ DCTFWeb não transmitida nesta competência. Consulte ou transmita.' });
+    el.innerHTML = alertas.map(a => `<div class="dctf-alert-bar ${a.tipo}">${a.msg}</div>`).join('');
+  }
+
+  function _renderDCTFTable(rows) {
+    const el = document.getElementById('fiscal-dctf-lista');
+    if (!el) return;
+    if (!rows.length) {
+      el.innerHTML = '<div class="dctf-empty-state">📭 Nenhum débito encontrado para os filtros aplicados.</div>';
+      const cnt = document.getElementById('dctf-f-count');
+      if (cnt) cnt.textContent = '0 registros';
+      return;
+    }
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const cols = [
+      { key:'competencia',     label:'Competência',     fmt: v => _fmtComp(v) },
+      { key:'codigo_receita',  label:'Cód. Receita',    fmt: v => v || '—' },
+      { key:'tributo',         label:'Tributo',         fmt: v => v || '—' },
+      { key:'valor_principal', label:'Principal',       fmt: v => fmtBRL(Number(v||0)), cls:'td-valor' },
+      { key:'multa',           label:'Multa',           fmt: v => fmtBRL(Number(v||0)), cls:'td-valor' },
+      { key:'juros',           label:'Juros',           fmt: v => fmtBRL(Number(v||0)), cls:'td-valor' },
+      { key:'valor_total',     label:'Total Atualizado',fmt: v => fmtBRL(Number(v||0)), cls:'td-valor' },
+      { key:'data_vencimento', label:'Vencimento',      fmt: v => v ? v.slice(0,10) : '—' },
+      { key:'situacao',        label:'Situação',        fmt: v => _statusBadge(v) },
+      { key:'_risco',          label:'',                fmt: (v,row) => _riskIcon(row) },
+    ];
+    const thead = cols.map((c,i) => {
+      const sc = _dctfSortCol === i ? (_dctfSortDir === 1 ? ' sorted-asc' : ' sorted-desc') : '';
+      return `<th class="${sc}" onclick="FiscalFederal.dctfSort(${i})">${c.label}</th>`;
+    }).join('');
+    const tbody = rows.map(r => {
+      let rowCls = '';
+      const status = (r.situacao || '').toUpperCase();
+      if (r.data_vencimento && status !== 'PAGO') {
+        const venc = new Date(r.data_vencimento + 'T00:00:00');
+        if (venc < hoje) rowCls = ' row-vencido';
+      }
+      const tds = cols.map(c => {
+        const v = c.key === '_risco' ? null : r[c.key];
+        const val = c.fmt(v, r);
+        return `<td class="${c.cls||''}">${val}</td>`;
+      }).join('');
+      const dataStr = encodeURIComponent(JSON.stringify(r));
+      return `<tr class="${rowCls}" onclick="FiscalFederal.dctfDrawerOpen('${dataStr}')">${tds}</tr>`;
+    }).join('');
+    el.innerHTML = `<table class="dctf-table"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>`;
+    const cnt = document.getElementById('dctf-f-count');
+    if (cnt) cnt.textContent = `${rows.length} registro(s)`;
+  }
+
+  function dctfFiltrar() {
+    const fComp   = (document.getElementById('dctf-f-comp')?.value   || '').toLowerCase();
+    const fTribu  = (document.getElementById('dctf-f-tributo')?.value || '').toLowerCase();
+    const fStatus = (document.getElementById('dctf-f-status')?.value  || '').toLowerCase();
+    const filtered = _dctfRows.filter(r => {
+      if (fComp   && !(_fmtComp(r.competencia) || '').toLowerCase().includes(fComp))   return false;
+      if (fTribu  && !(r.tributo || '').toLowerCase().includes(fTribu))                 return false;
+      if (fStatus && !(r.situacao || '').toLowerCase().includes(fStatus))               return false;
+      return true;
+    });
+    _renderDCTFTable(filtered);
+  }
+
+  function dctfLimparFiltros() {
+    ['dctf-f-comp','dctf-f-tributo','dctf-f-status'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    _renderDCTFTable(_dctfRows);
+  }
+
+  function dctfSort(colIdx) {
+    const cols = ['competencia','codigo_receita','tributo','valor_principal','multa','juros','valor_total','data_vencimento','situacao'];
+    const key = cols[colIdx];
+    if (!key) return;
+    if (_dctfSortCol === colIdx) _dctfSortDir *= -1; else { _dctfSortCol = colIdx; _dctfSortDir = 1; }
+    const sorted = [..._dctfRows].sort((a, b) => {
+      const av = a[key] || ''; const bv = b[key] || '';
+      return av < bv ? -_dctfSortDir : av > bv ? _dctfSortDir : 0;
+    });
+    _renderDCTFTable(sorted);
+  }
+
+  function dctfDrawerOpen(dataStr) {
+    const row = JSON.parse(decodeURIComponent(dataStr));
+    const drawer = document.getElementById('dctf-drawer');
+    const body   = document.getElementById('dctf-drawer-body');
+    if (!drawer || !body) return;
+    const fields = [
+      ['Competência',      _fmtComp(row.competencia)],
+      ['Código Receita',   row.codigo_receita || '—'],
+      ['Tributo',          row.tributo || '—'],
+      ['Situação',         _statusBadge(row.situacao)],
+      ['Valor Principal',  fmtBRL(Number(row.valor_principal||0))],
+      ['Multa',            fmtBRL(Number(row.multa||0))],
+      ['Juros',            fmtBRL(Number(row.juros||0))],
+      ['Total Atualizado', fmtBRL(Number(row.valor_total||0))],
+      ['Data Vencimento',  row.data_vencimento ? row.data_vencimento.slice(0,10) : '—'],
+      ['Protocolo',        row.protocolo || '—'],
+      ['Origem',           row.origem || 'DCTFWeb'],
+      ['Recibo',           row.recibo || '—'],
+      ['Consultado em',    fmtDateTime(row.consultado_em)],
+      ['CNPJ',             row.cnpj || '—'],
+    ];
+    const rowsHtml = fields.map(([k,v]) =>
+      `<div class="dctf-drawer-row"><span class="dctf-drawer-key">${k}</span><span class="dctf-drawer-val">${v}</span></div>`
+    ).join('');
+    body.innerHTML = `
+      ${rowsHtml}
+      <div class="dctf-drawer-btns">
+        <button class="dctf-drawer-btn" onclick="FiscalFederal.emitirDARFFromDebito(${encodeURIComponent(JSON.stringify(row))})">🧾 Emitir DARF</button>
+        <button class="dctf-drawer-btn" onclick="FiscalFederal.consultarPagamento('${row.protocolo||''}')">💳 Consultar Pagamento</button>
+        <button class="dctf-drawer-btn" onclick="alert('Comprovante não disponível para este débito.')">📥 Baixar Comprovante</button>
+        <button class="dctf-drawer-btn" onclick="FiscalFederal.verEventoOrigem('${row.origem||''}','${row.competencia||''}')">📋 Ver Evento Origem</button>
+      </div>`;
+    drawer.style.display = 'block';
+  }
+
+  function dctfDrawerClose() {
+    const d = document.getElementById('dctf-drawer');
+    if (d) d.style.display = 'none';
+  }
+
+  function emitirDARFFromDebito(rowStr) {
+    const row = typeof rowStr === 'string' ? JSON.parse(decodeURIComponent(rowStr)) : rowStr;
+    dctfDrawerClose();
+    // Pré-preencher aba DARF e trocar de tab
+    setTimeout(() => {
+      const tabBtn = document.querySelector('[data-fiscal-tab="darf"]');
+      if (tabBtn) tabBtn.click();
+      setTimeout(() => {
+        const fComp   = document.getElementById('fiscal-darf-comp');
+        const fCodSel = document.getElementById('fiscal-darf-codigo-sel');
+        if (fComp)   fComp.value   = _compToDisplay(row.competencia);
+        if (fCodSel) fCodSel.value = row.codigo_receita || '';
+      }, 200);
+    }, 100);
+  }
+
+  function consultarPagamento(protocolo) {
+    toast('Consulta de pagamento: ' + (protocolo || 'sem protocolo'), 'info');
+  }
+
+  function verEventoOrigem(origem, competencia) {
+    const tabBtn = document.querySelector('[data-fiscal-tab="reinf"]') || document.querySelector('[data-fiscal-tab="dctfweb"]');
+    if (tabBtn) tabBtn.click();
+    toast(`Evento origem: ${origem} — Competência: ${_fmtComp(competencia)}`, 'info');
+  }
+
+  function _compToDisplay(aaaamm) {
+    const s = String(aaaamm || '').replace(/\D/g,'');
+    if (s.length === 6) return s.slice(4) + s.slice(0,4); // AAAAMM→MMAAAA
+    return aaaamm;
+  }
+
+  function dctfPollToggle() {
+    const btn = document.getElementById('dctf-poll-btn');
+    if (_dctfPollId) {
+      clearInterval(_dctfPollId); _dctfPollId = null;
+      if (btn) { btn.textContent = '⏱ Auto'; btn.classList.remove('active'); }
+      toast('Atualização automática desativada', 'info');
+    } else {
+      _dctfPollId = setInterval(loadDCTFWebLista, 30000);
+      if (btn) { btn.textContent = '⏱ Auto ●'; btn.classList.add('active'); }
+      toast('Atualizando a cada 30s', 'success');
     }
   }
 
   // ─── MIT ──────────────────────────────────────────────────────────────────
+
+  const MIT_TIMELINE = ['Criado', 'Enviado', 'Processado', 'Aceito'];
+  const MIT_STATUS_STEP = { criado:0, enviado:1, processado:2, aceito:3, rejeitado:3 };
+
+  function mitNovaModal() {
+    const modal = document.getElementById('mit-modal');
+    if (modal) modal.style.display = 'block';
+  }
+  function mitFecharModal() {
+    const modal = document.getElementById('mit-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
   async function incluirMIT() {
     const cfg = getConfig();
     const dadosRaw = document.getElementById('fiscal-mit-dados').value;
     let dados = {};
     try { dados = JSON.parse(dadosRaw); } catch { toast('JSON inválido nos dados MIT', 'error'); return; }
+    const resEl = document.getElementById('fiscal-mit-result');
+    if (resEl) resEl.innerHTML = '<div style="color:#64748b;font-size:12px">⌛ Enviando...</div>';
     try {
       const resp = await apiFiscal('mit/incluir', 'POST', {
         contratante_cnpj: cfg.contratante_cnpj,
@@ -377,10 +629,15 @@ const FiscalFederal = (() => {
         contribuinte_doc: rawCNPJ(document.getElementById('fiscal-mit-cnpj').value || cfg.contribuinte_doc || ''),
         dados_mit: dados
       });
-      document.getElementById('fiscal-mit-result').innerHTML =
-        `<pre class="fiscal-json">${JSON.stringify(resp, null, 2)}</pre>`;
+      if (resEl) resEl.innerHTML =
+        `<div class="dctf-alert-bar info" style="margin-top:8px">✅ MIT incluída com sucesso! Protocolo: <strong>${resp.protocolo || '—'}</strong></div>`;
       toast('MIT incluída!', 'success');
-    } catch (e) { toast('Erro: ' + e.message, 'error'); }
+      mitFecharModal();
+      loadMITLista();
+    } catch (e) {
+      if (resEl) resEl.innerHTML = `<div class="dctf-alert-bar danger" style="margin-top:8px">❌ ${e.message}</div>`;
+      toast('Erro: ' + e.message, 'error');
+    }
   }
 
   async function consultarMIT() {
@@ -394,10 +651,92 @@ const FiscalFederal = (() => {
         contribuinte_doc: rawCNPJ(document.getElementById('fiscal-mit-cnpj').value || cfg.contribuinte_doc || ''),
         protocolo
       });
-      document.getElementById('fiscal-mit-result').innerHTML =
-        `<pre class="fiscal-json">${JSON.stringify(resp, null, 2)}</pre>`;
       toast('MIT consultada!', 'success');
+      const rows = Array.isArray(resp.data) ? resp.data : (resp.data ? [resp.data] : []);
+      _renderMITLista(rows);
     } catch (e) { toast('Erro: ' + e.message, 'error'); }
+  }
+
+  async function loadMITLista() {
+    const el = document.getElementById('mit-lista-cont');
+    if (!el) return;
+    el.innerHTML = '<div class="dctf-empty-state">⌛ Carregando...</div>';
+    try {
+      const resp = await apiFiscal('mit/lista');
+      const rows = resp.data || [];
+      _atualizarCardsMIT(rows);
+      _renderMITAlerts(rows);
+      _renderMITLista(rows);
+    } catch (e) {
+      el.innerHTML = `<div class="dctf-empty-state" style="color:#dc2626">❌ ${e.message}</div>`;
+    }
+  }
+
+  function _atualizarCardsMIT(rows) {
+    let total=0, aceitas=0, rejeitadas=0, pend=0;
+    rows.forEach(r => {
+      total++;
+      const s = (r.status||'').toLowerCase();
+      if (s==='aceito') aceitas++;
+      else if (s==='rejeitado') rejeitadas++;
+      else pend++;
+    });
+    const upd = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+    upd('mit-c-total', total); upd('mit-c-aceitas', aceitas);
+    upd('mit-c-rejeitadas', rejeitadas); upd('mit-c-pendentes', pend);
+  }
+
+  function _renderMITAlerts(rows) {
+    const el = document.getElementById('mit-alertas-banner');
+    if (!el) return;
+    const alertas = [];
+    const rejeits = rows.filter(r => (r.status||'').toLowerCase()==='rejeitado');
+    const pends   = rows.filter(r => ['criado','enviado'].includes((r.status||'').toLowerCase()));
+    if (rejeits.length) alertas.push({ tipo:'danger', msg:`❌ ${rejeits.length} MIT(s) rejeitada(s). Verifique os erros de validação.` });
+    if (pends.length)   alertas.push({ tipo:'warn',   msg:`⏳ ${pends.length} MIT(s) pendente(s) de processamento.` });
+    el.innerHTML = alertas.map(a => `<div class="dctf-alert-bar ${a.tipo}">${a.msg}</div>`).join('');
+  }
+
+  function _renderMITLista(rows) {
+    const el = document.getElementById('mit-lista-cont');
+    if (!el) return;
+    if (!rows.length) {
+      el.innerHTML = '<div class="dctf-empty-state">📭 Nenhuma MIT encontrada.</div>';
+      return;
+    }
+    el.innerHTML = rows.map(r => {
+      const status = (r.status || 'criado').toLowerCase();
+      const step   = MIT_STATUS_STEP[status] ?? 0;
+      const isRej  = status === 'rejeitado';
+      const timeline = MIT_TIMELINE.map((lbl, i) => {
+        let dotCls = '';
+        if (isRej && i === 3)          dotCls = 'error';
+        else if (i < step)             dotCls = 'done';
+        else if (i === step)           dotCls = 'active';
+        const icon = dotCls==='done'?'✓': dotCls==='error'?'✗': dotCls==='active'?'●':'○';
+        const tlLbl = i===3 && isRej ? 'Rejeitado' : lbl;
+        return `<div class="mit-tl-step">
+          <div class="mit-tl-dot ${dotCls}">${icon}</div>
+          <div class="mit-tl-label">${tlLbl}</div>
+        </div>`;
+      }).join('');
+      const errosHtml = (r.erros && r.erros.length)
+        ? `<div class="mit-erros">⛔ Erros de validação:<ul>${r.erros.map(e=>`<li>${e}</li>`).join('')}</ul></div>`
+        : '';
+      return `<div class="mit-item">
+        <div class="mit-item-header">
+          <span class="mit-item-proto">📋 ${r.protocolo || 'Sem protocolo'}</span>
+          ${_statusBadge(r.status?.toUpperCase() || 'EM_PROCESSAMENTO')}
+        </div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:6px">
+          Nº Controle: <strong>${r.numero_controle || '—'}</strong> &nbsp;|&nbsp;
+          Competência: <strong>${_fmtComp(r.competencia)}</strong> &nbsp;|&nbsp;
+          Enviado: <strong>${fmtDateTime(r.enviado_em)}</strong>
+        </div>
+        <div class="mit-timeline">${timeline}</div>
+        ${errosHtml}
+      </div>`;
+    }).join('');
   }
 
   // ─── REINF ────────────────────────────────────────────────────────────────
@@ -653,8 +992,20 @@ const FiscalFederal = (() => {
     loadCNDLista,
     consultarDCTFWeb,
     loadDCTFWebLista,
+    dctfFiltrar,
+    dctfLimparFiltros,
+    dctfSort,
+    dctfDrawerOpen,
+    dctfDrawerClose,
+    dctfPollToggle,
+    emitirDARFFromDebito,
+    consultarPagamento,
+    verEventoOrigem,
     incluirMIT,
     consultarMIT,
+    loadMITLista,
+    mitNovaModal,
+    mitFecharModal,
     consultarREINF,
     loadREINFLista,
     emitirDARF,
