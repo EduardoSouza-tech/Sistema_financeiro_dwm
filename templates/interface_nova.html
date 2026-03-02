@@ -13877,12 +13877,9 @@
             if (typeof originalShowSection === 'function') {
                 originalShowSection(sectionId);
             }
-            
-            if (sectionId === 'fiscal') {
-                carregarEstatisticasFiscais();
-                carregarDocumentosFiscais();
-            }
-            
+            // loadFiscalSection (chamado pelo originalShowSection) já carrega
+            // carregarEstatisticasFiscais e carregarDocumentosFiscais — não duplicar
+
             if (sectionId === 'empresa') {
                 carregarDadosEmpresa();
             }

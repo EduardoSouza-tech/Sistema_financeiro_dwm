@@ -3,10 +3,8 @@
  * v1.0 - 24/02/2026
  */
 
-// Usar API_URL existente ou definir fallback (evita redeclaração)
-if (typeof API_URL === 'undefined') {
-    var API_URL = (typeof CONFIG !== 'undefined' && CONFIG.API_URL) ? CONFIG.API_URL : '/api';
-}
+// API_URL é declarado globalmente em app.js (const API_URL = CONFIG.API_URL)
+// Não redeclarar aqui para evitar conflito com a const global
 
 // Estado global da auditoria
 let auditoriaAtual = {
