@@ -15,6 +15,20 @@ const ReinfModule = (function () {
     return (d.cnpj || d.cnpj_cpf || '').replace(/\D/g, '');
   }
 
+  // Garante que currentEmpresaData está preenchido (busca da API se necessário)
+  async function _ensureEmpresaData() {
+    if (window.currentEmpresaData && window.currentEmpresaData.cnpj) return;
+    const eid = window.currentEmpresaId;
+    if (!eid) return;
+    try {
+      const r = await fetch(`/api/empresas/${eid}`);
+      const j = await r.json();
+      if (j.success && j.empresa) window.currentEmpresaData = j.empresa;
+    } catch (e) {
+      console.warn('REINF: não foi possível carregar dados da empresa', e);
+    }
+  }
+
   // ── Helpers ──────────────────────────────────────────────────────────────
   function _toApiComp(v) {
     const d = (v || '').replace(/\D/g, '');
@@ -90,7 +104,8 @@ const ReinfModule = (function () {
   };
 
   // ── Init ─────────────────────────────────────────────────────────────────
-  function init() {
+  async function init() {
+    await _ensureEmpresaData();  // garante currentEmpresaData antes de tudo
     _loadCfg();
     _renderCompSelect();
     _bindEvents();
@@ -285,7 +300,7 @@ const ReinfModule = (function () {
           <div class="reinf-form-grid">
             <div>
               <label>Competência (MMAAAA)</label>
-              <input id="rfe-comp" class="form-control mb-2" placeholder="032026" value="${_compToInput(_comp)}">
+              <input id="rfe-comp" class="form-control mb-2" placeholder="032026" value="${_comp}">
             </div>
             <div>
               <label>Evento</label>
@@ -529,7 +544,7 @@ const ReinfModule = (function () {
     if (!tipo) return;
     if (!['R-2099', 'R-4099'].includes(tipo.toUpperCase())) { _toast('Tipo inválido.', 'warning'); return; }
     _toast('Fechando competência…', 'info');
-    _api('POST', '/api/reinf/fechar', { competencia: _compToInput(_comp), tipo: tipo.toUpperCase(), ...payload }).then(r => {
+    _api('POST', '/api/reinf/fechar', { competencia: _comp, tipo: tipo.toUpperCase(), ...payload }).then(r => {
       _toast(r.message || (r.success ? 'Fechamento enviado!' : r.error), r.success ? 'success' : 'danger');
       if (r.success) _renderDashboard();
     }).catch(e => _toast(`Erro: ${e.message}`, 'danger'));
@@ -540,7 +555,7 @@ const ReinfModule = (function () {
     if (!payload) return;
     if (!confirm('Reabrir esta competência emitindo R-2098?')) return;
     _toast('Reabrindo…', 'info');
-    _api('POST', '/api/reinf/reabrir', { competencia: _compToInput(_comp), ...payload }).then(r => {
+    _api('POST', '/api/reinf/reabrir', { competencia: _comp, ...payload }).then(r => {
       _toast(r.message || (r.success ? 'Reabertura enviada!' : r.error), r.success ? 'success' : 'danger');
       if (r.success) _renderDashboard();
     }).catch(e => _toast(`Erro: ${e.message}`, 'danger'));
@@ -551,7 +566,7 @@ const ReinfModule = (function () {
     const payload = _cfgPayload();
     if (!payload) return;
     _toast('Sincronizando com DCTFWeb…', 'info');
-    _api('POST', '/api/reinf/sincronizar-dctfweb', { competencia: _compToInput(_comp), ...payload }).then(r => {
+    _api('POST', '/api/reinf/sincronizar-dctfweb', { competencia: _comp, ...payload }).then(r => {
       const cont = _el('reinf-sinc-result');
       if (!r.success) { _toast(r.error, 'danger'); return; }
       const divs = r.divergencias && r.divergencias.length

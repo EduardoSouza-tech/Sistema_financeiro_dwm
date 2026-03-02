@@ -14,6 +14,20 @@ const FiscalFederal = (() => {
     return (d.cnpj || d.cnpj_cpf || '').replace(/\D/g, '');
   }
 
+  // Garante que currentEmpresaData está preenchido (busca da API se necessário)
+  async function _ensureEmpresaData() {
+    if (window.currentEmpresaData && window.currentEmpresaData.cnpj) return;
+    const eid = window.currentEmpresaId;
+    if (!eid) return;
+    try {
+      const r = await fetch(`/api/empresas/${eid}`);
+      const j = await r.json();
+      if (j.success && j.empresa) window.currentEmpresaData = j.empresa;
+    } catch (e) {
+      console.warn('FiscalFederal: não foi possível carregar dados da empresa', e);
+    }
+  }
+
   function loadConfig() {
     try {
       _config = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
@@ -603,7 +617,8 @@ const FiscalFederal = (() => {
   }
 
   // ─── Init ─────────────────────────────────────────────────────────────────
-  function init() {
+  async function init() {
+    await _ensureEmpresaData();  // garante currentEmpresaData antes de aplicar config
     loadConfig();
     // Bind CNPJ masks
     document.querySelectorAll('.fiscal-cnpj-mask').forEach(el => {
