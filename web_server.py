@@ -661,6 +661,64 @@ try:
     except Exception as e:
         print(f"⚠️ Aviso ao criar tabelas fiscais: {e}")
 
+    # ── Tabelas EFD-Reinf ────────────────────────────────────────────────────
+    try:
+        with db_manager.get_connection() as _rc:
+            _rcur = _rc.cursor()
+            _rcur.execute("""
+                CREATE TABLE IF NOT EXISTS reinf_eventos (
+                    id TEXT PRIMARY KEY,
+                    empresa_id INTEGER,
+                    competencia VARCHAR(7),
+                    evento VARCHAR(10),
+                    identificador_evento VARCHAR(100),
+                    status VARCHAR(30) DEFAULT 'pendente',
+                    protocolo TEXT,
+                    recibo TEXT,
+                    xml_enviado TEXT,
+                    xml_retorno TEXT,
+                    erro TEXT,
+                    enviado_em TIMESTAMP,
+                    versao INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+                CREATE TABLE IF NOT EXISTS reinf_dados (
+                    id TEXT PRIMARY KEY,
+                    evento_id TEXT REFERENCES reinf_eventos(id) ON DELETE CASCADE,
+                    payload JSONB,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+                CREATE TABLE IF NOT EXISTS reinf_totalizadores (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id INTEGER,
+                    competencia VARCHAR(7),
+                    total_base NUMERIC(15,2) DEFAULT 0,
+                    total_inss NUMERIC(15,2) DEFAULT 0,
+                    total_ir NUMERIC(15,2) DEFAULT 0,
+                    total_csll NUMERIC(15,2) DEFAULT 0,
+                    total_pis NUMERIC(15,2) DEFAULT 0,
+                    total_cofins NUMERIC(15,2) DEFAULT 0,
+                    status_competencia VARCHAR(20) DEFAULT 'aberta',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(empresa_id, competencia)
+                );
+                CREATE TABLE IF NOT EXISTS reinf_motor_sugestoes (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id INTEGER,
+                    competencia VARCHAR(7),
+                    evento_sugerido VARCHAR(10),
+                    motivo TEXT,
+                    origem VARCHAR(50),
+                    aceito BOOLEAN,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+            """)
+            _rc.commit()
+            _rcur.close()
+        print("✅ Tabelas EFD-Reinf verificadas/criadas!")
+    except Exception as e:
+        print(f"⚠️ Aviso ao criar tabelas REINF: {e}")
+
     print("✅ DatabaseManager pronto!")
     print("="*70 + "\n")
         
@@ -17034,6 +17092,283 @@ def fiscal_fila_adicionar():
         return jsonify({'success': False, 'error': str(e)}), 403
     except Exception as e:
         logger.error(f"[fiscal_fila_adicionar] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# EFD-REINF — Módulo Completo
+# ============================================================================
+
+def _reinf_get_db_empresa():
+    """Helper: retorna (db, empresa_id) ou lança ValueError."""
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        raise ValueError('empresa_id não encontrado na sessão')
+    return db_manager, int(empresa_id)
+
+
+@app.route('/api/reinf/competencias', methods=['GET'])
+@login_required
+def reinf_listar_competencias():
+    try:
+        db, eid = _reinf_get_db_empresa()
+        from reinf_service import listar_competencias
+        return jsonify({'success': True, 'data': listar_competencias(db, eid)})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_listar_competencias] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/reinf/competencia/<comp>', methods=['GET'])
+@login_required
+def reinf_carregar_competencia(comp):
+    """Lista todos os eventos de uma competência."""
+    try:
+        db, eid = _reinf_get_db_empresa()
+        from reinf_service import listar_eventos
+        eventos = listar_eventos(db, eid, competencia=comp)
+        return jsonify({'success': True, 'data': eventos})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_carregar_competencia] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/reinf/dashboard/<comp>', methods=['GET'])
+@login_required
+def reinf_dashboard(comp):
+    try:
+        db, eid = _reinf_get_db_empresa()
+        from reinf_service import dashboard_reinf
+        return jsonify({'success': True, 'data': dashboard_reinf(db, eid, comp)})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_dashboard] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/reinf/motor-sugestoes/<comp>', methods=['GET'])
+@login_required
+def reinf_motor_sugestoes(comp):
+    try:
+        db, eid = _reinf_get_db_empresa()
+        from reinf_service import gerar_sugestoes
+        return jsonify({'success': True, 'data': gerar_sugestoes(db, eid, comp)})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_motor_sugestoes] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/reinf/evento/criar', methods=['POST'])
+@login_required
+@csrf_instance.exempt
+def reinf_criar_evento():
+    try:
+        db, eid = _reinf_get_db_empresa()
+        body = request.get_json() or {}
+        competencia  = body.get('competencia', '')
+        evento       = (body.get('evento') or '').upper()
+        payload_dados = body.get('dados', {})
+        identificador = body.get('identificador')
+
+        if not evento or not competencia:
+            return jsonify({'success': False, 'error': 'Campos obrigatórios: evento, competencia'}), 400
+
+        from reinf_service import criar_evento, validar_evento
+        erros = validar_evento(db, eid, evento, payload_dados, competencia)
+        if erros:
+            return jsonify({'success': False, 'error': erros[0], 'erros': erros}), 422
+
+        resultado = criar_evento(db, eid, competencia, evento, payload_dados, identificador)
+        code = 201 if resultado.get('success') else 409
+        return jsonify(resultado), code
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_criar_evento] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/reinf/evento/<evento_id>/enviar', methods=['POST'])
+@login_required
+@csrf_instance.exempt
+def reinf_enviar_evento(evento_id):
+    try:
+        db, eid = _reinf_get_db_empresa()
+        body = request.get_json() or {}
+        contratante_cnpj = body.get('contratante_cnpj', '')
+        autor_doc        = body.get('autor_doc', '')
+
+        if not contratante_cnpj or not autor_doc:
+            return jsonify({'success': False, 'error': 'contratante_cnpj e autor_doc são obrigatórios'}), 400
+
+        from reinf_service import enviar_evento
+        resultado = enviar_evento(db, eid, evento_id, contratante_cnpj, autor_doc)
+        return jsonify(resultado), 200 if resultado.get('success') else 422
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_enviar_evento] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/reinf/evento/<evento_id>', methods=['GET'])
+@login_required
+def reinf_detalhe_evento(evento_id):
+    try:
+        db, eid = _reinf_get_db_empresa()
+        from reinf_service import obter_evento
+        ev = obter_evento(db, eid, evento_id)
+        if not ev:
+            return jsonify({'success': False, 'error': 'Evento não encontrado'}), 404
+        return jsonify({'success': True, 'data': ev})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_detalhe_evento] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/reinf/evento/<evento_id>/consultar-status', methods=['POST'])
+@login_required
+@csrf_instance.exempt
+def reinf_consultar_status(evento_id):
+    try:
+        db, eid = _reinf_get_db_empresa()
+        body = request.get_json() or {}
+        contratante_cnpj = body.get('contratante_cnpj', '')
+        autor_doc        = body.get('autor_doc', '')
+        from reinf_service import consultar_status_evento
+        resultado = consultar_status_evento(db, eid, evento_id, contratante_cnpj, autor_doc)
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_consultar_status] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/reinf/evento/<evento_id>/excluir', methods=['POST'])
+@login_required
+@csrf_instance.exempt
+def reinf_excluir_evento(evento_id):
+    try:
+        db, eid = _reinf_get_db_empresa()
+        body = request.get_json() or {}
+        motivo = body.get('motivo', 'Exclusão manual')
+        from reinf_service import excluir_evento
+        resultado = excluir_evento(db, eid, evento_id, motivo)
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_excluir_evento] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/reinf/fechar', methods=['POST'])
+@login_required
+@csrf_instance.exempt
+def reinf_fechar_competencia():
+    try:
+        db, eid = _reinf_get_db_empresa()
+        body = request.get_json() or {}
+        competencia      = body.get('competencia', '')
+        tipo_fechamento  = body.get('tipo', 'R-2099')   # 'R-2099' ou 'R-4099'
+        contratante_cnpj = body.get('contratante_cnpj', '')
+        autor_doc        = body.get('autor_doc', '')
+
+        if not competencia or not contratante_cnpj or not autor_doc:
+            return jsonify({'success': False, 'error': 'competencia, contratante_cnpj e autor_doc obrigatórios'}), 400
+
+        from reinf_service import fechar_competencia
+        resultado = fechar_competencia(db, eid, competencia, tipo_fechamento, contratante_cnpj, autor_doc)
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_fechar_competencia] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/reinf/reabrir', methods=['POST'])
+@login_required
+@csrf_instance.exempt
+def reinf_reabrir_competencia():
+    try:
+        db, eid = _reinf_get_db_empresa()
+        body = request.get_json() or {}
+        competencia      = body.get('competencia', '')
+        contratante_cnpj = body.get('contratante_cnpj', '')
+        autor_doc        = body.get('autor_doc', '')
+
+        from reinf_service import reabrir_competencia
+        resultado = reabrir_competencia(db, eid, competencia, contratante_cnpj, autor_doc)
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_reabrir_competencia] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/reinf/totalizadores/<comp>', methods=['GET'])
+@login_required
+def reinf_totalizadores(comp):
+    try:
+        db, eid = _reinf_get_db_empresa()
+        from reinf_service import calcular_totalizadores
+        totais = calcular_totalizadores(db, eid, comp)
+        return jsonify({'success': True, 'data': totais})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_totalizadores] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/reinf/sincronizar-dctfweb', methods=['POST'])
+@login_required
+@csrf_instance.exempt
+def reinf_sincronizar_dctfweb():
+    try:
+        db, eid = _reinf_get_db_empresa()
+        body = request.get_json() or {}
+        competencia      = body.get('competencia', '')
+        contratante_cnpj = body.get('contratante_cnpj', '')
+        autor_doc        = body.get('autor_doc', '')
+        from reinf_service import sincronizar_dctfweb
+        resultado = sincronizar_dctfweb(db, eid, competencia, contratante_cnpj, autor_doc)
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_sincronizar_dctfweb] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/reinf/exportar-xml/<evento_id>', methods=['GET'])
+@login_required
+def reinf_exportar_xml(evento_id):
+    try:
+        db, eid = _reinf_get_db_empresa()
+        from reinf_service import exportar_xml_evento
+        xml = exportar_xml_evento(db, eid, evento_id)
+        if xml is None:
+            return jsonify({'success': False, 'error': 'Evento não encontrado'}), 404
+        from flask import Response
+        return Response(xml, mimetype='application/xml',
+                        headers={'Content-Disposition': f'attachment; filename=reinf_{evento_id}.xml'})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[reinf_exportar_xml] {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
