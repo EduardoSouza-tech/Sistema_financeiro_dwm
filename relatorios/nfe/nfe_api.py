@@ -379,7 +379,8 @@ def _ensure_cancelado_columns(conn) -> None:
             ALTER TABLE documentos_fiscais_log
                 ADD COLUMN IF NOT EXISTS cancelado            BOOLEAN   DEFAULT FALSE,
                 ADD COLUMN IF NOT EXISTS cancelamento_motivo TEXT,
-                ADD COLUMN IF NOT EXISTS cancelamento_data   TIMESTAMP;
+                ADD COLUMN IF NOT EXISTS cancelamento_data   TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS xml_content         TEXT;
         """)
         conn.commit()
     except Exception as e:
@@ -639,15 +640,15 @@ def _processar_nfe(empresa_id: int, certificado_id: int, cnpj_empresa: str,
         if not resultado_storage['sucesso']:
             return {'sucesso': False, 'erro': 'Erro ao salvar XML'}
         
-        # Salva log no banco
+        # Salva log no banco (inclui xml_content para persistencia no Railway)
         cursor.execute("""
             INSERT INTO documentos_fiscais_log 
             (empresa_id, certificado_id, nsu, chave, tipo_documento, schema_name,
              numero_documento, serie, valor_total, cnpj_emitente, nome_emitente,
              cnpj_destinatario, nome_destinatario, data_emissao, 
-             caminho_xml, tamanho_bytes, hash_md5, busca_por, processado)
+             caminho_xml, tamanho_bytes, hash_md5, busca_por, processado, xml_content)
             VALUES 
-            (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+            (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s)
             ON CONFLICT DO NOTHING
         """, (
             empresa_id, certificado_id, nsu, chave, 'NFe', schema,
@@ -656,7 +657,7 @@ def _processar_nfe(empresa_id: int, certificado_id: int, cnpj_empresa: str,
             dados.get('cnpj_destinatario'), dados.get('nome_destinatario'),
             dados.get('data_emissao'),
             resultado_storage['caminho'], resultado_storage['tamanho'],
-            resultado_storage['hash_md5'], usuario_id
+            resultado_storage['hash_md5'], usuario_id, xml_content
         ))
         
         # Atualiza contadores do certificado
@@ -704,15 +705,15 @@ def _processar_cte(empresa_id: int, certificado_id: int, cnpj_empresa: str,
         if not resultado_storage['sucesso']:
             return {'sucesso': False, 'erro': 'Erro ao salvar XML do CT-e'}
         
-        # Salva log no banco
+        # Salva log no banco (inclui xml_content para persistencia no Railway)
         cursor.execute("""
             INSERT INTO documentos_fiscais_log 
             (empresa_id, certificado_id, nsu, chave, tipo_documento, schema_name,
              numero_documento, serie, valor_total, cnpj_emitente, nome_emitente,
              cnpj_destinatario, nome_destinatario, data_emissao, 
-             caminho_xml, tamanho_bytes, hash_md5, busca_por, processado)
+             caminho_xml, tamanho_bytes, hash_md5, busca_por, processado, xml_content)
             VALUES 
-            (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+            (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s)
             ON CONFLICT DO NOTHING
         """, (
             empresa_id, certificado_id, nsu, chave, 'CTe', schema,
@@ -721,7 +722,7 @@ def _processar_cte(empresa_id: int, certificado_id: int, cnpj_empresa: str,
             dados.get('cnpj_destinatario'), dados.get('nome_destinatario'),
             dados.get('data_emissao'),
             resultado_storage['caminho'], resultado_storage['tamanho'],
-            resultado_storage['hash_md5'], usuario_id
+            resultado_storage['hash_md5'], usuario_id, xml_content
         ))
         
         # Atualiza contadores do certificado

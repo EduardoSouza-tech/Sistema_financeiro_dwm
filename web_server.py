@@ -18804,7 +18804,7 @@ def download_xml(doc_id):
             cursor = conn.cursor()
             
             cursor.execute("""
-                SELECT chave, caminho_xml, tipo_documento
+                SELECT chave, caminho_xml, tipo_documento, xml_content
                 FROM documentos_fiscais_log
                 WHERE id = %s AND empresa_id = %s
             """, (doc_id, empresa_id))
@@ -18817,10 +18817,11 @@ def download_xml(doc_id):
                 'error': 'Documento n�o encontrado'
             }), 404
         
-        chave, caminho_xml, tipo_doc = row
+        chave, caminho_xml, tipo_doc, xml_content_db = row
         
-        # L� o arquivo XML
-        if os.path.exists(caminho_xml):
+        # Tenta filesystem; senao usa xml_content do banco (Railway ephemeral)
+        from io import BytesIO as _BytesIO
+        if caminho_xml and os.path.exists(str(caminho_xml)):
             from flask import send_file
             return send_file(
                 caminho_xml,
@@ -18828,10 +18829,20 @@ def download_xml(doc_id):
                 as_attachment=True,
                 download_name=f'{tipo_doc}_{chave}.xml'
             )
+        elif xml_content_db:
+            xml_bytes = xml_content_db.encode("utf-8") if isinstance(xml_content_db, str) else xml_content_db
+            buf = _BytesIO(xml_bytes)
+            buf.seek(0)
+            return send_file(
+                buf,
+                mimetype='application/xml',
+                as_attachment=True,
+                download_name=f'{tipo_doc}_{chave}.xml'
+            )
         else:
             return jsonify({
                 'success': False,
-                'error': 'Arquivo XML n�o encontrado no storage'
+                'error': 'XML nao encontrado (nem no storage, nem no banco)'
             }), 404
         
     except Exception as e:
@@ -18855,7 +18866,7 @@ def download_pdf_documento(doc_id):
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT chave, caminho_xml, tipo_documento
+                SELECT chave, caminho_xml, tipo_documento, xml_content
                 FROM documentos_fiscais_log
                 WHERE id = %s AND empresa_id = %s
             """, (doc_id, empresa_id))
@@ -18864,13 +18875,16 @@ def download_pdf_documento(doc_id):
         if not row:
             return jsonify({'success': False, 'error': 'Documento nao encontrado'}), 404
 
-        chave, caminho_xml, tipo_doc = row
+        chave, caminho_xml, tipo_doc, xml_content_db = row
 
-        if not caminho_xml or not os.path.exists(caminho_xml):
-            return jsonify({'success': False, 'error': 'Arquivo XML nao encontrado no storage'}), 404
-
-        with open(caminho_xml, 'rb') as f:
-            xml_bytes = f.read()
+        # Tenta filesystem primeiro; senao usa xml_content do banco (Railway ephemeral)
+        if caminho_xml and os.path.exists(str(caminho_xml)):
+            with open(caminho_xml, 'rb') as f:
+                xml_bytes = f.read()
+        elif xml_content_db:
+            xml_bytes = xml_content_db.encode('utf-8') if isinstance(xml_content_db, str) else xml_content_db
+        else:
+            return jsonify({'success': False, 'error': 'XML nao encontrado (storage e banco vazios)'}), 404
 
         from io import BytesIO as _BytesIO
         buffer = _BytesIO()
