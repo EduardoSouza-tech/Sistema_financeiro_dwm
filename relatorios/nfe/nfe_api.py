@@ -659,6 +659,14 @@ def _processar_nfe(empresa_id: int, certificado_id: int, cnpj_empresa: str,
             resultado_storage['caminho'], resultado_storage['tamanho'],
             resultado_storage['hash_md5'], usuario_id, xml_content
         ))
+        # Backfill xml_content para documentos inseridos antes da coluna existir
+        if xml_content and chave:
+            cursor.execute("""
+                UPDATE documentos_fiscais_log
+                SET xml_content = %s
+                WHERE empresa_id = %s AND chave = %s AND tipo_documento = 'NFe'
+                  AND xml_content IS NULL
+            """, (xml_content, empresa_id, chave))
         
         # Atualiza contadores do certificado
         cursor.execute("""
@@ -724,6 +732,14 @@ def _processar_cte(empresa_id: int, certificado_id: int, cnpj_empresa: str,
             resultado_storage['caminho'], resultado_storage['tamanho'],
             resultado_storage['hash_md5'], usuario_id, xml_content
         ))
+        # Backfill xml_content para documentos inseridos antes da coluna existir
+        if xml_content and chave:
+            cursor.execute("""
+                UPDATE documentos_fiscais_log
+                SET xml_content = %s
+                WHERE empresa_id = %s AND chave = %s AND tipo_documento = 'CTe'
+                  AND xml_content IS NULL
+            """, (xml_content, empresa_id, chave))
         
         # Atualiza contadores do certificado
         cursor.execute("""

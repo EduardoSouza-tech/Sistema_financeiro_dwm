@@ -18925,7 +18925,11 @@ def download_pdf_documento(doc_id):
         elif xml_content_db:
             xml_bytes = xml_content_db.encode('utf-8') if isinstance(xml_content_db, str) else xml_content_db
         else:
-            return jsonify({'success': False, 'error': 'XML nao encontrado (storage e banco vazios)'}), 404
+            return jsonify({
+                'success': False,
+                'error': 'XML nao encontrado. Este documento foi importado antes do armazenamento de XML ser ativado. '
+                         'Acesse "Documentos Fiscais" > "Buscar Documentos" para re-sincronizar e o PDF passara a funcionar.'
+            }), 404
 
         from io import BytesIO as _BytesIO
         buffer = _BytesIO()
