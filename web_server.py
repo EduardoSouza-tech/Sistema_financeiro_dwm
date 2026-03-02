@@ -11892,8 +11892,8 @@ def atualizar_empresa_api(empresa_id):
             if not tem_acesso:
                 return jsonify({'error': 'Acesso negado'}), 403
             
-            # Permite editar APENAS o campo 'estado' (UF)
-            campos_permitidos = ['estado']
+            # Permite editar 'estado' (UF) e 'cnpj' para auto-populacao via certificado
+            campos_permitidos = ['estado', 'cnpj']
             campos_enviados = set(dados.keys())
             campos_proibidos = campos_enviados - set(campos_permitidos)
             
