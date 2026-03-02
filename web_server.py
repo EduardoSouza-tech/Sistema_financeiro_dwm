@@ -13192,15 +13192,19 @@ def buscar_nfse():
             # Verificar se microservi�o retornou erro
             if response.status_code != 200:
                 logger.error(f"? Microservi�o retornou status {response.status_code}")
+                error_msg = f'Microservi�o retornou erro (status {response.status_code})'
                 try:
                     erro_json = response.json()
                     logger.error(f"   Detalhes: {erro_json}")
-                except:
+                    # Repassar mensagem original do microservi�o ao front-end
+                    if erro_json.get('error'):
+                        error_msg = erro_json['error']
+                except Exception:
                     logger.error(f"   Resposta: {response.text[:500]}")
                 
                 return jsonify({
                     'success': False,
-                    'error': f'Microservi�o retornou erro (status {response.status_code})'
+                    'error': error_msg
                 }), response.status_code
             
             resultado = response.json()

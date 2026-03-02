@@ -8044,6 +8044,9 @@ window.buscarNFSeAPI = async function() {
                 try {
                     const data = await response.json();
                     errorMsg = data.error || 'Requisição inválida';
+                    if (errorMsg.toLowerCase().includes('cnpj')) {
+                        errorDetail = '<strong>💡 Solução:</strong> Acesse <a href="#" onclick="showSection(\'empresa\');return false;" style="color:#e74c3c;">Dados da Empresa</a> e preencha o CNPJ antes de buscar NFS-e.';
+                    }
                 } catch {
                     errorMsg = 'Requisição inválida';
                 }
