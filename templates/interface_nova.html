@@ -4547,22 +4547,32 @@
                             </select>
                             <input type="text" id="fiscal-darf-codigo" placeholder="Digite o código (ex: 1234)"
                                    maxlength="4"
+                                   oninput="FiscalFederal.onDarfCompChange()"
                                    style="display:none;margin-top:6px;width:100%;padding:8px 10px;
                                           border:1px solid #f9a825;border-radius:5px;font-size:13px">
                         </div>
                         <div class="fiscal-field">
                             <label>Competência (MMAAAA)</label>
-                            <input type="text" id="fiscal-darf-comp" placeholder="032026" maxlength="6">
+                            <input type="text" id="fiscal-darf-comp" placeholder="032026" maxlength="6"
+                                   oninput="FiscalFederal.onDarfCompChange()">
                         </div>
                     </div>
+
+                    <!-- Badge de vencimento automático -->
+                    <div id="darf-venc-badge" style="display:none;flex-direction:column;gap:3px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:9px 13px;margin-bottom:10px;font-size:12px"></div>
+
                     <div class="fiscal-field-row">
                         <div class="fiscal-field">
                             <label>Valor (R$)</label>
                             <input type="number" id="fiscal-darf-valor" placeholder="0.00" min="0" step="0.01">
                         </div>
                         <div class="fiscal-field">
-                            <label>Data de Vencimento</label>
-                            <input type="date" id="fiscal-darf-venc">
+                            <label>Data de Vencimento
+                              <span style="font-size:10px;color:#94a3b8;font-weight:400"> — preenchido automaticamente</span>
+                            </label>
+                            <input type="date" id="fiscal-darf-venc"
+                                   style="background:#f8fafc"
+                                   title="Calculado pelo motor fiscal. Você pode ajustar manualmente se necessário.">
                         </div>
                     </div>
                     <div class="fiscal-actions">

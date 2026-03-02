@@ -143,6 +143,15 @@ const FiscalFederal = (() => {
     // lazy-load
     const loaders = { dashboard: loadDashboard, logs: loadLogs, fila: loadFila };
     if (loaders[tabId]) loaders[tabId]();
+    // Ao abrir DARF: pré-preencher competência com mês atual e calcular vencimento
+    if (tabId === 'darf') {
+      const fc = document.getElementById('fiscal-darf-comp');
+      if (fc && !fc.value) {
+        const now = new Date();
+        fc.value = String(now.getMonth()+1).padStart(2,'0') + String(now.getFullYear());
+      }
+      _calcularEPreencherVencimento();
+    }
   }
 
   // ─── Config Modal ─────────────────────────────────────────────────────────
@@ -780,6 +789,132 @@ const FiscalFederal = (() => {
   }
 
   // ─── DARF ─────────────────────────────────────────────────────────────────
+  // ─── Motor de Vencimento DARF ─────────────────────────────────────────────
+  // Regras: { dia_base, mes_offset } por código de receita
+  const DARF_REGRAS = {
+    // PIS
+    '8109': { tributo:'PIS Cumulativo',       dia: 25, offset: 1 },
+    '6912': { tributo:'PIS Não Cumulativo',    dia: 25, offset: 1 },
+    '5952': { tributo:'PIS Retido na Fonte',   dia: 25, offset: 1 },
+    // COFINS
+    '2172': { tributo:'COFINS Cumulativa',     dia: 25, offset: 1 },
+    '5856': { tributo:'COFINS Não Cumulativa', dia: 25, offset: 1 },
+    '5960': { tributo:'COFINS Retida Fonte',   dia: 25, offset: 1 },
+    // CSLL
+    '2372': { tributo:'CSLL Lucro Presumido',  dia: 30, offset: 1 },
+    '2484': { tributo:'CSLL Lucro Real',       dia: 30, offset: 1 },
+    '2370': { tributo:'CSLL Retida Fonte',     dia: 25, offset: 1 },
+    // IRPJ
+    '2089': { tributo:'IRPJ Lucro Presumido',  dia: 30, offset: 1 },
+    '2120': { tributo:'IRPJ Lucro Real',       dia: 30, offset: 1 },
+    '2088': { tributo:'IRPJ Ajuste Anual',     dia: 31, offset: 3 },
+    // IRRF
+    '0561': { tributo:'IRRF',                  dia: 20, offset: 1 },
+    // IRPF
+    '0190': { tributo:'IRPF Carnê-Leão',       dia: 31, offset: 1 },
+    '4600': { tributo:'IRPF Ganho de Capital', dia: 31, offset: 1 },
+    '1889': { tributo:'IRPF Rendimentos',      dia: 31, offset: 1 },
+  };
+
+  // Feriados nacionais fixos e de 2025-2027 (lei 6.802/80 e correlatas)
+  const _FERIADOS = new Set([
+    // Feriados fixos (repetem todo ano) — gerados para 2025-2027
+    ...([2025,2026,2027].flatMap(y => [
+      `${y}-01-01`, // Ano Novo
+      `${y}-04-21`, // Tiradentes
+      `${y}-05-01`, // Trabalho
+      `${y}-09-07`, // Independência
+      `${y}-10-12`, // N.Sra.Aparecida
+      `${y}-11-02`, // Finados
+      `${y}-11-15`, // Proclamação República
+      `${y}-11-20`, // Consciência Negra
+      `${y}-12-25`, // Natal
+    ])),
+    // Páscoa e Carnaval (móveis)
+    '2025-03-04','2025-03-05','2025-04-18','2025-04-20',
+    '2026-02-17','2026-02-18','2026-04-03','2026-04-05',
+    '2027-02-09','2027-02-10','2027-03-26','2027-03-28',
+    // Corpus Christi
+    '2025-06-19','2026-06-04','2027-05-27',
+  ]);
+
+  // Retorna o dia útil anterior se d for fim de semana/feriado
+  function _diaUtilAnterior(d) {
+    const dt = new Date(d);
+    while (dt.getDay() === 0 || dt.getDay() === 6 || _FERIADOS.has(_isoDate(dt))) {
+      dt.setDate(dt.getDate() - 1);
+    }
+    return dt;
+  }
+
+  function _isoDate(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  // Último dia real do mês (para dia_base >= 29)
+  function _lastDayOfMonth(y, m) {
+    return new Date(y, m, 0).getDate(); // m é 1-based, new Date(y,m,0) = último dia de (m-1)
+  }
+
+  /**
+   * Calcula o vencimento dado código e competência (MMAAAA).
+   * Retorna { iso, display, ddmmaaaa, tributo, regra } ou null.
+   */
+  function calcularVencimentoDARF(codigo, competencia) {
+    const regra = DARF_REGRAS[String(codigo).trim()];
+    if (!regra || !competencia) return null;
+    const s = String(competencia).replace(/\D/g,'');
+    if (s.length !== 6) return null;
+    const mm = parseInt(s.slice(0,2), 10); // entrada MMAAAA
+    const yyyy = parseInt(s.slice(2,6), 10);
+    if (mm < 1 || mm > 12) return null;
+
+    // Mês/ano destino após aplicar offset
+    let dstMonth = mm + regra.offset; // 1-based
+    let dstYear  = yyyy;
+    while (dstMonth > 12) { dstMonth -= 12; dstYear++; }
+
+    // Dia base (clamped ao último dia do mês)
+    const ultimo = _lastDayOfMonth(dstYear, dstMonth);
+    const diaBase = Math.min(regra.dia, ultimo);
+
+    // Data base (UTC para evitar TZ issues)
+    const base = new Date(`${dstYear}-${String(dstMonth).padStart(2,'0')}-${String(diaBase).padStart(2,'0')}T12:00:00`);
+    const util = _diaUtilAnterior(base);
+
+    const dd   = String(util.getDate()).padStart(2,'0');
+    const mOut = String(util.getMonth()+1).padStart(2,'0');
+    const aaaa = util.getFullYear();
+    return {
+      iso:      `${aaaa}-${mOut}-${dd}`,
+      display:  `${dd}/${mOut}/${aaaa}`,
+      ddmmaaaa: `${dd}${mOut}${aaaa}`,
+      tributo:  regra.tributo,
+      ajustado: util.getDate() !== diaBase,
+    };
+  }
+
+  function _calcularEPreencherVencimento() {
+    let codigo = _getDarfCodigo();
+    const comp = (document.getElementById('fiscal-darf-comp')?.value || '').trim();
+    const badge = document.getElementById('darf-venc-badge');
+    const inp   = document.getElementById('fiscal-darf-venc');
+    if (!codigo || !comp || comp.length !== 6) {
+      if (badge) badge.style.display = 'none';
+      return;
+    }
+    const r = calcularVencimentoDARF(codigo, comp);
+    if (!r) { if (badge) badge.style.display = 'none'; return; }
+    // Preencher campo (ISO para <input type="date">)
+    if (inp) inp.value = r.iso;
+    // Badge informativo
+    if (badge) {
+      badge.style.display = 'flex';
+      badge.innerHTML = `<span style="color:#059669">✔ Calculado automaticamente</span>
+        <span style="color:#64748b">${r.tributo} — vence <strong>${r.display}</strong>${r.ajustado ? ' <em>(antecipado — feriado/fim de semana)</em>' : ''}</span>`;
+    }
+  }
+
   function onDarfCodigoChange(sel) {
     const inp = document.getElementById('fiscal-darf-codigo');
     if (sel.value === '__outro__') {
@@ -789,6 +924,11 @@ const FiscalFederal = (() => {
       inp.style.display = 'none';
       inp.value = '';
     }
+    _calcularEPreencherVencimento();
+  }
+
+  function onDarfCompChange() {
+    _calcularEPreencherVencimento();
   }
 
   function _getDarfCodigo() {
@@ -1012,6 +1152,8 @@ const FiscalFederal = (() => {
     verificarPagamentoDARF,
     loadDARFLista,
     onDarfCodigoChange,
+    onDarfCompChange,
+    calcularVencimentoDARF,
     loadLogs,
     verLogDetalhe,
     loadFila,
