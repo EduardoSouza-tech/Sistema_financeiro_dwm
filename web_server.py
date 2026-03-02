@@ -13328,14 +13328,16 @@ def buscar_nfse():
             
             # Log de auditoria
             from nfse_functions import registrar_operacao
+            from database_postgresql import get_nfse_db_params as _get_audit_db_params
+            _audit_db_params = _get_audit_db_params()
             registrar_operacao(
-                db_params=db_params,
+                db_params=_audit_db_params,
                 empresa_id=empresa_id,
                 usuario_id=usuario['id'],
                 operacao='BUSCA_VIA_MICROSERVICO',
                 detalhes={
-                    'data_inicial': data['data_inicial'],
-                    'data_final': data['data_final'],
+                    'data_inicial': data.get('data_inicial', 'auto'),
+                    'data_final': data.get('data_final', 'auto'),
                     'metodo': data.get('metodo', 'ambiente_nacional'),
                     'total_nfse': resultado.get('total_nfse', 0)
                 },
@@ -13426,6 +13428,30 @@ def _buscar_nfse_local(empresa_id, usuario, data, ip_address):
                 'error': 'Certificado A1 n�o configurado'
             }), 400
     
+    # Auto-detectar datas quando não informadas (mesma lógica do microserviço)
+    from datetime import date as _date, datetime
+    if not data.get('data_inicial') or not data.get('data_final'):
+        _today = _date.today()
+        _ultima_data = None
+        try:
+            with get_db_connection(empresa_id=empresa_id) as _ac:
+                _cur = _ac.cursor()
+                _cur.execute(
+                    "SELECT MAX(data_emissao) FROM nfse_baixadas WHERE empresa_id = %s",
+                    (empresa_id,)
+                )
+                _r = _cur.fetchone()
+                _cur.close()
+                if _r and _r[0]:
+                    _ultima_data = _r[0].date() if hasattr(_r[0], 'date') else _r[0]
+        except Exception as _de:
+            logger.warning(f"Auto-data local: erro ao consultar última NFS-e: {_de}")
+        data = dict(data)
+        if not data.get('data_final'):
+            data['data_final'] = _today.strftime('%Y-%m-%d')
+        if not data.get('data_inicial'):
+            data['data_inicial'] = _ultima_data.strftime('%Y-%m-%d') if _ultima_data else '2016-01-01'
+
     # Converter datas
     data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
     data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
@@ -13475,9 +13501,9 @@ def _buscar_nfse_local(empresa_id, usuario, data, ip_address):
         usuario_id=usuario['id'],
         operacao='BUSCA_LOCAL',
         detalhes={
-            'data_inicial': data['data_inicial'],
-            'data_final': data['data_final'],
-            'total_nfse': resultado['total_nfse']
+            'data_inicial': data.get('data_inicial', 'auto'),
+            'data_final': data.get('data_final', 'auto'),
+            'total_nfse': resultado.get('total_nfse', 0)
         },
         ip_address=ip_address
     )
