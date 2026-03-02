@@ -5032,9 +5032,14 @@
                 <div id="fiscal-content-documentos" class="fiscal-tab-content hidden">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <h3>Documentos Fiscais</h3>
-                        <button class="btn btn-success" onclick="exportarExcelFiscal()">
-                            📊 Exportar Excel
-                        </button>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-success" onclick="exportarExcelFiscal()" style="padding: 8px 16px;">
+                                📊 Exportar Excel
+                            </button>
+                            <button class="btn btn-danger" onclick="apagarDocumentosFiscais()" data-permission="relatorios_delete" style="padding: 8px 16px; background: #e74c3c;">
+                                🗑️ Apagar Tudo e Resetar NSU
+                            </button>
+                        </div>
                     </div>
                     
                     <!-- Filtros -->
@@ -5099,13 +5104,6 @@
 
                 <!-- Tab Content: NFS-e -->
                 <div id="fiscal-content-nfse" class="fiscal-tab-content hidden">
-                    <!-- Botões de Ação -->
-                    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: flex-end;">
-                        <button class="btn btn-primary" onclick="window.exportarNFSeExcel()" data-permission="nfse_export" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📊 Exportar Excel</button>
-                        <button class="btn btn-primary" onclick="window.exportarNFSeXMLs()" data-permission="nfse_export" style="padding: 8px 16px; font-size: 13px; background: #3498db;">📄 Baixar XMLs</button>
-                        <button class="btn btn-danger" onclick="window.apagarTodasNFSe()" data-permission="nfse_delete" style="padding: 8px 16px; font-size: 13px; background: #e74c3c;">🗑️ Apagar Todas</button>
-                    </div>
-
                     <!-- Filtros de Busca -->
                     <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                         <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
@@ -5151,6 +5149,18 @@
                             <div>
                                 <label style="font-size: 12px; color: transparent; display: block; margin-bottom: 4px; user-select: none;">&#8203;</label>
                                 <button class="btn btn-success" onclick="window.buscarNFSeAPI()" data-permission="nfse_buscar" style="padding: 8px 16px; height: 38px; font-size: 14px; background: #27ae60;">⬇️ Baixar NFS-e</button>
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; color: transparent; display: block; margin-bottom: 4px; user-select: none;">&#8203;</label>
+                                <button class="btn btn-primary" onclick="window.exportarNFSeExcel()" data-permission="nfse_export" style="padding: 8px 16px; height: 38px; font-size: 13px; background: #27ae60;">📊 Exportar Excel</button>
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; color: transparent; display: block; margin-bottom: 4px; user-select: none;">&#8203;</label>
+                                <button class="btn btn-primary" onclick="window.exportarNFSeXMLs()" data-permission="nfse_export" style="padding: 8px 16px; height: 38px; font-size: 13px; background: #3498db;">📄 Baixar XMLs</button>
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; color: transparent; display: block; margin-bottom: 4px; user-select: none;">&#8203;</label>
+                                <button class="btn btn-danger" onclick="window.apagarTodasNFSe()" data-permission="nfse_delete" style="padding: 8px 16px; height: 38px; font-size: 13px; background: #e74c3c;">🗑️ Apagar Todas</button>
                             </div>
                         </div>
                     </div>
@@ -14577,6 +14587,24 @@
                     }
                 })
                 .catch(err => console.error('Erro ao carregar documentos:', err));
+        }
+
+        function apagarDocumentosFiscais() {
+            if (!confirm('⚠️ Tem certeza que deseja apagar TODOS os documentos fiscais baixados e resetar o NSU de todos os certificados?\n\nEsta ação não pode ser desfeita. Após resetar, será necessário buscar os documentos novamente na SEFAZ.')) return;
+            fetch('/api/relatorios/documentos/apagar-tudo', {
+                method: 'DELETE',
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showToastFiscal(data.message || 'Documentos apagados e NSU resetado!', 'success');
+                    carregarDocumentosFiscais();
+                } else {
+                    showToastFiscal('Erro: ' + (data.error || 'Falha ao apagar documentos'), 'error');
+                }
+            })
+            .catch(err => showToastFiscal('Erro ao apagar documentos', 'error'));
         }
 
         function exportarExcelFiscal() {

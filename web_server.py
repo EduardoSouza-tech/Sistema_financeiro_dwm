@@ -18972,6 +18972,57 @@ def download_pdf_documento(doc_id):
         return jsonify({'success': False, 'error': f'Erro ao gerar PDF: {str(e)}'}), 500
 
 
+@app.route('/api/relatorios/documentos/apagar-tudo', methods=['DELETE'])
+@require_auth
+@require_permission('relatorios_delete')
+def apagar_documentos_fiscais():
+    """Apaga todos os documentos fiscais da empresa e reseta o NSU dos certificados"""
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa nao identificada'}), 403
+
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+
+            # Conta documentos antes de deletar
+            cursor.execute(
+                "SELECT COUNT(*) FROM documentos_fiscais_log WHERE empresa_id = %s",
+                (empresa_id,)
+            )
+            total = cursor.fetchone()[0]
+
+            # Apaga todos os documentos
+            cursor.execute(
+                "DELETE FROM documentos_fiscais_log WHERE empresa_id = %s",
+                (empresa_id,)
+            )
+
+            # Reseta o NSU de todos os certificados da empresa
+            cursor.execute("""
+                UPDATE certificados_digitais
+                SET ultimo_nsu = '000000000000000',
+                    proximo_nsu = '000000000000000',
+                    total_documentos_baixados = 0,
+                    total_nfes = 0,
+                    total_ctes = 0,
+                    total_eventos = 0
+                WHERE empresa_id = %s
+            """, (empresa_id,))
+
+            conn.commit()
+
+        logger.info(f"[APAGAR-DOCS] Empresa {empresa_id}: {total} documentos apagados e NSU resetado")
+        return jsonify({
+            'success': True,
+            'message': f'{total} documentos apagados e NSU resetado com sucesso.'
+        })
+
+    except Exception as e:
+        logger.error(f"Erro ao apagar documentos fiscais: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ===== ESTAT�STICAS E DASHBOARDS =====
 
 @app.route('/api/relatorios/estatisticas', methods=['GET'])
