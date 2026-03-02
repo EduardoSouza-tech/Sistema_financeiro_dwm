@@ -103,6 +103,162 @@ const ReinfModule = (function () {
     autorizado: '#22c55e', erro: '#ef4444', excluido: '#6b7280',
   };
 
+  // ── Tabela 01 EFD-REINF — Natureza de Rendimentos (Receita Federal) ─────
+  // Fonte: Manual EFD-REINF v2.1.2 — Tabela 01
+  const NATUREZA_RENDIMENTOS = [
+    // ─── Pagamentos a Pessoa Física (R-4010) ────────────────────────────────
+    { grupo: 'PF', label: 'Trabalho Assalariado', itens: [
+      { cod: '10001', desc: 'Rendimentos do trabalho com vínculo empregatício / estatutário' },
+      { cod: '10003', desc: '13º salário' },
+      { cod: '10005', desc: 'Rescisão sem justa causa – parcela sujeita ao IR' },
+      { cod: '10007', desc: 'Férias pagas em pecúnia' },
+      { cod: '10009', desc: 'Participação nos lucros e resultados – PLR' },
+      { cod: '10011', desc: 'Abono pecuniário de férias' },
+      { cod: '10013', desc: 'Horas extras e adicionais tributáveis' },
+      { cod: '10015', desc: 'Adicional noturno' },
+      { cod: '10017', desc: 'Adicional de insalubridade' },
+      { cod: '10019', desc: 'Adicional de periculosidade' },
+      { cod: '10021', desc: 'Abono de permanência' },
+      { cod: '10023', desc: 'Ajuda de custo – parcela tributável' },
+      { cod: '10025', desc: 'Diárias – parcela tributável' },
+      { cod: '10027', desc: 'Licença-prêmio em pecúnia' },
+      { cod: '10029', desc: 'Descontos por falta ou atraso' },
+      { cod: '10031', desc: 'Complementação salarial / diferenças de remuneração' },
+      { cod: '10033', desc: 'Parcelas de acordos, convenções ou dissídios coletivos' },
+      { cod: '10035', desc: 'Reconhecimento judicial de vínculo empregatício' },
+      { cod: '10099', desc: 'Outros rendimentos do trabalho assalariado' },
+    ]},
+    { grupo: 'PF', label: 'Aposentadoria / Pensão / Reforma', itens: [
+      { cod: '11001', desc: 'Proventos de aposentadoria, reserva ou reforma' },
+      { cod: '11003', desc: 'Pensão por morte ou invalidez' },
+      { cod: '11005', desc: '13º salário de aposentadoria / pensão' },
+      { cod: '11007', desc: 'Complementação de aposentadoria paga por entidade de previdência privada' },
+      { cod: '11009', desc: 'Benefício de previdência privada (PGBL/VGBL) tributável' },
+      { cod: '11099', desc: 'Outros proventos de aposentadoria / pensão' },
+    ]},
+    { grupo: 'PF', label: 'Benefícios Previdenciários (RGPS/RPPS)', itens: [
+      { cod: '12001', desc: 'Benefícios pagos pelo INSS – RGPS' },
+      { cod: '12003', desc: 'Seguro-desemprego' },
+      { cod: '12005', desc: 'Auxílio-acidente' },
+      { cod: '12007', desc: 'Benefícios do RPPS (regime próprio)' },
+      { cod: '12099', desc: 'Outros benefícios previdenciários' },
+    ]},
+    { grupo: 'PF', label: 'Trabalho sem Vínculo Empregatício — PF', itens: [
+      { cod: '13001', desc: 'Prestação de serviços por profissional liberal autônomo (RPA)' },
+      { cod: '13003', desc: 'Autônomo em geral – sem vínculo' },
+      { cod: '13005', desc: 'Empreitada de obras – exclusivamente mão de obra (PF)' },
+      { cod: '13007', desc: 'Pró-labore de sócios e diretores' },
+      { cod: '13009', desc: 'Serviços de transporte – PF' },
+      { cod: '13011', desc: 'Serviços de garimpagem' },
+      { cod: '13099', desc: 'Outros trabalhos sem vínculo empregatício – PF' },
+    ]},
+    { grupo: 'PF', label: 'Royalties — PF', itens: [
+      { cod: '14001', desc: 'Royalties – direitos autorais' },
+      { cod: '14003', desc: 'Royalties – patentes de invenção, marcas e outros' },
+      { cod: '14005', desc: 'Royalties – exploração de software' },
+      { cod: '14007', desc: 'Royalties – nome comercial e franquia' },
+      { cod: '14099', desc: 'Outros royalties – PF' },
+    ]},
+    { grupo: 'PF', label: 'Aluguéis — PF', itens: [
+      { cod: '15001', desc: 'Aluguéis de imóveis urbanos – PF' },
+      { cod: '15003', desc: 'Aluguéis de imóveis rurais – PF' },
+      { cod: '15005', desc: 'Aluguéis de bens móveis – PF' },
+      { cod: '15007', desc: 'Sublocação – PF' },
+      { cod: '15099', desc: 'Outros aluguéis – PF' },
+    ]},
+    { grupo: 'PF', label: 'Outros Rendimentos Tributáveis — PF', itens: [
+      { cod: '16001', desc: 'Distribuição disfarçada de lucros' },
+      { cod: '16003', desc: 'Prêmios em dinheiro (loterias, concursos, sorteios)' },
+      { cod: '16005', desc: 'Resgate de título de capitalização' },
+      { cod: '16007', desc: 'Lucros e dividendos distribuídos' },
+      { cod: '16009', desc: 'Juros sobre capital próprio – PF' },
+      { cod: '16011', desc: 'Ganhos de capital na alienação de bens e direitos' },
+      { cod: '16013', desc: 'FGTS – rescisão de contrato não cumulativo' },
+      { cod: '16015', desc: 'Rendimentos de partes beneficiárias / fundadores' },
+      { cod: '16017', desc: 'Multas e vantagens decorrentes de rescisão contratual' },
+      { cod: '16019', desc: 'Indenizações e restituições tributáveis' },
+      { cod: '16021', desc: 'Pensão alimentícia' },
+      { cod: '16023', desc: 'Antecipação de herança / doação – tributável' },
+      { cod: '16099', desc: 'Outros rendimentos tributáveis – PF' },
+    ]},
+    // ─── Pagamentos a Pessoa Jurídica (R-4020) ──────────────────────────────
+    { grupo: 'PJ', label: 'Serviços Profissionais Sujeitos à Retenção', itens: [
+      { cod: '21001', desc: 'Assessoria, consultoria e análise técnica' },
+      { cod: '21003', desc: 'Auditoria, perícia e avaliação' },
+      { cod: '21005', desc: 'Serviços de advocacia / assessoria jurídica' },
+      { cod: '21007', desc: 'Contabilidade, auditoria, economia e finanças' },
+      { cod: '21009', desc: 'Medicina, odontologia e saúde em geral (PJ)' },
+      { cod: '21011', desc: 'Engenharia, arquitetura, agronomia e urbanismo' },
+      { cod: '21013', desc: 'Pesquisa, desenvolvimento e tecnologia' },
+      { cod: '21015', desc: 'Ensino, treinamento e educação (PJ)' },
+      { cod: '21017', desc: 'Serviços de informática, TI e suporte técnico' },
+      { cod: '21019', desc: 'Corretagem em geral' },
+      { cod: '21021', desc: 'Publicidade, propaganda e marketing' },
+      { cod: '21023', desc: 'Agenciamento e intermediação de negócios' },
+      { cod: '21025', desc: 'Limpeza, conservação e zeladoria' },
+      { cod: '21027', desc: 'Segurança e vigilância patrimonial' },
+      { cod: '21029', desc: 'Administração de bens e negócios alheios' },
+      { cod: '21031', desc: 'Fornecimento e locação de mão de obra' },
+      { cod: '21033', desc: 'Serviços prestados por cooperativas de trabalho' },
+      { cod: '21035', desc: 'Serviços prestados por associações de profissionais' },
+      { cod: '21037', desc: 'Transporte de cargas' },
+      { cod: '21039', desc: 'Transporte de passageiros (PJ)' },
+      { cod: '21041', desc: 'Construção civil – empreitada global (materiais + mão de obra)' },
+      { cod: '21043', desc: 'Construção civil – empreitada exclusivamente de mão de obra (PJ)' },
+      { cod: '21099', desc: 'Outros serviços sujeitos à retenção – PJ' },
+    ]},
+    { grupo: 'PJ', label: 'Aluguéis — PJ', itens: [
+      { cod: '22001', desc: 'Aluguéis de imóveis – PJ' },
+      { cod: '22003', desc: 'Aluguéis de bens móveis – PJ' },
+      { cod: '22005', desc: 'Arrendamento mercantil (leasing)' },
+      { cod: '22007', desc: 'Sublocação – PJ' },
+      { cod: '22099', desc: 'Outros aluguéis – PJ' },
+    ]},
+    { grupo: 'PJ', label: 'Outros Rendimentos — PJ', itens: [
+      { cod: '23001', desc: 'Juros e encargos de mútuo – PJ' },
+      { cod: '23003', desc: 'Juros sobre capital próprio – PJ' },
+      { cod: '23005', desc: 'Benefícios indiretos e vantagens – PJ' },
+      { cod: '23007', desc: 'Desconto de títulos / factoring' },
+      { cod: '23009', desc: 'Participações societárias e dividendos – PJ' },
+      { cod: '23011', desc: 'Royalties – PJ' },
+      { cod: '23013', desc: 'Multas contratuais – PJ' },
+      { cod: '23099', desc: 'Outros rendimentos tributáveis – PJ' },
+    ]},
+  ];
+
+  // Gera <select> de Natureza do Rendimento com filtro de busca inline
+  function _buildNatSelect(id, grupo) {
+    const grupos = grupo === 'ALL'
+      ? NATUREZA_RENDIMENTOS
+      : NATUREZA_RENDIMENTOS.filter(g => g.grupo === grupo || g.grupo === 'AMBOS');
+    const opts = grupos.map(g =>
+      `<optgroup label="${g.label}">${
+        g.itens.map(i => `<option value="${i.cod}">${i.cod} — ${i.desc}</option>`).join('')
+      }</optgroup>`
+    ).join('');
+    return `
+      <div style="position:relative">
+        <input type="text" id="${id}-search" class="form-control mb-1"
+          placeholder="🔍 Filtrar natureza..." autocomplete="off"
+          oninput="(function(){
+            const q=document.getElementById('${id}-search').value.toLowerCase();
+            const sel=document.getElementById('${id}');
+            Array.from(sel.options).forEach(o=>{
+              const show=!q||o.text.toLowerCase().includes(q)||o.value.toLowerCase().includes(q);
+              o.style.display=show?'':'none';
+            });
+            Array.from(sel.querySelectorAll('optgroup')).forEach(og=>{
+              const vis=Array.from(og.querySelectorAll('option')).some(o=>o.style.display!=='none');
+              og.style.display=vis?'':'none';
+            });
+          })()">
+        <select id="${id}" class="form-control mb-2" size="4" style="height:auto;min-height:80px">
+          <option value="">— selecione —</option>
+          ${opts}
+        </select>
+      </div>`;
+  }
+
   // ── Init ─────────────────────────────────────────────────────────────────
   async function init() {
     await _ensureEmpresaData();  // garante currentEmpresaData antes de tudo
@@ -365,8 +521,9 @@ const ReinfModule = (function () {
           <input id="rfe-cnpj" class="form-control mb-2" placeholder="000.000.000-00"></div>
         <div><label>Nome</label>
           <input id="rfe-nome" class="form-control mb-2" placeholder="Nome completo"></div>
-        <div><label>Natureza do Rendimento</label>
-          <input id="rfe-nat" class="form-control mb-2" placeholder="Ex: 13001"></div>
+        <div style="grid-column:1/-1"><label>Natureza do Rendimento</label>
+          ${_buildNatSelect('rfe-nat', 'PF')}
+        </div>
         <div><label>Valor Bruto (R$)</label>
           <input id="rfe-vlr-bruto" class="form-control mb-2" placeholder="0.00" type="number" step="0.01"></div>
         <div><label>Valor IR (R$)</label>
@@ -385,8 +542,9 @@ const ReinfModule = (function () {
           <input id="rfe-cnpj" class="form-control mb-2" placeholder="00.000.000/0000-00"></div>
         <div><label>Razão Social</label>
           <input id="rfe-nome" class="form-control mb-2" placeholder="Razão social"></div>
-        <div><label>Natureza do Rendimento</label>
-          <input id="rfe-nat" class="form-control mb-2" placeholder="Ex: 22001"></div>
+        <div style="grid-column:1/-1"><label>Natureza do Rendimento</label>
+          ${_buildNatSelect('rfe-nat', 'PJ')}
+        </div>
         <div><label>Valor Bruto (R$)</label>
           <input id="rfe-vlr-bruto" class="form-control mb-2" placeholder="0.00" type="number" step="0.01"></div>
         <div><label>Valor IR (R$)</label>
