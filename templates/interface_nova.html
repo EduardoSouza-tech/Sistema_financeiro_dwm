@@ -3892,10 +3892,7 @@
               .fiscal-loading,.fiscal-empty{text-align:center;padding:30px;color:#aaa;font-size:14px}
               .fiscal-error{color:#e53935;font-size:13px;padding:10px}
               /* ── NSE Auto-Search Pills ── */
-              .nse-interval-grid{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
-              .nse-pill{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:30px;padding:0 8px;border:1px solid #dee2e6;border-radius:6px;background:#fff;color:#555;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;user-select:none}
-              .nse-pill:hover{background:#e3f2fd;color:#1976d2;border-color:#90caf9}
-              .nse-pill.active{background:#1976d2;color:#fff;border-color:#1976d2;box-shadow:0 2px 6px rgba(25,118,210,.3)}
+              .nse-interval-select{padding:4px 8px;border:1px solid #ccc;border-radius:6px;font-size:13px;font-weight:600;color:#333;cursor:pointer;height:30px;background:#fff}
               .nse-status-box{background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:10px 12px;margin:10px 0;font-size:13px}
               .nse-history-wrap{max-height:160px;overflow-y:auto;margin-top:6px;border:1px solid #dee2e6;border-radius:6px}
               .nse-history-table{width:100%;border-collapse:collapse;font-size:12px}
@@ -4969,9 +4966,19 @@
                             <p class="text-muted" style="font-size: 13px;">Busca incremental de documentos na SEFAZ usando o último NSU processado. Ative o modo automático para buscas periódicas.</p>
 
                             <!-- Seletor de intervalo -->
-                            <div style="margin: 10px 0 6px;">
-                                <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">⏰ Intervalo entre buscas (horas):</label>
-                                <div id="nse-interval-grid" class="nse-interval-grid"></div>
+                            <div style="margin: 10px 0 6px; display:flex; align-items:center; gap:8px;">
+                                <label style="font-size: 13px; font-weight: 600; white-space:nowrap;">⏰ Intervalo:</label>
+                                <select id="nse-interval-select" class="nse-interval-select" onchange="nseSetIntervalHours(parseInt(this.value))">
+                                    <option value="1">1 hora</option>
+                                    <option value="2">2 horas</option>
+                                    <option value="3">3 horas</option>
+                                    <option value="4">4 horas</option>
+                                    <option value="6">6 horas</option>
+                                    <option value="8">8 horas</option>
+                                    <option value="12">12 horas</option>
+                                    <option value="18">18 horas</option>
+                                    <option value="23">23 horas</option>
+                                </select>
                             </div>
 
                             <!-- Painel de status -->
@@ -14266,13 +14273,9 @@
         }
 
         function nseRenderStatus() {
-            // Interval pills
-            const grid = document.getElementById('nse-interval-grid');
-            if (grid) {
-                grid.innerHTML = Array.from({length: 23}, (_, i) => i + 1).map(h =>
-                    `<button class="nse-pill${nseAutoState.intervalHours === h ? ' active' : ''}" onclick="nseSetIntervalHours(${h})">${h}h</button>`
-                ).join('');
-            }
+            // Interval select
+            const sel = document.getElementById('nse-interval-select');
+            if (sel) sel.value = nseAutoState.intervalHours;
 
             // Last search
             const lastEl = document.getElementById('nse-ultima-busca-val');
