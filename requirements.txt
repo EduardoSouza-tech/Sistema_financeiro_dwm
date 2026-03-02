@@ -33,6 +33,7 @@ cryptography==42.0.0
 # PDF Generation
 fpdf2==2.8.1  # DANFSE
 reportlab==4.0.9  # DRE e relatórios contábeis
+brazilfiscalreport  # DANFE (NF-e) e DACTE (CT-e)
 
 # NFS-e SOAP (certificado A1)
 requests-pkcs12==1.24

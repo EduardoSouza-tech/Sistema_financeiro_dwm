@@ -14561,10 +14561,14 @@
                                     <td>${formatarMoedaFiscal(doc.valor_total)}</td>
                                     <td style="font-size: 12px;">${doc.nome_emitente || '-'}</td>
                                     <td>${formatarDataFiscal(doc.data_emissao)}</td>
-                                    <td>
-                                        <a href="/api/relatorios/documento/${doc.id}/xml" class="btn btn-sm btn-success" title="Download XML" style="padding: 4px 8px; font-size: 11px;">
+                                    <td style="white-space: nowrap;">
+                                        <a href="/api/relatorios/documento/${doc.id}/xml" class="btn btn-sm btn-success" title="Download XML" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">
                                             📥 XML
                                         </a>
+                                        ${(doc.tipo_documento === 'NFe' || doc.tipo_documento === 'CTe') ? `
+                                        <a href="/api/relatorios/documento/${doc.id}/pdf" target="_blank" class="btn btn-sm btn-danger" title="Visualizar ${doc.tipo_documento === 'NFe' ? 'DANFE' : 'DACTE'} em PDF" style="padding: 4px 8px; font-size: 11px;">
+                                            📄 ${doc.tipo_documento === 'NFe' ? 'DANFE' : 'DACTE'}
+                                        </a>` : ''}
                                     </td>
                                 </tr>
                             `).join('');

@@ -18842,6 +18842,72 @@ def download_xml(doc_id):
         }), 500
 
 
+@app.route('/api/relatorios/documento/<int:doc_id>/pdf', methods=['GET'])
+@require_auth
+@require_permission('relatorios_view')
+def download_pdf_documento(doc_id):
+    """Gera DANFE (NF-e) ou DACTE (CT-e) em PDF usando BrazilFiscalReport"""
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa nao identificada'}), 403
+
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT chave, caminho_xml, tipo_documento
+                FROM documentos_fiscais_log
+                WHERE id = %s AND empresa_id = %s
+            """, (doc_id, empresa_id))
+            row = cursor.fetchone()
+
+        if not row:
+            return jsonify({'success': False, 'error': 'Documento nao encontrado'}), 404
+
+        chave, caminho_xml, tipo_doc = row
+
+        if not caminho_xml or not os.path.exists(caminho_xml):
+            return jsonify({'success': False, 'error': 'Arquivo XML nao encontrado no storage'}), 404
+
+        with open(caminho_xml, 'rb') as f:
+            xml_bytes = f.read()
+
+        from io import BytesIO as _BytesIO
+        buffer = _BytesIO()
+
+        if tipo_doc == 'NFe':
+            try:
+                from brazilfiscalreport.danfe import Danfe
+            except ImportError:
+                return jsonify({'success': False, 'error': 'Biblioteca brazilfiscalreport nao instalada'}), 500
+            danfe = Danfe(xml=xml_bytes)
+            danfe.output(buffer)
+            download_name = f'DANFE_{chave}.pdf'
+        elif tipo_doc == 'CTe':
+            try:
+                from brazilfiscalreport.dacte import Dacte
+            except ImportError:
+                return jsonify({'success': False, 'error': 'Biblioteca brazilfiscalreport nao instalada'}), 500
+            dacte = Dacte(xml=xml_bytes)
+            dacte.output(buffer)
+            download_name = f'DACTE_{chave}.pdf'
+        else:
+            return jsonify({'success': False, 'error': f'Tipo {tipo_doc} nao suporta geracao de PDF'}), 400
+
+        buffer.seek(0)
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=False,
+            download_name=download_name
+        )
+
+    except Exception as e:
+        logger.error(f"Erro ao gerar PDF do documento: {e}")
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Erro ao gerar PDF: {str(e)}'}), 500
+
+
 # ===== ESTAT�STICAS E DASHBOARDS =====
 
 @app.route('/api/relatorios/estatisticas', methods=['GET'])
