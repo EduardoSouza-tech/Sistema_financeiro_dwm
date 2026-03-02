@@ -11767,6 +11767,29 @@ def obter_empresa_api(empresa_id):
             return jsonify({'error': 'Empresa n�o encontrada'}), 404
         
         logger.info(f"[obter_empresa_api] Empresa encontrada: {empresa.get('razao_social')}")
+
+        # Auto-popular CNPJ da empresa a partir do certificado ativo, se nao cadastrado
+        if not empresa.get('cnpj'):
+            try:
+                with get_db_connection(empresa_id=empresa_id) as conn_cert:
+                    cur_cert = conn_cert.cursor()
+                    cur_cert.execute(
+                        "SELECT cnpj FROM certificados_digitais WHERE empresa_id = %s AND ativo = TRUE AND cnpj IS NOT NULL AND cnpj != '' LIMIT 1",
+                        (empresa_id,)
+                    )
+                    row = cur_cert.fetchone()
+                    if row and row[0]:
+                        cnpj_cert = row[0].strip()
+                        cur_cert.execute(
+                            "UPDATE empresas SET cnpj = %s WHERE id = %s",
+                            (cnpj_cert, empresa_id)
+                        )
+                        conn_cert.commit()
+                        empresa['cnpj'] = cnpj_cert
+                        logger.info(f"[obter_empresa_api] CNPJ auto-populado do certificado ativo: {cnpj_cert}")
+            except Exception as e_cert:
+                logger.warning(f"[obter_empresa_api] Erro ao auto-popular CNPJ do cert: {e_cert}")
+
         logger.info(f"[obter_empresa_api] Obtendo estatisticas...")
         
         # Adicionar estat�sticas
