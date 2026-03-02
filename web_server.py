@@ -561,6 +561,106 @@ try:
     except Exception as e:
         print(f"⚠️ Aviso ao criar ofx_filtros_memo: {e}")
 
+    # 🔧 Criar tabelas Módulo Fiscal Federal
+    try:
+        print("\n🔧 Verificando tabelas do Módulo Fiscal Federal...")
+        with db.get_connection() as _fc:
+            _fcur = _fc.cursor()
+            _fcur.execute("""
+                CREATE TABLE IF NOT EXISTS logs_fiscais (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id INTEGER,
+                    tipo_operacao VARCHAR(100),
+                    endpoint VARCHAR(300),
+                    request JSONB,
+                    response JSONB,
+                    status_http INTEGER,
+                    protocolo VARCHAR(200),
+                    data TIMESTAMP DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_logs_fiscais_empresa
+                    ON logs_fiscais(empresa_id, data DESC);
+
+                CREATE TABLE IF NOT EXISTS fiscal_cnpj_historico (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id INTEGER,
+                    cnpj VARCHAR(14),
+                    dados JSONB,
+                    consultado_em TIMESTAMP DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS fiscal_certidoes (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id INTEGER,
+                    cnpj VARCHAR(14),
+                    tipo VARCHAR(50) DEFAULT 'CND_FEDERAL',
+                    numero VARCHAR(100),
+                    data_emissao DATE,
+                    data_vencimento DATE,
+                    pdf_base64 TEXT,
+                    status VARCHAR(50) DEFAULT 'emitida',
+                    protocolo VARCHAR(200),
+                    criado_em TIMESTAMP DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS fiscal_dctfweb (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id INTEGER,
+                    cnpj VARCHAR(14),
+                    competencia VARCHAR(6),
+                    situacao VARCHAR(100),
+                    valor_total NUMERIC(15,2) DEFAULT 0,
+                    dados JSONB,
+                    consultado_em TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(empresa_id, cnpj, competencia)
+                );
+
+                CREATE TABLE IF NOT EXISTS fiscal_reinf (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id INTEGER,
+                    cnpj VARCHAR(14),
+                    competencia VARCHAR(6),
+                    evento VARCHAR(20),
+                    recibo VARCHAR(200),
+                    status VARCHAR(100),
+                    dados JSONB,
+                    consultado_em TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(empresa_id, cnpj, competencia, evento)
+                );
+
+                CREATE TABLE IF NOT EXISTS fiscal_darf (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id INTEGER,
+                    cnpj VARCHAR(14),
+                    codigo_receita VARCHAR(20),
+                    competencia VARCHAR(6),
+                    valor NUMERIC(15,2),
+                    data_vencimento DATE,
+                    status VARCHAR(50) DEFAULT 'emitido',
+                    pdf_base64 TEXT,
+                    protocolo VARCHAR(200),
+                    lancamento_id INTEGER,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS fiscal_fila (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id INTEGER,
+                    tipo VARCHAR(100),
+                    parametros JSONB,
+                    status VARCHAR(50) DEFAULT 'pendente',
+                    tentativas INTEGER DEFAULT 0,
+                    resultado JSONB,
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    processado_em TIMESTAMP
+                );
+            """)
+            _fc.commit()
+            _fcur.close()
+        print("✅ Tabelas do Módulo Fiscal Federal verificadas/criadas!")
+    except Exception as e:
+        print(f"⚠️ Aviso ao criar tabelas fiscais: {e}")
+
     print("✅ DatabaseManager pronto!")
     print("="*70 + "\n")
         
@@ -16507,6 +16607,434 @@ def integra_contador_token():
             'success': False,
             'error': str(e)
         }), 500
+
+
+# ===== MÓDULO FISCAL FEDERAL (Integra Contador SERPRO) =====
+
+def _fiscal_get_db_empresa():
+    """Helper: retorna (db, empresa_id) ou raises ValueError."""
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        raise ValueError('Empresa não identificada')
+    return db, empresa_id
+
+
+@app.route('/api/fiscal/dashboard', methods=['GET'])
+@require_auth
+def fiscal_dashboard():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        from fiscal_federal_service import gerar_dashboard
+        resultado = gerar_dashboard(database, empresa_id)
+        return jsonify({'success': True, 'data': resultado})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_dashboard] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/cnpj/consultar', methods=['POST'])
+@require_auth
+def fiscal_cnpj_consultar():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        data = request.get_json() or {}
+        from fiscal_federal_service import consultar_cnpj
+        resultado = consultar_cnpj(
+            database, empresa_id,
+            contratante_cnpj=data.get('contratante_cnpj', ''),
+            autor_doc=data.get('autor_doc', ''),
+            cnpj_consultar=data.get('contribuinte_doc', data.get('cnpj_consulta', ''))
+        )
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_cnpj_consultar] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/cnpj/historico', methods=['GET'])
+@require_auth
+def fiscal_cnpj_historico():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        from fiscal_federal_service import listar_historico_cnpj
+        resultado = listar_historico_cnpj(database, empresa_id)
+        return jsonify({'success': True, 'data': resultado})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_cnpj_historico] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/cnd/solicitar', methods=['POST'])
+@require_auth
+def fiscal_cnd_solicitar():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        data = request.get_json() or {}
+        from fiscal_federal_service import solicitar_cnd
+        resultado = solicitar_cnd(
+            database, empresa_id,
+            contratante_cnpj=data.get('contratante_cnpj', ''),
+            autor_doc=data.get('autor_doc', ''),
+            contribuinte_doc=data.get('contribuinte_doc', '')
+        )
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_cnd_solicitar] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/cnd/consultar', methods=['POST'])
+@require_auth
+def fiscal_cnd_consultar():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        data = request.get_json() or {}
+        from fiscal_federal_service import consultar_cnd
+        resultado = consultar_cnd(
+            database, empresa_id,
+            contratante_cnpj=data.get('contratante_cnpj', ''),
+            autor_doc=data.get('autor_doc', ''),
+            contribuinte_doc=data.get('contribuinte_doc', '')
+        )
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_cnd_consultar] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/cnd/lista', methods=['GET'])
+@require_auth
+def fiscal_cnd_lista():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        from fiscal_federal_service import listar_certidoes
+        resultado = listar_certidoes(database, empresa_id)
+        return jsonify({'success': True, 'data': resultado})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_cnd_lista] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/dctfweb/consultar', methods=['POST'])
+@require_auth
+def fiscal_dctfweb_consultar():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        data = request.get_json() or {}
+        from fiscal_federal_service import consultar_dctfweb
+        resultado = consultar_dctfweb(
+            database, empresa_id,
+            contratante_cnpj=data.get('contratante_cnpj', ''),
+            autor_doc=data.get('autor_doc', ''),
+            contribuinte_doc=data.get('contribuinte_doc', ''),
+            competencia=data.get('competencia', '')
+        )
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_dctfweb_consultar] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/dctfweb/lista', methods=['GET'])
+@require_auth
+def fiscal_dctfweb_lista():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        from fiscal_federal_service import listar_dctfweb
+        resultado = listar_dctfweb(database, empresa_id)
+        return jsonify({'success': True, 'data': resultado})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_dctfweb_lista] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/mit/incluir', methods=['POST'])
+@require_auth
+def fiscal_mit_incluir():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        data = request.get_json() or {}
+        from fiscal_federal_service import incluir_mit
+        resultado = incluir_mit(
+            database, empresa_id,
+            contratante_cnpj=data.get('contratante_cnpj', ''),
+            autor_doc=data.get('autor_doc', ''),
+            contribuinte_doc=data.get('contribuinte_doc', ''),
+            dados_tributo=data.get('dados_mit', {})
+        )
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_mit_incluir] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/mit/consultar', methods=['POST'])
+@require_auth
+def fiscal_mit_consultar():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        data = request.get_json() or {}
+        from fiscal_federal_service import consultar_mit
+        resultado = consultar_mit(
+            database, empresa_id,
+            contratante_cnpj=data.get('contratante_cnpj', ''),
+            autor_doc=data.get('autor_doc', ''),
+            contribuinte_doc=data.get('contribuinte_doc', ''),
+            competencia=data.get('competencia', '')
+        )
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_mit_consultar] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/reinf/consultar', methods=['POST'])
+@require_auth
+def fiscal_reinf_consultar():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        data = request.get_json() or {}
+        from fiscal_federal_service import consultar_reinf
+        resultado = consultar_reinf(
+            database, empresa_id,
+            contratante_cnpj=data.get('contratante_cnpj', ''),
+            autor_doc=data.get('autor_doc', ''),
+            contribuinte_doc=data.get('contribuinte_doc', ''),
+            evento=data.get('evento', 'R-1000'),
+            competencia=data.get('competencia', '')
+        )
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_reinf_consultar] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/reinf/lista', methods=['GET'])
+@require_auth
+def fiscal_reinf_lista():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        from fiscal_federal_service import listar_reinf
+        resultado = listar_reinf(database, empresa_id)
+        return jsonify({'success': True, 'data': resultado})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_reinf_lista] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/darf/emitir', methods=['POST'])
+@require_auth
+def fiscal_darf_emitir():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        data = request.get_json() or {}
+        from fiscal_federal_service import emitir_darf
+        resultado = emitir_darf(
+            database, empresa_id,
+            contratante_cnpj=data.get('contratante_cnpj', ''),
+            autor_doc=data.get('autor_doc', ''),
+            contribuinte_doc=data.get('contribuinte_doc', ''),
+            codigo_receita=data.get('codigo_receita', ''),
+            competencia=data.get('competencia', ''),
+            valor=data.get('valor', 0),
+            data_vencimento=data.get('data_vencimento', '')
+        )
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_darf_emitir] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/darf/consultar-pagamento', methods=['POST'])
+@require_auth
+def fiscal_darf_consultar_pagamento():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        data = request.get_json() or {}
+        from fiscal_federal_service import consultar_pagamento_darf
+        resultado = consultar_pagamento_darf(
+            database, empresa_id,
+            contratante_cnpj=data.get('contratante_cnpj', ''),
+            autor_doc=data.get('autor_doc', ''),
+            contribuinte_doc=data.get('contribuinte_doc', ''),
+            codigo_receita=data.get('codigo_receita', ''),
+            competencia=data.get('competencia', '')
+        )
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_darf_consultar_pagamento] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/darf/lista', methods=['GET'])
+@require_auth
+def fiscal_darf_lista():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        from fiscal_federal_service import listar_darfs
+        resultado = listar_darfs(database, empresa_id)
+        return jsonify({'success': True, 'data': resultado})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_darf_lista] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/pagamentos/consultar', methods=['POST'])
+@require_auth
+def fiscal_pagamentos_consultar():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        data = request.get_json() or {}
+        from fiscal_federal_service import consultar_pagamentos
+        resultado = consultar_pagamentos(
+            database, empresa_id,
+            contratante_cnpj=data.get('contratante_cnpj', ''),
+            autor_doc=data.get('autor_doc', ''),
+            contribuinte_doc=data.get('contribuinte_doc', ''),
+            competencia=data.get('competencia', '')
+        )
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_pagamentos_consultar] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/logs', methods=['GET'])
+@require_auth
+def fiscal_logs_listar():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        limite = int(request.args.get('limite', 50))
+        tipo = request.args.get('tipo')
+        from fiscal_federal_service import listar_logs
+        resultado = listar_logs(database, empresa_id, limit=limite, tipo=tipo)
+        return jsonify({'success': True, 'data': resultado})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_logs_listar] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/logs/<int:log_id>', methods=['GET'])
+@require_auth
+def fiscal_log_detalhe(log_id):
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        from fiscal_federal_service import obter_log_detalhe
+        resultado = obter_log_detalhe(database, empresa_id, log_id)
+        return jsonify({'success': True, 'data': resultado})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_log_detalhe] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/fila', methods=['GET'])
+@require_auth
+def fiscal_fila_listar():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        status_filtro = request.args.get('status')
+        with database.get_connection() as conn:
+            cur = conn.cursor()
+            if status_filtro:
+                cur.execute(
+                    """SELECT id, tipo, parametros, status, tentativas, resultado,
+                              criado_em, processado_em
+                       FROM fiscal_fila WHERE empresa_id=%s AND status=%s
+                       ORDER BY criado_em DESC LIMIT 100""",
+                    (empresa_id, status_filtro)
+                )
+            else:
+                cur.execute(
+                    """SELECT id, tipo, parametros, status, tentativas, resultado,
+                              criado_em, processado_em
+                       FROM fiscal_fila WHERE empresa_id=%s
+                       ORDER BY criado_em DESC LIMIT 100""",
+                    (empresa_id,)
+                )
+            rows = cur.fetchall()
+            cur.close()
+        data = []
+        for r in rows:
+            row = dict(r) if hasattr(r, 'keys') else {
+                'id': r[0], 'tipo': r[1], 'parametros': r[2],
+                'status': r[3], 'tentativas': r[4], 'resultado': r[5],
+                'criado_em': r[6], 'processado_em': r[7]
+            }
+            for k in ('criado_em', 'processado_em'):
+                if row.get(k):
+                    row[k] = row[k].isoformat()
+            data.append(row)
+        return jsonify({'success': True, 'data': data})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_fila_listar] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fiscal/fila', methods=['POST'])
+@require_auth
+def fiscal_fila_adicionar():
+    try:
+        database, empresa_id = _fiscal_get_db_empresa()
+        data = request.get_json() or {}
+        tipo = data.get('tipo', '')
+        parametros = data.get('parametros', {})
+        if not tipo:
+            return jsonify({'success': False, 'error': 'Campo tipo é obrigatório'}), 400
+        with database.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """INSERT INTO fiscal_fila (empresa_id, tipo, parametros)
+                   VALUES (%s, %s, %s) RETURNING id""",
+                (empresa_id, tipo, json.dumps(parametros))
+            )
+            row = cur.fetchone()
+            novo_id = row['id'] if hasattr(row, 'keys') else row[0]
+            conn.commit()
+            cur.close()
+        return jsonify({'success': True, 'id': novo_id, 'message': 'Adicionado à fila com sucesso'})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except Exception as e:
+        logger.error(f"[fiscal_fila_adicionar] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ===== NOTAS FISCAIS (NF-e / NFS-e) =====

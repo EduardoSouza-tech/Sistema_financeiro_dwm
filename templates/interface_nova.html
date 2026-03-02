@@ -4013,163 +4013,308 @@
             </div>
 
             <!-- Integra Contador SERPRO -->
+            <!-- ═══════════════════════════════════════════════════════
+                 MÓDULO FISCAL FEDERAL — CSS inline
+            ═══════════════════════════════════════════════════════ -->
+            <style>
+              .fiscal-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:18px;border-bottom:2px solid #e0e0e0;padding-bottom:4px}
+              .fiscal-tab-btn{padding:8px 14px;border:1px solid #d0d0d0;border-bottom:none;border-radius:6px 6px 0 0;background:#f5f5f5;cursor:pointer;font-size:13px;color:#555;transition:all .2s}
+              .fiscal-tab-btn:hover{background:#e8f4fd;color:#1976d2}
+              .fiscal-tab-btn.active{background:#fff;color:#1976d2;border-color:#2196f3;font-weight:600;box-shadow:0 -2px 0 #2196f3 inset}
+              .fiscal-tab-pane{display:none}.fiscal-tab-pane.active{display:block}
+              .fiscal-cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+              .fiscal-card{display:flex;align-items:center;gap:12px;background:#fff;padding:14px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+              .fiscal-card-icon{font-size:26px}
+              .fiscal-card-info{display:flex;flex-direction:column}
+              .fiscal-card-value{font-size:22px;font-weight:700;color:#333}
+              .fiscal-card-label{font-size:11px;color:#888;text-transform:uppercase}
+              .fiscal-section-title{font-size:14px;font-weight:600;color:#555;margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid #eee}
+              .fiscal-alerts-wrap{margin-bottom:16px}
+              .fiscal-alert{padding:10px 14px;border-radius:6px;margin-bottom:8px;font-size:13px}
+              .fiscal-alert-danger{background:#fde8e8;border-left:4px solid #e53935;color:#c62828}
+              .fiscal-alert-warning{background:#fff8e1;border-left:4px solid #f9a825;color:#795548}
+              .fiscal-alert-info{background:#e3f2fd;border-left:4px solid #1e88e5;color:#1565c0}
+              .fiscal-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+              .fiscal-table th{background:#f5f7fa;padding:8px 10px;text-align:left;border-bottom:2px solid #e0e0e0;color:#555;font-size:12px;text-transform:uppercase}
+              .fiscal-table td{padding:8px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+              .fiscal-table tr:hover td{background:#fafbfc}
+              .fiscal-badge{padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600}
+              .fiscal-badge-ok{background:#e8f5e9;color:#2e7d32}
+              .fiscal-badge-warn{background:#fff8e1;color:#f57f17}
+              .fiscal-badge-err{background:#fde8e8;color:#c62828}
+              .fiscal-loading,.fiscal-empty{text-align:center;padding:30px;color:#aaa;font-size:14px}
+              .fiscal-error{color:#e53935;font-size:13px;padding:10px}
+              .fiscal-json{background:#1e1e1e;color:#d4d4d4;padding:14px;border-radius:6px;overflow:auto;max-height:400px;font-size:12px;white-space:pre-wrap;word-break:break-all}
+              .fiscal-field-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px}
+              .fiscal-field label{font-size:12px;color:#666;display:block;margin-bottom:4px}
+              .fiscal-field input,.fiscal-field select,.fiscal-field textarea{width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:5px;font-size:13px;box-sizing:border-box}
+              .fiscal-field textarea{font-family:monospace;height:100px;resize:vertical}
+              .fiscal-btn{padding:9px 18px;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
+              .fiscal-btn-primary{background:#1976d2;color:#fff}.fiscal-btn-primary:hover{background:#1565c0}
+              .fiscal-btn-secondary{background:#e0e0e0;color:#555}.fiscal-btn-secondary:hover{background:#d0d0d0}
+              .fiscal-btn-success{background:#388e3c;color:#fff}.fiscal-btn-success:hover{background:#2e7d32}
+              .fiscal-btn-danger{background:#e53935;color:#fff}.fiscal-btn-danger:hover{background:#c62828}
+              .fiscal-btn-sm{padding:4px 10px;font-size:11px;border:none;border-radius:4px;cursor:pointer;background:#e3f2fd;color:#1565c0;font-weight:600}
+              .fiscal-btn-sm:hover{background:#bbdefb}
+              .fiscal-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+              .fiscal-result-area{margin-top:14px}
+              .fiscal-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center}
+              .fiscal-modal{background:#fff;border-radius:10px;width:90%;max-width:680px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.25)}
+              .fiscal-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #eee;font-size:15px;font-weight:600}
+              .fiscal-modal-header button{background:none;border:none;font-size:20px;cursor:pointer;color:#888}
+              .fiscal-modal-body{overflow-y:auto;padding:16px}
+              .fiscal-config-banner{background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+            </style>
+
             <div id="integra-contador-section" class="content-card hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">🔗 Integra Contador - API SERPRO</h2>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                    <h2 style="margin:0">🏛️ Módulo Fiscal Federal — Integra Contador SERPRO</h2>
+                    <button class="fiscal-btn fiscal-btn-secondary" onclick="FiscalFederal.openConfigModal()">⚙️ Configurar</button>
                 </div>
 
-                <!-- Informações da API -->
-                <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <h3 style="color: #1976d2; margin: 0 0 10px 0; font-size: 16px;">ℹ️ Sobre o Integra Contador</h3>
-                    <p style="margin: 5px 0; font-size: 13px; color: #424242;">API do SERPRO para integração com sistemas governamentais de contabilidade e obrigações fiscais.</p>
-                    <p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Base URL:</strong> https://gateway.apiserpro.serpro.gov.br/integra-contador/v1/</p>
+                <!-- Tab bar -->
+                <div class="fiscal-tabs">
+                    <button class="fiscal-tab-btn active" data-tab="dashboard" onclick="FiscalFederal.switchTab('dashboard')">🏠 Dashboard</button>
+                    <button class="fiscal-tab-btn" data-tab="cnpj" onclick="FiscalFederal.switchTab('cnpj')">🏢 CNPJ</button>
+                    <button class="fiscal-tab-btn" data-tab="cnd" onclick="FiscalFederal.switchTab('cnd')">📜 CND</button>
+                    <button class="fiscal-tab-btn" data-tab="dctfweb" onclick="FiscalFederal.switchTab('dctfweb')">📊 DCTFWeb</button>
+                    <button class="fiscal-tab-btn" data-tab="mit" onclick="FiscalFederal.switchTab('mit')">📋 MIT</button>
+                    <button class="fiscal-tab-btn" data-tab="reinf" onclick="FiscalFederal.switchTab('reinf')">🔄 REINF</button>
+                    <button class="fiscal-tab-btn" data-tab="darf" onclick="FiscalFederal.switchTab('darf')">💸 DARF</button>
+                    <button class="fiscal-tab-btn" data-tab="logs" onclick="FiscalFederal.switchTab('logs')">📝 Logs</button>
+                    <button class="fiscal-tab-btn" data-tab="fila" onclick="FiscalFederal.switchTab('fila')">⏳ Fila</button>
                 </div>
 
-                <!-- Seletor de Tipo de Operação -->
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                    <h3 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 16px;">📋 Selecione o Tipo de Operação</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                        <button onclick="selecionarTipoOperacao('Apoiar')" class="btn btn-primary" style="padding: 15px; background: #3498db; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                            <span style="font-size: 24px;">🛠️</span>
-                            <span>Apoiar</span>
-                            <span style="font-size: 11px; opacity: 0.9;">Serviços auxiliares</span>
-                        </button>
-                        <button onclick="selecionarTipoOperacao('Consultar')" class="btn btn-primary" style="padding: 15px; background: #27ae60; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                            <span style="font-size: 24px;">🔍</span>
-                            <span>Consultar</span>
-                            <span style="font-size: 11px; opacity: 0.9;">Consultas</span>
-                        </button>
-                        <button onclick="selecionarTipoOperacao('Declarar')" class="btn btn-primary" style="padding: 15px; background: #e74c3c; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                            <span style="font-size: 24px;">📄</span>
-                            <span>Declarar</span>
-                            <span style="font-size: 11px; opacity: 0.9;">Transmitir declaração</span>
-                        </button>
-                        <button onclick="selecionarTipoOperacao('Emitir')" class="btn btn-primary" style="padding: 15px; background: #9b59b6; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                            <span style="font-size: 24px;">📃</span>
-                            <span>Emitir</span>
-                            <span style="font-size: 11px; opacity: 0.9;">Emitir documentos</span>
-                        </button>
-                        <button onclick="selecionarTipoOperacao('Monitorar')" class="btn btn-primary" style="padding: 15px; background: #f39c12; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                            <span style="font-size: 24px;">📊</span>
-                            <span>Monitorar</span>
-                            <span style="font-size: 11px; opacity: 0.9;">Monitoração</span>
-                        </button>
+                <!-- ── DASHBOARD ── -->
+                <div id="fiscal-tab-dashboard" class="fiscal-tab-pane active">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+                        <button class="fiscal-btn fiscal-btn-primary" onclick="FiscalFederal.loadDashboard()">🔄 Atualizar</button>
+                    </div>
+                    <div id="fiscal-dashboard-content"><div class="fiscal-loading">Carregando...</div></div>
+                </div>
+
+                <!-- ── CNPJ ── -->
+                <div id="fiscal-tab-cnpj" class="fiscal-tab-pane">
+                    <div class="fiscal-field-row">
+                        <div class="fiscal-field">
+                            <label>CNPJ a Consultar</label>
+                            <input type="text" id="fiscal-cnpj-input" class="fiscal-cnpj-mask" data-fiscal-field="contribuinte_doc" placeholder="00.000.000/0001-00" maxlength="18">
+                        </div>
+                    </div>
+                    <div class="fiscal-actions">
+                        <button id="btn-fiscal-cnpj" class="fiscal-btn fiscal-btn-primary" onclick="FiscalFederal.consultarCNPJ()">🔍 Consultar CNPJ</button>
+                        <button class="fiscal-btn fiscal-btn-secondary" onclick="FiscalFederal.loadCNPJHistorico()">📋 Ver Histórico</button>
+                    </div>
+                    <div class="fiscal-result-area" id="fiscal-cnpj-result"></div>
+                    <div class="fiscal-section-title">📋 Histórico de Consultas</div>
+                    <div id="fiscal-cnpj-historico"></div>
+                </div>
+
+                <!-- ── CND ── -->
+                <div id="fiscal-tab-cnd" class="fiscal-tab-pane">
+                    <div class="fiscal-field-row">
+                        <div class="fiscal-field">
+                            <label>CNPJ do Contribuinte</label>
+                            <input type="text" id="fiscal-cnd-cnpj" class="fiscal-cnpj-mask" data-fiscal-field="contribuinte_doc" placeholder="00.000.000/0001-00" maxlength="18">
+                        </div>
+                        <div class="fiscal-field">
+                            <label>Protocolo (para consultar certidão emitida)</label>
+                            <input type="text" id="fiscal-cnd-protocolo" placeholder="Deixe vazio para solicitar nova">
+                        </div>
+                    </div>
+                    <div class="fiscal-actions">
+                        <button class="fiscal-btn fiscal-btn-success" onclick="FiscalFederal.solicitarCND()">📜 Solicitar CND</button>
+                        <button class="fiscal-btn fiscal-btn-primary" onclick="FiscalFederal.carregarCNDPorProtocolo()">🔍 Consultar por Protocolo</button>
+                        <button class="fiscal-btn fiscal-btn-secondary" onclick="FiscalFederal.loadCNDLista()">🔄 Atualizar Lista</button>
+                    </div>
+                    <div class="fiscal-result-area" id="fiscal-cnd-result"></div>
+                    <div class="fiscal-section-title">📜 Certidões Emitidas</div>
+                    <div id="fiscal-cnd-lista"></div>
+                </div>
+
+                <!-- ── DCTFWEB ── -->
+                <div id="fiscal-tab-dctfweb" class="fiscal-tab-pane">
+                    <div class="fiscal-field-row">
+                        <div class="fiscal-field">
+                            <label>CNPJ do Contribuinte</label>
+                            <input type="text" id="fiscal-dctf-cnpj" class="fiscal-cnpj-mask" data-fiscal-field="contribuinte_doc" placeholder="00.000.000/0001-00" maxlength="18">
+                        </div>
+                        <div class="fiscal-field">
+                            <label>Competência (AAAAMM)</label>
+                            <input type="text" id="fiscal-dctf-comp" placeholder="202501" maxlength="6">
+                        </div>
+                    </div>
+                    <div class="fiscal-actions">
+                        <button class="fiscal-btn fiscal-btn-primary" onclick="FiscalFederal.consultarDCTFWeb()">📊 Consultar DCTFWeb</button>
+                        <button class="fiscal-btn fiscal-btn-secondary" onclick="FiscalFederal.loadDCTFWebLista()">🔄 Atualizar Lista</button>
+                    </div>
+                    <div class="fiscal-result-area" id="fiscal-dctf-result"></div>
+                    <div class="fiscal-section-title">📊 DCTFWeb Consultadas</div>
+                    <div id="fiscal-dctf-lista"></div>
+                </div>
+
+                <!-- ── MIT ── -->
+                <div id="fiscal-tab-mit" class="fiscal-tab-pane">
+                    <div class="fiscal-field-row">
+                        <div class="fiscal-field">
+                            <label>CNPJ do Contribuinte</label>
+                            <input type="text" id="fiscal-mit-cnpj" class="fiscal-cnpj-mask" data-fiscal-field="contribuinte_doc" placeholder="00.000.000/0001-00" maxlength="18">
+                        </div>
+                        <div class="fiscal-field">
+                            <label>Protocolo (para consultar MIT existente)</label>
+                            <input type="text" id="fiscal-mit-protocolo" placeholder="Protocolo">
+                        </div>
+                    </div>
+                    <div class="fiscal-field">
+                        <label>Dados MIT (JSON)</label>
+                        <textarea id="fiscal-mit-dados" placeholder='{"competencia": "202501", "tipoMIT": "1"}'></textarea>
+                    </div>
+                    <div class="fiscal-actions">
+                        <button class="fiscal-btn fiscal-btn-success" onclick="FiscalFederal.incluirMIT()">📋 Incluir MIT</button>
+                        <button class="fiscal-btn fiscal-btn-primary" onclick="FiscalFederal.consultarMIT()">🔍 Consultar MIT</button>
+                    </div>
+                    <div class="fiscal-result-area" id="fiscal-mit-result"></div>
+                </div>
+
+                <!-- ── REINF ── -->
+                <div id="fiscal-tab-reinf" class="fiscal-tab-pane">
+                    <div class="fiscal-field-row">
+                        <div class="fiscal-field">
+                            <label>CNPJ do Contribuinte</label>
+                            <input type="text" id="fiscal-reinf-cnpj" class="fiscal-cnpj-mask" data-fiscal-field="contribuinte_doc" placeholder="00.000.000/0001-00" maxlength="18">
+                        </div>
+                        <div class="fiscal-field">
+                            <label>Evento REINF</label>
+                            <select id="fiscal-reinf-evento">
+                                <option value="R-1000">R-1000 — Informações do Contribuinte</option>
+                                <option value="R-2010">R-2010 — Retenções na Fonte</option>
+                                <option value="R-2020">R-2020 — Retenções PJ</option>
+                                <option value="R-2099">R-2099 — Fechamento</option>
+                            </select>
+                        </div>
+                        <div class="fiscal-field">
+                            <label>Competência (AAAAMM)</label>
+                            <input type="text" id="fiscal-reinf-comp" placeholder="202501" maxlength="6">
+                        </div>
+                    </div>
+                    <div class="fiscal-actions">
+                        <button class="fiscal-btn fiscal-btn-primary" onclick="FiscalFederal.consultarREINF()">🔄 Consultar REINF</button>
+                        <button class="fiscal-btn fiscal-btn-secondary" onclick="FiscalFederal.loadREINFLista()">🔄 Atualizar Lista</button>
+                    </div>
+                    <div class="fiscal-result-area" id="fiscal-reinf-result"></div>
+                    <div class="fiscal-section-title">🔄 REINF Consultadas</div>
+                    <div id="fiscal-reinf-lista"></div>
+                </div>
+
+                <!-- ── DARF ── -->
+                <div id="fiscal-tab-darf" class="fiscal-tab-pane">
+                    <div class="fiscal-field-row">
+                        <div class="fiscal-field">
+                            <label>CNPJ do Contribuinte</label>
+                            <input type="text" id="fiscal-darf-cnpj" class="fiscal-cnpj-mask" data-fiscal-field="contribuinte_doc" placeholder="00.000.000/0001-00" maxlength="18">
+                        </div>
+                        <div class="fiscal-field">
+                            <label>Código da Receita</label>
+                            <input type="text" id="fiscal-darf-codigo" placeholder="Ex: 5952">
+                        </div>
+                        <div class="fiscal-field">
+                            <label>Competência (AAAAMM)</label>
+                            <input type="text" id="fiscal-darf-comp" placeholder="202501" maxlength="6">
+                        </div>
+                    </div>
+                    <div class="fiscal-field-row">
+                        <div class="fiscal-field">
+                            <label>Valor (R$)</label>
+                            <input type="number" id="fiscal-darf-valor" placeholder="0.00" min="0" step="0.01">
+                        </div>
+                        <div class="fiscal-field">
+                            <label>Data de Vencimento</label>
+                            <input type="date" id="fiscal-darf-venc">
+                        </div>
+                    </div>
+                    <div class="fiscal-actions">
+                        <button class="fiscal-btn fiscal-btn-success" onclick="FiscalFederal.emitirDARF()">💸 Emitir DARF</button>
+                        <button class="fiscal-btn fiscal-btn-secondary" onclick="FiscalFederal.loadDARFLista()">🔄 Atualizar Lista</button>
+                    </div>
+                    <div class="fiscal-result-area" id="fiscal-darf-result"></div>
+                    <div class="fiscal-section-title">💸 DARFs Emitidos</div>
+                    <div id="fiscal-darf-lista"></div>
+                </div>
+
+                <!-- ── LOGS ── -->
+                <div id="fiscal-tab-logs" class="fiscal-tab-pane">
+                    <div class="fiscal-field-row">
+                        <div class="fiscal-field">
+                            <label>Filtrar por Tipo de Operação</label>
+                            <input type="text" id="fiscal-logs-tipo" placeholder="Ex: consultar_cnd">
+                        </div>
+                        <div class="fiscal-field">
+                            <label>Limite de Registros</label>
+                            <select id="fiscal-logs-limite">
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="200">200</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="fiscal-actions">
+                        <button class="fiscal-btn fiscal-btn-primary" onclick="FiscalFederal.loadLogs()">📝 Carregar Logs</button>
+                    </div>
+                    <div id="fiscal-logs-lista" style="margin-top:14px"></div>
+                </div>
+
+                <!-- ── FILA ── -->
+                <div id="fiscal-tab-fila" class="fiscal-tab-pane">
+                    <div class="fiscal-field-row">
+                        <div class="fiscal-field">
+                            <label>Filtrar por Status</label>
+                            <select id="fiscal-fila-status">
+                                <option value="">Todos</option>
+                                <option value="pendente">Pendente</option>
+                                <option value="processando">Processando</option>
+                                <option value="concluido">Concluído</option>
+                                <option value="erro">Erro</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="fiscal-actions">
+                        <button class="fiscal-btn fiscal-btn-primary" onclick="FiscalFederal.loadFila()">⏳ Carregar Fila</button>
+                    </div>
+                    <div id="fiscal-fila-lista" style="margin-top:14px"></div>
+                </div>
+
+                <!-- ── Config Modal ── -->
+                <div id="fiscal-config-modal" class="fiscal-modal-overlay" onclick="if(event.target===this)FiscalFederal.closeConfigModal()">
+                    <div class="fiscal-modal">
+                        <div class="fiscal-modal-header">
+                            ⚙️ Configurações do Módulo Fiscal
+                            <button onclick="FiscalFederal.closeConfigModal()">✕</button>
+                        </div>
+                        <div class="fiscal-modal-body">
+                            <p style="font-size:13px;color:#888;margin-bottom:16px">
+                                Estes valores são salvos localmente e preenchidos automaticamente nos formulários.
+                            </p>
+                            <div class="fiscal-field" style="margin-bottom:12px">
+                                <label>CNPJ Contratante (seu escritório)</label>
+                                <input type="text" id="fiscal-cfg-contratante" class="fiscal-cnpj-mask" placeholder="00.000.000/0001-00" maxlength="18">
+                            </div>
+                            <div class="fiscal-field" style="margin-bottom:12px">
+                                <label>CPF/CNPJ Autor do Pedido (responsável)</label>
+                                <input type="text" id="fiscal-cfg-autor" class="fiscal-cnpj-mask" placeholder="CPF ou CNPJ do responsável" maxlength="18">
+                            </div>
+                            <div class="fiscal-field" style="margin-bottom:20px">
+                                <label>CNPJ Contribuinte padrão (empresa cliente)</label>
+                                <input type="text" id="fiscal-cfg-contribuinte" class="fiscal-cnpj-mask" placeholder="00.000.000/0001-00" maxlength="18">
+                            </div>
+                            <div class="fiscal-actions">
+                                <button class="fiscal-btn fiscal-btn-success" onclick="FiscalFederal.saveConfigFromModal()">💾 Salvar</button>
+                                <button class="fiscal-btn fiscal-btn-secondary" onclick="FiscalFederal.closeConfigModal()">Cancelar</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Formulário de Requisição -->
-                <div id="form-integra-contador" style="display: none;">
-                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px;">
-                        <h3 style="color: #2c3e50; margin: 0 0 15px 0; font-size: 16px;">🔗 Tipo Selecionado: <span id="tipo-operacao-selecionado" style="color: #3498db;"></span></h3>
-                        
-                        <!-- Dados do Contratante -->
-                        <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
-                            <h4 style="margin: 0 0 10px 0; color: #555; font-size: 14px;">👤 Contratante</h4>
-                            <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 10px;">
-                                <div>
-                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">CNPJ (14 dígitos):</label>
-                                    <input type="text" id="ic-contratante-numero" placeholder="00000000000000" maxlength="14" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-                                </div>
-                                <div>
-                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Tipo:</label>
-                                    <select id="ic-contratante-tipo" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-                                        <option value="2" selected>2 - CNPJ</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Dados do Autor do Pedido -->
-                        <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
-                            <h4 style="margin: 0 0 10px 0; color: #555; font-size: 14px;">✍️ Autor do Pedido</h4>
-                            <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 10px;">
-                                <div>
-                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">CPF/CNPJ:</label>
-                                    <input type="text" id="ic-autor-numero" placeholder="CPF (11) ou CNPJ (14)" maxlength="14" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-                                </div>
-                                <div>
-                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Tipo:</label>
-                                    <select id="ic-autor-tipo" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-                                        <option value="1">1 - CPF</option>
-                                        <option value="2">2 - CNPJ</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Dados do Contribuinte -->
-                        <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
-                            <h4 style="margin: 0 0 10px 0; color: #555; font-size: 14px;">🏢 Contribuinte</h4>
-                            <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 10px;">
-                                <div>
-                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">CPF/CNPJ:</label>
-                                    <input type="text" id="ic-contribuinte-numero" placeholder="CPF (11) ou CNPJ (14)" maxlength="14" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-                                </div>
-                                <div>
-                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Tipo:</label>
-                                    <select id="ic-contribuinte-tipo" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-                                        <option value="1">1 - CPF</option>
-                                        <option value="2">2 - CNPJ</option>
-                                        <option value="3">3 - Lista PF</option>
-                                        <option value="4">4 - Lista PJ</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Dados da Requisição -->
-                        <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
-                            <h4 style="margin: 0 0 10px 0; color: #555; font-size: 14px;">📋 Pedido de Dados</h4>
-                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
-                                <div>
-                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">ID Sistema:</label>
-                                    <input type="text" id="ic-id-sistema" placeholder="Ex: eSocial" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-                                </div>
-                                <div>
-                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">ID Serviço:</label>
-                                    <input type="text" id="ic-id-servico" placeholder="Ex: consultar-folha" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-                                </div>
-                                <div>
-                                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Versão:</label>
-                                    <input type="text" id="ic-versao-sistema" placeholder="Ex: 1.0" value="1.0" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-                                </div>
-                            </div>
-                            <div>
-                                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Dados (JSON):</label>
-                                <textarea id="ic-dados-json" placeholder='{"cnpjBasico": "23478643", "pa": "202001"}' rows="4" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; font-family: monospace;"></textarea>
-                                <small style="color: #666; font-size: 11px;">⚠️ Será convertido para escaped string automaticamente</small>
-                            </div>
-                        </div>
-
-                        <!-- Botões de Ação -->
-                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                            <button onclick="limparFormIntegra()" class="btn btn-secondary" style="padding: 10px 20px; background: #95a5a6;">🔄 Limpar</button>
-                            <button onclick="enviarRequisicaoIntegra()" class="btn btn-primary" style="padding: 10px 20px; background: #27ae60;">🚀 Enviar Requisição</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Resposta da API -->
-                <div id="resposta-integra-contador" style="display: none;">
-                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                        <h3 style="color: #2c3e50; margin: 0 0 15px 0; font-size: 16px;">📥 Resposta da API</h3>
-                        <div style="background: #f5f5f5; padding: 15px; border-radius: 6px; border: 1px solid #e0e0e0; overflow-x: auto;">
-                            <pre id="resposta-integra-json" style="margin: 0; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-wrap: break-word;"></pre>
-                        </div>
-                        <div style="margin-top: 15px; display: flex; gap: 10px;">
-                            <button onclick="copiarResposta()" class="btn btn-secondary" style="padding: 8px 16px; background: #3498db;">📋 Copiar</button>
-                            <button onclick="downloadResposta()" class="btn btn-secondary" style="padding: 8px 16px; background: #27ae60;">💾 Download JSON</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Estado Inicial -->
-                <div id="integra-empty-state" style="text-align: center; padding: 60px 20px; color: #7f8c8d;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">🔗</div>
-                    <h3 style="color: #34495e; margin-bottom: 10px;">Integra Contador - API SERPRO</h3>
-                    <p style="margin: 0; font-size: 14px;">Selecione um <strong>Tipo de Operação</strong> acima para começar.</p>
-                </div>
-            </div>
+            </div><!-- fim integra-contador-section -->
 
             <!-- Análise Detalhada Unificada -->
             <div id="analise-detalhada-section" class="content-card hidden">
@@ -12778,6 +12923,7 @@
     <script src="/static/dre_module.js?v={{ build_timestamp }}"></script>
     <script src="/static/dashboard_module.js?v={{ build_timestamp }}"></script>
     <script src="/static/auditoria_pagamentos.js?v={{ build_timestamp }}"></script>
+    <script src="/static/fiscal_federal.js?v={{ build_timestamp }}"></script>
     
     <!-- Inicialização dos módulos DRE e Dashboard -->
     <script>
@@ -12801,6 +12947,9 @@
                 } else if (sectionName === 'auditoria-pagamentos' && typeof window.carregarContasAuditoria === 'function') {
                     console.log('🎯 Inicializando Auditoria de Pagamentos...');
                     await window.carregarContasAuditoria();
+                } else if (sectionName === 'integra-contador' && typeof FiscalFederal !== 'undefined') {
+                    console.log('🎯 Inicializando Módulo Fiscal Federal...');
+                    FiscalFederal.init();
                 }
             };
             
