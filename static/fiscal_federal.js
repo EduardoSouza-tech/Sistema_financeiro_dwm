@@ -8,10 +8,22 @@ const FiscalFederal = (() => {
   const STORAGE_KEY = 'fiscal_federal_config';
   let _config = {};
 
+  // Retorna o CNPJ da empresa logada (sem máscara)
+  function _empresaCnpj() {
+    const d = window.currentEmpresaData || {};
+    return (d.cnpj || d.cnpj_cpf || '').replace(/\D/g, '');
+  }
+
   function loadConfig() {
     try {
       _config = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     } catch { _config = {}; }
+    // Auto-preencher com CNPJ da empresa se não houver config salva
+    const cnpjEmpresa = _empresaCnpj();
+    if (cnpjEmpresa) {
+      if (!_config.contratante_cnpj) _config.contratante_cnpj = cnpjEmpresa;
+      if (!_config.autor_doc)        _config.autor_doc        = cnpjEmpresa;
+    }
   }
 
   function saveConfig() {
@@ -118,9 +130,10 @@ const FiscalFederal = (() => {
   // ─── Config Modal ─────────────────────────────────────────────────────────
   function openConfigModal() {
     const cfg = getConfig();
-    document.getElementById('fiscal-cfg-contratante').value = cfg.contratante_cnpj || '';
-    document.getElementById('fiscal-cfg-autor').value = cfg.autor_doc || '';
-    document.getElementById('fiscal-cfg-contribuinte').value = cfg.contribuinte_doc || '';
+    const cnpjEmpresa = _empresaCnpj();
+    document.getElementById('fiscal-cfg-contratante').value = cfg.contratante_cnpj || cnpjEmpresa || '';
+    document.getElementById('fiscal-cfg-autor').value        = cfg.autor_doc        || cnpjEmpresa || '';
+    document.getElementById('fiscal-cfg-contribuinte').value = cfg.contribuinte_doc || cnpjEmpresa || '';
     document.getElementById('fiscal-config-modal').style.display = 'flex';
   }
 

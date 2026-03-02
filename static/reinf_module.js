@@ -9,6 +9,12 @@ const ReinfModule = (function () {
   let _cfg = {};   // {contratante_cnpj, autor_doc}
   let _comp = '';  // competência atual (MMAAAA ou raw)
 
+  // Retorna o CNPJ da empresa logada (sem máscara)
+  function _empresaCnpj() {
+    const d = window.currentEmpresaData || {};
+    return (d.cnpj || d.cnpj_cpf || '').replace(/\D/g, '');
+  }
+
   // ── Helpers ──────────────────────────────────────────────────────────────
   function _toApiComp(v) {
     const d = (v || '').replace(/\D/g, '');
@@ -41,6 +47,12 @@ const ReinfModule = (function () {
   function _val(id) { const e = _el(id); return e ? e.value.trim() : ''; }
   function _loadCfg() {
     try { _cfg = JSON.parse(localStorage.getItem('reinf_cfg') || '{}'); } catch { _cfg = {}; }
+    // Auto-preencher com CNPJ da empresa se não houver config salva
+    const cnpjEmpresa = _empresaCnpj();
+    if (cnpjEmpresa) {
+      if (!_cfg.contratante_cnpj) _cfg.contratante_cnpj = cnpjEmpresa;
+      if (!_cfg.autor_doc)        _cfg.autor_doc        = cnpjEmpresa;
+    }
   }
   function _saveCfg(o) { _cfg = o; localStorage.setItem('reinf_cfg', JSON.stringify(o)); }
 
@@ -230,16 +242,17 @@ const ReinfModule = (function () {
 
   // ── Config Modal ──────────────────────────────────────────────────────────
   function openCfgModal() {
+    const cnpjEmpresa = _empresaCnpj();
     _html('reinf-cfg-modal', `
       <div class="modal-backdrop" onclick="ReinfModule.closeCfgModal()">
         <div class="modal-box" onclick="event.stopPropagation()">
           <h3>⚙️ Configurações REINF</h3>
           <label>CNPJ Contratante</label>
           <input id="rcfg-contratante" class="form-control mb-2" placeholder="00.000.000/0000-00"
-                 value="${_cfg.contratante_cnpj || ''}">
+                 value="${_cfg.contratante_cnpj || cnpjEmpresa || ''}">
           <label>CPF/CNPJ Autor do Pedido</label>
           <input id="rcfg-autor" class="form-control mb-2" placeholder="000.000.000-00"
-                 value="${_cfg.autor_doc || ''}">
+                 value="${_cfg.autor_doc || cnpjEmpresa || ''}">
           <div style="text-align:right;margin-top:1rem">
             <button class="btn-reinf secondary" onclick="ReinfModule.closeCfgModal()">Cancelar</button>
             <button class="btn-reinf" onclick="ReinfModule.saveCfg()">Salvar</button>
