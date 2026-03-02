@@ -18802,7 +18802,12 @@ def download_xml(doc_id):
         
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
-            
+            # Garante coluna xml_content (migração lazy)
+            try:
+                cursor.execute("ALTER TABLE documentos_fiscais_log ADD COLUMN IF NOT EXISTS xml_content TEXT")
+                conn.commit()
+            except Exception:
+                conn.rollback()
             cursor.execute("""
                 SELECT chave, caminho_xml, tipo_documento, xml_content
                 FROM documentos_fiscais_log
@@ -18865,6 +18870,12 @@ def download_pdf_documento(doc_id):
 
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
+            # Garante coluna xml_content (migração lazy)
+            try:
+                cursor.execute("ALTER TABLE documentos_fiscais_log ADD COLUMN IF NOT EXISTS xml_content TEXT")
+                conn.commit()
+            except Exception:
+                conn.rollback()
             cursor.execute("""
                 SELECT chave, caminho_xml, tipo_documento, xml_content
                 FROM documentos_fiscais_log
