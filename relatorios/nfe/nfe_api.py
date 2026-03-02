@@ -364,6 +364,34 @@ def obter_certificado(certificado_id: int, chave_cripto: bytes = None) -> Option
 
 
 # ============================================================================
+# MIGRAÇÃO DE SCHEMA: COLUNAS cancelado/cancelamento_*
+# ============================================================================
+
+def _ensure_cancelado_columns(conn) -> None:
+    """Garante que as colunas de cancelamento existam na tabela documentos_fiscais_log.
+    
+    Usa ALTER TABLE ... ADD COLUMN IF NOT EXISTS — seguro e idempotente.
+    Chamado automaticamente a cada busca de documentos.
+    """
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            ALTER TABLE documentos_fiscais_log
+                ADD COLUMN IF NOT EXISTS cancelado            BOOLEAN   DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS cancelamento_motivo TEXT,
+                ADD COLUMN IF NOT EXISTS cancelamento_data   TIMESTAMP;
+        """)
+        conn.commit()
+    except Exception as e:
+        # Não deve falhar — se falhar, apenas loga e segue
+        logger.warning(f"[SCHEMA] _ensure_cancelado_columns: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+
+# ============================================================================
 # BUSCA E PROCESSAMENTO DE DOCUMENTOS
 # ============================================================================
 
@@ -482,6 +510,9 @@ def buscar_e_processar_novos_documentos(certificado_id: int, usuario_id: int = N
         # Processa cada documento usando uma conexão com empresa_id
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
+            
+            # Garante que as colunas de cancelamento existam (idempotente)
+            _ensure_cancelado_columns(conn)
             
             # Processa todos os documentos retornados pela SEFAZ (sem limite artificial)
             for doc in documentos:
@@ -617,7 +648,7 @@ def _processar_nfe(empresa_id: int, certificado_id: int, cnpj_empresa: str,
              caminho_xml, tamanho_bytes, hash_md5, busca_por, processado)
             VALUES 
             (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
-            ON CONFLICT (certificado_id, nsu) DO NOTHING
+            ON CONFLICT DO NOTHING
         """, (
             empresa_id, certificado_id, nsu, chave, 'NFe', schema,
             dados.get('numero'), dados.get('serie'), dados.get('valor_total'),
@@ -682,7 +713,7 @@ def _processar_cte(empresa_id: int, certificado_id: int, cnpj_empresa: str,
              caminho_xml, tamanho_bytes, hash_md5, busca_por, processado)
             VALUES 
             (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
-            ON CONFLICT (certificado_id, nsu) DO NOTHING
+            ON CONFLICT DO NOTHING
         """, (
             empresa_id, certificado_id, nsu, chave, 'CTe', schema,
             dados.get('numero'), dados.get('serie'), dados.get('valor_total'),
@@ -716,7 +747,8 @@ def _processar_cte(empresa_id: int, certificado_id: int, cnpj_empresa: str,
 
 def _processar_evento(empresa_id: int, certificado_id: int, nsu: str, 
                      schema: str, xml_content: str, usuario_id: int, cursor) -> Dict[str, any]:
-    """Processa um evento de NF-e."""
+    """Processa um evento de NF-e. Eventos de cancelamento (tpEvento=110111)
+    atualizam automaticamente o status da NF-e/CT-e vinculada."""
     try:
         # Extrai dados do evento
         dados = nfe_processor.extrair_dados_nfe(xml_content, '')  # CNPJ não importa para evento
@@ -725,6 +757,10 @@ def _processar_evento(empresa_id: int, certificado_id: int, nsu: str,
             return {'sucesso': False, 'erro': dados['erro']}
         
         chave = dados.get('chave')
+        tipo_evento = dados.get('tipo_evento')
+        nome_evento = dados.get('nome_evento', 'Evento')
+        data_evento = dados.get('data_evento')
+        eh_cancelamento = dados.get('cancelamento', False) or tipo_evento == '110111'
         
         # Salva log
         cursor.execute("""
@@ -733,11 +769,28 @@ def _processar_evento(empresa_id: int, certificado_id: int, nsu: str,
              busca_por, processado)
             VALUES 
             (%s, %s, %s, %s, %s, %s, %s, TRUE)
-            ON CONFLICT (certificado_id, nsu) DO NOTHING
+            ON CONFLICT DO NOTHING
         """, (
             empresa_id, certificado_id, nsu, chave, 'Evento', schema,
             usuario_id
         ))
+        
+        # Se for cancelamento, marca a NF-e/CT-e vinculada como cancelada
+        if eh_cancelamento and chave:
+            try:
+                cursor.execute("""
+                    UPDATE documentos_fiscais_log
+                    SET cancelado = TRUE,
+                        cancelamento_motivo = %s,
+                        cancelamento_data = %s
+                    WHERE empresa_id = %s
+                      AND chave = %s
+                      AND tipo_documento IN ('NFe', 'CTe')
+                """, (nome_evento, data_evento, empresa_id, chave))
+                logger.info(f"[EVENTO] Cancelamento aplicado à chave {chave}")
+            except Exception as ce:
+                # Colunas cancelado/cancelamento_* podem não existir ainda
+                logger.warning(f"[EVENTO] Não foi possível marcar cancelamento: {ce}")
         
         # Atualiza contadores
         cursor.execute("""
@@ -747,7 +800,7 @@ def _processar_evento(empresa_id: int, certificado_id: int, nsu: str,
             WHERE id = %s
         """, (certificado_id,))
         
-        return {'sucesso': True, 'tipo': 'Evento'}
+        return {'sucesso': True, 'tipo': 'Evento', 'cancelamento': eh_cancelamento}
         
     except Exception as e:
         return {'sucesso': False, 'erro': str(e)}
@@ -780,7 +833,9 @@ def listar_documentos_periodo(empresa_id: int, data_inicio: datetime,
                     id, nsu, chave, tipo_documento, numero_documento, serie,
                     valor_total, cnpj_emitente, nome_emitente,
                     cnpj_destinatario, nome_destinatario, data_emissao,
-                    caminho_xml, data_busca
+                    caminho_xml, data_busca,
+                    COALESCE(cancelado, FALSE) AS cancelado,
+                    cancelamento_motivo, cancelamento_data
                 FROM documentos_fiscais_log
                 WHERE empresa_id = %s
                   AND data_busca BETWEEN %s AND %s
@@ -791,6 +846,9 @@ def listar_documentos_periodo(empresa_id: int, data_inicio: datetime,
             if tipo:
                 sql += " AND tipo_documento = %s"
                 params.append(tipo)
+            else:
+                # Por padrão exibe apenas NF-e e CT-e (não eventos internos)
+                sql += " AND tipo_documento IN ('NFe', 'CTe')"
             
             sql += " ORDER BY data_busca DESC"
             
@@ -801,20 +859,23 @@ def listar_documentos_periodo(empresa_id: int, data_inicio: datetime,
             documentos = []
             for row in rows:
                 documentos.append({
-                    'id':                row['id'],
-                    'nsu':               row['nsu'],
-                    'chave':             row['chave'],
-                    'tipo':              row['tipo_documento'],
-                    'numero':            row['numero_documento'],
-                    'serie':             row['serie'],
-                    'valor':             float(row['valor_total']) if row['valor_total'] else 0.0,
-                    'emitente_cnpj':     row['cnpj_emitente'],
-                    'emitente_nome':     row['nome_emitente'],
-                    'destinatario_cnpj': row['cnpj_destinatario'],
-                    'destinatario_nome': row['nome_destinatario'],
-                    'data_emissao':      row['data_emissao'],
-                    'caminho_xml':       row['caminho_xml'],
-                    'data_busca':        row['data_busca']
+                    'id':                 row['id'],
+                    'nsu':                row['nsu'],
+                    'chave':              row['chave'],
+                    'tipo':               row['tipo_documento'],
+                    'numero':             row['numero_documento'],
+                    'serie':              row['serie'],
+                    'valor':              float(row['valor_total']) if row['valor_total'] else 0.0,
+                    'emitente_cnpj':      row['cnpj_emitente'],
+                    'emitente_nome':      row['nome_emitente'],
+                    'destinatario_cnpj':  row['cnpj_destinatario'],
+                    'destinatario_nome':  row['nome_destinatario'],
+                    'data_emissao':       row['data_emissao'],
+                    'caminho_xml':        row['caminho_xml'],
+                    'data_busca':         row['data_busca'],
+                    'cancelado':          row.get('cancelado', False),
+                    'cancelamento_motivo': row.get('cancelamento_motivo'),
+                    'cancelamento_data':  row.get('cancelamento_data'),
                 })
             
             return documentos

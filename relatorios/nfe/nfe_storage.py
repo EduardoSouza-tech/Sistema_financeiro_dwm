@@ -114,7 +114,7 @@ def salvar_xml_nfe(
         # Validar chave
         if not chave or len(chave) != 44:
             return {
-                'success': False,
+                'sucesso': False,
                 'erro': f'Chave inválida: {chave}'
             }
         
@@ -146,7 +146,7 @@ def salvar_xml_nfe(
         logger.info(f"✓ XML salvo: {nome_arquivo} ({tamanho} bytes)")
         
         return {
-            'success': True,
+            'sucesso': True,
             'caminho': str(caminho_completo),
             'tamanho': tamanho,
             'hash_md5': hash_md5
@@ -155,7 +155,7 @@ def salvar_xml_nfe(
     except Exception as e:
         logger.error(f"❌ Erro ao salvar XML {chave}: {e}")
         return {
-            'success': False,
+            'sucesso': False,
             'erro': str(e)
         }
 

@@ -18634,7 +18634,9 @@ def listar_documentos():
                     numero_documento, serie, valor_total,
                     cnpj_emitente, nome_emitente,
                     cnpj_destinatario, nome_destinatario,
-                    data_emissao, data_busca, processado
+                    data_emissao, data_busca, processado,
+                    COALESCE(cancelado, FALSE) AS cancelado,
+                    cancelamento_motivo, cancelamento_data
                 FROM documentos_fiscais_log
                 WHERE empresa_id = %s
             """
@@ -18653,6 +18655,9 @@ def listar_documentos():
             if tipo:
                 sql += " AND tipo_documento = %s"
                 params.append(tipo)
+            else:
+                # Por padrão exibe apenas NF-e e CT-e (não exibe eventos internos)
+                sql += " AND tipo_documento IN ('NFe', 'CTe')"
             
             # Pagina��o
             sql += " ORDER BY data_busca DESC"
@@ -18681,6 +18686,8 @@ def listar_documentos():
             if tipo:
                 sql_count += " AND tipo_documento = %s"
                 count_params.append(tipo)
+            else:
+                sql_count += " AND tipo_documento IN ('NFe', 'CTe')"
             
             cursor.execute(sql_count, count_params)
             total = cursor.fetchone()['total']

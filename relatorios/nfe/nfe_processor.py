@@ -495,24 +495,14 @@ def _extrair_resnfe(root: etree._Element, cnpj_empresa: str) -> Dict[str, any]:
 
 
 def _extrair_evento(root: etree._Element, cnpj_empresa: str) -> Dict[str, any]:
-    """Extrai dados de evento de NF-e"""
+    """Extrai dados de evento de NF-e.
+    
+    Suporta dois formatos:
+    - procEventoNFe / evento: estrutura com <infEvento> aninhado
+    - resEvento: estrutura de resumo com campos diretamente na raiz
+    """
     try:
         ns = {'nfe': 'http://www.portalfiscal.inf.br/nfe'}
-        
-        # Busca info do evento
-        inf_evento = root.find('.//nfe:infEvento', ns)
-        
-        if inf_evento is None:
-            return {'sucesso': False, 'erro': 'Elemento infEvento não encontrado'}
-        
-        chave = inf_evento.find('nfe:chNFe', ns).text if inf_evento.find('nfe:chNFe', ns) is not None else None
-        
-        if not chave:
-            return {'sucesso': False, 'erro': 'Chave não encontrada no evento'}
-        
-        # Tipo de evento
-        tipo_evento = inf_evento.find('nfe:tpEvento', ns).text if inf_evento.find('nfe:tpEvento', ns) is not None else None
-        desc_evento = inf_evento.find('nfe:xEvento', ns).text if inf_evento.find('nfe:xEvento', ns) is not None else None
         
         # Mapear tipo de evento
         eventos_conhecidos = {
@@ -523,22 +513,74 @@ def _extrair_evento(root: etree._Element, cnpj_empresa: str) -> Dict[str, any]:
             '110151': 'Operação não Realizada',
         }
         
+        # Detecta o formato: resEvento tem campos direto na raiz (sem infEvento)
+        tag_raiz = etree.QName(root.tag).localname
+        
+        if tag_raiz == 'resEvento':
+            # Formato resumo: campos direto na raiz
+            chave = root.find('nfe:chNFe', ns)
+            chave = chave.text if chave is not None else None
+            
+            tipo_evento = root.find('nfe:tpEvento', ns)
+            tipo_evento = tipo_evento.text if tipo_evento is not None else None
+            
+            desc_evento = root.find('nfe:xEvento', ns)
+            desc_evento = desc_evento.text if desc_evento is not None else None
+            
+            numero_protocolo_el = root.find('nfe:nProt', ns)
+            numero_protocolo = numero_protocolo_el.text if numero_protocolo_el is not None else None
+            
+            data_evento = None
+            dh_el = root.find('nfe:dhEvento', ns)
+            if dh_el is not None:
+                try:
+                    data_evento = datetime.fromisoformat(dh_el.text.replace('Z', '+00:00'))
+                except Exception:
+                    pass
+            
+            # cStat indica resultado do evento
+            c_stat_el = root.find('nfe:cStat', ns)
+            c_stat = c_stat_el.text if c_stat_el is not None else None
+            
+            tipo_xml_ret = 'resEvento'
+        else:
+            # Formato completo: campos dentro de infEvento
+            inf_evento = root.find('.//nfe:infEvento', ns)
+            
+            if inf_evento is None:
+                return {'sucesso': False, 'erro': 'Elemento infEvento não encontrado'}
+            
+            chave = inf_evento.find('nfe:chNFe', ns)
+            chave = chave.text if chave is not None else None
+            
+            tipo_evento = inf_evento.find('nfe:tpEvento', ns)
+            tipo_evento = tipo_evento.text if tipo_evento is not None else None
+            
+            desc_evento = inf_evento.find('nfe:xEvento', ns)
+            desc_evento = desc_evento.text if desc_evento is not None else None
+            
+            numero_protocolo_el = inf_evento.find('nfe:nProt', ns)
+            numero_protocolo = numero_protocolo_el.text if numero_protocolo_el is not None else None
+            
+            data_evento = None
+            dh_el = inf_evento.find('nfe:dhEvento', ns)
+            if dh_el is not None:
+                try:
+                    data_evento = datetime.fromisoformat(dh_el.text.replace('Z', '+00:00'))
+                except Exception:
+                    pass
+            
+            c_stat = None
+            tipo_xml_ret = 'evento'
+        
+        if not chave:
+            return {'sucesso': False, 'erro': 'Chave não encontrada no evento'}
+        
         nome_evento = eventos_conhecidos.get(tipo_evento, desc_evento or 'Evento Desconhecido')
-        
-        # Protocolo
-        numero_protocolo = inf_evento.find('nfe:nProt', ns).text if inf_evento.find('nfe:nProt', ns) is not None else None
-        
-        # Data
-        data_evento = None
-        if inf_evento.find('nfe:dhEvento', ns) is not None:
-            try:
-                data_evento = datetime.fromisoformat(inf_evento.find('nfe:dhEvento', ns).text.replace('Z', '+00:00'))
-            except:
-                pass
         
         resultado = {
             'sucesso': True,
-            'tipo_xml': 'evento',
+            'tipo_xml': tipo_xml_ret,
             'chave': chave,
             'tipo_documento': 'Evento',
             'tipo_evento': tipo_evento,
@@ -546,7 +588,11 @@ def _extrair_evento(root: etree._Element, cnpj_empresa: str) -> Dict[str, any]:
             'descricao_evento': desc_evento,
             'numero_protocolo': numero_protocolo,
             'data_evento': data_evento,
+            'cancelamento': tipo_evento == '110111',
         }
+        
+        if c_stat is not None:
+            resultado['c_stat'] = c_stat
         
         return resultado
         
