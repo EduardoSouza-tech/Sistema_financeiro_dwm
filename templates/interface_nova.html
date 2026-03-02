@@ -4044,6 +4044,17 @@
               .fiscal-badge-err{background:#fde8e8;color:#c62828}
               .fiscal-loading,.fiscal-empty{text-align:center;padding:30px;color:#aaa;font-size:14px}
               .fiscal-error{color:#e53935;font-size:13px;padding:10px}
+              /* ── NSE Auto-Search Pills ── */
+              .nse-interval-grid{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+              .nse-pill{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:30px;padding:0 8px;border:1px solid #dee2e6;border-radius:6px;background:#fff;color:#555;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;user-select:none}
+              .nse-pill:hover{background:#e3f2fd;color:#1976d2;border-color:#90caf9}
+              .nse-pill.active{background:#1976d2;color:#fff;border-color:#1976d2;box-shadow:0 2px 6px rgba(25,118,210,.3)}
+              .nse-status-box{background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:10px 12px;margin:10px 0;font-size:13px}
+              .nse-history-wrap{max-height:160px;overflow-y:auto;margin-top:6px;border:1px solid #dee2e6;border-radius:6px}
+              .nse-history-table{width:100%;border-collapse:collapse;font-size:12px}
+              .nse-history-table th{background:#f5f7fa;padding:5px 8px;text-align:left;border-bottom:2px solid #e0e0e0;color:#555;font-size:11px;text-transform:uppercase;position:sticky;top:0}
+              .nse-history-table td{padding:5px 8px;border-bottom:1px solid #f0f0f0}
+              .nse-history-table tr:hover td{background:#f8f9fa}
               .fiscal-json{background:#1e1e1e;color:#d4d4d4;padding:14px;border-radius:6px;overflow:auto;max-height:400px;font-size:12px;white-space:pre-wrap;word-break:break-all}
               .fiscal-field-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px}
               .fiscal-field label{font-size:12px;color:#666;display:block;margin-bottom:4px}
@@ -5105,14 +5116,43 @@
                         <!-- Busca Automática -->
                         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
                             <h4>🔄 Busca Automática (NSU)</h4>
-                            <p class="text-muted" style="font-size: 13px;">Busca incremental de documentos na SEFAZ usando o último NSU processado. O certificado configurado em NFS-e é usado automaticamente.</p>
-                            <button class="btn btn-primary" onclick="executarBuscaAutomaticaFiscal()" style="width: 100%; margin-top: 10px;">
-                                🔄 Iniciar Busca Automática
+                            <p class="text-muted" style="font-size: 13px;">Busca incremental de documentos na SEFAZ usando o último NSU processado. Ative o modo automático para buscas periódicas.</p>
+
+                            <!-- Seletor de intervalo -->
+                            <div style="margin: 10px 0 6px;">
+                                <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">⏰ Intervalo entre buscas (horas):</label>
+                                <div id="nse-interval-grid" class="nse-interval-grid"></div>
+                            </div>
+
+                            <!-- Painel de status -->
+                            <div class="nse-status-box">
+                                <div style="margin-bottom: 5px;">
+                                    🕐 Última busca: <strong id="nse-ultima-busca-val" style="color:#1976d2;">—</strong>
+                                </div>
+                                <div id="nse-countdown" style="min-height: 18px;"></div>
+                            </div>
+
+                            <!-- Botão de toggle automático -->
+                            <button id="nse-toggle-btn" class="btn btn-success" onclick="toggleBuscaAgendada()" style="width: 100%; margin-bottom: 6px;">
+                                ▶ Ativar Busca Automática
                             </button>
-                            <button class="btn btn-outline-secondary" onclick="executarBuscaAutomaticaFiscal('000000000000000')" style="width: 100%; margin-top: 6px; font-size: 12px;" title="Rebusca desde o NSU 0, re-baixando todos os documentos da SEFAZ">
+
+                            <!-- Botões manuais -->
+                            <button class="btn btn-primary" onclick="executarBuscaAutomaticaFiscal()" style="width: 100%; margin-top: 2px;">
+                                🔄 Buscar Agora
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="executarBuscaAutomaticaFiscal('000000000000000')" style="width: 100%; margin-top: 6px; font-size: 12px;" title="Rebusca desde o NSU 0, re-baixando todos documentos">
                                 ↩️ Rebuscar desde o início (NSU 0)
                             </button>
-                            <div id="fiscal-buscaAutoResultado" style="margin-top: 15px;"></div>
+
+                            <!-- Resultado da última busca manual -->
+                            <div id="fiscal-buscaAutoResultado" style="margin-top: 10px;"></div>
+
+                            <!-- Histórico de buscas agendadas -->
+                            <div style="margin-top: 12px;">
+                                <div style="font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px;">📋 Histórico de buscas automáticas:</div>
+                                <div id="nse-historico"></div>
+                            </div>
                         </div>
 
                         <!-- Consultar por Chave -->
@@ -13839,6 +13879,8 @@
         window.loadFiscalSection = function() {
             carregarEstatisticasFiscais();
             carregarDocumentosFiscais();
+            nseLoadState();
+            nseRenderStatus();
         };
 
         // Controle de Tabs Fiscais
@@ -14221,75 +14263,252 @@
         }
 
         // Buscar Documentos
-        async function executarBuscaAutomaticaFiscal(nsuOverride) {
-            const resultDiv = document.getElementById('fiscal-buscaAutoResultado');
+        // ── NSE: Auto-Search Engine ─────────────────────────────────────────────
+        const NSE_STORAGE_KEY = 'nse_auto_state_v2';
+
+        let nseAutoState = {
+            enabled:       false,
+            intervalHours: 1,
+            lastSearch:    null,   // ISO string
+            history:       [],     // [{time, nfes, ctes, erros, nsu}]
+            timerId:       null,   // setTimeout handle
+            tickId:        null,   // setInterval handle (countdown)
+        };
+
+        function nseSaveState() {
+            const { timerId, tickId, ...toSave } = nseAutoState;
+            localStorage.setItem(NSE_STORAGE_KEY, JSON.stringify(toSave));
+        }
+
+        function nseLoadState() {
+            try {
+                const raw = localStorage.getItem(NSE_STORAGE_KEY);
+                if (raw) {
+                    const s = JSON.parse(raw);
+                    nseAutoState.enabled       = s.enabled       ?? false;
+                    nseAutoState.intervalHours = s.intervalHours ?? 1;
+                    nseAutoState.lastSearch    = s.lastSearch     ?? null;
+                    nseAutoState.history       = s.history        ?? [];
+                }
+            } catch (e) { /* ignore */ }
+
+            // If was enabled when page was closed, reschedule (may fire immediately if overdue)
+            if (nseAutoState.enabled) {
+                nseReschedule();
+                if (!nseAutoState.tickId) {
+                    nseAutoState.tickId = setInterval(_nseTick, 1000);
+                }
+            }
+        }
+
+        function nseRenderStatus() {
+            // Interval pills
+            const grid = document.getElementById('nse-interval-grid');
+            if (grid) {
+                grid.innerHTML = Array.from({length: 23}, (_, i) => i + 1).map(h =>
+                    `<button class="nse-pill${nseAutoState.intervalHours === h ? ' active' : ''}" onclick="nseSetIntervalHours(${h})">${h}h</button>`
+                ).join('');
+            }
+
+            // Last search
+            const lastEl = document.getElementById('nse-ultima-busca-val');
+            if (lastEl) {
+                lastEl.textContent = nseAutoState.lastSearch
+                    ? new Date(nseAutoState.lastSearch).toLocaleString('pt-BR')
+                    : '—';
+            }
+
+            // Toggle button
+            const btn = document.getElementById('nse-toggle-btn');
+            if (btn) {
+                if (nseAutoState.enabled) {
+                    btn.textContent = '⏹ Desativar Automático';
+                    btn.className   = 'btn btn-danger';
+                } else {
+                    btn.textContent = '▶ Ativar Busca Automática';
+                    btn.className   = 'btn btn-success';
+                }
+            }
+
+            // Countdown
+            _nseUpdateCountdown();
+
+            // History
+            const hist = document.getElementById('nse-historico');
+            if (hist) {
+                if (!nseAutoState.history.length) {
+                    hist.innerHTML = '<p style="font-size:12px;color:#aaa;margin:2px 0 0;">Nenhuma busca automática executada ainda.</p>';
+                } else {
+                    const rows = nseAutoState.history.slice().reverse().map(h => `
+                        <tr>
+                            <td>${new Date(h.time).toLocaleString('pt-BR')}</td>
+                            <td style="text-align:center;">${h.nfes}</td>
+                            <td style="text-align:center;">${h.ctes}</td>
+                            <td style="text-align:center;color:${h.erros > 0 ? '#dc3545' : '#28a745'}">${h.erros}</td>
+                            <td style="font-family:monospace;font-size:11px;">${h.nsu || '—'}</td>
+                        </tr>`).join('');
+                    hist.innerHTML = `
+                        <div class="nse-history-wrap">
+                            <table class="nse-history-table">
+                                <thead><tr>
+                                    <th>Data / Hora</th><th>NF-e</th><th>CT-e</th><th>Erros</th><th>Novo NSU</th>
+                                </tr></thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                        </div>`;
+                }
+            }
+        }
+
+        function _nseUpdateCountdown() {
+            const cd = document.getElementById('nse-countdown');
+            if (!cd) return;
+            if (!nseAutoState.enabled) { cd.innerHTML = ''; return; }
+            if (!nseAutoState.lastSearch) {
+                cd.innerHTML = '<span style="color:#28a745;font-size:12px;">▶ Primeira busca em instantes...</span>';
+                return;
+            }
+            const nextMs = new Date(nseAutoState.lastSearch).getTime() + nseAutoState.intervalHours * 3600000;
+            const rem    = Math.max(0, nextMs - Date.now());
+            if (rem === 0) {
+                cd.innerHTML = '<span style="color:#28a745;font-size:12px;">✅ Executando próxima busca...</span>';
+                return;
+            }
+            const hh = Math.floor(rem / 3600000);
+            const mm = Math.floor((rem % 3600000) / 60000);
+            const ss = Math.floor((rem % 60000) / 1000);
+            const color = rem < 120000 ? '#dc3545' : '#17a2b8';
+            cd.innerHTML = `<span style="color:${color};font-size:12px;">⏱ Próxima busca em: <strong>${hh > 0 ? hh + 'h ' : ''}${mm}m ${ss}s</strong></span>`;
+        }
+
+        function _nseTick() {
+            _nseUpdateCountdown();
+            // Safety net: if a timer was lost (e.g. tab sleep), fire if overdue
+            if (nseAutoState.enabled && nseAutoState.lastSearch && !nseAutoState.timerId) {
+                const nextMs = new Date(nseAutoState.lastSearch).getTime() + nseAutoState.intervalHours * 3600000;
+                if (Date.now() >= nextMs) {
+                    nseRunScheduled();
+                }
+            }
+        }
+
+        function nseSetIntervalHours(h) {
+            nseAutoState.intervalHours = h;
+            nseSaveState();
+            if (nseAutoState.enabled) nseReschedule(); // recalculate with new interval
+            nseRenderStatus();
+        }
+
+        function nseReschedule() {
+            if (nseAutoState.timerId) { clearTimeout(nseAutoState.timerId); nseAutoState.timerId = null; }
+            if (!nseAutoState.enabled) return;
+            const lastMs = nseAutoState.lastSearch ? new Date(nseAutoState.lastSearch).getTime() : 0;
+            const delay  = Math.max(0, (lastMs + nseAutoState.intervalHours * 3600000) - Date.now());
+            nseAutoState.timerId = setTimeout(nseRunScheduled, delay);
+        }
+
+        async function nseRunScheduled() {
+            nseAutoState.timerId = null;
+
+            const parsed = await _nseFetch();
+            const entry = {
+                time:  new Date().toISOString(),
+                nfes:  parsed.nfes_processadas  || 0,
+                ctes:  parsed.ctes_processados  || 0,
+                erros: parsed.erros             || 0,
+                nsu:   parsed.novo_nsu          || '—',
+            };
+            nseAutoState.lastSearch = entry.time;
+            nseAutoState.history.push(entry);
+            if (nseAutoState.history.length > 50) nseAutoState.history.shift();
+            nseSaveState();
+            nseRenderStatus();
+            carregarEstatisticasFiscais();
+
+            if (nseAutoState.enabled) nseReschedule();
+        }
+
+        function toggleBuscaAgendada() {
+            nseAutoState.enabled = !nseAutoState.enabled;
+
+            if (nseAutoState.enabled) {
+                nseReschedule();
+                if (!nseAutoState.tickId) {
+                    nseAutoState.tickId = setInterval(_nseTick, 1000);
+                }
+            } else {
+                if (nseAutoState.timerId) { clearTimeout(nseAutoState.timerId);  nseAutoState.timerId = null; }
+                if (nseAutoState.tickId)  { clearInterval(nseAutoState.tickId);  nseAutoState.tickId  = null; }
+            }
+            nseSaveState();
+            nseRenderStatus();
+        }
+
+        // Low-level fetch (no UI feedback)
+        async function _nseFetch(nsuOverride) {
             const token = localStorage.getItem('token');
-
-            resultDiv.innerHTML = `<p style="color: #3498db;">⏳ ${nsuOverride !== undefined ? 'Rebuscando desde NSU ' + nsuOverride + '...' : 'Buscando documentos na SEFAZ...'}</p>`;
-
             try {
                 const resp = await fetch('/api/relatorios/buscar-documentos', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(token ? {'Authorization': `Bearer ${token}`} : {})
-                    },
+                    headers: { 'Content-Type': 'application/json', ...(token ? {'Authorization': `Bearer ${token}`} : {}) },
                     body: JSON.stringify(nsuOverride !== undefined ? { nsu_override: nsuOverride } : {})
                 });
+                return await resp.json();
+            } catch (e) {
+                return { sucesso: false, erro: String(e) };
+            }
+        }
 
-                let parsed;
-                try {
-                    parsed = await resp.json();
-                } catch (_) {
-                    resultDiv.innerHTML = `<div style="background:#f8d7da;border:1px solid #f5c6cb;padding:12px;border-radius:6px;">
-                        <strong>❌ Resposta inválida do servidor (HTTP ${resp.status})</strong>
-                    </div>`;
-                    return;
+        // Public function (buttons + auto-engine)
+        async function executarBuscaAutomaticaFiscal(nsuOverride) {
+            const resultDiv = document.getElementById('fiscal-buscaAutoResultado');
+            resultDiv.innerHTML = `<p style="color:#3498db;">⏳ ${nsuOverride !== undefined ? 'Rebuscando desde NSU ' + nsuOverride + '...' : 'Buscando documentos na SEFAZ...'}</p>`;
+
+            const parsed  = await _nseFetch(nsuOverride);
+            const sucesso = parsed.sucesso || parsed.success;
+            const erro    = parsed.erro    || parsed.error || 'Erro desconhecido';
+
+            if (sucesso) {
+                // Record in history
+                const now   = new Date().toISOString();
+                nseAutoState.lastSearch = now;
+                nseAutoState.history.push({
+                    time:  now,
+                    nfes:  parsed.nfes_processadas  || 0,
+                    ctes:  parsed.ctes_processados  || 0,
+                    erros: parsed.erros             || 0,
+                    nsu:   parsed.novo_nsu          || '—',
+                });
+                if (nseAutoState.history.length > 50) nseAutoState.history.shift();
+                nseSaveState();
+                nseRenderStatus();
+
+                // Build result panel
+                const detalhes = parsed.documentos_detalhes || [];
+                const errosDetalhados = detalhes.filter(d => !d.sucesso);
+                let errosHtml = '';
+                if (errosDetalhados.length > 0) {
+                    const itens = errosDetalhados.map(e =>
+                        `<li style="margin-bottom:4px;">NSU <strong>${e.nsu||'?'}</strong> (${e.schema||'?'}): ${e.erro||'Erro desconhecido'}</li>`
+                    ).join('');
+                    errosHtml = `<details style="margin-top:10px;font-size:12px;"><summary style="cursor:pointer;color:#856404;">⚠️ Ver detalhes dos erros (${errosDetalhados.length})</summary><ul style="margin:6px 0 0;padding-left:20px;color:#856404;">${itens}</ul></details>`;
                 }
-
-                const sucesso = parsed.sucesso || parsed.success;
-                const erro    = parsed.erro    || parsed.error || 'Erro desconhecido';
-
-                if (sucesso) {
-                    const detalhes = parsed.documentos_detalhes || [];
-                    const errosDetalhados = detalhes.filter(d => !d.sucesso);
-                    let errosHtml = '';
-                    if (errosDetalhados.length > 0) {
-                        const itens = errosDetalhados.map(e =>
-                            `<li style="margin-bottom:4px;">NSU <strong>${e.nsu || '?'}</strong> (${e.schema || '?'}): ${e.erro || 'Erro desconhecido'}</li>`
-                        ).join('');
-                        errosHtml = `
-                            <details style="margin-top:10px;font-size:12px;">
-                                <summary style="cursor:pointer;color:#856404;">⚠️ Ver detalhes dos erros (${errosDetalhados.length})</summary>
-                                <ul style="margin:6px 0 0 0;padding-left:20px;color:#856404;">${itens}</ul>
-                            </details>`;
-                    }
-                    resultDiv.innerHTML = `
-                        <div style="background:#d4edda;border:1px solid #c3e6cb;padding:15px;border-radius:6px;margin-top:10px;">
-                            <h6 style="margin:0 0 10px 0;">✅ Busca concluída!</h6>
-                            <ul style="margin:0;padding-left:20px;font-size:13px;">
-                                <li>Documentos baixados: <strong>${parsed.total_baixados || 0}</strong></li>
-                                <li>NF-es processadas: <strong>${parsed.nfes_processadas || 0}</strong></li>
-                                <li>CT-es processados: <strong>${parsed.ctes_processados || 0}</strong></li>
-                                <li>Eventos processados: <strong>${parsed.eventos_processados || 0}</strong></li>
-                                <li>Erros: <strong>${parsed.erros || 0}</strong></li>
-                                <li>Novo NSU: <strong>${parsed.novo_nsu || '-'}</strong></li>
-                            </ul>
-                            ${errosHtml}
-                        </div>`;
-                    carregarEstatisticasFiscais();
-                } else {
-                    resultDiv.innerHTML = `
-                        <div style="background:#f8d7da;border:1px solid #f5c6cb;padding:12px;border-radius:6px;">
-                            <strong>❌ ${erro}</strong>
-                        </div>`;
-                }
-
-            } catch (fetchErr) {
                 resultDiv.innerHTML = `
-                    <div style="background:#f8d7da;border:1px solid #f5c6cb;padding:12px;border-radius:6px;">
-                        <strong>❌ Erro de rede:</strong> ${fetchErr}
+                    <div style="background:#d4edda;border:1px solid #c3e6cb;padding:15px;border-radius:6px;margin-top:10px;">
+                        <h6 style="margin:0 0 10px;">✅ Busca concluída!</h6>
+                        <ul style="margin:0;padding-left:20px;font-size:13px;">
+                            <li>Documentos baixados: <strong>${parsed.total_baixados||0}</strong></li>
+                            <li>NF-es processadas: <strong>${parsed.nfes_processadas||0}</strong></li>
+                            <li>CT-es processados: <strong>${parsed.ctes_processados||0}</strong></li>
+                            <li>Eventos processados: <strong>${parsed.eventos_processados||0}</strong></li>
+                            <li>Erros: <strong>${parsed.erros||0}</strong></li>
+                            <li>Novo NSU: <strong>${parsed.novo_nsu||'-'}</strong></li>
+                        </ul>
+                        ${errosHtml}
                     </div>`;
+                carregarEstatisticasFiscais();
+            } else {
+                resultDiv.innerHTML = `<div style="background:#f8d7da;border:1px solid #f5c6cb;padding:12px;border-radius:6px;"><strong>❌ ${erro}</strong></div>`;
             }
         }
 
