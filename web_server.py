@@ -18903,7 +18903,7 @@ def download_pdf_documento(doc_id):
             except Exception:
                 conn.rollback()
             cursor.execute("""
-                SELECT chave, caminho_xml, tipo_documento, xml_content
+                SELECT chave, caminho_xml, tipo_documento, xml_content, schema_name
                 FROM documentos_fiscais_log
                 WHERE id = %s AND empresa_id = %s
             """, (doc_id, empresa_id))
@@ -18917,6 +18917,7 @@ def download_pdf_documento(doc_id):
         caminho_xml    = row['caminho_xml']
         tipo_doc       = row['tipo_documento']
         xml_content_db = row['xml_content']
+        schema_name    = (row.get('schema_name') or '').lower()
 
         # Tenta filesystem primeiro; senao usa xml_content do banco (Railway ephemeral)
         if caminho_xml and os.path.exists(str(caminho_xml)):
@@ -18931,6 +18932,21 @@ def download_pdf_documento(doc_id):
                          'Acesse "Documentos Fiscais" > "Buscar Documentos" para re-sincronizar e o PDF passara a funcionar.'
             }), 404
 
+        # Detecta XML de resumo (resNFe / resCTe) — não tem dados suficientes para DANFE
+        xml_head = xml_bytes[:500].decode('utf-8', errors='ignore') if xml_bytes else ''
+        is_resumo = (
+            schema_name.startswith('res')
+            or '<resNFe' in xml_head
+            or '<resCTe' in xml_head
+            or '<retDistDFeInt' in xml_head
+        )
+        if is_resumo:
+            return jsonify({
+                'success': False,
+                'error': 'Este documento esta salvo como XML de resumo (resNFe), que nao contem dados suficientes '
+                         'para gerar o DANFE. Re-sincronize em "Buscar Documentos" para baixar o XML completo (procNFe).'
+            }), 422
+
         from io import BytesIO as _BytesIO
         buffer = _BytesIO()
 
@@ -18944,16 +18960,32 @@ def download_pdf_documento(doc_id):
                 from brazilfiscalreport.danfe import Danfe
             except ImportError:
                 return jsonify({'success': False, 'error': 'Biblioteca brazilfiscalreport nao instalada'}), 500
-            danfe = Danfe(xml=xml_bytes)
-            danfe.output(buffer)
+            try:
+                danfe = Danfe(xml=xml_bytes)
+                danfe.output(buffer)
+            except Exception as danfe_err:
+                logger.error(f"Erro brazilfiscalreport Danfe: {danfe_err}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Erro ao processar XML para DANFE: {danfe_err}. '
+                             'Verifique se o XML e um procNFe completo com protocolo de autorizacao.'
+                }), 422
             download_name = f'DANFE_{chave}.pdf'
         elif eh_cte:
             try:
                 from brazilfiscalreport.dacte import Dacte
             except ImportError:
                 return jsonify({'success': False, 'error': 'Biblioteca brazilfiscalreport nao instalada'}), 500
-            dacte = Dacte(xml=xml_bytes)
-            dacte.output(buffer)
+            try:
+                dacte = Dacte(xml=xml_bytes)
+                dacte.output(buffer)
+            except Exception as dacte_err:
+                logger.error(f"Erro brazilfiscalreport Dacte: {dacte_err}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Erro ao processar XML para DACTE: {dacte_err}. '
+                             'Verifique se o XML e um procCTe completo com protocolo de autorizacao.'
+                }), 422
             download_name = f'DACTE_{chave}.pdf'
         else:
             return jsonify({'success': False, 'error': f'Tipo {tipo_doc!r} nao suporta geracao de PDF (esperado NFe ou CTe)'}), 400
