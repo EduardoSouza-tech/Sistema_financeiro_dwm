@@ -13202,7 +13202,33 @@ def buscar_nfse():
             'X-Usuario-Nome': usuario.get('nome', 'Unknown')
         }
         
-        # Fazer requisi��o ao microservi�o
+        # Injetar certificado ativo no payload para o microservico
+        try:
+            with get_db_connection(empresa_id=empresa_id) as _cert_conn:
+                _cert_cur = _cert_conn.cursor()
+                _cert_cur.execute("""
+                    SELECT pfx_base64, senha_pfx
+                    FROM certificados_digitais
+                    WHERE empresa_id = %s AND ativo = TRUE
+                    ORDER BY criado_em DESC LIMIT 1
+                """, (empresa_id,))
+                cert_row = _cert_cur.fetchone()
+            if cert_row:
+                pfx_b64 = cert_row['pfx_base64'] if isinstance(cert_row, dict) else cert_row[0]
+                senha_cripto = cert_row['senha_pfx'] if isinstance(cert_row, dict) else cert_row[1]
+                from relatorios.nfe import nfe_api as _nfe_api
+                _fernet_key = os.getenv('FERNET_KEY', '').encode('utf-8')
+                senha_plain = _nfe_api.descriptografar_senha(senha_cripto, _fernet_key)
+                data = dict(data)  # copia para nao mutar o original
+                data['pfx_base64'] = pfx_b64
+                data['senha'] = senha_plain
+                logger.info(f"?? Certificado ativo injetado no payload NFS-e (pfx_len={len(pfx_b64 or '')}b)")
+            else:
+                logger.warning("?? Nenhum certificado ativo encontrado para injetar no payload NFS-e")
+        except Exception as _ce:
+            logger.error(f"?? Erro ao injetar certificado no payload NFS-e: {_ce}")
+
+        # Fazer requisição ao microserviço
         # Timeout 1700s (worker timeout = 1800s, deixa margem de 100s)
         try:
             response = requests.post(
@@ -18822,12 +18848,15 @@ def download_xml(doc_id):
                 'error': 'Documento n�o encontrado'
             }), 404
         
-        chave, caminho_xml, tipo_doc, xml_content_db = row
-        
+        # Pool usa RealDictCursor — row é dict, nunca tupla
+        chave         = row['chave']
+        caminho_xml   = row['caminho_xml']
+        tipo_doc      = row['tipo_documento']
+        xml_content_db = row['xml_content']
+
         # Tenta filesystem; senao usa xml_content do banco (Railway ephemeral)
         from io import BytesIO as _BytesIO
         if caminho_xml and os.path.exists(str(caminho_xml)):
-            from flask import send_file
             return send_file(
                 caminho_xml,
                 mimetype='application/xml',
@@ -18886,7 +18915,11 @@ def download_pdf_documento(doc_id):
         if not row:
             return jsonify({'success': False, 'error': 'Documento nao encontrado'}), 404
 
-        chave, caminho_xml, tipo_doc, xml_content_db = row
+        # Pool usa RealDictCursor — row é dict, nunca tupla
+        chave          = row['chave']
+        caminho_xml    = row['caminho_xml']
+        tipo_doc       = row['tipo_documento']
+        xml_content_db = row['xml_content']
 
         # Tenta filesystem primeiro; senao usa xml_content do banco (Railway ephemeral)
         if caminho_xml and os.path.exists(str(caminho_xml)):
