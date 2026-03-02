@@ -135,18 +135,21 @@ const ReinfModule = (function () {
     _api('GET', '/api/reinf/competencias').then(r => {
       if (!r.success) return;
       const comps = r.data || [];
-      // Opção atual do mês
+      // Opção atual do mês — valor SEMPRE em MMAAAA (ex: 032026)
       const now = new Date();
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       const yyyy = now.getFullYear();
-      const atualApi = `${yyyy}${mm}`;
+      const atualVal = `${mm}${yyyy}`;            // MMAAAA ← _comp usa este formato
       const atualDisplay = `${mm}/${yyyy}`;
 
-      let opts = `<option value="${atualApi}">${atualDisplay} — Atual</option>`;
+      let opts = `<option value="${atualVal}">${atualDisplay} — Atual</option>`;
       comps.forEach(c => {
-        if (c.competencia !== atualApi) {
+        // DB retorna AAAAMM — converte para MMAAAA para usar como value
+        const s = String(c.competencia || '').replace(/\D/g, '');
+        const mmaaaa = s.length === 6 ? `${s.slice(4, 6)}${s.slice(0, 4)}` : c.competencia;
+        if (mmaaaa !== atualVal) {
           const lbl = `${_fmtComp(c.competencia)} — ${c.total} evento(s)`;
-          opts += `<option value="${c.competencia}">${lbl}</option>`;
+          opts += `<option value="${mmaaaa}">${lbl}</option>`;
         }
       });
       sel.innerHTML = opts;
