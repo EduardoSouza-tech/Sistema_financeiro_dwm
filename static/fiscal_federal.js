@@ -105,10 +105,14 @@ const FiscalFederal = (() => {
   }
 
   function toast(msg, type = 'info') {
-    if (typeof mostrarNotificacao === 'function') {
-      mostrarNotificacao(msg, type);
+    if (typeof showToast === 'function') {
+      showToast(msg, type);
     } else {
-      console.log(`[${type.toUpperCase()}] ${msg}`);
+      const d = document.createElement('div');
+      d.style.cssText = 'position:fixed;top:1.5rem;right:1.5rem;z-index:9999;padding:.75rem 1.25rem;border-radius:8px;background:#22c55e;color:#fff;font-weight:600;box-shadow:0 4px 15px rgba(0,0,0,.3)';
+      d.textContent = msg;
+      document.body.appendChild(d);
+      setTimeout(() => d.remove(), 3500);
     }
   }
 

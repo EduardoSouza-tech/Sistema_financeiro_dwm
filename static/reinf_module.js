@@ -110,7 +110,16 @@ const ReinfModule = (function () {
     _renderCompSelect();
     _bindEvents();
     const saved = sessionStorage.getItem('reinf_comp_atual');
-    if (saved) { _comp = saved; _el('reinf-comp-sel') && (_el('reinf-comp-sel').value = saved); }
+    if (saved) {
+      // Validar formato MMAAAA: primeiros 2 dígitos devem ser mês 01-12
+      const mm = parseInt(saved.slice(0, 2), 10);
+      if (mm >= 1 && mm <= 12 && saved.length === 6) {
+        _comp = saved;
+        _el('reinf-comp-sel') && (_el('reinf-comp-sel').value = saved);
+      } else {
+        sessionStorage.removeItem('reinf_comp_atual'); // limpa AAAAMM obsoleto
+      }
+    }
     _renderDashboard();
   }
 

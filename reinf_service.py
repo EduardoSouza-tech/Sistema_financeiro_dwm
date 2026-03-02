@@ -542,37 +542,43 @@ def gerar_sugestoes(db, empresa_id, competencia):
             if not cur.fetchone():
                 alertas.append({'tipo': 'danger', 'msg': 'R-1000 não enviado! Configure as informações do contribuinte.'})
 
-            # Pagamentos a PF no período
+            # Pagamentos a PF/PJ no período (R-4010 / R-4020)
+            # Nota: join com fornecedores evitado pois coluna de FK pode variar;
+            #       usamos heurística por descricao/categoria para separar PF de PJ.
             cur.execute("""
                 SELECT COUNT(*) as qtd, SUM(ABS(valor)) as total
-                FROM lancamentos l
-                JOIN fornecedores f ON f.id = l.fornecedor_id
-                WHERE l.empresa_id=%s AND EXTRACT(YEAR FROM l.data_pagamento)=%s
-                  AND EXTRACT(MONTH FROM l.data_pagamento)=%s
-                  AND f.tipo_pessoa='F' AND l.tipo='saida'
+                FROM lancamentos
+                WHERE empresa_id=%s AND EXTRACT(YEAR FROM data_pagamento)=%s
+                  AND EXTRACT(MONTH FROM data_pagamento)=%s
+                  AND tipo='saida'
+                  AND (descricao ILIKE '%%pessoa fisica%%' OR descricao ILIKE '%%autônomo%%'
+                       OR descricao ILIKE '%%autonomo%%' OR descricao ILIKE '%%RPA%%'
+                       OR descricao ILIKE '%%pró-labore%%' OR descricao ILIKE '%%pro labore%%')
             """, (empresa_id, ano, mes))
             row = _row_to_dict(cur.fetchone())
             if row and row.get('qtd', 0) > 0:
                 sugestoes.append({
                     'evento': 'R-4010',
-                    'motivo': f"{row['qtd']} pagamento(s) a PF — Total: R$ {row.get('total', 0):.2f}",
+                    'motivo': f"{row['qtd']} pagamento(s) a pessoa física detectado(s) — Total: R$ {row.get('total', 0):.2f}",
                     'valor':  float(row.get('total') or 0),
                 })
 
-            # Pagamentos a PJ no período
             cur.execute("""
                 SELECT COUNT(*) as qtd, SUM(ABS(valor)) as total
-                FROM lancamentos l
-                JOIN fornecedores f ON f.id = l.fornecedor_id
-                WHERE l.empresa_id=%s AND EXTRACT(YEAR FROM l.data_pagamento)=%s
-                  AND EXTRACT(MONTH FROM l.data_pagamento)=%s
-                  AND f.tipo_pessoa='J' AND l.tipo='saida'
+                FROM lancamentos
+                WHERE empresa_id=%s AND EXTRACT(YEAR FROM data_pagamento)=%s
+                  AND EXTRACT(MONTH FROM data_pagamento)=%s
+                  AND tipo='saida'
+                  AND (descricao ILIKE '%%CNPJ%%' OR descricao ILIKE '%%NF%%'
+                       OR descricao ILIKE '%%nota fiscal%%' OR descricao ILIKE '%%pessoa juridica%%'
+                       OR descricao ILIKE '%%prestador%%' OR categoria ILIKE '%%serviço%%'
+                       OR categoria ILIKE '%%fornecedor%%')
             """, (empresa_id, ano, mes))
             row = _row_to_dict(cur.fetchone())
             if row and row.get('qtd', 0) > 0:
                 sugestoes.append({
                     'evento': 'R-4020',
-                    'motivo': f"{row['qtd']} pagamento(s) a PJ — Total: R$ {row.get('total', 0):.2f}",
+                    'motivo': f"{row['qtd']} pagamento(s) a pessoa jurídica detectado(s) — Total: R$ {row.get('total', 0):.2f}",
                     'valor':  float(row.get('total') or 0),
                 })
 
