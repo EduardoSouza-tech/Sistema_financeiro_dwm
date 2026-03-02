@@ -18900,7 +18900,12 @@ def download_pdf_documento(doc_id):
         from io import BytesIO as _BytesIO
         buffer = _BytesIO()
 
-        if tipo_doc == 'NFe':
+        # Normaliza tipo para aceitar variantes: NF-e, nfe, 55, NFe etc.
+        tipo_norm = (tipo_doc or '').upper().replace('-', '').replace('_', '').replace(' ', '')
+        eh_nfe = tipo_norm in ('NFE', '55', 'NFCE', '65')
+        eh_cte = tipo_norm in ('CTE', '57', 'CTEOS', '67')
+
+        if eh_nfe:
             try:
                 from brazilfiscalreport.danfe import Danfe
             except ImportError:
@@ -18908,7 +18913,7 @@ def download_pdf_documento(doc_id):
             danfe = Danfe(xml=xml_bytes)
             danfe.output(buffer)
             download_name = f'DANFE_{chave}.pdf'
-        elif tipo_doc == 'CTe':
+        elif eh_cte:
             try:
                 from brazilfiscalreport.dacte import Dacte
             except ImportError:
@@ -18917,7 +18922,7 @@ def download_pdf_documento(doc_id):
             dacte.output(buffer)
             download_name = f'DACTE_{chave}.pdf'
         else:
-            return jsonify({'success': False, 'error': f'Tipo {tipo_doc} nao suporta geracao de PDF'}), 400
+            return jsonify({'success': False, 'error': f'Tipo {tipo_doc!r} nao suporta geracao de PDF (esperado NFe ou CTe)'}), 400
 
         buffer.seek(0)
         return send_file(

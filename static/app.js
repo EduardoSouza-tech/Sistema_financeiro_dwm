@@ -7865,6 +7865,9 @@ window.loadNFSeSection = async function() {
     
     // Carregar lista de municípios configurados
     await window.carregarMunicipiosNFSe();
+
+    // Auto-preencher CNPJ no formulário de Configurar Municípios a partir do certificado ativo
+    await window.preencherCNPJMunicipioDosCertificados();
     
     // Auto-carregar NFS-e do período
     await window.consultarNFSeLocal();
@@ -7899,6 +7902,36 @@ window.carregarMunicipiosNFSe = async function() {
         }
     } catch (error) {
         console.error('❌ Erro ao carregar municípios:', error);
+    }
+};
+
+// Auto-preenche o campo CNPJ do form de Configurar Municípios com o certificado ativo
+window.preencherCNPJMunicipioDosCertificados = async function() {
+    try {
+        const cnpjInput = document.getElementById('config-cnpj');
+        if (!cnpjInput) return;
+        // Só preenche se estiver vazio (não sobrescreve edição manual)
+        if (cnpjInput.value && cnpjInput.value.trim() !== '') return;
+
+        const response = await fetch('/api/relatorios/certificados', {
+            method: 'GET',
+            credentials: 'include'
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+
+        const certs = data.certificados || [];
+        // Prioriza certificado ativo; senão pega o primeiro disponível
+        const ativo = certs.find(c => c.ativo) || certs[0];
+        if (!ativo) return;
+
+        const cnpj = ativo.cnpj || '';
+        if (cnpj) {
+            cnpjInput.value = cnpj;
+            console.log(`✅ CNPJ preenchido do certificado ativo: ${cnpj}`);
+        }
+    } catch (err) {
+        console.warn('⚠️ Não foi possível obter CNPJ do certificado:', err);
     }
 };
 
