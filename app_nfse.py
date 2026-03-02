@@ -237,14 +237,32 @@ def buscar_nfse():
         cnpj_prestador = empresa['cnpj'].replace('.', '').replace('/', '').replace('-', '')
         
         # Buscar certificado da empresa
+        # Prioridade 1: pfx_base64 + senha enviados diretamente pelo ERP no payload
+        # Prioridade 2: banco de dados do microserviço (get_certificado_para_soap)
+        # Prioridade 3: variáveis de ambiente / filesystem (fallback legado)
+        import tempfile, base64 as _b64
         from nfse_functions import get_certificado_para_soap
         from database_postgresql import get_nfse_db_params
-        
+
         db_params = get_nfse_db_params()
-        cert_data = get_certificado_para_soap(db_params, empresa_id)
+        cert_data = None
+
+        pfx_base64_payload = data.get('pfx_base64', '').strip()
+        senha_payload = data.get('senha', '').strip()
+
+        if pfx_base64_payload and senha_payload:
+            # Certificado enviado pelo ERP no payload — usar diretamente
+            try:
+                pfx_bytes = _b64.b64decode(pfx_base64_payload)
+                cert_data = (pfx_bytes, senha_payload)
+                logger.info(f"✅ Certificado recebido no payload ({len(pfx_bytes):,} bytes)")
+            except Exception as _dec_err:
+                logger.error(f"❌ Erro ao decodificar pfx_base64 do payload: {_dec_err}")
         
+        if not cert_data:
+            cert_data = get_certificado_para_soap(db_params, empresa_id)
+
         if cert_data:
-            import tempfile
             pfx_bytes, cert_senha = cert_data
             temp_cert = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
             temp_cert.write(pfx_bytes)
