@@ -8120,15 +8120,15 @@ window.buscarNFSeAPI = async function() {
     const dataFinal = document.getElementById('nfse-data-final').value;
     const codigoMunicipio = document.getElementById('nfse-municipio').value;
     
-    if (!dataInicial || !dataFinal) {
-        showToast('⚠️ Selecione o período (data inicial e final)', 'warning');
-        return;
-    }
+    // Datas são opcionais — o backend detecta automaticamente o período ideal
+    const periodoMsg = (dataInicial && dataFinal)
+        ? `período ${dataInicial} a ${dataFinal}`
+        : 'período automático (incremental ou histórico completo)';
     
-    console.log('⬇️ Baixando NFS-e via API SOAP:', { dataInicial, dataFinal, codigoMunicipio });
+    console.log('⬇️ Baixando NFS-e:', { dataInicial, dataFinal, codigoMunicipio, periodoMsg });
     
     // Confirmar ação (pode demorar)
-    if (!confirm('⚠️ Esta operação pode levar alguns minutos.\n\n📡 Será feito acesso aos servidores das prefeituras via SOAP para baixar as NFS-e do período selecionado.\n\n💾 As notas serão salvas no banco de dados.\n\nDeseja continuar?')) {
+    if (!confirm(`⚠️ Esta operação pode levar alguns minutos.\n\n📡 Será feita busca de NFS-e — ${periodoMsg}.\n\n💾 As notas serão salvas no banco de dados.\n\nDeseja continuar?`)) {
         return;
     }
     
@@ -8143,20 +8143,24 @@ window.buscarNFSeAPI = async function() {
     const tbody = document.getElementById('tbody-nfse');
     
     // Mensagem de loading baseada no método
+    const periodoLabel = (dataInicial && dataFinal)
+        ? `${dataInicial} a ${dataFinal}`
+        : '(período automático)';
     let loadingMsg = '';
     if (metodo === 'ambiente_nacional') {
-        loadingMsg = '<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="font-size: 48px;">🌐</div><p style="font-size: 18px; font-weight: bold; color: #27ae60;">Buscando via Ambiente Nacional...</p><p style="color: #856404; font-size: 14px;">API REST oficial do governo federal</p><p style="color: #7f8c8d; font-size: 13px;">Consulta incremental automática • Uma API para todos os municípios</p></td></tr>';
+        loadingMsg = `<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="font-size: 48px;">🌐</div><p style="font-size: 18px; font-weight: bold; color: #27ae60;">Buscando via Ambiente Nacional...</p><p style="color: #856404; font-size: 14px;">API REST oficial do governo federal</p><p style="color: #7f8c8d; font-size: 13px;">Período: ${periodoLabel} • Se for a primeira busca, pode demorar mais (histórico completo)</p></td></tr>`;
     } else {
-        loadingMsg = '<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="font-size: 48px;">📡</div><p style="font-size: 18px; font-weight: bold;">Buscando via SOAP Municipal...</p><p style="color: #856404; font-size: 14px;">Isso pode levar vários minutos dependendo da quantidade de notas.</p></td></tr>';
+        loadingMsg = `<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="font-size: 48px;">📡</div><p style="font-size: 18px; font-weight: bold;">Buscando via SOAP Municipal...</p><p style="color: #856404; font-size: 14px;">Período: ${periodoLabel}</p><p style="color: #7f8c8d; font-size: 13px;">Isso pode levar vários minutos dependendo da quantidade de notas.</p></td></tr>`;
     }
     tbody.innerHTML = loadingMsg;
     
     try {
         const body = {
-            data_inicial: dataInicial,
-            data_final: dataFinal,
-            metodo: metodo  // ← NOVO: Envia método selecionado
+            metodo: metodo
         };
+        // Só envia datas se o usuário preencheu explicitamente
+        if (dataInicial) body.data_inicial = dataInicial;
+        if (dataFinal)   body.data_final   = dataFinal;
         
         if (codigoMunicipio) {
             body.codigos_municipios = [codigoMunicipio];
@@ -8180,7 +8184,7 @@ window.buscarNFSeAPI = async function() {
             
             if (response.status === 502) {
                 errorMsg = '⏱️ Busca demorou muito';
-                errorDetail = 'O período selecionado é muito grande (máximo: 12 meses).<br><br><strong>💡 Solução:</strong> Divida a busca em períodos menores (ex: 3 meses por vez).';
+                errorDetail = 'A busca excedeu o tempo limite do servidor. Tente novamente — a busca incremental continuará de onde parou.';
             } else if (response.status === 504) {
                 errorMsg = '⏱️ Timeout na busca';
                 errorDetail = 'A busca está demorando muito. Tente reduzir o período ou número de municípios.';
@@ -8224,7 +8228,7 @@ window.buscarNFSeAPI = async function() {
     } catch (error) {
         console.error('❌ Erro ao buscar NFS-e via API:', error);
         loading.style.display = 'none';
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro de Conexão</h3><p>Não foi possível conectar ao servidor.</p><p style="font-size: 12px; color: #7f8c8d; margin-top: 10px;">Se o período for muito grande (mais de 12 meses), divida em buscas menores.</p></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro de Conexão</h3><p>Não foi possível conectar ao servidor.</p><p style="font-size: 12px; color: #7f8c8d; margin-top: 10px;">Tente novamente. A busca incremental continuará de onde parou.</p></td></tr>';
         showToast('❌ Erro ao buscar NFS-e', 'error');
     }
 };

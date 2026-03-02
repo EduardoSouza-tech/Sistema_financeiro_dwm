@@ -208,13 +208,6 @@ def buscar_nfse():
         empresa_id = get_empresa_id_from_token(request.headers.get('Authorization'))
         data = request.json
         
-        # Validar campos obrigatórios
-        if not data.get('data_inicial') or not data.get('data_final'):
-            return jsonify({
-                'success': False,
-                'error': 'Datas inicial e final são obrigatórias'
-            }), 400
-        
         # Obter CNPJ da empresa
         with get_db_connection() as conn:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -279,6 +272,38 @@ def buscar_nfse():
                     'error': 'Certificado A1 não configurado'
                 }), 400
         
+        # Auto-detectar datas quando não informadas:
+        # - Primeira busca: desde 2016-01-01 até hoje (histórico completo)
+        # - Buscas seguintes: desde a última nota até hoje (incremental)
+        if not data.get('data_inicial') or not data.get('data_final'):
+            from datetime import date as _date
+            _today = _date.today()
+            _ultima_data = None
+            try:
+                with get_db_connection() as _ac:
+                    _cur = _ac.cursor()
+                    _cur.execute(
+                        "SELECT MAX(data_emissao) FROM nfse_baixadas WHERE empresa_id = %s",
+                        (empresa_id,)
+                    )
+                    _r = _cur.fetchone()
+                    _cur.close()
+                    if _r and _r[0]:
+                        _ultima_data = _r[0].date() if hasattr(_r[0], 'date') else _r[0]
+            except Exception as _de:
+                logger.warning(f"Auto-data: erro ao consultar última NFS-e: {_de}")
+
+            data = dict(data)
+            if not data.get('data_final'):
+                data['data_final'] = _today.strftime('%Y-%m-%d')
+            if not data.get('data_inicial'):
+                if _ultima_data:
+                    data['data_inicial'] = _ultima_data.strftime('%Y-%m-%d')
+                    logger.info(f"🗓️ Auto-data: incremental desde última nota {data['data_inicial']}")
+                else:
+                    data['data_inicial'] = '2016-01-01'
+                    logger.info(f"🗓️ Auto-data: primeira busca — buscando histórico completo desde 2016")
+
         # Converter datas
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
         data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()

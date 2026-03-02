@@ -13144,32 +13144,24 @@ def buscar_nfse():
         
         data = request.json
         
-        # Validar campos obrigat�rios
-        if not data.get('data_inicial') or not data.get('data_final'):
-            return jsonify({
-                'success': False,
-                'error': 'Datas inicial e final s�o obrigat�rias'
-            }), 400
-        
-        # Validar ordem das datas
+        # Validar ordem das datas (apenas se ambas fornecidas)
         from datetime import datetime
-        try:
-            dt_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d')
-            dt_final = datetime.strptime(data['data_final'], '%Y-%m-%d')
-            
-            if dt_final < dt_inicial:
+        if data.get('data_inicial') and data.get('data_final'):
+            try:
+                dt_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d')
+                dt_final = datetime.strptime(data['data_final'], '%Y-%m-%d')
+                if dt_final < dt_inicial:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Data final deve ser maior que data inicial'
+                    }), 400
+            except ValueError as e:
                 return jsonify({
                     'success': False,
-                    'error': 'Data final deve ser maior que data inicial'
+                    'error': f'Formato de data invalido: {e}'
                 }), 400
-                
-        except ValueError as e:
-            return jsonify({
-                'success': False,
-                'error': f'Formato de data inv�lido: {e}'
-            }), 400
         
-        # Obter URL do microservi�o de busca
+# Obter URL do microservi�o de busca
         nfse_service_url = os.getenv('NFSE_SERVICE_URL')
         
         if not nfse_service_url:
