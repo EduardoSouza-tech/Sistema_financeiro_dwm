@@ -1,6 +1,6 @@
 ﻿"""
 Servidor Web para o Sistema Financeiro
-Otimizado para PostgreSQL com pool de conexões
+Otimizado para PostgreSQL com pool de conex�es
 
 Deploy: 2026-02-15 16:40 - Fix campos associacao e numero_documento no GET
 """
@@ -30,37 +30,37 @@ from mobile_config import is_mobile_device, get_device_info
 logger = setup_logging(
     app_name='sistema_financeiro',
     log_level=os.getenv('LOG_LEVEL', 'INFO'),
-    enable_json=bool(os.getenv('RAILWAY_ENVIRONMENT'))  # JSON em produção
+    enable_json=bool(os.getenv('RAILWAY_ENVIRONMENT'))  # JSON em produ��o
 )
 
-# Inicializar Sentry em produção
+# Inicializar Sentry em produ��o
 SENTRY_ENABLED = init_sentry(
     environment='production' if os.getenv('RAILWAY_ENVIRONMENT') else 'development',
-    traces_sample_rate=0.1  # 10% das transações
+    traces_sample_rate=0.1  # 10% das transa��es
 )
 
 logger.info("="*80)
 logger.info("Sistema de logging e monitoramento inicializado")
-logger.info(f"Sentry: {'✅ Ativo' if SENTRY_ENABLED else '⚠️  Desabilitado'}")
+logger.info(f"Sentry: {'? Ativo' if SENTRY_ENABLED else '??  Desabilitado'}")
 logger.info("="*80)
 
-# Importação opcional do flask-limiter (para compatibilidade durante deploy)
+# Importa��o opcional do flask-limiter (para compatibilidade durante deploy)
 try:
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
     LIMITER_AVAILABLE = True
-    print("✅ Flask-Limiter carregado")
+    print("? Flask-Limiter carregado")
 except ImportError:
     LIMITER_AVAILABLE = False
-    print("⚠️ Flask-Limiter não disponível - Rate limiting desabilitado")
+    print("?? Flask-Limiter n�o dispon�vel - Rate limiting desabilitado")
 
 # ============================================================================
-# IMPORTAÇÕES DO BANCO DE DADOS - APENAS POSTGRESQL
+# IMPORTA��ES DO BANCO DE DADOS - APENAS POSTGRESQL
 # ============================================================================
-# FORÇA REIMPORT DO MÓDULO database_postgresql
-# Remove do cache para garantir que métodos novos sejam carregados
+# FOR�A REIMPORT DO M�DULO database_postgresql
+# Remove do cache para garantir que m�todos novos sejam carregados
 if 'database_postgresql' in sys.modules:
-    print("🔄 Forçando reimport de database_postgresql...")
+    print("?? For�ando reimport de database_postgresql...")
     del sys.modules['database_postgresql']
     
 try:
@@ -71,11 +71,11 @@ try:
     from database_postgresql import cancelar_lancamento as db_cancelar_lancamento
     from database_postgresql import obter_lancamento as db_obter_lancamento
     from database_postgresql import atualizar_cliente, atualizar_fornecedor
-    print("✅ Módulo PostgreSQL carregado com sucesso")
+    print("? M�dulo PostgreSQL carregado com sucesso")
 except Exception as e:
-    print(f"❌ ERRO CRÍTICO: Não foi possível carregar o módulo PostgreSQL")
+    print(f"? ERRO CR�TICO: N�o foi poss�vel carregar o m�dulo PostgreSQL")
     print(f"   Erro: {e}")
-    print(f"   Certifique-se de que DATABASE_URL está configurado")
+    print(f"   Certifique-se de que DATABASE_URL est� configurado")
     raise
 
 from auth_middleware import require_auth, require_admin, require_permission, get_usuario_logado, filtrar_por_cliente, aplicar_filtro_cliente
@@ -90,14 +90,14 @@ import psycopg2
 import psycopg2.extras
 
 # ============================================================================
-# VALIDAÇÃO DE DOCUMENTOS
+# VALIDA��O DE DOCUMENTOS
 # ============================================================================
-# IMPORTS COMENTADOS - movidos para dentro das funções específicas
+# IMPORTS COMENTADOS - movidos para dentro das fun��es espec�ficas
 # from cpf_validator import CPFValidator
 # from cpf_corrector import CPFCorrector
 
 # ============================================================================
-# UTILITÁRIOS COMPARTILHADOS (FASE 4)
+# UTILIT�RIOS COMPARTILHADOS (FASE 4)
 # ============================================================================
 from app.utils import (
     parse_date,
@@ -116,16 +116,16 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 # ============================================================================
 def auto_execute_migrations():
     """Executa migrations automaticamente no startup - DESABILITADA TEMPORARIAMENTE"""
-    logger.info("⚠️ auto_execute_migrations desabilitada (causa timeout no deploy)")
+    logger.info("?? auto_execute_migrations desabilitada (causa timeout no deploy)")
     return  # DESABILITADO - causava timeout no Railway
     
-    # Código comentado abaixo para referência futura
+    # C�digo comentado abaixo para refer�ncia futura
     try:
         logger.info("="*80)
-        logger.info("🚀 AUTO-EXECUTANDO MIGRATIONS DE EVENTOS")
+        logger.info("?? AUTO-EXECUTANDO MIGRATIONS DE EVENTOS")
         logger.info("="*80)
         
-        # Verificar se tabelas já existem
+        # Verificar se tabelas j� existem
         conn = db.get_connection()
         cursor = conn.cursor()
         
@@ -140,18 +140,18 @@ def auto_execute_migrations():
         count = _row['count'] if isinstance(_row, dict) else _row[0]
         
         if count == 2:
-            logger.info("✅ Tabelas já existem. Verificando colunas adicionais...")
+            logger.info("? Tabelas j� existem. Verificando colunas adicionais...")
             
-            # Adicionar colunas de horário se não existirem
+            # Adicionar colunas de hor�rio se n�o existirem
             try:
                 cursor.execute("""
                     ALTER TABLE evento_funcionarios 
                     ADD COLUMN IF NOT EXISTS hora_inicio TIME
                 """)
                 conn.commit()
-                logger.info("✅ Coluna hora_inicio adicionada/verificada em evento_funcionarios")
+                logger.info("? Coluna hora_inicio adicionada/verificada em evento_funcionarios")
             except Exception as e:
-                logger.warning(f"⚠️ Erro ao adicionar coluna hora_inicio: {e}")
+                logger.warning(f"?? Erro ao adicionar coluna hora_inicio: {e}")
                 conn.rollback()
             
             try:
@@ -160,32 +160,32 @@ def auto_execute_migrations():
                     ADD COLUMN IF NOT EXISTS hora_fim TIME
                 """)
                 conn.commit()
-                logger.info("✅ Coluna hora_fim adicionada/verificada em evento_funcionarios")
+                logger.info("? Coluna hora_fim adicionada/verificada em evento_funcionarios")
             except Exception as e:
-                logger.warning(f"⚠️ Erro ao adicionar coluna hora_fim: {e}")
+                logger.warning(f"?? Erro ao adicionar coluna hora_fim: {e}")
                 conn.rollback()
             
             cursor.close()
             return
         
-        logger.info(f"⚠️ Encontradas {count}/2 tabelas. Executando migration...")
+        logger.info(f"?? Encontradas {count}/2 tabelas. Executando migration...")
         
         # Ler e executar SQL
         sql_file = os.path.join(os.path.dirname(__file__), 'migration_evento_funcionarios.sql')
         
         if not os.path.exists(sql_file):
-            logger.error(f"❌ Arquivo SQL não encontrado: {sql_file}")
+            logger.error(f"? Arquivo SQL n�o encontrado: {sql_file}")
             return
         
         with open(sql_file, 'r', encoding='utf-8') as f:
             sql_content = f.read()
         
-        logger.info("📝 Executando SQL...")
+        logger.info("?? Executando SQL...")
         cursor.execute(sql_content)
         conn.commit()
-        logger.info("✅ SQL executado e commitado")
+        logger.info("? SQL executado e commitado")
         
-        # Verificar criação
+        # Verificar cria��o
         cursor.execute("""
             SELECT table_name 
             FROM information_schema.tables 
@@ -195,24 +195,24 @@ def auto_execute_migrations():
         """)
         
         tables = cursor.fetchall()
-        logger.info(f"✅ {len(tables)} TABELAS CRIADAS")
+        logger.info(f"? {len(tables)} TABELAS CRIADAS")
         
-        # Contar funções
+        # Contar fun��es
         cursor.execute("SELECT COUNT(*) as total FROM funcoes_evento")
         result = cursor.fetchone()
         count_funcoes = result['total'] if isinstance(result, dict) else result[0]
-        logger.info(f"✅ {count_funcoes} FUNÇÕES INSERIDAS")
+        logger.info(f"? {count_funcoes} FUN��ES INSERIDAS")
         
-        # Adicionar colunas de horário se não existirem
+        # Adicionar colunas de hor�rio se n�o existirem
         try:
             cursor.execute("""
                 ALTER TABLE evento_funcionarios 
                 ADD COLUMN IF NOT EXISTS hora_inicio TIME
             """)
             conn.commit()
-            logger.info("✅ Coluna hora_inicio adicionada/verificada em evento_funcionarios")
+            logger.info("? Coluna hora_inicio adicionada/verificada em evento_funcionarios")
         except Exception as e:
-            logger.warning(f"⚠️ Erro ao adicionar coluna hora_inicio: {e}")
+            logger.warning(f"?? Erro ao adicionar coluna hora_inicio: {e}")
             conn.rollback()
         
         try:
@@ -221,12 +221,12 @@ def auto_execute_migrations():
                 ADD COLUMN IF NOT EXISTS hora_fim TIME
             """)
             conn.commit()
-            logger.info("✅ Coluna hora_fim adicionada/verificada em evento_funcionarios")
+            logger.info("? Coluna hora_fim adicionada/verificada em evento_funcionarios")
         except Exception as e:
-            logger.warning(f"⚠️ Erro ao adicionar coluna hora_fim: {e}")
+            logger.warning(f"?? Erro ao adicionar coluna hora_fim: {e}")
             conn.rollback()
         
-        # Colunas para controle de horas nas sessões (finalizar_sessao)
+        # Colunas para controle de horas nas sess�es (finalizar_sessao)
         for col_def in [
             ("horas_trabalhadas", "DECIMAL(10,2)"),
             ("finalizada_em",     "TIMESTAMP"),
@@ -236,36 +236,36 @@ def auto_execute_migrations():
             try:
                 cursor.execute(f"ALTER TABLE sessoes ADD COLUMN IF NOT EXISTS {col_name} {col_type}")
                 conn.commit()
-                logger.info(f"✅ Coluna {col_name} adicionada/verificada em sessoes")
+                logger.info(f"? Coluna {col_name} adicionada/verificada em sessoes")
             except Exception as e:
-                logger.warning(f"⚠️ Erro ao adicionar coluna {col_name} em sessoes: {e}")
+                logger.warning(f"?? Erro ao adicionar coluna {col_name} em sessoes: {e}")
                 conn.rollback()
 
         cursor.close()
         
         logger.info("="*80)
-        logger.info("✅ MIGRATION CONCLUÍDA!")
+        logger.info("? MIGRATION CONCLU�DA!")
         logger.info("="*80)
         
     except Exception as e:
-        logger.error(f"❌ Erro na auto-migration: {e}")
+        logger.error(f"? Erro na auto-migration: {e}")
         import traceback
         traceback.print_exc()
 
-# Detectar ambiente de produção
+# Detectar ambiente de produ��o
 IS_PRODUCTION = bool(os.getenv('RAILWAY_ENVIRONMENT'))
 
 # Build timestamp para cache busting (atualizado a cada restart)
 BUILD_TIMESTAMP = str(int(time.time()))
 
-# Configurar secret key para sessões
+# Configurar secret key para sess�es
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SECURE'] = IS_PRODUCTION  # True em produção com HTTPS
+app.config['SESSION_COOKIE_SECURE'] = IS_PRODUCTION  # True em produ��o com HTTPS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
-# Configurar CORS - Em produção usa a origem da requisição, em dev permite tudo
+# Configurar CORS - Em produ��o usa a origem da requisi��o, em dev permite tudo
 if IS_PRODUCTION:
     ALLOWED_ORIGINS = ['https://sistema-financeiro-dwm-production.up.railway.app']
 else:
@@ -279,24 +279,24 @@ CORS(app,
      supports_credentials=True)
 
 # ============================================================================
-# AUTO-RENOVAÇÃO DE SESSÃO (KEEP-ALIVE)
+# AUTO-RENOVA��O DE SESS�O (KEEP-ALIVE)
 # ============================================================================
 @app.before_request
 def renovar_sessao():
     """
-    Renova a sessão automaticamente a cada requisição para evitar timeout
-    durante uso ativo do sistema. A sessão é marcada como modificada para
-    forçar o Flask a atualizar o cookie de sessão.
+    Renova a sess�o automaticamente a cada requisi��o para evitar timeout
+    durante uso ativo do sistema. A sess�o � marcada como modificada para
+    for�ar o Flask a atualizar o cookie de sess�o.
     
-    IMPORTANTE: Verifica 'session_token' que é a chave usada pelo sistema
-    de autenticação (não 'user_id' nem 'usuario_id').
+    IMPORTANTE: Verifica 'session_token' que � a chave usada pelo sistema
+    de autentica��o (n�o 'user_id' nem 'usuario_id').
     """
-    # Verificar se há token de sessão ativo (chave correta do sistema)
+    # Verificar se h� token de sess�o ativo (chave correta do sistema)
     if 'session_token' in session:
-        session.modified = True  # Força renovação do cookie de sessão
-        # O Flask automaticamente atualiza o timestamp da sessão
-        # logger.debug desabilitado para evitar 500+ logs/sec em produção
-        # logger.debug(f"♻️ [SESSÃO] Renovada automaticamente para token: {session.get('session_token', '')[:20]}...")
+        session.modified = True  # For�a renova��o do cookie de sess�o
+        # O Flask automaticamente atualiza o timestamp da sess�o
+        # logger.debug desabilitado para evitar 500+ logs/sec em produ��o
+        # logger.debug(f"?? [SESS�O] Renovada automaticamente para token: {session.get('session_token', '')[:20]}...")
 
 # ============================================================================
 # INICIALIZAR CSRF PROTECTION
@@ -304,8 +304,8 @@ def renovar_sessao():
 csrf_instance = init_csrf(app)
 register_csrf_error_handlers(app)
 
-# NOTA: Isenções CSRF são aplicadas via decorador @csrf_instance.exempt
-# diretamente nas view functions (não na lista de rotas)
+# NOTA: Isen��es CSRF s�o aplicadas via decorador @csrf_instance.exempt
+# diretamente nas view functions (n�o na lista de rotas)
 # Ver exemplos: /api/auth/login, /api/admin/import/upload
 
 # Injetar CSRF token em todos os templates
@@ -313,16 +313,16 @@ register_csrf_error_handlers(app)
 def inject_csrf():
     return inject_csrf_token()
 
-logger.info("✅ CSRF Protection configurado")
+logger.info("? CSRF Protection configurado")
 
 # ============================================================================
 # REGISTRAR BLUEPRINTS (ARQUITETURA MODULAR)
 # ============================================================================
 from app.routes import register_blueprints
 register_blueprints(app)
-logger.info("✅ Blueprints registrados")
+logger.info("? Blueprints registrados")
 
-# Configurar Rate Limiting (apenas se disponível)
+# Configurar Rate Limiting (apenas se dispon�vel)
 if LIMITER_AVAILABLE:
     limiter = Limiter(
         app=app,
@@ -330,9 +330,9 @@ if LIMITER_AVAILABLE:
         default_limits=["200 per day", "50 per hour"],
         storage_uri="memory://"
     )
-    print("✅ Rate Limiting ativado")
+    print("? Rate Limiting ativado")
 else:
-    # Criar um decorador dummy se limiter não estiver disponível
+    # Criar um decorador dummy se limiter n�o estiver dispon�vel
     class DummyLimiter:
         def limit(self, *args, **kwargs):
             def decorator(f):
@@ -340,10 +340,10 @@ else:
             return decorator
         
         def exempt(self, f):
-            """Decorador exempt dummy - retorna função sem modificação"""
+            """Decorador exempt dummy - retorna fun��o sem modifica��o"""
             return f
     limiter = DummyLimiter()
-    print("⚠️ Rate Limiting desabilitado (flask-limiter não instalado)")
+    print("?? Rate Limiting desabilitado (flask-limiter n�o instalado)")
 
 # ============================================================================
 # MANIPULADORES DE ERRO GLOBAIS
@@ -351,29 +351,29 @@ else:
 
 @app.before_request
 def log_request_info():
-    """Log de todas as requisições para debug - DESABILITADO para reduzir poluição"""
+    """Log de todas as requisi��es para debug - DESABILITADO para reduzir polui��o"""
     # Logs comentados - descomentar apenas para debug profundo
     # if request.path.startswith('/api/'):
-    #     print(f"\n{'🔵'*40}")
-    #     print(f"📥 REQUISIÇÃO: {request.method} {request.path}")
+    #     print(f"\n{'??'*40}")
+    #     print(f"?? REQUISI��O: {request.method} {request.path}")
     #     print(f"   Session token: {'Presente' if session.get('session_token') else 'AUSENTE'}")
     #     print(f"   Cookies: {list(request.cookies.keys())}")
-    #     print(f"   Headers Authorization: {request.headers.get('Authorization', 'Não presente')}")
+    #     print(f"   Headers Authorization: {request.headers.get('Authorization', 'N�o presente')}")
     #     print(f"   CSRF Token no header: {request.headers.get('X-CSRFToken', 'AUSENTE')}")
         
-    # Gerar CSRF token automaticamente se não existir na sessão
+    # Gerar CSRF token automaticamente se n�o existir na sess�o
     from flask_wtf.csrf import generate_csrf
     if '_csrf_token' not in session and request.path.startswith('/api/'):
         generate_csrf()
-        # print(f"   🔑 CSRF Token gerado automaticamente: {token[:20]}...")
+        # print(f"   ?? CSRF Token gerado automaticamente: {token[:20]}...")
     # else:
-    #     print(f"   🔑 CSRF Token já existe na sessão")
-    # print(f"{'🔵'*40}")
+    #     print(f"   ?? CSRF Token j� existe na sess�o")
+    # print(f"{'??'*40}")
 
 @app.after_request
 def add_no_cache_headers(response):
-    """Força navegador a NUNCA cachear HTML, CSS e JS"""
-    # Para arquivos estáticos (JS, CSS), desabilita cache agressivamente
+    """For�a navegador a NUNCA cachear HTML, CSS e JS"""
+    # Para arquivos est�ticos (JS, CSS), desabilita cache agressivamente
     if request.path.startswith('/static/') or request.path.endswith(('.html', '.js', '.css')):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
         response.headers['Pragma'] = 'no-cache'
@@ -383,12 +383,12 @@ def add_no_cache_headers(response):
 
 @app.before_request
 def log_request_info():
-    """Log de todas as requisições HTTP para auditoria e detecção mobile"""
-    # Pular verificações para rotas de API mobile (já autenticadas via JWT)
+    """Log de todas as requisi��es HTTP para auditoria e detec��o mobile"""
+    # Pular verifica��es para rotas de API mobile (j� autenticadas via JWT)
     if request.path.startswith('/api/mobile/'):
         return None
     
-    # Obter usuário se autenticado
+    # Obter usu�rio se autenticado
     user_id = session.get('usuario_id')
     proprietario_id = session.get('proprietario_id')
     
@@ -411,10 +411,10 @@ def log_request_info():
 def handle_404_error(e):
     """Captura erros 404 e loga detalhes"""
     logger.warning(
-        f"404 - Rota não encontrada: {request.method} {request.path}",
+        f"404 - Rota n�o encontrada: {request.method} {request.path}",
         extra={'ip': request.remote_addr}
     )
-    return jsonify({'error': 'Rota não encontrada', 'path': request.path}), 404
+    return jsonify({'error': 'Rota n�o encontrada', 'path': request.path}), 404
 
 @app.errorhandler(500)
 def handle_500_error(e):
@@ -437,7 +437,7 @@ def handle_500_error(e):
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    """Captura TODAS as exceções não tratadas"""
+    """Captura TODAS as exce��es n�o tratadas"""
     error_context = {
         'path': request.path,
         'method': request.method,
@@ -446,9 +446,9 @@ def handle_exception(e):
         'proprietario_id': session.get('proprietario_id')
     }
     
-    # Log local crítico
+    # Log local cr�tico
     logger.critical(
-        f"Exceção não tratada: {type(e).__name__} - {str(e)}",
+        f"Exce��o n�o tratada: {type(e).__name__} - {str(e)}",
         extra=error_context,
         exc_info=True
     )
@@ -458,7 +458,7 @@ def handle_exception(e):
         capture_exception(e, context=error_context, level='fatal')
     print("="*80)
     print(f"Rota: {request.path}")
-    print(f"Método: {request.method}")
+    print(f"M�todo: {request.method}")
     print(f"Tipo: {type(e).__name__}")
     print(f"Mensagem: {str(e)}")
     import traceback
@@ -467,82 +467,82 @@ def handle_exception(e):
     return jsonify({'error': 'Erro interno', 'type': type(e).__name__, 'message': str(e)}), 500
 
 # ============================================================================
-# CONFIGURAÇÃO E INICIALIZAÇÃO DO SISTEMA
+# CONFIGURA��O E INICIALIZA��O DO SISTEMA
 # ============================================================================
 
-# Flag para controlar execução de migrations no startup
-# ATENÇÃO: Desabilitado pois causava timeout no Railway (deploy > 10 min)
+# Flag para controlar execu��o de migrations no startup
+# ATEN��O: Desabilitado pois causava timeout no Railway (deploy > 10 min)
 EXECUTAR_MIGRATIONS_STARTUP = False
 
 print("\n" + "="*70)
-print("🚀 SISTEMA FINANCEIRO - INICIALIZAÇÃO")
+print("?? SISTEMA FINANCEIRO - INICIALIZA��O")
 print("="*70)
-print(f"📊 Banco de Dados: PostgreSQL (Pool de Conexões)")
-print(f"🔐 DATABASE_URL: {'✅ Configurado' if os.getenv('DATABASE_URL') else '❌ Não configurado'}")
-print(f"🌐 Ambiente: {'Produção (Railway)' if os.getenv('RAILWAY_ENVIRONMENT') else 'Desenvolvimento'}")
-print(f"⚙️ Migrations no Startup: {'✅ Ativado' if EXECUTAR_MIGRATIONS_STARTUP else '❌ Desabilitado'}")
+print(f"?? Banco de Dados: PostgreSQL (Pool de Conex�es)")
+print(f"?? DATABASE_URL: {'? Configurado' if os.getenv('DATABASE_URL') else '? N�o configurado'}")
+print(f"?? Ambiente: {'Produ��o (Railway)' if os.getenv('RAILWAY_ENVIRONMENT') else 'Desenvolvimento'}")
+print(f"?? Migrations no Startup: {'? Ativado' if EXECUTAR_MIGRATIONS_STARTUP else '? Desabilitado'}")
 print("="*70 + "\n")
 
-# Inicializar banco de dados com pool de conexões
+# Inicializar banco de dados com pool de conex�es
 try:
-    print("🔄 Inicializando DatabaseManager com pool de conexões...")
+    print("?? Inicializando DatabaseManager com pool de conex�es...")
     db = DatabaseManager()
     print("DatabaseManager inicializado com sucesso!")
     print(f"   Pool de conexoes: 2-20 conexoes simultaneas")
     
-    # Executar migrações necessárias (controlado por flag EXECUTAR_MIGRATIONS_STARTUP)
+    # Executar migra��es necess�rias (controlado por flag EXECUTAR_MIGRATIONS_STARTUP)
     if EXECUTAR_MIGRATIONS_STARTUP:
         try:
-            print("\n👥 Executando migração Usuário Multi-Empresa...")
+            print("\n?? Executando migra��o Usu�rio Multi-Empresa...")
             from migration_usuario_multi_empresa import executar_migracao as migrar_usuario_multi_empresa
             if migrar_usuario_multi_empresa(db):
-                print("✅ Sistema Usuário Multi-Empresa configurado com sucesso!\n")
+                print("? Sistema Usu�rio Multi-Empresa configurado com sucesso!\n")
             else:
-                print("⚠️ Migração Usuário Multi-Empresa falhou (pode já estar aplicada)\n")
+                print("?? Migra��o Usu�rio Multi-Empresa falhou (pode j� estar aplicada)\n")
         except Exception as e:
-            print(f"⚠️ Aviso: Não foi possível executar migração usuário multi-empresa: {e}")
+            print(f"?? Aviso: N�o foi poss�vel executar migra��o usu�rio multi-empresa: {e}")
         
         try:
-            print("\n💰 Executando migração Tipo Saldo Inicial...")
+            print("\n?? Executando migra��o Tipo Saldo Inicial...")
             from migration_tipo_saldo_inicial import executar_migracao as migrar_tipo_saldo
             if migrar_tipo_saldo(db):
-                print("✅ Coluna tipo_saldo_inicial adicionada com sucesso!\n")
+                print("? Coluna tipo_saldo_inicial adicionada com sucesso!\n")
             else:
-                print("⚠️ Migração tipo_saldo_inicial falhou (pode já estar aplicada)\n")
+                print("?? Migra��o tipo_saldo_inicial falhou (pode j� estar aplicada)\n")
         except Exception as e:
-            print(f"⚠️ Aviso: Não foi possível executar migração tipo_saldo_inicial: {e}")
+            print(f"?? Aviso: N�o foi poss�vel executar migra��o tipo_saldo_inicial: {e}")
         
-        # 🚀 AUTO-EXECUTAR MIGRATIONS DE EVENTOS (após db estar pronto)
+        # ?? AUTO-EXECUTAR MIGRATIONS DE EVENTOS (ap�s db estar pronto)
         try:
-            print("\n🎉 Executando migração de Eventos...")
+            print("\n?? Executando migra��o de Eventos...")
             auto_execute_migrations()
-            print("✅ Migration de eventos verificada!\n")
+            print("? Migration de eventos verificada!\n")
         except Exception as e:
-            print(f"⚠️ Aviso: Não foi possível executar auto-migration de eventos: {e}")
+            print(f"?? Aviso: N�o foi poss�vel executar auto-migration de eventos: {e}")
         
         try:
-            print("\n📅 Executando migração Data de Início...")
+            print("\n?? Executando migra��o Data de In�cio...")
             from migration_data_inicio import executar_migracao as migrar_data_inicio
             if migrar_data_inicio(db):
-                print("✅ Coluna data_inicio adicionada com sucesso!\n")
+                print("? Coluna data_inicio adicionada com sucesso!\n")
             else:
-                print("⚠️ Migração data_inicio falhou (pode já estar aplicada)\n")
+                print("?? Migra��o data_inicio falhou (pode j� estar aplicada)\n")
         except Exception as e:
-            print(f"⚠️ Aviso: Não foi possível executar migração data_inicio: {e}")
+            print(f"?? Aviso: N�o foi poss�vel executar migra��o data_inicio: {e}")
     else:
-        print("⚠️ Migrations de startup desabilitadas (EXECUTAR_MIGRATIONS_STARTUP=False)")
+        print("?? Migrations de startup desabilitadas (EXECUTAR_MIGRATIONS_STARTUP=False)")
     
-    # 🔧 MIGRATION CRÍTICA: Sempre executar (independente de flag)
+    # ?? MIGRATION CR�TICA: Sempre executar (independente de flag)
     try:
-        print("\n🔧 Verificando coluna usa_integracao_folha...")
+        print("\n?? Verificando coluna usa_integracao_folha...")
         from migration_add_usa_integracao_folha import executar_migration
         executar_migration()
     except Exception as e:
-        print(f"⚠️ Aviso: {e}")
+        print(f"?? Aviso: {e}")
 
-    # 🔧 Criar tabela ofx_filtros_memo (Ajuste de OFX)
+    # ?? Criar tabela ofx_filtros_memo (Ajuste de OFX)
     try:
-        print("\n🔧 Verificando tabela ofx_filtros_memo...")
+        print("\n?? Verificando tabela ofx_filtros_memo...")
         with db.get_connection() as _conn:
             _cur = _conn.cursor()
             _cur.execute("""
@@ -557,13 +557,13 @@ try:
             """)
             _conn.commit()
             _cur.close()
-        print("✅ Tabela ofx_filtros_memo verificada/criada!")
+        print("? Tabela ofx_filtros_memo verificada/criada!")
     except Exception as e:
-        print(f"⚠️ Aviso ao criar ofx_filtros_memo: {e}")
+        print(f"?? Aviso ao criar ofx_filtros_memo: {e}")
 
-    # 🔧 Criar tabelas Módulo Fiscal Federal
+    # ?? Criar tabelas M�dulo Fiscal Federal
     try:
-        print("\n🔧 Verificando tabelas do Módulo Fiscal Federal...")
+        print("\n?? Verificando tabelas do M�dulo Fiscal Federal...")
         with db.get_connection() as _fc:
             _fcur = _fc.cursor()
             _fcur.execute("""
@@ -657,13 +657,13 @@ try:
             """)
             _fc.commit()
             _fcur.close()
-        print("✅ Tabelas do Módulo Fiscal Federal verificadas/criadas!")
+        print("? Tabelas do M�dulo Fiscal Federal verificadas/criadas!")
     except Exception as e:
-        print(f"⚠️ Aviso ao criar tabelas fiscais: {e}")
+        print(f"?? Aviso ao criar tabelas fiscais: {e}")
 
-    # ── Tabelas EFD-Reinf ────────────────────────────────────────────────────
+    # -- Tabelas EFD-Reinf ----------------------------------------------------
     try:
-        with db_manager.get_connection() as _rc:
+        with db.get_connection() as _rc:
             _rcur = _rc.cursor()
             _rcur.execute("""
                 CREATE TABLE IF NOT EXISTS reinf_eventos (
@@ -715,66 +715,66 @@ try:
             """)
             _rc.commit()
             _rcur.close()
-        print("✅ Tabelas EFD-Reinf verificadas/criadas!")
+        print("? Tabelas EFD-Reinf verificadas/criadas!")
     except Exception as e:
-        print(f"⚠️ Aviso ao criar tabelas REINF: {e}")
+        print(f"?? Aviso ao criar tabelas REINF: {e}")
 
-    print("✅ DatabaseManager pronto!")
+    print("? DatabaseManager pronto!")
     print("="*70 + "\n")
         
 except Exception as e:
-    print(f"❌ ERRO CRÍTICO ao inicializar DatabaseManager: {e}")
+    print(f"? ERRO CR�TICO ao inicializar DatabaseManager: {e}")
     import traceback
     traceback.print_exc()
     raise
 
 # ============================================================================
-# ROTAS DE AUTENTICAÇÃO
+# ROTAS DE AUTENTICA��O
 # ============================================================================
 
 @app.route('/api/auth/login', methods=['POST'])
 @csrf_instance.exempt
-@limiter.limit("5 per minute")  # Máximo 5 tentativas por minuto
+@limiter.limit("5 per minute")  # M�ximo 5 tentativas por minuto
 def login():
-    """Endpoint de login com proteção contra brute force"""
+    """Endpoint de login com prote��o contra brute force"""
     try:
         print(f"\n{'='*80}")
-        print(f"🔐 [LOGIN] Iniciando processo de login...")
+        print(f"?? [LOGIN] Iniciando processo de login...")
         print(f"{'='*80}")
         
         data = request.json
         username = data.get('username')
         password = data.get('password')
         
-        print(f"📝 Dados recebidos:")
+        print(f"?? Dados recebidos:")
         print(f"   - username: {username}")
         print(f"   - password: {'***' if password else 'VAZIO'}")
         
         if not username or not password:
-            print(f"❌ Username ou senha vazios")
+            print(f"? Username ou senha vazios")
             return jsonify({
                 'success': False,
-                'error': 'Username e senha são obrigatórios'
+                'error': 'Username e senha s�o obrigat�rios'
             }), 400
         
-        # Verificar se conta está bloqueada
-        print(f"🔍 Verificando se conta está bloqueada...")
+        # Verificar se conta est� bloqueada
+        print(f"?? Verificando se conta est� bloqueada...")
         from auth_functions import verificar_conta_bloqueada
         if verificar_conta_bloqueada(username, db):
-            print(f"🚫 Conta bloqueada!")
+            print(f"?? Conta bloqueada!")
             return jsonify({
                 'success': False,
                 'error': 'Conta temporariamente bloqueada por excesso de tentativas. Tente novamente em 15 minutos.'
             }), 429
-        print(f"✅ Conta não bloqueada")
+        print(f"? Conta n�o bloqueada")
         
-        # Autenticar usuário
-        print(f"🔑 Chamando auth_db.autenticar_usuario('{username}', '***')...")
+        # Autenticar usu�rio
+        print(f"?? Chamando auth_db.autenticar_usuario('{username}', '***')...")
         usuario = auth_db.autenticar_usuario(username, password)
-        print(f"📊 Resultado autenticação: {usuario if usuario else 'FALHOU'}")
+        print(f"?? Resultado autentica��o: {usuario if usuario else 'FALHOU'}")
         
         if not usuario:
-            print(f"❌ Autenticação falhou!")
+            print(f"? Autentica��o falhou!")
             # Registrar tentativa falha
             auth_db.registrar_log_acesso(
                 usuario_id=None,
@@ -786,26 +786,26 @@ def login():
             print(f"{'='*80}\n")
             return jsonify({
                 'success': False,
-                'error': 'Usuário ou senha inválidos'
+                'error': 'Usu�rio ou senha inv�lidos'
             }), 401
         
-        print(f"✅ Usuário autenticado:")
+        print(f"? Usu�rio autenticado:")
         print(f"   - id: {usuario.get('id')}")
         print(f"   - username: {usuario.get('username')}")
         print(f"   - tipo: {usuario.get('tipo')}")
         
-        # Criar sessão
-        print(f"🎫 Criando sessão...")
+        # Criar sess�o
+        print(f"?? Criando sess�o...")
         token = auth_db.criar_sessao(
             usuario['id'],
             request.remote_addr,
             request.headers.get('User-Agent', '')
         )
-        print(f"✅ Sessão criada: {token[:20]}...")
+        print(f"? Sess�o criada: {token[:20]}...")
         
-        # Guardar token e user_id na sessão do Flask
+        # Guardar token e user_id na sess�o do Flask
         session['session_token'] = token
-        session['user_id'] = usuario['id']  # ✅ Necessário para rotas que usam session.get('user_id')
+        session['user_id'] = usuario['id']  # ? Necess�rio para rotas que usam session.get('user_id')
         session.permanent = True
         
         # Registrar login bem-sucedido
@@ -818,7 +818,7 @@ def login():
         )
         
         # ============================================================
-        # MULTI-EMPRESA: Carregar empresas do usuário
+        # MULTI-EMPRESA: Carregar empresas do usu�rio
         # ============================================================
         empresas_disponiveis = []
         empresa_selecionada = None
@@ -826,29 +826,29 @@ def login():
         if usuario['tipo'] == 'admin':
             # Super admin tem acesso a todas as empresas
             empresas_disponiveis = database.listar_empresas({})
-            # Não selecionar empresa automaticamente para super admin
+            # N�o selecionar empresa automaticamente para super admin
         else:
-            # Carregar empresas que o usuário tem acesso
+            # Carregar empresas que o usu�rio tem acesso
             from auth_functions import listar_empresas_usuario, obter_empresa_padrao
             empresas_disponiveis = listar_empresas_usuario(usuario['id'], auth_db)
             
             if empresas_disponiveis:
-                # Buscar empresa padrão
+                # Buscar empresa padr�o
                 empresa_padrao_id = obter_empresa_padrao(usuario['id'], auth_db)
                 
                 if empresa_padrao_id:
                     empresa_selecionada = next((e for e in empresas_disponiveis if e.get('empresa_id') == empresa_padrao_id), None)
                 else:
-                    # Se não tem padrão, selecionar a primeira
+                    # Se n�o tem padr�o, selecionar a primeira
                     empresa_selecionada = empresas_disponiveis[0]
                 
                 if empresa_selecionada:
                     session['empresa_id'] = empresa_selecionada.get('empresa_id')
-                    print(f"✅ Empresa selecionada no login: {empresa_selecionada.get('razao_social')}")
+                    print(f"? Empresa selecionada no login: {empresa_selecionada.get('razao_social')}")
         
-        # Obter permissões do usuário
+        # Obter permiss�es do usu�rio
         if usuario['tipo'] == 'admin':
-            permissoes = ['*']  # Super admin tem todas as permissões
+            permissoes = ['*']  # Super admin tem todas as permiss�es
         elif empresa_selecionada:
             from auth_functions import obter_permissoes_usuario_empresa
             permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_selecionada.get('empresa_id'), auth_db)
@@ -881,14 +881,14 @@ def login():
                 'razao_social': empresa_selecionada.get('razao_social')
             }
         
-        # Se usuário tem múltiplas empresas, indicar que precisa escolher
+        # Se usu�rio tem m�ltiplas empresas, indicar que precisa escolher
         if len(empresas_disponiveis) > 1 and usuario['tipo'] != 'admin':
             response_data['require_empresa_selection'] = True
         
         return jsonify(response_data)
         
     except Exception as e:
-        print(f"❌ Erro no login: {e}")
+        print(f"? Erro no login: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -925,7 +925,7 @@ def logout():
         })
         
     except Exception as e:
-        print(f"❌ Erro no logout: {e}")
+        print(f"? Erro no logout: {e}")
         return jsonify({
             'success': False,
             'error': 'Erro ao processar logout'
@@ -934,7 +934,7 @@ def logout():
 
 @app.route('/api/auth/verify', methods=['GET'])
 def verify_session():
-    """Verifica se a sessão está válida"""
+    """Verifica se a sess�o est� v�lida"""
     try:
         usuario = get_usuario_logado()
         
@@ -945,7 +945,7 @@ def verify_session():
             })
         
         # ============================================================
-        # MULTI-EMPRESA: Carregar empresa atual e empresas disponíveis
+        # MULTI-EMPRESA: Carregar empresa atual e empresas dispon�veis
         # ============================================================
         empresa_atual = None
         empresas_disponiveis = []
@@ -958,14 +958,14 @@ def verify_session():
             if empresa_id:
                 empresa_atual = database.obter_empresa(empresa_id)
         else:
-            # Usuário normal
+            # Usu�rio normal
             from auth_functions import listar_empresas_usuario
             empresas_disponiveis = listar_empresas_usuario(usuario['id'], auth_db)
             
             empresa_id = session.get('empresa_id')
             
             if empresa_id:
-                # Carregar permissões específicas da empresa
+                # Carregar permiss�es espec�ficas da empresa
                 from auth_functions import obter_permissoes_usuario_empresa
                 permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
                 
@@ -1004,7 +1004,7 @@ def verify_session():
         return jsonify(response)
         
     except Exception as e:
-        print(f"\n❌ ERRO ao verificar sessão:")
+        print(f"\n? ERRO ao verificar sess�o:")
         print(f"   Tipo: {type(e).__name__}")
         print(f"   Mensagem: {e}")
         import traceback
@@ -1012,14 +1012,14 @@ def verify_session():
         print(f"{'='*80}\n")
         return jsonify({
             'success': False,
-            'error': 'Erro ao verificar sessão'
+            'error': 'Erro ao verificar sess�o'
         }), 500
 
 
 @app.route('/api/auth/change-password', methods=['POST'])
 @require_auth
 def change_password():
-    """Alterar senha do usuário logado"""
+    """Alterar senha do usu�rio logado"""
     try:
         data = request.json
         senha_atual = data.get('senha_atual')
@@ -1028,10 +1028,10 @@ def change_password():
         if not senha_atual or not senha_nova:
             return jsonify({
                 'success': False,
-                'error': 'Senha atual e nova senha são obrigatórias'
+                'error': 'Senha atual e nova senha s�o obrigat�rias'
             }), 400
         
-        # Validar força da nova senha
+        # Validar for�a da nova senha
         from auth_functions import validar_senha_forte
         valida, mensagem = validar_senha_forte(senha_nova)
         if not valida:
@@ -1060,7 +1060,7 @@ def change_password():
             {'password': senha_nova}
         )
         
-        # Registrar alteração
+        # Registrar altera��o
         auth_db.registrar_log_acesso(
             usuario_id=usuario['id'],
             acao='change_password',
@@ -1075,7 +1075,7 @@ def change_password():
         })
         
     except Exception as e:
-        print(f"❌ Erro ao alterar senha: {e}")
+        print(f"? Erro ao alterar senha: {e}")
         return jsonify({
             'success': False,
             'error': 'Erro ao alterar senha'
@@ -1083,13 +1083,13 @@ def change_password():
 
 
 # ===================================================================
-# ROTAS DE GESTÃO MULTI-EMPRESA (Usuário com Acesso a Múltiplas Empresas)
+# ROTAS DE GEST�O MULTI-EMPRESA (Usu�rio com Acesso a M�ltiplas Empresas)
 # ===================================================================
 
 @app.route('/api/auth/minhas-empresas', methods=['GET'])
 @require_auth
 def minhas_empresas():
-    """Lista todas as empresas que o usuário tem acesso"""
+    """Lista todas as empresas que o usu�rio tem acesso"""
     try:
         usuario = request.usuario
         
@@ -1104,11 +1104,11 @@ def minhas_empresas():
                     'cnpj': e.get('cnpj'),
                     'papel': 'admin',
                     'is_padrao': False,
-                    'permissoes': ['*']  # Todas as permissões
+                    'permissoes': ['*']  # Todas as permiss�es
                 } for e in empresas]
             })
         
-        # Usuários normais: buscar empresas vinculadas
+        # Usu�rios normais: buscar empresas vinculadas
         from auth_functions import listar_empresas_usuario
         empresas = listar_empresas_usuario(usuario['id'], auth_db)
         
@@ -1116,7 +1116,7 @@ def minhas_empresas():
             return jsonify({
                 'success': True,
                 'empresas': [],
-                'message': 'Usuário não está vinculado a nenhuma empresa'
+                'message': 'Usu�rio n�o est� vinculado a nenhuma empresa'
             })
         
         return jsonify({
@@ -1125,7 +1125,7 @@ def minhas_empresas():
         })
         
     except Exception as e:
-        print(f"❌ Erro ao listar empresas do usuário: {e}")
+        print(f"? Erro ao listar empresas do usu�rio: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -1137,49 +1137,49 @@ def minhas_empresas():
 @app.route('/api/auth/switch-empresa', methods=['POST'])
 @require_auth
 def switch_empresa():
-    """Troca a empresa atual do usuário na sessão"""
+    """Troca a empresa atual do usu�rio na sess�o"""
     print(f"\n{'='*80}")
-    print(f"🔄 [SWITCH-EMPRESA] Requisição recebida")
+    print(f"?? [SWITCH-EMPRESA] Requisi��o recebida")
     try:
         data = request.json
-        print(f"📦 Dados recebidos: {data}")
+        print(f"?? Dados recebidos: {data}")
         empresa_id = data.get('empresa_id')
-        print(f"🏢 Empresa ID: {empresa_id}")
+        print(f"?? Empresa ID: {empresa_id}")
         
         if not empresa_id:
-            print(f"❌ empresa_id não fornecido")
+            print(f"? empresa_id n�o fornecido")
             return jsonify({
                 'success': False,
-                'error': 'empresa_id é obrigatório'
+                'error': 'empresa_id � obrigat�rio'
             }), 400
         
         usuario = request.usuario
-        print(f"👤 Usuário: {usuario['username']} (tipo: {usuario['tipo']})")
+        print(f"?? Usu�rio: {usuario['username']} (tipo: {usuario['tipo']})")
         
         # Super admin pode acessar qualquer empresa
         if usuario['tipo'] != 'admin':
-            # Validar se usuário tem acesso à empresa
+            # Validar se usu�rio tem acesso � empresa
             from auth_functions import tem_acesso_empresa
-            print(f"🔐 Validando acesso do usuário à empresa...")
+            print(f"?? Validando acesso do usu�rio � empresa...")
             if not tem_acesso_empresa(usuario['id'], empresa_id, auth_db):
-                print(f"❌ Acesso negado")
+                print(f"? Acesso negado")
                 return jsonify({
                     'success': False,
                     'error': 'Acesso negado a esta empresa'
                 }), 403
-            print(f"✅ Acesso validado")
+            print(f"? Acesso validado")
         else:
-            print(f"👑 Admin - acesso total")
+            print(f"?? Admin - acesso total")
         
         # Buscar dados da empresa
         empresa = database.obter_empresa(empresa_id)
         if not empresa:
             return jsonify({
                 'success': False,
-                'error': 'Empresa não encontrada'
+                'error': 'Empresa n�o encontrada'
             }), 404
         
-        # Atualizar sessão com nova empresa
+        # Atualizar sess�o com nova empresa
         session['empresa_id'] = empresa_id
         session.modified = True
         
@@ -1192,16 +1192,16 @@ def switch_empresa():
             sucesso=True
         )
         
-        # Carregar permissões da nova empresa
-        print(f"🔐 Carregando permissões...")
+        # Carregar permiss�es da nova empresa
+        print(f"?? Carregando permiss�es...")
         if usuario['tipo'] != 'admin':
             from auth_functions import obter_permissoes_usuario_empresa
             permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
         else:
-            permissoes = ['*']  # Super admin tem todas as permissões
-        print(f"📋 Permissões carregadas: {len(permissoes)}")
+            permissoes = ['*']  # Super admin tem todas as permiss�es
+        print(f"?? Permiss�es carregadas: {len(permissoes)}")
         
-        print(f"✅ Troca de empresa concluída com sucesso")
+        print(f"? Troca de empresa conclu�da com sucesso")
         print(f"{'='*80}\n")
         return jsonify({
             'success': True,
@@ -1215,8 +1215,8 @@ def switch_empresa():
         })
         
     except Exception as e:
-        print(f"❌ ERRO em switch-empresa: {e}")
-        print(f"❌ Tipo do erro: {type(e)}")
+        print(f"? ERRO em switch-empresa: {e}")
+        print(f"? Tipo do erro: {type(e)}")
         import traceback
         traceback.print_exc()
         print(f"{'='*80}\n")
@@ -1229,7 +1229,7 @@ def switch_empresa():
 @app.route('/api/auth/empresa-padrao', methods=['PUT'])
 @require_auth
 def definir_empresa_padrao():
-    """Define a empresa padrão do usuário (selecionada automaticamente no login)"""
+    """Define a empresa padr�o do usu�rio (selecionada automaticamente no login)"""
     try:
         data = request.json
         empresa_id = data.get('empresa_id')
@@ -1237,19 +1237,19 @@ def definir_empresa_padrao():
         if not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'empresa_id é obrigatório'
+                'error': 'empresa_id � obrigat�rio'
             }), 400
         
         usuario = request.usuario
         
-        # Super admin não precisa de empresa padrão
+        # Super admin n�o precisa de empresa padr�o
         if usuario['tipo'] == 'admin':
             return jsonify({
                 'success': False,
-                'error': 'Super admin não precisa de empresa padrão'
+                'error': 'Super admin n�o precisa de empresa padr�o'
             }), 400
         
-        # Validar acesso à empresa
+        # Validar acesso � empresa
         from auth_functions import tem_acesso_empresa, atualizar_usuario_empresa
         if not tem_acesso_empresa(usuario['id'], empresa_id, auth_db):
             return jsonify({
@@ -1257,7 +1257,7 @@ def definir_empresa_padrao():
                 'error': 'Acesso negado a esta empresa'
             }), 403
         
-        # Atualizar empresa padrão
+        # Atualizar empresa padr�o
         sucesso = atualizar_usuario_empresa(
             usuario['id'], 
             empresa_id,
@@ -1268,16 +1268,16 @@ def definir_empresa_padrao():
         if not sucesso:
             return jsonify({
                 'success': False,
-                'error': 'Erro ao definir empresa padrão'
+                'error': 'Erro ao definir empresa padr�o'
             }), 500
         
         return jsonify({
             'success': True,
-            'message': 'Empresa padrão definida com sucesso'
+            'message': 'Empresa padr�o definida com sucesso'
         })
         
     except Exception as e:
-        print(f"❌ Erro ao definir empresa padrão: {e}")
+        print(f"? Erro ao definir empresa padr�o: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -1287,7 +1287,7 @@ def definir_empresa_padrao():
 @app.route('/api/admin/usuario-empresas', methods=['POST'])
 @require_admin
 def vincular_usuario_empresa_admin():
-    """Vincula um usuário a uma empresa (apenas admin)"""
+    """Vincula um usu�rio a uma empresa (apenas admin)"""
     try:
         data = request.json
         usuario_id = data.get('usuario_id')
@@ -1299,18 +1299,18 @@ def vincular_usuario_empresa_admin():
         if not usuario_id or not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'usuario_id e empresa_id são obrigatórios'
+                'error': 'usuario_id e empresa_id s�o obrigat�rios'
             }), 400
         
         if papel not in ['admin_empresa', 'usuario', 'visualizador']:
             return jsonify({
                 'success': False,
-                'error': 'Papel inválido. Use: admin_empresa, usuario ou visualizador'
+                'error': 'Papel inv�lido. Use: admin_empresa, usuario ou visualizador'
             }), 400
         
         admin = request.usuario
         
-        # Vincular usuário à empresa
+        # Vincular usu�rio � empresa
         from auth_functions import vincular_usuario_empresa
         vinculo_id = vincular_usuario_empresa(
             usuario_id=usuario_id,
@@ -1322,23 +1322,23 @@ def vincular_usuario_empresa_admin():
             db=auth_db
         )
         
-        # Registrar ação
+        # Registrar a��o
         auth_db.registrar_log_acesso(
             usuario_id=admin['id'],
             acao='vincular_usuario_empresa',
-            descricao=f'Vinculou usuário {usuario_id} à empresa {empresa_id}',
+            descricao=f'Vinculou usu�rio {usuario_id} � empresa {empresa_id}',
             ip_address=request.remote_addr,
             sucesso=True
         )
         
         return jsonify({
             'success': True,
-            'message': 'Usuário vinculado à empresa com sucesso',
+            'message': 'Usu�rio vinculado � empresa com sucesso',
             'id': vinculo_id
         }), 201
         
     except Exception as e:
-        logger.error(f"Erro ao vincular usuário à empresa: {e}")
+        logger.error(f"Erro ao vincular usu�rio � empresa: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -1348,7 +1348,7 @@ def vincular_usuario_empresa_admin():
 @app.route('/api/admin/usuario-empresas/<int:usuario_id>/<int:empresa_id>', methods=['PUT'])
 @require_admin
 def atualizar_usuario_empresa_admin(usuario_id: int, empresa_id: int):
-    """Atualiza o vínculo de um usuário com uma empresa (apenas admin)"""
+    """Atualiza o v�nculo de um usu�rio com uma empresa (apenas admin)"""
     try:
         data = request.json
         papel = data.get('papel')
@@ -1368,26 +1368,26 @@ def atualizar_usuario_empresa_admin(usuario_id: int, empresa_id: int):
         if not sucesso:
             return jsonify({
                 'success': False,
-                'error': 'Erro ao atualizar vínculo'
+                'error': 'Erro ao atualizar v�nculo'
             }), 500
         
-        # Registrar ação
+        # Registrar a��o
         admin = request.usuario
         auth_db.registrar_log_acesso(
             usuario_id=admin['id'],
             acao='atualizar_usuario_empresa',
-            descricao=f'Atualizou vínculo do usuário {usuario_id} com empresa {empresa_id}',
+            descricao=f'Atualizou v�nculo do usu�rio {usuario_id} com empresa {empresa_id}',
             ip_address=request.remote_addr,
             sucesso=True
         )
         
         return jsonify({
             'success': True,
-            'message': 'Vínculo atualizado com sucesso'
+            'message': 'V�nculo atualizado com sucesso'
         })
         
     except Exception as e:
-        logger.error(f"Erro ao atualizar vínculo: {e}")
+        logger.error(f"Erro ao atualizar v�nculo: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -1397,7 +1397,7 @@ def atualizar_usuario_empresa_admin(usuario_id: int, empresa_id: int):
 @app.route('/api/admin/usuario-empresas/<int:usuario_id>/<int:empresa_id>', methods=['DELETE'])
 @require_admin
 def remover_usuario_empresa_admin(usuario_id: int, empresa_id: int):
-    """Remove o vínculo de um usuário com uma empresa (apenas admin)"""
+    """Remove o v�nculo de um usu�rio com uma empresa (apenas admin)"""
     try:
         from auth_functions import remover_usuario_empresa
         sucesso = remover_usuario_empresa(usuario_id, empresa_id, auth_db)
@@ -1405,26 +1405,26 @@ def remover_usuario_empresa_admin(usuario_id: int, empresa_id: int):
         if not sucesso:
             return jsonify({
                 'success': False,
-                'error': 'Erro ao remover vínculo'
+                'error': 'Erro ao remover v�nculo'
             }), 500
         
-        # Registrar ação
+        # Registrar a��o
         admin = request.usuario
         auth_db.registrar_log_acesso(
             usuario_id=admin['id'],
             acao='remover_usuario_empresa',
-            descricao=f'Removeu vínculo do usuário {usuario_id} com empresa {empresa_id}',
+            descricao=f'Removeu v�nculo do usu�rio {usuario_id} com empresa {empresa_id}',
             ip_address=request.remote_addr,
             sucesso=True
         )
         
         return jsonify({
             'success': True,
-            'message': 'Vínculo removido com sucesso'
+            'message': 'V�nculo removido com sucesso'
         })
         
     except Exception as e:
-        logger.error(f"Erro ao remover vínculo: {e}")
+        logger.error(f"Erro ao remover v�nculo: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -1434,7 +1434,7 @@ def remover_usuario_empresa_admin(usuario_id: int, empresa_id: int):
 @app.route('/api/admin/usuarios/<int:usuario_id>/empresas', methods=['GET'])
 @require_admin
 def listar_empresas_do_usuario_admin(usuario_id: int):
-    """Lista todas as empresas que um usuário tem acesso (apenas admin)"""
+    """Lista todas as empresas que um usu�rio tem acesso (apenas admin)"""
     try:
         from auth_functions import listar_empresas_usuario
         empresas = listar_empresas_usuario(usuario_id, auth_db)
@@ -1445,7 +1445,7 @@ def listar_empresas_do_usuario_admin(usuario_id: int):
         })
         
     except Exception as e:
-        print(f"❌ Erro ao listar empresas do usuário: {e}")
+        print(f"? Erro ao listar empresas do usu�rio: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -1454,34 +1454,34 @@ def listar_empresas_do_usuario_admin(usuario_id: int):
 
 # ===== FIM DAS ROTAS MULTI-EMPRESA =====
 
-# ===== ROTAS DE GERENCIAMENTO DE USUÁRIOS (APENAS ADMIN) =====
+# ===== ROTAS DE GERENCIAMENTO DE USU�RIOS (APENAS ADMIN) =====
 
 @app.route('/api/usuarios', methods=['GET', 'POST'])
 @require_admin
 def gerenciar_usuarios():
-    """Listar ou criar usuários"""
-    print(f"\n👥 [gerenciar_usuarios] FUNÇÃO CHAMADA - Método: {request.method}")
+    """Listar ou criar usu�rios"""
+    print(f"\n?? [gerenciar_usuarios] FUN��O CHAMADA - M�todo: {request.method}")
     if request.method == 'GET':
         try:
             print(f"\n{'='*80}")
-            print(f"🔍 GET /api/usuarios - Listando usuários...")
+            print(f"?? GET /api/usuarios - Listando usu�rios...")
             print(f"{'='*80}")
             
-            # Verificar se usuário está autenticado
+            # Verificar se usu�rio est� autenticado
             usuario = getattr(request, 'usuario', None)
             if not usuario:
-                print(f"   ❌ Usuário não autenticado")
-                return jsonify({'success': False, 'error': 'Não autenticado'}), 401
+                print(f"   ? Usu�rio n�o autenticado")
+                return jsonify({'success': False, 'error': 'N�o autenticado'}), 401
             
-            print(f"   ✅ Usuário autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
+            print(f"   ? Usu�rio autenticado: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
             
-            # Listar usuários
+            # Listar usu�rios
             usuarios = auth_db.listar_usuarios()
-            print(f"   📊 Tipo retornado: {type(usuarios)}")
+            print(f"   ?? Tipo retornado: {type(usuarios)}")
             
-            # Garantir que é uma lista
+            # Garantir que � uma lista
             if not isinstance(usuarios, list):
-                print(f"   ⚠️ Não é lista! Convertendo...")
+                print(f"   ?? N�o � lista! Convertendo...")
                 if usuarios is None:
                     usuarios = []
                 else:
@@ -1500,13 +1500,13 @@ def gerenciar_usuarios():
                 
                 usuarios_serializaveis.append(user_dict)
             
-            print(f"   ✅ Retornando {len(usuarios_serializaveis)} usuários")
+            print(f"   ? Retornando {len(usuarios_serializaveis)} usu�rios")
             print(f"{'='*80}\n")
             
             return jsonify({'success': True, 'usuarios': usuarios_serializaveis})
             
         except Exception as e:
-            print(f"❌ Erro ao listar usuários: {e}")
+            print(f"? Erro ao listar usu�rios: {e}")
             import traceback
             traceback.print_exc()
             print(f"{'='*80}\n")
@@ -1518,7 +1518,7 @@ def gerenciar_usuarios():
             admin = request.usuario
             data['created_by'] = admin['id']
             
-            print(f"📥 Dados recebidos do frontend: {data}")
+            print(f"?? Dados recebidos do frontend: {data}")
             print(f"   - empresas_ids: {data.get('empresas_ids')}")
             print(f"   - empresa_id_padrao: {data.get('empresa_id_padrao')}")
             print(f"   - tipo: {data.get('tipo')}")
@@ -1531,7 +1531,7 @@ def gerenciar_usuarios():
                     'error': 'Selecione ao menos uma empresa'
                 }), 400
             
-            # Validar força da senha
+            # Validar for�a da senha
             from auth_functions import validar_senha_forte
             if 'password' in data:
                 valida, mensagem = validar_senha_forte(data['password'])
@@ -1541,60 +1541,60 @@ def gerenciar_usuarios():
                         'error': f'Senha fraca: {mensagem}'
                     }), 400
             
-            # 🏢 MULTI-EMPRESA: Usar primeira empresa para criação (compatibilidade)
+            # ?? MULTI-EMPRESA: Usar primeira empresa para cria��o (compatibilidade)
             data['empresa_id'] = empresas_ids[0]
             
-            print(f"📝 Dados para criar_usuario: {data}")
+            print(f"?? Dados para criar_usuario: {data}")
             usuario_id = auth_db.criar_usuario(data)
-            print(f"✅ Usuário criado com ID: {usuario_id}")
+            print(f"? Usu�rio criado com ID: {usuario_id}")
             
-            # 🏢 MULTI-EMPRESA: Criar vínculos na tabela usuario_empresas
+            # ?? MULTI-EMPRESA: Criar v�nculos na tabela usuario_empresas
             from auth_functions import vincular_usuario_empresa
             empresa_id_padrao = data.get('empresa_id_padrao')
             
             for empresa_id in empresas_ids:
                 is_padrao = (empresa_id == empresa_id_padrao)
                 
-                print(f"🔗 Vinculando usuário {usuario_id} à empresa {empresa_id} (padrão: {is_padrao})")
+                print(f"?? Vinculando usu�rio {usuario_id} � empresa {empresa_id} (padr�o: {is_padrao})")
                 
                 vincular_usuario_empresa(
                     usuario_id=usuario_id,
                     empresa_id=empresa_id,
-                    papel='usuario',  # Papel padrão
+                    papel='usuario',  # Papel padr�o
                     permissoes=data.get('permissoes', []),
                     is_padrao=is_padrao,
                     criado_por=admin['id'],
                     db=auth_db
                 )
             
-            # Conceder permissões globais se fornecidas (legado)
+            # Conceder permiss�es globais se fornecidas (legado)
             if 'permissoes' in data:
-                print(f"🔑 Concedendo {len(data['permissoes'])} permissões")
+                print(f"?? Concedendo {len(data['permissoes'])} permiss�es")
                 auth_db.sincronizar_permissoes_usuario(
                     usuario_id,
                     data['permissoes'],
                     admin['id']
                 )
             
-            # Registrar criação
+            # Registrar cria��o
             auth_db.registrar_log_acesso(
                 usuario_id=admin['id'],
                 acao='create_user',
-                descricao=f'Usuário criado: {data["username"]} com {len(empresas_ids)} empresa(s)',
+                descricao=f'Usu�rio criado: {data["username"]} com {len(empresas_ids)} empresa(s)',
                 ip_address=request.remote_addr,
                 sucesso=True
             )
             
             return jsonify({
                 'success': True,
-                'message': 'Usuário criado com sucesso',
+                'message': 'Usu�rio criado com sucesso',
                 'id': usuario_id
             }), 201
             
         except ValueError as e:
             return jsonify({'success': False, 'error': str(e)}), 400
         except Exception as e:
-            print(f"❌ Erro ao criar usuário: {e}")
+            print(f"? Erro ao criar usu�rio: {e}")
             import traceback
             traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
@@ -1603,65 +1603,65 @@ def gerenciar_usuarios():
 @app.route('/api/usuarios/<int:usuario_id>', methods=['GET', 'PUT', 'DELETE'])
 @require_admin
 def gerenciar_usuario_especifico(usuario_id):
-    """Obter, atualizar ou deletar usuário específico"""
-    print(f"\n👤 [gerenciar_usuario_especifico] FUNÇÃO CHAMADA - ID: {usuario_id}, Método: {request.method}")
+    """Obter, atualizar ou deletar usu�rio espec�fico"""
+    print(f"\n?? [gerenciar_usuario_especifico] FUN��O CHAMADA - ID: {usuario_id}, M�todo: {request.method}")
     if request.method == 'GET':
         try:
             print(f"\n{'='*80}")
-            print(f"   🔍 GET /api/usuarios/{usuario_id}")
+            print(f"   ?? GET /api/usuarios/{usuario_id}")
             print(f"{'='*80}")
-            print(f"   🔍 Buscando usuário ID {usuario_id}...")
+            print(f"   ?? Buscando usu�rio ID {usuario_id}...")
             
             usuario = auth_db.obter_usuario(usuario_id)
-            print(f"   📊 Tipo do resultado: {type(usuario)}")
-            print(f"   📊 Resultado: {usuario if usuario else 'NÃO ENCONTRADO'}")
+            print(f"   ?? Tipo do resultado: {type(usuario)}")
+            print(f"   ?? Resultado: {usuario if usuario else 'N�O ENCONTRADO'}")
             
             if not usuario:
-                print(f"   ❌ Usuário {usuario_id} não encontrado")
-                return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
+                print(f"   ? Usu�rio {usuario_id} n�o encontrado")
+                return jsonify({'success': False, 'error': 'Usu�rio n�o encontrado'}), 404
             
-            print(f"   🔄 Convertendo para dict...")
-            # Converter para dict se necessário
+            print(f"   ?? Convertendo para dict...")
+            # Converter para dict se necess�rio
             usuario_dict = dict(usuario) if not isinstance(usuario, dict) else usuario.copy()
-            print(f"   ✅ Dict criado. Keys: {list(usuario_dict.keys())}")
+            print(f"   ? Dict criado. Keys: {list(usuario_dict.keys())}")
             
-            print(f"   🔄 Serializando campos datetime...")
+            print(f"   ?? Serializando campos datetime...")
             # Converter datetime para string (JSON serializable)
             datetime_fields = ['created_at', 'ultima_sessao', 'updated_at', 'ultimo_acesso']
             for field in datetime_fields:
                 if field in usuario_dict and usuario_dict[field]:
                     try:
-                        print(f"      - {field}: {type(usuario_dict[field])} → str")
+                        print(f"      - {field}: {type(usuario_dict[field])} ? str")
                         usuario_dict[field] = str(usuario_dict[field])
                     except Exception as e:
-                        print(f"      ⚠️ Erro ao serializar {field}: {e}")
+                        print(f"      ?? Erro ao serializar {field}: {e}")
                         usuario_dict[field] = None
             
-            # Garantir que empresa_id é int ou None
+            # Garantir que empresa_id � int ou None
             if 'empresa_id' in usuario_dict and usuario_dict['empresa_id']:
                 try:
                     usuario_dict['empresa_id'] = int(usuario_dict['empresa_id'])
                 except:
                     usuario_dict['empresa_id'] = None
             
-            print(f"   🔄 Obtendo permissões...")
-            # Incluir permissões
+            print(f"   ?? Obtendo permiss�es...")
+            # Incluir permiss�es
             permissoes = auth_db.obter_permissoes_usuario(usuario_id)
-            print(f"   📊 Permissões: {permissoes}")
+            print(f"   ?? Permiss�es: {permissoes}")
             usuario_dict['permissoes'] = permissoes
             
-            print(f"   🔄 Serializando para JSON...")
+            print(f"   ?? Serializando para JSON...")
             result = jsonify(usuario_dict)
-            print(f"   ✅ JSON criado com sucesso")
+            print(f"   ? JSON criado com sucesso")
             print(f"{'='*80}\n")
             return result
             
         except Exception as e:
             print(f"\n{'='*80}")
-            print(f"❌ ERRO ao obter usuário {usuario_id}")
-            print(f"❌ Tipo do erro: {type(e).__name__}")
-            print(f"❌ Mensagem: {e}")
-            print(f"❌ Stacktrace:")
+            print(f"? ERRO ao obter usu�rio {usuario_id}")
+            print(f"? Tipo do erro: {type(e).__name__}")
+            print(f"? Mensagem: {e}")
+            print(f"? Stacktrace:")
             import traceback
             traceback.print_exc()
             print(f"{'='*80}\n")
@@ -1673,13 +1673,13 @@ def gerenciar_usuario_especifico(usuario_id):
             admin = request.usuario
             
             print(f"\n{'='*80}")
-            print(f"📝 PUT /api/usuarios/{usuario_id} - INICIANDO")
+            print(f"?? PUT /api/usuarios/{usuario_id} - INICIANDO")
             print(f"{'='*80}")
-            print(f"📥 DADOS RECEBIDOS DO FRONTEND:")
+            print(f"?? DADOS RECEBIDOS DO FRONTEND:")
             print(f"   - Tipo de data: {type(data)}")
             print(f"   - Keys presentes: {list(data.keys()) if data else 'NENHUMA'}")
             print(f"   - JSON completo: {json.dumps(data, indent=2, default=str)}")
-            print(f"\n🔍 CAMPOS ESPECÍFICOS:")
+            print(f"\n?? CAMPOS ESPEC�FICOS:")
             print(f"   - username: {data.get('username')} (tipo: {type(data.get('username'))})")
             print(f"   - nome_completo: {data.get('nome_completo')} (tipo: {type(data.get('nome_completo'))})")
             print(f"   - email: {data.get('email')} (tipo: {type(data.get('email'))})")
@@ -1690,37 +1690,37 @@ def gerenciar_usuario_especifico(usuario_id):
             print(f"   - empresas_ids: {data.get('empresas_ids')} (tipo: {type(data.get('empresas_ids'))})")
             print(f"   - empresa_id_padrao: {data.get('empresa_id_padrao')} (tipo: {type(data.get('empresa_id_padrao'))})")
             print(f"   - permissoes: {data.get('permissoes')} (tipo: {type(data.get('permissoes'))})")
-            print(f"   - password presente: {'Sim' if 'password' in data else 'Não'}")
+            print(f"   - password presente: {'Sim' if 'password' in data else 'N�o'}")
             
-            # Validar força da senha se estiver sendo alterada
+            # Validar for�a da senha se estiver sendo alterada
             if 'password' in data and data['password']:
-                print(f"\n🔐 Validando senha...")
+                print(f"\n?? Validando senha...")
                 from auth_functions import validar_senha_forte
                 valida, mensagem = validar_senha_forte(data['password'])
                 if not valida:
-                    print(f"❌ Senha fraca: {mensagem}")
+                    print(f"? Senha fraca: {mensagem}")
                     print(f"{'='*80}\n")
                     return jsonify({
                         'success': False,
                         'error': f'Senha fraca: {mensagem}'
                     }), 400
-                print(f"✅ Senha válida")
+                print(f"? Senha v�lida")
             
-            print(f"\n🔄 Chamando auth_db.atualizar_usuario({usuario_id}, data)...")
-            print(f"   Função: {auth_db.atualizar_usuario}")
-            # Atualizar dados do usuário
+            print(f"\n?? Chamando auth_db.atualizar_usuario({usuario_id}, data)...")
+            print(f"   Fun��o: {auth_db.atualizar_usuario}")
+            # Atualizar dados do usu�rio
             success = auth_db.atualizar_usuario(usuario_id, data)
             print(f"   Resultado: {success} (tipo: {type(success)})")
             
             if not success:
-                print(f"❌ Usuário {usuario_id} não encontrado")
-                return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
+                print(f"? Usu�rio {usuario_id} n�o encontrado")
+                return jsonify({'success': False, 'error': 'Usu�rio n�o encontrado'}), 404
             
-            print(f"✅ Dados do usuário atualizados")
+            print(f"? Dados do usu�rio atualizados")
             
-            # 🏢 MULTI-EMPRESA: Atualizar vínculos se empresas_ids fornecido
+            # ?? MULTI-EMPRESA: Atualizar v�nculos se empresas_ids fornecido
             if 'empresas_ids' in data:
-                print(f"🏢 Atualizando vínculos multi-empresa...")
+                print(f"?? Atualizando v�nculos multi-empresa...")
                 from auth_functions import (
                     vincular_usuario_empresa,
                     remover_usuario_empresa,
@@ -1731,27 +1731,27 @@ def gerenciar_usuario_especifico(usuario_id):
                 empresa_id_padrao = data.get('empresa_id_padrao')
                 
                 print(f"   - Empresas selecionadas: {empresas_ids}")
-                print(f"   - Empresa padrão: {empresa_id_padrao}")
+                print(f"   - Empresa padr�o: {empresa_id_padrao}")
                 
                 # Obter empresas atuais
-                print(f"   🔍 Obtendo empresas atuais...")
+                print(f"   ?? Obtendo empresas atuais...")
                 empresas_atuais = listar_empresas_usuario(usuario_id, auth_db)
                 empresas_atuais_ids = [e['empresa_id'] for e in empresas_atuais]
                 print(f"   - Empresas atuais: {empresas_atuais_ids}")
                 
-                # Remover vínculos que não estão mais selecionados
+                # Remover v�nculos que n�o est�o mais selecionados
                 for empresa_id_atual in empresas_atuais_ids:
                     if empresa_id_atual not in empresas_ids:
-                        print(f"🗑️ Removendo vínculo com empresa {empresa_id_atual}")
+                        print(f"??? Removendo v�nculo com empresa {empresa_id_atual}")
                         remover_usuario_empresa(usuario_id, empresa_id_atual, auth_db)
                 
-                # Adicionar novos vínculos
+                # Adicionar novos v�nculos
                 for empresa_id in empresas_ids:
                     if empresa_id not in empresas_atuais_ids:
                         is_padrao = (empresa_id == empresa_id_padrao)
                         permissoes_para_empresa = data.get('permissoes', [])
-                        print(f"➕ Adicionando vínculo com empresa {empresa_id} (padrão: {is_padrao})")
-                        print(f"   📋 Permissões a serem salvas: {permissoes_para_empresa}")
+                        print(f"? Adicionando v�nculo com empresa {empresa_id} (padr�o: {is_padrao})")
+                        print(f"   ?? Permiss�es a serem salvas: {permissoes_para_empresa}")
                         
                         vincular_usuario_empresa(
                             usuario_id=usuario_id,
@@ -1763,16 +1763,16 @@ def gerenciar_usuario_especifico(usuario_id):
                             db=auth_db
                         )
                     else:
-                        # Atualizar empresa padrão se necessário
+                        # Atualizar empresa padr�o se necess�rio
                         from auth_functions import atualizar_usuario_empresa
                         is_padrao = (empresa_id == empresa_id_padrao)
                         permissoes_para_empresa = data.get('permissoes', [])
                         
-                        # Obter vínculo atual
+                        # Obter v�nculo atual
                         vinculo_atual = next((e for e in empresas_atuais if e['empresa_id'] == empresa_id), None)
                         
-                        print(f"🔄 Atualizando vínculo com empresa {empresa_id} (padrão: {is_padrao})")
-                        print(f"   📋 Permissões a serem salvas: {permissoes_para_empresa}")
+                        print(f"?? Atualizando v�nculo com empresa {empresa_id} (padr�o: {is_padrao})")
+                        print(f"   ?? Permiss�es a serem salvas: {permissoes_para_empresa}")
                         
                         atualizar_usuario_empresa(
                             usuario_id=usuario_id,
@@ -1783,40 +1783,40 @@ def gerenciar_usuario_especifico(usuario_id):
                             db=auth_db
                         )
             
-            # Atualizar permissões globais se fornecidas (legado)
+            # Atualizar permiss�es globais se fornecidas (legado)
             if 'permissoes' in data:
-                print(f"🔑 Atualizando permissões globais...")
-                print(f"   - Permissões: {data['permissoes']}")
+                print(f"?? Atualizando permiss�es globais...")
+                print(f"   - Permiss�es: {data['permissoes']}")
                 auth_db.sincronizar_permissoes_usuario(
                     usuario_id,
                     data['permissoes'],
                     admin['id']
                 )
-                print(f"   ✅ Permissões atualizadas")
+                print(f"   ? Permiss�es atualizadas")
             
-            # Registrar atualização
+            # Registrar atualiza��o
             auth_db.registrar_log_acesso(
                 usuario_id=admin['id'],
                 acao='update_user',
-                descricao=f'Usuário atualizado: ID {usuario_id}',
+                descricao=f'Usu�rio atualizado: ID {usuario_id}',
                 ip_address=request.remote_addr,
                 sucesso=True
             )
             
-            print(f"✅ Usuário {usuario_id} atualizado com sucesso!")
+            print(f"? Usu�rio {usuario_id} atualizado com sucesso!")
             print(f"{'='*80}\n")
             
             return jsonify({
                 'success': True,
-                'message': 'Usuário atualizado com sucesso'
+                'message': 'Usu�rio atualizado com sucesso'
             })
             
         except Exception as e:
             print(f"\n{'='*80}")
-            print(f"❌ ERRO ao atualizar usuário {usuario_id}")
-            print(f"❌ Tipo do erro: {type(e).__name__}")
-            print(f"❌ Mensagem: {e}")
-            print(f"❌ Stacktrace:")
+            print(f"? ERRO ao atualizar usu�rio {usuario_id}")
+            print(f"? Tipo do erro: {type(e).__name__}")
+            print(f"? Mensagem: {e}")
+            print(f"? Stacktrace:")
             import traceback
             traceback.print_exc()
             print(f"{'='*80}\n")
@@ -1828,60 +1828,60 @@ def gerenciar_usuario_especifico(usuario_id):
             success = auth_db.deletar_usuario(usuario_id)
             
             if not success:
-                return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
+                return jsonify({'success': False, 'error': 'Usu�rio n�o encontrado'}), 404
             
-            # Registrar exclusão
+            # Registrar exclus�o
             auth_db.registrar_log_acesso(
                 usuario_id=admin['id'],
                 acao='delete_user',
-                descricao=f'Usuário deletado: ID {usuario_id}',
+                descricao=f'Usu�rio deletado: ID {usuario_id}',
                 ip_address=request.remote_addr,
                 sucesso=True
             )
             
             return jsonify({
                 'success': True,
-                'message': 'Usuário deletado com sucesso'
+                'message': 'Usu�rio deletado com sucesso'
             })
             
         except Exception as e:
-            print(f"❌ Erro ao deletar usuário: {e}")
+            print(f"? Erro ao deletar usu�rio: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/usuarios/<int:usuario_id>/permissoes', methods=['PUT'])
 @require_admin
 def atualizar_permissoes_usuario(usuario_id):
-    """Atualizar apenas as permissões de um usuário"""
-    print(f"\n🔐 [atualizar_permissoes_usuario] FUNÇÃO CHAMADA - ID: {usuario_id}")
+    """Atualizar apenas as permiss�es de um usu�rio"""
+    print(f"\n?? [atualizar_permissoes_usuario] FUN��O CHAMADA - ID: {usuario_id}")
     try:
         data = request.json
         permissoes = data.get('permissoes', [])
         
-        print(f"📋 Permissões recebidas: {permissoes}")
+        print(f"?? Permiss�es recebidas: {permissoes}")
         
-        # Verificar se usuário existe
+        # Verificar se usu�rio existe
         usuario = auth_db.obter_usuario(usuario_id)
         if not usuario:
-            print(f"❌ Usuário {usuario_id} não encontrado")
-            return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
+            print(f"? Usu�rio {usuario_id} n�o encontrado")
+            return jsonify({'success': False, 'error': 'Usu�rio n�o encontrado'}), 404
         
-        # Atualizar permissões
-        print(f"🔄 Atualizando permissões...")
+        # Atualizar permiss�es
+        print(f"?? Atualizando permiss�es...")
         success = auth_db.atualizar_permissoes_usuario(usuario_id, permissoes)
         
         if success:
-            print(f"✅ Permissões atualizadas com sucesso!")
+            print(f"? Permiss�es atualizadas com sucesso!")
             return jsonify({
                 'success': True,
-                'message': 'Permissões atualizadas com sucesso'
+                'message': 'Permiss�es atualizadas com sucesso'
             })
         else:
-            print(f"❌ Falha ao atualizar permissões")
-            return jsonify({'success': False, 'error': 'Falha ao atualizar permissões'}), 500
+            print(f"? Falha ao atualizar permiss�es")
+            return jsonify({'success': False, 'error': 'Falha ao atualizar permiss�es'}), 500
             
     except Exception as e:
-        print(f"❌ Erro ao atualizar permissões: {e}")
+        print(f"? Erro ao atualizar permiss�es: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1890,45 +1890,45 @@ def atualizar_permissoes_usuario(usuario_id):
 @app.route('/api/permissoes', methods=['GET'])
 @require_admin
 def listar_permissoes():
-    """Listar todas as permissões disponíveis"""
-    print(f"\n🔒 [listar_permissoes] FUNÇÃO CHAMADA")
+    """Listar todas as permiss�es dispon�veis"""
+    print(f"\n?? [listar_permissoes] FUN��O CHAMADA")
     try:
         categoria = request.args.get('categoria')
         permissoes = auth_db.listar_permissoes(categoria)
         return jsonify(permissoes)
     except Exception as e:
-        print(f"❌ Erro ao listar permissões: {e}")
+        print(f"? Erro ao listar permiss�es: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-# === ROTAS DE CONTAS BANCÁRIAS ===
+# === ROTAS DE CONTAS BANC�RIAS ===
 
 @app.route('/api/contas', methods=['GET'])
 @require_permission('contas_view')
 @aplicar_filtro_cliente
 def listar_contas():
-    """Lista todas as contas bancárias com saldo real e filtro de multi-tenancy"""
+    """Lista todas as contas banc�rias com saldo real e filtro de multi-tenancy"""
     try:
-        # 🔒 CORREÇÃO: Usar empresa_id da sessão ao invés de proprietario_id
+        # ?? CORRE��O: Usar empresa_id da sess�o ao inv�s de proprietario_id
         from flask import session
         empresa_id = session.get('empresa_id')
         
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 403
         
         contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
         
-        # Preparar resposta - CALCULAR saldo real com base nos lançamentos pagos OU extrato bancário
+        # Preparar resposta - CALCULAR saldo real com base nos lan�amentos pagos OU extrato banc�rio
         contas_com_saldo = []
         for c in contas:
-            # 🏦 PRIORIDADE 1: Buscar saldo do extrato bancário (fonte de verdade)
+            # ?? PRIORIDADE 1: Buscar saldo do extrato banc�rio (fonte de verdade)
             saldo_real = None
             
             try:
                 with get_db_connection(empresa_id=empresa_id) as conn:
                     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                     
-                    # Verificar se existem transações de extrato para esta conta
+                    # Verificar se existem transa��es de extrato para esta conta
                     cursor.execute("""
                         SELECT saldo, data, id
                         FROM transacoes_extrato
@@ -1941,12 +1941,12 @@ def listar_contas():
                     ultima_transacao_extrato = cursor.fetchone()
                     
                     if ultima_transacao_extrato and ultima_transacao_extrato['saldo'] is not None:
-                        # ✅ USAR SALDO DO EXTRATO (mais recente e confiável)
+                        # ? USAR SALDO DO EXTRATO (mais recente e confi�vel)
                         saldo_real = float(ultima_transacao_extrato['saldo'])
-                        print(f"🏦 Conta {c.nome}: Saldo do extrato = R$ {saldo_real:.2f} (data: {ultima_transacao_extrato['data']})")
+                        print(f"?? Conta {c.nome}: Saldo do extrato = R$ {saldo_real:.2f} (data: {ultima_transacao_extrato['data']})")
                     else:
-                        # 💰 FALLBACK: Calcular com base nos lançamentos manuais
-                        print(f"📝 Conta {c.nome}: Sem extrato, calculando com lançamentos...")
+                        # ?? FALLBACK: Calcular com base nos lan�amentos manuais
+                        print(f"?? Conta {c.nome}: Sem extrato, calculando com lan�amentos...")
                         
                         # Somar receitas pagas
                         cursor.execute("""
@@ -1974,12 +1974,12 @@ def listar_contas():
                         
                         # Calcular saldo real
                         saldo_real = float(c.saldo_inicial) + total_receitas - total_despesas
-                        print(f"💰 Conta {c.nome}: Saldo calculado = R$ {saldo_real:.2f} (inicial: {c.saldo_inicial} + receitas: {total_receitas} - despesas: {total_despesas})")
+                        print(f"?? Conta {c.nome}: Saldo calculado = R$ {saldo_real:.2f} (inicial: {c.saldo_inicial} + receitas: {total_receitas} - despesas: {total_despesas})")
                     
                     cursor.close()
                     
             except Exception as e:
-                print(f"⚠️ Erro ao calcular saldo real da conta {c.nome}: {e}")
+                print(f"?? Erro ao calcular saldo real da conta {c.nome}: {e}")
                 import traceback
                 traceback.print_exc()
                 # Em caso de erro, usar saldo_inicial
@@ -2003,7 +2003,7 @@ def listar_contas():
             'message': 'Nenhuma conta cadastrada' if len(contas_com_saldo) == 0 else None
         })
     except Exception as e:
-        print(f"❌ Erro em /api/contas: {e}")
+        print(f"? Erro em /api/contas: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -2014,28 +2014,28 @@ def listar_contas():
 @require_permission('contas_create')
 @aplicar_filtro_cliente
 def adicionar_conta():
-    """Adiciona uma nova conta bancária"""
+    """Adiciona uma nova conta banc�ria"""
     try:
         from flask import session
         
-        # 🔒 Obter empresa_id da sessão (OBRIGATÓRIO)
+        # ?? Obter empresa_id da sess�o (OBRIGAT�RIO)
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 403
         
         data = request.json
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         if not data.get('nome'):
-            return jsonify({'success': False, 'error': 'Nome da conta é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'Nome da conta � obrigat�rio'}), 400
         if not data.get('banco'):
-            return jsonify({'success': False, 'error': 'Banco é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'Banco � obrigat�rio'}), 400
         
-        # 👥 proprietario_id = ID do USUÁRIO logado (se aplicável), não empresa_id!
+        # ?? proprietario_id = ID do USU�RIO logado (se aplic�vel), n�o empresa_id!
         usuario = get_usuario_logado()
         proprietario_id = usuario.get('id') if usuario.get('tipo') == 'cliente' else None
         
-        print(f"\n🔍 [POST /api/contas] Adicionando conta:")
+        print(f"\n?? [POST /api/contas] Adicionando conta:")
         print(f"   - empresa_id: {empresa_id}")
         print(f"   - proprietario_id (usuario): {proprietario_id}")
         print(f"   - nome: {data.get('nome')}")
@@ -2044,11 +2044,11 @@ def adicionar_conta():
         # Verificar contas existentes da mesma empresa antes de adicionar
         contas_existentes = db.listar_contas_por_empresa(empresa_id=empresa_id)
         
-        # Verificar se já existe conta com mesmo nome na mesma empresa
+        # Verificar se j� existe conta com mesmo nome na mesma empresa
         for c in contas_existentes:
             if c.nome == data['nome']:
-                print(f"   ❌ CONFLITO: Conta '{data['nome']}' já existe na empresa {empresa_id}!")
-                return jsonify({'success': False, 'error': f'Já existe uma conta cadastrada com: Banco: {data["banco"]}, Agência: {data["agencia"]}, Conta: {data["conta"]}'}), 400
+                print(f"   ? CONFLITO: Conta '{data['nome']}' j� existe na empresa {empresa_id}!")
+                return jsonify({'success': False, 'error': f'J� existe uma conta cadastrada com: Banco: {data["banco"]}, Ag�ncia: {data["agencia"]}, Conta: {data["conta"]}'}), 400
         
         conta = ContaBancaria(
             nome=data['nome'],  # type: ignore
@@ -2061,29 +2061,29 @@ def adicionar_conta():
         )
         
         conta_id = db.adicionar_conta(conta, proprietario_id=proprietario_id, empresa_id=empresa_id)
-        print(f"   ✅ Conta criada com ID: {conta_id}")
+        print(f"   ? Conta criada com ID: {conta_id}")
         return jsonify({'success': True, 'id': conta_id})
     except Exception as e:
-        print(f"   ❌ Erro ao criar conta: {str(e)}")
+        print(f"   ? Erro ao criar conta: {str(e)}")
         import traceback
         traceback.print_exc()
         error_msg = str(e)
         if 'UNIQUE constraint' in error_msg:
-            error_msg = 'Já existe uma conta com este nome'
+            error_msg = 'J� existe uma conta com este nome'
         elif 'foreign key constraint' in error_msg.lower():
-            error_msg = 'Erro ao vincular conta: proprietario_id inválido'
+            error_msg = 'Erro ao vincular conta: proprietario_id inv�lido'
         return jsonify({'success': False, 'error': error_msg}), 400
 
 
 @app.route('/api/contas/<path:nome>', methods=['GET', 'PUT', 'DELETE', 'OPTIONS'])  # type: ignore
 @require_permission('contas_view')
 def modificar_conta(nome):
-    """Busca, atualiza ou remove uma conta bancária"""
+    """Busca, atualiza ou remove uma conta banc�ria"""
     
-    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    # ?? VALIDA��O DE SEGURAN�A
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'erro': 'Empresa não selecionada'}), 403
+        return jsonify({'erro': 'Empresa n�o selecionada'}), 403
     
     # Decode do nome que vem URL-encoded
     from urllib.parse import unquote
@@ -2107,7 +2107,7 @@ def modificar_conta(nome):
                         'tipo_saldo_inicial': conta.tipo_saldo_inicial,
                         'data_inicio': conta.data_inicio.isoformat() if hasattr(conta.data_inicio, 'isoformat') else str(conta.data_inicio)
                     })
-            return jsonify({'success': False, 'error': 'Conta não encontrada'}), 404
+            return jsonify({'success': False, 'error': 'Conta n�o encontrada'}), 404
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 400
     
@@ -2116,16 +2116,16 @@ def modificar_conta(nome):
             data = request.json
             
             print(f"\n{'='*80}")
-            print(f"🔧 PUT /api/contas/{nome}")
+            print(f"?? PUT /api/contas/{nome}")
             print(f"{'='*80}")
-            print(f"📥 Nome da conta a atualizar (parâmetro URL): {nome}")
-            print(f"📦 Dados recebidos: {data}")
+            print(f"?? Nome da conta a atualizar (par�metro URL): {nome}")
+            print(f"?? Dados recebidos: {data}")
             print(f"   - Nome novo: {data.get('nome')}")
             print(f"   - Banco: {data.get('banco')}")
-            print(f"   - Agência: {data.get('agencia')}")
+            print(f"   - Ag�ncia: {data.get('agencia')}")
             print(f"   - Conta: {data.get('conta')}")
             print(f"   - Saldo inicial: {data.get('saldo_inicial')}")
-            print(f"   - Data início: {data.get('data_inicio')}")
+            print(f"   - Data in�cio: {data.get('data_inicio')}")
             print(f"   - Tipo saldo: {data.get('tipo_saldo_inicial')}")
             
             conta = ContaBancaria(
@@ -2138,13 +2138,13 @@ def modificar_conta(nome):
                 data_inicio=data.get('data_inicio')  # type: ignore
             )
             
-            print(f"✅ Objeto ContaBancaria criado:")
+            print(f"? Objeto ContaBancaria criado:")
             print(f"   - Nome: {conta.nome}")
-            print(f"📤 Chamando db.atualizar_conta(nome_original='{nome}', conta={conta.nome})")
+            print(f"?? Chamando db.atualizar_conta(nome_original='{nome}', conta={conta.nome})")
             
             success = db.atualizar_conta(nome, conta)
             
-            print(f"📡 Resultado: success={success}")
+            print(f"?? Resultado: success={success}")
             print(f"{'='*80}\n")
             
             return jsonify({'success': success})
@@ -2153,36 +2153,36 @@ def modificar_conta(nome):
             traceback.print_exc()
             error_msg = str(e)
             if 'UNIQUE constraint' in error_msg:
-                error_msg = 'Já existe uma conta com este nome'
+                error_msg = 'J� existe uma conta com este nome'
             return jsonify({'success': False, 'error': error_msg}), 400
     
     elif request.method == 'DELETE':
         try:
             print(f"\n{'='*80}")
-            print(f"🗑️ DELETE /api/contas/{nome}")
+            print(f"??? DELETE /api/contas/{nome}")
             print(f"{'='*80}")
             
-            # Verificar se há lançamentos vinculados
+            # Verificar se h� lan�amentos vinculados
             lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
             lancamentos_conta = [l for l in lancamentos if l.conta_bancaria == nome]
             
-            print(f"📊 Lançamentos vinculados à conta: {len(lancamentos_conta)}")
+            print(f"?? Lan�amentos vinculados � conta: {len(lancamentos_conta)}")
             
             if lancamentos_conta:
-                print(f"❌ Exclusão bloqueada: conta possui {len(lancamentos_conta)} lançamento(s)")
+                print(f"? Exclus�o bloqueada: conta possui {len(lancamentos_conta)} lan�amento(s)")
                 print(f"{'='*80}\n")
                 return jsonify({
                     'success': False, 
-                    'error': f'Não é possível excluir esta conta. Ela possui {len(lancamentos_conta)} lançamento(s) vinculado(s). Use "Inativar" em vez de excluir.'
+                    'error': f'N�o � poss�vel excluir esta conta. Ela possui {len(lancamentos_conta)} lan�amento(s) vinculado(s). Use "Inativar" em vez de excluir.'
                 }), 400
             
-            # Verificar se há transações de extrato vinculadas
+            # Verificar se h� transa��es de extrato vinculadas
             import psycopg2.extras
             
             conn = db.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
-            # Contar transações de extrato vinculadas à conta
+            # Contar transa��es de extrato vinculadas � conta
             cursor.execute("""
                 SELECT COUNT(*) as total 
                 FROM transacoes_extrato 
@@ -2195,20 +2195,20 @@ def modificar_conta(nome):
             cursor.close()
             conn.close()
             
-            print(f"📊 Transações de extrato vinculadas: {total_extratos}")
+            print(f"?? Transa��es de extrato vinculadas: {total_extratos}")
             
             if total_extratos > 0:
-                print(f"❌ Exclusão bloqueada: conta possui {total_extratos} transação(ões) de extrato")
+                print(f"? Exclus�o bloqueada: conta possui {total_extratos} transa��o(�es) de extrato")
                 print(f"{'='*80}\n")
                 return jsonify({
                     'success': False,
-                    'error': f'Não é possível excluir esta conta. Ela possui {total_extratos} transação(ões) de extrato importada(s). Use "Inativar" em vez de excluir.'
+                    'error': f'N�o � poss�vel excluir esta conta. Ela possui {total_extratos} transa��o(�es) de extrato importada(s). Use "Inativar" em vez de excluir.'
                 }), 400
             
-            # Se não há movimentações, pode excluir
-            print(f"✅ Nenhuma movimentação encontrada. Excluindo conta...")
+            # Se n�o h� movimenta��es, pode excluir
+            print(f"? Nenhuma movimenta��o encontrada. Excluindo conta...")
             success = db.excluir_conta(nome)
-            print(f"📡 Resultado: success={success}")
+            print(f"?? Resultado: success={success}")
             print(f"{'='*80}\n")
             
             return jsonify({'success': success})
@@ -2221,18 +2221,18 @@ def modificar_conta(nome):
 @app.route('/api/contas/<path:nome>/toggle-ativo', methods=['POST'])
 @require_permission('contas_edit')
 def toggle_ativo_conta(nome):
-    """Ativa ou inativa uma conta bancária"""
-    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    """Ativa ou inativa uma conta banc�ria"""
+    # ?? VALIDA��O DE SEGURAN�A
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'erro': 'Empresa não selecionada'}), 403
+        return jsonify({'erro': 'Empresa n�o selecionada'}), 403
     
     try:
         from urllib.parse import unquote
         nome = unquote(nome)
         
         print(f"\n{'='*80}")
-        print(f"🔄 POST /api/contas/{nome}/toggle-ativo")
+        print(f"?? POST /api/contas/{nome}/toggle-ativo")
         print(f"{'='*80}")
         
         # Buscar conta atual
@@ -2244,21 +2244,21 @@ def toggle_ativo_conta(nome):
                 break
         
         if not conta_atual:
-            print(f"❌ Conta não encontrada")
+            print(f"? Conta n�o encontrada")
             print(f"{'='*80}\n")
-            return jsonify({'success': False, 'error': 'Conta não encontrada'}), 404
+            return jsonify({'success': False, 'error': 'Conta n�o encontrada'}), 404
         
         # Inverter status
         novo_status = not conta_atual.ativa
-        print(f"📊 Status atual: {conta_atual.ativa}")
-        print(f"📊 Novo status: {novo_status}")
+        print(f"?? Status atual: {conta_atual.ativa}")
+        print(f"?? Novo status: {novo_status}")
         
         # Atualizar conta com novo status
         conta_atual.ativa = novo_status
         success = db.atualizar_conta(nome, conta_atual)
         
         acao = "ativada" if novo_status else "inativada"
-        print(f"✅ Conta {acao} com sucesso")
+        print(f"? Conta {acao} com sucesso")
         print(f"{'='*80}\n")
         
         return jsonify({
@@ -2276,17 +2276,17 @@ def toggle_ativo_conta(nome):
 @app.route('/api/transferencias', methods=['POST'])
 @require_permission('lancamentos_create')
 def criar_transferencia():
-    """Cria uma transferência entre contas bancárias"""
+    """Cria uma transfer�ncia entre contas banc�rias"""
     try:
         data = request.json
         empresa_id = data.get('empresa_id') if data else None
         
         # Validar dados
         if not data or not data.get('conta_origem') or not data.get('conta_destino'):
-            return jsonify({'success': False, 'error': 'Contas de origem e destino são obrigatórias'}), 400
+            return jsonify({'success': False, 'error': 'Contas de origem e destino s�o obrigat�rias'}), 400
         
         if data['conta_origem'] == data['conta_destino']:
-            return jsonify({'success': False, 'error': 'Conta de origem e destino não podem ser iguais'}), 400
+            return jsonify({'success': False, 'error': 'Conta de origem e destino n�o podem ser iguais'}), 400
         
         valor = float(data.get('valor', 0))
         if valor <= 0:
@@ -2297,39 +2297,39 @@ def criar_transferencia():
         conta_destino = db.buscar_conta(data['conta_destino'])
         
         if not conta_origem:
-            return jsonify({'success': False, 'error': 'Conta de origem não encontrada'}), 404
+            return jsonify({'success': False, 'error': 'Conta de origem n�o encontrada'}), 404
         if not conta_destino:
-            return jsonify({'success': False, 'error': 'Conta de destino não encontrada'}), 404
+            return jsonify({'success': False, 'error': 'Conta de destino n�o encontrada'}), 404
         
-        # Validar se as contas estão ativas
+        # Validar se as contas est�o ativas
         if hasattr(conta_origem, 'ativa') and not conta_origem.ativa:
-            print(f"❌ Tentativa de criar transferência com conta origem inativa: {conta_origem.nome}")
+            print(f"? Tentativa de criar transfer�ncia com conta origem inativa: {conta_origem.nome}")
             return jsonify({
                 'success': False,
-                'error': f'Não é possível criar transferência. A conta de origem "{conta_origem.nome}" está inativa. Reative a conta antes de criar transferências.'
+                'error': f'N�o � poss�vel criar transfer�ncia. A conta de origem "{conta_origem.nome}" est� inativa. Reative a conta antes de criar transfer�ncias.'
             }), 400
         
         if hasattr(conta_destino, 'ativa') and not conta_destino.ativa:
-            print(f"❌ Tentativa de criar transferência com conta destino inativa: {conta_destino.nome}")
+            print(f"? Tentativa de criar transfer�ncia com conta destino inativa: {conta_destino.nome}")
             return jsonify({
                 'success': False,
-                'error': f'Não é possível criar transferência. A conta de destino "{conta_destino.nome}" está inativa. Reative a conta antes de criar transferências.'
+                'error': f'N�o � poss�vel criar transfer�ncia. A conta de destino "{conta_destino.nome}" est� inativa. Reative a conta antes de criar transfer�ncias.'
             }), 400
         
         if not conta_origem:
-            return jsonify({'success': False, 'error': 'Conta de origem não encontrada'}), 404
+            return jsonify({'success': False, 'error': 'Conta de origem n�o encontrada'}), 404
         if not conta_destino:
-            return jsonify({'success': False, 'error': 'Conta de destino não encontrada'}), 404
+            return jsonify({'success': False, 'error': 'Conta de destino n�o encontrada'}), 404
         
-        # Criar data da transferência
+        # Criar data da transfer�ncia
         data_transferencia = datetime.fromisoformat(data['data']) if data.get('data') else datetime.now()
         
-        # Criar lançamento de transferência
+        # Criar lan�amento de transfer�ncia
         lancamento = Lancamento(
-            descricao=f"Transferência: {conta_origem.nome} → {conta_destino.nome}",
+            descricao=f"Transfer�ncia: {conta_origem.nome} ? {conta_destino.nome}",
             valor=valor,
             tipo=TipoLancamento.TRANSFERENCIA,
-            categoria="Transferência Interna",
+            categoria="Transfer�ncia Interna",
             data_vencimento=data_transferencia,
             data_pagamento=data_transferencia,
             conta_bancaria=data['conta_origem'],
@@ -2357,7 +2357,7 @@ def criar_transferencia():
 def listar_categorias():
     """Lista todas as categorias"""
     try:
-        # Filtrar por empresa_id da sessão
+        # Filtrar por empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         
         # Listar categorias da empresa
@@ -2366,23 +2366,23 @@ def listar_categorias():
             print(f'   [{i+1}] {c.nome} (tipo: {c.tipo.value}, empresa_id: {getattr(c, "empresa_id", "N/A")})')
         
         resultado = [{
-            'id': c.id,  # ✅ Adicionar ID da categoria
+            'id': c.id,  # ? Adicionar ID da categoria
             'nome': c.nome,
             'tipo': c.tipo.value,
             'subcategorias': c.subcategorias,
             'empresa_id': getattr(c, 'empresa_id', None)
         } for c in categorias]
         
-        print(f'   ✅ Retornando {len(resultado)} categorias')
+        print(f'   ? Retornando {len(resultado)} categorias')
         print('='*80 + '\n')
         return jsonify({
             'success': True,
             'data': resultado,
             'total': len(resultado),
-            'message': 'Nenhuma categoria cadastrada. Adicione categorias para organizar suas transações.' if len(resultado) == 0 else None
+            'message': 'Nenhuma categoria cadastrada. Adicione categorias para organizar suas transa��es.' if len(resultado) == 0 else None
         })
     except Exception as e:
-        print(f'   ❌ Erro ao listar categorias: {str(e)}')
+        print(f'   ? Erro ao listar categorias: {str(e)}')
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -2394,30 +2394,30 @@ def adicionar_categoria():
     """Adiciona uma nova categoria"""
     try:
         print('\n' + '='*80)
-        print('🆕 POST /api/categorias - NOVA CATEGORIA')
-        print(f'   📍 Headers: {dict(request.headers)}')
-        print(f'   🔑 CSRF Token no header: {request.headers.get("X-CSRFToken", "AUSENTE")}')
-        print(f'   🏢 Empresa na sessão: {session.get("empresa_id")}')
-        print(f'   👤 Usuário na sessão: {session.get("usuario_id")}')
+        print('?? POST /api/categorias - NOVA CATEGORIA')
+        print(f'   ?? Headers: {dict(request.headers)}')
+        print(f'   ?? CSRF Token no header: {request.headers.get("X-CSRFToken", "AUSENTE")}')
+        print(f'   ?? Empresa na sess�o: {session.get("empresa_id")}')
+        print(f'   ?? Usu�rio na sess�o: {session.get("usuario_id")}')
         
         data = request.json
-        print(f'   📦 Dados recebidos: {data}')
+        print(f'   ?? Dados recebidos: {data}')
         
-        # Extrair empresa_id da sessão
+        # Extrair empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            print('   ❌ ERRO: Empresa não identificada na sessão!')
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+            print('   ? ERRO: Empresa n�o identificada na sess�o!')
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 400
         
-        # Converter tipo para minúscula para compatibilidade com o enum
+        # Converter tipo para min�scula para compatibilidade com o enum
         tipo_str = data['tipo'].lower() if data and data.get('tipo') else 'receita'  # type: ignore
         
         # Normalizar nome: uppercase e trim
         nome_normalizado = data['nome'].strip().upper() if data and data.get('nome') else ''  # type: ignore
         
-        print(f'   📝 Nome normalizado: {nome_normalizado}')
-        print(f'   📊 Tipo: {tipo_str}')
-        print(f'   🏢 Empresa ID: {empresa_id}')
+        print(f'   ?? Nome normalizado: {nome_normalizado}')
+        print(f'   ?? Tipo: {tipo_str}')
+        print(f'   ?? Empresa ID: {empresa_id}')
         
         categoria = Categoria(
             nome=nome_normalizado,  # type: ignore
@@ -2427,19 +2427,19 @@ def adicionar_categoria():
         )
         categoria_id = db.adicionar_categoria(categoria)
         
-        print(f'   ✅ Categoria criada com ID: {categoria_id}')
+        print(f'   ? Categoria criada com ID: {categoria_id}')
         print('='*80 + '\n')
         
         return jsonify({'success': True, 'id': categoria_id})
     except Exception as e:
         import traceback
-        print('   ❌ ERRO ao adicionar categoria:')
+        print('   ? ERRO ao adicionar categoria:')
         traceback.print_exc()
         print('='*80 + '\n')
         
         error_msg = str(e)
         if 'UNIQUE constraint' in error_msg:
-            error_msg = 'Já existe uma categoria com este nome'
+            error_msg = 'J� existe uma categoria com este nome'
         return jsonify({'success': False, 'error': error_msg}), 400
 
 
@@ -2452,21 +2452,21 @@ def modificar_categoria(nome):
             data = request.json
             
             print('\n' + '='*80)
-            print('✏️ PUT /api/categorias - ATUALIZAR CATEGORIA')
-            print(f'   📍 Nome original (URL): {nome}')
-            print(f'   🔑 CSRF Token no header: {request.headers.get("X-CSRFToken", "AUSENTE")}')
-            print(f'   📦 Dados recebidos: {data}')
-            print(f'   🏢 Empresa na sessão: {session.get("empresa_id")}')
-            print(f'   👤 Usuário na sessão: {session.get("usuario_id")}')
+            print('?? PUT /api/categorias - ATUALIZAR CATEGORIA')
+            print(f'   ?? Nome original (URL): {nome}')
+            print(f'   ?? CSRF Token no header: {request.headers.get("X-CSRFToken", "AUSENTE")}')
+            print(f'   ?? Dados recebidos: {data}')
+            print(f'   ?? Empresa na sess�o: {session.get("empresa_id")}')
+            print(f'   ?? Usu�rio na sess�o: {session.get("usuario_id")}')
             
-            # Extrair empresa_id do request ou sessão
+            # Extrair empresa_id do request ou sess�o
             empresa_id = data.get('empresa_id') if data else None
             if not empresa_id:
                 empresa_id = session.get('empresa_id')
             
-            print(f'   🏢 empresa_id a ser usado: {empresa_id}')
+            print(f'   ?? empresa_id a ser usado: {empresa_id}')
             
-            # Converter tipo para minúscula para compatibilidade com o enum
+            # Converter tipo para min�scula para compatibilidade com o enum
             tipo_str = data['tipo'].lower() if data and data.get('tipo') else 'receita'  # type: ignore
             
             # Normalizar nome: uppercase e trim
@@ -2475,9 +2475,9 @@ def modificar_categoria(nome):
             # Se o nome mudou, precisamos atualizar com atualizar_nome_categoria primeiro
             nome_original_normalizado = nome.strip().upper()
             
-            print(f'   📝 Nome original normalizado: {nome_original_normalizado}')
-            print(f'   📝 Nome novo normalizado: {nome_normalizado}')
-            print(f'   🔄 Nome mudou? {nome_normalizado != nome_original_normalizado}')
+            print(f'   ?? Nome original normalizado: {nome_original_normalizado}')
+            print(f'   ?? Nome novo normalizado: {nome_normalizado}')
+            print(f'   ?? Nome mudou? {nome_normalizado != nome_original_normalizado}')
             
             # Criar objeto categoria com os novos dados
             categoria = Categoria(
@@ -2487,48 +2487,48 @@ def modificar_categoria(nome):
                 empresa_id=empresa_id  # type: ignore
             )
             
-            print(f'   💾 Atualizando categoria: {categoria.nome} (tipo: {categoria.tipo.value}, empresa: {categoria.empresa_id})')
-            print(f'   🔍 Usando nome_original para localizar: {nome_original_normalizado}')
+            print(f'   ?? Atualizando categoria: {categoria.nome} (tipo: {categoria.tipo.value}, empresa: {categoria.empresa_id})')
+            print(f'   ?? Usando nome_original para localizar: {nome_original_normalizado}')
             
-            # Passar nome_original para a função UPDATE usar no WHERE
+            # Passar nome_original para a fun��o UPDATE usar no WHERE
             success = db.atualizar_categoria(categoria, nome_original=nome_original_normalizado)
             
-            print(f'   {"✅" if success else "❌"} Resultado: {success}')
+            print(f'   {"?" if success else "?"} Resultado: {success}')
             print('='*80 + '\n')
             
             return jsonify({'success': success})
         except Exception as e:
             import traceback
-            print('   ❌ ERRO ao atualizar categoria:')
+            print('   ? ERRO ao atualizar categoria:')
             traceback.print_exc()
             print('='*80 + '\n')
             
             error_msg = str(e)
             if 'UNIQUE constraint' in error_msg:
-                error_msg = 'Já existe uma categoria com este nome'
+                error_msg = 'J� existe uma categoria com este nome'
             return jsonify({'success': False, 'error': error_msg}), 400
     
     elif request.method == 'DELETE':
         try:
             print('\n' + '='*80)
-            print('🗑️ DELETE /api/categorias - EXCLUIR CATEGORIA')
-            print(f'   📍 Nome (URL): {nome}')
-            print(f'   🔑 CSRF Token no header: {request.headers.get("X-CSRFToken", "AUSENTE")}')
-            print(f'   👤 Usuário: {session.get("usuario_id")}')
-            print(f'   🏢 Empresa: {session.get("empresa_id")}')
+            print('??? DELETE /api/categorias - EXCLUIR CATEGORIA')
+            print(f'   ?? Nome (URL): {nome}')
+            print(f'   ?? CSRF Token no header: {request.headers.get("X-CSRFToken", "AUSENTE")}')
+            print(f'   ?? Usu�rio: {session.get("usuario_id")}')
+            print(f'   ?? Empresa: {session.get("empresa_id")}')
             
             # Normalizar nome
             nome_normalizado = nome.strip().upper()
-            print(f'   📝 Nome normalizado: {nome_normalizado}')
+            print(f'   ?? Nome normalizado: {nome_normalizado}')
             
             success = db.excluir_categoria(nome)
             
-            print(f'   {"✅" if success else "❌"} Resultado: {success}')
+            print(f'   {"?" if success else "?"} Resultado: {success}')
             print('='*80 + '\n')
             
             return jsonify({'success': success})
         except Exception as e:
-            print('   ❌ ERRO ao excluir categoria:')
+            print('   ? ERRO ao excluir categoria:')
             print(f'   Mensagem: {str(e)}')
             import traceback
             traceback.print_exc()
@@ -2537,45 +2537,45 @@ def modificar_categoria(nome):
             return jsonify({'success': False, 'error': str(e)}), 400
 
 
-# === IMPORTAÇÃO DE CATEGORIAS ENTRE EMPRESAS ===
+# === IMPORTA��O DE CATEGORIAS ENTRE EMPRESAS ===
 
 @app.route('/api/categorias/empresas-disponiveis', methods=['GET'])
 @require_permission('categorias_view')
 def listar_empresas_com_categorias():
-    """Lista empresas do usuário com suas categorias para importação"""
+    """Lista empresas do usu�rio com suas categorias para importa��o"""
     try:
         usuario = get_usuario_logado()
         empresa_atual_id = session.get('empresa_id')
         
-        print(f"\n🔍 [IMPORTAR CATEGORIAS] Buscando empresas disponíveis")
-        print(f"   👤 Usuário: {usuario.get('nome')}")
-        print(f"   🏢 Empresa atual: {empresa_atual_id}")
+        print(f"\n?? [IMPORTAR CATEGORIAS] Buscando empresas dispon�veis")
+        print(f"   ?? Usu�rio: {usuario.get('nome')}")
+        print(f"   ?? Empresa atual: {empresa_atual_id}")
         
-        # Buscar empresas do usuário
+        # Buscar empresas do usu�rio
         from auth_functions import listar_empresas_usuario
         empresas = listar_empresas_usuario(usuario.get('id'), auth_db)
-        print(f"   📊 Total de empresas do usuário: {len(empresas)}")
+        print(f"   ?? Total de empresas do usu�rio: {len(empresas)}")
         
         empresas_com_categorias = []
         for empresa in empresas:
             empresa_id = empresa.get('empresa_id')
             razao_social = empresa.get('razao_social')
             
-            print(f"\n   🔍 Analisando empresa: {razao_social} (ID: {empresa_id})")
+            print(f"\n   ?? Analisando empresa: {razao_social} (ID: {empresa_id})")
             
-            # Não listar a empresa atual
+            # N�o listar a empresa atual
             if empresa_id == empresa_atual_id:
-                print(f"      ⏭️ Pulando (é a empresa atual)")
+                print(f"      ?? Pulando (� a empresa atual)")
                 continue
             
             # Buscar categorias desta empresa
             categorias = db.listar_categorias(empresa_id=empresa_id)
-            print(f"      📂 Categorias encontradas: {len(categorias)}")
+            print(f"      ?? Categorias encontradas: {len(categorias)}")
             
-            if categorias:  # Só incluir empresas que têm categorias
+            if categorias:  # S� incluir empresas que t�m categorias
                 categorias_list = []
                 for cat in categorias:
-                    # Verificar se é objeto ou dicionário
+                    # Verificar se � objeto ou dicion�rio
                     if hasattr(cat, 'nome'):
                         cat_dict = {
                             'nome': cat.nome,
@@ -2596,9 +2596,9 @@ def listar_empresas_com_categorias():
                     'total_categorias': len(categorias),
                     'categorias': categorias_list
                 })
-                print(f"      ✅ Empresa incluída com {len(categorias)} categoria(s)")
+                print(f"      ? Empresa inclu�da com {len(categorias)} categoria(s)")
         
-        print(f"\n✅ Total de empresas disponíveis para importação: {len(empresas_com_categorias)}")
+        print(f"\n? Total de empresas dispon�veis para importa��o: {len(empresas_com_categorias)}")
         
         return jsonify({
             'success': True,
@@ -2606,7 +2606,7 @@ def listar_empresas_com_categorias():
         })
         
     except Exception as e:
-        print(f"❌ Erro ao listar empresas com categorias: {e}")
+        print(f"? Erro ao listar empresas com categorias: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -2615,9 +2615,9 @@ def listar_empresas_com_categorias():
 @app.route('/api/categorias/importar-de-empresa', methods=['POST'])
 @require_permission('categorias_create')
 def importar_categorias_de_empresa():
-    """Importa categorias de outra empresa do usuário"""
+    """Importa categorias de outra empresa do usu�rio"""
     print("\n" + "="*80)
-    print("📥 IMPORTAR CATEGORIAS - INÍCIO")
+    print("?? IMPORTAR CATEGORIAS - IN�CIO")
     print("="*80)
     
     try:
@@ -2625,64 +2625,64 @@ def importar_categorias_de_empresa():
         empresa_origem_id = data.get('empresa_origem_id')
         categorias_ids = data.get('categorias')  # Lista de nomes de categorias para importar
         
-        print(f"📋 Request data: {data}")
-        print(f"🏢 Empresa origem: {empresa_origem_id}")
-        print(f"📂 Categorias específicas: {categorias_ids}")
+        print(f"?? Request data: {data}")
+        print(f"?? Empresa origem: {empresa_origem_id}")
+        print(f"?? Categorias espec�ficas: {categorias_ids}")
         
         if not empresa_origem_id:
-            return jsonify({'success': False, 'error': 'empresa_origem_id é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'empresa_origem_id � obrigat�rio'}), 400
         
         usuario = get_usuario_logado()
         empresa_destino_id = session.get('empresa_id')
         
-        print(f"👤 Usuário: {usuario.get('nome')}")
-        print(f"🎯 Empresa destino: {empresa_destino_id}")
+        print(f"?? Usu�rio: {usuario.get('nome')}")
+        print(f"?? Empresa destino: {empresa_destino_id}")
         
         if not empresa_destino_id:
-            return jsonify({'success': False, 'error': 'Empresa destino não identificada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa destino n�o identificada'}), 400
         
-        # Verificar se usuário tem acesso à empresa origem
+        # Verificar se usu�rio tem acesso � empresa origem
         from auth_functions import listar_empresas_usuario
         empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
         tem_acesso = any(e.get('empresa_id') == empresa_origem_id for e in empresas_usuario)
         
-        print(f"✅ Tem acesso à empresa origem? {tem_acesso}")
+        print(f"? Tem acesso � empresa origem? {tem_acesso}")
         
         if not tem_acesso:
-            return jsonify({'success': False, 'error': 'Sem permissão para acessar empresa origem'}), 403
+            return jsonify({'success': False, 'error': 'Sem permiss�o para acessar empresa origem'}), 403
         
         # Buscar categorias da empresa origem
         categorias_origem = db.listar_categorias(empresa_id=empresa_origem_id)
-        print(f"📦 Categorias da origem: {len(categorias_origem)}")
+        print(f"?? Categorias da origem: {len(categorias_origem)}")
         for cat in categorias_origem:
             print(f"   - {cat.nome} ({cat.tipo.value if hasattr(cat.tipo, 'value') else cat.tipo})")
         
         # Filtrar categorias selecionadas (se especificado)
         if categorias_ids:
             categorias_origem = [c for c in categorias_origem if c.nome in categorias_ids]
-            print(f"🔍 Após filtro: {len(categorias_origem)} categorias")
+            print(f"?? Ap�s filtro: {len(categorias_origem)} categorias")
         
-        # Buscar categorias já existentes na empresa destino
+        # Buscar categorias j� existentes na empresa destino
         categorias_destino = db.listar_categorias(empresa_id=empresa_destino_id)
         nomes_existentes = {c.nome.upper() for c in categorias_destino}
-        print(f"📋 Categorias no destino: {len(categorias_destino)} ({nomes_existentes})")
+        print(f"?? Categorias no destino: {len(categorias_destino)} ({nomes_existentes})")
         
         importadas = 0
         duplicadas = 0
         erros = []
         
-        print(f"\n🔄 Iniciando loop de importação...")
+        print(f"\n?? Iniciando loop de importa��o...")
         for cat_origem in categorias_origem:
             try:
-                print(f"\n   📌 Processando: {cat_origem.nome}")
+                print(f"\n   ?? Processando: {cat_origem.nome}")
                 
-                # Verificar se já existe (case insensitive)
+                # Verificar se j� existe (case insensitive)
                 if cat_origem.nome.upper() in nomes_existentes:
-                    print(f"      ⏭️ Duplicada")
+                    print(f"      ?? Duplicada")
                     duplicadas += 1
                     continue
                 
-                print(f"      ✅ Nova categoria - criando...")
+                print(f"      ? Nova categoria - criando...")
                 
                 # Criar nova categoria na empresa destino
                 nova_categoria = Categoria(
@@ -2695,28 +2695,28 @@ def importar_categorias_de_empresa():
                     empresa_id=empresa_destino_id
                 )
                 
-                print(f"      📝 Objeto Categoria criado: nome={nova_categoria.nome}, tipo={nova_categoria.tipo}, empresa_id={nova_categoria.empresa_id}")
+                print(f"      ?? Objeto Categoria criado: nome={nova_categoria.nome}, tipo={nova_categoria.tipo}, empresa_id={nova_categoria.empresa_id}")
                 
                 categoria_id = db.adicionar_categoria(nova_categoria)
-                print(f"      ✅ Categoria adicionada com ID: {categoria_id}")
+                print(f"      ? Categoria adicionada com ID: {categoria_id}")
                 importadas += 1
                 
             except Exception as e:
-                print(f"      ❌ ERRO ao processar {cat_origem.nome}: {e}")
+                print(f"      ? ERRO ao processar {cat_origem.nome}: {e}")
                 import traceback
                 traceback.print_exc()
                 erros.append(f"{cat_origem.nome}: {str(e)}")
         
-        print(f"\n📊 RESULTADO:")
-        print(f"   ✅ Importadas: {importadas}")
-        print(f"   ⏭️ Duplicadas: {duplicadas}")
-        print(f"   ❌ Erros: {len(erros)}")
+        print(f"\n?? RESULTADO:")
+        print(f"   ? Importadas: {importadas}")
+        print(f"   ?? Duplicadas: {duplicadas}")
+        print(f"   ? Erros: {len(erros)}")
         if erros:
             for erro in erros:
                 print(f"      - {erro}")
         
         print("="*80)
-        print("📥 IMPORTAR CATEGORIAS - FIM")
+        print("?? IMPORTAR CATEGORIAS - FIM")
         print("="*80 + "\n")
         
         return jsonify({
@@ -2728,7 +2728,7 @@ def importar_categorias_de_empresa():
         })
         
     except Exception as e:
-        print(f"❌ ERRO FATAL ao importar categorias: {e}")
+        print(f"? ERRO FATAL ao importar categorias: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -2743,9 +2743,9 @@ def listar_clientes():
     """Lista clientes ativos ou inativos com filtro de multi-tenancy"""
     ativos = request.args.get('ativos', 'true').lower() == 'true'
     
-    # ✅ CORREÇÃO: Usar filtro do decorator (empresa_id do usuário)
+    # ? CORRE��O: Usar filtro do decorator (empresa_id do usu�rio)
     # O decorator @aplicar_filtro_cliente seta request.filtro_cliente_id = empresa_id
-    # As funções de DB agora filtram por empresa_id (não mais proprietario_id)
+    # As fun��es de DB agora filtram por empresa_id (n�o mais proprietario_id)
     filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
     
     usuario = get_usuario_logado()
@@ -2774,48 +2774,48 @@ def adicionar_cliente():
         
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 403
         
         data = request.json
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         if not data.get('nome'):
-            return jsonify({'success': False, 'error': 'Nome do cliente é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'Nome do cliente � obrigat�rio'}), 400
         
-        # 🔐 Validar CPF/CNPJ se fornecido
+        # ?? Validar CPF/CNPJ se fornecido
         if data.get('cpf_cnpj'):
             cpf_cnpj = data['cpf_cnpj'].strip()
-            # Remover formatação para detectar se é CPF (11) ou CNPJ (14)
+            # Remover formata��o para detectar se � CPF (11) ou CNPJ (14)
             import re
             numeros = re.sub(r'[^0-9]', '', cpf_cnpj)
             
             if len(numeros) == 11:
                 is_valid, error_msg = validate_cpf(cpf_cnpj)
                 if not is_valid:
-                    return jsonify({'success': False, 'error': f'CPF inválido: {error_msg}'}), 400
+                    return jsonify({'success': False, 'error': f'CPF inv�lido: {error_msg}'}), 400
             elif len(numeros) == 14:
                 is_valid, error_msg = validate_cnpj(cpf_cnpj)
                 if not is_valid:
-                    return jsonify({'success': False, 'error': f'CNPJ inválido: {error_msg}'}), 400
-            elif numeros:  # Se tem algum número mas não é 11 nem 14
-                return jsonify({'success': False, 'error': 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos'}), 400
+                    return jsonify({'success': False, 'error': f'CNPJ inv�lido: {error_msg}'}), 400
+            elif numeros:  # Se tem algum n�mero mas n�o � 11 nem 14
+                return jsonify({'success': False, 'error': 'CPF deve ter 11 d�gitos ou CNPJ deve ter 14 d�gitos'}), 400
         
-        # 🔐 Validar email se fornecido
+        # ?? Validar email se fornecido
         if data.get('email'):
             is_valid, error_msg = validate_email(data['email'])
             if not is_valid:
-                return jsonify({'success': False, 'error': f'Email inválido: {error_msg}'}), 400
+                return jsonify({'success': False, 'error': f'Email inv�lido: {error_msg}'}), 400
         
-        # 🔒 Garantir que empresa_id está nos dados
+        # ?? Garantir que empresa_id est� nos dados
         data['empresa_id'] = empresa_id
         
-        # 🔒 Obter proprietario_id do usuário logado (ID na tabela usuarios)
+        # ?? Obter proprietario_id do usu�rio logado (ID na tabela usuarios)
         usuario = get_usuario_logado()
         proprietario_id = None
         if usuario and usuario.get('tipo') == 'cliente':
-            proprietario_id = usuario.get('id')  # ID do usuário, NÃO empresa_id
+            proprietario_id = usuario.get('id')  # ID do usu�rio, N�O empresa_id
         
-        print(f"\n🔍 [POST /api/clientes] Adicionando cliente:")
+        print(f"\n?? [POST /api/clientes] Adicionando cliente:")
         print(f"   - empresa_id: {empresa_id}")
         print(f"   - usuario.id: {usuario.get('id') if usuario else None}")
         print(f"   - usuario.tipo: {usuario.get('tipo') if usuario else None}")
@@ -2823,15 +2823,15 @@ def adicionar_cliente():
         print(f"   - nome: {data.get('nome')}")
         
         cliente_id = db.adicionar_cliente(data, proprietario_id=proprietario_id)  # type: ignore
-        print(f"   ✅ Cliente criado com ID: {cliente_id}")
+        print(f"   ? Cliente criado com ID: {cliente_id}")
         return jsonify({'success': True, 'id': cliente_id})
     except ValueError as e:
-        # Erro de validação (ex: CPF/CNPJ duplicado)
+        # Erro de valida��o (ex: CPF/CNPJ duplicado)
         error_msg = str(e)
-        print(f"   ⚠️ Validação: {error_msg}")
+        print(f"   ?? Valida��o: {error_msg}")
         return jsonify({'success': False, 'error': error_msg}), 400
     except Exception as e:
-        print(f"   ❌ Erro ao criar cliente: {str(e)}")
+        print(f"   ? Erro ao criar cliente: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -2841,7 +2841,7 @@ def adicionar_cliente():
 @require_permission('clientes_view')
 @aplicar_filtro_cliente
 def obter_cliente(nome):
-    """Busca um cliente específico pelo nome"""
+    """Busca um cliente espec�fico pelo nome"""
     try:
         # Decode do nome que vem URL-encoded
         from urllib.parse import unquote
@@ -2856,22 +2856,22 @@ def obter_cliente(nome):
         cliente = db.obter_cliente_por_nome(nome)
         
         if not cliente:
-            return jsonify({'success': False, 'error': 'Cliente não encontrado'}), 404
+            return jsonify({'success': False, 'error': 'Cliente n�o encontrado'}), 404
         
-        # ✅ CORREÇÃO: Validar por empresa_id (não mais proprietario_id)
-        # filtro_cliente_id contém o empresa_id do usuário logado
+        # ? CORRE��O: Validar por empresa_id (n�o mais proprietario_id)
+        # filtro_cliente_id cont�m o empresa_id do usu�rio logado
         if filtro_cliente_id is not None:
             cliente_empresa_id = cliente.get('empresa_id')
             if cliente_empresa_id != filtro_cliente_id:
-                print(f"❌ Acesso negado: cliente.empresa_id={cliente_empresa_id}, filtro={filtro_cliente_id}")
-                return jsonify({'success': False, 'error': 'Cliente não encontrado ou sem permissão'}), 403
+                print(f"? Acesso negado: cliente.empresa_id={cliente_empresa_id}, filtro={filtro_cliente_id}")
+                return jsonify({'success': False, 'error': 'Cliente n�o encontrado ou sem permiss�o'}), 403
         
-        print(f"✅ Cliente encontrado: {cliente.get('nome')}")
+        print(f"? Cliente encontrado: {cliente.get('nome')}")
         print(f"   - empresa_id: {cliente.get('empresa_id')}")
         print(f"   - cpf_cnpj: {cliente.get('cpf_cnpj')}")
         return jsonify(cliente)
     except Exception as e:
-        print(f"❌ ERRO ao buscar cliente: {str(e)}")
+        print(f"? ERRO ao buscar cliente: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -2881,7 +2881,7 @@ def obter_cliente(nome):
 @require_permission('clientes_edit')
 @aplicar_filtro_cliente
 def modificar_cliente(nome):
-    """Atualiza ou remove um cliente com validação de empresa"""
+    """Atualiza ou remove um cliente com valida��o de empresa"""
     # Decode do nome que vem URL-encoded
     from urllib.parse import unquote
     nome = unquote(nome)
@@ -2899,7 +2899,7 @@ def modificar_cliente(nome):
             print(f"Nome da URL (raw): '{nome}'")
             print(f"Dados recebidos: {data}")
             
-            # 🔐 Validar CPF/CNPJ se fornecido
+            # ?? Validar CPF/CNPJ se fornecido
             if data.get('cpf_cnpj'):
                 cpf_cnpj = data['cpf_cnpj'].strip()
                 numeros = re.sub(r'[^0-9]', '', cpf_cnpj)
@@ -2907,25 +2907,25 @@ def modificar_cliente(nome):
                 if len(numeros) == 11:
                     is_valid, error_msg = validate_cpf(cpf_cnpj)
                     if not is_valid:
-                        return jsonify({'success': False, 'error': f'CPF inválido: {error_msg}'}), 400
+                        return jsonify({'success': False, 'error': f'CPF inv�lido: {error_msg}'}), 400
                 elif len(numeros) == 14:
                     is_valid, error_msg = validate_cnpj(cpf_cnpj)
                     if not is_valid:
-                        return jsonify({'success': False, 'error': f'CNPJ inválido: {error_msg}'}), 400
+                        return jsonify({'success': False, 'error': f'CNPJ inv�lido: {error_msg}'}), 400
                 elif numeros:
-                    return jsonify({'success': False, 'error': 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos'}), 400
+                    return jsonify({'success': False, 'error': 'CPF deve ter 11 d�gitos ou CNPJ deve ter 14 d�gitos'}), 400
             
-            # 🔐 Validar email se fornecido
+            # ?? Validar email se fornecido
             if data.get('email'):
                 is_valid, error_msg = validate_email(data['email'])
                 if not is_valid:
-                    return jsonify({'success': False, 'error': f'Email inválido: {error_msg}'}), 400
+                    return jsonify({'success': False, 'error': f'Email inv�lido: {error_msg}'}), 400
             
-            # Validar propriedade antes de atualizar (se não for admin)
+            # Validar propriedade antes de atualizar (se n�o for admin)
             if filtro_cliente_id is not None:
                 cliente_atual = db.obter_cliente_por_nome(nome)
                 if not cliente_atual or cliente_atual.get('empresa_id') != filtro_cliente_id:
-                    return jsonify({'success': False, 'error': 'Cliente não encontrado ou sem permissão'}), 403
+                    return jsonify({'success': False, 'error': 'Cliente n�o encontrado ou sem permiss�o'}), 403
             
             success = atualizar_cliente(nome, data)
             print(f"Cliente atualizado: {success}")
@@ -2936,16 +2936,16 @@ def modificar_cliente(nome):
             traceback.print_exc()
             error_msg = str(e)
             if 'UNIQUE constraint' in error_msg:
-                error_msg = 'Já existe um cliente com este nome'
+                error_msg = 'J� existe um cliente com este nome'
             return jsonify({'success': False, 'error': error_msg}), 400
     
     elif request.method == 'DELETE':
         try:
-            # Validar propriedade antes de deletar (se não for admin)
+            # Validar propriedade antes de deletar (se n�o for admin)
             if filtro_cliente_id is not None:
                 cliente_atual = db.obter_cliente_por_nome(nome)
                 if not cliente_atual or cliente_atual.get('empresa_id') != filtro_cliente_id:
-                    return jsonify({'success': False, 'error': 'Cliente não encontrado ou sem permissão'}), 403
+                    return jsonify({'success': False, 'error': 'Cliente n�o encontrado ou sem permiss�o'}), 403
             
             success, mensagem = db.excluir_cliente(nome)
             if success:
@@ -2965,9 +2965,9 @@ def listar_fornecedores():
     """Lista fornecedores ativos ou inativos com filtro de multi-tenancy"""
     ativos = request.args.get('ativos', 'true').lower() == 'true'
     
-    # ✅ CORREÇÃO: Usar filtro do decorator (empresa_id do usuário)
+    # ? CORRE��O: Usar filtro do decorator (empresa_id do usu�rio)
     # O decorator @aplicar_filtro_cliente seta request.filtro_cliente_id = empresa_id
-    # As funções de DB agora filtram por empresa_id (não mais proprietario_id)
+    # As fun��es de DB agora filtram por empresa_id (n�o mais proprietario_id)
     filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
     
     fornecedores = db.listar_fornecedores(ativos=ativos, filtro_cliente_id=filtro_cliente_id)
@@ -2989,18 +2989,18 @@ def adicionar_fornecedor():
         from app.utils.validators import validate_cpf, validate_cnpj, validate_email
         import re
         
-        # 🔒 VALIDAÇÃO DE SEGURANÇA
+        # ?? VALIDA��O DE SEGURAN�A
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         data = request.json
         
-        # 🔒 Validar campo obrigatório
+        # ?? Validar campo obrigat�rio
         if not data.get('nome'):
-            return jsonify({'success': False, 'error': 'Nome do fornecedor é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'Nome do fornecedor � obrigat�rio'}), 400
         
-        # 🔐 Validar CPF/CNPJ se fornecido
+        # ?? Validar CPF/CNPJ se fornecido
         if data.get('cpf_cnpj'):
             cpf_cnpj = data['cpf_cnpj'].strip()
             numeros = re.sub(r'[^0-9]', '', cpf_cnpj)
@@ -3008,30 +3008,30 @@ def adicionar_fornecedor():
             if len(numeros) == 11:
                 is_valid, error_msg = validate_cpf(cpf_cnpj)
                 if not is_valid:
-                    return jsonify({'success': False, 'error': f'CPF inválido: {error_msg}'}), 400
+                    return jsonify({'success': False, 'error': f'CPF inv�lido: {error_msg}'}), 400
             elif len(numeros) == 14:
                 is_valid, error_msg = validate_cnpj(cpf_cnpj)
                 if not is_valid:
-                    return jsonify({'success': False, 'error': f'CNPJ inválido: {error_msg}'}), 400
+                    return jsonify({'success': False, 'error': f'CNPJ inv�lido: {error_msg}'}), 400
             elif numeros:
-                return jsonify({'success': False, 'error': 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos'}), 400
+                return jsonify({'success': False, 'error': 'CPF deve ter 11 d�gitos ou CNPJ deve ter 14 d�gitos'}), 400
         
-        # 🔐 Validar email se fornecido
+        # ?? Validar email se fornecido
         if data.get('email'):
             is_valid, error_msg = validate_email(data['email'])
             if not is_valid:
-                return jsonify({'success': False, 'error': f'Email inválido: {error_msg}'}), 400
+                return jsonify({'success': False, 'error': f'Email inv�lido: {error_msg}'}), 400
         
-        # 🔒 Adicionar empresa_id aos dados
+        # ?? Adicionar empresa_id aos dados
         data['empresa_id'] = empresa_id
         
-        # 🔒 Obter proprietario_id do usuário logado (ID na tabela usuarios)
+        # ?? Obter proprietario_id do usu�rio logado (ID na tabela usuarios)
         usuario = get_usuario_logado()
         proprietario_id = None
         if usuario and usuario.get('tipo') == 'cliente':
-            proprietario_id = usuario.get('id')  # ID do usuário, NÃO empresa_id
+            proprietario_id = usuario.get('id')  # ID do usu�rio, N�O empresa_id
         
-        print(f"\n🔍 [POST /api/fornecedores]")
+        print(f"\n?? [POST /api/fornecedores]")
         print(f"   - empresa_id: {empresa_id}")
         print(f"   - usuario.id: {usuario.get('id') if usuario else None}")
         print(f"   - usuario.tipo: {usuario.get('tipo') if usuario else None}")
@@ -3039,15 +3039,15 @@ def adicionar_fornecedor():
         print(f"   - nome: {data.get('nome')}")
         
         fornecedor_id = db.adicionar_fornecedor(data, proprietario_id=proprietario_id)  # type: ignore
-        print(f"   ✅ Fornecedor criado com ID: {fornecedor_id}")
+        print(f"   ? Fornecedor criado com ID: {fornecedor_id}")
         return jsonify({'success': True, 'id': fornecedor_id})
     except ValueError as e:
-        # Erro de validação (ex: CPF/CNPJ duplicado)
+        # Erro de valida��o (ex: CPF/CNPJ duplicado)
         error_msg = str(e)
-        print(f"   ⚠️ Validação: {error_msg}")
+        print(f"   ?? Valida��o: {error_msg}")
         return jsonify({'success': False, 'error': error_msg}), 400
     except Exception as e:
-        print(f"   ❌ Erro: {str(e)}")
+        print(f"   ? Erro: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -3057,7 +3057,7 @@ def adicionar_fornecedor():
 @require_permission('fornecedores_view')
 @aplicar_filtro_cliente
 def obter_fornecedor(nome):
-    """Obtém dados de um fornecedor específico"""
+    """Obt�m dados de um fornecedor espec�fico"""
     try:
         # Decode do nome que vem URL-encoded
         from urllib.parse import unquote
@@ -3073,17 +3073,17 @@ def obter_fornecedor(nome):
         fornecedor = db.obter_fornecedor_por_nome(nome)
         
         if not fornecedor:
-            return jsonify({'error': 'Fornecedor não encontrado'}), 404
+            return jsonify({'error': 'Fornecedor n�o encontrado'}), 404
         
-        # ✅ CORREÇÃO: Validar por empresa_id (não mais proprietario_id)
-        # filtro_cliente_id contém o empresa_id do usuário logado
+        # ? CORRE��O: Validar por empresa_id (n�o mais proprietario_id)
+        # filtro_cliente_id cont�m o empresa_id do usu�rio logado
         if filtro_cliente_id is not None:
             fornecedor_empresa_id = fornecedor.get('empresa_id')
             if fornecedor_empresa_id != filtro_cliente_id:
-                print(f"❌ Acesso negado: fornecedor.empresa_id={fornecedor_empresa_id}, filtro={filtro_cliente_id}")
-                return jsonify({'error': 'Sem permissão para visualizar este fornecedor'}), 403
+                print(f"? Acesso negado: fornecedor.empresa_id={fornecedor_empresa_id}, filtro={filtro_cliente_id}")
+                return jsonify({'error': 'Sem permiss�o para visualizar este fornecedor'}), 403
         
-        print(f"✅ Fornecedor encontrado: {fornecedor.get('nome')}")
+        print(f"? Fornecedor encontrado: {fornecedor.get('nome')}")
         print(f"   - empresa_id: {fornecedor.get('empresa_id')}")
         print(f"   - cpf_cnpj: {fornecedor.get('cpf_cnpj')}")
         
@@ -3091,7 +3091,7 @@ def obter_fornecedor(nome):
         return jsonify(fornecedor)
         
     except Exception as e:
-        print(f"❌ ERRO ao obter fornecedor {nome}: {e}")
+        print(f"? ERRO ao obter fornecedor {nome}: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -3101,7 +3101,7 @@ def obter_fornecedor(nome):
 @require_permission('fornecedores_edit')
 @aplicar_filtro_cliente
 def modificar_fornecedor(nome):
-    """Atualiza ou remove um fornecedor com validação de empresa"""
+    """Atualiza ou remove um fornecedor com valida��o de empresa"""
     # Decode do nome que vem URL-encoded
     from urllib.parse import unquote
     nome = unquote(nome)
@@ -3115,7 +3115,7 @@ def modificar_fornecedor(nome):
             
             data = request.json
             
-            # 🔐 Validar CPF/CNPJ se fornecido
+            # ?? Validar CPF/CNPJ se fornecido
             if data.get('cpf_cnpj'):
                 cpf_cnpj = data['cpf_cnpj'].strip()
                 numeros = re.sub(r'[^0-9]', '', cpf_cnpj)
@@ -3123,25 +3123,25 @@ def modificar_fornecedor(nome):
                 if len(numeros) == 11:
                     is_valid, error_msg = validate_cpf(cpf_cnpj)
                     if not is_valid:
-                        return jsonify({'success': False, 'error': f'CPF inválido: {error_msg}'}), 400
+                        return jsonify({'success': False, 'error': f'CPF inv�lido: {error_msg}'}), 400
                 elif len(numeros) == 14:
                     is_valid, error_msg = validate_cnpj(cpf_cnpj)
                     if not is_valid:
-                        return jsonify({'success': False, 'error': f'CNPJ inválido: {error_msg}'}), 400
+                        return jsonify({'success': False, 'error': f'CNPJ inv�lido: {error_msg}'}), 400
                 elif numeros:
-                    return jsonify({'success': False, 'error': 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos'}), 400
+                    return jsonify({'success': False, 'error': 'CPF deve ter 11 d�gitos ou CNPJ deve ter 14 d�gitos'}), 400
             
-            # 🔐 Validar email se fornecido
+            # ?? Validar email se fornecido
             if data.get('email'):
                 is_valid, error_msg = validate_email(data['email'])
                 if not is_valid:
-                    return jsonify({'success': False, 'error': f'Email inválido: {error_msg}'}), 400
+                    return jsonify({'success': False, 'error': f'Email inv�lido: {error_msg}'}), 400
             
-            # Validar propriedade antes de atualizar (se não for admin)
+            # Validar propriedade antes de atualizar (se n�o for admin)
             if filtro_cliente_id is not None:
                 fornecedor_atual = db.obter_fornecedor_por_nome(nome)
                 if not fornecedor_atual or fornecedor_atual.get('empresa_id') != filtro_cliente_id:
-                    return jsonify({'success': False, 'error': 'Fornecedor não encontrado ou sem permissão'}), 403
+                    return jsonify({'success': False, 'error': 'Fornecedor n�o encontrado ou sem permiss�o'}), 403
             
             success = atualizar_fornecedor(nome, data)
             return jsonify({'success': success})
@@ -3150,16 +3150,16 @@ def modificar_fornecedor(nome):
             traceback.print_exc()
             error_msg = str(e)
             if 'UNIQUE constraint' in error_msg:
-                error_msg = 'Já existe um fornecedor com este nome'
+                error_msg = 'J� existe um fornecedor com este nome'
             return jsonify({'success': False, 'error': error_msg}), 400
     
     elif request.method == 'DELETE':
         try:
-            # Validar propriedade antes de deletar (se não for admin)
+            # Validar propriedade antes de deletar (se n�o for admin)
             if filtro_cliente_id is not None:
                 fornecedor_atual = db.obter_fornecedor_por_nome(nome)
                 if not fornecedor_atual or fornecedor_atual.get('empresa_id') != filtro_cliente_id:
-                    return jsonify({'success': False, 'error': 'Fornecedor não encontrado ou sem permissão'}), 403
+                    return jsonify({'success': False, 'error': 'Fornecedor n�o encontrado ou sem permiss�o'}), 403
             
             success, mensagem = db.excluir_fornecedor(nome)
             if success:
@@ -3180,7 +3180,7 @@ def inativar_cliente(nome):
         nome = unquote(nome)
         
         data = request.json or {}
-        motivo = data.get('motivo', 'Inativado pelo usuário')
+        motivo = data.get('motivo', 'Inativado pelo usu�rio')
         
         success, mensagem = db.inativar_cliente(nome, motivo)
         return jsonify({'success': success, 'message': mensagem})
@@ -3213,7 +3213,7 @@ def inativar_fornecedor(nome):
         nome = unquote(nome)
         
         data = request.json or {}
-        motivo = data.get('motivo', 'Inativado pelo usuário')
+        motivo = data.get('motivo', 'Inativado pelo usu�rio')
         
         success, mensagem = db.inativar_fornecedor(nome, motivo)
         return jsonify({'success': success, 'message': mensagem})
@@ -3236,21 +3236,21 @@ def reativar_fornecedor(nome):
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
-# === ROTAS DE LANÇAMENTOS ===
+# === ROTAS DE LAN�AMENTOS ===
 
 @app.route('/api/lancamentos', methods=['GET'])
 @require_permission('lancamentos_view')
 @aplicar_filtro_cliente
 def listar_lancamentos():
-    """Lista todos os lançamentos com filtro de multi-tenancy e paginação"""
+    """Lista todos os lan�amentos com filtro de multi-tenancy e pagina��o"""
     try:
         print("\n" + "="*80)
-        print("🚀 ROTA /api/lancamentos chamada")
+        print("?? ROTA /api/lancamentos chamada")
         
-        # Obter empresa_id da sessão
+        # Obter empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         
-        # Parâmetros de filtro
+        # Par�metros de filtro
         tipo_filtro = request.args.get('tipo')
         status_filtro = request.args.get('status')
         categoria_filtro = request.args.get('categoria')
@@ -3265,12 +3265,12 @@ def listar_lancamentos():
         fornecedor_filtro = request.args.get('fornecedor')
         filtro_cliente_id = getattr(request, 'filtro_cliente_id', None)
         
-        # Parâmetros de paginação
+        # Par�metros de pagina��o
         page = request.args.get('page', type=int)
         per_page = request.args.get('per_page', default=300, type=int)
-        per_page = min(per_page, 300)  # Máximo de 300 registros por página
+        per_page = min(per_page, 300)  # M�ximo de 300 registros por p�gina
         
-        print(f"📋 Parâmetros recebidos:")
+        print(f"?? Par�metros recebidos:")
         print(f"   - empresa_id: {empresa_id}")
         print(f"   - tipo_filtro: {tipo_filtro}")
         print(f"   - status_filtro: {status_filtro}")
@@ -3287,7 +3287,7 @@ def listar_lancamentos():
         print(f"   - page: {page}")
         print(f"   - per_page: {per_page}")
         
-        # Criar dicionário de filtros
+        # Criar dicion�rio de filtros
         filtros = {}
         if tipo_filtro:
             filtros['tipo'] = tipo_filtro.upper()
@@ -3304,31 +3304,31 @@ def listar_lancamentos():
         if data_fim_filtro:
             filtros['data_fim'] = data_fim_filtro
         
-        # Filtros especiais: ano e mês (converter para data_inicio/data_fim)
+        # Filtros especiais: ano e m�s (converter para data_inicio/data_fim)
         if ano_filtro:
             from datetime import date
             ano = int(ano_filtro)
             if mes_filtro:
                 mes = int(mes_filtro)
-                # Filtrar por mês específico
+                # Filtrar por m�s espec�fico
                 import calendar
                 ultimo_dia = calendar.monthrange(ano, mes)[1]
                 filtros['data_inicio'] = date(ano, mes, 1).isoformat()
                 filtros['data_fim'] = date(ano, mes, ultimo_dia).isoformat()
-                print(f"   🗓️ Filtro ano+mês: {filtros['data_inicio']} até {filtros['data_fim']}")
+                print(f"   ??? Filtro ano+m�s: {filtros['data_inicio']} at� {filtros['data_fim']}")
             else:
                 # Filtrar por ano inteiro
                 filtros['data_inicio'] = date(ano, 1, 1).isoformat()
                 filtros['data_fim'] = date(ano, 12, 31).isoformat()
-                print(f"   🗓️ Filtro ano: {filtros['data_inicio']} até {filtros['data_fim']}")
+                print(f"   ??? Filtro ano: {filtros['data_inicio']} at� {filtros['data_fim']}")
         
-        # Filtro de busca textual (search) - será aplicado após consulta
-        # Filtro de cliente/fornecedor - será aplicado após consulta
+        # Filtro de busca textual (search) - ser� aplicado ap�s consulta
+        # Filtro de cliente/fornecedor - ser� aplicado ap�s consulta
         
-        print(f"🔍 Filtros montados: {filtros}")
+        print(f"?? Filtros montados: {filtros}")
         
-        # Chamar método com todos os parâmetros
-        print(f"📞 Chamando database.listar_lancamentos()...")
+        # Chamar m�todo com todos os par�metros
+        print(f"?? Chamando database.listar_lancamentos()...")
         lancamentos = database.listar_lancamentos(
             empresa_id=empresa_id,
             filtros=filtros,
@@ -3337,7 +3337,7 @@ def listar_lancamentos():
             per_page=per_page
         )
         
-        print(f"✅ Retornaram {len(lancamentos)} lançamentos")
+        print(f"? Retornaram {len(lancamentos)} lan�amentos")
         
         # VERIFICAR DUPLICATAS
         if lancamentos:
@@ -3345,11 +3345,11 @@ def listar_lancamentos():
             ids_unicos = set(ids)
             if len(ids) != len(ids_unicos):
                 duplicados = [id for id in ids if ids.count(id) > 1]
-                print(f"⚠️ ATENÇÃO: QUERY RETORNOU IDs DUPLICADOS!")
-                print(f"   Total IDs: {len(ids)}, Únicos: {len(ids_unicos)}")
+                print(f"?? ATEN��O: QUERY RETORNOU IDs DUPLICADOS!")
+                print(f"   Total IDs: {len(ids)}, �nicos: {len(ids_unicos)}")
                 print(f"   IDs duplicados: {set(duplicados)}")
             else:
-                print(f"✅ Todos os IDs são únicos ({len(ids_unicos)} registros)")
+                print(f"? Todos os IDs s�o �nicos ({len(ids_unicos)} registros)")
         
         # Converter para lista de dicts
         lancamentos_list = []
@@ -3377,10 +3377,10 @@ def listar_lancamentos():
                 }
                 lancamentos_list.append(item)
             except Exception as e:
-                print(f"⚠️ Erro ao converter lançamento {idx} (ID: {getattr(l, 'id', '?')}): {e}")
+                print(f"?? Erro ao converter lan�amento {idx} (ID: {getattr(l, 'id', '?')}): {e}")
                 continue
         
-        # Aplicar filtros adicionais (search, cliente, fornecedor) em memória
+        # Aplicar filtros adicionais (search, cliente, fornecedor) em mem�ria
         if search_filtro:
             search_lower = search_filtro.lower()
             lancamentos_list = [
@@ -3389,27 +3389,27 @@ def listar_lancamentos():
                     search_lower in (l.get('pessoa') or '').lower() or
                     search_lower in (l.get('observacoes') or '').lower())
             ]
-            print(f"🔍 Após filtro search: {len(lancamentos_list)} registros")
+            print(f"?? Ap�s filtro search: {len(lancamentos_list)} registros")
         
         if cliente_filtro:
             lancamentos_list = [l for l in lancamentos_list if l.get('pessoa') == cliente_filtro]
-            print(f"👤 Após filtro cliente: {len(lancamentos_list)} registros")
+            print(f"?? Ap�s filtro cliente: {len(lancamentos_list)} registros")
         
         if fornecedor_filtro:
             lancamentos_list = [l for l in lancamentos_list if l.get('pessoa') == fornecedor_filtro]
-            print(f"🏭 Após filtro fornecedor: {len(lancamentos_list)} registros")
+            print(f"?? Ap�s filtro fornecedor: {len(lancamentos_list)} registros")
         
-        print(f"📦 Retornando {len(lancamentos_list)} lançamentos no JSON")
+        print(f"?? Retornando {len(lancamentos_list)} lan�amentos no JSON")
         print("="*80 + "\n")
         
         return jsonify({
             'success': True,
             'data': lancamentos_list,
             'total': len(lancamentos_list),
-            'message': 'Nenhum lançamento encontrado' if len(lancamentos_list) == 0 else None
+            'message': 'Nenhum lan�amento encontrado' if len(lancamentos_list) == 0 else None
         })
     except Exception as e:
-        print(f"❌ ERRO CRÍTICO em listar_lancamentos: {e}")
+        print(f"? ERRO CR�TICO em listar_lancamentos: {e}")
         import traceback
         traceback.print_exc()
         print("="*80 + "\n")
@@ -3420,28 +3420,28 @@ def listar_lancamentos():
 @require_permission('lancamentos_create')
 @aplicar_filtro_cliente
 def adicionar_lancamento():
-    """Adiciona um novo lançamento (com suporte a parcelamento)"""
+    """Adiciona um novo lan�amento (com suporte a parcelamento)"""
     try:
-        # 🔒 VALIDAÇÃO DE SEGURANÇA
+        # ?? VALIDA��O DE SEGURAN�A
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         data = request.json
         
-        # 🔒 Obter proprietario_id do usuário logado (ID na tabela usuarios)
+        # ?? Obter proprietario_id do usu�rio logado (ID na tabela usuarios)
         usuario = get_usuario_logado()
         proprietario_id = None
         if usuario and usuario.get('tipo') == 'cliente':
-            proprietario_id = usuario.get('id')  # ID do usuário, NÃO empresa_id
+            proprietario_id = usuario.get('id')  # ID do usu�rio, N�O empresa_id
         
-        print(f"\n🔍 [POST /api/lancamentos]")
+        print(f"\n?? [POST /api/lancamentos]")
         print(f"   - empresa_id: {empresa_id}")
         print(f"   - usuario.id: {usuario.get('id') if usuario else None}")
         print(f"   - usuario.tipo: {usuario.get('tipo') if usuario else None}")
         print(f"   - proprietario_id: {proprietario_id}")
         
-        # Validar se a conta bancária está ativa
+        # Validar se a conta banc�ria est� ativa
         if data and data.get('conta_bancaria'):
             conta_nome = data['conta_bancaria']
             try:
@@ -3458,19 +3458,19 @@ def adicionar_lancamento():
                 return_to_pool(conn)
                 
                 if conta and 'ativa' in conta and not conta['ativa']:
-                    print(f"❌ Tentativa de criar lançamento em conta inativa: {conta_nome}")
+                    print(f"? Tentativa de criar lan�amento em conta inativa: {conta_nome}")
                     return jsonify({
                         'success': False,
-                        'error': f'Não é possível criar lançamento. A conta bancária "{conta_nome}" está inativa. Reative a conta antes de criar novos lançamentos.'
+                        'error': f'N�o � poss�vel criar lan�amento. A conta banc�ria "{conta_nome}" est� inativa. Reative a conta antes de criar novos lan�amentos.'
                     }), 400
             except Exception as e:
-                print(f"⚠️ Erro ao validar conta bancária: {e}")
-                # Continuar mesmo se a validação falhar (não bloquear criação)
+                print(f"?? Erro ao validar conta banc�ria: {e}")
+                # Continuar mesmo se a valida��o falhar (n�o bloquear cria��o)
         
         parcelas = int(data.get('parcelas', 1)) if data else 1
         
         if parcelas > 1:
-            # Criar múltiplos lançamentos para parcelas
+            # Criar m�ltiplos lan�amentos para parcelas
             from dateutil.relativedelta import relativedelta  # type: ignore
             data_base = datetime.fromisoformat(data['data_vencimento']) if data and data.get('data_vencimento') else datetime.now()
             valor_parcela = float(data['valor']) / parcelas if data else 0.0
@@ -3501,10 +3501,10 @@ def adicionar_lancamento():
                 lancamento_id = db.adicionar_lancamento(lancamento, proprietario_id=proprietario_id, empresa_id=empresa_id)
                 lancamentos_ids.append(lancamento_id)
             
-            print(f"Lançamentos parcelados adicionados! IDs: {lancamentos_ids}")
+            print(f"Lan�amentos parcelados adicionados! IDs: {lancamentos_ids}")
             return jsonify({'success': True, 'ids': lancamentos_ids})
         else:
-            # Lançamento único (sem parcelamento)
+            # Lan�amento �nico (sem parcelamento)
             data_venc = datetime.fromisoformat(data['data_vencimento']) if data and data.get('data_vencimento') else datetime.now()
             data_pag = datetime.fromisoformat(data['data_pagamento']) if data and data.get('data_pagamento') else None
             tipo_str = data['tipo'].lower() if data and data.get('tipo') else 'receita'
@@ -3538,15 +3538,15 @@ def adicionar_lancamento():
 @aplicar_filtro_cliente
 @require_permission('lancamentos_view')
 def obter_lancamento_route(lancamento_id):
-    """Retorna os dados de um lançamento específico"""
-    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    """Retorna os dados de um lan�amento espec�fico"""
+    # ?? VALIDA��O DE SEGURAN�A
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'erro': 'Empresa não selecionada'}), 403
+        return jsonify({'erro': 'Empresa n�o selecionada'}), 403
     
     try:
         print(f"\n{'='*80}")
-        print(f"🔍 GET /api/lancamentos/{lancamento_id}")
+        print(f"?? GET /api/lancamentos/{lancamento_id}")
         print(f"{'='*80}")
         
         lancamento = db_obter_lancamento(empresa_id=empresa_id, lancamento_id=lancamento_id)
@@ -3578,15 +3578,15 @@ def obter_lancamento_route(lancamento_id):
                 'associacao': getattr(lancamento, 'associacao', ''),
                 'numero_documento': getattr(lancamento, 'numero_documento', '')
             }
-            print(f"✅ Lançamento convertido para dict: {lancamento_dict}")
+            print(f"? Lan�amento convertido para dict: {lancamento_dict}")
             print(f"{'='*80}\n")
             return jsonify(lancamento_dict), 200
         else:
-            print(f"❌ Lançamento não encontrado")
+            print(f"? Lan�amento n�o encontrado")
             print(f"{'='*80}\n")
-            return jsonify({'error': 'Lançamento não encontrado'}), 404
+            return jsonify({'error': 'Lan�amento n�o encontrado'}), 404
     except Exception as e:
-        print(f"❌ ERRO ao obter lançamento:")
+        print(f"? ERRO ao obter lan�amento:")
         print(f"   Tipo: {type(e).__name__}")
         print(f"   Mensagem: {str(e)}")
         import traceback
@@ -3598,39 +3598,39 @@ def obter_lancamento_route(lancamento_id):
 @app.route('/api/lancamentos/<int:lancamento_id>', methods=['PUT', 'DELETE', 'OPTIONS'])
 @require_permission('lancamentos_edit')
 def gerenciar_lancamento(lancamento_id):
-    """Atualiza ou remove um lançamento"""
+    """Atualiza ou remove um lan�amento"""
     if request.method == 'OPTIONS':
         return jsonify({'success': True}), 200
     
     if request.method == 'PUT':
         try:
             print(f"\n{'='*80}")
-            print(f"🔍 PUT /api/lancamentos/{lancamento_id}")
+            print(f"?? PUT /api/lancamentos/{lancamento_id}")
             print(f"{'='*80}")
             
             data = request.get_json()
-            print(f"📥 Dados recebidos: {data}")
-            print(f"🔍 CAMPO CRÍTICO - associacao recebido: '{data.get('associacao', '')}' (tipo: {type(data.get('associacao', ''))})")
+            print(f"?? Dados recebidos: {data}")
+            print(f"?? CAMPO CR�TICO - associacao recebido: '{data.get('associacao', '')}' (tipo: {type(data.get('associacao', ''))})")
             
-            # 🔒 VALIDAÇÃO DE SEGURANÇA
+            # ?? VALIDA��O DE SEGURAN�A
             empresa_id = session.get('empresa_id')
             if not empresa_id:
-                return jsonify({'erro': 'Empresa não selecionada'}), 403
+                return jsonify({'erro': 'Empresa n�o selecionada'}), 403
             
-            # Verificar se lançamento existe
+            # Verificar se lan�amento existe
             lancamento_atual = db_obter_lancamento(empresa_id=empresa_id, lancamento_id=lancamento_id)
             if not lancamento_atual:
-                print("❌ Lançamento não encontrado")
-                return jsonify({'success': False, 'error': 'Lançamento não encontrado'}), 404
+                print("? Lan�amento n�o encontrado")
+                return jsonify({'success': False, 'error': 'Lan�amento n�o encontrado'}), 404
             
-            # Preservar dados de pagamento se já foi pago
+            # Preservar dados de pagamento se j� foi pago
             status_atual = lancamento_atual.status.value if hasattr(lancamento_atual.status, 'value') else str(lancamento_atual.status)
             data_pgto_atual = lancamento_atual.data_pagamento
             conta_bancaria_atual = lancamento_atual.conta_bancaria
             juros_atual = getattr(lancamento_atual, 'juros', 0)
             desconto_atual = getattr(lancamento_atual, 'desconto', 0)
             
-            print(f"📊 Preservando dados de pagamento:")
+            print(f"?? Preservando dados de pagamento:")
             print(f"   - Status: {status_atual}")
             print(f"   - Data pagamento: {data_pgto_atual}")
             print(f"   - Conta: {conta_bancaria_atual}")
@@ -3665,14 +3665,14 @@ def gerenciar_lancamento(lancamento_id):
                 associacao=data.get('associacao', '')
             )
             
-            print(f"✅ Objeto Lancamento criado:")
+            print(f"? Objeto Lancamento criado:")
             print(f"   - ID: {lancamento_atualizado.id}")
             print(f"   - associacao: '{lancamento_atualizado.associacao}' (tipo: {type(lancamento_atualizado.associacao)})")
             
             # Atualizar no banco COM empresa_id para RLS
             success = db.atualizar_lancamento(lancamento_atualizado, empresa_id=empresa_id)
             
-            print(f"✅ Resultado: {success}")
+            print(f"? Resultado: {success}")
             print(f"{'='*80}\n")
             
             if success:
@@ -3681,7 +3681,7 @@ def gerenciar_lancamento(lancamento_id):
                 return jsonify({'success': False, 'error': 'Falha ao atualizar'}), 400
             
         except Exception as e:
-            print(f"❌ ERRO ao atualizar lançamento:")
+            print(f"? ERRO ao atualizar lan�amento:")
             print(f"   Tipo: {type(e).__name__}")
             print(f"   Mensagem: {str(e)}")
             import traceback
@@ -3691,24 +3691,24 @@ def gerenciar_lancamento(lancamento_id):
     
     # DELETE
     try:
-        print(f"\n=== Excluindo lançamento ID: {lancamento_id} ===")
+        print(f"\n=== Excluindo lan�amento ID: {lancamento_id} ===")
         
-        # 🔒 VALIDAÇÃO DE SEGURANÇA
+        # ?? VALIDA��O DE SEGURAN�A
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'erro': 'Empresa não selecionada'}), 403
+            return jsonify({'erro': 'Empresa n�o selecionada'}), 403
         
         success = db_excluir_lancamento(empresa_id, lancamento_id)
-        print(f"Resultado da exclusão: {success}")
+        print(f"Resultado da exclus�o: {success}")
         
         if not success:
-            print("AVISO: Nenhum registro foi excluído (ID não encontrado?)")
-            return jsonify({'success': False, 'error': 'Lançamento não encontrado'}), 404
+            print("AVISO: Nenhum registro foi exclu�do (ID n�o encontrado?)")
+            return jsonify({'success': False, 'error': 'Lan�amento n�o encontrado'}), 404
         
-        print("Lançamento excluído com sucesso!")
+        print("Lan�amento exclu�do com sucesso!")
         return jsonify({'success': True})
     except Exception as e:
-        print(f"ERRO ao excluir lançamento: {str(e)}")
+        print(f"ERRO ao excluir lan�amento: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -3727,7 +3727,7 @@ def listar_ofx_filtros():
     try:
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         with db.get_connection() as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cursor.execute(
@@ -3750,14 +3750,14 @@ def criar_ofx_filtro():
     try:
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         data = request.json or {}
         conta_bancaria = (data.get('conta_bancaria') or '').strip()
         memo_filtro = (data.get('memo_filtro') or '').strip()
         if not conta_bancaria:
-            return jsonify({'success': False, 'error': 'Conta bancária obrigatória'}), 400
+            return jsonify({'success': False, 'error': 'Conta banc�ria obrigat�ria'}), 400
         if not memo_filtro:
-            return jsonify({'success': False, 'error': 'Texto do MEMO obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'Texto do MEMO obrigat�rio'}), 400
         with db.get_connection() as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cursor.execute(
@@ -3771,7 +3771,7 @@ def criar_ofx_filtro():
         if row:
             return jsonify({'success': True, 'id': row['id'], 'message': 'Filtro criado com sucesso'})
         else:
-            return jsonify({'success': False, 'error': 'Filtro já existe para esta conta/MEMO'}), 409
+            return jsonify({'success': False, 'error': 'Filtro j� existe para esta conta/MEMO'}), 409
     except Exception as e:
         logger.error(f"Erro ao criar ofx_filtro: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -3784,7 +3784,7 @@ def deletar_ofx_filtro(filtro_id):
     try:
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         with db.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -3797,7 +3797,7 @@ def deletar_ofx_filtro(filtro_id):
         if deleted:
             return jsonify({'success': True, 'message': 'Filtro removido com sucesso'})
         else:
-            return jsonify({'success': False, 'error': 'Filtro não encontrado'}), 404
+            return jsonify({'success': False, 'error': 'Filtro n�o encontrado'}), 404
     except Exception as e:
         logger.error(f"Erro ao deletar ofx_filtro: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -3812,79 +3812,79 @@ def upload_extrato_ofx():
     """Upload e processamento de arquivo OFX"""
     try:
         print(f"\n{'='*60}")
-        print(f"📤 UPLOAD DE EXTRATO OFX INICIADO")
+        print(f"?? UPLOAD DE EXTRATO OFX INICIADO")
         print(f"{'='*60}")
         
         # Log dos arquivos recebidos
-        print(f"📋 Arquivos em request.files: {list(request.files.keys())}")
-        print(f"📋 Dados em request.form: {dict(request.form)}")
+        print(f"?? Arquivos em request.files: {list(request.files.keys())}")
+        print(f"?? Dados em request.form: {dict(request.form)}")
         
         if 'file' not in request.files:
-            print(f"❌ Erro: Nenhum arquivo enviado")
+            print(f"? Erro: Nenhum arquivo enviado")
             return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'}), 400
         
         file = request.files['file']
         conta_bancaria = request.form.get('conta_bancaria')
         
-        print(f"📁 Arquivo: {file.filename}")
-        print(f"🏦 Conta bancária: {conta_bancaria}")
+        print(f"?? Arquivo: {file.filename}")
+        print(f"?? Conta banc�ria: {conta_bancaria}")
         
         if not conta_bancaria:
-            print(f"❌ Erro: Conta bancária não informada")
+            print(f"? Erro: Conta banc�ria n�o informada")
             return jsonify({'success': False, 'error': 'Conta bancaria e obrigatoria'}), 400
         
         if file.filename == '':
-            print(f"❌ Erro: Nome do arquivo vazio")
+            print(f"? Erro: Nome do arquivo vazio")
             return jsonify({'success': False, 'error': 'Nenhum arquivo selecionado'}), 400
         
         if not file.filename.lower().endswith('.ofx'):
-            print(f"❌ Erro: Extensão inválida: {file.filename}")
+            print(f"? Erro: Extens�o inv�lida: {file.filename}")
             return jsonify({'success': False, 'error': 'Apenas arquivos .ofx sao permitidos'}), 400
         
-        # Buscar informações da conta bancária cadastrada
+        # Buscar informa��es da conta banc�ria cadastrada
         usuario = get_usuario_logado()
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão (empresa selecionada)
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o (empresa selecionada)
         empresa_id = session.get('empresa_id')
         
         if not empresa_id:
-            print(f"❌ Erro: Empresa não identificada na sessão")
-            return jsonify({'success': False, 'error': 'Empresa não identificada. Faça login novamente.'}), 403
+            print(f"? Erro: Empresa n�o identificada na sess�o")
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada. Fa�a login novamente.'}), 403
         
-        print(f"🔒 EMPRESA ATUAL (sessão): {empresa_id}")
-        print(f"📊 Transações serão salvas APENAS para empresa: {empresa_id}")
+        print(f"?? EMPRESA ATUAL (sess�o): {empresa_id}")
+        print(f"?? Transa��es ser�o salvas APENAS para empresa: {empresa_id}")
         
-        # 🔒 Buscar APENAS contas da empresa atual (isolamento multi-tenant)
+        # ?? Buscar APENAS contas da empresa atual (isolamento multi-tenant)
         from database_postgresql import DatabaseManager
         db_manager = DatabaseManager()
         
         try:
             contas_cadastradas = db_manager.listar_contas_por_empresa(empresa_id=empresa_id)
-            print(f"📊 Total de contas da empresa {empresa_id}: {len(contas_cadastradas)}")
-            print(f"📋 Nomes das contas: {[c.nome for c in contas_cadastradas]}")
+            print(f"?? Total de contas da empresa {empresa_id}: {len(contas_cadastradas)}")
+            print(f"?? Nomes das contas: {[c.nome for c in contas_cadastradas]}")
         except Exception as e:
-            print(f"❌ Erro ao buscar contas da empresa {empresa_id}: {e}")
-            return jsonify({'success': False, 'error': f'Erro ao buscar contas bancárias: {str(e)}'}), 500
+            print(f"? Erro ao buscar contas da empresa {empresa_id}: {e}")
+            return jsonify({'success': False, 'error': f'Erro ao buscar contas banc�rias: {str(e)}'}), 500
         
         conta_info = next((c for c in contas_cadastradas if c.nome == conta_bancaria), None)
         
         if not conta_info:
-            print(f"❌ Erro: Conta '{conta_bancaria}' não encontrada na lista")
-            return jsonify({'success': False, 'error': f'Conta bancária "{conta_bancaria}" não encontrada'}), 400
+            print(f"? Erro: Conta '{conta_bancaria}' n�o encontrada na lista")
+            return jsonify({'success': False, 'error': f'Conta banc�ria "{conta_bancaria}" n�o encontrada'}), 400
         
-        print(f"✅ Conta encontrada: {conta_info.nome}")
+        print(f"? Conta encontrada: {conta_info.nome}")
         
-        # Validar se a conta está ativa
+        # Validar se a conta est� ativa
         if hasattr(conta_info, 'ativa') and not conta_info.ativa:
-            print(f"❌ Tentativa de importar extrato para conta inativa: {conta_bancaria}")
+            print(f"? Tentativa de importar extrato para conta inativa: {conta_bancaria}")
             return jsonify({
                 'success': False,
-                'error': f'Não é possível importar extrato. A conta bancária "{conta_bancaria}" está inativa. Reative a conta antes de importar extratos.'
+                'error': f'N�o � poss�vel importar extrato. A conta banc�ria "{conta_bancaria}" est� inativa. Reative a conta antes de importar extratos.'
             }), 400
         
-        print(f"✅ Conta está ativa, prosseguindo com o upload...")
+        print(f"? Conta est� ativa, prosseguindo com o upload...")
         
-        # Parse OFX — ler bytes brutos e recodificar para evitar erros de charset
+        # Parse OFX � ler bytes brutos e recodificar para evitar erros de charset
         # Arquivos OFX de bancos brasileiros costumam usar CP1252/ISO-8859-1 com
         # bytes invalidos (ex: 0x8d que nao existe no charmap/cp1252).
         # Estrategia: latin-1 aceita TODOS os bytes 0x00-0xFF garantidamente,
@@ -3896,11 +3896,11 @@ def upload_extrato_ofx():
 
             raw_bytes = file.read()
 
-            # latin-1 (ISO-8859-1) mapeia 1:1 bytes → unicode para 0x00-0xFF, nunca falha
+            # latin-1 (ISO-8859-1) mapeia 1:1 bytes ? unicode para 0x00-0xFF, nunca falha
             decoded_content = raw_bytes.decode('latin-1', errors='replace')
 
             # Normalizar header SGML do OFX para evitar que ofxparse tente
-            # redecodificar com charset errado (ex: CHARSET:1252 → CHARSET:0 / UTF-8)
+            # redecodificar com charset errado (ex: CHARSET:1252 ? CHARSET:0 / UTF-8)
             # O header fica antes da tag <OFX> e tem linhas KEY:VALUE
             decoded_content = _re.sub(
                 r'(?im)^(CHARSET\s*:\s*).*$', r'\g<1>0', decoded_content
@@ -3908,8 +3908,8 @@ def upload_extrato_ofx():
             decoded_content = _re.sub(
                 r'(?im)^(ENCODING\s*:\s*).*$', r'\g<1>UTF-8', decoded_content
             )
-            # Remover caracteres de controle invisíveis que quebram o parser
-            # (manter \t, \n, \r que são válidos em XML/SGML)
+            # Remover caracteres de controle invis�veis que quebram o parser
+            # (manter \t, \n, \r que s�o v�lidos em XML/SGML)
             decoded_content = _re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', decoded_content)
 
             # Recodificar para UTF-8 limpo e passar ao ofxparse via BytesIO
@@ -3918,10 +3918,10 @@ def upload_extrato_ofx():
         except Exception as e:
             return jsonify({'success': False, 'error': f'Erro ao processar OFX: {str(e)}'}), 400
         
-        # 🔒 VALIDAÇÃO: Verificar se já existe importação no período (ANTES de processar)
+        # ?? VALIDA��O: Verificar se j� existe importa��o no per�odo (ANTES de processar)
         try:
             for account in ofx.accounts:
-                # Extrair período do OFX (ignorar timezone para evitar bugs)
+                # Extrair per�odo do OFX (ignorar timezone para evitar bugs)
                 start_date_ofx = account.statement.start_date
                 end_date_ofx = account.statement.end_date
                 
@@ -3940,13 +3940,13 @@ def upload_extrato_ofx():
                 else:
                     periodo_fim = end_date_ofx
                 
-                print(f"\n🔍 VALIDANDO PERÍODO: {periodo_inicio} até {periodo_fim}")
+                print(f"\n?? VALIDANDO PER�ODO: {periodo_inicio} at� {periodo_fim}")
                 
-                # Consultar períodos já importados para esta conta/empresa
+                # Consultar per�odos j� importados para esta conta/empresa
                 with db.get_connection() as conn:
                     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                     
-                    # 🔍 DIAGNÓSTICO: Contar transações órfãs (sem importacao_id)
+                    # ?? DIAGN�STICO: Contar transa��es �rf�s (sem importacao_id)
                     cursor.execute("""
                         SELECT COUNT(*) as total_orfas
                         FROM transacoes_extrato
@@ -3959,10 +3959,10 @@ def upload_extrato_ofx():
                     total_orfas = resultado_orfas['total_orfas'] if resultado_orfas else 0
                     
                     if total_orfas > 0:
-                        print(f"⚠️ ATENÇÃO: {total_orfas} transações órfãs detectadas (sem importacao_id)")
-                        logger.warning(f"Conta {conta_bancaria}: {total_orfas} transações sem importacao_id")
+                        print(f"?? ATEN��O: {total_orfas} transa��es �rf�s detectadas (sem importacao_id)")
+                        logger.warning(f"Conta {conta_bancaria}: {total_orfas} transa��es sem importacao_id")
                     
-                    # Buscar apenas importações válidas (com importacao_id preenchido)
+                    # Buscar apenas importa��es v�lidas (com importacao_id preenchido)
                     cursor.execute("""
                         SELECT 
                             importacao_id,
@@ -3981,29 +3981,29 @@ def upload_extrato_ofx():
                     
                     periodos_existentes = cursor.fetchall()
                     
-                    print(f"📊 Total de importações encontradas: {len(periodos_existentes)}")
+                    print(f"?? Total de importa��es encontradas: {len(periodos_existentes)}")
                     for i, p in enumerate(periodos_existentes, 1):
-                        print(f"   [{i}] ID: {p['importacao_id'][:8]}... | {p['inicio']} a {p['fim']} ({p['qtd_transacoes']} transações)")
+                        print(f"   [{i}] ID: {p['importacao_id'][:8]}... | {p['inicio']} a {p['fim']} ({p['qtd_transacoes']} transa��es)")
                     
                     cursor.close()
                 
-                # Verificar sobreposição com cada período existente
+                # Verificar sobreposi��o com cada per�odo existente
                 for periodo_existente in periodos_existentes:
                     inicio_existente = periodo_existente['inicio']
                     fim_existente = periodo_existente['fim']
                     importacao_id_existente = periodo_existente['importacao_id']
                     
-                    # Lógica de sobreposição: novo_inicio <= existente_fim AND novo_fim >= existente_inicio
+                    # L�gica de sobreposi��o: novo_inicio <= existente_fim AND novo_fim >= existente_inicio
                     if periodo_inicio <= fim_existente and periodo_fim >= inicio_existente:
-                        print(f"❌ SOBREPOSIÇÃO DETECTADA!")
-                        print(f"   Período tentando importar: {periodo_inicio} até {periodo_fim}")
-                        print(f"   Período já existente (ID {importacao_id_existente[:8]}...): {inicio_existente} até {fim_existente}")
+                        print(f"? SOBREPOSI��O DETECTADA!")
+                        print(f"   Per�odo tentando importar: {periodo_inicio} at� {periodo_fim}")
+                        print(f"   Per�odo j� existente (ID {importacao_id_existente[:8]}...): {inicio_existente} at� {fim_existente}")
                         
-                        # Mensagem detalhada para o usuário
-                        erro_msg = f'❌ Já existe uma importação no período de {inicio_existente.strftime("%d/%m/%Y")} até {fim_existente.strftime("%d/%m/%Y")}'
+                        # Mensagem detalhada para o usu�rio
+                        erro_msg = f'? J� existe uma importa��o no per�odo de {inicio_existente.strftime("%d/%m/%Y")} at� {fim_existente.strftime("%d/%m/%Y")}'
                         
                         if total_orfas > 0:
-                            erro_msg = f'⚠️ ATENÇÃO: {total_orfas} transação(ões) órfã(s) detectada(s) sem ID de importação! Exclua manualmente na tela de Extrato Bancário antes de reimportar.'
+                            erro_msg = f'?? ATEN��O: {total_orfas} transa��o(�es) �rf�(s) detectada(s) sem ID de importa��o! Exclua manualmente na tela de Extrato Banc�rio antes de reimportar.'
                         
                         return jsonify({
                             'success': False,
@@ -4020,18 +4020,18 @@ def upload_extrato_ofx():
                                     'transacoes': periodo_existente['qtd_transacoes']
                                 },
                                 'transacoes_orfas': total_orfas,
-                                'mensagem': 'Use o botão "Deletar Extrato" na tela de Extrato Bancário (filtrar por período e clicar em "Deletar Extrato").',
+                                'mensagem': 'Use o bot�o "Deletar Extrato" na tela de Extrato Banc�rio (filtrar por per�odo e clicar em "Deletar Extrato").',
                                 'solucao': f'DELETE FROM transacoes_extrato WHERE importacao_id = \'{importacao_id_existente}\' AND empresa_id = {empresa_id};'
                             }
                         }), 409  # 409 Conflict
                 
-                print(f"✅ Período válido, sem sobreposição com importações existentes")
+                print(f"? Per�odo v�lido, sem sobreposi��o com importa��es existentes")
         
         except Exception as e:
-            logger.error(f"Erro na validação de período: {e}")
+            logger.error(f"Erro na valida��o de per�odo: {e}")
             import traceback
             traceback.print_exc()
-            return jsonify({'success': False, 'error': f'Erro ao validar período: {str(e)}'}), 500
+            return jsonify({'success': False, 'error': f'Erro ao validar per�odo: {str(e)}'}), 500
         
         # Extrair transacoes
         transacoes = []
@@ -4050,9 +4050,9 @@ def upload_extrato_ofx():
                     _memos_ignorar.add(_fr['memo_filtro'].strip().upper())
                 _fcur.close()
             if _memos_ignorar:
-                logger.info(f"🔧 Ajuste OFX: {len(_memos_ignorar)} MEMO(s) serão ignorados: {_memos_ignorar}")
+                logger.info(f"?? Ajuste OFX: {len(_memos_ignorar)} MEMO(s) ser�o ignorados: {_memos_ignorar}")
         except Exception as _fe:
-            logger.warning(f"⚠️ Não foi possível carregar filtros de MEMO: {_fe}")
+            logger.warning(f"?? N�o foi poss�vel carregar filtros de MEMO: {_fe}")
         # --------------------------------------------------------------------------
 
         for account in ofx.accounts:
@@ -4060,17 +4060,17 @@ def upload_extrato_ofx():
             saldo_final = float(account.statement.balance) if hasattr(account.statement, 'balance') else None
             
             print(f"\n{'='*60}")
-            print(f"📊 ANÁLISE DO ARQUIVO OFX")
+            print(f"?? AN�LISE DO ARQUIVO OFX")
             print(f"{'='*60}")
-            print(f"🏦 Conta: {account.number if hasattr(account, 'number') else 'N/A'}")
-            print(f"📅 Período: {account.statement.start_date} a {account.statement.end_date}")
-            print(f"💰 Saldo Final (OFX): R$ {saldo_final:,.2f}" if saldo_final else "💰 Saldo Final: NÃO INFORMADO")
-            print(f"📋 Total de transações: {len(account.statement.transactions)}")
+            print(f"?? Conta: {account.number if hasattr(account, 'number') else 'N/A'}")
+            print(f"?? Per�odo: {account.statement.start_date} a {account.statement.end_date}")
+            print(f"?? Saldo Final (OFX): R$ {saldo_final:,.2f}" if saldo_final else "?? Saldo Final: N�O INFORMADO")
+            print(f"?? Total de transa��es: {len(account.statement.transactions)}")
             
-            # Ordenar transações por data (mais antiga primeiro)
+            # Ordenar transa��es por data (mais antiga primeiro)
             transactions_list = sorted(account.statement.transactions, key=lambda t: t.date)
             
-            # Aplicar filtros de MEMO (Ajuste de OFX) — remover transações ignoradas
+            # Aplicar filtros de MEMO (Ajuste de OFX) � remover transa��es ignoradas
             if _memos_ignorar:
                 _antes = len(transactions_list)
                 transactions_list = [
@@ -4080,10 +4080,10 @@ def upload_extrato_ofx():
                 ]
                 _ignoradas = _antes - len(transactions_list)
                 if _ignoradas:
-                    logger.info(f"🔧 Ajuste OFX: {_ignoradas} transação(ões) ignorada(s) por filtro de MEMO")
-                    print(f"🔧 Ajuste OFX: {_ignoradas} transação(ões) ignorada(s) por filtro de MEMO")
+                    logger.info(f"?? Ajuste OFX: {_ignoradas} transa��o(�es) ignorada(s) por filtro de MEMO")
+                    print(f"?? Ajuste OFX: {_ignoradas} transa��o(�es) ignorada(s) por filtro de MEMO")
             
-            # PRIMEIRO: processar transações para corrigir sinais
+            # PRIMEIRO: processar transa��es para corrigir sinais
             transacoes_processadas = []
             for trans in transactions_list:
                 valor_ofx = float(trans.amount)
@@ -4091,20 +4091,20 @@ def upload_extrato_ofx():
                 
                 # Determinar tipo e corrigir sinal
                 if trans_type:
-                    if trans_type.upper() in ['DEBIT', 'DÉBITO', 'DEB', 'DEBIT', 'PAYMENT', 'ATM']:
+                    if trans_type.upper() in ['DEBIT', 'D�BITO', 'DEB', 'DEBIT', 'PAYMENT', 'ATM']:
                         tipo = 'debito'
-                        valor_correto = -abs(valor_ofx)  # DÉBITO sempre negativo
+                        valor_correto = -abs(valor_ofx)  # D�BITO sempre negativo
                     else:
                         tipo = 'credito'
-                        valor_correto = abs(valor_ofx)  # CRÉDITO sempre positivo
+                        valor_correto = abs(valor_ofx)  # CR�DITO sempre positivo
                 else:
                     # Usar sinal do valor
                     if valor_ofx < 0:
                         tipo = 'debito'
-                        valor_correto = valor_ofx  # Já é negativo
+                        valor_correto = valor_ofx  # J� � negativo
                     else:
                         tipo = 'credito'
-                        valor_correto = valor_ofx  # Já é positivo
+                        valor_correto = valor_ofx  # J� � positivo
                 
                 transacoes_processadas.append({
                     'trans': trans,
@@ -4113,13 +4113,13 @@ def upload_extrato_ofx():
                     'tipo': tipo
                 })
             
-            # Calcular saldo inicial baseado no saldo final e soma correta das transações
-            # OU usar saldo_inicial da conta se data_inicio for anterior às transações
+            # Calcular saldo inicial baseado no saldo final e soma correta das transa��es
+            # OU usar saldo_inicial da conta se data_inicio for anterior �s transa��es
             if saldo_final is not None:
                 soma_transacoes = sum(t['valor_correto'] for t in transacoes_processadas)
                 saldo_inicial_calculado_ofx = saldo_final - soma_transacoes
                 
-                # 🐛 FIX: Extrair data da primeira transação ignorando timezone
+                # ?? FIX: Extrair data da primeira transa��o ignorando timezone
                 if hasattr(transactions_list[0].date, 'year'):
                     data_primeira_transacao = date(transactions_list[0].date.year, 
                                                    transactions_list[0].date.month, 
@@ -4133,26 +4133,26 @@ def upload_extrato_ofx():
                 if hasattr(conta_info, 'data_inicio') and conta_info.data_inicio:
                     data_inicio_conta = conta_info.data_inicio.date() if hasattr(conta_info.data_inicio, 'date') else conta_info.data_inicio
                     
-                    # Se data_inicio da conta for anterior ou igual à primeira transação, usar saldo_inicial da conta
+                    # Se data_inicio da conta for anterior ou igual � primeira transa��o, usar saldo_inicial da conta
                     if data_inicio_conta <= data_primeira_transacao:
                         usar_saldo_conta = True
                         saldo_atual = float(conta_info.saldo_inicial)
-                        print(f"\n✅ USANDO SALDO INICIAL DA CONTA:")
-                        print(f"   Data de início da conta: {data_inicio_conta}")
-                        print(f"   Primeira transação OFX: {data_primeira_transacao}")
+                        print(f"\n? USANDO SALDO INICIAL DA CONTA:")
+                        print(f"   Data de in�cio da conta: {data_inicio_conta}")
+                        print(f"   Primeira transa��o OFX: {data_primeira_transacao}")
                         print(f"   Saldo inicial da conta: R$ {saldo_atual:,.2f}")
                         print(f"   (Saldo calculado pelo OFX seria: R$ {saldo_inicial_calculado_ofx:,.2f})")
                 
                 if not usar_saldo_conta:
                     saldo_atual = saldo_inicial_calculado_ofx
-                    print(f"\n📊 CÁLCULOS (Saldo calculado pelo OFX):")
-                    print(f"   Soma de todas transações (corrigida): R$ {soma_transacoes:+,.2f}")
+                    print(f"\n?? C�LCULOS (Saldo calculado pelo OFX):")
+                    print(f"   Soma de todas transa��es (corrigida): R$ {soma_transacoes:+,.2f}")
                     print(f"   Saldo Final (OFX): R$ {saldo_final:,.2f}")
                     print(f"   Saldo Inicial calculado: R$ {saldo_inicial_calculado_ofx:,.2f}")
-                    print(f"   Fórmula: {saldo_final:,.2f} - ({soma_transacoes:+,.2f}) = {saldo_inicial_calculado_ofx:,.2f}")
+                    print(f"   F�rmula: {saldo_final:,.2f} - ({soma_transacoes:+,.2f}) = {saldo_inicial_calculado_ofx:,.2f}")
             else:
-                print(f"\n⚠️ AVISO: Saldo final não informado no OFX")
-                # Usar saldo_inicial da conta se disponível
+                print(f"\n?? AVISO: Saldo final n�o informado no OFX")
+                # Usar saldo_inicial da conta se dispon�vel
                 if hasattr(conta_info, 'saldo_inicial'):
                     saldo_atual = float(conta_info.saldo_inicial)
                     print(f"   Usando saldo inicial da conta: R$ {saldo_atual:,.2f}")
@@ -4160,11 +4160,11 @@ def upload_extrato_ofx():
                     saldo_atual = 0
                     print(f"   Iniciando em R$ 0,00")
             
-            print(f"\n📋 PROCESSANDO TRANSAÇÕES (cronológica):")
-            print(f"{'Data':<12} {'Tipo':<15} {'Valor OFX':>15} {'Valor Correto':>15} {'Saldo Após':>15}")
+            print(f"\n?? PROCESSANDO TRANSA��ES (cronol�gica):")
+            print(f"{'Data':<12} {'Tipo':<15} {'Valor OFX':>15} {'Valor Correto':>15} {'Saldo Ap�s':>15}")
             print(f"{'-'*72}")
             
-            # Processar cada transação já calculada e atualizar saldo
+            # Processar cada transa��o j� calculada e atualizar saldo
             for t_proc in transacoes_processadas:
                 trans = t_proc['trans']
                 valor_ofx = t_proc['valor_ofx']
@@ -4174,7 +4174,7 @@ def upload_extrato_ofx():
                 # Atualizar saldo: saldo += valor (negativo diminui, positivo aumenta)
                 saldo_atual += valor_correto
                 
-                # 🐛 FIX: Extrair data ignorando timezone (previne bug -1 dia no Railway/UTC)
+                # ?? FIX: Extrair data ignorando timezone (previne bug -1 dia no Railway/UTC)
                 # Em vez de trans.date.date() que pode ser afetado por timezone do servidor,
                 # usar componentes year/month/day direto do datetime
                 if hasattr(trans.date, 'year'):
@@ -4185,15 +4185,15 @@ def upload_extrato_ofx():
                     data_transacao = trans.date
                 
                 data_str = str(data_transacao)
-                tipo_label = '🔴 DÉBITO' if tipo == 'debito' else '🟢 CRÉDITO'
+                tipo_label = '?? D�BITO' if tipo == 'debito' else '?? CR�DITO'
                 print(f"{data_str:<12} {tipo_label:<15} {valor_ofx:>+15.2f} {valor_correto:>+15.2f} {saldo_atual:>15.2f}")
                 
                 transacoes.append({
                     'data': data_transacao,
                     'descricao': trans.payee or trans.memo or 'Sem descricao',
-                    'valor': valor_correto,  # Guardar valor com sinal (negativo para débito, positivo para crédito)
-                    'tipo': tipo.upper(),  # DEBITO ou CREDITO (maiúsculo)
-                    'saldo': saldo_atual,  # Saldo após esta transação
+                    'valor': valor_correto,  # Guardar valor com sinal (negativo para d�bito, positivo para cr�dito)
+                    'tipo': tipo.upper(),  # DEBITO ou CREDITO (mai�sculo)
+                    'saldo': saldo_atual,  # Saldo ap�s esta transa��o
                     'fitid': trans.id,
                     'memo': trans.memo,
                     'checknum': trans.checknum if hasattr(trans, 'checknum') else None
@@ -4202,7 +4202,7 @@ def upload_extrato_ofx():
         if not transacoes:
             return jsonify({'success': False, 'error': 'Nenhuma transacao encontrada no arquivo'}), 400
         
-        # Salvar no banco (empresa_id já foi obtido no início da função)
+        # Salvar no banco (empresa_id j� foi obtido no in�cio da fun��o)
         resultado = extrato_functions.salvar_transacoes_extrato(
             database, 
             empresa_id, 
@@ -4236,10 +4236,10 @@ def listar_extratos():
     try:
         usuario = get_usuario_logado()
         
-        # Usar empresa_id da sessão (empresa selecionada pelo usuário)
+        # Usar empresa_id da sess�o (empresa selecionada pelo usu�rio)
         empresa_id = session.get('empresa_id') or usuario.get('cliente_id') or usuario.get('empresa_id') or 1
         
-        logger.info(f"🔍 /api/extratos: empresa_id={empresa_id}, usuario={usuario.get('nome', 'N/A')}")
+        logger.info(f"?? /api/extratos: empresa_id={empresa_id}, usuario={usuario.get('nome', 'N/A')}")
         
         # Validar e sanitizar datas (rejeitar anos absurdos, ex: 0202 vindo de JS Date com ano truncado)
         def _sanitize_date(value):
@@ -4249,7 +4249,7 @@ def listar_extratos():
                 from datetime import datetime as _dt
                 parsed = _dt.strptime(value, '%Y-%m-%d')
                 if parsed.year < 2000 or parsed.year > 2100:
-                    logger.warning(f"⚠️ Data com ano inválido ignorada: {value}")
+                    logger.warning(f"?? Data com ano inv�lido ignorada: {value}")
                     return None
                 return value
             except (ValueError, TypeError):
@@ -4262,14 +4262,14 @@ def listar_extratos():
             'conciliado': request.args.get('conciliado')
         }
         
-        logger.info(f"📋 Filtros recebidos: {filtros}")
+        logger.info(f"?? Filtros recebidos: {filtros}")
         
         # Converter conciliado para boolean
         if filtros['conciliado'] is not None:
             filtros['conciliado'] = filtros['conciliado'].lower() == 'true'
         
-        # Função agora retorna dict com 'transacoes' e 'saldo_anterior'
-        logger.info(f"📞 Chamando extrato_functions.listar_transacoes_extrato...")
+        # Fun��o agora retorna dict com 'transacoes' e 'saldo_anterior'
+        logger.info(f"?? Chamando extrato_functions.listar_transacoes_extrato...")
         resultado = extrato_functions.listar_transacoes_extrato(
             database,
             empresa_id,
@@ -4279,11 +4279,11 @@ def listar_extratos():
         # Log do resultado (evitar backslash em f-string)
         if isinstance(resultado, dict):
             qtd_transacoes = len(resultado.get('transacoes', []))
-            logger.info(f"📊 Resultado tipo: dict com {qtd_transacoes} transações")
+            logger.info(f"?? Resultado tipo: dict com {qtd_transacoes} transa��es")
         else:
-            logger.info(f"📊 Resultado tipo: {type(resultado)}, conteúdo: {resultado}")
+            logger.info(f"?? Resultado tipo: {type(resultado)}, conte�do: {resultado}")
         
-        # Manter compatibilidade: se retornou lista (código antigo), converter
+        # Manter compatibilidade: se retornou lista (c�digo antigo), converter
         if isinstance(resultado, list):
             transacoes = resultado
             saldo_anterior = None
@@ -4291,7 +4291,7 @@ def listar_extratos():
             transacoes = resultado.get('transacoes', [])
             saldo_anterior = resultado.get('saldo_anterior')
         
-        logger.info(f"✅ Retornando {len(transacoes)} transação(ões) para o frontend")
+        logger.info(f"? Retornando {len(transacoes)} transa��o(�es) para o frontend")
         
         # Retornar no formato esperado pelo frontend
         resposta = {
@@ -4302,7 +4302,7 @@ def listar_extratos():
         return jsonify(resposta), 200
         
     except Exception as e:
-        logger.error(f"❌ ERRO ao listar extratos: {e}")
+        logger.error(f"? ERRO ao listar extratos: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
@@ -4315,18 +4315,18 @@ def conciliar_extrato(transacao_id):
     Concilia uma transacao do extrato com um lancamento
     
     Security:
-        🔒 Validado empresa_id da sessão
+        ?? Validado empresa_id da sess�o
     """
     try:
-        # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+        # ?? VALIDA��O DE SEGURAN�A OBRIGAT�RIA
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'erro': 'Empresa não selecionada'}), 403
+            return jsonify({'erro': 'Empresa n�o selecionada'}), 403
         
         dados = request.json
         lancamento_id = dados.get('lancamento_id')
         
-        # 🔒 Passar empresa_id explicitamente
+        # ?? Passar empresa_id explicitamente
         resultado = extrato_functions.conciliar_transacao(
             database,
             empresa_id,
@@ -4348,10 +4348,10 @@ def sugerir_conciliacoes_extrato(transacao_id):
     try:
         usuario = get_usuario_logado()
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         sugestoes = extrato_functions.sugerir_conciliacoes(
             database,
@@ -4373,15 +4373,15 @@ def deletar_importacao_extrato(importacao_id):
     Deleta todas as transacoes de uma importacao
     
     Security:
-        🔒 Validado empresa_id da sessão
+        ?? Validado empresa_id da sess�o
     """
     try:
-        # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
+        # ?? VALIDA��O DE SEGURAN�A OBRIGAT�RIA
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'erro': 'Empresa não selecionada'}), 403
+            return jsonify({'erro': 'Empresa n�o selecionada'}), 403
         
-        # ⚠️ VERIFICAR SE HÁ TRANSAÇÕES CONCILIADAS
+        # ?? VERIFICAR SE H� TRANSA��ES CONCILIADAS
         conn = database.get_connection()
         cursor = conn.cursor()
         
@@ -4397,17 +4397,17 @@ def deletar_importacao_extrato(importacao_id):
         from database_postgresql import return_to_pool
         return_to_pool(conn)
         
-        # Se houver conciliações, avisar o usuário
+        # Se houver concilia��es, avisar o usu�rio
         if total_conciliados > 0:
-            logger.warning(f"⚠️ Tentativa de deletar extrato com {total_conciliados} transações conciliadas")
+            logger.warning(f"?? Tentativa de deletar extrato com {total_conciliados} transa��es conciliadas")
             return jsonify({
                 'success': False,
-                'error': f'⚠️ ATENÇÃO: Este extrato contém {total_conciliados} transação(ões) conciliada(s). A exclusão irá desfazer todas as conciliações. Confirme para continuar.',
+                'error': f'?? ATEN��O: Este extrato cont�m {total_conciliados} transa��o(�es) conciliada(s). A exclus�o ir� desfazer todas as concilia��es. Confirme para continuar.',
                 'transacoes_conciliadas': total_conciliados,
                 'requer_confirmacao': True
             }), 409  # 409 Conflict
         
-        # 🔒 Passar empresa_id explicitamente
+        # ?? Passar empresa_id explicitamente
         resultado = extrato_functions.deletar_transacoes_extrato(
             database,
             empresa_id,
@@ -4428,34 +4428,34 @@ def diagnostico_extrato():
     try:
         usuario = get_usuario_logado()
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         conta_bancaria = request.args.get('conta')
         if not conta_bancaria:
-            return jsonify({'success': False, 'error': 'Conta bancária não informada'}), 400
+            return jsonify({'success': False, 'error': 'Conta banc�ria n�o informada'}), 400
         
-        logger.info(f"🔍 Diagnóstico do extrato - empresa_id: {empresa_id}, conta: {conta_bancaria}")
+        logger.info(f"?? Diagn�stico do extrato - empresa_id: {empresa_id}, conta: {conta_bancaria}")
         
-        # Criar instância local do DatabaseManager
+        # Criar inst�ncia local do DatabaseManager
         db_manager = DatabaseManager()
         conn = db_manager.get_connection()
         
         try:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
-            # 1. Total de transações
+            # 1. Total de transa��es
             cursor.execute("""
                 SELECT COUNT(*) as total, MIN(data) as data_inicio, MAX(data) as data_fim
                 FROM transacoes_extrato
                 WHERE empresa_id = %s AND conta_bancaria = %s
             """, (empresa_id, conta_bancaria))
             resumo = cursor.fetchone()
-            logger.info(f"   📊 Total transações: {resumo['total'] if resumo else 0}")
+            logger.info(f"   ?? Total transa��es: {resumo['total'] if resumo else 0}")
             
-            # 2. Saldo atual (última transação)
+            # 2. Saldo atual (�ltima transa��o)
             cursor.execute("""
                 SELECT data, saldo, descricao
                 FROM transacoes_extrato
@@ -4465,7 +4465,7 @@ def diagnostico_extrato():
             """, (empresa_id, conta_bancaria))
             ultima = cursor.fetchone()
             if ultima:
-                logger.info(f"   💰 Saldo atual: R$ {ultima['saldo']}")
+                logger.info(f"   ?? Saldo atual: R$ {ultima['saldo']}")
             
             # 3. Verificar duplicatas por FITID
             cursor.execute("""
@@ -4479,9 +4479,9 @@ def diagnostico_extrato():
                 ORDER BY qtd DESC
             """, (empresa_id, conta_bancaria))
             duplicatas_fitid = cursor.fetchall()
-            logger.info(f"   ⚠️ Duplicatas FITID: {len(duplicatas_fitid)}")
+            logger.info(f"   ?? Duplicatas FITID: {len(duplicatas_fitid)}")
             
-            # 4. Verificar duplicatas por data+valor+descrição
+            # 4. Verificar duplicatas por data+valor+descri��o
             cursor.execute("""
                 SELECT data, valor, descricao, COUNT(*) as qtd,
                        STRING_AGG(CAST(id AS TEXT), ', ') as ids
@@ -4492,9 +4492,9 @@ def diagnostico_extrato():
                 ORDER BY qtd DESC, data DESC
             """, (empresa_id, conta_bancaria))
             duplicatas_conteudo = cursor.fetchall()
-            logger.info(f"   ⚠️ Duplicatas conteúdo: {len(duplicatas_conteudo)}")
+            logger.info(f"   ?? Duplicatas conte�do: {len(duplicatas_conteudo)}")
             
-            # 5. Importações
+            # 5. Importa��es
             cursor.execute("""
                 SELECT importacao_id, COUNT(*) as transacoes, MIN(data) as inicio, MAX(data) as fim
                 FROM transacoes_extrato
@@ -4503,9 +4503,9 @@ def diagnostico_extrato():
                 ORDER BY importacao_id DESC
             """, (empresa_id, conta_bancaria))
             importacoes = cursor.fetchall()
-            logger.info(f"   📦 Importações: {len(importacoes)}")
+            logger.info(f"   ?? Importa��es: {len(importacoes)}")
             
-            # 🔍 5.1. Detectar transações órfãs (sem importacao_id)
+            # ?? 5.1. Detectar transa��es �rf�s (sem importacao_id)
             cursor.execute("""
                 SELECT COUNT(*) as total_orfas,
                        MIN(data) as data_inicio,
@@ -4520,10 +4520,10 @@ def diagnostico_extrato():
             total_orfas = orfas_info['total_orfas'] if orfas_info else 0
             
             if total_orfas > 0:
-                logger.warning(f"   ⚠️ TRANSAÇÕES ÓRFÃS: {total_orfas} (sem importacao_id)")
-                logger.warning(f"      Período: {orfas_info['data_inicio']} a {orfas_info['data_fim']}")
+                logger.warning(f"   ?? TRANSA��ES �RF�S: {total_orfas} (sem importacao_id)")
+                logger.warning(f"      Per�odo: {orfas_info['data_inicio']} a {orfas_info['data_fim']}")
             else:
-                logger.info(f"   ✅ Nenhuma transação órfã detectada")
+                logger.info(f"   ? Nenhuma transa��o �rf� detectada")
             
             # 6. Saldo da conta cadastrada
             cursor.execute("""
@@ -4577,20 +4577,20 @@ def diagnostico_extrato():
                 resultado['problemas_detectados'].append({
                     'tipo': 'transacoes_orfas',
                     'severidade': 'ALTA',
-                    'mensagem': f'{total_orfas} transação(ões) sem ID de importação detectada(s)',
-                    'solucao': 'Use o botão "Deletar Extrato" filtrando pelo período para remover estas transações',
-                    'periodo': f"{orfas_info['data_inicio']} até {orfas_info['data_fim']}"
+                    'mensagem': f'{total_orfas} transa��o(�es) sem ID de importa��o detectada(s)',
+                    'solucao': 'Use o bot�o "Deletar Extrato" filtrando pelo per�odo para remover estas transa��es',
+                    'periodo': f"{orfas_info['data_inicio']} at� {orfas_info['data_fim']}"
                 })
             
             if len(duplicatas_fitid) > 0:
                 resultado['problemas_detectados'].append({
                     'tipo': 'duplicatas_fitid',
-                    'severidade': 'MÉDIA',
-                    'mensagem': f'{len(duplicatas_fitid)} grupo(s) de transações duplicadas por FITID',
+                    'severidade': 'M�DIA',
+                    'mensagem': f'{len(duplicatas_fitid)} grupo(s) de transa��es duplicadas por FITID',
                     'solucao': 'Execute o script de limpeza de duplicatas'
                 })
             
-            logger.info(f"✅ Diagnóstico concluído com sucesso")
+            logger.info(f"? Diagn�stico conclu�do com sucesso")
             return jsonify(resultado), 200
             
         finally:
@@ -4598,7 +4598,7 @@ def diagnostico_extrato():
                 conn.close()
         
     except Exception as e:
-        logger.error(f"❌ Erro no diagnóstico: {e}")
+        logger.error(f"? Erro no diagn�stico: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -4608,27 +4608,27 @@ def diagnostico_extrato():
 @require_permission('lancamentos_delete')
 def deletar_tudo_extrato_conta():
     """
-    Deleta TODAS as transações do extrato de uma conta específica
-    ⚠️ CUIDADO: Ação irreversível!
+    Deleta TODAS as transa��es do extrato de uma conta espec�fica
+    ?? CUIDADO: A��o irrevers�vel!
     """
     try:
         usuario = get_usuario_logado()
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         conta_bancaria = request.args.get('conta')
         if not conta_bancaria:
-            return jsonify({'success': False, 'error': 'Conta bancária não informada'}), 400
+            return jsonify({'success': False, 'error': 'Conta banc�ria n�o informada'}), 400
         
-        # Verificar se usuário confirmou a exclusão (caso haja conciliações)
+        # Verificar se usu�rio confirmou a exclus�o (caso haja concilia��es)
         confirmado = request.args.get('confirmar', 'false').lower() == 'true'
         
-        logger.info(f"🗑️ Deletando TODAS transações - empresa_id: {empresa_id}, conta: {conta_bancaria}")
+        logger.info(f"??? Deletando TODAS transa��es - empresa_id: {empresa_id}, conta: {conta_bancaria}")
         
-        # Criar instância local do DatabaseManager
+        # Criar inst�ncia local do DatabaseManager
         db_manager = DatabaseManager()
         conn = db_manager.get_connection()
         
@@ -4636,7 +4636,7 @@ def deletar_tudo_extrato_conta():
             conn.autocommit = False
             cursor = conn.cursor()
             
-            #  Contar quantas transações serão deletadas (para log)
+            #  Contar quantas transa��es ser�o deletadas (para log)
             cursor.execute("""
                 SELECT COUNT(*) FROM transacoes_extrato
                 WHERE empresa_id = %s AND conta_bancaria = %s
@@ -4644,7 +4644,7 @@ def deletar_tudo_extrato_conta():
             _row_antes = cursor.fetchone()
             total_antes = _row_antes['count'] if isinstance(_row_antes, dict) else _row_antes[0]
             
-            # ⚠️ VERIFICAR SE HÁ TRANSAÇÕES CONCILIADAS
+            # ?? VERIFICAR SE H� TRANSA��ES CONCILIADAS
             cursor.execute("""
                 SELECT COUNT(*) 
                 FROM transacoes_extrato 
@@ -4654,22 +4654,22 @@ def deletar_tudo_extrato_conta():
             _row_conc = cursor.fetchone()
             total_conciliados = _row_conc['count'] if isinstance(_row_conc, dict) else _row_conc[0]
             
-            # Se houver conciliações e não foi confirmado, avisar o usuário
+            # Se houver concilia��es e n�o foi confirmado, avisar o usu�rio
             if total_conciliados > 0 and not confirmado:
                 cursor.close()
                 conn.close()
-                logger.warning(f"⚠️ Tentativa de deletar extrato com {total_conciliados} transações conciliadas")
+                logger.warning(f"?? Tentativa de deletar extrato com {total_conciliados} transa��es conciliadas")
                 return jsonify({
                     'success': False,
-                    'error': f'⚠️ ATENÇÃO: {total_conciliados} de {total_antes} transação(ões) está(ão) conciliada(s). A exclusão irá desfazer todas as conciliações. Confirme para continuar.',
+                    'error': f'?? ATEN��O: {total_conciliados} de {total_antes} transa��o(�es) est�(�o) conciliada(s). A exclus�o ir� desfazer todas as concilia��es. Confirme para continuar.',
                     'transacoes_conciliadas': total_conciliados,
                     'total_transacoes': total_antes,
                     'requer_confirmacao': True
                 }), 409  # 409 Conflict
             
-            logger.info(f"   📊 Total de transações a deletar: {total_antes} ({total_conciliados} conciliadas)")
+            logger.info(f"   ?? Total de transa��es a deletar: {total_antes} ({total_conciliados} conciliadas)")
             
-            # Deletar TODAS as transações desta conta/empresa
+            # Deletar TODAS as transa��es desta conta/empresa
             cursor.execute("""
                 DELETE FROM transacoes_extrato
                 WHERE empresa_id = %s AND conta_bancaria = %s
@@ -4680,12 +4680,12 @@ def deletar_tudo_extrato_conta():
             conn.commit()
             cursor.close()
             
-            logger.info(f"   ✅ {deletados} transações deletadas com sucesso")
+            logger.info(f"   ? {deletados} transa��es deletadas com sucesso")
             
-            mensagem = f'✅ {deletados} transação(ões) deletada(s) com sucesso.'
+            mensagem = f'? {deletados} transa��o(�es) deletada(s) com sucesso.'
             if total_conciliados > 0:
-                mensagem += f' {total_conciliados} conciliação(ões) foi(ram) desfeita(s).'
-            mensagem += ' Agora você pode reimportar o arquivo OFX.'
+                mensagem += f' {total_conciliados} concilia��o(�es) foi(ram) desfeita(s).'
+            mensagem += ' Agora voc� pode reimportar o arquivo OFX.'
             
             return jsonify({
                 'success': True,
@@ -4703,7 +4703,7 @@ def deletar_tudo_extrato_conta():
                 conn.close()
         
     except Exception as e:
-        logger.info(f"Erro ao deletar todas transaç ões: {e}")
+        logger.info(f"Erro ao deletar todas transa� �es: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -4716,10 +4716,10 @@ def deletar_extrato_filtrado():
     try:
         usuario = get_usuario_logado()
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         filtros = {
             'conta_bancaria': request.args.get('conta'),
@@ -4734,15 +4734,15 @@ def deletar_extrato_filtrado():
                 'error': 'Pelo menos um filtro deve ser fornecido (conta, data_inicio ou data_fim)'
             }), 400
         
-        # Verificar se usuário confirmou a exclusão (caso haja conciliações)
+        # Verificar se usu�rio confirmou a exclus�o (caso haja concilia��es)
         confirmado = request.args.get('confirmar', 'false').lower() == 'true'
         
-        # Deletar transações que correspondem aos filtros
+        # Deletar transa��es que correspondem aos filtros
         with db.get_connection() as conn:
             conn.autocommit = False
             cursor = conn.cursor()
             
-            # Primeiro verificar quantas transações conciliadas serão afetadas
+            # Primeiro verificar quantas transa��es conciliadas ser�o afetadas
             query_count = "SELECT COUNT(*) FROM transacoes_extrato WHERE empresa_id = %s AND conciliado = TRUE"
             params = [empresa_id]
             
@@ -4762,18 +4762,18 @@ def deletar_extrato_filtrado():
             _row = cursor.fetchone()
             total_conciliados = _row['count'] if isinstance(_row, dict) else _row[0]
             
-            # Se houver conciliações e não foi confirmado, avisar o usuário
+            # Se houver concilia��es e n�o foi confirmado, avisar o usu�rio
             if total_conciliados > 0 and not confirmado:
                 cursor.close()
-                logger.warning(f"⚠️ Tentativa de deletar extrato com {total_conciliados} transações conciliadas")
+                logger.warning(f"?? Tentativa de deletar extrato com {total_conciliados} transa��es conciliadas")
                 return jsonify({
                     'success': False,
-                    'error': f'⚠️ ATENÇÃO: {total_conciliados} transação(ões) conciliada(s) será(ão) afetada(s). A exclusão irá desfazer todas as conciliações. Confirme para continuar.',
+                    'error': f'?? ATEN��O: {total_conciliados} transa��o(�es) conciliada(s) ser�(�o) afetada(s). A exclus�o ir� desfazer todas as concilia��es. Confirme para continuar.',
                     'transacoes_conciliadas': total_conciliados,
                     'requer_confirmacao': True
                 }), 409  # 409 Conflict
             
-            # Executar a deleção
+            # Executar a dele��o
             query = "DELETE FROM transacoes_extrato WHERE empresa_id = %s"
             params = [empresa_id]
             
@@ -4795,9 +4795,9 @@ def deletar_extrato_filtrado():
             conn.commit()
             cursor.close()
             
-            mensagem = f'{deletados} transação(ões) deletada(s) com sucesso'
+            mensagem = f'{deletados} transa��o(�es) deletada(s) com sucesso'
             if total_conciliados > 0:
-                mensagem += f'. {total_conciliados} conciliação(ões) foi(ram) desfeita(s)'
+                mensagem += f'. {total_conciliados} concilia��o(�es) foi(ram) desfeita(s)'
             
             return jsonify({
                 'success': True,
@@ -4818,31 +4818,31 @@ def deletar_extrato_filtrado():
 def auditoria_pagamentos_duplicados():
     """
     Auditoria de Pagamentos - Detecta pagamentos duplicados
-    Critério: Mesma data + Mesmo valor + Mesmo beneficiário (nome/CPF)
+    Crit�rio: Mesma data + Mesmo valor + Mesmo benefici�rio (nome/CPF)
     """
     try:
         usuario = get_usuario_logado()
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         # Filtros opcionais
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
         conta_bancaria = request.args.get('conta')
         
-        logger.info(f"🔍 Auditoria de Pagamentos - empresa_id: {empresa_id}")
+        logger.info(f"?? Auditoria de Pagamentos - empresa_id: {empresa_id}")
         
-        # Criar instância local do DatabaseManager
+        # Criar inst�ncia local do DatabaseManager
         db_manager = DatabaseManager()
         conn = db_manager.get_connection()
         
         try:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
-            # Query para detectar duplicatas no EXTRATO BANCÁRIO
+            # Query para detectar duplicatas no EXTRATO BANC�RIO
             query_extrato = """
                 SELECT 
                     data,
@@ -4854,7 +4854,7 @@ def auditoria_pagamentos_duplicados():
                     'extrato' as origem
                 FROM transacoes_extrato
                 WHERE empresa_id = %s
-                  AND tipo = 'DEBITO'  -- Apenas débitos (saídas/pagamentos)
+                  AND tipo = 'DEBITO'  -- Apenas d�bitos (sa�das/pagamentos)
             """
             params_extrato = [empresa_id]
             
@@ -4879,15 +4879,15 @@ def auditoria_pagamentos_duplicados():
             cursor.execute(query_extrato, params_extrato)
             duplicatas_extrato = cursor.fetchall()
             
-            logger.info(f"   📊 Duplicatas no extrato: {len(duplicatas_extrato)}")
+            logger.info(f"   ?? Duplicatas no extrato: {len(duplicatas_extrato)}")
             
-            # Query para detectar duplicatas nos LANÇAMENTOS (Contas a Pagar)
-            # Nota: tabela lancamentos usa colunas cliente_fornecedor/pessoa para nomes, não IDs
+            # Query para detectar duplicatas nos LAN�AMENTOS (Contas a Pagar)
+            # Nota: tabela lancamentos usa colunas cliente_fornecedor/pessoa para nomes, n�o IDs
             query_lancamentos = """
                 SELECT 
                     data_vencimento as data,
                     valor,
-                    COALESCE(cliente_fornecedor, pessoa, 'Sem beneficiário') as beneficiario,
+                    COALESCE(cliente_fornecedor, pessoa, 'Sem benefici�rio') as beneficiario,
                     categoria,
                     conta_bancaria,
                     COUNT(*) as quantidade,
@@ -4913,7 +4913,7 @@ def auditoria_pagamentos_duplicados():
                 params_lancamentos.append(conta_bancaria)
             
             query_lancamentos += """
-                GROUP BY data_vencimento, valor, COALESCE(cliente_fornecedor, pessoa, 'Sem beneficiário'), 
+                GROUP BY data_vencimento, valor, COALESCE(cliente_fornecedor, pessoa, 'Sem benefici�rio'), 
                          categoria, conta_bancaria
                 HAVING COUNT(*) > 1
                 ORDER BY quantidade DESC, data DESC, ABS(valor) DESC
@@ -4922,7 +4922,7 @@ def auditoria_pagamentos_duplicados():
             cursor.execute(query_lancamentos, params_lancamentos)
             duplicatas_lancamentos = cursor.fetchall()
             
-            logger.info(f"   📊 Duplicatas em lançamentos: {len(duplicatas_lancamentos)}")
+            logger.info(f"   ?? Duplicatas em lan�amentos: {len(duplicatas_lancamentos)}")
             
             # Calcular valor total duplicado
             total_duplicado_extrato = sum(
@@ -4955,7 +4955,7 @@ def auditoria_pagamentos_duplicados():
                 }
             }
             
-            logger.info(f"✅ Auditoria concluída - Total duplicado: R$ {total_duplicado_extrato + total_duplicado_lancamentos:,.2f}")
+            logger.info(f"? Auditoria conclu�da - Total duplicado: R$ {total_duplicado_extrato + total_duplicado_lancamentos:,.2f}")
             return jsonify(resultado), 200
             
         finally:
@@ -4963,50 +4963,50 @@ def auditoria_pagamentos_duplicados():
                 conn.close()
         
     except Exception as e:
-        logger.error(f"❌ Erro na auditoria: {e}")
+        logger.error(f"? Erro na auditoria: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-print("🔧 Registrando rota: /api/extratos/conciliacao-geral")
+print("?? Registrando rota: /api/extratos/conciliacao-geral")
 
 @app.route('/api/extratos/conciliacao-geral', methods=['POST'])
 @require_permission('lancamentos_create')
 def conciliacao_geral_extrato():
-    """Conciliação automática em massa de transações do extrato para contas a pagar/receber"""
-    # Logs reduzidos para evitar poluição
+    """Concilia��o autom�tica em massa de transa��es do extrato para contas a pagar/receber"""
+    # Logs reduzidos para evitar polui��o
     try:
-        logger.info("🚀 CONCILIAÇÃO GERAL INICIADA")
+        logger.info("?? CONCILIA��O GERAL INICIADA")
         usuario = get_usuario_logado()
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
-        logger.info(f"👤 Usuário: {usuario.get('username')} | Empresa ID: {empresa_id}")
+        logger.info(f"?? Usu�rio: {usuario.get('username')} | Empresa ID: {empresa_id}")
         
         dados = request.json
         transacoes = dados.get('transacoes', [])
-        print(f"📦 Recebidas {len(transacoes)} transação(ões) para conciliar")
-        logger.info(f"📦 Recebidas {len(transacoes)} transação(ões) para conciliar")
-        print(f"📋 Dados: {dados}")
-        logger.info(f"📋 Dados recebidos: {dados}")
+        print(f"?? Recebidas {len(transacoes)} transa��o(�es) para conciliar")
+        logger.info(f"?? Recebidas {len(transacoes)} transa��o(�es) para conciliar")
+        print(f"?? Dados: {dados}")
+        logger.info(f"?? Dados recebidos: {dados}")
         
         if not transacoes:
-            return jsonify({'success': False, 'error': 'Nenhuma transação selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Nenhuma transa��o selecionada'}), 400
         
         # Buscar clientes e fornecedores para matching de CPF/CNPJ
         clientes = db.listar_clientes(ativos=True)
         fornecedores = db.listar_fornecedores(ativos=True)
         
-        # Criar dicionários de busca rápida por CPF/CNPJ
+        # Criar dicion�rios de busca r�pida por CPF/CNPJ
         clientes_dict = {}
         for cliente in clientes:
             cpf_cnpj = cliente.get('cpf') or cliente.get('cnpj')
             if cpf_cnpj:
-                # Normalizar (remover pontos, traços, barras)
+                # Normalizar (remover pontos, tra�os, barras)
                 cpf_cnpj_limpo = ''.join(filter(str.isdigit, str(cpf_cnpj)))
                 clientes_dict[cpf_cnpj_limpo] = cliente['nome']
         
@@ -5028,7 +5028,7 @@ def conciliacao_geral_extrato():
                 razao_social = item.get('razao_social', '')
                 descricao_personalizada = item.get('descricao', '')
                 
-                # Buscar transação do extrato
+                # Buscar transa��o do extrato
                 with db.get_connection() as conn:
                     import psycopg2.extras
                     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -5040,14 +5040,14 @@ def conciliacao_geral_extrato():
                     cursor.close()
                 
                 if not transacao:
-                    erros.append(f"Transação {transacao_id} não encontrada")
+                    erros.append(f"Transa��o {transacao_id} n�o encontrada")
                     continue
                 
-                # Validar se a conta bancária está ativa
+                # Validar se a conta banc�ria est� ativa
                 conta_bancaria = transacao['conta_bancaria']
-                print(f"🔍 Validando conta bancária: {conta_bancaria}")
+                print(f"?? Validando conta banc�ria: {conta_bancaria}")
                 contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
-                print(f"📊 Total de contas encontradas: {len(contas)}")
+                print(f"?? Total de contas encontradas: {len(contas)}")
                 
                 # Debug: listar todas as contas
                 for c in contas:
@@ -5056,59 +5056,59 @@ def conciliacao_geral_extrato():
                 conta = next((c for c in contas if c.nome == conta_bancaria), None)
                 
                 if not conta:
-                    erros.append(f"Transação {transacao_id}: A conta bancária '{conta_bancaria}' não está cadastrada no sistema ou o nome não corresponde exatamente. Verifique o cadastro de contas.")
-                    print(f"❌ Conciliação bloqueada: conta '{conta_bancaria}' não encontrada")
-                    logger.warning(f"❌ Tentativa de conciliar com conta não cadastrada: {conta_bancaria}")
+                    erros.append(f"Transa��o {transacao_id}: A conta banc�ria '{conta_bancaria}' n�o est� cadastrada no sistema ou o nome n�o corresponde exatamente. Verifique o cadastro de contas.")
+                    print(f"? Concilia��o bloqueada: conta '{conta_bancaria}' n�o encontrada")
+                    logger.warning(f"? Tentativa de conciliar com conta n�o cadastrada: {conta_bancaria}")
                     continue
                 
-                print(f"✅ Conta encontrada: {conta.nome}")
-                print(f"📊 Campo ativa existe? {hasattr(conta, 'ativa')}")
-                print(f"📊 Valor do campo ativa: {conta.ativa if hasattr(conta, 'ativa') else 'N/A'}")
+                print(f"? Conta encontrada: {conta.nome}")
+                print(f"?? Campo ativa existe? {hasattr(conta, 'ativa')}")
+                print(f"?? Valor do campo ativa: {conta.ativa if hasattr(conta, 'ativa') else 'N/A'}")
                 
                 if hasattr(conta, 'ativa') and not conta.ativa:
-                    erros.append(f"Transação {transacao_id}: A conta bancária '{conta_bancaria}' está inativa. Reative a conta antes de conciliar.")
-                    print(f"❌ Conciliação bloqueada: conta {conta_bancaria} está inativa")
-                    logger.warning(f"❌ Tentativa de conciliar com conta inativa: {conta_bancaria}")
+                    erros.append(f"Transa��o {transacao_id}: A conta banc�ria '{conta_bancaria}' est� inativa. Reative a conta antes de conciliar.")
+                    print(f"? Concilia��o bloqueada: conta {conta_bancaria} est� inativa")
+                    logger.warning(f"? Tentativa de conciliar com conta inativa: {conta_bancaria}")
                     continue
                 
-                # Detectar CPF/CNPJ na descrição (regex simples)
+                # Detectar CPF/CNPJ na descri��o (regex simples)
                 import re
                 descricao = transacao['descricao']
                 cpf_cnpj_encontrado = None
                 
-                # Buscar CPF (11 dígitos) ou CNPJ (14 dígitos)
+                # Buscar CPF (11 d�gitos) ou CNPJ (14 d�gitos)
                 numeros = ''.join(filter(str.isdigit, descricao))
                 if len(numeros) == 11 or len(numeros) == 14:
                     cpf_cnpj_encontrado = numeros
                 
-                # Tentar matching automático se não foi fornecida razão social
+                # Tentar matching autom�tico se n�o foi fornecida raz�o social
                 if not razao_social and cpf_cnpj_encontrado:
                     if transacao['tipo'].upper() == 'CREDITO':
                         razao_social = clientes_dict.get(cpf_cnpj_encontrado, '')
                     else:
                         razao_social = fornecedores_dict.get(cpf_cnpj_encontrado, '')
                 
-                # 🔧 CONCILIAR TRANSAÇÃO E CRIAR LANÇAMENTO AUTOMATICAMENTE
-                # Usa a função conciliar_transacao() que agora cria lançamento com status='PAGO'
+                # ?? CONCILIAR TRANSA��O E CRIAR LAN�AMENTO AUTOMATICAMENTE
+                # Usa a fun��o conciliar_transacao() que agora cria lan�amento com status='PAGO'
                 
-                print(f"🔄 Conciliando transação {transacao_id} (criando lançamento)...")
-                logger.info(f"🔄 Conciliando transação {transacao_id} - empresa_id: {empresa_id}")
+                print(f"?? Conciliando transa��o {transacao_id} (criando lan�amento)...")
+                logger.info(f"?? Conciliando transa��o {transacao_id} - empresa_id: {empresa_id}")
                 
-                # Importar função de conciliação
+                # Importar fun��o de concilia��o
                 from extrato_functions import conciliar_transacao
                 
-                # Conciliar com criação automática de lançamento (lancamento_id='auto')
+                # Conciliar com cria��o autom�tica de lan�amento (lancamento_id='auto')
                 resultado = conciliar_transacao(
                     database=db,
                     empresa_id=empresa_id,
                     transacao_id=transacao_id,
-                    lancamento_id='auto'  # Cria novo lançamento automaticamente
+                    lancamento_id='auto'  # Cria novo lan�amento automaticamente
                 )
                 
                 if resultado.get('success'):
                     lancamento_id = resultado.get('lancamento_id')
                     
-                    # Atualizar campos extras na transação do extrato (categoria, pessoa)
+                    # Atualizar campos extras na transa��o do extrato (categoria, pessoa)
                     if categoria or subcategoria or razao_social:
                         with db.get_db_connection(empresa_id=empresa_id) as conn:
                             cursor_update = conn.cursor()
@@ -5129,20 +5129,20 @@ def conciliacao_geral_extrato():
                             conn.commit()
                             cursor_update.close()
                     
-                    print(f"✅ Transação {transacao_id} conciliada → lançamento #{lancamento_id} criado com status PAGO")
-                    logger.info(f"✅ Transação {transacao_id} conciliada → lançamento #{lancamento_id}")
+                    print(f"? Transa��o {transacao_id} conciliada ? lan�amento #{lancamento_id} criado com status PAGO")
+                    logger.info(f"? Transa��o {transacao_id} conciliada ? lan�amento #{lancamento_id}")
                     criados += 1
                 else:
                     erro_msg = resultado.get('error', 'Erro desconhecido')
-                    erros.append(f"Transação {transacao_id}: {erro_msg}")
-                    logger.error(f"❌ Falha ao conciliar transação {transacao_id}: {erro_msg}")
+                    erros.append(f"Transa��o {transacao_id}: {erro_msg}")
+                    logger.error(f"? Falha ao conciliar transa��o {transacao_id}: {erro_msg}")
                     continue
                 
             except Exception as e:
-                erro_msg = f"Erro na transação {item.get('transacao_id')}: {str(e)}"
-                print(f"❌ {erro_msg}")
+                erro_msg = f"Erro na transa��o {item.get('transacao_id')}: {str(e)}"
+                print(f"? {erro_msg}")
                 erros.append(erro_msg)
-                logger.error(f"Erro ao conciliar transação {item.get('transacao_id')}: {e}")
+                logger.error(f"Erro ao conciliar transa��o {item.get('transacao_id')}: {e}")
                 import traceback
                 print(traceback.format_exc())
                 traceback.print_exc()
@@ -5152,7 +5152,7 @@ def conciliacao_geral_extrato():
         status_code = 200 if success else 400
         
         if not success and erros:
-            # Se nenhuma transação foi conciliada e há erros, retornar erro
+            # Se nenhuma transa��o foi conciliada e h� erros, retornar erro
             return jsonify({
                 'success': False,
                 'criados': 0,
@@ -5164,11 +5164,11 @@ def conciliacao_geral_extrato():
             'success': success,
             'criados': criados,
             'erros': erros,
-            'message': f'{criados} lançamento(s) criado(s) com sucesso' + (f'. {len(erros)} erro(s).' if erros else '')
+            'message': f'{criados} lan�amento(s) criado(s) com sucesso' + (f'. {len(erros)} erro(s).' if erros else '')
         }), status_code
         
     except Exception as e:
-        logger.error(f"Erro na conciliação geral: {e}")
+        logger.error(f"Erro na concilia��o geral: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -5177,24 +5177,24 @@ def conciliacao_geral_extrato():
 @app.route('/api/extratos/<int:transacao_id>/desconciliar', methods=['POST'])
 @require_permission('lancamentos_delete')
 def desconciliar_extrato(transacao_id):
-    """Desfaz a conciliação de uma transação do extrato e exclui o lançamento"""
+    """Desfaz a concilia��o de uma transa��o do extrato e exclui o lan�amento"""
     try:
         print("\n" + "="*80)
-        print(f"🔙 DESCONCILIAÇÃO INICIADA - Transação ID: {transacao_id}")
+        print(f"?? DESCONCILIA��O INICIADA - Transa��o ID: {transacao_id}")
         
         usuario = get_usuario_logado()
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         conn = db.get_connection()
         import psycopg2.extras
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         try:
-            # Buscar transação do extrato
+            # Buscar transa��o do extrato
             cursor.execute(
                 "SELECT * FROM transacoes_extrato WHERE id = %s AND empresa_id = %s",
                 (transacao_id, empresa_id)
@@ -5205,15 +5205,15 @@ def desconciliar_extrato(transacao_id):
                 cursor.close()
                 from database_postgresql import return_to_pool
                 return_to_pool(conn)
-                return jsonify({'success': False, 'error': 'Transação não encontrada'}), 404
+                return jsonify({'success': False, 'error': 'Transa��o n�o encontrada'}), 404
             
             if not transacao['conciliado']:
                 cursor.close()
                 from database_postgresql import return_to_pool
                 return_to_pool(conn)
-                return jsonify({'success': False, 'error': 'Transação não está conciliada'}), 400
+                return jsonify({'success': False, 'error': 'Transa��o n�o est� conciliada'}), 400
             
-            print(f"📌 Transação: ID={transacao_id}, Conciliado={transacao['conciliado']}")
+            print(f"?? Transa��o: ID={transacao_id}, Conciliado={transacao['conciliado']}")
             
             # Buscar lancamento_id da tabela conciliacoes
             cursor.execute(
@@ -5223,45 +5223,45 @@ def desconciliar_extrato(transacao_id):
             conciliacao = cursor.fetchone()
             
             lancamento_id = conciliacao['lancamento_id'] if conciliacao else None
-            print(f"📌 Lançamento ID: {lancamento_id}")
+            print(f"?? Lan�amento ID: {lancamento_id}")
             
-            # Excluir lançamento se existir
+            # Excluir lan�amento se existir
             if lancamento_id:
-                print(f"🗑️ Excluindo lançamento ID={lancamento_id}")
+                print(f"??? Excluindo lan�amento ID={lancamento_id}")
                 db.excluir_lancamento(lancamento_id)
-                print(f"✅ Lançamento {lancamento_id} excluído")
+                print(f"? Lan�amento {lancamento_id} exclu�do")
             
             # Deletar da tabela conciliacoes
-            print(f"🗑️ Removendo da tabela conciliacoes...")
+            print(f"??? Removendo da tabela conciliacoes...")
             cursor.execute(
                 "DELETE FROM conciliacoes WHERE transacao_extrato_id = %s AND empresa_id = %s",
                 (transacao_id, empresa_id)
             )
             affected_conciliacoes = cursor.rowcount
-            print(f"📝 DELETE conciliacoes: {affected_conciliacoes} linha(s) deletada(s)")
+            print(f"?? DELETE conciliacoes: {affected_conciliacoes} linha(s) deletada(s)")
             
-            # Atualizar transação: desconciliar
-            print(f"🔄 Atualizando flag conciliado -> FALSE")
+            # Atualizar transa��o: desconciliar
+            print(f"?? Atualizando flag conciliado -> FALSE")
             cursor.execute(
                 "UPDATE transacoes_extrato SET conciliado = FALSE WHERE id = %s AND empresa_id = %s",
                 (transacao_id, empresa_id)
             )
             affected_rows = cursor.rowcount
-            print(f"📝 UPDATE transacoes_extrato: {affected_rows} linha(s) atualizada(s)")
+            print(f"?? UPDATE transacoes_extrato: {affected_rows} linha(s) atualizada(s)")
             
             conn.commit()
-            print("✅ COMMIT OK")
+            print("? COMMIT OK")
             
             cursor.close()
             from database_postgresql import return_to_pool
             return_to_pool(conn)
             
-            print(f"✅ Desconciliação concluída com sucesso!")
+            print(f"? Desconcilia��o conclu�da com sucesso!")
             print("="*80 + "\n")
             
             return jsonify({
                 'success': True,
-                'message': 'Desconciliação realizada com sucesso'
+                'message': 'Desconcilia��o realizada com sucesso'
             }), 200
             
         except Exception as e:
@@ -5272,33 +5272,33 @@ def desconciliar_extrato(transacao_id):
             raise
         
     except Exception as e:
-        print(f"❌ Erro na desconciliação: {e}")
+        print(f"? Erro na desconcilia��o: {e}")
         import traceback
         print(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ============================================================================
-# ROTAS DE REGRAS DE AUTO-CONCILIAÇÃO
+# ROTAS DE REGRAS DE AUTO-CONCILIA��O
 # ============================================================================
 
 @app.route('/api/regras-conciliacao', methods=['GET'])
 @require_permission('regras_conciliacao_view')
 def listar_regras_conciliacao():
-    """Lista todas as regras de auto-conciliação da empresa"""
+    """Lista todas as regras de auto-concilia��o da empresa"""
     try:
-        print("🔍 [DEBUG] Iniciando listar_regras_conciliacao")
+        print("?? [DEBUG] Iniciando listar_regras_conciliacao")
         
         empresa_id = session.get('empresa_id')
-        print(f"🔍 [DEBUG] empresa_id: {empresa_id}")
+        print(f"?? [DEBUG] empresa_id: {empresa_id}")
         
         if not empresa_id:
-            print("❌ [DEBUG] Empresa não selecionada")
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+            print("? [DEBUG] Empresa n�o selecionada")
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 403
         
-        print(f"🔍 [DEBUG] Chamando db.listar_regras_conciliacao(empresa_id={empresa_id})")
+        print(f"?? [DEBUG] Chamando db.listar_regras_conciliacao(empresa_id={empresa_id})")
         regras = db.listar_regras_conciliacao(empresa_id=empresa_id)
-        print(f"✅ [DEBUG] Regras retornadas: {len(regras) if regras else 0}")
+        print(f"? [DEBUG] Regras retornadas: {len(regras) if regras else 0}")
         
         return jsonify({
             'success': True,
@@ -5306,36 +5306,36 @@ def listar_regras_conciliacao():
         }), 200
         
     except Exception as e:
-        print(f"❌ [DEBUG] ERRO: {e}")
+        print(f"? [DEBUG] ERRO: {e}")
         import traceback
         traceback.print_exc()
-        logger.error(f"Erro ao listar regras de conciliação: {e}")
+        logger.error(f"Erro ao listar regras de concilia��o: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/regras-conciliacao', methods=['POST'])
 @require_permission('regras_conciliacao_create')
 def criar_regra_conciliacao():
-    """Cria nova regra de auto-conciliação"""
+    """Cria nova regra de auto-concilia��o"""
     try:
-        print("🔍 [DEBUG] Iniciando criar_regra_conciliacao")
+        print("?? [DEBUG] Iniciando criar_regra_conciliacao")
         
         empresa_id = session.get('empresa_id')
-        print(f"🔍 [DEBUG] empresa_id: {empresa_id}")
+        print(f"?? [DEBUG] empresa_id: {empresa_id}")
         
         if not empresa_id:
-            print("❌ [DEBUG] Empresa não selecionada")
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+            print("? [DEBUG] Empresa n�o selecionada")
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 403
         
         dados = request.json
-        print(f"🔍 [DEBUG] Dados recebidos: {dados}")
+        print(f"?? [DEBUG] Dados recebidos: {dados}")
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         if not dados.get('palavra_chave'):
-            print("❌ [DEBUG] Palavra-chave não fornecida")
-            return jsonify({'success': False, 'error': 'Palavra-chave é obrigatória'}), 400
+            print("? [DEBUG] Palavra-chave n�o fornecida")
+            return jsonify({'success': False, 'error': 'Palavra-chave � obrigat�ria'}), 400
         
-        print(f"🔍 [DEBUG] Chamando db.criar_regra_conciliacao")
+        print(f"?? [DEBUG] Chamando db.criar_regra_conciliacao")
         regra = db.criar_regra_conciliacao(
             empresa_id=empresa_id,
             palavra_chave=dados.get('palavra_chave'),
@@ -5344,7 +5344,7 @@ def criar_regra_conciliacao():
             cliente_padrao=dados.get('cliente_padrao'),
             descricao=dados.get('descricao')
         )
-        print(f"✅ [DEBUG] Regra criada: {regra}")
+        print(f"? [DEBUG] Regra criada: {regra}")
         
         return jsonify({
             'success': True,
@@ -5353,26 +5353,26 @@ def criar_regra_conciliacao():
         }), 201
         
     except ValueError as e:
-        # Erro de validação (ex: regra duplicada)
-        print(f"⚠️ [DEBUG] ERRO DE VALIDAÇÃO: {e}")
+        # Erro de valida��o (ex: regra duplicada)
+        print(f"?? [DEBUG] ERRO DE VALIDA��O: {e}")
         return jsonify({'success': False, 'error': str(e)}), 400
         
     except Exception as e:
-        print(f"❌ [DEBUG] ERRO: {e}")
+        print(f"? [DEBUG] ERRO: {e}")
         import traceback
         traceback.print_exc()
-        logger.error(f"Erro ao criar regra de conciliação: {e}")
+        logger.error(f"Erro ao criar regra de concilia��o: {e}")
         return jsonify({'success': False, 'error': 'Erro interno ao criar regra'}), 500
 
 
 @app.route('/api/regras-conciliacao/<int:regra_id>', methods=['PUT'])
 @require_permission('regras_conciliacao_edit')
 def atualizar_regra_conciliacao(regra_id):
-    """Atualiza uma regra de auto-conciliação"""
+    """Atualiza uma regra de auto-concilia��o"""
     try:
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 403
         
         dados = request.json
         
@@ -5388,21 +5388,21 @@ def atualizar_regra_conciliacao(regra_id):
                 'message': 'Regra atualizada com sucesso'
             }), 200
         else:
-            return jsonify({'success': False, 'error': 'Regra não encontrada ou sem permissão'}), 404
+            return jsonify({'success': False, 'error': 'Regra n�o encontrada ou sem permiss�o'}), 404
         
     except Exception as e:
-        logger.error(f"Erro ao atualizar regra de conciliação: {e}")
+        logger.error(f"Erro ao atualizar regra de concilia��o: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/regras-conciliacao/<int:regra_id>', methods=['DELETE'])
 @require_permission('regras_conciliacao_delete')
 def excluir_regra_conciliacao(regra_id):
-    """Exclui uma regra de auto-conciliação"""
+    """Exclui uma regra de auto-concilia��o"""
     try:
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 403
         
         sucesso = db.excluir_regra_conciliacao(
             regra_id=regra_id,
@@ -5412,30 +5412,30 @@ def excluir_regra_conciliacao(regra_id):
         if sucesso:
             return jsonify({
                 'success': True,
-                'message': 'Regra excluída com sucesso'
+                'message': 'Regra exclu�da com sucesso'
             }), 200
         else:
-            return jsonify({'success': False, 'error': 'Regra não encontrada ou sem permissão'}), 404
+            return jsonify({'success': False, 'error': 'Regra n�o encontrada ou sem permiss�o'}), 404
         
     except Exception as e:
-        logger.error(f"Erro ao excluir regra de conciliação: {e}")
+        logger.error(f"Erro ao excluir regra de concilia��o: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ============================================================================
-# CONFIGURAÇÕES DE EXTRATO BANCÁRIO
+# CONFIGURA��ES DE EXTRATO BANC�RIO
 # ============================================================================
 
 @app.route('/api/config-extrato', methods=['GET'])
 @require_permission('config_extrato_bancario_view')
 def obter_config_extrato():
     """
-    Obtém configurações de extrato bancário da empresa
+    Obt�m configura��es de extrato banc�rio da empresa
     """
     try:
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 403
         
         config = db.obter_config_extrato(empresa_id)
         
@@ -5444,7 +5444,7 @@ def obter_config_extrato():
             'data': config
         }), 200
     except Exception as e:
-        logger.error(f"Erro ao obter configuração de extrato: {e}")
+        logger.error(f"Erro ao obter configura��o de extrato: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -5452,12 +5452,12 @@ def obter_config_extrato():
 @require_permission('config_extrato_bancario_edit')
 def atualizar_config_extrato():
     """
-    Atualiza configurações de extrato bancário
+    Atualiza configura��es de extrato banc�rio
     """
     try:
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 403
         
         dados = request.json
         integrar_folha = dados.get('integrar_folha_pagamento', False)
@@ -5470,35 +5470,35 @@ def atualizar_config_extrato():
         if sucesso:
             return jsonify({
                 'success': True,
-                'message': 'Configuração atualizada com sucesso'
+                'message': 'Configura��o atualizada com sucesso'
             }), 200
         else:
-            return jsonify({'success': False, 'error': 'Erro ao atualizar configuração'}), 500
+            return jsonify({'success': False, 'error': 'Erro ao atualizar configura��o'}), 500
     except Exception as e:
-        logger.error(f"Erro ao atualizar configuração de extrato: {e}")
+        logger.error(f"Erro ao atualizar configura��o de extrato: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/regras-conciliacao/detectar', methods=['POST'])
-@limiter.exempt  # Excluir do rate limiting (pode receber 694+ requisições paralelas)
+@limiter.exempt  # Excluir do rate limiting (pode receber 694+ requisi��es paralelas)
 @require_permission('lancamentos_view')
 def detectar_regra_conciliacao():
     """
-    Detecta regra aplicável e funcionário (se integração folha ativa)
-    para uma descrição de extrato
+    Detecta regra aplic�vel e funcion�rio (se integra��o folha ativa)
+    para uma descri��o de extrato
     """
     try:
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 403
         
         dados = request.json
         descricao = dados.get('descricao', '')
         
         if not descricao:
-            return jsonify({'success': False, 'error': 'Descrição é obrigatória'}), 400
+            return jsonify({'success': False, 'error': 'Descri��o � obrigat�ria'}), 400
         
-        # Buscar regra aplicável
+        # Buscar regra aplic�vel
         regra = db.buscar_regra_aplicavel(empresa_id=empresa_id, descricao=descricao)
         
         resultado = {
@@ -5508,10 +5508,10 @@ def detectar_regra_conciliacao():
             'funcionario': None
         }
         
-        # Se regra tem integração com folha, buscar CPF na descrição
+        # Se regra tem integra��o com folha, buscar CPF na descri��o
         if regra and regra.get('usa_integracao_folha'):
             import re
-            # Buscar CPF na descrição (11 dígitos consecutivos)
+            # Buscar CPF na descri��o (11 d�gitos consecutivos)
             cpf_match = re.search(r'\b(\d{11})\b', descricao)
             
             if cpf_match:
@@ -5528,7 +5528,7 @@ def detectar_regra_conciliacao():
         return jsonify(resultado), 200
         
     except Exception as e:
-        logger.error(f"Erro ao detectar regra de conciliação: {e}")
+        logger.error(f"Erro ao detectar regra de concilia��o: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -5537,8 +5537,8 @@ def detectar_regra_conciliacao():
 @require_permission('lancamentos_view')
 def detectar_regras_batch():
     """
-    Detecta regras aplicáveis em lote para múltiplas descrições.
-    Reduz 694 requisições para 1 única requisição = MUITO mais rápido!
+    Detecta regras aplic�veis em lote para m�ltiplas descri��es.
+    Reduz 694 requisi��es para 1 �nica requisi��o = MUITO mais r�pido!
     
     Recebe: { "transacoes": [ { "id": 8745, "descricao": "PAGAMENTO PIX..." }, ... ] }
     Retorna: { "success": true, "resultados": [ { "id": 8745, "regra": {...}, "funcionario": {...} }, ... ] }
@@ -5546,18 +5546,18 @@ def detectar_regras_batch():
     try:
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 403
         
         dados = request.json
         transacoes = dados.get('transacoes', [])
         
         if not transacoes or not isinstance(transacoes, list):
-            return jsonify({'success': False, 'error': 'Lista de transações é obrigatória'}), 400
+            return jsonify({'success': False, 'error': 'Lista de transa��es � obrigat�ria'}), 400
         
         resultados = []
         import re
         
-        # Processar cada transação
+        # Processar cada transa��o
         for transacao in transacoes:
             transacao_id = transacao.get('id')
             descricao = transacao.get('descricao', '')
@@ -5571,7 +5571,7 @@ def detectar_regras_batch():
                 })
                 continue
             
-            # Buscar regra aplicável
+            # Buscar regra aplic�vel
             regra = db.buscar_regra_aplicavel(empresa_id=empresa_id, descricao=descricao)
             
             resultado = {
@@ -5581,7 +5581,7 @@ def detectar_regras_batch():
                 'funcionario': None
             }
             
-            # Se regra tem integração com folha, buscar CPF na descrição
+            # Se regra tem integra��o com folha, buscar CPF na descri��o
             if regra and regra.get('usa_integracao_folha'):
                 cpf_match = re.search(r'\b(\d{11})\b', descricao)
                 
@@ -5609,31 +5609,31 @@ def detectar_regras_batch():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-# === ROTAS DE FOLHA DE PAGAMENTO (FUNCIONÁRIOS) ===
+# === ROTAS DE FOLHA DE PAGAMENTO (FUNCION�RIOS) ===
 
 @app.route('/api/funcionarios', methods=['GET'])
 @require_permission('folha_pagamento_view')
 def listar_funcionarios():
-    """Listar todos os funcionários da empresa"""
+    """Listar todos os funcion�rios da empresa"""
     try:
         usuario = get_usuario_logado()
         
         if not usuario:
-            return jsonify({'error': 'Usuário não autenticado'}), 401
+            return jsonify({'error': 'Usu�rio n�o autenticado'}), 401
         
-        logger.info(f"🔍 [FUNCIONARIOS] Usuario: {usuario.get('username')}")
+        logger.info(f"?? [FUNCIONARIOS] Usuario: {usuario.get('username')}")
         logger.info(f"   cliente_id: {usuario.get('cliente_id')}")
         logger.info(f"   empresa_id: {usuario.get('empresa_id')}")
         logger.info(f"   empresas: {usuario.get('empresas', [])}")
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 403
-        logger.info(f"   ➡️ empresa_id final: {empresa_id}")
+            return jsonify({'error': 'Empresa n�o identificada'}), 403
+        logger.info(f"   ?? empresa_id final: {empresa_id}")
         
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 400
+            return jsonify({'error': 'Empresa n�o identificada'}), 400
         
         conn = db.get_connection()
         cursor = conn.cursor()
@@ -5648,14 +5648,14 @@ def listar_funcionarios():
             ORDER BY nome ASC
         """
         
-        logger.info(f"🔍 [FUNCIONARIOS] Executando query com empresa_id = {empresa_id}")
+        logger.info(f"?? [FUNCIONARIOS] Executando query com empresa_id = {empresa_id}")
         cursor.execute(query, (empresa_id,))
         rows = cursor.fetchall()
-        logger.info(f"✅ [FUNCIONARIOS] Encontrados {len(rows)} funcionários")
+        logger.info(f"? [FUNCIONARIOS] Encontrados {len(rows)} funcion�rios")
         
-        # Debug: Log primeiro funcionário
+        # Debug: Log primeiro funcion�rio
         if rows:
-            logger.info(f"📊 [DEBUG] Primeiro funcionário (tipo: {type(rows[0])})")
+            logger.info(f"?? [DEBUG] Primeiro funcion�rio (tipo: {type(rows[0])})")
             if isinstance(rows[0], dict):
                 logger.info(f"   Dict keys: {list(rows[0].keys())}")
             else:
@@ -5665,7 +5665,7 @@ def listar_funcionarios():
         
         funcionarios = []
         for row in rows:
-            # Verifica se row é dict ou tupla
+            # Verifica se row � dict ou tupla
             if isinstance(row, dict):
                 funcionarios.append({
                     'id': row['id'],
@@ -5725,9 +5725,9 @@ def listar_funcionarios():
                     'data_atualizacao': row[25].isoformat() if row[25] else None
                 })
         
-        # Log primeiro funcionário completo para debug
+        # Log primeiro funcion�rio completo para debug
         if funcionarios:
-            logger.info(f"📤 [DEBUG] Primeiro funcionário sendo enviado:")
+            logger.info(f"?? [DEBUG] Primeiro funcion�rio sendo enviado:")
             logger.info(f"   Nome: {funcionarios[0].get('nome')}")
             logger.info(f"   CPF: {funcionarios[0].get('cpf')}")
             logger.info(f"   Nacionalidade: {funcionarios[0].get('nacionalidade')}")
@@ -5737,7 +5737,7 @@ def listar_funcionarios():
         return jsonify({'funcionarios': funcionarios}), 200
     
     except Exception as e:
-        logger.error(f"Erro ao listar funcionários: {e}")
+        logger.error(f"Erro ao listar funcion�rios: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
@@ -5747,32 +5747,32 @@ def listar_funcionarios():
 @require_permission('folha_pagamento_view')
 def relatorio_cpfs_invalidos():
     """
-    🔐 Relatório de CPFs Inválidos
+    ?? Relat�rio de CPFs Inv�lidos
     ================================
     
-    Retorna lista de funcionários com CPFs inválidos ou ausentes.
+    Retorna lista de funcion�rios com CPFs inv�lidos ou ausentes.
     
     Resposta:
-        - total_funcionarios: total de funcionários da empresa
-        - total_cpfs_invalidos: quantidade de CPFs inválidos
-        - total_cpfs_ausentes: quantidade de CPFs não informados
+        - total_funcionarios: total de funcion�rios da empresa
+        - total_cpfs_invalidos: quantidade de CPFs inv�lidos
+        - total_cpfs_ausentes: quantidade de CPFs n�o informados
         - taxa_erro: percentual de erros (%)
         - funcionarios_invalidos: lista detalhada com erros
     """
-    # Import local para evitar falha de carregamento do módulo
+    # Import local para evitar falha de carregamento do m�dulo
     from cpf_validator import CPFValidator
     
     try:
-        print("\n🔍 [CPF RELATORIO] Iniciando análise...")
+        print("\n?? [CPF RELATORIO] Iniciando an�lise...")
         
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 403
+            return jsonify({'error': 'Empresa n�o identificada'}), 403
         
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Buscar todos os funcionários da empresa
+        # Buscar todos os funcion�rios da empresa
         query = """
             SELECT id, nome, cpf, email, celular, ativo, data_admissao, data_demissao
             FROM funcionarios
@@ -5784,7 +5784,7 @@ def relatorio_cpfs_invalidos():
         rows = cursor.fetchall()
         cursor.close()
         
-        # Análise de CPFs
+        # An�lise de CPFs
         total_funcionarios = len(rows)
         funcionarios_invalidos = []
         funcionarios_ausentes = []
@@ -5815,7 +5815,7 @@ def relatorio_cpfs_invalidos():
                     'ativo': ativo,
                     'data_admissao': data_admissao,
                     'data_demissao': data_demissao,
-                    'erro': 'CPF não informado',
+                    'erro': 'CPF n�o informado',
                     'tipo_erro': 'ausente'
                 })
             else:
@@ -5835,7 +5835,7 @@ def relatorio_cpfs_invalidos():
                         'tipo_erro': 'invalido'
                     })
         
-        # Calcular estatísticas
+        # Calcular estat�sticas
         total_invalidos = len(funcionarios_invalidos)
         total_ausentes = len(funcionarios_ausentes)
         total_problemas = total_invalidos + total_ausentes
@@ -5845,9 +5845,9 @@ def relatorio_cpfs_invalidos():
         # Combinar listas
         todos_problemas = funcionarios_invalidos + funcionarios_ausentes
         
-        print(f"✅ [CPF RELATORIO] Análise concluída:")
-        print(f"   Total: {total_funcionarios} funcionários")
-        print(f"   Inválidos: {total_invalidos}")
+        print(f"? [CPF RELATORIO] An�lise conclu�da:")
+        print(f"   Total: {total_funcionarios} funcion�rios")
+        print(f"   Inv�lidos: {total_invalidos}")
         print(f"   Ausentes: {total_ausentes}")
         print(f"   Taxa de erro: {taxa_erro}%")
         
@@ -5865,7 +5865,7 @@ def relatorio_cpfs_invalidos():
         }), 200
         
     except Exception as e:
-        logger.error(f"❌ Erro ao gerar relatório de CPFs: {e}")
+        logger.error(f"? Erro ao gerar relat�rio de CPFs: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
@@ -5874,17 +5874,17 @@ def relatorio_cpfs_invalidos():
 @app.route('/api/funcionarios/cpf/correcao', methods=['GET'])
 @require_permission('folha_pagamento_edit')
 def gerar_correcoes_cpf():
-    """Gera sugestões de correção automática para CPFs inválidos"""
+    """Gera sugest�es de corre��o autom�tica para CPFs inv�lidos"""
     import traceback
     import sys
     
-    # IMPORTAR MÓDULOS CPF DENTRO DA FUNÇÃO (para debug)
+    # IMPORTAR M�DULOS CPF DENTRO DA FUN��O (para debug)
     try:
-        logger.info("🔧 [CPF] Importando CPFValidator...")
+        logger.info("?? [CPF] Importando CPFValidator...")
         from cpf_validator import CPFValidator as CPFVal
-        logger.info("✅ [CPF] CPFValidator importado com sucesso")
+        logger.info("? [CPF] CPFValidator importado com sucesso")
     except Exception as import_error:
-        logger.error(f"❌ [CPF] ERRO AO IMPORTAR CPFValidator: {import_error}")
+        logger.error(f"? [CPF] ERRO AO IMPORTAR CPFValidator: {import_error}")
         logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
@@ -5893,11 +5893,11 @@ def gerar_correcoes_cpf():
         }), 500
     
     try:
-        logger.info("🔧 [CPF] Importando CPFCorrector...")
+        logger.info("?? [CPF] Importando CPFCorrector...")
         from cpf_corrector import CPFCorrector as CPFCorr
-        logger.info("✅ [CPF] CPFCorrector importado com sucesso")
+        logger.info("? [CPF] CPFCorrector importado com sucesso")
     except Exception as import_error:
-        logger.error(f"❌ [CPF] ERRO AO IMPORTAR CPFCorrector: {import_error}")
+        logger.error(f"? [CPF] ERRO AO IMPORTAR CPFCorrector: {import_error}")
         logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
@@ -5907,26 +5907,26 @@ def gerar_correcoes_cpf():
     
     try:
         logger.info("=" * 80)
-        logger.info("🔧 [CPF CORRETOR] === INÍCIO DA EXECUÇÃO ===")
+        logger.info("?? [CPF CORRETOR] === IN�CIO DA EXECU��O ===")
         logger.info("=" * 80)
         
-        # Obter empresa_id da sessão
+        # Obter empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            logger.error("❌ [CPF CORRETOR] Empresa não selecionada")
-            return jsonify({'error': 'Empresa não selecionada'}), 403
+            logger.error("? [CPF CORRETOR] Empresa n�o selecionada")
+            return jsonify({'error': 'Empresa n�o selecionada'}), 403
         
-        logger.info(f"✅ [CPF CORRETOR] Empresa ID: {empresa_id}")
+        logger.info(f"? [CPF CORRETOR] Empresa ID: {empresa_id}")
         
-        # Buscar funcionários da empresa
+        # Buscar funcion�rios da empresa
         conn = None
         cursor = None
         try:
-            logger.info("🔧 [CPF CORRETOR] Conectando ao banco de dados...")
+            logger.info("?? [CPF CORRETOR] Conectando ao banco de dados...")
             conn = db.get_connection()
             cursor = conn.cursor()
             
-            logger.info("🔧 [CPF CORRETOR] Executando query...")
+            logger.info("?? [CPF CORRETOR] Executando query...")
             query = """
                 SELECT id, nome, cpf
                 FROM funcionarios
@@ -5937,10 +5937,10 @@ def gerar_correcoes_cpf():
             cursor.execute(query, (empresa_id,))
             rows = cursor.fetchall()
             
-            logger.info(f"✅ [CPF CORRETOR] Encontrados {len(rows)} funcionários no banco")
+            logger.info(f"? [CPF CORRETOR] Encontrados {len(rows)} funcion�rios no banco")
             
         except Exception as db_error:
-            logger.error(f"❌ [CPF CORRETOR] Erro na consulta ao banco: {db_error}")
+            logger.error(f"? [CPF CORRETOR] Erro na consulta ao banco: {db_error}")
             logger.error(traceback.format_exc())
             return jsonify({
                 'success': False,
@@ -5951,10 +5951,10 @@ def gerar_correcoes_cpf():
                 cursor.close()
             if conn:
                 conn.close()
-            logger.info("🔧 [CPF CORRETOR] Conexão com banco fechada")
+            logger.info("?? [CPF CORRETOR] Conex�o com banco fechada")
         
-        # Converter para lista de dicionários
-        logger.info("🔧 [CPF CORRETOR] Convertendo dados...")
+        # Converter para lista de dicion�rios
+        logger.info("?? [CPF CORRETOR] Convertendo dados...")
         funcionarios = []
         for row in rows:
             funcionarios.append({
@@ -5963,10 +5963,10 @@ def gerar_correcoes_cpf():
                 'cpf': row['cpf'] or ''
             })
         
-        logger.info(f"✅ [CPF CORRETOR] {len(funcionarios)} funcionários convertidos")
+        logger.info(f"? [CPF CORRETOR] {len(funcionarios)} funcion�rios convertidos")
         
-        # Filtrar apenas funcionários com CPF inválido
-        logger.info("🔧 [CPF CORRETOR] Iniciando validação de CPFs...")
+        # Filtrar apenas funcion�rios com CPF inv�lido
+        logger.info("?? [CPF CORRETOR] Iniciando valida��o de CPFs...")
         funcionarios_invalidos = []
         
         for i, func in enumerate(funcionarios):
@@ -5980,16 +5980,16 @@ def gerar_correcoes_cpf():
                 if not is_valid:
                     funcionarios_invalidos.append(func)
                     if len(funcionarios_invalidos) <= 5:  # Log apenas os 5 primeiros
-                        logger.info(f"   ❌ CPF inválido [{i+1}]: {func['nome'][:30]} - '{cpf}'")
+                        logger.info(f"   ? CPF inv�lido [{i+1}]: {func['nome'][:30]} - '{cpf}'")
             except Exception as val_error:
-                logger.error(f"❌ [CPF CORRETOR] Erro ao validar CPF de {func['nome']}: {val_error}")
+                logger.error(f"? [CPF CORRETOR] Erro ao validar CPF de {func['nome']}: {val_error}")
                 logger.error(traceback.format_exc())
         
-        logger.info(f"✅ [CPF CORRETOR] Validação concluída: {len(funcionarios_invalidos)} CPFs inválidos")
+        logger.info(f"? [CPF CORRETOR] Valida��o conclu�da: {len(funcionarios_invalidos)} CPFs inv�lidos")
         
-        # Se não há funcionários com CPF inválido, retornar resultado vazio
+        # Se n�o h� funcion�rios com CPF inv�lido, retornar resultado vazio
         if len(funcionarios_invalidos) == 0:
-            logger.info("✅ [CPF CORRETOR] Nenhum CPF inválido - retornando sucesso")
+            logger.info("? [CPF CORRETOR] Nenhum CPF inv�lido - retornando sucesso")
             return jsonify({
                 'success': True,
                 'total_funcionarios': len(funcionarios),
@@ -6001,24 +6001,24 @@ def gerar_correcoes_cpf():
                 'correcoes_sugeridas': []
             })
         
-        # Aplicar correção automática
-        logger.info("🔧 [CPF CORRETOR] Iniciando correção automática...")
+        # Aplicar corre��o autom�tica
+        logger.info("?? [CPF CORRETOR] Iniciando corre��o autom�tica...")
         try:
             resultado_correcao = CPFCorr.corrigir_lista_funcionarios(funcionarios_invalidos)
-            logger.info(f"✅ [CPF CORRETOR] Correção concluída: {resultado_correcao['total_corrigidos']}/{len(funcionarios_invalidos)}")
+            logger.info(f"? [CPF CORRETOR] Corre��o conclu�da: {resultado_correcao['total_corrigidos']}/{len(funcionarios_invalidos)}")
         except Exception as corrector_error:
-            logger.error(f"❌ [CPF CORRETOR] ERRO NO CORRETOR: {corrector_error}")
+            logger.error(f"? [CPF CORRETOR] ERRO NO CORRETOR: {corrector_error}")
             logger.error(f"Tipo do erro: {type(corrector_error).__name__}")
             logger.error(traceback.format_exc())
             return jsonify({
                 'success': False,
-                'error': f'Erro no sistema de correção: {str(corrector_error)}',
+                'error': f'Erro no sistema de corre��o: {str(corrector_error)}',
                 'error_type': type(corrector_error).__name__,
                 'traceback': traceback.format_exc()
             }), 500
         
         # Preparar resposta
-        logger.info("🔧 [CPF CORRETOR] Preparando resposta...")
+        logger.info("?? [CPF CORRETOR] Preparando resposta...")
         resposta = {
             'success': True,
             'total_funcionarios': len(funcionarios),
@@ -6030,23 +6030,23 @@ def gerar_correcoes_cpf():
             'correcoes_sugeridas': resultado_correcao['correcoes_sugeridas']
         }
         
-        logger.info(f"✅ [CPF CORRETOR] === CONCLUSÃO: {resultado_correcao['total_corrigidos']} correções ===")
+        logger.info(f"? [CPF CORRETOR] === CONCLUS�O: {resultado_correcao['total_corrigidos']} corre��es ===")
         logger.info("=" * 80)
         
         return jsonify(resposta)
         
     except Exception as e:
         logger.error("=" * 80)
-        logger.error(f"❌❌❌ [CPF CORRETOR] ERRO CRÍTICO NÃO TRATADO: {e}")
+        logger.error(f"??? [CPF CORRETOR] ERRO CR�TICO N�O TRATADO: {e}")
         logger.error(f"Tipo do erro: {type(e).__name__}")
         logger.error(f"Args: {e.args}")
         logger.error("TRACEBACK COMPLETO:")
         logger.error(traceback.format_exc())
         logger.error("=" * 80)
         
-        # Print para stderr também
+        # Print para stderr tamb�m
         print("=" * 80, file=sys.stderr)
-        print(f"ERRO CRÍTICO CPF CORRETOR: {e}", file=sys.stderr)
+        print(f"ERRO CR�TICO CPF CORRETOR: {e}", file=sys.stderr)
         print(traceback.format_exc(), file=sys.stderr)
         print("=" * 80, file=sys.stderr)
         
@@ -6060,7 +6060,7 @@ def gerar_correcoes_cpf():
 
 @app.route('/api/funcionarios/cpf/ping', methods=['GET'])
 def ping_cpf_correcao():
-    """Endpoint de teste puro - sem decorator, sem dependências"""
+    """Endpoint de teste puro - sem decorator, sem depend�ncias"""
     return jsonify({
         'success': True,
         'message': 'Endpoint CPF funcionando',
@@ -6072,10 +6072,10 @@ def ping_cpf_correcao():
 @require_permission('folha_pagamento_edit')
 def corrigir_cpf_lote():
     """
-    🚀 Correção em Lote de CPFs
+    ?? Corre��o em Lote de CPFs
     ============================
     
-    Aplica correções de CPF em múltiplos funcionários de uma vez.
+    Aplica corre��es de CPF em m�ltiplos funcion�rios de uma vez.
     Evita problemas de rate limit e melhora performance.
     
     Body:
@@ -6102,16 +6102,16 @@ def corrigir_cpf_lote():
         correcoes = dados.get('correcoes', [])
         
         if not correcoes or not isinstance(correcoes, list):
-            return jsonify({'error': 'Lista de correções não informada'}), 400
+            return jsonify({'error': 'Lista de corre��es n�o informada'}), 400
         
         if len(correcoes) > 500:
-            return jsonify({'error': 'Máximo de 500 correções por lote'}), 400
+            return jsonify({'error': 'M�ximo de 500 corre��es por lote'}), 400
         
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não selecionada'}), 403
+            return jsonify({'error': 'Empresa n�o selecionada'}), 403
         
-        logger.info(f"🔧 [LOTE CPF] Processando {len(correcoes)} correções para empresa {empresa_id}")
+        logger.info(f"?? [LOTE CPF] Processando {len(correcoes)} corre��es para empresa {empresa_id}")
         
         resultados = []
         total_sucesso = 0
@@ -6140,7 +6140,7 @@ def corrigir_cpf_lote():
                     resultados.append({
                         'funcionario_id': funcionario_id,
                         'success': False,
-                        'error': f'CPF inválido: {validacao["erro"]}'
+                        'error': f'CPF inv�lido: {validacao["erro"]}'
                     })
                     total_falhas += 1
                     continue
@@ -6165,16 +6165,16 @@ def corrigir_cpf_lote():
                     resultados.append({
                         'funcionario_id': funcionario_id,
                         'success': False,
-                        'error': 'Funcionário não encontrado ou sem permissão'
+                        'error': 'Funcion�rio n�o encontrado ou sem permiss�o'
                     })
                     total_falhas += 1
                 
-                # Log a cada 50 correções
+                # Log a cada 50 corre��es
                 if (i + 1) % 50 == 0:
-                    logger.info(f"✅ [LOTE CPF] Processados {i + 1}/{len(correcoes)}")
+                    logger.info(f"? [LOTE CPF] Processados {i + 1}/{len(correcoes)}")
             
             conn.commit()
-            logger.info(f"✅ [LOTE CPF] Concluído: {total_sucesso} sucesso, {total_falhas} falhas")
+            logger.info(f"? [LOTE CPF] Conclu�do: {total_sucesso} sucesso, {total_falhas} falhas")
             
             return jsonify({
                 'success': True,
@@ -6186,14 +6186,14 @@ def corrigir_cpf_lote():
             
         except Exception as db_error:
             conn.rollback()
-            logger.error(f"❌ [LOTE CPF] Erro no banco: {db_error}")
+            logger.error(f"? [LOTE CPF] Erro no banco: {db_error}")
             raise db_error
         finally:
             cursor.close()
             conn.close()
         
     except Exception as e:
-        logger.error(f"❌ [LOTE CPF] Erro geral: {e}")
+        logger.error(f"? [LOTE CPF] Erro geral: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -6202,8 +6202,8 @@ def corrigir_cpf_lote():
 @app.route('/api/funcionarios/<int:funcionario_id>/cpf', methods=['PUT'])
 @require_permission('folha_pagamento_edit')
 def corrigir_cpf_funcionario(funcionario_id):
-    """Aplica correção de CPF em um funcionário específico"""
-    # Import local para evitar falha de carregamento do módulo
+    """Aplica corre��o de CPF em um funcion�rio espec�fico"""
+    # Import local para evitar falha de carregamento do m�dulo
     from cpf_validator import CPFValidator
     
     try:
@@ -6211,17 +6211,17 @@ def corrigir_cpf_funcionario(funcionario_id):
         novo_cpf = dados.get('cpf', '').strip()
         
         if not novo_cpf:
-            return jsonify({'error': 'CPF não informado'}), 400
+            return jsonify({'error': 'CPF n�o informado'}), 400
         
         # Validar novo CPF
         validacao = CPFValidator.validar_com_detalhes(novo_cpf)
         if not validacao['valido']:
-            return jsonify({'error': f'CPF inválido: {validacao["erro"]}'}), 400
+            return jsonify({'error': f'CPF inv�lido: {validacao["erro"]}'}), 400
         
-        # Obter empresa_id da sessão
+        # Obter empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não selecionada'}), 403
+            return jsonify({'error': 'Empresa n�o selecionada'}), 403
         
         # Atualizar CPF no banco
         cpf_formatado = validacao['cpf_formatado']
@@ -6247,17 +6247,17 @@ def corrigir_cpf_funcionario(funcionario_id):
         success = rows_affected > 0
         
         if success:
-            logger.info(f"✅ [CPF CORRETOR] CPF do funcionário {funcionario_id} atualizado para: {cpf_formatado}")
+            logger.info(f"? [CPF CORRETOR] CPF do funcion�rio {funcionario_id} atualizado para: {cpf_formatado}")
             return jsonify({
                 'success': True,
                 'cpf_novo': cpf_formatado,
                 'message': 'CPF atualizado com sucesso'
             })
         else:
-            return jsonify({'error': 'Funcionário não encontrado ou sem permissão'}), 404
+            return jsonify({'error': 'Funcion�rio n�o encontrado ou sem permiss�o'}), 404
         
     except Exception as e:
-        logger.error(f"❌ Erro ao corrigir CPF: {e}")
+        logger.error(f"? Erro ao corrigir CPF: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
@@ -6266,8 +6266,8 @@ def corrigir_cpf_funcionario(funcionario_id):
 @app.route('/api/funcionarios', methods=['POST'])
 @require_permission('folha_pagamento_create')
 def criar_funcionario():
-    """Criar novo funcionário"""
-    # Import local para evitar falha de carregamento do módulo
+    """Criar novo funcion�rio"""
+    # Import local para evitar falha de carregamento do m�dulo
     from cpf_validator import CPFValidator
     
     try:
@@ -6275,58 +6275,58 @@ def criar_funcionario():
         
         usuario = get_usuario_logado()
         if not usuario:
-            return jsonify({'error': 'Usuário não autenticado'}), 401
+            return jsonify({'error': 'Usu�rio n�o autenticado'}), 401
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 403
+            return jsonify({'error': 'Empresa n�o identificada'}), 403
         
         dados = request.get_json()
         
-        # Validações obrigatórias
+        # Valida��es obrigat�rias
         if not dados.get('nome'):
-            return jsonify({'error': 'Nome é obrigatório'}), 400
+            return jsonify({'error': 'Nome � obrigat�rio'}), 400
         if not dados.get('cpf'):
-            return jsonify({'error': 'CPF é obrigatório'}), 400
+            return jsonify({'error': 'CPF � obrigat�rio'}), 400
         
-        # 🔐 NOVO: Validar CPF com CPFValidator
+        # ?? NOVO: Validar CPF com CPFValidator
         validacao_cpf = CPFValidator.validar_com_detalhes(dados['cpf'])
         if not validacao_cpf['valido']:
-            return jsonify({'error': f'CPF inválido: {validacao_cpf["erro"]}'}), 400
+            return jsonify({'error': f'CPF inv�lido: {validacao_cpf["erro"]}'}), 400
         
-        # 🔐 Validar email se fornecido
+        # ?? Validar email se fornecido
         if dados.get('email'):
             try:
                 from app.utils.validators import validate_email
                 is_valid, error_msg = validate_email(dados['email'])
                 if not is_valid:
-                    return jsonify({'error': f'Email inválido: {error_msg}'}), 400
+                    return jsonify({'error': f'Email inv�lido: {error_msg}'}), 400
             except ImportError:
-                # Validação simples caso validators não esteja disponível
+                # Valida��o simples caso validators n�o esteja dispon�vel
                 import re
                 email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
                 if not re.match(email_regex, dados['email']):
-                    return jsonify({'error': 'Email inválido'}), 400
+                    return jsonify({'error': 'Email inv�lido'}), 400
         
         # Limpar e formatar CPF
         cpf = CPFValidator.limpar(dados['cpf'])
         
-        print(f"\n🔍 [POST /api/funcionarios]")
+        print(f"\n?? [POST /api/funcionarios]")
         print(f"   - empresa_id: {empresa_id}")
         print(f"   - nome: {dados.get('nome')}")
         print(f"   - cpf: {cpf}")
         print(f"   - cpf_formatado: {validacao_cpf['cpf_formatado']}")
         
-        # 🔒 Usar get_db_connection com empresa_id para aplicar RLS
+        # ?? Usar get_db_connection com empresa_id para aplicar RLS
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             
-            # Verificar se CPF já existe
+            # Verificar se CPF j� existe
             cursor.execute("SELECT id FROM funcionarios WHERE cpf = %s AND empresa_id = %s", (cpf, empresa_id))
             if cursor.fetchone():
                 cursor.close()
-                return jsonify({'error': 'CPF já cadastrado'}), 400
+                return jsonify({'error': 'CPF j� cadastrado'}), 400
             
             query = """
                 INSERT INTO funcionarios 
@@ -6368,16 +6368,16 @@ def criar_funcionario():
             conn.commit()
             cursor.close()
             
-            print(f"   ✅ Funcionário criado com ID: {funcionario_id}")
+            print(f"   ? Funcion�rio criado com ID: {funcionario_id}")
             
             return jsonify({
                 'success': True,
                 'id': funcionario_id,
-                'message': 'Funcionário cadastrado com sucesso'
+                'message': 'Funcion�rio cadastrado com sucesso'
             }), 201
     
     except Exception as e:
-        logger.error(f"Erro ao criar funcionário: {e}")
+        logger.error(f"Erro ao criar funcion�rio: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
@@ -6386,44 +6386,44 @@ def criar_funcionario():
 @app.route('/api/funcionarios/<int:funcionario_id>', methods=['PUT'])
 @require_permission('folha_pagamento_edit')
 def atualizar_funcionario(funcionario_id):
-    """Atualizar funcionário existente"""
+    """Atualizar funcion�rio existente"""
     try:
         from app.utils.validators import validate_cpf, validate_email
         import re
         
         usuario = get_usuario_logado()
         if not usuario:
-            return jsonify({'error': 'Usuário não autenticado'}), 401
+            return jsonify({'error': 'Usu�rio n�o autenticado'}), 401
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 403
+            return jsonify({'error': 'Empresa n�o identificada'}), 403
         
         dados = request.get_json()
         
-        # 🔐 Validar CPF se fornecido
+        # ?? Validar CPF se fornecido
         if dados.get('cpf'):
             is_valid, error_msg = validate_cpf(dados['cpf'])
             if not is_valid:
-                return jsonify({'error': f'CPF inválido: {error_msg}'}), 400
+                return jsonify({'error': f'CPF inv�lido: {error_msg}'}), 400
         
-        # 🔐 Validar email se fornecido
+        # ?? Validar email se fornecido
         if dados.get('email'):
             is_valid, error_msg = validate_email(dados['email'])
             if not is_valid:
-                return jsonify({'error': f'Email inválido: {error_msg}'}), 400
+                return jsonify({'error': f'Email inv�lido: {error_msg}'}), 400
         
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Verificar se funcionário existe e pertence à empresa
+        # Verificar se funcion�rio existe e pertence � empresa
         cursor.execute("SELECT id FROM funcionarios WHERE id = %s AND empresa_id = %s", (funcionario_id, empresa_id))
         if not cursor.fetchone():
             cursor.close()
-            return jsonify({'error': 'Funcionário não encontrado'}), 404
+            return jsonify({'error': 'Funcion�rio n�o encontrado'}), 404
         
-        # Construir query dinâmica baseada nos campos fornecidos
+        # Construir query din�mica baseada nos campos fornecidos
         campos_update = []
         valores = []
         
@@ -6441,12 +6441,12 @@ def atualizar_funcionario(funcionario_id):
         
         if 'cpf' in dados:
             cpf = dados['cpf'].replace('.', '').replace('-', '').replace('/', '')
-            # Verificar se CPF já existe em outro funcionário
+            # Verificar se CPF j� existe em outro funcion�rio
             cursor.execute("SELECT id FROM funcionarios WHERE cpf = %s AND empresa_id = %s AND id != %s", 
                          (cpf, empresa_id, funcionario_id))
             if cursor.fetchone():
                 cursor.close()
-                return jsonify({'error': 'CPF já cadastrado para outro funcionário'}), 400
+                return jsonify({'error': 'CPF j� cadastrado para outro funcion�rio'}), 400
             campos_update.append("cpf = %s")
             valores.append(cpf)
         
@@ -6465,11 +6465,11 @@ def atualizar_funcionario(funcionario_id):
         
         return jsonify({
             'success': True,
-            'message': 'Funcionário atualizado com sucesso'
+            'message': 'Funcion�rio atualizado com sucesso'
         }), 200
     
     except Exception as e:
-        logger.error(f"Erro ao atualizar funcionário: {e}")
+        logger.error(f"Erro ao atualizar funcion�rio: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
@@ -6478,21 +6478,21 @@ def atualizar_funcionario(funcionario_id):
 @app.route('/api/funcionarios/<int:funcionario_id>', methods=['GET'])
 @require_permission('folha_pagamento_view')
 def obter_funcionario(funcionario_id):
-    """Obter detalhes de um funcionário específico"""
+    """Obter detalhes de um funcion�rio espec�fico"""
     try:
         usuario = get_usuario_logado()
         if not usuario:
-            return jsonify({'error': 'Usuário não autenticado'}), 401
+            return jsonify({'error': 'Usu�rio n�o autenticado'}), 401
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 403
+            return jsonify({'error': 'Empresa n�o identificada'}), 403
         
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Buscar funcionário da empresa
+        # Buscar funcion�rio da empresa
         cursor.execute("""
             SELECT id, empresa_id, nome, cpf, endereco, tipo_chave_pix, 
                    chave_pix, data_admissao, observacoes, ativo,
@@ -6505,9 +6505,9 @@ def obter_funcionario(funcionario_id):
         cursor.close()
         
         if not row:
-            return jsonify({'error': 'Funcionário não encontrado'}), 404
+            return jsonify({'error': 'Funcion�rio n�o encontrado'}), 404
         
-        # Verifica se row é dict ou tupla
+        # Verifica se row � dict ou tupla
         if isinstance(row, dict):
             funcionario = {
                 'id': row['id'],
@@ -6542,7 +6542,7 @@ def obter_funcionario(funcionario_id):
         return jsonify(funcionario), 200
     
     except Exception as e:
-        logger.error(f"Erro ao obter funcionário: {e}")
+        logger.error(f"Erro ao obter funcion�rio: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
@@ -6551,31 +6551,31 @@ def obter_funcionario(funcionario_id):
 @app.route('/api/funcionarios/<int:funcionario_id>', methods=['DELETE'])
 @require_permission('folha_pagamento_edit')
 def deletar_funcionario(funcionario_id):
-    """Deletar um funcionário"""
+    """Deletar um funcion�rio"""
     try:
         usuario = get_usuario_logado()
         if not usuario:
-            return jsonify({'error': 'Usuário não autenticado'}), 401
+            return jsonify({'error': 'Usu�rio n�o autenticado'}), 401
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 403
+            return jsonify({'error': 'Empresa n�o identificada'}), 403
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 400
+            return jsonify({'error': 'Empresa n�o identificada'}), 400
         
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Verificar se funcionário existe e pertence à empresa
+        # Verificar se funcion�rio existe e pertence � empresa
         cursor.execute("SELECT id FROM funcionarios WHERE id = %s AND empresa_id = %s", 
                       (funcionario_id, empresa_id))
         
         if not cursor.fetchone():
             cursor.close()
-            return jsonify({'error': 'Funcionário não encontrado'}), 404
+            return jsonify({'error': 'Funcion�rio n�o encontrado'}), 404
         
-        # Deletar funcionário
+        # Deletar funcion�rio
         cursor.execute("DELETE FROM funcionarios WHERE id = %s AND empresa_id = %s", 
                       (funcionario_id, empresa_id))
         
@@ -6584,11 +6584,11 @@ def deletar_funcionario(funcionario_id):
         
         return jsonify({
             'success': True,
-            'message': 'Funcionário deletado com sucesso'
+            'message': 'Funcion�rio deletado com sucesso'
         }), 200
     
     except Exception as e:
-        logger.error(f"Erro ao deletar funcionário: {e}")
+        logger.error(f"Erro ao deletar funcion�rio: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
@@ -6603,7 +6603,7 @@ def listar_eventos():
     try:
         usuario = get_usuario_logado()
         if not usuario:
-            return jsonify({'error': 'Usuário não autenticado'}), 401
+            return jsonify({'error': 'Usu�rio n�o autenticado'}), 401
         
         # SEGURANCA MULTI-TENANT: Usar empresa_id da sessao
         empresa_id = session.get('empresa_id')
@@ -6641,21 +6641,21 @@ def listar_eventos():
         
         query += " ORDER BY data_evento DESC"
         
-        logger.info(f"🔍 [DEBUG LOAD] Query SQL: {query}")
-        logger.info(f"🔍 [DEBUG LOAD] Params: {params}")
+        logger.info(f"?? [DEBUG LOAD] Query SQL: {query}")
+        logger.info(f"?? [DEBUG LOAD] Params: {params}")
         
         cursor.execute(query, params)
         rows = cursor.fetchall()
         
-        logger.info(f"🔍 [DEBUG LOAD] Linhas retornadas do DB: {len(rows)}")
+        logger.info(f"?? [DEBUG LOAD] Linhas retornadas do DB: {len(rows)}")
         if rows:
-            logger.info(f"🔍 [DEBUG LOAD] Primeira linha - data_evento: {rows[0].get('data_evento') if isinstance(rows[0], dict) else rows[0][3]}")
+            logger.info(f"?? [DEBUG LOAD] Primeira linha - data_evento: {rows[0].get('data_evento') if isinstance(rows[0], dict) else rows[0][3]}")
         
         cursor.close()
         
         eventos = []
         for row in rows:
-            # Verifica se row é dict ou tupla
+            # Verifica se row � dict ou tupla
             if isinstance(row, dict):
                 eventos.append({
                     'id': row['id'],
@@ -6717,20 +6717,20 @@ def criar_evento():
     try:
         usuario = get_usuario_logado()
         if not usuario:
-            return jsonify({'error': 'Usuário não autenticado'}), 401
+            return jsonify({'error': 'Usu�rio n�o autenticado'}), 401
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 403
+            return jsonify({'error': 'Empresa n�o identificada'}), 403
         
         dados = request.get_json()
         
-        # Validações obrigatórias
+        # Valida��es obrigat�rias
         if not dados.get('nome_evento'):
-            return jsonify({'error': 'Nome do evento é obrigatório'}), 400
+            return jsonify({'error': 'Nome do evento � obrigat�rio'}), 400
         if not dados.get('data_evento'):
-            return jsonify({'error': 'Data do evento é obrigatória'}), 400
+            return jsonify({'error': 'Data do evento � obrigat�ria'}), 400
         
         conn = db.get_connection()
         cursor = conn.cursor()
@@ -6935,21 +6935,21 @@ def deletar_evento(evento_id):
     try:
         usuario = get_usuario_logado()
         if not usuario:
-            return jsonify({'error': 'Usuário não autenticado'}), 401
+            return jsonify({'error': 'Usu�rio n�o autenticado'}), 401
         
-        # 🔒 SEGURANÇA MULTI-TENANT: Usar empresa_id da sessão
+        # ?? SEGURAN�A MULTI-TENANT: Usar empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'error': 'Empresa não identificada'}), 403
+            return jsonify({'error': 'Empresa n�o identificada'}), 403
         
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Verificar se evento existe e pertence à empresa
+        # Verificar se evento existe e pertence � empresa
         cursor.execute("SELECT id FROM eventos WHERE id = %s AND empresa_id = %s", (evento_id, empresa_id))
         if not cursor.fetchone():
             cursor.close()
-            return jsonify({'error': 'Evento não encontrado'}), 404
+            return jsonify({'error': 'Evento n�o encontrado'}), 404
         
         # Deletar evento
         cursor.execute("DELETE FROM eventos WHERE id = %s", (evento_id,))
@@ -6972,12 +6972,12 @@ def deletar_evento(evento_id):
             database.return_to_pool(conn)
 
 
-# === ROTAS DE ALOCAÇÃO DE EQUIPE EM EVENTOS ===
+# === ROTAS DE ALOCA��O DE EQUIPE EM EVENTOS ===
 
 @app.route('/api/funcoes-evento', methods=['GET'])
 @require_permission('eventos_view')
 def listar_funcoes_evento():
-    """Listar funções disponíveis para eventos"""
+    """Listar fun��es dispon�veis para eventos"""
     try:
         conn = db.get_connection()
         cursor = conn.cursor()
@@ -7006,7 +7006,7 @@ def listar_funcoes_evento():
         }), 200
     
     except Exception as e:
-        logger.error(f"Erro ao listar funções: {e}")
+        logger.error(f"Erro ao listar fun��es: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
@@ -7015,11 +7015,11 @@ def listar_funcoes_evento():
 @app.route('/api/funcoes-evento', methods=['POST'])
 @require_permission('eventos_create')
 def criar_funcao_evento():
-    """Cadastrar nova função para eventos"""
+    """Cadastrar nova fun��o para eventos"""
     try:
         dados = request.get_json()
         
-        print(f"\n🔍 [POST /api/funcoes-evento] Dados recebidos:")
+        print(f"\n?? [POST /api/funcoes-evento] Dados recebidos:")
         print(f"   - Raw JSON: {dados}")
         print(f"   - Tipo: {type(dados)}")
         print(f"   - Keys: {dados.keys() if dados else 'None'}")
@@ -7027,24 +7027,24 @@ def criar_funcao_evento():
         nome = dados.get('nome', '').strip() if dados else ''
         descricao = dados.get('descricao', '').strip() if dados else ''
         
-        print(f"   - nome extraído: '{nome}'")
-        print(f"   - descricao extraída: '{descricao}'")
+        print(f"   - nome extra�do: '{nome}'")
+        print(f"   - descricao extra�da: '{descricao}'")
         print(f"   - nome vazio? {not nome}")
         
         if not nome:
-            print(f"   ❌ Rejeitando: nome vazio")
-            return jsonify({'error': 'Nome da função é obrigatório'}), 400
+            print(f"   ? Rejeitando: nome vazio")
+            return jsonify({'error': 'Nome da fun��o � obrigat�rio'}), 400
         
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Verificar se já existe
+        # Verificar se j� existe
         cursor.execute("SELECT id FROM funcoes_evento WHERE UPPER(nome) = UPPER(%s)", (nome,))
         if cursor.fetchone():
             cursor.close()
-            return jsonify({'error': 'Já existe uma função com este nome'}), 400
+            return jsonify({'error': 'J� existe uma fun��o com este nome'}), 400
         
-        # Inserir nova função
+        # Inserir nova fun��o
         cursor.execute("""
             INSERT INTO funcoes_evento (nome, descricao, ativo)
             VALUES (%s, %s, TRUE)
@@ -7057,19 +7057,19 @@ def criar_funcao_evento():
         
         return jsonify({
             'success': True,
-            'message': 'Função cadastrada com sucesso',
+            'message': 'Fun��o cadastrada com sucesso',
             'funcao_id': funcao_id
         }), 201
     
     except Exception as e:
-        logger.error(f"Erro ao criar função: {e}")
+        logger.error(f"Erro ao criar fun��o: {e}")
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/funcoes-evento/<int:funcao_id>', methods=['PUT'])
 @require_permission('eventos_edit')
 def atualizar_funcao_evento(funcao_id):
-    """Atualizar função de evento existente"""
+    """Atualizar fun��o de evento existente"""
     try:
         dados = request.get_json()
         nome = dados.get('nome', '').strip()
@@ -7077,27 +7077,27 @@ def atualizar_funcao_evento(funcao_id):
         ativo = dados.get('ativo', True)
         
         if not nome:
-            return jsonify({'error': 'Nome da função é obrigatório'}), 400
+            return jsonify({'error': 'Nome da fun��o � obrigat�rio'}), 400
         
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Verificar se função existe
+        # Verificar se fun��o existe
         cursor.execute("SELECT id FROM funcoes_evento WHERE id = %s", (funcao_id,))
         if not cursor.fetchone():
             cursor.close()
-            return jsonify({'error': 'Função não encontrada'}), 404
+            return jsonify({'error': 'Fun��o n�o encontrada'}), 404
         
-        # Verificar se nome já existe em outra função
+        # Verificar se nome j� existe em outra fun��o
         cursor.execute(
             "SELECT id FROM funcoes_evento WHERE UPPER(nome) = UPPER(%s) AND id != %s",
             (nome, funcao_id)
         )
         if cursor.fetchone():
             cursor.close()
-            return jsonify({'error': 'Já existe outra função com este nome'}), 400
+            return jsonify({'error': 'J� existe outra fun��o com este nome'}), 400
         
-        # Atualizar função
+        # Atualizar fun��o
         cursor.execute("""
             UPDATE funcoes_evento 
             SET nome = %s, descricao = %s, ativo = %s
@@ -7109,29 +7109,29 @@ def atualizar_funcao_evento(funcao_id):
         
         return jsonify({
             'success': True,
-            'message': 'Função atualizada com sucesso'
+            'message': 'Fun��o atualizada com sucesso'
         }), 200
     
     except Exception as e:
-        logger.error(f"Erro ao atualizar função: {e}")
+        logger.error(f"Erro ao atualizar fun��o: {e}")
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/funcoes-evento/<int:funcao_id>', methods=['DELETE'])
 @require_permission('eventos_edit')
 def deletar_funcao_evento(funcao_id):
-    """Deletar função de evento"""
+    """Deletar fun��o de evento"""
     try:
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Verificar se função existe
+        # Verificar se fun��o existe
         cursor.execute("SELECT id FROM funcoes_evento WHERE id = %s", (funcao_id,))
         if not cursor.fetchone():
             cursor.close()
-            return jsonify({'error': 'Função não encontrada'}), 404
+            return jsonify({'error': 'Fun��o n�o encontrada'}), 404
         
-        # Verificar se há funcionários usando esta função
+        # Verificar se h� funcion�rios usando esta fun��o
         cursor.execute(
             "SELECT COUNT(*) as total FROM evento_funcionarios WHERE funcao_id = %s",
             (funcao_id,)
@@ -7142,10 +7142,10 @@ def deletar_funcao_evento(funcao_id):
         if total > 0:
             cursor.close()
             return jsonify({
-                'error': f'Não é possível excluir. Esta função está sendo usada por {total} alocação(ões) de funcionários.'
+                'error': f'N�o � poss�vel excluir. Esta fun��o est� sendo usada por {total} aloca��o(�es) de funcion�rios.'
             }), 400
         
-        # Deletar função
+        # Deletar fun��o
         cursor.execute("DELETE FROM funcoes_evento WHERE id = %s", (funcao_id,))
         
         conn.commit()
@@ -7153,11 +7153,11 @@ def deletar_funcao_evento(funcao_id):
         
         return jsonify({
             'success': True,
-            'message': 'Função deletada com sucesso'
+            'message': 'Fun��o deletada com sucesso'
         }), 200
     
     except Exception as e:
-        logger.error(f"Erro ao deletar função: {e}")
+        logger.error(f"Erro ao deletar fun��o: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -7200,16 +7200,16 @@ def criar_setor():
         nome = dados.get('nome', '').strip()
         
         if not nome:
-            return jsonify({'error': 'Nome do setor é obrigatório'}), 400
+            return jsonify({'error': 'Nome do setor � obrigat�rio'}), 400
         
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Verificar se já existe
+        # Verificar se j� existe
         cursor.execute("SELECT id FROM setores WHERE UPPER(nome) = UPPER(%s)", (nome,))
         if cursor.fetchone():
             cursor.close()
-            return jsonify({'error': 'Já existe um setor com este nome'}), 400
+            return jsonify({'error': 'J� existe um setor com este nome'}), 400
         
         # Inserir novo setor
         cursor.execute("""
@@ -7241,7 +7241,7 @@ def atualizar_setor(setor_id):
         ativo = dados.get('ativo')
         
         if ativo is None:
-            return jsonify({'error': 'Status ativo é obrigatório'}), 400
+            return jsonify({'error': 'Status ativo � obrigat�rio'}), 400
         
         conn = db.get_connection()
         cursor = conn.cursor()
@@ -7255,7 +7255,7 @@ def atualizar_setor(setor_id):
         
         if not cursor.fetchone():
             cursor.close()
-            return jsonify({'error': 'Setor não encontrado'}), 404
+            return jsonify({'error': 'Setor n�o encontrado'}), 404
         
         conn.commit()
         cursor.close()
@@ -7266,7 +7266,7 @@ def atualizar_setor(setor_id):
         })
     
     except Exception as e:
-        logger.error(f"Erro ao criar função: {e}")
+        logger.error(f"Erro ao criar fun��o: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
@@ -7285,7 +7285,7 @@ def excluir_setor(setor_id):
         
         if not setor:
             cursor.close()
-            return jsonify({'error': 'Setor não encontrado'}), 404
+            return jsonify({'error': 'Setor n�o encontrado'}), 404
         
         # Excluir o setor
         cursor.execute("DELETE FROM setores WHERE id = %s", (setor_id,))
@@ -7294,7 +7294,7 @@ def excluir_setor(setor_id):
         
         return jsonify({
             'success': True,
-            'message': 'Setor excluído com sucesso'
+            'message': 'Setor exclu�do com sucesso'
         })
     
     except Exception as e:
@@ -7371,7 +7371,7 @@ def listar_equipe_evento(evento_id):
 @app.route('/api/eventos/<int:evento_id>/equipe', methods=['POST'])
 @require_permission('eventos_create')
 def adicionar_funcionario_evento(evento_id):
-    """Adicionar funcionário à equipe do evento"""
+    """Adicionar funcion�rio � equipe do evento"""
     try:
         dados = request.get_json()
         print(f"[EQUIPE MASSA] Dados recebidos: {dados}", flush=True)  # DEBUG
@@ -7386,35 +7386,35 @@ def adicionar_funcionario_evento(evento_id):
         print(f"[EQUIPE MASSA] funcionario_id={funcionario_id}, funcao_id={funcao_id}, valor={valor}", flush=True)  # DEBUG
         
         if not funcionario_id or not funcao_id:
-            print(f"[EQUIPE MASSA] ❌ ERRO: Campos obrigatórios ausentes", flush=True)  # DEBUG
-            return jsonify({'error': 'Funcionário e função são obrigatórios'}), 400
+            print(f"[EQUIPE MASSA] ? ERRO: Campos obrigat�rios ausentes", flush=True)  # DEBUG
+            return jsonify({'error': 'Funcion�rio e fun��o s�o obrigat�rios'}), 400
         
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Buscar nome da função para histórico
+        # Buscar nome da fun��o para hist�rico
         cursor.execute("SELECT nome FROM funcoes_evento WHERE id = %s", (funcao_id,))
         funcao_row = cursor.fetchone()
         if not funcao_row:
-            print(f"[EQUIPE MASSA] ❌ ERRO: Função {funcao_id} não encontrada", flush=True)  # DEBUG
+            print(f"[EQUIPE MASSA] ? ERRO: Fun��o {funcao_id} n�o encontrada", flush=True)  # DEBUG
             cursor.close()
-            return jsonify({'error': 'Função não encontrada'}), 404
+            return jsonify({'error': 'Fun��o n�o encontrada'}), 404
         
         funcao_nome = funcao_row['nome']
-        print(f"[EQUIPE MASSA] Função encontrada: {funcao_nome}", flush=True)  # DEBUG
+        print(f"[EQUIPE MASSA] Fun��o encontrada: {funcao_nome}", flush=True)  # DEBUG
         
-        # Verificar se já existe alocação
+        # Verificar se j� existe aloca��o
         cursor.execute("""
             SELECT id FROM evento_funcionarios 
             WHERE evento_id = %s AND funcionario_id = %s AND funcao_id = %s
         """, (evento_id, funcionario_id, funcao_id))
         
         if cursor.fetchone():
-            print(f"[EQUIPE MASSA] ⚠️ DUPLICADO: Funcionário {funcionario_id} já alocado no evento {evento_id} com função {funcao_id}", flush=True)  # DEBUG
+            print(f"[EQUIPE MASSA] ?? DUPLICADO: Funcion�rio {funcionario_id} j� alocado no evento {evento_id} com fun��o {funcao_id}", flush=True)  # DEBUG
             cursor.close()
-            return jsonify({'error': 'Este funcionário já está alocado com esta função neste evento'}), 400
+            return jsonify({'error': 'Este funcion�rio j� est� alocado com esta fun��o neste evento'}), 400
         
-        # Inserir alocação (com setor_id, hora_inicio e hora_fim se fornecidos)
+        # Inserir aloca��o (com setor_id, hora_inicio e hora_fim se fornecidos)
         cursor.execute("""
             INSERT INTO evento_funcionarios 
             (evento_id, funcionario_id, funcao_id, funcao_nome, setor_id, valor, hora_inicio, hora_fim)
@@ -7443,7 +7443,7 @@ def adicionar_funcionario_evento(evento_id):
         evento_row = cursor.fetchone()
         valor_liquido = evento_row['valor_liquido_nf'] if evento_row and evento_row['valor_liquido_nf'] else 0
         
-        # Calcular margem: Valor Líquido - Custo
+        # Calcular margem: Valor L�quido - Custo
         margem = float(valor_liquido) - float(custo_total)
         
         # Atualizar custo do evento E margem
@@ -7458,13 +7458,13 @@ def adicionar_funcionario_evento(evento_id):
         
         return jsonify({
             'success': True,
-            'message': 'Funcionário adicionado à equipe',
+            'message': 'Funcion�rio adicionado � equipe',
             'alocacao_id': alocacao_id,
             'custo_total': float(custo_total)
         }), 201
     
     except Exception as e:
-        logger.error(f"Erro ao adicionar funcionário: {e}")
+        logger.error(f"Erro ao adicionar funcion�rio: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
@@ -7473,7 +7473,7 @@ def adicionar_funcionario_evento(evento_id):
 @app.route('/api/eventos/equipe/<int:alocacao_id>', methods=['DELETE'])
 @require_permission('eventos_delete')
 def remover_funcionario_evento(alocacao_id):
-    """Remover funcionário da equipe do evento"""
+    """Remover funcion�rio da equipe do evento"""
     try:
         conn = db.get_connection()
         cursor = conn.cursor()
@@ -7483,11 +7483,11 @@ def remover_funcionario_evento(alocacao_id):
         row = cursor.fetchone()
         if not row:
             cursor.close()
-            return jsonify({'error': 'Alocação não encontrada'}), 404
+            return jsonify({'error': 'Aloca��o n�o encontrada'}), 404
         
         evento_id = row['evento_id']
         
-        # Deletar alocação
+        # Deletar aloca��o
         cursor.execute("DELETE FROM evento_funcionarios WHERE id = %s", (alocacao_id,))
         
         # Recalcular custo total do evento
@@ -7509,7 +7509,7 @@ def remover_funcionario_evento(alocacao_id):
         evento_row = cursor.fetchone()
         valor_liquido = evento_row['valor_liquido_nf'] if evento_row and evento_row['valor_liquido_nf'] else 0
         
-        # Calcular margem: Valor Líquido - Custo
+        # Calcular margem: Valor L�quido - Custo
         margem = float(valor_liquido) - float(custo_total)
         
         # Atualizar custo do evento E margem
@@ -7524,12 +7524,12 @@ def remover_funcionario_evento(alocacao_id):
         
         return jsonify({
             'success': True,
-            'message': 'Funcionário removido da equipe',
+            'message': 'Funcion�rio removido da equipe',
             'custo_total': float(custo_total)
         }), 200
     
     except Exception as e:
-        logger.error(f"Erro ao remover funcionário: {e}")
+        logger.error(f"Erro ao remover funcion�rio: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
@@ -7546,7 +7546,7 @@ def listar_fornecedores_evento(evento_id):
     try:
         from psycopg2.extras import RealDictCursor
         
-        logger.info(f"🏢 GET /api/eventos/{evento_id}/fornecedores")
+        logger.info(f"?? GET /api/eventos/{evento_id}/fornecedores")
         
         conn = db.get_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -7562,12 +7562,12 @@ def listar_fornecedores_evento(evento_id):
         tabela_existe = cursor.fetchone()['exists']
         
         if not tabela_existe:
-            logger.warning("   ⚠️  Tabela evento_fornecedores não existe - Retornando lista vazia")
+            logger.warning("   ??  Tabela evento_fornecedores n�o existe - Retornando lista vazia")
             cursor.close()
             return jsonify({
                 'success': True,
                 'fornecedores': [],
-                'warning': 'Tabela evento_fornecedores não existe. Execute a migração.'
+                'warning': 'Tabela evento_fornecedores n�o existe. Execute a migra��o.'
             }), 200
         
         cursor.execute("""
@@ -7593,7 +7593,7 @@ def listar_fornecedores_evento(evento_id):
         fornecedores = cursor.fetchall()
         cursor.close()
         
-        logger.info(f"   📊 Retornando {len(fornecedores)} fornecedores")
+        logger.info(f"   ?? Retornando {len(fornecedores)} fornecedores")
         
         return jsonify({
             'success': True,
@@ -7601,7 +7601,7 @@ def listar_fornecedores_evento(evento_id):
         }), 200
     
     except Exception as e:
-        logger.error(f"❌ Erro ao listar fornecedores do evento: {e}")
+        logger.error(f"? Erro ao listar fornecedores do evento: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -7620,7 +7620,7 @@ def adicionar_fornecedor_evento(evento_id):
         observacao = dados.get('observacao')
         
         if not fornecedor_id:
-            return jsonify({'error': 'fornecedor_id é obrigatório'}), 400
+            return jsonify({'error': 'fornecedor_id � obrigat�rio'}), 400
         
         usuario = get_usuario_logado()
         usuario_id = usuario.get('id') if usuario else None
@@ -7628,7 +7628,7 @@ def adicionar_fornecedor_evento(evento_id):
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Verificar se fornecedor já está vinculado ao evento
+        # Verificar se fornecedor j� est� vinculado ao evento
         cursor.execute("""
             SELECT id FROM evento_fornecedores
             WHERE evento_id = %s AND fornecedor_id = %s
@@ -7636,7 +7636,7 @@ def adicionar_fornecedor_evento(evento_id):
         
         if cursor.fetchone():
             cursor.close()
-            return jsonify({'error': 'Fornecedor já está vinculado a este evento'}), 400
+            return jsonify({'error': 'Fornecedor j� est� vinculado a este evento'}), 400
         
         # Inserir fornecedor no evento
         cursor.execute("""
@@ -7672,7 +7672,7 @@ def adicionar_fornecedor_evento(evento_id):
         evento_row = cursor.fetchone()
         valor_liquido = evento_row['valor_liquido_nf'] if evento_row and evento_row['valor_liquido_nf'] else 0
         
-        # Calcular margem: Valor Líquido - Custo Total (Equipe + Fornecedores)
+        # Calcular margem: Valor L�quido - Custo Total (Equipe + Fornecedores)
         margem = float(valor_liquido) - custo_total
         
         # Atualizar custo do evento E margem
@@ -7712,11 +7712,11 @@ def remover_fornecedor_evento(fornecedor_evento_id):
         row = cursor.fetchone()
         if not row:
             cursor.close()
-            return jsonify({'error': 'Vínculo não encontrado'}), 404
+            return jsonify({'error': 'V�nculo n�o encontrado'}), 404
         
         evento_id = row['evento_id']
         
-        # Deletar vínculo
+        # Deletar v�nculo
         cursor.execute("DELETE FROM evento_fornecedores WHERE id = %s", (fornecedor_evento_id,))
         
         # Recalcular custo total do evento (equipe + fornecedores)
@@ -7743,7 +7743,7 @@ def remover_fornecedor_evento(fornecedor_evento_id):
         evento_row = cursor.fetchone()
         valor_liquido = evento_row['valor_liquido_nf'] if evento_row and evento_row['valor_liquido_nf'] else 0
         
-        # Calcular margem: Valor Líquido - Custo Total (Equipe + Fornecedores)
+        # Calcular margem: Valor L�quido - Custo Total (Equipe + Fornecedores)
         margem = float(valor_liquido) - custo_total
         
         # Atualizar custo do evento E margem
@@ -7772,16 +7772,16 @@ def remover_fornecedor_evento(fornecedor_evento_id):
 @app.route('/api/subcategorias', methods=['GET'])
 @require_permission('categorias_view')
 def listar_subcategorias():
-    """Lista subcategorias de uma categoria específica"""
+    """Lista subcategorias de uma categoria espec�fica"""
     try:
         from psycopg2.extras import RealDictCursor
         
         categoria_id = request.args.get('categoria_id')
         
-        logger.info(f"📋 GET /api/subcategorias - categoria_id={categoria_id}")
+        logger.info(f"?? GET /api/subcategorias - categoria_id={categoria_id}")
         
         if not categoria_id:
-            return jsonify({'success': False, 'error': 'categoria_id é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'categoria_id � obrigat�rio'}), 400
         
         conn = db.get_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -7798,7 +7798,7 @@ def listar_subcategorias():
         coluna_ativa_existe = cursor.fetchone()['exists']
         
         if coluna_ativa_existe:
-            logger.info("   ✅ Coluna 'ativa' existe, filtrando por ativa=TRUE")
+            logger.info("   ? Coluna 'ativa' existe, filtrando por ativa=TRUE")
             cursor.execute("""
                 SELECT id, nome, categoria_id, ativa
                 FROM subcategorias
@@ -7806,7 +7806,7 @@ def listar_subcategorias():
                 ORDER BY nome
             """, (int(categoria_id),))
         else:
-            logger.warning("   ⚠️  Coluna 'ativa' não existe, listando todas")
+            logger.warning("   ??  Coluna 'ativa' n�o existe, listando todas")
             cursor.execute("""
                 SELECT id, nome, categoria_id
                 FROM subcategorias
@@ -7817,7 +7817,7 @@ def listar_subcategorias():
         subcategorias = cursor.fetchall()
         cursor.close()
         
-        logger.info(f"   📊 Retornando {len(subcategorias)} subcategorias")
+        logger.info(f"   ?? Retornando {len(subcategorias)} subcategorias")
         
         return jsonify({
             'success': True,
@@ -7825,14 +7825,14 @@ def listar_subcategorias():
         }), 200
     
     except Exception as e:
-        logger.error(f"❌ Erro ao listar subcategorias: {e}")
+        logger.error(f"? Erro ao listar subcategorias: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-# === ROTAS DE RELATÓRIOS ===
-# Todos os relatórios movidos para app/routes/relatorios.py
+# === ROTAS DE RELAT�RIOS ===
+# Todos os relat�rios movidos para app/routes/relatorios.py
 # - dashboard, dashboard-completo, fluxo-projetado
 # - analise-contas, resumo-parceiros, analise-categorias  
 # - comparativo-periodos, indicadores, inadimplencia
@@ -7840,11 +7840,11 @@ def listar_subcategorias():
 @app.route('/api/relatorios/dashboard', methods=['GET'])
 @require_permission('lancamentos_view')
 def dashboard():
-    """Dados para o dashboard - versão simplificada"""
-    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    """Dados para o dashboard - vers�o simplificada"""
+    # ?? VALIDA��O DE SEGURAN�A
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'erro': 'Empresa não selecionada'}), 403
+        return jsonify({'erro': 'Empresa n�o selecionada'}), 403
     
     try:
         # Pegar filtros opcionais
@@ -7854,21 +7854,21 @@ def dashboard():
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
         contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
         
-        # Filtrar lançamentos por cliente se necessário
+        # Filtrar lan�amentos por cliente se necess�rio
         usuario = request.usuario
         if usuario['tipo'] != 'admin' and usuario.get('cliente_id'):
             lancamentos = [l for l in lancamentos if getattr(l, 'pessoa', None) == usuario['cliente_id']]
         
-        # Calcular saldos - USAR SALDO REAL DAS CONTAS (inclui extrato bancário)
+        # Calcular saldos - USAR SALDO REAL DAS CONTAS (inclui extrato banc�rio)
         saldo_total = Decimal('0')
         
-        # 🏦 Para cada conta, buscar saldo real (prioriza extrato bancário)
+        # ?? Para cada conta, buscar saldo real (prioriza extrato banc�rio)
         for c in contas:
             try:
                 with get_db_connection(empresa_id=empresa_id) as conn:
                     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                     
-                    # Verificar se existem transações de extrato para esta conta
+                    # Verificar se existem transa��es de extrato para esta conta
                     cursor.execute("""
                         SELECT saldo
                         FROM transacoes_extrato
@@ -7881,11 +7881,11 @@ def dashboard():
                     ultima_transacao_extrato = cursor.fetchone()
                     
                     if ultima_transacao_extrato and ultima_transacao_extrato['saldo'] is not None:
-                        # ✅ Usar saldo do extrato (fonte de verdade)
+                        # ? Usar saldo do extrato (fonte de verdade)
                         saldo_conta = Decimal(str(ultima_transacao_extrato['saldo']))
-                        print(f"🏦 Dashboard - Conta {c.nome}: Saldo do extrato = R$ {saldo_conta}")
+                        print(f"?? Dashboard - Conta {c.nome}: Saldo do extrato = R$ {saldo_conta}")
                     else:
-                        # 💰 Fallback: Calcular com lançamentos manuais
+                        # ?? Fallback: Calcular com lan�amentos manuais
                         cursor.execute("""
                             SELECT COALESCE(SUM(valor), 0) as total_receitas
                             FROM lancamentos
@@ -7907,13 +7907,13 @@ def dashboard():
                         total_despesas = Decimal(str(cursor.fetchone()['total_despesas'] or 0))
                         
                         saldo_conta = Decimal(str(c.saldo_inicial)) + total_receitas - total_despesas
-                        print(f"💰 Dashboard - Conta {c.nome}: Saldo calculado = R$ {saldo_conta}")
+                        print(f"?? Dashboard - Conta {c.nome}: Saldo calculado = R$ {saldo_conta}")
                     
                     cursor.close()
                     saldo_total += saldo_conta
                     
             except Exception as e:
-                print(f"⚠️ Dashboard - Erro ao calcular saldo da conta {c.nome}: {e}")
+                print(f"?? Dashboard - Erro ao calcular saldo da conta {c.nome}: {e}")
                 # Em caso de erro, usar saldo_inicial
                 saldo_total += Decimal(str(c.saldo_inicial))
         
@@ -7930,16 +7930,16 @@ def dashboard():
                     contas_receber += valor_decimal
                 if l.tipo == TipoLancamento.DESPESA and l.status == StatusLancamento.PENDENTE:
                     contas_pagar += valor_decimal
-                # Converter datetime para date se necessário
+                # Converter datetime para date se necess�rio
                 data_venc = l.data_vencimento.date() if hasattr(l.data_vencimento, 'date') else l.data_vencimento
                 if l.status == StatusLancamento.PENDENTE and data_venc < hoje:
                     contas_vencidas += valor_decimal
         
-        # Dados para gráfico - últimos 12 meses ou filtrado por ano/mês
+        # Dados para gr�fico - �ltimos 12 meses ou filtrado por ano/m�s
         from calendar import monthrange
         import locale
         
-        # Tentar configurar locale para português
+        # Tentar configurar locale para portugu�s
         try:
             locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
         except:
@@ -7953,7 +7953,7 @@ def dashboard():
         despesas_dados = []
         
         if ano and mes:
-            # Apenas um mês específico
+            # Apenas um m�s espec�fico
             _, ultimo_dia = monthrange(ano, mes)
             data_inicio = date(ano, mes, 1)
             data_fim = date(ano, mes, ultimo_dia)
@@ -7992,7 +7992,7 @@ def dashboard():
                 despesas_dados.append(float(despesas_mes))
         
         else:
-            # Últimos 12 meses
+            # �ltimos 12 meses
             data_ref = hoje
             for i in range(11, -1, -1):
                 mes_ref = data_ref.month - i
@@ -8019,11 +8019,11 @@ def dashboard():
                 receitas_dados.append(float(receitas_mes))
                 despesas_dados.append(float(despesas_mes))
         
-        print(f"📊 DADOS DO GRÁFICO:")
+        print(f"?? DADOS DO GR�FICO:")
         print(f"   Meses: {meses_labels}")
         print(f"   Receitas: {receitas_dados}")
         print(f"   Despesas: {despesas_dados}")
-        print(f"💰 CARDS:")
+        print(f"?? CARDS:")
         print(f"   Contas a Receber: R$ {float(contas_receber):,.2f}")
         print(f"   Contas a Pagar: R$ {float(contas_pagar):,.2f}")
         print(f"   Contas Vencidas: R$ {float(contas_vencidas):,.2f}")
@@ -8051,31 +8051,31 @@ def dashboard():
 @app.route('/api/relatorios/dashboard-completo', methods=['GET'])
 @require_permission('relatorios_view')
 def dashboard_completo():
-    """Dashboard completo com análises detalhadas - apenas lançamentos liquidados"""
-    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    """Dashboard completo com an�lises detalhadas - apenas lan�amentos liquidados"""
+    # ?? VALIDA��O DE SEGURAN�A
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'erro': 'Empresa não selecionada'}), 403
+        return jsonify({'erro': 'Empresa n�o selecionada'}), 403
     
     try:
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
         
         if not data_inicio or not data_fim:
-            return jsonify({'error': 'Datas obrigatórias'}), 400
+            return jsonify({'error': 'Datas obrigat�rias'}), 400
         
         data_inicio_obj = parse_date(data_inicio)
         data_fim_obj = parse_date(data_fim)
         
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
         
-        # Filtrar lançamentos por cliente se necessário
+        # Filtrar lan�amentos por cliente se necess�rio
         usuario = request.usuario
         if usuario['tipo'] != 'admin' and usuario.get('cliente_id'):
             lancamentos = [l for l in lancamentos if getattr(l, 'pessoa', None) == usuario['cliente_id']]
         
-        # Filtrar apenas lançamentos PAGOS/LIQUIDADOS no período (baseado na data de pagamento)
-        # Excluir transferências dos relatórios
+        # Filtrar apenas lan�amentos PAGOS/LIQUIDADOS no per�odo (baseado na data de pagamento)
+        # Excluir transfer�ncias dos relat�rios
         lancamentos_periodo = []
         for l in lancamentos:
             if l.status == StatusLancamento.PAGO and l.data_pagamento and l.tipo != TipoLancamento.TRANSFERENCIA:
@@ -8083,7 +8083,7 @@ def dashboard_completo():
                 if data_inicio_obj <= data_pag <= data_fim_obj:
                     lancamentos_periodo.append(l)
         
-        # Evolução mensal (baseado na data de pagamento)
+        # Evolu��o mensal (baseado na data de pagamento)
         evolucao = []
         current_date = data_inicio_obj
         
@@ -8111,13 +8111,13 @@ def dashboard_completo():
                 'saldo': float(saldo_mes)
             })
             
-            # Avançar para o próximo mês
+            # Avan�ar para o pr�ximo m�s
             if current_date.month == 12:
                 current_date = current_date.replace(year=current_date.year + 1, month=1, day=1)
             else:
                 current_date = current_date.replace(month=current_date.month + 1, day=1)
         
-        # Análise de Clientes
+        # An�lise de Clientes
         clientes_resumo = {}
         for l in lancamentos_periodo:
             if l.tipo == TipoLancamento.RECEITA and l.pessoa:
@@ -8143,7 +8143,7 @@ def dashboard_completo():
                 'quantidade': clientes_resumo[pior_cliente_nome]['quantidade']
             }
         
-        # Análise de Fornecedores
+        # An�lise de Fornecedores
         fornecedores_resumo = {}
         for l in lancamentos_periodo:
             if l.tipo == TipoLancamento.DESPESA and l.pessoa:
@@ -8169,7 +8169,7 @@ def dashboard_completo():
                 'quantidade': fornecedores_resumo[menor_fornecedor_nome]['quantidade']
             }
         
-        # Análise de Categorias - Receitas
+        # An�lise de Categorias - Receitas
         categorias_receita = {}
         for l in lancamentos_periodo:
             if l.tipo == TipoLancamento.RECEITA:
@@ -8194,7 +8194,7 @@ def dashboard_completo():
                 'total': float(categorias_receita[melhor_cat][melhor_subcat])
             }
         
-        # Análise de Categorias - Despesas
+        # An�lise de Categorias - Despesas
         categorias_despesa = {}
         for l in lancamentos_periodo:
             if l.tipo == TipoLancamento.DESPESA:
@@ -8239,31 +8239,31 @@ def dashboard_completo():
 @app.route('/api/relatorios/fluxo-projetado', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_fluxo_projetado():
-    """Relatório de fluxo de caixa PROJETADO (incluindo lançamentos pendentes futuros)"""
-    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    """Relat�rio de fluxo de caixa PROJETADO (incluindo lan�amentos pendentes futuros)"""
+    # ?? VALIDA��O DE SEGURAN�A
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'erro': 'Empresa não selecionada'}), 403
+        return jsonify({'erro': 'Empresa n�o selecionada'}), 403
     
     try:
-        # Receber filtros - padrão é projetar próximos X dias
+        # Receber filtros - padr�o � projetar pr�ximos X dias
         dias = request.args.get('dias')
         dias = int(dias) if dias else 30
         
         hoje = date.today()
         data_inicial = hoje
         data_final = hoje + timedelta(days=dias)
-        periodo_texto = f"PROJEÇÃO - PRÓXIMOS {dias} DIAS"
+        periodo_texto = f"PROJE��O - PR�XIMOS {dias} DIAS"
         
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
         contas = db.listar_contas_por_empresa(empresa_id=empresa_id)
         
-        # Filtrar lançamentos por cliente se necessário
+        # Filtrar lan�amentos por cliente se necess�rio
         usuario = request.usuario
         if usuario['tipo'] != 'admin' and usuario.get('cliente_id'):
             lancamentos = [l for l in lancamentos if getattr(l, 'pessoa', None) == usuario['cliente_id']]
         
-        # 🏦 PRIORIDADE 1: Buscar saldo atual do EXTRATO BANCÁRIO (fonte de verdade)
+        # ?? PRIORIDADE 1: Buscar saldo atual do EXTRATO BANC�RIO (fonte de verdade)
         saldo_atual = Decimal('0')
         
         try:
@@ -8271,7 +8271,7 @@ def relatorio_fluxo_projetado():
                 cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                 
                 for c in contas:
-                    # Verificar se existem transações de extrato para esta conta
+                    # Verificar se existem transa��es de extrato para esta conta
                     cursor.execute("""
                         SELECT saldo, data, id
                         FROM transacoes_extrato
@@ -8284,12 +8284,12 @@ def relatorio_fluxo_projetado():
                     ultima_transacao_extrato = cursor.fetchone()
                     
                     if ultima_transacao_extrato and ultima_transacao_extrato['saldo'] is not None:
-                        # ✅ USAR SALDO DO EXTRATO (mais recente e confiável)
+                        # ? USAR SALDO DO EXTRATO (mais recente e confi�vel)
                         saldo_conta = Decimal(str(ultima_transacao_extrato['saldo']))
-                        print(f"🏦 Fluxo Projetado - Conta {c.nome}: Saldo do extrato = R$ {saldo_conta:.2f}")
+                        print(f"?? Fluxo Projetado - Conta {c.nome}: Saldo do extrato = R$ {saldo_conta:.2f}")
                     else:
-                        # 💰 FALLBACK: Calcular com base nos lançamentos manuais
-                        print(f"📝 Fluxo Projetado - Conta {c.nome}: Sem extrato, calculando com lançamentos...")
+                        # ?? FALLBACK: Calcular com base nos lan�amentos manuais
+                        print(f"?? Fluxo Projetado - Conta {c.nome}: Sem extrato, calculando com lan�amentos...")
                         
                         # Somar receitas pagas
                         cursor.execute("""
@@ -8317,21 +8317,21 @@ def relatorio_fluxo_projetado():
                         
                         # Calcular saldo
                         saldo_conta = Decimal(str(c.saldo_inicial)) + total_receitas - total_despesas
-                        print(f"💰 Fluxo Projetado - Conta {c.nome}: Saldo calculado = R$ {saldo_conta:.2f}")
+                        print(f"?? Fluxo Projetado - Conta {c.nome}: Saldo calculado = R$ {saldo_conta:.2f}")
                     
                     saldo_atual += saldo_conta
                 
                 cursor.close()
                 
         except Exception as e:
-            print(f"⚠️ Erro ao calcular saldo atual no fluxo projetado: {e}")
+            print(f"?? Erro ao calcular saldo atual no fluxo projetado: {e}")
             import traceback
             traceback.print_exc()
             # FALLBACK em caso de erro: usar saldo inicial
             for c in contas:
                 saldo_atual += Decimal(str(c.saldo_inicial))
         
-        # Buscar lançamentos PENDENTES para projeção (vencidos + futuros)
+        # Buscar lan�amentos PENDENTES para proje��o (vencidos + futuros)
         lancamentos_futuros = []
         lancamentos_vencidos = []
         receitas_previstas = Decimal('0')
@@ -8349,7 +8349,7 @@ def relatorio_fluxo_projetado():
                 
                 valor_decimal = Decimal(str(l.valor))
                 
-                # Lançamentos vencidos (já passaram do vencimento)
+                # Lan�amentos vencidos (j� passaram do vencimento)
                 if data_venc < hoje:
                     lancamentos_vencidos.append(l)
                     if l.tipo == TipoLancamento.RECEITA:
@@ -8357,7 +8357,7 @@ def relatorio_fluxo_projetado():
                     else:
                         despesas_vencidas += valor_decimal
                 
-                # Lançamentos futuros (dentro do período de projeção)
+                # Lan�amentos futuros (dentro do per�odo de proje��o)
                 elif data_inicial <= data_venc <= data_final:
                     lancamentos_futuros.append(l)
                     if l.tipo == TipoLancamento.RECEITA:
@@ -8402,7 +8402,7 @@ def relatorio_fluxo_projetado():
                 'dias_atraso': dias_atraso
             })
         
-        # Adicionar lançamentos futuros
+        # Adicionar lan�amentos futuros
         for lanc in lancamentos_futuros:
             valor_decimal = Decimal(str(lanc.valor))
             if lanc.tipo == TipoLancamento.RECEITA:
@@ -8448,25 +8448,25 @@ def relatorio_fluxo_projetado():
 @app.route('/api/relatorios/analise-contas', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_analise_contas():
-    """Relatório de análise de contas a pagar e receber"""
-    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    """Relat�rio de an�lise de contas a pagar e receber"""
+    # ?? VALIDA��O DE SEGURAN�A
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'erro': 'Empresa não selecionada'}), 403
+        return jsonify({'erro': 'Empresa n�o selecionada'}), 403
     
     lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
     hoje = date.today()
     
-    # Filtrar lançamentos por cliente se necessário
+    # Filtrar lan�amentos por cliente se necess�rio
     usuario = request.usuario
     if usuario['tipo'] != 'admin' and usuario.get('cliente_id'):
         lancamentos = [l for l in lancamentos if getattr(l, 'pessoa', None) == usuario['cliente_id']]
     
-    # Função auxiliar para converter datetime para date
+    # Fun��o auxiliar para converter datetime para date
     def get_date(data):
         return data.date() if hasattr(data, 'date') else data
     
-    # Totais (excluindo transferências)
+    # Totais (excluindo transfer�ncias)
     total_receber = sum(l.valor for l in lancamentos 
                        if l.tipo == TipoLancamento.RECEITA and l.status == StatusLancamento.PENDENTE)
     total_pagar = sum(l.valor for l in lancamentos 
@@ -8481,7 +8481,7 @@ def relatorio_analise_contas():
                         l.status == StatusLancamento.PENDENTE and 
                         get_date(l.data_vencimento) < hoje)
     
-    # Aging (análise de vencimento) - excluindo transferências
+    # Aging (an�lise de vencimento) - excluindo transfer�ncias
     pendentes = [l for l in lancamentos if l.status == StatusLancamento.PENDENTE and l.tipo != TipoLancamento.TRANSFERENCIA]
     
     vencidos = sum(l.valor for l in pendentes if (get_date(l.data_vencimento) - hoje).days < 0)  # type: ignore
@@ -8512,12 +8512,12 @@ def relatorio_analise_contas():
 @app.route('/api/lancamentos/<int:lancamento_id>/pagar', methods=['PUT'])
 @require_permission('lancamentos_edit')
 def pagar_lancamento(lancamento_id):
-    """Marca um lançamento como pago"""
+    """Marca um lan�amento como pago"""
     try:
-        # 🔒 Obter empresa_id da sessão
+        # ?? Obter empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'empresa_id não encontrado na sessão'}), 403
+            return jsonify({'success': False, 'error': 'empresa_id n�o encontrado na sess�o'}), 403
         
         data = request.json
         conta = data.get('conta_bancaria', '') if data else ''
@@ -8535,21 +8535,21 @@ def pagar_lancamento(lancamento_id):
 @app.route('/api/lancamentos/<int:lancamento_id>/liquidar', methods=['POST'])
 @require_permission('lancamentos_edit')
 def liquidar_lancamento(lancamento_id):
-    """Liquida um lançamento (marca como pago com dados completos)"""
+    """Liquida um lan�amento (marca como pago com dados completos)"""
     try:
         print("\n" + "="*80)
-        print(f"🔍 DEBUG LIQUIDAÇÃO - ID: {lancamento_id}")
+        print(f"?? DEBUG LIQUIDA��O - ID: {lancamento_id}")
         print("="*80)
         
-        # 🔒 Obter empresa_id da sessão
+        # ?? Obter empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            print("❌ ERRO: empresa_id não encontrado na sessão")
-            return jsonify({'success': False, 'error': 'empresa_id não encontrado na sessão'}), 403
-        print(f"🏢 Empresa ID: {empresa_id}")
+            print("? ERRO: empresa_id n�o encontrado na sess�o")
+            return jsonify({'success': False, 'error': 'empresa_id n�o encontrado na sess�o'}), 403
+        print(f"?? Empresa ID: {empresa_id}")
         
         data = request.json or {}
-        print(f"📥 Dados recebidos: {data}")
+        print(f"?? Dados recebidos: {data}")
         
         conta = data.get('conta_bancaria', '')
         data_pagamento_str = data.get('data_pagamento', '')
@@ -8557,35 +8557,35 @@ def liquidar_lancamento(lancamento_id):
         desconto = float(data.get('desconto', 0))
         observacoes = data.get('observacoes', '')
         
-        print(f"📊 Parâmetros extraídos:")
+        print(f"?? Par�metros extra�dos:")
         print(f"   - Conta: {conta}")
         print(f"   - Data: {data_pagamento_str}")
         print(f"   - Juros: {juros}")
         print(f"   - Desconto: {desconto}")
-        print(f"   - Observações: {observacoes}")
+        print(f"   - Observa��es: {observacoes}")
         
         if not conta:
-            print("❌ ERRO: Conta bancária vazia")
-            return jsonify({'success': False, 'error': 'Conta bancária é obrigatória'}), 400
+            print("? ERRO: Conta banc�ria vazia")
+            return jsonify({'success': False, 'error': 'Conta banc�ria � obrigat�ria'}), 400
         
         if not data_pagamento_str or data_pagamento_str.strip() == '':
-            print("❌ ERRO: Data de pagamento vazia")
-            return jsonify({'success': False, 'error': 'Data de pagamento é obrigatória'}), 400
+            print("? ERRO: Data de pagamento vazia")
+            return jsonify({'success': False, 'error': 'Data de pagamento � obrigat�ria'}), 400
         
         data_pagamento = datetime.fromisoformat(data_pagamento_str).date()
-        print(f"📅 Data convertida: {data_pagamento} (tipo: {type(data_pagamento)})")
+        print(f"?? Data convertida: {data_pagamento} (tipo: {type(data_pagamento)})")
         
-        print(f"🔧 Chamando db_pagar_lancamento...")
+        print(f"?? Chamando db_pagar_lancamento...")
         print(f"   Argumentos: ({empresa_id}, {lancamento_id}, {conta}, {data_pagamento}, {juros}, {desconto}, {observacoes})")
         
         success = db_pagar_lancamento(empresa_id, lancamento_id, conta, data_pagamento, juros, desconto, observacoes)
         
-        print(f"✅ Resultado: {success}")
+        print(f"? Resultado: {success}")
         print("="*80 + "\n")
         
         return jsonify({'success': success})
     except Exception as e:
-        print(f"❌ EXCEÇÃO CAPTURADA:")
+        print(f"? EXCE��O CAPTURADA:")
         print(f"   Tipo: {type(e).__name__}")
         print(f"   Mensagem: {str(e)}")
         import traceback
@@ -8597,12 +8597,12 @@ def liquidar_lancamento(lancamento_id):
 @app.route('/api/lancamentos/<int:lancamento_id>/cancelar', methods=['PUT'])
 @require_permission('lancamentos_edit')
 def cancelar_lancamento_route(lancamento_id):
-    """Cancela um lançamento"""
+    """Cancela um lan�amento"""
     try:
-        # 🔒 Obter empresa_id da sessão
+        # ?? Obter empresa_id da sess�o
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'empresa_id não encontrado na sessão'}), 403
+            return jsonify({'success': False, 'error': 'empresa_id n�o encontrado na sess�o'}), 403
         
         success = db_cancelar_lancamento(empresa_id, lancamento_id)
         return jsonify({'success': success})
@@ -8614,22 +8614,22 @@ def cancelar_lancamento_route(lancamento_id):
 @require_permission('lancamentos_edit')
 def atualizar_associacao_lancamento(lancamento_id):
     """
-    Atualiza apenas o campo de associação de um lançamento (salvamento automático)
+    Atualiza apenas o campo de associa��o de um lan�amento (salvamento autom�tico)
     
     Security:
-        🔒 Validado empresa_id da sessão
-        🔒 Verifica permissão lancamentos_edit
+        ?? Validado empresa_id da sess�o
+        ?? Verifica permiss�o lancamentos_edit
     """
     try:
-        # 🔒 VALIDAÇÃO DE SEGURANÇA
+        # ?? VALIDA��O DE SEGURAN�A
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 403
         
         data = request.get_json()
         nova_associacao = data.get('associacao', '')
         
-        # 🔗 Atualizar associacao E numero_documento simultaneamente (sincronização bidirecional)
+        # ?? Atualizar associacao E numero_documento simultaneamente (sincroniza��o bidirecional)
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             
@@ -8645,12 +8645,12 @@ def atualizar_associacao_lancamento(lancamento_id):
             cursor.close()
             
             if not resultado:
-                return jsonify({'success': False, 'error': 'Lançamento não encontrado'}), 404
+                return jsonify({'success': False, 'error': 'Lan�amento n�o encontrado'}), 404
             
             return jsonify({'success': True, 'id': lancamento_id, 'associacao': nova_associacao})
             
     except Exception as e:
-        print(f"❌ Erro ao atualizar associação: {e}")
+        print(f"? Erro ao atualizar associa��o: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -8660,18 +8660,18 @@ def atualizar_associacao_lancamento(lancamento_id):
 
 @app.route('/login')
 def login_page():
-    """Página de login"""
+    """P�gina de login"""
     return render_template('login.html')
 
 @app.route('/api/csrf-token', methods=['GET'])
 def get_csrf_token_endpoint():
     """
     Endpoint para obter CSRF token via API
-    Gera e retorna um token CSRF válido
+    Gera e retorna um token CSRF v�lido
     """
     from flask_wtf.csrf import generate_csrf
     token = generate_csrf()
-    print(f"🔑 CSRF Token gerado via API: {token[:20]}...")
+    print(f"?? CSRF Token gerado via API: {token[:20]}...")
     return jsonify({
         'csrf_token': token,
         'success': True
@@ -8681,7 +8681,7 @@ def get_csrf_token_endpoint():
 @require_admin
 def admin_page():
     """Painel administrativo - apenas para admins"""
-    print(f"\n🎯🎯🎯 ROTA /admin ALCANÇADA - Decorador passou! 🎯🎯🎯\n")
+    print(f"\n?????? ROTA /admin ALCAN�ADA - Decorador passou! ??????\n")
     return render_template('admin.html')
 
 @app.route('/admin/fix-empresa-id', methods=['GET', 'POST'])
@@ -8696,7 +8696,7 @@ def admin_fix_empresa_id():
     from database_postgresql import get_db_connection
     
     if request.method == 'GET':
-        # Mostrar página de confirmação
+        # Mostrar p�gina de confirma��o
         return """
         <!DOCTYPE html>
         <html>
@@ -8713,11 +8713,11 @@ def admin_fix_empresa_id():
             </style>
         </head>
         <body>
-            <h1>🔧 Corrigir empresa_id em Registros Antigos</h1>
+            <h1>?? Corrigir empresa_id em Registros Antigos</h1>
             
             <div class="warning">
-                <h3>⚠️ ATENÇÃO</h3>
-                <p>Esta ação irá atualizar TODOS os registros sem <code>empresa_id</code> nas seguintes tabelas:</p>
+                <h3>?? ATEN��O</h3>
+                <p>Esta a��o ir� atualizar TODOS os registros sem <code>empresa_id</code> nas seguintes tabelas:</p>
                 <ul>
                     <li>contratos</li>
                     <li>sessoes</li>
@@ -8726,10 +8726,10 @@ def admin_fix_empresa_id():
                     <li>fornecedores</li>
                     <li>categorias</li>
                 </ul>
-                <p><strong>Os registros serão associados à empresa ID 19.</strong></p>
+                <p><strong>Os registros ser�o associados � empresa ID 19.</strong></p>
             </div>
             
-            <h3>O que será feito:</h3>
+            <h3>O que ser� feito:</h3>
             <pre>
 UPDATE contratos SET empresa_id = 19 WHERE empresa_id IS NULL;
 UPDATE sessoes SET empresa_id = 19 WHERE empresa_id IS NULL;
@@ -8737,22 +8737,22 @@ UPDATE lancamentos SET empresa_id = 19 WHERE empresa_id IS NULL;
 ...
             </pre>
             
-            <form method="POST" onsubmit="return confirm('Tem certeza? Esta ação não pode ser desfeita!');">
-                <button type="submit" class="btn danger">✅ Executar Correção</button>
-                <a href="/admin" style="margin-left: 20px;">❌ Cancelar</a>
+            <form method="POST" onsubmit="return confirm('Tem certeza? Esta a��o n�o pode ser desfeita!');">
+                <button type="submit" class="btn danger">? Executar Corre��o</button>
+                <a href="/admin" style="margin-left: 20px;">? Cancelar</a>
             </form>
         </body>
         </html>
         """
     
-    # POST - Executar correção
+    # POST - Executar corre��o
     try:
         with get_db_connection(allow_global=True) as conn:
             cursor = conn.cursor()
             
             resultados = []
             
-            # Análise inicial
+            # An�lise inicial
             tabelas = ['contratos', 'sessoes', 'lancamentos', 'clientes', 'fornecedores', 'categorias']
             analise_inicial = {}
             
@@ -8769,7 +8769,7 @@ UPDATE lancamentos SET empresa_id = 19 WHERE empresa_id IS NULL;
                     'sem_empresa_id': result['sem_empresa_id']
                 }
             
-            # Executar correções
+            # Executar corre��es
             updates = {
                 'contratos': "UPDATE contratos SET empresa_id = 19 WHERE empresa_id IS NULL",
                 'sessoes': "UPDATE sessoes SET empresa_id = 19 WHERE empresa_id IS NULL",
@@ -8782,7 +8782,7 @@ UPDATE lancamentos SET empresa_id = 19 WHERE empresa_id IS NULL;
             for tabela, sql in updates.items():
                 cursor.execute(sql)
                 count = cursor.rowcount
-                resultados.append(f"✅ {tabela}: {count} registro(s) atualizado(s)")
+                resultados.append(f"? {tabela}: {count} registro(s) atualizado(s)")
             
             conn.commit()
             cursor.close()
@@ -8792,7 +8792,7 @@ UPDATE lancamentos SET empresa_id = 19 WHERE empresa_id IS NULL;
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Correção Concluída</title>
+                <title>Corre��o Conclu�da</title>
                 <style>
                     body {{ font-family: Arial; padding: 40px; max-width: 800px; margin: 0 auto; }}
                     .success {{ background: #d4edda; border: 2px solid #28a745; padding: 20px; margin: 20px 0; border-radius: 8px; }}
@@ -8800,14 +8800,14 @@ UPDATE lancamentos SET empresa_id = 19 WHERE empresa_id IS NULL;
                 </style>
             </head>
             <body>
-                <h1>✅ Correção Concluída com Sucesso!</h1>
+                <h1>? Corre��o Conclu�da com Sucesso!</h1>
                 
                 <div class="success">
                     <h3>Resultados:</h3>
                     {''.join(f'<div class="resultado">{r}</div>' for r in resultados)}
                 </div>
                 
-                <a href="/admin">← Voltar ao Admin</a>
+                <a href="/admin">? Voltar ao Admin</a>
             </body>
             </html>
             """
@@ -8816,20 +8816,20 @@ UPDATE lancamentos SET empresa_id = 19 WHERE empresa_id IS NULL;
             
     except Exception as e:
         return f"""
-        <h1>❌ Erro ao executar correção</h1>
+        <h1>? Erro ao executar corre��o</h1>
         <pre>{str(e)}</pre>
-        <a href="/admin">← Voltar</a>
+        <a href="/admin">? Voltar</a>
         """, 500
 
 # ============================================================================
-# ROTAS DE ADMINISTRAÇÃO MOBILE
+# ROTAS DE ADMINISTRA��O MOBILE
 # ============================================================================
 
 @app.route('/api/admin/mobile/config', methods=['GET'])
 @require_admin
 def admin_get_mobile_config():
     """
-    Obtém informações básicas sobre mobile (apenas detecção de dispositivo)
+    Obt�m informa��es b�sicas sobre mobile (apenas detec��o de dispositivo)
     
     GET /api/admin/mobile/config
     
@@ -8844,7 +8844,7 @@ def admin_get_mobile_config():
         return jsonify({
             'success': True,
             'device_info': device_info,
-            'message': 'Sistema usa detecção básica de dispositivos mobile'
+            'message': 'Sistema usa detec��o b�sica de dispositivos mobile'
         }), 200
     except Exception as e:
         logger.error(f"Erro ao obter info mobile: {e}")
@@ -8858,22 +8858,22 @@ def admin_get_mobile_config():
 @require_admin
 def admin_update_mobile_config(key):
     """
-    Atualiza uma configuração mobile (admin apenas)
+    Atualiza uma configura��o mobile (admin apenas)
     
     PUT /api/admin/mobile/config/mobile_enabled
     Body: {
         "value": "true",
-        "description": "Habilitar versão mobile"
+        "description": "Habilitar vers�o mobile"
     }
     
     Response: {
         "success": false,
-        "message": "Configurações mobile simplificadas - não há configurações para atualizar"
+        "message": "Configura��es mobile simplificadas - n�o h� configura��es para atualizar"
     }
     """
     return jsonify({
         'success': False,
-        'message': 'Sistema usa detecção básica de mobile - não há configurações dinâmicas',
+        'message': 'Sistema usa detec��o b�sica de mobile - n�o h� configura��es din�micas',
         'info': 'Mobile detection baseado em User-Agent apenas'
     }), 400
 
@@ -8881,8 +8881,8 @@ def admin_update_mobile_config(key):
 @app.route('/api/device-info', methods=['GET'])
 def get_device_info_route():
     """
-    Retorna informações sobre o dispositivo atual
-    Útil para debug e UI
+    Retorna informa��es sobre o dispositivo atual
+    �til para debug e UI
     
     GET /api/device-info
     
@@ -8902,7 +8902,7 @@ def get_device_info_route():
 @require_auth
 def set_device_preference_route():
     """
-    Define preferência de dispositivo do usuário
+    Define prefer�ncia de dispositivo do usu�rio
     
     POST /api/device-preference
     Body: {
@@ -8921,7 +8921,7 @@ def set_device_preference_route():
         if preference not in ['web', 'mobile']:
             return jsonify({
                 'success': False,
-                'error': 'Preferência inválida. Use "web" ou "mobile".'
+                'error': 'Prefer�ncia inv�lida. Use "web" ou "mobile".'
             }), 400
         
         from mobile_config import store_device_preference
@@ -8939,7 +8939,7 @@ def set_device_preference_route():
 
 @app.route('/debug-usuario')
 def debug_usuario():
-    """Rota de debug para verificar dados do usuário atual"""
+    """Rota de debug para verificar dados do usu�rio atual"""
     usuario = get_usuario_logado()
     
     debug_info = {
@@ -8967,8 +8967,8 @@ def debug_usuario():
 
 @app.route('/')
 def index():
-    """Página principal - Nova interface moderna"""
-    # Verificar se está autenticado
+    """P�gina principal - Nova interface moderna"""
+    # Verificar se est� autenticado
     usuario = get_usuario_logado()
     if not usuario:
         return render_template('login.html')
@@ -8979,11 +8979,11 @@ def index():
 @app.route('/admin/import')
 @require_permission('admin')
 def admin_import_page():
-    """Página de importação de banco de dados"""
+    """P�gina de importa��o de banco de dados"""
     return render_template('admin_import.html')
 
 # ============================================================================
-# ROTAS DE IMPORTAÇÃO DE BANCO DE DADOS
+# ROTAS DE IMPORTA��O DE BANCO DE DADOS
 # ============================================================================
 from werkzeug.utils import secure_filename
 from database_import_manager import DatabaseImportManager
@@ -9000,18 +9000,18 @@ def allowed_file(filename):
 @csrf.exempt
 @require_permission('admin')
 def upload_import_file():
-    """Upload e processamento de arquivo para importação"""
-    logger.info("🚀 [IMPORT] Função upload_import_file() chamada")
-    logger.info(f"🚀 [IMPORT] Request method: {request.method}")
-    logger.info(f"🚀 [IMPORT] Content-Type: {request.content_type}")
+    """Upload e processamento de arquivo para importa��o"""
+    logger.info("?? [IMPORT] Fun��o upload_import_file() chamada")
+    logger.info(f"?? [IMPORT] Request method: {request.method}")
+    logger.info(f"?? [IMPORT] Content-Type: {request.content_type}")
     try:
-        logger.info("📥 Upload de arquivo iniciado")
+        logger.info("?? Upload de arquivo iniciado")
         
-        # Verificar se é upload múltiplo
+        # Verificar se � upload m�ltiplo
         multiple_files = request.files.getlist('files[]')
         
         if multiple_files:
-            logger.info(f"📁 Upload múltiplo: {len(multiple_files)} arquivos")
+            logger.info(f"?? Upload m�ltiplo: {len(multiple_files)} arquivos")
             temp_dir = tempfile.gettempdir()
             db_file_path = None
             
@@ -9020,7 +9020,7 @@ def upload_import_file():
                     continue
                 
                 if not allowed_file(file.filename):
-                    return jsonify({'error': f'Formato não suportado: {file.filename}'}), 400
+                    return jsonify({'error': f'Formato n�o suportado: {file.filename}'}), 400
                 
                 filename = secure_filename(file.filename)
                 temp_path = os.path.join(temp_dir, f"import_{session.get('usuario_id')}_{filename}")
@@ -9029,10 +9029,10 @@ def upload_import_file():
                 if filename.endswith('.db') or filename.endswith('.sqlite') or filename.endswith('.sqlite3'):
                     db_file_path = temp_path
                 
-                logger.info(f"✅ Arquivo salvo: {temp_path}")
+                logger.info(f"? Arquivo salvo: {temp_path}")
             
             if not db_file_path:
-                return jsonify({'error': 'Arquivo .db principal não encontrado'}), 400
+                return jsonify({'error': 'Arquivo .db principal n�o encontrado'}), 400
             
             manager = DatabaseImportManager()
             schema = manager.parse_sqlite_database(db_file_path)
@@ -9045,7 +9045,7 @@ def upload_import_file():
                 'total_registros': sum(t.get('total_registros', 0) for t in schema.values())
             })
         
-        # Upload único
+        # Upload �nico
         if 'file' not in request.files:
             return jsonify({'error': 'Nenhum arquivo enviado'}), 400
         
@@ -9055,7 +9055,7 @@ def upload_import_file():
             return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
         
         if not allowed_file(file.filename):
-            return jsonify({'error': f'Formato não suportado. Use: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
+            return jsonify({'error': f'Formato n�o suportado. Use: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
         
         # Validar tamanho
         file.seek(0, os.SEEK_END)
@@ -9063,14 +9063,14 @@ def upload_import_file():
         file.seek(0)
         
         if file_size > MAX_FILE_SIZE:
-            return jsonify({'error': 'Arquivo muito grande (máx: 100MB)'}), 400
+            return jsonify({'error': 'Arquivo muito grande (m�x: 100MB)'}), 400
         
         filename = secure_filename(file.filename)
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, f"import_{session.get('usuario_id')}_{filename}")
         file.save(temp_path)
         
-        logger.info(f"✅ Arquivo salvo: {temp_path}")
+        logger.info(f"? Arquivo salvo: {temp_path}")
         
         file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
         manager = DatabaseImportManager()
@@ -9084,7 +9084,7 @@ def upload_import_file():
         elif file_ext in ['db', 'db-shm', 'db-wal', 'sqlite', 'sqlite3']:
             schema = manager.parse_sqlite_database(temp_path)
         else:
-            return jsonify({'error': 'Formato não reconhecido'}), 400
+            return jsonify({'error': 'Formato n�o reconhecido'}), 400
         
         return jsonify({
             'success': True,
@@ -9095,14 +9095,14 @@ def upload_import_file():
         })
         
     except Exception as e:
-        logger.error(f"❌ Erro no upload: {e}")
+        logger.error(f"? Erro no upload: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/import/schema/interno', methods=['GET'])
 @csrf.exempt
 @require_permission('admin')
 def get_internal_schema():
-    """Obtém schema do banco interno usando a mesma conexão do sistema"""
+    """Obt�m schema do banco interno usando a mesma conex�o do sistema"""
     try:
         db_instance = DatabaseManager()
         conn = db_instance.get_connection()
@@ -9156,7 +9156,7 @@ def get_internal_schema():
         
         conn.close()
         
-        logger.info(f"✅ Schema interno carregado: {len(schema)} tabelas")
+        logger.info(f"? Schema interno carregado: {len(schema)} tabelas")
         
         return jsonify({
             'success': True,
@@ -9165,7 +9165,7 @@ def get_internal_schema():
         })
         
     except Exception as e:
-        logger.error(f"❌ Erro ao obter schema interno: {e}")
+        logger.error(f"? Erro ao obter schema interno: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -9174,14 +9174,14 @@ def get_internal_schema():
 @csrf.exempt
 @require_permission('admin')
 def suggest_mapping():
-    """Gera sugestões de mapeamento entre tabelas"""
+    """Gera sugest�es de mapeamento entre tabelas"""
     try:
         data = request.json
         schema_externo = data.get('schema_externo')
         schema_interno = data.get('schema_interno')
         
         if not schema_externo or not schema_interno:
-            return jsonify({'error': 'Schemas externo e interno são obrigatórios'}), 400
+            return jsonify({'error': 'Schemas externo e interno s�o obrigat�rios'}), 400
         
         manager = DatabaseImportManager()
         sugestoes = manager.suggest_table_mapping(schema_externo, schema_interno)
@@ -9193,14 +9193,14 @@ def suggest_mapping():
         })
         
     except Exception as e:
-        logger.error(f"❌ Erro ao gerar sugestões: {e}")
+        logger.error(f"? Erro ao gerar sugest�es: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/import/criar', methods=['POST'])
 @csrf.exempt
 @require_permission('admin')
 def create_import():
-    """Cria registro de importação com mapeamentos"""
+    """Cria registro de importa��o com mapeamentos"""
     try:
         data = request.json
         empresa_id = data.get('empresa_id')
@@ -9208,7 +9208,7 @@ def create_import():
         schema_externo = data.get('schema_externo')
         
         if not empresa_id or not mapeamentos:
-            return jsonify({'error': 'empresa_id e mapeamentos são obrigatórios'}), 400
+            return jsonify({'error': 'empresa_id e mapeamentos s�o obrigat�rios'}), 400
         
         manager = DatabaseImportManager()
         manager.connect()
@@ -9227,24 +9227,24 @@ def create_import():
         return jsonify({
             'success': True,
             'import_id': import_id,
-            'message': 'Importação criada com sucesso'
+            'message': 'Importa��o criada com sucesso'
         })
         
     except Exception as e:
-        logger.error(f"❌ Erro ao criar importação: {e}")
+        logger.error(f"? Erro ao criar importa��o: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/import/executar/<int:import_id>', methods=['POST'])
 @csrf.exempt
 @require_permission('admin')
 def execute_import(import_id):
-    """Executa a importação de dados"""
+    """Executa a importa��o de dados"""
     try:
         data = request.json
         arquivo_path = data.get('arquivo_path')
         
         if not arquivo_path:
-            return jsonify({'error': 'arquivo_path é obrigatório'}), 400
+            return jsonify({'error': 'arquivo_path � obrigat�rio'}), 400
         
         manager = DatabaseImportManager()
         manager.connect()
@@ -9256,18 +9256,18 @@ def execute_import(import_id):
         return jsonify({
             'success': True,
             'resultado': resultado,
-            'message': 'Importação executada com sucesso'
+            'message': 'Importa��o executada com sucesso'
         })
         
     except Exception as e:
-        logger.error(f"❌ Erro ao executar importação: {e}")
+        logger.error(f"? Erro ao executar importa��o: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/import/reverter/<int:import_id>', methods=['POST'])
 @csrf.exempt
 @require_permission('admin')
 def rollback_import(import_id):
-    """Reverte uma importação (rollback)"""
+    """Reverte uma importa��o (rollback)"""
     try:
         manager = DatabaseImportManager()
         manager.connect()
@@ -9279,11 +9279,11 @@ def rollback_import(import_id):
         return jsonify({
             'success': True,
             'resultado': resultado,
-            'message': 'Importação revertida com sucesso'
+            'message': 'Importa��o revertida com sucesso'
         })
         
     except Exception as e:
-        logger.error(f"❌ Erro ao reverter importação: {e}")
+        logger.error(f"? Erro ao reverter importa��o: {e}")
         return jsonify({'error': str(e)}), 500
 
 # ============================================================================
@@ -9291,29 +9291,29 @@ def rollback_import(import_id):
 @app.route('/old')
 @require_auth
 def old_index():
-    """Página antiga (backup)"""
+    """P�gina antiga (backup)"""
     return render_template('interface.html')
 
 @app.route('/teste')
 def teste():
-    """Página de teste JavaScript"""
+    """P�gina de teste JavaScript"""
     return render_template('teste.html')
 
 @app.route('/teste-api')
 def teste_api():
-    """Página de teste API"""
+    """P�gina de teste API"""
     return render_template('teste_api.html')
 
-# === ENDPOINTS DE RELATÓRIOS ===
+# === ENDPOINTS DE RELAT�RIOS ===
 
 @app.route('/api/relatorios/resumo-parceiros', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_resumo_parceiros():
-    """Relatório de resumo por cliente/fornecedor"""
-    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    """Relat�rio de resumo por cliente/fornecedor"""
+    # ?? VALIDA��O DE SEGURAN�A
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'erro': 'Empresa não selecionada'}), 403
+        return jsonify({'erro': 'Empresa n�o selecionada'}), 403
     
     try:
         data_inicio = request.args.get('data_inicio', (date.today() - timedelta(days=30)).isoformat())
@@ -9383,11 +9383,11 @@ def relatorio_resumo_parceiros():
 @app.route('/api/relatorios/analise-categorias', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_analise_categorias():
-    """Relatório de análise por categorias"""
-    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    """Relat�rio de an�lise por categorias"""
+    # ?? VALIDA��O DE SEGURAN�A
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'erro': 'Empresa não selecionada'}), 403
+        return jsonify({'erro': 'Empresa n�o selecionada'}), 403
     
     try:
         data_inicio = request.args.get('data_inicio', (date.today() - timedelta(days=30)).isoformat())
@@ -9439,29 +9439,29 @@ def relatorio_analise_categorias():
 @app.route('/api/relatorios/comparativo-periodos', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_comparativo_periodos():
-    """Relatório comparativo entre períodos"""
+    """Relat�rio comparativo entre per�odos"""
     try:
-        print(f"[COMPARATIVO] Iniciando comparativo de períodos")
+        print(f"[COMPARATIVO] Iniciando comparativo de per�odos")
         
-        # Período 1
+        # Per�odo 1
         data_inicio1 = request.args.get('data_inicio1')
         data_fim1 = request.args.get('data_fim1')
         
-        # Período 2
+        # Per�odo 2
         data_inicio2 = request.args.get('data_inicio2')
         data_fim2 = request.args.get('data_fim2')
         
-        print(f"[COMPARATIVO] Parâmetros recebidos:")
-        print(f"  Período 1: {data_inicio1} até {data_fim1}")
-        print(f"  Período 2: {data_inicio2} até {data_fim2}")
+        print(f"[COMPARATIVO] Par�metros recebidos:")
+        print(f"  Per�odo 1: {data_inicio1} at� {data_fim1}")
+        print(f"  Per�odo 2: {data_inicio2} at� {data_fim2}")
         
         if not all([data_inicio1, data_fim1, data_inicio2, data_fim2]):
-            return jsonify({'error': 'Parâmetros de datas obrigatórios'}), 400
+            return jsonify({'error': 'Par�metros de datas obrigat�rios'}), 400
         
-        # 🔒 VALIDAÇÃO DE SEGURANÇA
+        # ?? VALIDA��O DE SEGURAN�A
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'erro': 'Empresa não selecionada'}), 403
+            return jsonify({'erro': 'Empresa n�o selecionada'}), 403
         
         print(f"[COMPARATIVO] Empresa ID: {empresa_id}")
         
@@ -9472,14 +9472,14 @@ def relatorio_comparativo_periodos():
             data_fim2 = datetime.fromisoformat(data_fim2).date()
         except ValueError as e:
             print(f"[COMPARATIVO] Erro ao converter datas: {e}")
-            return jsonify({'error': 'Formato de data inválido'}), 400
+            return jsonify({'error': 'Formato de data inv�lido'}), 400
         
-        print(f"[COMPARATIVO] Buscando lançamentos...")
+        print(f"[COMPARATIVO] Buscando lan�amentos...")
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
-        print(f"[COMPARATIVO] Total de lançamentos: {len(lancamentos)}")
+        print(f"[COMPARATIVO] Total de lan�amentos: {len(lancamentos)}")
         
         def calcular_periodo(data_ini, data_fim):
-            print(f"[COMPARATIVO] Calculando período: {data_ini} até {data_fim}")
+            print(f"[COMPARATIVO] Calculando per�odo: {data_ini} at� {data_fim}")
             receitas = Decimal('0')
             despesas = Decimal('0')
             receitas_por_categoria = {}
@@ -9506,7 +9506,7 @@ def relatorio_comparativo_periodos():
                                 despesas_por_categoria[categoria] = despesas_por_categoria.get(categoria, Decimal('0')) + valor
                                 despesas_por_subcategoria[chave_completa] = despesas_por_subcategoria.get(chave_completa, Decimal('0')) + valor
                 except Exception as e:
-                    print(f"[COMPARATIVO] Erro ao processar lançamento {l.id}: {e}")
+                    print(f"[COMPARATIVO] Erro ao processar lan�amento {l.id}: {e}")
                     continue
             
             # Encontrar maiores por categoria
@@ -9535,20 +9535,20 @@ def relatorio_comparativo_periodos():
                 'qtd_categorias_despesas': len(despesas_por_categoria)
             }
         
-        print(f"[COMPARATIVO] Calculando período 1...")
+        print(f"[COMPARATIVO] Calculando per�odo 1...")
         periodo1 = calcular_periodo(data_inicio1, data_fim1)
-        print(f"[COMPARATIVO] Período 1 calculado - Receitas: {periodo1['receitas']}, Despesas: {periodo1['despesas']}")
+        print(f"[COMPARATIVO] Per�odo 1 calculado - Receitas: {periodo1['receitas']}, Despesas: {periodo1['despesas']}")
         
-        print(f"[COMPARATIVO] Calculando período 2...")
+        print(f"[COMPARATIVO] Calculando per�odo 2...")
         periodo2 = calcular_periodo(data_inicio2, data_fim2)
-        print(f"[COMPARATIVO] Período 2 calculado - Receitas: {periodo2['receitas']}, Despesas: {periodo2['despesas']}")
+        print(f"[COMPARATIVO] Per�odo 2 calculado - Receitas: {periodo2['receitas']}, Despesas: {periodo2['despesas']}")
         
-        # Calcular variações
+        # Calcular varia��es
         variacao_receitas = ((periodo2['receitas'] - periodo1['receitas']) / periodo1['receitas'] * 100) if periodo1['receitas'] > 0 else 0
         variacao_despesas = ((periodo2['despesas'] - periodo1['despesas']) / periodo1['despesas'] * 100) if periodo1['despesas'] > 0 else 0
         variacao_saldo = ((periodo2['saldo'] - periodo1['saldo']) / abs(periodo1['saldo']) * 100) if periodo1['saldo'] != 0 else 0
         
-        print(f"[COMPARATIVO] Variações calculadas - Receitas: {variacao_receitas}%, Despesas: {variacao_despesas}%, Saldo: {variacao_saldo}%")
+        print(f"[COMPARATIVO] Varia��es calculadas - Receitas: {variacao_receitas}%, Despesas: {variacao_despesas}%, Saldo: {variacao_saldo}%")
         
         resultado = {
             'periodo1': {
@@ -9570,7 +9570,7 @@ def relatorio_comparativo_periodos():
         return jsonify(resultado)
         
     except Exception as e:
-        print(f"[COMPARATIVO] ERRO CRÍTICO: {str(e)}")
+        print(f"[COMPARATIVO] ERRO CR�TICO: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -9578,11 +9578,11 @@ def relatorio_comparativo_periodos():
 @app.route('/api/relatorios/indicadores', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_indicadores():
-    """Relatório de indicadores financeiros"""
-    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    """Relat�rio de indicadores financeiros"""
+    # ?? VALIDA��O DE SEGURAN�A
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'erro': 'Empresa não selecionada'}), 403
+        return jsonify({'erro': 'Empresa n�o selecionada'}), 403
     
     try:
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
@@ -9598,11 +9598,11 @@ def relatorio_indicadores():
             inicio_mes = parse_date(data_inicio_str)
             fim_periodo = parse_date(data_fim_str)
         else:
-            # Padrão: mês atual
+            # Padr�o: m�s atual
             inicio_mes = date(hoje.year, hoje.month, 1)
             fim_periodo = hoje
         
-        # Totais do mês atual
+        # Totais do m�s atual
         receitas_mes = Decimal('0')
         despesas_mes = Decimal('0')
         
@@ -9643,7 +9643,7 @@ def relatorio_indicadores():
         # Liquidez = (Saldo + A Receber) / A Pagar
         liquidez = float((saldo_caixa + total_receber) / total_pagar) if total_pagar > 0 else 0
         
-        # Margem líquida = (Receitas - Despesas) / Receitas * 100
+        # Margem l�quida = (Receitas - Despesas) / Receitas * 100
         margem = float((receitas_mes - despesas_mes) / receitas_mes * 100) if receitas_mes > 0 else 0
         
         return jsonify({
@@ -9672,11 +9672,11 @@ def relatorio_indicadores():
 @app.route('/api/relatorios/inadimplencia', methods=['GET'])
 @require_permission('relatorios_view')
 def relatorio_inadimplencia():
-    """Relatório de inadimplência"""
-    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    """Relat�rio de inadimpl�ncia"""
+    # ?? VALIDA��O DE SEGURAN�A
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'erro': 'Empresa não selecionada'}), 403
+        return jsonify({'erro': 'Empresa n�o selecionada'}), 403
     
     try:
         lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
@@ -9685,7 +9685,7 @@ def relatorio_inadimplencia():
         inadimplentes = []
         
         for l in lancamentos:
-            # Excluir transferências e considerar apenas PENDENTES
+            # Excluir transfer�ncias e considerar apenas PENDENTES
             if l.tipo == TipoLancamento.TRANSFERENCIA:
                 continue
                 
@@ -9693,7 +9693,7 @@ def relatorio_inadimplencia():
                 # Converter data_vencimento para date se for datetime
                 data_venc = l.data_vencimento.date() if hasattr(l.data_vencimento, 'date') else l.data_vencimento
                 
-                # Verificar se está vencido (data anterior a hoje)
+                # Verificar se est� vencido (data anterior a hoje)
                 if data_venc < hoje:
                     dias_atraso = (hoje - data_venc).days
                     inadimplentes.append({
@@ -9703,7 +9703,7 @@ def relatorio_inadimplencia():
                         'valor': float(l.valor),
                         'data_vencimento': data_venc.isoformat(),
                         'dias_atraso': dias_atraso,
-                        'pessoa': l.pessoa or 'Não informado',
+                        'pessoa': l.pessoa or 'N�o informado',
                         'categoria': l.categoria or 'Sem categoria'
                     })
         
@@ -9730,16 +9730,16 @@ def favicon():
     )
 
 
-# === EXPORTAÇÃO DE CLIENTES E FORNECEDORES ===
+# === EXPORTA��O DE CLIENTES E FORNECEDORES ===
 
 @app.route('/api/clientes/exportar/pdf', methods=['GET'])
 @require_permission('clientes_view')
 def exportar_clientes_pdf():
     """Exporta clientes para PDF"""
-    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    # ?? VALIDA��O DE SEGURAN�A
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'erro': 'Empresa não selecionada'}), 403
+        return jsonify({'erro': 'Empresa n�o selecionada'}), 403
     
     try:
         from reportlab.lib import colors  # type: ignore
@@ -9752,26 +9752,26 @@ def exportar_clientes_pdf():
         
         clientes = db.listar_clientes(empresa_id=empresa_id)
         
-        # Criar PDF em memória
+        # Criar PDF em mem�ria
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=0.5*cm, leftMargin=0.5*cm, topMargin=1*cm, bottomMargin=1*cm)
         
         elements = []
         styles = getSampleStyleSheet()
         
-        # Título
+        # T�tulo
         title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor('#2c3e50'), spaceAfter=15, alignment=1)
         elements.append(Paragraph(f'LISTA DE CLIENTES - {get_current_date_br()}', title_style))
         elements.append(Spacer(1, 0.3*cm))
         
-        # Estilo de parágrafo para células
+        # Estilo de par�grafo para c�lulas
         cell_style = ParagraphStyle('CellStyle', parent=styles['Normal'], fontSize=7, leading=9, wordWrap='CJK')
         
         # Dados da tabela com Paragraph para quebra de linha
-        data = [['Razão Social', 'Nome Fantasia', 'CNPJ', 'Cidade', 'Est', 'Telefone', 'Email']]
+        data = [['Raz�o Social', 'Nome Fantasia', 'CNPJ', 'Cidade', 'Est', 'Telefone', 'Email']]
         
         for cli in clientes:
-            # Truncar textos longos e usar Paragraph para quebra automática
+            # Truncar textos longos e usar Paragraph para quebra autom�tica
             razao = cli.get('razao_social', '-') or '-'
             fantasia = cli.get('nome_fantasia', '-') or '-'
             cnpj = cli.get('cnpj', '-') or '-'
@@ -9800,7 +9800,7 @@ def exportar_clientes_pdf():
                 Paragraph(email, cell_style)
             ])
         
-        # Largura disponível: A4 landscape = 29.7cm, menos margens = ~28.7cm
+        # Largura dispon�vel: A4 landscape = 29.7cm, menos margens = ~28.7cm
         # Criar tabela com larguras proporcionais
         table = Table(data, colWidths=[6*cm, 5*cm, 3.5*cm, 4*cm, 1.5*cm, 3.5*cm, 4.5*cm])
         table.setStyle(TableStyle([
@@ -9835,10 +9835,10 @@ def exportar_clientes_pdf():
 @require_permission('clientes_view')
 def exportar_clientes_excel():
     """Exporta clientes para Excel"""
-    # 🔒 VALIDAÇÃO DE SEGURANÇA
+    # ?? VALIDA��O DE SEGURAN�A
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'erro': 'Empresa não selecionada'}), 403
+        return jsonify({'erro': 'Empresa n�o selecionada'}), 403
     
     try:
         import openpyxl  # type: ignore
@@ -9852,7 +9852,7 @@ def exportar_clientes_excel():
         ws: Worksheet = wb.active  # type: ignore
         ws.title = "Clientes"
         
-        headers = ['Razão Social', 'Nome Fantasia', 'CNPJ', 'IE', 'IM', 'Rua', 'Número', 'Complemento', 'Bairro', 'Cidade', 'Estado', 'CEP', 'Telefone', 'Email']
+        headers = ['Raz�o Social', 'Nome Fantasia', 'CNPJ', 'IE', 'IM', 'Rua', 'N�mero', 'Complemento', 'Bairro', 'Cidade', 'Estado', 'CEP', 'Telefone', 'Email']
         ws.append(headers)
         
         header_fill = PatternFill(start_color="34495e", end_color="34495e", fill_type="solid")
@@ -9918,10 +9918,10 @@ def exportar_fornecedores_pdf():
         elements.append(Paragraph(f'LISTA DE FORNECEDORES - {get_current_date_br()}', title_style))
         elements.append(Spacer(1, 0.3*cm))
         
-        # Estilo de parágrafo para células
+        # Estilo de par�grafo para c�lulas
         cell_style = ParagraphStyle('CellStyle', parent=styles['Normal'], fontSize=7, leading=9, wordWrap='CJK')
         
-        data = [['Razão Social', 'Nome Fantasia', 'CNPJ', 'Cidade', 'Est', 'Telefone', 'Email']]
+        data = [['Raz�o Social', 'Nome Fantasia', 'CNPJ', 'Cidade', 'Est', 'Telefone', 'Email']]
         
         for forn in fornecedores:
             razao = forn.get('razao_social', '-') or '-'
@@ -9997,7 +9997,7 @@ def exportar_fornecedores_excel():
         ws: Worksheet = wb.active  # type: ignore
         ws.title = "Fornecedores"
         
-        headers = ['Razão Social', 'Nome Fantasia', 'CNPJ', 'IE', 'IM', 'Rua', 'Número', 'Complemento', 'Bairro', 'Cidade', 'Estado', 'CEP', 'Telefone', 'Email']
+        headers = ['Raz�o Social', 'Nome Fantasia', 'CNPJ', 'IE', 'IM', 'Rua', 'N�mero', 'Complemento', 'Bairro', 'Cidade', 'Estado', 'CEP', 'Telefone', 'Email']
         ws.append(headers)
         
         header_fill = PatternFill(start_color="34495e", end_color="34495e", fill_type="solid")
@@ -10040,59 +10040,59 @@ def exportar_fornecedores_excel():
 
 # === ROTAS DO MENU OPERACIONAL ===
 # Rotas de Contratos movidas para app/routes/contratos.py
-# Rotas de Sessões movidas para app/routes/sessoes.py
+# Rotas de Sess�es movidas para app/routes/sessoes.py
 
 @app.route('/api/comissoes', methods=['GET', 'POST'])
 @require_permission('operacional_view')
 def comissoes():
-    """Gerenciar comissões"""
+    """Gerenciar comiss�es"""
     if request.method == 'GET':
         try:
             comissoes = db.listar_comissoes()
             return jsonify(comissoes)
         except Exception as e:
-            logger.error(f"Erro ao listar comissões: {e}")
+            logger.error(f"Erro ao listar comiss�es: {e}")
             return jsonify({'error': str(e)}), 500
     else:  # POST
         try:
             data = request.json
             comissao_id = db.adicionar_comissao(data)
-            return jsonify({'success': True, 'message': 'Comissão criada com sucesso', 'id': comissao_id}), 201
+            return jsonify({'success': True, 'message': 'Comiss�o criada com sucesso', 'id': comissao_id}), 201
         except Exception as e:
-            logger.error(f"Erro ao criar comissão: {e}")
+            logger.error(f"Erro ao criar comiss�o: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/comissoes/<int:comissao_id>', methods=['PUT', 'DELETE'])
 @require_permission('operacional_edit')
 def comissao_detalhes(comissao_id):
-    """Atualizar ou excluir comissão"""
+    """Atualizar ou excluir comiss�o"""
     if request.method == 'PUT':
         try:
             data = request.json
-            print(f"🔍 [COMISSÃO PUT] ID: {comissao_id}, Dados: {data}")
+            print(f"?? [COMISS�O PUT] ID: {comissao_id}, Dados: {data}")
             success = db.atualizar_comissao(comissao_id, data)
             if success:
-                print(f"✅ [COMISSÃO PUT] Atualizada com sucesso")
-                return jsonify({'success': True, 'message': 'Comissão atualizada com sucesso'})
-            print(f"⚠️ [COMISSÃO PUT] Não encontrada")
-            return jsonify({'success': False, 'error': 'Comissão não encontrada'}), 404
+                print(f"? [COMISS�O PUT] Atualizada com sucesso")
+                return jsonify({'success': True, 'message': 'Comiss�o atualizada com sucesso'})
+            print(f"?? [COMISS�O PUT] N�o encontrada")
+            return jsonify({'success': False, 'error': 'Comiss�o n�o encontrada'}), 404
         except Exception as e:
-            print(f"❌ [COMISSÃO PUT] Erro: {e}")
+            print(f"? [COMISS�O PUT] Erro: {e}")
             import traceback
             traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
     else:  # DELETE
         try:
-            print(f"🔍 [COMISSÃO DELETE] ID: {comissao_id}")
+            print(f"?? [COMISS�O DELETE] ID: {comissao_id}")
             success = db.deletar_comissao(comissao_id)
             if success:
-                print(f"✅ [COMISSÃO DELETE] Excluída com sucesso")
-                return jsonify({'success': True, 'message': 'Comissão excluída com sucesso'})
-            print(f"⚠️ [COMISSÃO DELETE] Não encontrada")
-            return jsonify({'success': False, 'error': 'Comissão não encontrada'}), 404
+                print(f"? [COMISS�O DELETE] Exclu�da com sucesso")
+                return jsonify({'success': True, 'message': 'Comiss�o exclu�da com sucesso'})
+            print(f"?? [COMISS�O DELETE] N�o encontrada")
+            return jsonify({'success': False, 'error': 'Comiss�o n�o encontrada'}), 404
         except Exception as e:
-            print(f"❌ [COMISSÃO DELETE] Erro: {e}")
+            print(f"? [COMISS�O DELETE] Erro: {e}")
             import traceback
             traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
@@ -10101,9 +10101,9 @@ def comissao_detalhes(comissao_id):
 @app.route('/api/sessao-equipe', methods=['GET', 'POST', 'DELETE'])
 @require_permission('operacional_view')
 def sessao_equipe():
-    """Gerenciar equipe de sessão"""
+    """Gerenciar equipe de sess�o"""
     if request.method == 'DELETE':
-        # Endpoint temporário para FORÇAR limpeza da tabela
+        # Endpoint tempor�rio para FOR�AR limpeza da tabela
         import sys
         print(f"[CLEANUP] INICIANDO LIMPEZA DA TABELA sessao_equipe", flush=True)
         sys.stdout.flush()
@@ -10149,29 +10149,29 @@ def sessao_equipe_detalhes(membro_id):
     if request.method == 'PUT':
         try:
             data = request.json
-            print(f"🔍 [EQUIPE PUT] ID: {membro_id}, Dados: {data}")
+            print(f"?? [EQUIPE PUT] ID: {membro_id}, Dados: {data}")
             success = db.atualizar_sessao_equipe(membro_id, data)
             if success:
-                print(f"✅ [EQUIPE PUT] Membro atualizado com sucesso")
+                print(f"? [EQUIPE PUT] Membro atualizado com sucesso")
                 return jsonify({'success': True, 'message': 'Membro atualizado com sucesso'})
-            print(f"⚠️ [EQUIPE PUT] Membro não encontrado")
-            return jsonify({'success': False, 'error': 'Membro não encontrado'}), 404
+            print(f"?? [EQUIPE PUT] Membro n�o encontrado")
+            return jsonify({'success': False, 'error': 'Membro n�o encontrado'}), 404
         except Exception as e:
-            print(f"❌ [EQUIPE PUT] Erro: {e}")
+            print(f"? [EQUIPE PUT] Erro: {e}")
             import traceback
             traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
     else:  # DELETE
         try:
-            print(f"🔍 [EQUIPE DELETE] ID: {membro_id}")
+            print(f"?? [EQUIPE DELETE] ID: {membro_id}")
             success = db.deletar_sessao_equipe(membro_id)
             if success:
-                print(f"✅ [EQUIPE DELETE] Membro removido com sucesso")
+                print(f"? [EQUIPE DELETE] Membro removido com sucesso")
                 return jsonify({'success': True, 'message': 'Membro removido com sucesso'})
-            print(f"⚠️ [EQUIPE DELETE] Membro não encontrado")
-            return jsonify({'success': False, 'error': 'Membro não encontrado'}), 404
+            print(f"?? [EQUIPE DELETE] Membro n�o encontrado")
+            return jsonify({'success': False, 'error': 'Membro n�o encontrado'}), 404
         except Exception as e:
-            print(f"❌ [EQUIPE DELETE] Erro: {e}")
+            print(f"? [EQUIPE DELETE] Erro: {e}")
             import traceback
             traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
@@ -10206,15 +10206,15 @@ def agenda_detalhes(agendamento_id):
             success = db.atualizar_agenda(agendamento_id, data)
             if success:
                 return jsonify({'message': 'Agendamento atualizado com sucesso'})
-            return jsonify({'error': 'Agendamento não encontrado'}), 404
+            return jsonify({'error': 'Agendamento n�o encontrado'}), 404
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # DELETE
         try:
             success = db.deletar_agenda(agendamento_id)
             if success:
-                return jsonify({'message': 'Agendamento excluído com sucesso'})
-            return jsonify({'error': 'Agendamento não encontrado'}), 404
+                return jsonify({'message': 'Agendamento exclu�do com sucesso'})
+            return jsonify({'error': 'Agendamento n�o encontrado'}), 404
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
@@ -10248,40 +10248,40 @@ def produto_detalhes(produto_id):
             success = db.atualizar_produto(produto_id, data)
             if success:
                 return jsonify({'message': 'Produto atualizado com sucesso'})
-            return jsonify({'error': 'Produto não encontrado'}), 404
+            return jsonify({'error': 'Produto n�o encontrado'}), 404
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # DELETE
         try:
             success = db.deletar_produto(produto_id)
             if success:
-                return jsonify({'message': 'Produto excluído com sucesso'})
-            return jsonify({'error': 'Produto não encontrado'}), 404
+                return jsonify({'message': 'Produto exclu�do com sucesso'})
+            return jsonify({'error': 'Produto n�o encontrado'}), 404
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
 
 # ============================================================================
-# RECURSOS HUMANOS - FUNCIONÁRIOS
+# RECURSOS HUMANOS - FUNCION�RIOS
 # ============================================================================
 
 @app.route('/api/rh/funcionarios', methods=['GET'])
 def listar_funcionarios_rh():
-    """Listar funcionários para uso em dropdowns (sem require_permission para permitir uso em modais)"""
+    """Listar funcion�rios para uso em dropdowns (sem require_permission para permitir uso em modais)"""
     print("=" * 80)
-    print("🔥 REQUISIÇÃO RECEBIDA: /api/rh/funcionarios")
+    print("?? REQUISI��O RECEBIDA: /api/rh/funcionarios")
     print("=" * 80)
     try:
-        print("📡 Obtendo conexão com banco...")
+        print("?? Obtendo conex�o com banco...")
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        print("🔍 Verificando total de funcionários na tabela...")
+        print("?? Verificando total de funcion�rios na tabela...")
         # Primeiro, verificar se a tabela existe e tem dados
         cursor.execute("SELECT COUNT(*) as total FROM funcionarios")
         result = cursor.fetchone()
         total = result['total'] if isinstance(result, dict) else (result[0] if result else 0)
-        print(f"🔍 Total de funcionários na tabela: {total}")
+        print(f"?? Total de funcion�rios na tabela: {total}")
         
         # Buscar apenas colunas que existem (id, nome, ativo)
         cursor.execute("""
@@ -10293,9 +10293,9 @@ def listar_funcionarios_rh():
         
         rows = cursor.fetchall()
         
-        print(f"🔍 Total de funcionários ativos encontrados: {len(rows)}")
+        print(f"?? Total de funcion�rios ativos encontrados: {len(rows)}")
         
-        # Converter para dicionários (apenas id e nome para dropdown)
+        # Converter para dicion�rios (apenas id e nome para dropdown)
         funcionarios = []
         for row in rows:
             if isinstance(row, dict):
@@ -10303,22 +10303,22 @@ def listar_funcionarios_rh():
                     'id': row['id'],
                     'nome': row['nome']
                 }
-                print(f"  ✅ Funcionário: {row['nome']} (ID: {row['id']}, Ativo: {row.get('ativo', True)})")
+                print(f"  ? Funcion�rio: {row['nome']} (ID: {row['id']}, Ativo: {row.get('ativo', True)})")
             else:
                 funcionario = {
                     'id': row[0],
                     'nome': row[1]
                 }
-                print(f"  ✅ Funcionário: {row[1]} (ID: {row[0]}, Ativo: {row[2] if len(row) > 2 else True})")
+                print(f"  ? Funcion�rio: {row[1]} (ID: {row[0]}, Ativo: {row[2] if len(row) > 2 else True})")
             funcionarios.append(funcionario)
         
         cursor.close()
         conn.close()
         
-        print(f"✅ Retornando {len(funcionarios)} funcionários")
+        print(f"? Retornando {len(funcionarios)} funcion�rios")
         return jsonify({'success': True, 'data': funcionarios})
     except Exception as e:
-        print(f"❌ Erro ao listar funcionários RH: {e}")
+        print(f"? Erro ao listar funcion�rios RH: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -10327,13 +10327,13 @@ def listar_funcionarios_rh():
 # ============================================================================
 # ROTAS DE KITS - MOVIDAS PARA app/routes/kits.py
 # ============================================================================
-# As rotas de Kits foram extraídas para o Blueprint em app/routes/kits.py
-# como parte da Fase 2 de otimização (refatoração modular)
+# As rotas de Kits foram extra�das para o Blueprint em app/routes/kits.py
+# como parte da Fase 2 de otimiza��o (refatora��o modular)
 
 
 # ============================================================================
-# ENDPOINTS TEMPORÁRIOS PARA DEBUG E MIGRATIONS
-# ⚠️ ESTES ENDPOINTS SÓ FUNCIONAM EM DESENVOLVIMENTO
+# ENDPOINTS TEMPOR�RIOS PARA DEBUG E MIGRATIONS
+# ?? ESTES ENDPOINTS S� FUNCIONAM EM DESENVOLVIMENTO
 # ============================================================================
 
 def _check_debug_endpoint_allowed():
@@ -10341,7 +10341,7 @@ def _check_debug_endpoint_allowed():
     if IS_PRODUCTION:
         return jsonify({
             'success': False,
-            'error': 'Endpoints de debug não disponíveis em produção',
+            'error': 'Endpoints de debug n�o dispon�veis em produ��o',
             'message': 'Use migrations adequadas ou console admin'
         }), 403
     return None
@@ -10351,11 +10351,11 @@ def _check_debug_endpoint_allowed():
 def fix_kits_table():
     """
     Migration: Adiciona colunas 'descricao' e 'empresa_id' na tabela kits
-    Bug descoberto na Fase 3 - código usa campos que não existem
+    Bug descoberto na Fase 3 - c�digo usa campos que n�o existem
     
-    ATENCAO: DISPONÍVEL APENAS EM DESENVOLVIMENTO
+    ATENCAO: DISPON�VEL APENAS EM DESENVOLVIMENTO
     """
-    # Bloquear em produção
+    # Bloquear em produ��o
     check = _check_debug_endpoint_allowed()
     if check:
         return check
@@ -10378,9 +10378,9 @@ def fix_kits_table():
         
         if not descricao_existe:
             cursor.execute("ALTER TABLE kits ADD COLUMN descricao TEXT")
-            results['steps'].append('✅ Coluna descricao adicionada')
+            results['steps'].append('? Coluna descricao adicionada')
         else:
-            results['steps'].append('ℹ️ Coluna descricao já existe')
+            results['steps'].append('?? Coluna descricao j� existe')
         
         # 2. Adicionar coluna 'empresa_id'
         cursor.execute("""
@@ -10394,9 +10394,9 @@ def fix_kits_table():
         
         if not empresa_id_existe:
             cursor.execute("ALTER TABLE kits ADD COLUMN empresa_id INTEGER DEFAULT 1")
-            results['steps'].append('✅ Coluna empresa_id adicionada')
+            results['steps'].append('? Coluna empresa_id adicionada')
         else:
-            results['steps'].append('ℹ️ Coluna empresa_id já existe')
+            results['steps'].append('?? Coluna empresa_id j� existe')
         
         # 3. Migrar dados de observacoes para descricao
         cursor.execute("""
@@ -10414,9 +10414,9 @@ def fix_kits_table():
                 WHERE observacoes IS NOT NULL 
                 AND (descricao IS NULL OR descricao = '')
             """)
-            results['steps'].append(f'✅ {rows_to_migrate} registros migrados de observacoes → descricao')
+            results['steps'].append(f'? {rows_to_migrate} registros migrados de observacoes ? descricao')
         else:
-            results['steps'].append('ℹ️ Nenhum dado para migrar')
+            results['steps'].append('?? Nenhum dado para migrar')
         
         conn.commit()
         cursor.close()
@@ -10441,19 +10441,19 @@ def fix_kits_table():
 @csrf_instance.exempt
 def fix_p1_issues():
     """
-    Migration P1: Corrige bugs prioritários
+    Migration P1: Corrige bugs priorit�rios
     
     Funcionalidades:
     1. Adiciona empresa_id em todas as tabelas (multi-tenancy)
     2. Cria indexes para empresa_id
-    3. Reporta campos que precisam de conversão manual (VARCHAR → FK)
+    3. Reporta campos que precisam de convers�o manual (VARCHAR ? FK)
     
-    ATENCAO: DISPONÍVEL APENAS EM DESENVOLVIMENTO
+    ATENCAO: DISPON�VEL APENAS EM DESENVOLVIMENTO
     
     Returns:
         JSON com resultados detalhados da migration
     """
-    # Bloquear em produção
+    # Bloquear em produ��o
     check = _check_debug_endpoint_allowed()
     if check:
         return check
@@ -10487,7 +10487,7 @@ def fix_p1_issues():
         # 1. Adicionar empresa_id em todas as tabelas
         for table_name in tables_to_fix:
             try:
-                # Verifica se coluna já existe
+                # Verifica se coluna j� existe
                 cursor.execute("""
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.columns 
@@ -10507,9 +10507,9 @@ def fix_p1_issues():
                 if not empresa_id_existe:
                     # Adiciona coluna empresa_id
                     cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN empresa_id INTEGER NOT NULL DEFAULT 1")
-                    results['multi_tenancy'].append(f'✅ {table_name}: empresa_id adicionado')
+                    results['multi_tenancy'].append(f'? {table_name}: empresa_id adicionado')
                 else:
-                    results['multi_tenancy'].append(f'ℹ️ {table_name}: empresa_id já existe')
+                    results['multi_tenancy'].append(f'?? {table_name}: empresa_id j� existe')
                 
                 # Cria index para performance
                 index_name = f'idx_{table_name}_empresa'
@@ -10530,16 +10530,16 @@ def fix_p1_issues():
                 
                 if not index_existe:
                     cursor.execute(f"CREATE INDEX {index_name} ON {table_name}(empresa_id)")
-                    results['indexes'].append(f'✅ Index {index_name} criado')
+                    results['indexes'].append(f'? Index {index_name} criado')
                 else:
-                    results['indexes'].append(f'ℹ️ Index {index_name} já existe')
+                    results['indexes'].append(f'?? Index {index_name} j� existe')
                     
             except Exception as e:
                 import traceback
                 error_detail = traceback.format_exc()
-                results['warnings'].append(f'⚠️ {table_name}: {type(e).__name__} - {str(e)}')
+                results['warnings'].append(f'?? {table_name}: {type(e).__name__} - {str(e)}')
         
-        # 2. Avisos sobre conversões VARCHAR → FK que precisam ser manuais
+        # 2. Avisos sobre convers�es VARCHAR ? FK que precisam ser manuais
         fk_conversions_needed = [
             {
                 'table': 'lancamentos',
@@ -10561,10 +10561,10 @@ def fix_p1_issues():
             }
         ]
         
-        results['warnings'].append('⚠️ CONVERSÕES MANUAIS NECESSÁRIAS:')
+        results['warnings'].append('?? CONVERS�ES MANUAIS NECESS�RIAS:')
         for fk in fk_conversions_needed:
             results['warnings'].append(
-                f"   • {fk['table']}.{fk['column']} → {fk['target']}.id: {fk['reason']}"
+                f"   � {fk['table']}.{fk['column']} ? {fk['target']}.id: {fk['reason']}"
             )
         
         conn.commit()
@@ -10576,9 +10576,9 @@ def fix_p1_issues():
             'message': 'Migration P1 executada com sucesso',
             'results': results,
             'summary': {
-                'tables_updated': len([x for x in results['multi_tenancy'] if '✅' in x]),
-                'tables_skipped': len([x for x in results['multi_tenancy'] if 'ℹ️' in x]),
-                'indexes_created': len([x for x in results['indexes'] if '✅' in x]),
+                'tables_updated': len([x for x in results['multi_tenancy'] if '?' in x]),
+                'tables_skipped': len([x for x in results['multi_tenancy'] if '??' in x]),
+                'indexes_created': len([x for x in results['indexes'] if '?' in x]),
                 'warnings': len(results['warnings'])
             }
         })
@@ -10595,8 +10595,8 @@ def fix_p1_issues():
 @app.route('/api/debug/extrair-schema', methods=['GET'])
 def extrair_schema_debug():
     """
-    Endpoint temporário para extrair schema do banco de dados
-    Usado na Fase 3 da otimização para documentar o banco
+    Endpoint tempor�rio para extrair schema do banco de dados
+    Usado na Fase 3 da otimiza��o para documentar o banco
     """
     try:
         import json
@@ -10756,7 +10756,7 @@ def tags():
     """Gerenciar tags"""
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+        return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 400
     
     if request.method == 'GET':
         try:
@@ -10782,39 +10782,39 @@ def tag_detalhes(tag_id):
     # Validar empresa_id
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+        return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 400
     
-    # Validar permissões baseado no método
+    # Validar permiss�es baseado no m�todo
     if request.method == 'GET':
-        # GET requer apenas visualização
+        # GET requer apenas visualiza��o
         from auth_middleware import require_permission
         decorator = require_permission('operacional_view')
-        # Aplicar validação manualmente
+        # Aplicar valida��o manualmente
         usuario = session.get('usuario')
         if not usuario:
-            return jsonify({'success': False, 'error': 'Usuário não autenticado'}), 401
+            return jsonify({'success': False, 'error': 'Usu�rio n�o autenticado'}), 401
         
         permissoes = usuario.get('permissoes', [])
         if 'operacional_view' not in permissoes and 'admin' not in permissoes:
-            return jsonify({'success': False, 'error': 'Sem permissão para visualizar tags'}), 403
+            return jsonify({'success': False, 'error': 'Sem permiss�o para visualizar tags'}), 403
             
         try:
             tag = database.obter_tag(empresa_id, tag_id)
             if tag:
                 return jsonify(tag)
-            return jsonify({'success': False, 'error': 'Tag não encontrada'}), 404
+            return jsonify({'success': False, 'error': 'Tag n�o encontrada'}), 404
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
             
     elif request.method in ['PUT', 'DELETE']:
-        # PUT e DELETE requerem permissão de edição
+        # PUT e DELETE requerem permiss�o de edi��o
         usuario = session.get('usuario')
         if not usuario:
-            return jsonify({'success': False, 'error': 'Usuário não autenticado'}), 401
+            return jsonify({'success': False, 'error': 'Usu�rio n�o autenticado'}), 401
         
         permissoes = usuario.get('permissoes', [])
         if 'operacional_edit' not in permissoes and 'admin' not in permissoes:
-            return jsonify({'success': False, 'error': 'Sem permissão para editar/excluir tags'}), 403
+            return jsonify({'success': False, 'error': 'Sem permiss�o para editar/excluir tags'}), 403
         
         if request.method == 'PUT':
             try:
@@ -10822,19 +10822,19 @@ def tag_detalhes(tag_id):
                 success = database.atualizar_tag(empresa_id, tag_id, data)
                 if success:
                     return jsonify({'success': True, 'message': 'Tag atualizada com sucesso'})
-                return jsonify({'success': False, 'error': 'Tag não encontrada'}), 404
+                return jsonify({'success': False, 'error': 'Tag n�o encontrada'}), 404
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         else:  # DELETE
             try:
-                print(f"🗑️ [DEBUG TAG] DELETE tag_id={tag_id}, empresa_id={empresa_id}")
+                print(f"??? [DEBUG TAG] DELETE tag_id={tag_id}, empresa_id={empresa_id}")
                 success = database.deletar_tag(empresa_id, tag_id)
-                print(f"🗑️ [DEBUG TAG] DELETE result: {success}")
+                print(f"??? [DEBUG TAG] DELETE result: {success}")
                 if success:
-                    return jsonify({'success': True, 'message': 'Tag excluída com sucesso'})
-                return jsonify({'success': False, 'error': 'Tag não encontrada'}), 404
+                    return jsonify({'success': True, 'message': 'Tag exclu�da com sucesso'})
+                return jsonify({'success': False, 'error': 'Tag n�o encontrada'}), 404
             except Exception as e:
-                print(f"❌ [DEBUG TAG] DELETE exception: {e}")
+                print(f"? [DEBUG TAG] DELETE exception: {e}")
                 import traceback
                 traceback.print_exc()
                 return jsonify({'success': False, 'error': str(e)}), 500
@@ -10843,10 +10843,10 @@ def tag_detalhes(tag_id):
 @app.route('/api/funcoes-responsaveis', methods=['GET', 'POST'])
 @require_permission('operacional_view')
 def funcoes_responsaveis():
-    """Gerenciar funções de responsáveis"""
+    """Gerenciar fun��es de respons�veis"""
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+        return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 400
     
     if request.method == 'GET':
         try:
@@ -10859,7 +10859,7 @@ def funcoes_responsaveis():
         try:
             data = request.json
             funcao_id = database.adicionar_funcao_responsavel(empresa_id, data)
-            return jsonify({'success': True, 'message': 'Função criada com sucesso', 'id': funcao_id}), 201
+            return jsonify({'success': True, 'message': 'Fun��o criada com sucesso', 'id': funcao_id}), 201
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -10867,26 +10867,26 @@ def funcoes_responsaveis():
 @app.route('/api/funcoes-responsaveis/<int:funcao_id>', methods=['PUT', 'DELETE'])
 @require_permission('operacional_edit')
 def funcao_responsavel_detalhes(funcao_id):
-    """Atualizar ou excluir função de responsável"""
+    """Atualizar ou excluir fun��o de respons�vel"""
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+        return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 400
     
     if request.method == 'PUT':
         try:
             data = request.json
             success = database.atualizar_funcao_responsavel(empresa_id, funcao_id, data)
             if success:
-                return jsonify({'success': True, 'message': 'Função atualizada com sucesso'})
-            return jsonify({'success': False, 'error': 'Função não encontrada'}), 404
+                return jsonify({'success': True, 'message': 'Fun��o atualizada com sucesso'})
+            return jsonify({'success': False, 'error': 'Fun��o n�o encontrada'}), 404
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
     else:  # DELETE
         try:
             success = database.deletar_funcao_responsavel(empresa_id, funcao_id)
             if success:
-                return jsonify({'success': True, 'message': 'Função excluída com sucesso'})
-            return jsonify({'success': False, 'error': 'Função não encontrada'}), 404
+                return jsonify({'success': True, 'message': 'Fun��o exclu�da com sucesso'})
+            return jsonify({'success': False, 'error': 'Fun��o n�o encontrada'}), 404
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -10897,7 +10897,7 @@ def custos_operacionais():
     """Gerenciar custos operacionais"""
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+        return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 400
     
     if request.method == 'GET':
         try:
@@ -10922,7 +10922,7 @@ def custo_operacional_detalhes(custo_id):
     """Atualizar ou excluir custo operacional"""
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 400
+        return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 400
     
     if request.method == 'PUT':
         try:
@@ -10930,15 +10930,15 @@ def custo_operacional_detalhes(custo_id):
             success = database.atualizar_custo_operacional(empresa_id, custo_id, data)
             if success:
                 return jsonify({'success': True, 'message': 'Custo atualizado com sucesso'})
-            return jsonify({'success': False, 'error': 'Custo não encontrado'}), 404
+            return jsonify({'success': False, 'error': 'Custo n�o encontrado'}), 404
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
     else:  # DELETE
         try:
             success = database.deletar_custo_operacional(empresa_id, custo_id)
             if success:
-                return jsonify({'success': True, 'message': 'Custo excluído com sucesso'})
-            return jsonify({'success': False, 'error': 'Custo não encontrado'}), 404
+                return jsonify({'success': True, 'message': 'Custo exclu�do com sucesso'})
+            return jsonify({'success': False, 'error': 'Custo n�o encontrado'}), 404
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -10972,21 +10972,21 @@ def template_equipe_detalhes(template_id):
             success = db.atualizar_template_equipe(template_id, data)
             if success:
                 return jsonify({'message': 'Template atualizado com sucesso'})
-            return jsonify({'error': 'Template não encontrado'}), 404
+            return jsonify({'error': 'Template n�o encontrado'}), 404
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:  # DELETE
         try:
             success = db.deletar_template_equipe(template_id)
             if success:
-                return jsonify({'message': 'Template excluído com sucesso'})
-            return jsonify({'error': 'Template não encontrado'}), 404
+                return jsonify({'message': 'Template exclu�do com sucesso'})
+            return jsonify({'error': 'Template n�o encontrado'}), 404
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
 
 # ============================================================================
-# EXPORTAÇÃO DE DADOS POR CLIENTE (ADMIN)
+# EXPORTA��O DE DADOS POR CLIENTE (ADMIN)
 # ============================================================================
 
 @app.route('/api/admin/debug/schema', methods=['GET'])
@@ -11044,17 +11044,17 @@ def debug_database_schema():
         cursor.close()
         database.return_to_pool(conn)
         
-        # Imprimir no console também
+        # Imprimir no console tamb�m
         print("\n" + "=" * 80)
-        print("📊 SCHEMA DO BANCO DE DADOS - TODAS AS TABELAS E COLUNAS")
+        print("?? SCHEMA DO BANCO DE DADOS - TODAS AS TABELAS E COLUNAS")
         print("=" * 80)
         
         for tabela, colunas in sorted(schema_info.items()):
-            print(f"\n📋 Tabela: {tabela.upper()}")
+            print(f"\n?? Tabela: {tabela.upper()}")
             print("-" * 80)
             for col in colunas:
                 nullable = "NULL" if col['nullable'] else "NOT NULL"
-                print(f"  • {col['nome']:<30} {col['tipo']:<20} {nullable}")
+                print(f"  � {col['nome']:<30} {col['tipo']:<20} {nullable}")
         
         print("\n" + "=" * 80)
         
@@ -11065,7 +11065,7 @@ def debug_database_schema():
         })
         
     except Exception as e:
-        print(f"❌ Erro ao obter schema: {e}")
+        print(f"? Erro ao obter schema: {e}")
         import traceback
         traceback.print_exc()
         
@@ -11079,29 +11079,29 @@ def debug_database_schema():
 @require_admin
 def exportar_dados_cliente_admin(cliente_id):
     """
-    Exporta todos os dados de um cliente específico (apenas admin)
+    Exporta todos os dados de um cliente espec�fico (apenas admin)
     
     Retorna um arquivo JSON com todos os dados do cliente:
     - Clientes
     - Fornecedores
     - Categorias
-    - Contas Bancárias
-    - Lançamentos
+    - Contas Banc�rias
+    - Lan�amentos
     """
     try:
-        # Verificar se o usuário/cliente existe
+        # Verificar se o usu�rio/cliente existe
         usuario = request.usuario
         usuario_cliente = auth_db.obter_usuario(cliente_id)
         
         if not usuario_cliente:
             return jsonify({
                 'success': False,
-                'error': f'Usuário com ID {cliente_id} não encontrado'
+                'error': f'Usu�rio com ID {cliente_id} n�o encontrado'
             }), 404
         
         # Exportar dados
-        print(f"\n🔄 Iniciando exportação dos dados do cliente {cliente_id}")
-        print(f"   📋 Usuário: {usuario_cliente.get('nome_completo', 'N/A')} ({usuario_cliente.get('email', 'N/A')})")
+        print(f"\n?? Iniciando exporta��o dos dados do cliente {cliente_id}")
+        print(f"   ?? Usu�rio: {usuario_cliente.get('nome_completo', 'N/A')} ({usuario_cliente.get('email', 'N/A')})")
         export_data = database.exportar_dados_cliente(cliente_id)
         
         # Registrar log de auditoria
@@ -11113,7 +11113,7 @@ def exportar_dados_cliente_admin(cliente_id):
             sucesso=True
         )
         
-        print(f"✅ Exportação concluída para cliente {cliente_id}")
+        print(f"? Exporta��o conclu�da para cliente {cliente_id}")
         
         # Retornar como arquivo TXT para download
         from flask import make_response
@@ -11124,7 +11124,7 @@ def exportar_dados_cliente_admin(cliente_id):
         return response
         
     except Exception as e:
-        print(f"❌ Erro ao exportar dados do cliente {cliente_id}: {e}")
+        print(f"? Erro ao exportar dados do cliente {cliente_id}: {e}")
         import traceback
         traceback.print_exc()
         
@@ -11150,18 +11150,18 @@ def exportar_dados_cliente_admin(cliente_id):
 @require_admin
 def listar_proprietarios_disponiveis():
     """
-    Lista todos os proprietario_id únicos no sistema
+    Lista todos os proprietario_id �nicos no sistema
     Para o admin selecionar qual cliente exportar
     """
     try:
-        # Buscar todos os usuários do tipo 'cliente'
+        # Buscar todos os usu�rios do tipo 'cliente'
         usuarios = auth_db.listar_usuarios()
         
         proprietarios_info = []
         proprietarios_ids = set()
         
         for usuario in usuarios:
-            # Adicionar todos os usuários com tipo 'cliente' ou que tenham cliente_id
+            # Adicionar todos os usu�rios com tipo 'cliente' ou que tenham cliente_id
             if usuario.get('tipo') == 'cliente' or usuario.get('cliente_id'):
                 proprietario_id = usuario.get('cliente_id') or usuario.get('id')
                 
@@ -11172,18 +11172,18 @@ def listar_proprietarios_disponiveis():
                 
                 proprietarios_info.append({
                     'proprietario_id': proprietario_id,
-                    'nome': usuario.get('nome_completo') or usuario.get('nome') or f'Usuário {proprietario_id}',
+                    'nome': usuario.get('nome_completo') or usuario.get('nome') or f'Usu�rio {proprietario_id}',
                     'email': usuario.get('email') or 'Sem email',
                     'tipo': usuario.get('tipo', 'cliente'),
                     'usuario_id': usuario.get('id')
                 })
         
-        # Também buscar proprietario_id únicos das tabelas (para dados órfãos)
+        # Tamb�m buscar proprietario_id �nicos das tabelas (para dados �rf�os)
         db_temp = DatabaseManager()
         conn = db_temp.get_connection()
         cursor = conn.cursor()
         
-        # Buscar proprietario_id que não correspondem a usuários
+        # Buscar proprietario_id que n�o correspondem a usu�rios
         cursor.execute("""
             SELECT DISTINCT proprietario_id
             FROM (
@@ -11208,8 +11208,8 @@ def listar_proprietarios_disponiveis():
                 proprietarios_ids.add(prop_id)
                 proprietarios_info.append({
                     'proprietario_id': prop_id,
-                    'nome': f'Cliente ID {prop_id} (sem usuário)',
-                    'email': 'Não disponível',
+                    'nome': f'Cliente ID {prop_id} (sem usu�rio)',
+                    'email': 'N�o dispon�vel',
                     'tipo': 'orfao'
                 })
         
@@ -11219,7 +11219,7 @@ def listar_proprietarios_disponiveis():
         # Ordenar por nome
         proprietarios_info.sort(key=lambda x: x['nome'])
         
-        print(f"📋 Encontrados {len(proprietarios_info)} proprietários únicos")
+        print(f"?? Encontrados {len(proprietarios_info)} propriet�rios �nicos")
         
         return jsonify({
             'success': True,
@@ -11228,13 +11228,13 @@ def listar_proprietarios_disponiveis():
         })
         
     except Exception as e:
-        print(f"❌ Erro ao listar proprietários: {e}")
+        print(f"? Erro ao listar propriet�rios: {e}")
         import traceback
         traceback.print_exc()
         
         return jsonify({
             'success': False,
-            'error': f'Erro ao listar proprietários: {str(e)}'
+            'error': f'Erro ao listar propriet�rios: {str(e)}'
         }), 500
 
 
@@ -11250,7 +11250,7 @@ def limpar_duplicatas_categorias():
         cursor = conn.cursor()
         
         print('\n' + '='*80)
-        print('🧹 ADMIN: Limpando categorias duplicadas')
+        print('?? ADMIN: Limpando categorias duplicadas')
         print('='*80)
         
         # Buscar todas as categorias
@@ -11261,7 +11261,7 @@ def limpar_duplicatas_categorias():
         """)
         categorias = cursor.fetchall()
         
-        print(f'📊 Total de categorias no banco: {len(categorias)}')
+        print(f'?? Total de categorias no banco: {len(categorias)}')
         
         # Agrupar por (nome normalizado, empresa_id)
         grupos = {}
@@ -11275,7 +11275,7 @@ def limpar_duplicatas_categorias():
         duplicatas = {k: v for k, v in grupos.items() if len(v) > 1}
         
         if not duplicatas:
-            print('✅ Nenhuma duplicata encontrada!')
+            print('? Nenhuma duplicata encontrada!')
             cursor.close()
             db.return_to_pool(conn)
             return jsonify({
@@ -11284,7 +11284,7 @@ def limpar_duplicatas_categorias():
                 'removidas': 0
             })
         
-        print(f'⚠️  Encontradas {len(duplicatas)} categorias com duplicatas')
+        print(f'??  Encontradas {len(duplicatas)} categorias com duplicatas')
         
         ids_removidos = []
         detalhes = []
@@ -11295,11 +11295,11 @@ def limpar_duplicatas_categorias():
             manter = lista_ordenada[0]
             excluir = lista_ordenada[1:]
             
-            print(f'\n📁 {nome} (Empresa: {empresa})')
-            print(f'   ✅ MANTER: ID={manter["id"]}')
+            print(f'\n?? {nome} (Empresa: {empresa})')
+            print(f'   ? MANTER: ID={manter["id"]}')
             
             for cat in excluir:
-                print(f'   ❌ EXCLUIR: ID={cat["id"]}')
+                print(f'   ? EXCLUIR: ID={cat["id"]}')
                 cursor.execute('DELETE FROM categorias WHERE id = %s', (cat['id'],))
                 ids_removidos.append(cat['id'])
             
@@ -11314,7 +11314,7 @@ def limpar_duplicatas_categorias():
         cursor.close()
         db.return_to_pool(conn)
         
-        print(f'\n✅ Removidas {len(ids_removidos)} duplicatas!')
+        print(f'\n? Removidas {len(ids_removidos)} duplicatas!')
         print('='*80 + '\n')
         
         return jsonify({
@@ -11325,7 +11325,7 @@ def limpar_duplicatas_categorias():
         })
         
     except Exception as e:
-        print(f'❌ Erro ao limpar duplicatas: {str(e)}')
+        print(f'? Erro ao limpar duplicatas: {str(e)}')
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -11338,27 +11338,27 @@ def limpar_duplicatas_categorias():
 @require_admin
 def limpar_duplicatas_extrato():
     """
-    Remove lançamentos duplicados com [EXTRATO] mantendo apenas o mais recente
-    Duplicata = mesma descrição + mesmo valor + mesma data + mesmo tipo + mesma empresa
+    Remove lan�amentos duplicados com [EXTRATO] mantendo apenas o mais recente
+    Duplicata = mesma descri��o + mesmo valor + mesma data + mesmo tipo + mesma empresa
     """
     try:
         conn = db.get_connection()
         cursor = conn.cursor()
         
         print('\n' + '='*80)
-        print('🧹 ADMIN: Limpando lançamentos duplicados [EXTRATO]')
+        print('?? ADMIN: Limpando lan�amentos duplicados [EXTRATO]')
         print('='*80)
         
-        # 1. ANÁLISE INICIAL
+        # 1. AN�LISE INICIAL
         cursor.execute("SELECT COUNT(*) as total FROM lancamentos")
         total = cursor.fetchone()['total']
-        print(f'📊 Total de lançamentos: {total:,}')
+        print(f'?? Total de lan�amentos: {total:,}')
         
         cursor.execute("SELECT COUNT(*) as total FROM lancamentos WHERE descricao LIKE '[EXTRATO]%'")
         total_extrato = cursor.fetchone()['total']
-        print(f'📋 Lançamentos com [EXTRATO]: {total_extrato:,}')
+        print(f'?? Lan�amentos com [EXTRATO]: {total_extrato:,}')
         
-        # Contar registros duplicados (exceto o que será mantido)
+        # Contar registros duplicados (exceto o que ser� mantido)
         cursor.execute("""
             SELECT COUNT(*) as total
             FROM lancamentos l
@@ -11371,10 +11371,10 @@ def limpar_duplicatas_extrato():
               )
         """)
         registros_para_deletar = cursor.fetchone()['total']
-        print(f'🗑️  Registros duplicados a serem removidos: {registros_para_deletar:,}')
+        print(f'???  Registros duplicados a serem removidos: {registros_para_deletar:,}')
         
         if registros_para_deletar == 0:
-            print('✅ Nenhuma duplicata encontrada!')
+            print('? Nenhuma duplicata encontrada!')
             cursor.close()
             db.return_to_pool(conn)
             return jsonify({
@@ -11386,7 +11386,7 @@ def limpar_duplicatas_extrato():
             })
         
         # 2. CRIAR BACKUP
-        print('\n💾 Criando backup...')
+        print('\n?? Criando backup...')
         cursor.execute("DROP TABLE IF EXISTS lancamentos_backup_duplicatas")
         cursor.execute("""
             CREATE TABLE lancamentos_backup_duplicatas AS
@@ -11404,10 +11404,10 @@ def limpar_duplicatas_extrato():
         
         cursor.execute("SELECT COUNT(*) as total FROM lancamentos_backup_duplicatas")
         backup_count = cursor.fetchone()['total']
-        print(f'✅ Backup criado: {backup_count:,} registros salvos')
+        print(f'? Backup criado: {backup_count:,} registros salvos')
         
         # 3. DELETAR DUPLICATAS
-        print('\n🗑️  Removendo duplicatas...')
+        print('\n???  Removendo duplicatas...')
         cursor.execute("""
             DELETE FROM lancamentos
             WHERE descricao LIKE '[EXTRATO]%'
@@ -11421,12 +11421,12 @@ def limpar_duplicatas_extrato():
         deletados = cursor.rowcount
         conn.commit()
         
-        print(f'✅ Removidos {deletados:,} lançamentos duplicados')
+        print(f'? Removidos {deletados:,} lan�amentos duplicados')
         
-        # 4. ANÁLISE FINAL
+        # 4. AN�LISE FINAL
         cursor.execute("SELECT COUNT(*) as total FROM lancamentos")
         total_apos = cursor.fetchone()['total']
-        print(f'📊 Total de lançamentos após limpeza: {total_apos:,}')
+        print(f'?? Total de lan�amentos ap�s limpeza: {total_apos:,}')
         
         # Verificar saldo da conta
         cursor.execute("""
@@ -11444,17 +11444,17 @@ def limpar_duplicatas_extrato():
                 'saldo_inicial': float(conta['saldo_inicial']),
                 'saldo_atual': float(conta['saldo_atual'])
             }
-            print(f'\n💰 Saldo atualizado: R$ {saldo_info["saldo_atual"]:,.2f}')
+            print(f'\n?? Saldo atualizado: R$ {saldo_info["saldo_atual"]:,.2f}')
         
         cursor.close()
         db.return_to_pool(conn)
         
-        print('✅ Limpeza concluída com sucesso!')
+        print('? Limpeza conclu�da com sucesso!')
         print('='*80 + '\n')
         
         return jsonify({
             'success': True,
-            'message': f'{deletados:,} lançamento(s) duplicado(s) removido(s)',
+            'message': f'{deletados:,} lan�amento(s) duplicado(s) removido(s)',
             'removidas': deletados,
             'total_antes': total,
             'total_depois': total_apos,
@@ -11463,7 +11463,7 @@ def limpar_duplicatas_extrato():
         })
         
     except Exception as e:
-        print(f'❌ Erro ao limpar duplicatas: {str(e)}')
+        print(f'? Erro ao limpar duplicatas: {str(e)}')
         import traceback
         traceback.print_exc()
         if conn:
@@ -11474,27 +11474,27 @@ def limpar_duplicatas_extrato():
         }), 500
 
 
-# ==================== ROTAS DE PREFERÊNCIAS DO USUÁRIO ====================
+# ==================== ROTAS DE PREFER�NCIAS DO USU�RIO ====================
 @app.route('/api/preferencias/menu-order', methods=['GET'])
 @require_auth
 def obter_ordem_menu():
-    """Obtém a ordem personalizada do menu do usuário"""
+    """Obt�m a ordem personalizada do menu do usu�rio"""
     try:
-        # Usar session ao invés de request.usuario
+        # Usar session ao inv�s de request.usuario
         usuario_id = session.get('usuario_id')
         
         if not usuario_id:
             return jsonify({
                 'success': False,
-                'error': 'Usuário não autenticado'
+                'error': 'Usu�rio n�o autenticado'
             }), 401
         
-        print(f"📥 Obtendo ordem do menu para usuario_id={usuario_id}")
+        print(f"?? Obtendo ordem do menu para usuario_id={usuario_id}")
         
-        # Ordem padrão
+        # Ordem padr�o
         ordem_padrao = '["dashboard","financeiro","relatorios","cadastros","operacional"]'
         
-        # Obter preferência do banco
+        # Obter prefer�ncia do banco
         try:
             ordem = database.obter_preferencia_usuario(
                 usuario_id, 
@@ -11502,7 +11502,7 @@ def obter_ordem_menu():
                 ordem_padrao
             )
         except Exception as db_error:
-            print(f"⚠️ Erro ao buscar preferência, usando padrão: {db_error}")
+            print(f"?? Erro ao buscar prefer�ncia, usando padr�o: {db_error}")
             ordem = ordem_padrao
         
         # Parsear JSON
@@ -11515,10 +11515,10 @@ def obter_ordem_menu():
         })
         
     except Exception as e:
-        print(f"❌ Erro ao obter ordem do menu: {e}")
+        print(f"? Erro ao obter ordem do menu: {e}")
         import traceback
         traceback.print_exc()
-        # Retornar ordem padrão em caso de erro
+        # Retornar ordem padr�o em caso de erro
         return jsonify({
             'success': True,
             'menu_order': ["dashboard","financeiro","relatorios","cadastros","operacional"]
@@ -11528,33 +11528,33 @@ def obter_ordem_menu():
 @app.route('/api/preferencias/menu-order', methods=['POST'])
 @require_auth
 def salvar_ordem_menu():
-    """Salva a ordem personalizada do menu do usuário"""
+    """Salva a ordem personalizada do menu do usu�rio"""
     try:
-        # Usar session ao invés de request.usuario
+        # Usar session ao inv�s de request.usuario
         usuario_id = session.get('usuario_id')
         
         if not usuario_id:
             return jsonify({
                 'success': False,
-                'error': 'Usuário não autenticado'
+                'error': 'Usu�rio n�o autenticado'
             }), 401
         
-        print(f"💾 Salvando ordem do menu para usuario_id={usuario_id}")
+        print(f"?? Salvando ordem do menu para usuario_id={usuario_id}")
         
         data = request.json
         if not data:
-            print("❌ Dados não fornecidos")
+            print("? Dados n�o fornecidos")
             return jsonify({
                 'success': False,
-                'error': 'Dados não fornecidos'
+                'error': 'Dados n�o fornecidos'
             }), 400
         
         menu_order = data.get('menu_order', [])
-        print(f"📋 Ordem recebida: {menu_order}")
+        print(f"?? Ordem recebida: {menu_order}")
         
         # Validar formato
         if not isinstance(menu_order, list):
-            print("❌ menu_order não é lista")
+            print("? menu_order n�o � lista")
             return jsonify({
                 'success': False,
                 'error': 'menu_order deve ser uma lista'
@@ -11564,10 +11564,10 @@ def salvar_ordem_menu():
         itens_validos = ['dashboard', 'financeiro', 'relatorios', 'cadastros', 'operacional']
         for item in menu_order:
             if item not in itens_validos:
-                print(f"❌ Item inválido: {item}")
+                print(f"? Item inv�lido: {item}")
                 return jsonify({
                     'success': False,
-                    'error': f'Item inválido: {item}'
+                    'error': f'Item inv�lido: {item}'
                 }), 400
         
         # Converter para JSON string
@@ -11575,14 +11575,14 @@ def salvar_ordem_menu():
         menu_order_json = json.dumps(menu_order)
         
         # Salvar no banco
-        print(f"💾 Chamando salvar_preferencia_usuario...")
+        print(f"?? Chamando salvar_preferencia_usuario...")
         sucesso = database.salvar_preferencia_usuario(
             usuario_id,
             'menu_order',
             menu_order_json
         )
         
-        print(f"{'✅' if sucesso else '❌'} Resultado do save: {sucesso}")
+        print(f"{'?' if sucesso else '?'} Resultado do save: {sucesso}")
         
         if sucesso:
             # Registrar log
@@ -11595,7 +11595,7 @@ def salvar_ordem_menu():
                     sucesso=True
                 )
             except Exception as log_error:
-                print(f"⚠️ Erro ao registrar log (não crítico): {log_error}")
+                print(f"?? Erro ao registrar log (n�o cr�tico): {log_error}")
             
             return jsonify({
                 'success': True,
@@ -11608,7 +11608,7 @@ def salvar_ordem_menu():
             }), 500
         
     except Exception as e:
-        print(f"❌ Erro ao salvar ordem do menu: {e}")
+        print(f"? Erro ao salvar ordem do menu: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -11618,7 +11618,7 @@ def salvar_ordem_menu():
 
 
 # ============================================================================
-# ROTAS DE GESTÃO DE EMPRESAS (MULTI-TENANT)
+# ROTAS DE GEST�O DE EMPRESAS (MULTI-TENANT)
 # ============================================================================
 logger.info("="*80)
 logger.info("INICIO DAS ROTAS DE EMPRESAS")
@@ -11627,7 +11627,7 @@ logger.info("="*80)
 @app.route('/api/empresas', methods=['GET'])
 @require_auth
 def listar_empresas_api():
-    """Lista empresas - admin vê todas, outros usuários vêem apenas as suas"""
+    """Lista empresas - admin v� todas, outros usu�rios v�em apenas as suas"""
     logger.info("\n" + "="*80)
     logger.info("[listar_empresas_api] FUNCAO INICIADA")
     logger.info(f"   Path: {request.path}")
@@ -11646,7 +11646,7 @@ def listar_empresas_api():
         
         # Admin pode listar todas as empresas
         if usuario['tipo'] == 'admin':
-            logger.info("   👑 Admin: listando TODAS as empresas")
+            logger.info("   ?? Admin: listando TODAS as empresas")
             
             query = "SELECT id, razao_social, cnpj, plano, ativo FROM empresas"
             params = []
@@ -11666,8 +11666,8 @@ def listar_empresas_api():
             
             query += " ORDER BY razao_social"
             
-            logger.info(f"   🔍 Query: {query}")
-            logger.info(f"   🔍 Params: {params}")
+            logger.info(f"   ?? Query: {query}")
+            logger.info(f"   ?? Params: {params}")
             
             cursor.execute(query, params)
             rows = cursor.fetchall()
@@ -11684,14 +11684,14 @@ def listar_empresas_api():
             
             cursor.close()
             
-            logger.info(f"   ✅ Retornando {len(empresas)} empresas")
+            logger.info(f"   ? Retornando {len(empresas)} empresas")
             logger.info("="*80 + "\n")
             
             return jsonify(empresas)
         
-        # Usuários não-admin veem apenas empresas às quais têm acesso
+        # Usu�rios n�o-admin veem apenas empresas �s quais t�m acesso
         else:
-            logger.info("   👤 Usuário: listando apenas empresas vinculadas")
+            logger.info("   ?? Usu�rio: listando apenas empresas vinculadas")
             usuario_id = usuario.get('id')
             
             cursor.execute("""
@@ -11724,13 +11724,13 @@ def listar_empresas_api():
             
             cursor.close()
             
-            logger.info(f"   ✅ Retornando {len(empresas)} empresas vinculadas")
+            logger.info(f"   ? Retornando {len(empresas)} empresas vinculadas")
             logger.info("="*80 + "\n")
             
             return jsonify(empresas)
         
     except Exception as e:
-        logger.info(f"❌ Erro ao listar empresas: {e}")
+        logger.info(f"? Erro ao listar empresas: {e}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         logger.info("="*80 + "\n")
@@ -11739,7 +11739,7 @@ def listar_empresas_api():
 @app.route('/api/empresas/<int:empresa_id>', methods=['GET'])
 @require_auth
 def obter_empresa_api(empresa_id):
-    """Obtém dados de uma empresa específica"""
+    """Obt�m dados de uma empresa espec�fica"""
     logger.info("\n" + "="*80)
     logger.info(f"[obter_empresa_api] FUNCAO CHAMADA - ID: {empresa_id}")
     try:
@@ -11747,7 +11747,7 @@ def obter_empresa_api(empresa_id):
         usuario = get_usuario_logado()
         logger.info(f"[obter_empresa_api] Usuario: {usuario.get('username')} (tipo: {usuario.get('tipo')})")
         
-        # Admin pode ver qualquer empresa, usuário comum só se tiver vínculo ativo
+        # Admin pode ver qualquer empresa, usu�rio comum s� se tiver v�nculo ativo
         if usuario['tipo'] != 'admin':
             logger.info(f"[obter_empresa_api] Usuario nao e admin - verificando acesso...")
             from auth_functions import verificar_acesso_empresa
@@ -11764,12 +11764,12 @@ def obter_empresa_api(empresa_id):
         if not empresa:
             logger.info(f"[obter_empresa_api] Empresa nao encontrada")
             logger.info("="*80 + "\n")
-            return jsonify({'error': 'Empresa não encontrada'}), 404
+            return jsonify({'error': 'Empresa n�o encontrada'}), 404
         
         logger.info(f"[obter_empresa_api] Empresa encontrada: {empresa.get('razao_social')}")
         logger.info(f"[obter_empresa_api] Obtendo estatisticas...")
         
-        # Adicionar estatísticas
+        # Adicionar estat�sticas
         try:
             empresa['stats'] = database.obter_estatisticas_empresa(empresa_id)
             logger.info(f"[obter_empresa_api] Estatisticas obtidas")
@@ -11811,7 +11811,7 @@ def criar_empresa_api():
         
         if not dados:
             logger.info("   Erro: dados nao fornecidos")
-            return jsonify({'error': 'Dados não fornecidos'}), 400
+            return jsonify({'error': 'Dados n�o fornecidos'}), 400
         
         logger.info("   Chamando database.criar_empresa()...")
         resultado = database.criar_empresa(dados)
@@ -11849,20 +11849,20 @@ def criar_empresa_api():
 @require_auth
 def atualizar_empresa_api(empresa_id):
     """Atualiza dados de uma empresa"""
-    print(f"\n✏️ [atualizar_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
+    print(f"\n?? [atualizar_empresa_api] FUN��O CHAMADA - ID: {empresa_id}")
     try:
         usuario = get_usuario_logado()
         dados = request.json
         
         if not dados:
-            return jsonify({'error': 'Dados não fornecidos'}), 400
+            return jsonify({'error': 'Dados n�o fornecidos'}), 400
         
-        # 🔒 POLÍTICA DE ACESSO:
+        # ?? POL�TICA DE ACESSO:
         # - Admin pode editar QUALQUER campo de QUALQUER empresa
-        # - Usuário comum pode editar APENAS o campo 'estado' da PRÓPRIA empresa
+        # - Usu�rio comum pode editar APENAS o campo 'estado' da PR�PRIA empresa
         
         if usuario['tipo'] != 'admin':
-            # Verifica se tem acesso à empresa
+            # Verifica se tem acesso � empresa
             from auth_functions import verificar_acesso_empresa
             tem_acesso = verificar_acesso_empresa(usuario['id'], empresa_id, auth_db)
             
@@ -11876,11 +11876,11 @@ def atualizar_empresa_api(empresa_id):
             
             if campos_proibidos:
                 return jsonify({
-                    'error': f'Usuário comum só pode editar os campos: {", ".join(campos_permitidos)}. ' +
-                             f'Campos não permitidos: {", ".join(campos_proibidos)}'
+                    'error': f'Usu�rio comum s� pode editar os campos: {", ".join(campos_permitidos)}. ' +
+                             f'Campos n�o permitidos: {", ".join(campos_proibidos)}'
                 }), 403
             
-            print(f"✅ [atualizar_empresa_api] Usuário comum editando campo permitido: {list(dados.keys())}")
+            print(f"? [atualizar_empresa_api] Usu�rio comum editando campo permitido: {list(dados.keys())}")
         
         resultado = database.atualizar_empresa(empresa_id, dados)
         
@@ -11902,7 +11902,7 @@ def atualizar_empresa_api(empresa_id):
             return jsonify(resultado), 400
         
     except Exception as e:
-        print(f"❌ Erro ao atualizar empresa: {e}")
+        print(f"? Erro ao atualizar empresa: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -11912,7 +11912,7 @@ def atualizar_empresa_api(empresa_id):
 @require_auth
 def suspender_empresa_api(empresa_id):
     """Suspende uma empresa"""
-    print(f"\n⏸️ [suspender_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
+    print(f"\n?? [suspender_empresa_api] FUN��O CHAMADA - ID: {empresa_id}")
     try:
         usuario = get_usuario_logado()
         
@@ -11920,7 +11920,7 @@ def suspender_empresa_api(empresa_id):
             return jsonify({'error': 'Acesso negado'}), 403
         
         dados = request.json
-        motivo = dados.get('motivo', 'Não especificado')
+        motivo = dados.get('motivo', 'N�o especificado')
         
         resultado = database.suspender_empresa(empresa_id, motivo)
         
@@ -11941,7 +11941,7 @@ def suspender_empresa_api(empresa_id):
             return jsonify(resultado), 400
         
     except Exception as e:
-        print(f"❌ Erro ao suspender empresa: {e}")
+        print(f"? Erro ao suspender empresa: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -11951,7 +11951,7 @@ def suspender_empresa_api(empresa_id):
 @require_auth
 def reativar_empresa_api(empresa_id):
     """Reativa uma empresa suspensa"""
-    print(f"\n▶️ [reativar_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
+    print(f"\n?? [reativar_empresa_api] FUN��O CHAMADA - ID: {empresa_id}")
     try:
         usuario = get_usuario_logado()
         
@@ -11977,7 +11977,7 @@ def reativar_empresa_api(empresa_id):
             return jsonify(resultado), 400
         
     except Exception as e:
-        print(f"❌ Erro ao reativar empresa: {e}")
+        print(f"? Erro ao reativar empresa: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -11986,15 +11986,15 @@ def reativar_empresa_api(empresa_id):
 @app.route('/api/empresas/<int:empresa_id>', methods=['DELETE'])
 @require_auth
 def deletar_empresa_api(empresa_id):
-    """Deleta uma empresa (apenas admin e se não tiver usuários vinculados)"""
-    print(f"\n❌ [deletar_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
+    """Deleta uma empresa (apenas admin e se n�o tiver usu�rios vinculados)"""
+    print(f"\n? [deletar_empresa_api] FUN��O CHAMADA - ID: {empresa_id}")
     try:
         usuario = get_usuario_logado()
         
         if usuario['tipo'] != 'admin':
             return jsonify({'error': 'Acesso negado'}), 403
         
-        # Verificar se tem usuários vinculados
+        # Verificar se tem usu�rios vinculados
         with database.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) as count FROM usuarios WHERE empresa_id = %s", (empresa_id,))
@@ -12004,7 +12004,7 @@ def deletar_empresa_api(empresa_id):
         if result and result['count'] > 0:
             return jsonify({
                 'success': False,
-                'error': f'Não é possível excluir. Existem {result["count"]} usuário(s) vinculado(s) a esta empresa.'
+                'error': f'N�o � poss�vel excluir. Existem {result["count"]} usu�rio(s) vinculado(s) a esta empresa.'
             }), 400
         
         # Excluir empresa
@@ -12028,7 +12028,7 @@ def deletar_empresa_api(empresa_id):
         return jsonify({'success': True, 'message': 'Empresa deletada com sucesso'})
         
     except Exception as e:
-        print(f"❌ Erro ao deletar empresa: {e}")
+        print(f"? Erro ao deletar empresa: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -12037,12 +12037,12 @@ def deletar_empresa_api(empresa_id):
 @app.route('/api/empresas/<int:empresa_id>/stats', methods=['GET'])
 @require_auth
 def estatisticas_empresa_api(empresa_id):
-    """Obtém estatísticas de uma empresa"""
-    print(f"\n📊 [estatisticas_empresa_api] FUNÇÃO CHAMADA - ID: {empresa_id}")
+    """Obt�m estat�sticas de uma empresa"""
+    print(f"\n?? [estatisticas_empresa_api] FUN��O CHAMADA - ID: {empresa_id}")
     try:
         usuario = auth_db.obter_usuario(session.get('usuario_id'))
         
-        # Verificar acesso - admin ou usuário com vínculo ativo
+        # Verificar acesso - admin ou usu�rio com v�nculo ativo
         if usuario['tipo'] != 'admin':
             from auth_functions import verificar_acesso_empresa
             tem_acesso = verificar_acesso_empresa(usuario['id'], empresa_id, auth_db)
@@ -12057,7 +12057,7 @@ def estatisticas_empresa_api(empresa_id):
         })
         
     except Exception as e:
-        print(f"❌ Erro ao obter estatísticas: {e}")
+        print(f"? Erro ao obter estat�sticas: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -12066,7 +12066,7 @@ def estatisticas_empresa_api(empresa_id):
 # ============================================================================
 # LISTAR ROTAS (NIVEL DE MODULO - EXECUTA SEMPRE)
 # ============================================================================
-# DESABILITADO: Gera centenas de logs na inicialização, causando rate limit no Railway
+# DESABILITADO: Gera centenas de logs na inicializa��o, causando rate limit no Railway
 # logger.info("="*80)
 # logger.info("ROTAS REGISTRADAS:")
 # logger.info("="*80)
@@ -12078,20 +12078,20 @@ def estatisticas_empresa_api(empresa_id):
 
 
 # ============================================================================
-# MONITORAMENTO DO POOL DE CONEXÕES
+# MONITORAMENTO DO POOL DE CONEX�ES
 # ============================================================================
 
 @app.route('/api/health/pool', methods=['GET'])
 def pool_status():
-    """Endpoint para monitorar status do pool de conexões"""
+    """Endpoint para monitorar status do pool de conex�es"""
     try:
         status = database.get_pool_status()
         
-        # Adicionar informações extras
+        # Adicionar informa��es extras
         status['status'] = 'healthy'
         status['pool_type'] = 'ThreadedConnectionPool'
         
-        # Verificar se há muitas conexões em uso
+        # Verificar se h� muitas conex�es em uso
         if 'in_use' in status and 'maxconn' in status:
             usage_percent = (status['in_use'] / status['maxconn']) * 100
             status['usage_percent'] = round(usage_percent, 2)
@@ -12110,18 +12110,18 @@ def pool_status():
 
 
 # ============================================================================
-# ENDPOINT TEMPORÁRIO PARA CRIAR USUÁRIO ADMIN (RAILWAY)
+# ENDPOINT TEMPOR�RIO PARA CRIAR USU�RIO ADMIN (RAILWAY)
 # ============================================================================
 @app.route('/api/debug/criar-admin', methods=['POST'])
 @csrf_instance.exempt
 def criar_admin_inicial():
     """
-    Endpoint temporário para criar usuário admin no Railway
+    Endpoint tempor�rio para criar usu�rio admin no Railway
     
-    ATENCAO: DISPONÍVEL APENAS EM DESENVOLVIMENTO
-    Em produção, use: python criar_admin_railway.py
+    ATENCAO: DISPON�VEL APENAS EM DESENVOLVIMENTO
+    Em produ��o, use: python criar_admin_railway.py
     """
-    # Bloquear em produção
+    # Bloquear em produ��o
     check = _check_debug_endpoint_allowed()
     if check:
         return check
@@ -12174,18 +12174,18 @@ def criar_admin_inicial():
 
 
 # ============================================================================
-# ENDPOINT TEMPORÁRIO PARA ADICIONAR PERMISSÕES DE REGRAS (RAILWAY)
+# ENDPOINT TEMPOR�RIO PARA ADICIONAR PERMISS�ES DE REGRAS (RAILWAY)
 # ============================================================================
 @app.route('/api/debug/adicionar-permissoes-regras', methods=['POST'])
 @csrf_instance.exempt
 def adicionar_permissoes_regras():
     """
-    Endpoint temporário para adicionar permissões de regras de conciliação
+    Endpoint tempor�rio para adicionar permiss�es de regras de concilia��o
     no campo JSONB permissoes_empresa da tabela usuario_empresas
     
-    ATENCAO: DISPONÍVEL APENAS EM DESENVOLVIMENTO
+    ATENCAO: DISPON�VEL APENAS EM DESENVOLVIMENTO
     """
-    # Bloquear em produção
+    # Bloquear em produ��o
     check = _check_debug_endpoint_allowed()
     if check:
         return check
@@ -12195,7 +12195,7 @@ def adicionar_permissoes_regras():
         conn = db.get_connection()
         cursor = conn.cursor()
         
-        # Buscar todos os vínculos usuario-empresa ativos
+        # Buscar todos os v�nculos usuario-empresa ativos
         cursor.execute("""
             SELECT usuario_id, empresa_id, permissoes_empresa
             FROM usuario_empresas
@@ -12203,7 +12203,7 @@ def adicionar_permissoes_regras():
         """)
         vinculos = cursor.fetchall()
         
-        # Permissões a adicionar
+        # Permiss�es a adicionar
         novas_permissoes = [
             'regras_conciliacao_view',
             'regras_conciliacao_create', 
@@ -12228,7 +12228,7 @@ def adicionar_permissoes_regras():
             else:
                 permissoes = []
             
-            # Adicionar novas permissões se não existirem
+            # Adicionar novas permiss�es se n�o existirem
             permissoes_adicionadas = []
             for perm in novas_permissoes:
                 if perm not in permissoes:
@@ -12257,7 +12257,7 @@ def adicionar_permissoes_regras():
         
         return jsonify({
             'success': True,
-            'message': f'{atualizados} vínculo(s) atualizado(s)',
+            'message': f'{atualizados} v�nculo(s) atualizado(s)',
             'vinculos_total': len(vinculos),
             'vinculos_atualizados': atualizados,
             'detalhes': detalhes
@@ -12273,13 +12273,13 @@ def adicionar_permissoes_regras():
 
 
 # ============================================================================
-# ENDPOINT TEMPORÁRIO PARA FIX SUBCATEGORIAS (RAILWAY)
+# ENDPOINT TEMPOR�RIO PARA FIX SUBCATEGORIAS (RAILWAY)
 # ============================================================================
 @app.route('/api/debug/fix-subcategorias-type', methods=['POST'])
 @csrf.exempt
 def fix_subcategorias_type():
     """
-    Endpoint temporário para corrigir tipo da coluna subcategorias
+    Endpoint tempor�rio para corrigir tipo da coluna subcategorias
     Altera de TEXT para VARCHAR(255)
     """
     try:
@@ -12296,13 +12296,13 @@ def fix_subcategorias_type():
         """)
         
         result = cursor.fetchone()
-        tipo_antes = result['data_type'] if result else 'não encontrado'
+        tipo_antes = result['data_type'] if result else 'n�o encontrado'
         tamanho_antes = result['character_maximum_length'] if result else None
         
         if tipo_antes == 'character varying':
             return jsonify({
                 'success': True,
-                'message': 'Coluna já está correta (character varying)',
+                'message': 'Coluna j� est� correta (character varying)',
                 'tipo_atual': tipo_antes,
                 'tamanho': tamanho_antes
             })
@@ -12350,13 +12350,13 @@ def fix_subcategorias_type():
 
 
 # ============================================================================
-# ENDPOINT TEMPORÁRIO PARA VERIFICAR TABELA REGRAS_CONCILIACAO
+# ENDPOINT TEMPOR�RIO PARA VERIFICAR TABELA REGRAS_CONCILIACAO
 # ============================================================================
 @app.route('/api/debug/verificar-tabela-regras', methods=['GET'])
 @csrf.exempt
 def verificar_tabela_regras():
     """
-    Endpoint temporário para diagnosticar tabela regras_conciliacao
+    Endpoint tempor�rio para diagnosticar tabela regras_conciliacao
     """
     try:
         conn = db.get_connection()
@@ -12421,19 +12421,19 @@ def verificar_tabela_regras():
 
 
 # ============================================================================
-# ENDPOINT TEMPORÁRIO PARA VERIFICAR MÉTODOS DO DatabaseManager
+# ENDPOINT TEMPOR�RIO PARA VERIFICAR M�TODOS DO DatabaseManager
 # ============================================================================
 @app.route('/api/debug/verificar-metodos-db', methods=['GET'])
 @csrf.exempt
 def verificar_metodos_db():
     """
-    Endpoint temporário para verificar quais métodos o objeto db possui
+    Endpoint tempor�rio para verificar quais m�todos o objeto db possui
     """
     try:
-        # Listar todos os métodos do objeto db
+        # Listar todos os m�todos do objeto db
         metodos_db = [m for m in dir(db) if not m.startswith('_')]
         
-        # Verificar especificamente os métodos de regras
+        # Verificar especificamente os m�todos de regras
         metodos_regras = {
             'listar_regras_conciliacao': hasattr(db, 'listar_regras_conciliacao'),
             'criar_regra_conciliacao': hasattr(db, 'criar_regra_conciliacao'),
@@ -12441,7 +12441,7 @@ def verificar_metodos_db():
             'excluir_regra_conciliacao': hasattr(db, 'excluir_regra_conciliacao'),
         }
         
-        # Informações sobre o objeto db
+        # Informa��es sobre o objeto db
         info_db = {
             'tipo': str(type(db)),
             'modulo': db.__class__.__module__,
@@ -12454,7 +12454,7 @@ def verificar_metodos_db():
                 'info_db': info_db,
                 'total_metodos': len(metodos_db),
                 'metodos_regras': metodos_regras,
-                'sample_metodos': metodos_db[:50]  # Primeiros 50 métodos
+                'sample_metodos': metodos_db[:50]  # Primeiros 50 m�todos
             }
         })
         
@@ -12468,26 +12468,26 @@ def verificar_metodos_db():
 
 
 # ============================================================================
-# ENDPOINT TEMPORÁRIO PARA FORÇAR ATUALIZAÇÃO DE PERMISSÕES
+# ENDPOINT TEMPOR�RIO PARA FOR�AR ATUALIZA��O DE PERMISS�ES
 # ============================================================================
 @app.route('/api/debug/adicionar-permissoes-config-extrato', methods=['POST'])
 @csrf.exempt
 def adicionar_permissoes_config_extrato():
     """
-    Endpoint temporário para forçar adição de permissões de config_extrato
+    Endpoint tempor�rio para for�ar adi��o de permiss�es de config_extrato
     """
     try:
         from database_postgresql import execute_query
         
-        # 1. Garantir que as permissões existem
+        # 1. Garantir que as permiss�es existem
         execute_query("""
             INSERT INTO permissoes (codigo, nome, descricao, categoria) VALUES
-            ('config_extrato_bancario_view', 'Visualizar Configurações de Extrato', 'Permite visualizar configurações de extrato bancário', 'configuracoes'),
-            ('config_extrato_bancario_edit', 'Editar Configurações de Extrato', 'Permite editar configurações de extrato bancário', 'configuracoes')
+            ('config_extrato_bancario_view', 'Visualizar Configura��es de Extrato', 'Permite visualizar configura��es de extrato banc�rio', 'configuracoes'),
+            ('config_extrato_bancario_edit', 'Editar Configura��es de Extrato', 'Permite editar configura��es de extrato banc�rio', 'configuracoes')
             ON CONFLICT (codigo) DO NOTHING
         """, fetch_all=False, allow_global=True)
         
-        # 2. Adicionar permissões aos usuários ativos e contar
+        # 2. Adicionar permiss�es aos usu�rios ativos e contar
         result = execute_query("""
             WITH atualizar AS (
                 UPDATE usuario_empresas
@@ -12514,7 +12514,7 @@ def adicionar_permissoes_config_extrato():
         
         return jsonify({
             'success': True,
-            'message': 'Permissões adicionadas com sucesso',
+            'message': 'Permiss�es adicionadas com sucesso',
             'data': {
                 'usuarios_atualizados': rows_updated,
                 'total_com_permissoes': total
@@ -12537,7 +12537,7 @@ def adicionar_permissoes_config_extrato():
 @csrf.exempt
 def executar_migration_config_extrato():
     """
-    Endpoint para forçar execução da migration de config_extrato_bancario
+    Endpoint para for�ar execu��o da migration de config_extrato_bancario
     """
     try:
         from database_postgresql import execute_query
@@ -12549,7 +12549,7 @@ def executar_migration_config_extrato():
         if not os.path.exists(sql_file):
             return jsonify({
                 'success': False,
-                'error': f'Arquivo não encontrado: {sql_file}'
+                'error': f'Arquivo n�o encontrado: {sql_file}'
             }), 404
         
         with open(sql_file, 'r', encoding='utf-8') as f:
@@ -12620,7 +12620,7 @@ def listar_regras_raw():
         if not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'empresa_id é obrigatório'
+                'error': 'empresa_id � obrigat�rio'
             }), 400
         
         # Query direta no banco
@@ -12660,12 +12660,12 @@ def listar_regras_raw():
 
 
 # ============================================================================
-# ENDPOINT DE STATUS DA MIGRAÇÃO DE SENHAS
+# ENDPOINT DE STATUS DA MIGRA��O DE SENHAS
 # ============================================================================
 @app.route('/api/admin/passwords/migration-status', methods=['GET'])
 @require_admin
 def password_migration_status():
-    """Retorna status da migração de senhas SHA-256 → bcrypt"""
+    """Retorna status da migra��o de senhas SHA-256 ? bcrypt"""
     try:
         from migration_upgrade_passwords import relatorio_hashes_pendentes
         
@@ -12699,7 +12699,7 @@ def password_migration_status():
 @app.route('/api/admin/passwords/force-upgrade', methods=['POST'])
 @require_admin
 def force_password_upgrade():
-    """Força upgrade de senha para um usuário específico"""
+    """For�a upgrade de senha para um usu�rio espec�fico"""
     try:
         from migration_upgrade_passwords import forcar_upgrade_usuario
         
@@ -12710,7 +12710,7 @@ def force_password_upgrade():
         if not username or not nova_senha:
             return jsonify({
                 'success': False,
-                'error': 'username e nova_senha são obrigatórios'
+                'error': 'username e nova_senha s�o obrigat�rios'
             }), 400
         
         sucesso = forcar_upgrade_usuario(username, nova_senha, db)
@@ -12723,11 +12723,11 @@ def force_password_upgrade():
         else:
             return jsonify({
                 'success': False,
-                'error': 'Usuário não encontrado ou erro ao atualizar'
+                'error': 'Usu�rio n�o encontrado ou erro ao atualizar'
             }), 404
     
     except Exception as e:
-        logger.error(f"Erro ao forçar upgrade de senha: {e}")
+        logger.error(f"Erro ao for�ar upgrade de senha: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -12742,7 +12742,7 @@ def force_password_upgrade():
 def execute_migration_evento_funcionarios():
     """Executa migration para criar tabelas funcoes_evento e evento_funcionarios"""
     try:
-        logger.info("🚀 Iniciando migration evento_funcionarios...")
+        logger.info("?? Iniciando migration evento_funcionarios...")
         
         # Ler arquivo SQL
         sql_file = os.path.join(os.path.dirname(__file__), 'migration_evento_funcionarios.sql')
@@ -12750,7 +12750,7 @@ def execute_migration_evento_funcionarios():
         if not os.path.exists(sql_file):
             return jsonify({
                 'success': False,
-                'error': f'Arquivo migration não encontrado: {sql_file}'
+                'error': f'Arquivo migration n�o encontrado: {sql_file}'
             }), 404
         
         with open(sql_file, 'r', encoding='utf-8') as f:
@@ -12774,11 +12774,11 @@ def execute_migration_evento_funcionarios():
             """)
             tabelas = cursor.fetchall()
             
-            # Verificar funções inseridas
+            # Verificar fun��es inseridas
             cursor.execute("SELECT COUNT(*) as total FROM funcoes_evento")
             total_funcoes = cursor.fetchone()['total']
             
-            logger.info(f"✅ Migration executada: {len(tabelas)} tabelas, {total_funcoes} funções")
+            logger.info(f"? Migration executada: {len(tabelas)} tabelas, {total_funcoes} fun��es")
             
             return jsonify({
                 'success': True,
@@ -12798,7 +12798,7 @@ def execute_migration_evento_funcionarios():
             conn.close()
     
     except Exception as e:
-        logger.error(f"❌ Erro ao executar migration: {e}")
+        logger.error(f"? Erro ao executar migration: {e}")
         import traceback
         return jsonify({
             'success': False,
@@ -12813,12 +12813,12 @@ def execute_migration_evento_funcionarios():
 @app.route('/api/analytics/lazy-loading', methods=['POST'])
 @require_auth
 def log_lazy_loading_performance():
-    """Recebe e armazena métricas de performance do lazy loading"""
+    """Recebe e armazena m�tricas de performance do lazy loading"""
     try:
         data = request.json
         usuario_id = get_usuario_logado()['id']
         
-        # Log estruturado das métricas
+        # Log estruturado das m�tricas
         logger.info("lazy_loading_metrics", extra={
             'usuario_id': usuario_id,
             'session_duration': data.get('summary', {}).get('sessionDuration'),
@@ -12828,16 +12828,16 @@ def log_lazy_loading_performance():
             'errors': len(data.get('errors', []))
         })
         
-        # Opcionalmente, armazenar em tabela de métricas
-        # (se quiser análise histórica mais complexa)
+        # Opcionalmente, armazenar em tabela de m�tricas
+        # (se quiser an�lise hist�rica mais complexa)
         
         return jsonify({
             'success': True,
-            'message': 'Métricas recebidas'
+            'message': 'M�tricas recebidas'
         })
         
     except Exception as e:
-        logger.error(f"Erro ao processar métricas: {e}")
+        logger.error(f"Erro ao processar m�tricas: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -12847,13 +12847,13 @@ def log_lazy_loading_performance():
 @app.route('/api/analytics/lazy-loading/summary', methods=['GET'])
 @require_admin
 def get_lazy_loading_summary():
-    """Retorna resumo de métricas de performance do lazy loading (admin only)"""
+    """Retorna resumo de m�tricas de performance do lazy loading (admin only)"""
     try:
-        # Aqui você pode implementar agregação de métricas
-        # Por enquanto, retorna instruções de uso
+        # Aqui voc� pode implementar agrega��o de m�tricas
+        # Por enquanto, retorna instru��es de uso
         return jsonify({
             'success': True,
-            'message': 'Métricas disponíveis nos logs estruturados',
+            'message': 'M�tricas dispon�veis nos logs estruturados',
             'instructions': {
                 'log_query': 'Buscar por "lazy_loading_metrics" nos logs',
                 'console_usage': [
@@ -12879,13 +12879,13 @@ def get_lazy_loading_summary():
 
 
 # ============================================================================
-# ROTAS NFS-e (Nota Fiscal de Serviço Eletrônica)
+# ROTAS NFS-e (Nota Fiscal de Servi�o Eletr�nica)
 # ============================================================================
 
 @app.route('/api/nfse/config', methods=['GET'])
 @require_auth
 def get_config_nfse():
-    """Lista configurações de municípios da empresa"""
+    """Lista configura��es de munic�pios da empresa"""
     try:
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
@@ -12893,13 +12893,13 @@ def get_config_nfse():
         if not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'Empresa não selecionada'
+                'error': 'Empresa n�o selecionada'
             }), 400
         
         from nfse_functions import listar_municipios
         from database_postgresql import get_nfse_db_params
         
-        # Usar configuração centralizada do banco
+        # Usar configura��o centralizada do banco
         db_params = get_nfse_db_params()
         
         configs = listar_municipios(db_params, empresa_id)
@@ -12921,7 +12921,7 @@ def get_config_nfse():
 @require_auth
 @require_permission('nfse_config')
 def add_config_nfse():
-    """Adiciona configuração de município"""
+    """Adiciona configura��o de munic�pio"""
     try:
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
@@ -12929,25 +12929,25 @@ def add_config_nfse():
         if not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'Empresa não selecionada'
+                'error': 'Empresa n�o selecionada'
             }), 400
         
         data = request.json
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         required_fields = ['cnpj_cpf', 'codigo_municipio', 'nome_municipio', 
                           'uf', 'inscricao_municipal']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({
                     'success': False,
-                    'error': f'Campo obrigatório: {field}'
+                    'error': f'Campo obrigat�rio: {field}'
                 }), 400
         
         from nfse_functions import adicionar_municipio
         from database_postgresql import get_nfse_db_params
         
-        # Usar configuração centralizada do banco
+        # Usar configura��o centralizada do banco
         db_params = get_nfse_db_params()
         
         sucesso, config_id, erro = adicionar_municipio(
@@ -12977,7 +12977,7 @@ def add_config_nfse():
             return jsonify({
                 'success': True,
                 'config_id': config_id,
-                'message': 'Município configurado com sucesso'
+                'message': 'Munic�pio configurado com sucesso'
             })
         else:
             return jsonify({
@@ -12997,7 +12997,7 @@ def add_config_nfse():
 @require_auth
 @require_permission('nfse_config')
 def update_config_nfse(config_id):
-    """Atualiza configuração de município"""
+    """Atualiza configura��o de munic�pio"""
     try:
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
@@ -13005,25 +13005,25 @@ def update_config_nfse(config_id):
         if not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'Empresa não selecionada'
+                'error': 'Empresa n�o selecionada'
             }), 400
         
         data = request.json
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         required_fields = ['cnpj_cpf', 'codigo_municipio', 'nome_municipio', 
                           'uf', 'inscricao_municipal']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({
                     'success': False,
-                    'error': f'Campo obrigatório: {field}'
+                    'error': f'Campo obrigat�rio: {field}'
                 }), 400
         
         from nfse_functions import atualizar_municipio
         from database_postgresql import get_nfse_db_params
         
-        # Usar configuração centralizada do banco
+        # Usar configura��o centralizada do banco
         db_params = get_nfse_db_params()
         
         sucesso, erro = atualizar_municipio(
@@ -13054,7 +13054,7 @@ def update_config_nfse(config_id):
             return jsonify({
                 'success': True,
                 'config_id': config_id,
-                'message': 'Município atualizado com sucesso'
+                'message': 'Munic�pio atualizado com sucesso'
             })
         else:
             return jsonify({
@@ -13074,12 +13074,12 @@ def update_config_nfse(config_id):
 @require_auth
 @require_permission('nfse_config')
 def delete_config_nfse(config_id):
-    """Remove configuração de município"""
+    """Remove configura��o de munic�pio"""
     try:
         from nfse_functions import excluir_municipio
         from database_postgresql import get_nfse_db_params
         
-        # Usar configuração centralizada do banco
+        # Usar configura��o centralizada do banco
         db_params = get_nfse_db_params()
         
         sucesso, erro = excluir_municipio(db_params, config_id)
@@ -13087,7 +13087,7 @@ def delete_config_nfse(config_id):
         if sucesso:
             return jsonify({
                 'success': True,
-                'message': 'Configuração excluída'
+                'message': 'Configura��o exclu�da'
             })
         else:
             return jsonify({
@@ -13109,7 +13109,7 @@ def delete_config_nfse(config_id):
 def buscar_nfse():
     """
     Proxy para busca pesada de NFS-e
-    Redireciona requisição para microserviço de busca
+    Redireciona requisi��o para microservi�o de busca
     """
     try:
         usuario = get_usuario_logado()
@@ -13118,16 +13118,16 @@ def buscar_nfse():
         if not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'Empresa não selecionada'
+                'error': 'Empresa n�o selecionada'
             }), 400
         
         data = request.json
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         if not data.get('data_inicial') or not data.get('data_final'):
             return jsonify({
                 'success': False,
-                'error': 'Datas inicial e final são obrigatórias'
+                'error': 'Datas inicial e final s�o obrigat�rias'
             }), 400
         
         # Validar ordem das datas
@@ -13145,30 +13145,30 @@ def buscar_nfse():
         except ValueError as e:
             return jsonify({
                 'success': False,
-                'error': f'Formato de data inválido: {e}'
+                'error': f'Formato de data inv�lido: {e}'
             }), 400
         
-        # Obter URL do microserviço de busca
+        # Obter URL do microservi�o de busca
         nfse_service_url = os.getenv('NFSE_SERVICE_URL')
         
         if not nfse_service_url:
             # Fallback: processar localmente (modo legacy)
-            logger.warning("⚠️ NFSE_SERVICE_URL não configurada - processando localmente")
+            logger.warning("?? NFSE_SERVICE_URL n�o configurada - processando localmente")
             return _buscar_nfse_local(empresa_id, usuario, data, request.remote_addr)
         
         # Garantir que a URL tenha o protocolo https://
         if not nfse_service_url.startswith(('http://', 'https://')):
             nfse_service_url = f"https://{nfse_service_url}"
-            logger.info(f"✅ Protocolo https:// adicionado automaticamente")
+            logger.info(f"? Protocolo https:// adicionado automaticamente")
         
-        # ========== CHAMADA AO MICROSERVIÇO ==========
-        logger.info(f"🔄 Redirecionando busca de NFS-e para microserviço: {nfse_service_url}")
+        # ========== CHAMADA AO MICROSERVI�O ==========
+        logger.info(f"?? Redirecionando busca de NFS-e para microservi�o: {nfse_service_url}")
         
         import requests
         
-        # Preparar headers para autenticação no microserviço
-        # Como o usuário já foi autenticado no ERP (@require_auth), 
-        # criamos um token de serviço interno para o microserviço
+        # Preparar headers para autentica��o no microservi�o
+        # Como o usu�rio j� foi autenticado no ERP (@require_auth), 
+        # criamos um token de servi�o interno para o microservi�o
         service_token = f"Bearer ERP-{empresa_id}-{usuario['id']}-{app.secret_key[:16]}"
         
         headers = {
@@ -13179,7 +13179,7 @@ def buscar_nfse():
             'X-Usuario-Nome': usuario.get('nome', 'Unknown')
         }
         
-        # Fazer requisição ao microserviço
+        # Fazer requisi��o ao microservi�o
         # Timeout 1700s (worker timeout = 1800s, deixa margem de 100s)
         try:
             response = requests.post(
@@ -13189,9 +13189,9 @@ def buscar_nfse():
                 timeout=1700  # 1700 segundos (28min 20s) - worker timeout = 1800s (30min)
             )
             
-            # Verificar se microserviço retornou erro
+            # Verificar se microservi�o retornou erro
             if response.status_code != 200:
-                logger.error(f"❌ Microserviço retornou status {response.status_code}")
+                logger.error(f"? Microservi�o retornou status {response.status_code}")
                 try:
                     erro_json = response.json()
                     logger.error(f"   Detalhes: {erro_json}")
@@ -13200,15 +13200,15 @@ def buscar_nfse():
                 
                 return jsonify({
                     'success': False,
-                    'error': f'Microserviço retornou erro (status {response.status_code})'
+                    'error': f'Microservi�o retornou erro (status {response.status_code})'
                 }), response.status_code
             
             resultado = response.json()
             
-            # Processar PDFs oficiais recebidos do microserviço (se houver)
+            # Processar PDFs oficiais recebidos do microservi�o (se houver)
             try:
                 if 'pdfs_oficiais' in resultado and resultado['pdfs_oficiais']:
-                    logger.info(f"📦 Processando {len(resultado['pdfs_oficiais'])} PDFs oficiais recebidos...")
+                    logger.info(f"?? Processando {len(resultado['pdfs_oficiais'])} PDFs oficiais recebidos...")
                     
                     import base64
                     from nfse_functions import salvar_pdf_nfse
@@ -13219,12 +13219,12 @@ def buscar_nfse():
                         try:
                             # Validar dados do PDF
                             if not pdf_info.get('pdf_base64'):
-                                logger.warning(f"   ⚠️ PDF {numero_nfse} sem base64, pulando")
+                                logger.warning(f"   ?? PDF {numero_nfse} sem base64, pulando")
                                 continue
                             
                             # Decodificar base64
                             pdf_content = base64.b64decode(pdf_info['pdf_base64'])
-                            logger.info(f"   📥 PDF {numero_nfse}: {len(pdf_content):,} bytes decodificados")
+                            logger.info(f"   ?? PDF {numero_nfse}: {len(pdf_content):,} bytes decodificados")
                             
                             # Salvar no storage LOCAL do ERP
                             pdf_path = salvar_pdf_nfse(
@@ -13235,11 +13235,11 @@ def buscar_nfse():
                                 data_emissao=pdf_info['data_emissao']
                             )
                             
-                            logger.info(f"   💾 PDF salvo em: {pdf_path}")
+                            logger.info(f"   ?? PDF salvo em: {pdf_path}")
                             
                             if pdf_path:
                                 # Atualizar danfse_path no banco
-                                logger.info(f"   📝 Atualizando banco: numero_nfse={numero_nfse}, codigo_municipio={pdf_info['codigo_municipio']}")
+                                logger.info(f"   ?? Atualizando banco: numero_nfse={numero_nfse}, codigo_municipio={pdf_info['codigo_municipio']}")
                                 
                                 with NFSeDatabase(db_params) as db:
                                     cursor = db.conn.cursor()
@@ -13253,30 +13253,30 @@ def buscar_nfse():
                                     db.conn.commit()
                                     cursor.close()
                                     
-                                    logger.info(f"   ✅ Banco atualizado: {rows_affected} linha(s) afetada(s)")
+                                    logger.info(f"   ? Banco atualizado: {rows_affected} linha(s) afetada(s)")
                                     
                                     if rows_affected == 0:
-                                        logger.warning(f"   ⚠️ NENHUMA linha foi atualizada! NFS-e pode não existir no banco")
+                                        logger.warning(f"   ?? NENHUMA linha foi atualizada! NFS-e pode n�o existir no banco")
                                     else:
-                                        logger.info(f"   🎯 danfse_path salvo: {pdf_path}")
+                                        logger.info(f"   ?? danfse_path salvo: {pdf_path}")
                                 
                                 pdfs_salvos += 1
-                                logger.info(f"   ✅ PDF {numero_nfse} processado com sucesso")
+                                logger.info(f"   ? PDF {numero_nfse} processado com sucesso")
                             else:
-                                logger.error(f"   ❌ salvar_pdf_nfse retornou None para {numero_nfse}")
+                                logger.error(f"   ? salvar_pdf_nfse retornou None para {numero_nfse}")
                         
                         except Exception as e_pdf:
-                            logger.error(f"   ❌ Erro ao processar PDF {numero_nfse}: {e_pdf}")
+                            logger.error(f"   ? Erro ao processar PDF {numero_nfse}: {e_pdf}")
                             import traceback
                             logger.error(traceback.format_exc())
                     
-                    logger.info(f"✅ {pdfs_salvos} PDFs oficiais salvos no storage do ERP")
+                    logger.info(f"? {pdfs_salvos} PDFs oficiais salvos no storage do ERP")
                     
-                    # Remover PDFs do resultado (não precisam ir pro frontend)
+                    # Remover PDFs do resultado (n�o precisam ir pro frontend)
                     del resultado['pdfs_oficiais']
             
             except Exception as e_pdfs:
-                logger.error(f"❌ Erro ao processar PDFs oficiais: {e_pdfs}")
+                logger.error(f"? Erro ao processar PDFs oficiais: {e_pdfs}")
                 import traceback
                 logger.error(traceback.format_exc())
                 # Continua mesmo com erro nos PDFs (dados principais foram salvos)
@@ -13303,17 +13303,17 @@ def buscar_nfse():
             return jsonify(resultado), response.status_code
             
         except requests.exceptions.Timeout:
-            logger.error("⏱️ Timeout ao buscar NFS-e no microserviço")
+            logger.error("?? Timeout ao buscar NFS-e no microservi�o")
             return jsonify({
                 'success': False,
-                'error': 'A busca está demorando muito. Tente reduzir o período ou número de municípios.'
+                'error': 'A busca est� demorando muito. Tente reduzir o per�odo ou n�mero de munic�pios.'
             }), 504
             
         except requests.exceptions.ConnectionError:
-            logger.error("❌ Erro de conexão com microserviço de busca")
+            logger.error("? Erro de conex�o com microservi�o de busca")
             return jsonify({
                 'success': False,
-                'error': 'Serviço de busca de notas temporariamente indisponível'
+                'error': 'Servi�o de busca de notas temporariamente indispon�vel'
             }), 503
         
     except Exception as e:
@@ -13327,10 +13327,10 @@ def buscar_nfse():
 
 def _buscar_nfse_local(empresa_id, usuario, data, ip_address):
     """
-    MODO LEGACY: Processamento local quando microserviço não está disponível
-    ⚠️ Mantido para compatibilidade, mas não recomendado (busca pesada bloqueia o ERP)
+    MODO LEGACY: Processamento local quando microservi�o n�o est� dispon�vel
+    ?? Mantido para compatibilidade, mas n�o recomendado (busca pesada bloqueia o ERP)
     """
-    logger.warning("⚠️ Processando busca de NFS-e localmente (MODO LEGACY)")
+    logger.warning("?? Processando busca de NFS-e localmente (MODO LEGACY)")
     
     # Buscar CNPJ da empresa
     with get_db_connection(empresa_id=empresa_id) as conn:
@@ -13342,7 +13342,7 @@ def _buscar_nfse_local(empresa_id, usuario, data, ip_address):
     if not empresa:
         return jsonify({
             'success': False,
-            'error': 'Empresa não encontrada'
+            'error': 'Empresa n�o encontrada'
         }), 404
     
     cnpj_prestador = empresa['cnpj'].replace('.', '').replace('/', '').replace('-', '')
@@ -13369,7 +13369,7 @@ def _buscar_nfse_local(empresa_id, usuario, data, ip_address):
         if not os.path.exists(certificado_path):
             return jsonify({
                 'success': False,
-                'error': 'Certificado A1 não configurado'
+                'error': 'Certificado A1 n�o configurado'
             }), 400
     
     # Converter datas
@@ -13406,7 +13406,7 @@ def _buscar_nfse_local(empresa_id, usuario, data, ip_address):
             codigos_municipios=codigos_municipios
         )
     
-    # Limpar certificado temporário
+    # Limpar certificado tempor�rio
     if cert_data and os.path.exists(certificado_path):
         try:
             os.unlink(certificado_path)
@@ -13443,7 +13443,7 @@ def consultar_nfse():
         if not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'Empresa não selecionada'
+                'error': 'Empresa n�o selecionada'
             }), 400
         
         data = request.json
@@ -13452,15 +13452,15 @@ def consultar_nfse():
         from datetime import datetime
         from database_postgresql import get_nfse_db_params
         
-        # Usar configuração centralizada do banco
+        # Usar configura��o centralizada do banco
         db_params = get_nfse_db_params()
         
         # Converter datas
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
         data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
         
-        # Parâmetros de paginação (None = sem limite)
-        limit = data.get('limit')  # None por padrão = busca todos
+        # Par�metros de pagina��o (None = sem limite)
+        limit = data.get('limit')  # None por padr�o = busca todos
         offset = data.get('offset', 0)
         
         # Consultar banco local
@@ -13500,7 +13500,7 @@ def consultar_nfse():
 @require_auth
 @require_permission('nfse_view')
 def diagnostico_nfse():
-    """Diagnóstico detalhado de NFS-e para identificar omissões"""
+    """Diagn�stico detalhado de NFS-e para identificar omiss�es"""
     try:
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
@@ -13508,7 +13508,7 @@ def diagnostico_nfse():
         if not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'Empresa não selecionada'
+                'error': 'Empresa n�o selecionada'
             }), 400
         
         data = request.json
@@ -13528,7 +13528,7 @@ def diagnostico_nfse():
         conn = psycopg2.connect(**db_params)
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # 1. Total por situação
+        # 1. Total por situa��o
         sql = """
             SELECT 
                 situacao,
@@ -13550,7 +13550,7 @@ def diagnostico_nfse():
         cursor.execute(sql, tuple(params))
         por_situacao = [dict(row) for row in cursor.fetchall()]
         
-        # 2. Total geral SEM filtro de situação
+        # 2. Total geral SEM filtro de situa��o
         sql_total = """
             SELECT 
                 COUNT(*) as total,
@@ -13589,7 +13589,7 @@ def diagnostico_nfse():
         cursor.execute(sql_normal, tuple(params_normal))
         total_normal = dict(cursor.fetchone())
         
-        # 4. Mostrar notas CANCELADAS/SUBSTITUÍDAS se houver
+        # 4. Mostrar notas CANCELADAS/SUBSTITU�DAS se houver
         sql_outras = """
             SELECT 
                 numero_nfse,
@@ -13653,7 +13653,7 @@ def diagnostico_nfse():
         return jsonify(resultado)
         
     except Exception as e:
-        logger.error(f"Erro no diagnóstico: {e}")
+        logger.error(f"Erro no diagn�stico: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -13671,7 +13671,7 @@ def get_nfse_detalhes(nfse_id):
         from nfse_functions import get_detalhes_nfse
         from database_postgresql import get_nfse_db_params
         
-        # Usar configuração centralizada do banco
+        # Usar configura��o centralizada do banco
         db_params = get_nfse_db_params()
         
         nfse = get_detalhes_nfse(db_params, nfse_id)
@@ -13679,7 +13679,7 @@ def get_nfse_detalhes(nfse_id):
         if not nfse:
             return jsonify({
                 'success': False,
-                'error': 'NFS-e não encontrada'
+                'error': 'NFS-e n�o encontrada'
             }), 404
         
         # Converter objetos datetime para string
@@ -13718,14 +13718,14 @@ def excluir_nfse(nfse_id):
         if not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'Empresa não selecionada'
+                'error': 'Empresa n�o selecionada'
             }), 403
         
-        # Usar configuração centralizada do banco
+        # Usar configura��o centralizada do banco
         db_params = get_nfse_db_params()
         
         with NFSeDatabase(db_params) as db:
-            # Buscar informações da NFS-e antes de excluir (para deletar arquivos)
+            # Buscar informa��es da NFS-e antes de excluir (para deletar arquivos)
             sql_select = """
                 SELECT xml_path, numero_nfse, cnpj_prestador, codigo_municipio, data_emissao
                 FROM nfse_baixadas 
@@ -13739,7 +13739,7 @@ def excluir_nfse(nfse_id):
                 if not nfse_data:
                     return jsonify({
                         'success': False,
-                        'error': 'NFS-e não encontrada ou não pertence à empresa atual'
+                        'error': 'NFS-e n�o encontrada ou n�o pertence � empresa atual'
                     }), 404
                 
                 xml_path, numero_nfse, cnpj_prestador, codigo_municipio, data_emissao = nfse_data
@@ -13777,32 +13777,32 @@ def excluir_nfse(nfse_id):
                         try:
                             os.remove(xml_full_path)
                             arquivos_excluidos.append(xml_filename)
-                            logger.info(f"🗑️ XML excluído: {xml_full_path}")
+                            logger.info(f"??? XML exclu�do: {xml_full_path}")
                         except Exception as e:
-                            logger.warning(f"⚠️ Erro ao excluir XML: {e}")
+                            logger.warning(f"?? Erro ao excluir XML: {e}")
                     else:
                         arquivos_nao_encontrados.append(xml_filename)
-                        logger.warning(f"⚠️ XML não encontrado: {xml_full_path}")
+                        logger.warning(f"?? XML n�o encontrado: {xml_full_path}")
                     
                     # Tentar excluir PDF
                     if os.path.exists(pdf_full_path):
                         try:
                             os.remove(pdf_full_path)
                             arquivos_excluidos.append(pdf_filename)
-                            logger.info(f"🗑️ PDF excluído: {pdf_full_path}")
+                            logger.info(f"??? PDF exclu�do: {pdf_full_path}")
                         except Exception as e:
-                            logger.warning(f"⚠️ Erro ao excluir PDF: {e}")
+                            logger.warning(f"?? Erro ao excluir PDF: {e}")
                     else:
                         arquivos_nao_encontrados.append(pdf_filename)
-                        logger.warning(f"⚠️ PDF não encontrado: {pdf_full_path}")
+                        logger.warning(f"?? PDF n�o encontrado: {pdf_full_path}")
         
-        mensagem = f"NFS-e {numero_nfse} excluída com sucesso!"
+        mensagem = f"NFS-e {numero_nfse} exclu�da com sucesso!"
         if arquivos_excluidos:
             mensagem += f" Arquivos removidos: {', '.join(arquivos_excluidos)}."
         if arquivos_nao_encontrados:
-            mensagem += f" Arquivos não encontrados: {', '.join(arquivos_nao_encontrados)}."
+            mensagem += f" Arquivos n�o encontrados: {', '.join(arquivos_nao_encontrados)}."
         
-        logger.info(f"✅ {mensagem}")
+        logger.info(f"? {mensagem}")
         
         return jsonify({
             'success': True,
@@ -13825,7 +13825,7 @@ def excluir_nfse(nfse_id):
 @require_auth
 @require_permission('nfse_delete')
 def apagar_todas_nfse():
-    """Apaga TODAS as NFS-e do período selecionado (banco de dados + arquivos)"""
+    """Apaga TODAS as NFS-e do per�odo selecionado (banco de dados + arquivos)"""
     try:
         from nfse_database import NFSeDatabase
         from database_postgresql import get_nfse_db_params
@@ -13838,10 +13838,10 @@ def apagar_todas_nfse():
         if not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'Empresa não selecionada'
+                'error': 'Empresa n�o selecionada'
             }), 403
         
-        # Pegar parâmetros
+        # Pegar par�metros
         data_inicial = request.args.get('data_inicial')
         data_final = request.args.get('data_final')
         codigo_municipio = request.args.get('codigo_municipio', '')
@@ -13849,14 +13849,14 @@ def apagar_todas_nfse():
         if not data_inicial or not data_final:
             return jsonify({
                 'success': False,
-                'error': 'Data inicial e final são obrigatórias'
+                'error': 'Data inicial e final s�o obrigat�rias'
             }), 400
         
-        # Usar configuração centralizada do banco
+        # Usar configura��o centralizada do banco
         db_params = get_nfse_db_params()
         
         with NFSeDatabase(db_params) as db:
-            # Buscar TODAS as NFS-e do período
+            # Buscar TODAS as NFS-e do per�odo
             sql_select = """
                 SELECT id, xml_path, numero_nfse, cnpj_prestador, codigo_municipio, data_emissao
                 FROM nfse_baixadas 
@@ -13877,7 +13877,7 @@ def apagar_todas_nfse():
                 if not nfse_list:
                     return jsonify({
                         'success': True,
-                        'message': 'Nenhuma NFS-e encontrada no período',
+                        'message': 'Nenhuma NFS-e encontrada no per�odo',
                         'total_excluidas': 0,
                         'total_arquivos_excluidos': 0
                     })
@@ -13886,7 +13886,7 @@ def apagar_todas_nfse():
                 total_arquivos_excluidos = 0
                 erros = []
                 
-                logger.info(f"🗑️ Iniciando exclusão de {len(nfse_list)} NFS-e(s) do período {data_inicial} a {data_final}")
+                logger.info(f"??? Iniciando exclus�o de {len(nfse_list)} NFS-e(s) do per�odo {data_inicial} a {data_final}")
                 
                 # Excluir cada NFS-e
                 for nfse_data in nfse_list:
@@ -13914,7 +13914,7 @@ def apagar_todas_nfse():
                                         os.remove(xml_full_path)
                                         total_arquivos_excluidos += 1
                                     except Exception as e:
-                                        logger.warning(f"⚠️ Erro ao excluir XML {numero_nfse}: {e}")
+                                        logger.warning(f"?? Erro ao excluir XML {numero_nfse}: {e}")
                                 
                                 # Excluir PDF
                                 if os.path.exists(pdf_full_path):
@@ -13922,19 +13922,19 @@ def apagar_todas_nfse():
                                         os.remove(pdf_full_path)
                                         total_arquivos_excluidos += 1
                                     except Exception as e:
-                                        logger.warning(f"⚠️ Erro ao excluir PDF {numero_nfse}: {e}")
+                                        logger.warning(f"?? Erro ao excluir PDF {numero_nfse}: {e}")
                         
                     except Exception as e:
                         erro_msg = f"NFS-e {numero_nfse}: {str(e)}"
                         erros.append(erro_msg)
-                        logger.error(f"❌ Erro ao excluir NFS-e {numero_nfse}: {e}")
+                        logger.error(f"? Erro ao excluir NFS-e {numero_nfse}: {e}")
                 
-                mensagem = f"{total_excluidas} NFS-e(s) excluída(s) com sucesso! {total_arquivos_excluidos} arquivo(s) removido(s)."
+                mensagem = f"{total_excluidas} NFS-e(s) exclu�da(s) com sucesso! {total_arquivos_excluidos} arquivo(s) removido(s)."
                 
                 if erros:
                     mensagem += f" Erros: {len(erros)}"
                 
-                logger.info(f"✅ {mensagem}")
+                logger.info(f"? {mensagem}")
                 
                 return jsonify({
                     'success': True,
@@ -13966,7 +13966,7 @@ def get_resumo_mensal_nfse():
         if not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'Empresa não selecionada'
+                'error': 'Empresa n�o selecionada'
             }), 400
         
         data = request.json
@@ -13976,14 +13976,14 @@ def get_resumo_mensal_nfse():
         if not ano or not mes:
             return jsonify({
                 'success': False,
-                'error': 'Ano e mês são obrigatórios'
+                'error': 'Ano e m�s s�o obrigat�rios'
             }), 400
         
         from nfse_functions import get_resumo_mensal
         
         from database_postgresql import get_nfse_db_params
         
-        # Usar configuração centralizada do banco
+        # Usar configura��o centralizada do banco
         db_params = get_nfse_db_params()
         
         resumo = get_resumo_mensal(db_params, empresa_id, ano, mes)
@@ -14018,7 +14018,7 @@ def export_nfse_excel():
         if not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'Empresa não selecionada'
+                'error': 'Empresa n�o selecionada'
             }), 400
         
         data = request.json
@@ -14028,14 +14028,14 @@ def export_nfse_excel():
         from database_postgresql import get_nfse_db_params
         import tempfile
         
-        # Usar configuração centralizada do banco
+        # Usar configura��o centralizada do banco
         db_params = get_nfse_db_params()
         
         # Converter datas
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
         data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
         
-        # Criar arquivo temporário
+        # Criar arquivo tempor�rio
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
         caminho_arquivo = temp_file.name
         temp_file.close()
@@ -14093,7 +14093,7 @@ def export_nfse_xml():
         if not empresa_id:
             return jsonify({
                 'success': False,
-                'error': 'Empresa não selecionada'
+                'error': 'Empresa n�o selecionada'
             }), 400
         
         data = request.json
@@ -14103,14 +14103,14 @@ def export_nfse_xml():
         from database_postgresql import get_nfse_db_params
         import tempfile
         
-        # Usar configuração centralizada do banco
+        # Usar configura��o centralizada do banco
         db_params = get_nfse_db_params()
         
         # Converter datas
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
         data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
         
-        # Criar arquivo temporário
+        # Criar arquivo tempor�rio
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
         caminho_arquivo = temp_file.name
         temp_file.close()
@@ -14170,7 +14170,7 @@ def upload_certificado_nfse():
         empresa_id = usuario.get('empresa_id')
         
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         # Verificar se o arquivo foi enviado
         if 'certificado' not in request.files:
@@ -14183,12 +14183,12 @@ def upload_certificado_nfse():
             return jsonify({'success': False, 'error': 'Nenhum arquivo selecionado'}), 400
         
         if not senha:
-            return jsonify({'success': False, 'error': 'Senha do certificado é obrigatória'}), 400
+            return jsonify({'success': False, 'error': 'Senha do certificado � obrigat�ria'}), 400
         
-        # Validar extensão
+        # Validar extens�o
         extensao = arquivo.filename.rsplit('.', 1)[-1].lower() if '.' in arquivo.filename else ''
         if extensao not in ('pfx', 'p12'):
-            return jsonify({'success': False, 'error': 'Formato inválido. Use arquivo .pfx ou .p12'}), 400
+            return jsonify({'success': False, 'error': 'Formato inv�lido. Use arquivo .pfx ou .p12'}), 400
         
         # Ler bytes do arquivo
         pfx_bytes = arquivo.read()
@@ -14197,14 +14197,14 @@ def upload_certificado_nfse():
             return jsonify({'success': False, 'error': 'Arquivo vazio'}), 400
         
         if len(pfx_bytes) > 10 * 1024 * 1024:  # 10MB max
-            return jsonify({'success': False, 'error': 'Arquivo muito grande (máximo 10MB)'}), 400
+            return jsonify({'success': False, 'error': 'Arquivo muito grande (m�ximo 10MB)'}), 400
         
         from nfse_functions import upload_certificado, registrar_operacao
         from database_postgresql import get_nfse_db_params
         
-        # Usar configuração centralizada do banco
+        # Usar configura��o centralizada do banco
         db_params = get_nfse_db_params()
-        # Remover 'dsn' se existir (NFSeDatabase espera parâmetros individuais)
+        # Remover 'dsn' se existir (NFSeDatabase espera par�metros individuais)
         
         sucesso, info, erro = upload_certificado(db_params, empresa_id, pfx_bytes, senha)
         
@@ -14225,12 +14225,12 @@ def upload_certificado_nfse():
                 ip_address=request.remote_addr
             )
             
-            # Mensagem personalizada se criou configuração automaticamente
+            # Mensagem personalizada se criou configura��o automaticamente
             message = 'Certificado carregado com sucesso!'
             if info.get('config_criada'):
-                message += f' Município {info.get("nome_municipio")} configurado automaticamente. Complete a Inscrição Municipal em Configurações.'
+                message += f' Munic�pio {info.get("nome_municipio")} configurado automaticamente. Complete a Inscri��o Municipal em Configura��es.'
             elif info.get('codigo_municipio'):
-                message += ' Lembre-se de configurar o município em Configurações.'
+                message += ' Lembre-se de configurar o munic�pio em Configura��es.'
             
             return jsonify({
                 'success': True,
@@ -14260,18 +14260,18 @@ def upload_certificado_nfse():
 @app.route('/api/nfse/certificado', methods=['GET'])
 @require_auth
 def get_certificado_nfse():
-    """Retorna informações do certificado ativo da empresa"""
+    """Retorna informa��es do certificado ativo da empresa"""
     try:
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
         
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         from nfse_functions import get_certificado_info
         from database_postgresql import get_nfse_db_params
         
-        # Usar configuração centralizada do banco
+        # Usar configura��o centralizada do banco
         db_params = get_nfse_db_params()  # Remover DSN se existir
         
         cert = get_certificado_info(db_params, empresa_id)
@@ -14313,7 +14313,7 @@ def delete_certificado_nfse(cert_id):
             )
             return jsonify({'success': True, 'message': 'Certificado removido'})
         else:
-            return jsonify({'success': False, 'error': 'Certificado não encontrado'}), 404
+            return jsonify({'success': False, 'error': 'Certificado n�o encontrado'}), 404
         
     except Exception as e:
         logger.error(f"Erro ao excluir certificado: {e}")
@@ -14321,7 +14321,7 @@ def delete_certificado_nfse(cert_id):
 
 
 # ============================================================================
-# ROTAS NFS-e - GERAÇÃO DE PDF (DANFSE)
+# ROTAS NFS-e - GERA��O DE PDF (DANFSE)
 # ============================================================================
 
 @app.route('/api/nfse/<int:nfse_id>/pdf', methods=['GET'])
@@ -14330,31 +14330,31 @@ def delete_certificado_nfse(cert_id):
 def gerar_pdf_nfse_route(nfse_id):
     """Gera e retorna o PDF (DANFSE) de uma NFS-e"""
     try:
-        logger.info(f"🌐 API /api/nfse/{nfse_id}/pdf chamada")
+        logger.info(f"?? API /api/nfse/{nfse_id}/pdf chamada")
         
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
         
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         from nfse_functions import gerar_pdf_nfse
         from database_postgresql import get_nfse_db_params
         
         db_params = get_nfse_db_params()
         
-        logger.info(f"📞 Chamando gerar_pdf_nfse(nfse_id={nfse_id})...")
+        logger.info(f"?? Chamando gerar_pdf_nfse(nfse_id={nfse_id})...")
         pdf_bytes = gerar_pdf_nfse(db_params, nfse_id)
         
         if pdf_bytes:
-            logger.info(f"✅ PDF gerado com sucesso: {len(pdf_bytes):,} bytes")
+            logger.info(f"? PDF gerado com sucesso: {len(pdf_bytes):,} bytes")
             
             import tempfile
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
             temp_file.write(pdf_bytes)
             temp_file.close()
             
-            logger.info(f"📤 Enviando PDF para cliente: {temp_file.name}")
+            logger.info(f"?? Enviando PDF para cliente: {temp_file.name}")
             
             return send_file(
                 temp_file.name,
@@ -14363,14 +14363,14 @@ def gerar_pdf_nfse_route(nfse_id):
                 download_name=f'nfse_{nfse_id}.pdf'
             )
         else:
-            logger.error(f"❌ gerar_pdf_nfse retornou None")
+            logger.error(f"? gerar_pdf_nfse retornou None")
             return jsonify({
                 'success': False,
-                'error': 'Não foi possível gerar o PDF desta NFS-e'
+                'error': 'N�o foi poss�vel gerar o PDF desta NFS-e'
             }), 400
         
     except Exception as e:
-        logger.error(f"❌ Erro ao gerar PDF NFS-e: {e}")
+        logger.error(f"? Erro ao gerar PDF NFS-e: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -14382,84 +14382,84 @@ def gerar_pdf_nfse_route(nfse_id):
 @app.route('/api/contabilidade/versoes', methods=['GET'])
 @require_auth
 def listar_versoes_plano():
-    """Lista versões do plano de contas"""
+    """Lista vers�es do plano de contas"""
     try:
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         from contabilidade_functions import listar_versoes
         versoes = listar_versoes(empresa_id)
         
-        logger.info(f"📊 Versões para empresa {empresa_id}: {len(versoes)} encontrada(s)")
+        logger.info(f"?? Vers�es para empresa {empresa_id}: {len(versoes)} encontrada(s)")
         if versoes:
-            logger.info(f"   📦 Primeira versão: {versoes[0]}")
+            logger.info(f"   ?? Primeira vers�o: {versoes[0]}")
         else:
-            logger.warning(f"   ⚠️ Nenhuma versão encontrada para empresa {empresa_id}")
+            logger.warning(f"   ?? Nenhuma vers�o encontrada para empresa {empresa_id}")
         
         return jsonify({'success': True, 'versoes': versoes})
     except Exception as e:
-        logger.error(f"Erro ao listar versões: {e}")
+        logger.error(f"Erro ao listar vers�es: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/contabilidade/versoes', methods=['POST'])
 @require_auth
 def criar_versao_plano():
-    """Cria nova versão do plano de contas"""
+    """Cria nova vers�o do plano de contas"""
     try:
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         dados = request.get_json()
         if not dados or not dados.get('nome_versao') or not dados.get('exercicio_fiscal'):
-            return jsonify({'success': False, 'error': 'nome_versao e exercicio_fiscal são obrigatórios'}), 400
+            return jsonify({'success': False, 'error': 'nome_versao e exercicio_fiscal s�o obrigat�rios'}), 400
         
         from contabilidade_functions import criar_versao
         versao_id = criar_versao(empresa_id, dados)
-        return jsonify({'success': True, 'id': versao_id, 'message': 'Versão criada com sucesso'})
+        return jsonify({'success': True, 'id': versao_id, 'message': 'Vers�o criada com sucesso'})
     except Exception as e:
-        logger.error(f"Erro ao criar versão: {e}")
+        logger.error(f"Erro ao criar vers�o: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/contabilidade/versoes/<int:versao_id>', methods=['PUT'])
 @require_auth
 def atualizar_versao_plano(versao_id):
-    """Atualiza versão do plano de contas"""
+    """Atualiza vers�o do plano de contas"""
     try:
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         dados = request.get_json()
         from contabilidade_functions import atualizar_versao
         atualizar_versao(empresa_id, versao_id, dados)
-        return jsonify({'success': True, 'message': 'Versão atualizada'})
+        return jsonify({'success': True, 'message': 'Vers�o atualizada'})
     except Exception as e:
-        logger.error(f"Erro ao atualizar versão: {e}")
+        logger.error(f"Erro ao atualizar vers�o: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/contabilidade/versoes/<int:versao_id>', methods=['DELETE'])
 @require_auth
 def excluir_versao_plano(versao_id):
-    """Exclui versão do plano de contas"""
+    """Exclui vers�o do plano de contas"""
     try:
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         from contabilidade_functions import excluir_versao
         excluir_versao(empresa_id, versao_id)
-        return jsonify({'success': True, 'message': 'Versão excluída'})
+        return jsonify({'success': True, 'message': 'Vers�o exclu�da'})
     except Exception as e:
-        logger.error(f"Erro ao excluir versão: {e}")
+        logger.error(f"Erro ao excluir vers�o: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -14471,7 +14471,7 @@ def listar_plano_contas():
         usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         versao_id = request.args.get('versao_id', type=int)
         classificacao = request.args.get('classificacao')
@@ -14490,28 +14490,28 @@ def listar_plano_contas():
 @app.route('/api/contabilidade/plano-contas/tree', methods=['GET'])
 @require_auth
 def arvore_plano_contas():
-    """Retorna plano de contas em estrutura de árvore"""
+    """Retorna plano de contas em estrutura de �rvore"""
     try:
         usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         versao_id = request.args.get('versao_id', type=int)
         if not versao_id:
-            # Tentar versão ativa
+            # Tentar vers�o ativa
             from contabilidade_functions import obter_versao_ativa
             versao_ativa = obter_versao_ativa(empresa_id)
             if versao_ativa:
                 versao_id = versao_ativa['id']
             else:
-                return jsonify({'success': True, 'tree': [], 'message': 'Nenhuma versão encontrada'})
+                return jsonify({'success': True, 'tree': [], 'message': 'Nenhuma vers�o encontrada'})
         
         from contabilidade_functions import obter_arvore_contas
         tree = obter_arvore_contas(empresa_id, versao_id)
         return jsonify({'success': True, 'tree': tree, 'versao_id': versao_id})
     except Exception as e:
-        logger.error(f"Erro ao obter árvore: {e}")
+        logger.error(f"Erro ao obter �rvore: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -14523,15 +14523,15 @@ def criar_conta_plano():
         usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         dados = request.get_json()
         if not dados or not dados.get('codigo') or not dados.get('descricao'):
-            return jsonify({'success': False, 'error': 'código e descrição são obrigatórios'}), 400
+            return jsonify({'success': False, 'error': 'c�digo e descri��o s�o obrigat�rios'}), 400
         if not dados.get('versao_id'):
-            return jsonify({'success': False, 'error': 'versao_id é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'versao_id � obrigat�rio'}), 400
         if not dados.get('classificacao'):
-            return jsonify({'success': False, 'error': 'classificacao é obrigatória'}), 400
+            return jsonify({'success': False, 'error': 'classificacao � obrigat�ria'}), 400
         
         from contabilidade_functions import criar_conta
         conta_id = criar_conta(empresa_id, dados)
@@ -14543,8 +14543,8 @@ def criar_conta_plano():
         # Tratar erros de constraint de banco de dados
         if 'unique constraint' in error_msg.lower() or 'duplicate key' in error_msg.lower():
             if 'codigo' in error_msg:
-                return jsonify({'success': False, 'error': f'O código "{dados.get("codigo")}" já existe nesta versão do plano de contas'}), 400
-            return jsonify({'success': False, 'error': 'Já existe um registro com estes dados'}), 400
+                return jsonify({'success': False, 'error': f'O c�digo "{dados.get("codigo")}" j� existe nesta vers�o do plano de contas'}), 400
+            return jsonify({'success': False, 'error': 'J� existe um registro com estes dados'}), 400
         logger.error(f"Erro ao criar conta: {e}")
         return jsonify({'success': False, 'error': 'Erro ao criar conta. Verifique os dados e tente novamente.'}), 500
 
@@ -14557,7 +14557,7 @@ def atualizar_conta_plano(conta_id):
         usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         dados = request.get_json()
         from contabilidade_functions import atualizar_conta
@@ -14570,8 +14570,8 @@ def atualizar_conta_plano(conta_id):
         # Tratar erros de constraint de banco de dados
         if 'unique constraint' in error_msg.lower() or 'duplicate key' in error_msg.lower():
             if 'codigo' in error_msg:
-                return jsonify({'success': False, 'error': f'O código "{dados.get("codigo")}" já existe nesta versão do plano de contas'}), 400
-            return jsonify({'success': False, 'error': 'Já existe um registro com estes dados'}), 400
+                return jsonify({'success': False, 'error': f'O c�digo "{dados.get("codigo")}" j� existe nesta vers�o do plano de contas'}), 400
+            return jsonify({'success': False, 'error': 'J� existe um registro com estes dados'}), 400
         logger.error(f"Erro ao atualizar conta: {e}")
         return jsonify({'success': False, 'error': 'Erro ao atualizar conta. Verifique os dados e tente novamente.'}), 500
 
@@ -14584,11 +14584,11 @@ def excluir_conta_plano(conta_id):
         usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         from contabilidade_functions import excluir_conta
         deleted = excluir_conta(empresa_id, conta_id)
-        return jsonify({'success': True, 'message': f'{deleted} conta(s) excluída(s)'})
+        return jsonify({'success': True, 'message': f'{deleted} conta(s) exclu�da(s)'})
     except ValueError as e:
         return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
@@ -14604,7 +14604,7 @@ def mover_conta_plano():
         usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         dados = request.get_json()
         conta_id = dados.get('conta_id')
@@ -14628,14 +14628,14 @@ def importar_plano_contas():
         usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         dados = request.get_json()
         versao_id = dados.get('versao_id')
         linhas = dados.get('linhas', [])
         
         if not versao_id or not linhas:
-            return jsonify({'success': False, 'error': 'versao_id e linhas são obrigatórios'}), 400
+            return jsonify({'success': False, 'error': 'versao_id e linhas s�o obrigat�rios'}), 400
         
         from contabilidade_functions import importar_contas_csv
         resultado = importar_contas_csv(empresa_id, versao_id, linhas)
@@ -14653,11 +14653,11 @@ def exportar_plano_contas():
         usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         versao_id = request.args.get('versao_id', type=int)
         if not versao_id:
-            return jsonify({'success': False, 'error': 'versao_id é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'versao_id � obrigat�rio'}), 400
         
         from contabilidade_functions import exportar_contas
         contas = exportar_contas(empresa_id, versao_id)
@@ -14670,12 +14670,12 @@ def exportar_plano_contas():
 @app.route('/api/contabilidade/plano-contas/importar-padrao', methods=['POST'])
 @require_auth
 def importar_plano_padrao_route():
-    """Importa o plano de contas padrão para a empresa"""
+    """Importa o plano de contas padr�o para a empresa"""
     try:
         usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         dados = request.get_json() or {}
         ano_fiscal = dados.get('ano_fiscal')
@@ -14683,7 +14683,7 @@ def importar_plano_padrao_route():
         from contabilidade_functions import importar_plano_padrao
         resultado = importar_plano_padrao(empresa_id, ano_fiscal)
         
-        # Se a função já retorna success, apenas retornar o resultado
+        # Se a fun��o j� retorna success, apenas retornar o resultado
         if resultado.get('success'):
             return jsonify(resultado)
         
@@ -14696,7 +14696,7 @@ def importar_plano_padrao_route():
             'message': resultado.get('message')
         })
     except Exception as e:
-        logger.error(f"Erro ao importar plano padrão: {e}")
+        logger.error(f"Erro ao importar plano padr�o: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -14708,11 +14708,11 @@ def exportar_plano_speed():
         usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         versao_id = request.args.get('versao_id', type=int)
         if not versao_id:
-            return jsonify({'success': False, 'error': 'versao_id é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'versao_id � obrigat�rio'}), 400
         
         from contabilidade_functions import listar_contas
         from speed_integration import exportar_plano_contas_speed, estatisticas_mapeamento
@@ -14725,7 +14725,7 @@ def exportar_plano_speed():
         # Gerar arquivo TXT
         conteudo_txt = exportar_plano_contas_speed(contas)
         
-        # Estatísticas
+        # Estat�sticas
         stats = estatisticas_mapeamento(contas)
         
         return jsonify({
@@ -14743,16 +14743,16 @@ def exportar_plano_speed():
 @app.route('/api/contabilidade/plano-contas/mapeamento-referencial', methods=['GET'])
 @require_auth
 def exportar_mapeamento_referencial():
-    """Exporta mapeamento com Referencial Contábil (CSV)"""
+    """Exporta mapeamento com Referencial Cont�bil (CSV)"""
     try:
         usuario = request.usuario
         empresa_id = usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 400
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 400
         
         versao_id = request.args.get('versao_id', type=int)
         if not versao_id:
-            return jsonify({'success': False, 'error': 'versao_id é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'versao_id � obrigat�rio'}), 400
         
         from contabilidade_functions import listar_contas
         from speed_integration import exportar_plano_contas_referencial
@@ -14776,18 +14776,18 @@ def exportar_mapeamento_referencial():
 
 
 # =============================================================================
-# LANÇAMENTOS CONTÁBEIS - FASE 2 SPEED
+# LAN�AMENTOS CONT�BEIS - FASE 2 SPEED
 # =============================================================================
 
 @app.route('/api/lancamentos-contabeis', methods=['GET'])
 @require_auth
 def listar_lancamentos_contabeis():
-    """Lista lançamentos contábeis com filtros"""
+    """Lista lan�amentos cont�beis com filtros"""
     try:
         user = request.user
         empresa_id = user['empresa_id']
         
-        # Parâmetros de filtro
+        # Par�metros de filtro
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
         tipo_lancamento = request.args.get('tipo_lancamento')
@@ -14803,7 +14803,7 @@ def listar_lancamentos_contabeis():
         if data_fim:
             data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
         
-        # Importar função
+        # Importar fun��o
         from lancamentos_functions import listar_lancamentos
         
         conn = get_db_connection()
@@ -14822,14 +14822,14 @@ def listar_lancamentos_contabeis():
         
         return jsonify(resultado)
     except Exception as e:
-        logger.error(f"Erro ao listar lançamentos: {e}")
+        logger.error(f"Erro ao listar lan�amentos: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/lancamentos-contabeis/<int:lancamento_id>', methods=['GET'])
 @require_auth
 def obter_lancamento_detalhado_api(lancamento_id):
-    """Obtém detalhes completos de um lançamento"""
+    """Obt�m detalhes completos de um lan�amento"""
     try:
         user = request.user
         empresa_id = user['empresa_id']
@@ -14842,14 +14842,14 @@ def obter_lancamento_detalhado_api(lancamento_id):
         
         return jsonify(resultado)
     except Exception as e:
-        logger.error(f"Erro ao obter lançamento: {e}")
+        logger.error(f"Erro ao obter lan�amento: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/lancamentos-contabeis', methods=['POST'])
 @require_auth
 def criar_lancamento_api():
-    """Cria novo lançamento contábil"""
+    """Cria novo lan�amento cont�bil"""
     try:
         user = request.user
         empresa_id = user['empresa_id']
@@ -14857,13 +14857,13 @@ def criar_lancamento_api():
         
         data = request.get_json()
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         if not data.get('data_lancamento'):
-            return jsonify({'success': False, 'error': 'Data do lançamento é obrigatória'}), 400
+            return jsonify({'success': False, 'error': 'Data do lan�amento � obrigat�ria'}), 400
         if not data.get('historico'):
-            return jsonify({'success': False, 'error': 'Histórico é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'Hist�rico � obrigat�rio'}), 400
         if not data.get('itens') or len(data['itens']) < 2:
-            return jsonify({'success': False, 'error': 'Lançamento deve ter pelo menos 2 itens'}), 400
+            return jsonify({'success': False, 'error': 'Lan�amento deve ter pelo menos 2 itens'}), 400
         
         # Converter data
         from datetime import datetime
@@ -14892,21 +14892,21 @@ def criar_lancamento_api():
         else:
             return jsonify(resultado), 400
     except Exception as e:
-        logger.error(f"Erro ao criar lançamento: {e}")
+        logger.error(f"Erro ao criar lan�amento: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/lancamentos-contabeis/<int:lancamento_id>/estornar', methods=['POST'])
 @require_auth
 def estornar_lancamento_api(lancamento_id):
-    """Estorna um lançamento criando lançamento inverso"""
+    """Estorna um lan�amento criando lan�amento inverso"""
     try:
         user = request.user
         empresa_id = user['empresa_id']
         user_id = user.get('id')
         
         data = request.get_json()
-        historico_estorno = data.get('historico_estorno', 'Estorno de lançamento')
+        historico_estorno = data.get('historico_estorno', 'Estorno de lan�amento')
         
         from lancamentos_functions import estornar_lancamento
         
@@ -14922,14 +14922,14 @@ def estornar_lancamento_api(lancamento_id):
         
         return jsonify(resultado)
     except Exception as e:
-        logger.error(f"Erro ao estornar lançamento: {e}")
+        logger.error(f"Erro ao estornar lan�amento: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/lancamentos-contabeis/<int:lancamento_id>', methods=['DELETE'])
 @require_auth
 def deletar_lancamento_api(lancamento_id):
-    """Deleta um lançamento contábil"""
+    """Deleta um lan�amento cont�bil"""
     try:
         user = request.user
         empresa_id = user['empresa_id']
@@ -14942,14 +14942,14 @@ def deletar_lancamento_api(lancamento_id):
         
         return jsonify(resultado)
     except Exception as e:
-        logger.error(f"Erro ao deletar lançamento: {e}")
+        logger.error(f"Erro ao deletar lan�amento: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/lancamentos-contabeis/estatisticas', methods=['GET'])
 @require_auth
 def estatisticas_lancamentos_api():
-    """Obtém estatísticas dos lançamentos"""
+    """Obt�m estat�sticas dos lan�amentos"""
     try:
         user = request.user
         empresa_id = user['empresa_id']
@@ -14963,14 +14963,14 @@ def estatisticas_lancamentos_api():
         
         return jsonify(resultado)
     except Exception as e:
-        logger.error(f"Erro ao obter estatísticas: {e}")
+        logger.error(f"Erro ao obter estat�sticas: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/lancamentos-contabeis/exportar-speed', methods=['POST'])
 @require_auth
 def exportar_lancamentos_speed_api():
-    """Exporta lançamentos para formato Speed (TXT ou XML)"""
+    """Exporta lan�amentos para formato Speed (TXT ou XML)"""
     try:
         user = request.user
         empresa_id = user['empresa_id']
@@ -14987,25 +14987,25 @@ def exportar_lancamentos_speed_api():
         if data_fim:
             data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
         
-        # Buscar lançamentos com itens detalhados
+        # Buscar lan�amentos com itens detalhados
         from lancamentos_functions import listar_lancamentos, obter_lancamento_detalhado
         
         conn = get_db_connection()
         
-        # Listar todos os lançamentos do período
+        # Listar todos os lan�amentos do per�odo
         resultado_lista = listar_lancamentos(
             conn=conn,
             empresa_id=empresa_id,
             data_inicio=data_inicio,
             data_fim=data_fim,
-            limit=10000  # Limite alto para exportação
+            limit=10000  # Limite alto para exporta��o
         )
         
         if not resultado_lista['success']:
             conn.close()
             return jsonify(resultado_lista), 400
         
-        # Buscar detalhes de cada lançamento (incluindo itens)
+        # Buscar detalhes de cada lan�amento (incluindo itens)
         lancamentos_completos = []
         for lanc in resultado_lista['lancamentos']:
             detalhe = obter_lancamento_detalhado(conn, lanc['id'], empresa_id)
@@ -15022,7 +15022,7 @@ def exportar_lancamentos_speed_api():
         if not validacao['valido']:
             return jsonify({
                 'success': False,
-                'error': 'Validação falhou',
+                'error': 'Valida��o falhou',
                 'validacao': validacao
             }), 400
         
@@ -15041,27 +15041,27 @@ def exportar_lancamentos_speed_api():
         })
         
     except Exception as e:
-        logger.error(f"Erro ao exportar lançamentos: {e}")
+        logger.error(f"Erro ao exportar lan�amentos: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # =============================================================================
-# RELATÓRIOS CONTÁBEIS - FASE 3 SPEED
+# RELAT�RIOS CONT�BEIS - FASE 3 SPEED
 # =============================================================================
 
 @app.route('/api/relatorios/balancete', methods=['POST'])
 @require_auth
 def gerar_balancete_api():
-    """Gera Balancete de Verificação"""
+    """Gera Balancete de Verifica��o"""
     try:
         user = request.user
         empresa_id = user['empresa_id']
         
         data = request.get_json()
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         if not data.get('data_inicio') or not data.get('data_fim'):
-            return jsonify({'success': False, 'error': 'Período é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'Per�odo � obrigat�rio'}), 400
         
         # Converter datas
         from datetime import datetime
@@ -15093,16 +15093,16 @@ def gerar_balancete_api():
 @app.route('/api/relatorios/dre', methods=['POST'])
 @require_auth
 def gerar_dre_api():
-    """Gera DRE (Demonstração do Resultado do Exercício) COMPLETA"""
+    """Gera DRE (Demonstra��o do Resultado do Exerc�cio) COMPLETA"""
     try:
         user = request.usuario
         empresa_id = user['empresa_id']
         
         data = request.get_json()
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         if not data.get('data_inicio') or not data.get('data_fim'):
-            return jsonify({'success': False, 'error': 'Período é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'Per�odo � obrigat�rio'}), 400
         
         # Converter datas
         from datetime import datetime
@@ -15142,9 +15142,9 @@ def gerar_dre_pdf_api():
         
         data = request.get_json()
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         if not data.get('data_inicio') or not data.get('data_fim'):
-            return jsonify({'success': False, 'error': 'Período é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'Per�odo � obrigat�rio'}), 400
         
         # Converter datas
         data_inicio = datetime.strptime(data['data_inicio'], '%Y-%m-%d').date()
@@ -15170,7 +15170,7 @@ def gerar_dre_pdf_api():
         if not dados_dre.get('success'):
             return jsonify({'success': False, 'error': 'Erro ao gerar dados da DRE'}), 400
         
-        # Formatar período para o PDF
+        # Formatar per�odo para o PDF
         periodo = f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
         
         # Gerar PDF
@@ -15213,9 +15213,9 @@ def gerar_dre_excel_api():
         
         data = request.get_json()
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         if not data.get('data_inicio') or not data.get('data_fim'):
-            return jsonify({'success': False, 'error': 'Período é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'Per�odo � obrigat�rio'}), 400
         
         # Converter datas
         data_inicio = datetime.strptime(data['data_inicio'], '%Y-%m-%d').date()
@@ -15241,7 +15241,7 @@ def gerar_dre_excel_api():
         if not dados_dre.get('success'):
             return jsonify({'success': False, 'error': 'Erro ao gerar dados da DRE'}), 400
         
-        # Formatar período para o Excel
+        # Formatar per�odo para o Excel
         periodo = f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
         
         # Gerar Excel
@@ -15270,7 +15270,7 @@ def gerar_dre_excel_api():
 
 
 # ============================================================================
-# CONFIGURAÇÃO DRE - MAPEAMENTO DE SUBCATEGORIAS
+# CONFIGURA��O DRE - MAPEAMENTO DE SUBCATEGORIAS
 # ============================================================================
 
 @app.route('/api/dre/configuracao/mapeamentos', methods=['GET'])
@@ -15284,7 +15284,7 @@ def listar_mapeamentos_dre():
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
-            # Buscar mapeamentos com informações das subcategorias e contas
+            # Buscar mapeamentos com informa��es das subcategorias e contas
             cursor.execute("""
                 SELECT 
                     m.id,
@@ -15355,11 +15355,11 @@ def criar_mapeamento_dre():
         
         data = request.get_json()
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         if not data.get('subcategoria_id') or not data.get('plano_contas_id'):
             return jsonify({
                 'success': False,
-                'error': 'subcategoria_id e plano_contas_id são obrigatórios'
+                'error': 'subcategoria_id e plano_contas_id s�o obrigat�rios'
             }), 400
         
         subcategoria_id = data['subcategoria_id']
@@ -15368,7 +15368,7 @@ def criar_mapeamento_dre():
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
-            # Verificar se a subcategoria pertence à empresa
+            # Verificar se a subcategoria pertence � empresa
             cursor.execute("""
                 SELECT s.id, s.nome, c.nome as categoria_nome, c.empresa_id
                 FROM subcategorias s
@@ -15378,12 +15378,12 @@ def criar_mapeamento_dre():
             
             subcategoria = cursor.fetchone()
             if not subcategoria:
-                return jsonify({'success': False, 'error': 'Subcategoria não encontrada'}), 404
+                return jsonify({'success': False, 'error': 'Subcategoria n�o encontrada'}), 404
             
             if subcategoria['empresa_id'] != empresa_id:
-                return jsonify({'success': False, 'error': 'Subcategoria não pertence a esta empresa'}), 403
+                return jsonify({'success': False, 'error': 'Subcategoria n�o pertence a esta empresa'}), 403
             
-            # Verificar se a conta do plano pertence à empresa e é DRE (códigos 4, 5, 6, 7)
+            # Verificar se a conta do plano pertence � empresa e � DRE (c�digos 4, 5, 6, 7)
             cursor.execute("""
                 SELECT id, codigo, descricao, classificacao, empresa_id
                 FROM plano_contas
@@ -15398,10 +15398,10 @@ def criar_mapeamento_dre():
             if not plano_contas:
                 return jsonify({
                     'success': False,
-                    'error': 'Conta do plano não encontrada ou não é válida para DRE (deve ser código 4.x, 5.x, 6.x ou 7.x)'
+                    'error': 'Conta do plano n�o encontrada ou n�o � v�lida para DRE (deve ser c�digo 4.x, 5.x, 6.x ou 7.x)'
                 }), 404
             
-            # Verificar se já existe mapeamento para esta subcategoria
+            # Verificar se j� existe mapeamento para esta subcategoria
             cursor.execute("""
                 SELECT id FROM dre_mapeamento_subcategoria
                 WHERE empresa_id = %s AND subcategoria_id = %s
@@ -15410,7 +15410,7 @@ def criar_mapeamento_dre():
             if cursor.fetchone():
                 return jsonify({
                     'success': False,
-                    'error': 'Já existe um mapeamento para esta subcategoria. Atualize o existente ou exclua-o primeiro.'
+                    'error': 'J� existe um mapeamento para esta subcategoria. Atualize o existente ou exclua-o primeiro.'
                 }), 409
             
             # Criar o mapeamento
@@ -15467,16 +15467,16 @@ def atualizar_mapeamento_dre(mapeamento_id):
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
-            # Verificar se o mapeamento existe e pertence à empresa
+            # Verificar se o mapeamento existe e pertence � empresa
             cursor.execute("""
                 SELECT id FROM dre_mapeamento_subcategoria
                 WHERE id = %s AND empresa_id = %s
             """, (mapeamento_id, empresa_id))
             
             if not cursor.fetchone():
-                return jsonify({'success': False, 'error': 'Mapeamento não encontrado'}), 404
+                return jsonify({'success': False, 'error': 'Mapeamento n�o encontrado'}), 404
             
-            # Campos atualizáveis
+            # Campos atualiz�veis
             updates = []
             params = []
             
@@ -15495,7 +15495,7 @@ def atualizar_mapeamento_dre(mapeamento_id):
                 if not cursor.fetchone():
                     return jsonify({
                         'success': False,
-                        'error': 'Conta do plano inválida para DRE'
+                        'error': 'Conta do plano inv�lida para DRE'
                     }), 400
                 
                 updates.append('plano_contas_id = %s')
@@ -15547,7 +15547,7 @@ def excluir_mapeamento_dre(mapeamento_id):
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             
-            # Verificar se o mapeamento existe e pertence à empresa
+            # Verificar se o mapeamento existe e pertence � empresa
             cursor.execute("""
                 DELETE FROM dre_mapeamento_subcategoria
                 WHERE id = %s AND empresa_id = %s
@@ -15557,14 +15557,14 @@ def excluir_mapeamento_dre(mapeamento_id):
             result = cursor.fetchone()
             
             if not result:
-                return jsonify({'success': False, 'error': 'Mapeamento não encontrado'}), 404
+                return jsonify({'success': False, 'error': 'Mapeamento n�o encontrado'}), 404
             
             conn.commit()
             cursor.close()
         
         return jsonify({
             'success': True,
-            'message': 'Mapeamento excluído com sucesso'
+            'message': 'Mapeamento exclu�do com sucesso'
         })
         
     except Exception as e:
@@ -15575,7 +15575,7 @@ def excluir_mapeamento_dre(mapeamento_id):
 @app.route('/api/dre/configuracao/subcategorias-disponiveis', methods=['GET'])
 @require_auth
 def listar_subcategorias_disponiveis_dre():
-    """Lista subcategorias que ainda não têm mapeamento para o DRE"""
+    """Lista subcategorias que ainda n�o t�m mapeamento para o DRE"""
     try:
         user = request.usuario
         empresa_id = user['empresa_id']
@@ -15621,19 +15621,19 @@ def listar_subcategorias_disponiveis_dre():
         })
         
     except Exception as e:
-        logger.error(f"Erro ao listar subcategorias disponíveis: {e}")
+        logger.error(f"Erro ao listar subcategorias dispon�veis: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/dre/configuracao/plano-contas-dre', methods=['GET'])
 @require_auth
 def listar_plano_contas_dre():
-    """Lista contas do plano de contas válidas para DRE (códigos 4, 5, 6, 7)"""
+    """Lista contas do plano de contas v�lidas para DRE (c�digos 4, 5, 6, 7)"""
     try:
         user = request.usuario
         empresa_id = user['empresa_id']
         
-        # Parâmetro opcional para filtrar por classificação
+        # Par�metro opcional para filtrar por classifica��o
         classificacao = request.args.get('classificacao')  # 'receita' ou 'despesa'
         
         with get_db_connection(empresa_id=empresa_id) as conn:
@@ -15664,10 +15664,10 @@ def listar_plano_contas_dre():
             
             contas = []
             for row in cursor.fetchall():
-                # Determinar grupo DRE baseado no código
+                # Determinar grupo DRE baseado no c�digo
                 codigo = row['codigo']
                 if codigo.startswith('4.9'):
-                    grupo_dre = 'Deduções da Receita'
+                    grupo_dre = 'Dedu��es da Receita'
                 elif codigo.startswith('4'):
                     grupo_dre = 'Receita Bruta'
                 elif codigo.startswith('5'):
@@ -15704,7 +15704,7 @@ def listar_plano_contas_dre():
 
 
 # ============================================================================
-# FIM - CONFIGURAÇÃO DRE
+# FIM - CONFIGURA��O DRE
 # ============================================================================
 
 
@@ -15715,16 +15715,16 @@ def dashboard_gerencial_api():
     Dashboard Gerencial Completo
     
     Retorna:
-    - KPIs do mês (receita, despesas, lucro, margem)
-    - Evolução mensal (12 meses)
-    - Ponto de equilíbrio
-    - Comparação com mês anterior
+    - KPIs do m�s (receita, despesas, lucro, margem)
+    - Evolu��o mensal (12 meses)
+    - Ponto de equil�brio
+    - Compara��o com m�s anterior
     """
     try:
         user = request.user
         empresa_id = user['empresa_id']
         
-        # Parâmetros opcionais
+        # Par�metros opcionais
         data_referencia_str = request.args.get('data_referencia')
         versao_plano_id = request.args.get('versao_plano_id', type=int)
         
@@ -15766,7 +15766,7 @@ def gerar_dashboard_pdf_api():
         user = request.usuario
         empresa_id = user['empresa_id']
         
-        # Parâmetros
+        # Par�metros
         data_referencia_str = request.args.get('data_referencia')
         versao_plano_id = request.args.get('versao_plano_id', type=int)
         
@@ -15793,7 +15793,7 @@ def gerar_dashboard_pdf_api():
         if not dados_dashboard.get('success'):
             return jsonify({'success': False, 'error': 'Erro ao gerar dados do dashboard'}), 400
         
-        # Formatar mês de referência
+        # Formatar m�s de refer�ncia
         mes_ref = dados_dashboard['dashboard'].get('mes_referencia', '')
         
         # Gerar PDF
@@ -15835,7 +15835,7 @@ def gerar_dashboard_excel_api():
         user = request.usuario
         empresa_id = user['empresa_id']
         
-        # Parâmetros
+        # Par�metros
         data_referencia_str = request.args.get('data_referencia')
         versao_plano_id = request.args.get('versao_plano_id', type=int)
         
@@ -15862,7 +15862,7 @@ def gerar_dashboard_excel_api():
         if not dados_dashboard.get('success'):
             return jsonify({'success': False, 'error': 'Erro ao gerar dados do dashboard'}), 400
         
-        # Formatar mês de referência
+        # Formatar m�s de refer�ncia
         mes_ref = dados_dashboard['dashboard'].get('mes_referencia', '')
         
         # Gerar Excel
@@ -15894,16 +15894,16 @@ def gerar_dashboard_excel_api():
 @app.route('/api/relatorios/balanco-patrimonial', methods=['POST'])
 @require_auth
 def gerar_balanco_patrimonial_api():
-    """Gera Balanço Patrimonial"""
+    """Gera Balan�o Patrimonial"""
     try:
         user = request.user
         empresa_id = user['empresa_id']
         
         data = request.get_json()
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         if not data.get('data_referencia'):
-            return jsonify({'success': False, 'error': 'Data de referência é obrigatória'}), 400
+            return jsonify({'success': False, 'error': 'Data de refer�ncia � obrigat�ria'}), 400
         
         # Converter data
         from datetime import datetime
@@ -15922,25 +15922,25 @@ def gerar_balanco_patrimonial_api():
         
         return jsonify(resultado)
     except Exception as e:
-        logger.error(f"Erro ao gerar balanço patrimonial: {e}")
+        logger.error(f"Erro ao gerar balan�o patrimonial: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/relatorios/razao-contabil', methods=['POST'])
 @require_auth
 def gerar_razao_contabil_api():
-    """Gera Razão Contábil (extrato de uma conta)"""
+    """Gera Raz�o Cont�bil (extrato de uma conta)"""
     try:
         user = request.user
         empresa_id = user['empresa_id']
         
         data = request.get_json()
         
-        # Validar campos obrigatórios
+        # Validar campos obrigat�rios
         if not data.get('conta_id'):
-            return jsonify({'success': False, 'error': 'ID da conta é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'ID da conta � obrigat�rio'}), 400
         if not data.get('data_inicio') or not data.get('data_fim'):
-            return jsonify({'success': False, 'error': 'Período é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'Per�odo � obrigat�rio'}), 400
         
         # Converter datas
         from datetime import datetime
@@ -15961,7 +15961,7 @@ def gerar_razao_contabil_api():
         
         return jsonify(resultado)
     except Exception as e:
-        logger.error(f"Erro ao gerar razão contábil: {e}")
+        logger.error(f"Erro ao gerar raz�o cont�bil: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -16066,14 +16066,14 @@ def exportar_dre_api():
 @app.route('/api/relatorios/balanco-patrimonial/exportar', methods=['POST'])
 @require_auth
 def exportar_balanco_patrimonial_api():
-    """Exporta Balanço Patrimonial em TXT"""
+    """Exporta Balan�o Patrimonial em TXT"""
     try:
         user = request.user
         empresa_id = user['empresa_id']
         
         data = request.get_json()
         
-        # Gerar Balanço
+        # Gerar Balan�o
         from datetime import datetime
         data_referencia = datetime.strptime(data['data_referencia'], '%Y-%m-%d').date()
         
@@ -16102,21 +16102,21 @@ def exportar_balanco_patrimonial_api():
             'balanco_fechado': balanco.get('validacao', {}).get('balanco_fechado', False)
         })
     except Exception as e:
-        logger.error(f"Erro ao exportar balanço: {e}")
+        logger.error(f"Erro ao exportar balan�o: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/relatorios/razao-contabil/exportar', methods=['POST'])
 @require_auth
 def exportar_razao_contabil_api():
-    """Exporta Razão Contábil em TXT"""
+    """Exporta Raz�o Cont�bil em TXT"""
     try:
         user = request.user
         empresa_id = user['empresa_id']
         
         data = request.get_json()
         
-        # Gerar Razão
+        # Gerar Raz�o
         from datetime import datetime
         data_inicio = datetime.strptime(data['data_inicio'], '%Y-%m-%d').date()
         data_fim = datetime.strptime(data['data_fim'], '%Y-%m-%d').date()
@@ -16147,7 +16147,7 @@ def exportar_razao_contabil_api():
             'total_movimentacoes': razao.get('total_movimentacoes', 0)
         })
     except Exception as e:
-        logger.error(f"Erro ao exportar razão: {e}")
+        logger.error(f"Erro ao exportar raz�o: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -16159,7 +16159,7 @@ def exportar_razao_contabil_api():
 @require_auth
 def sped_ecd_gerar():
     """
-    Gera arquivo SPED ECD (Escrituração Contábil Digital)
+    Gera arquivo SPED ECD (Escritura��o Cont�bil Digital)
     
     Body:
     {
@@ -16185,7 +16185,7 @@ def sped_ecd_gerar():
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
         
-        # Validações
+        # Valida��es
         data_inicio = data.get('data_inicio')
         data_fim = data.get('data_fim')
         versao_plano_id = data.get('versao_plano_id')
@@ -16193,7 +16193,7 @@ def sped_ecd_gerar():
         if not data_inicio or not data_fim:
             return jsonify({
                 'success': False,
-                'error': 'data_inicio e data_fim são obrigatórios'
+                'error': 'data_inicio e data_fim s�o obrigat�rios'
             }), 400
         
         # Gerar ECD
@@ -16243,7 +16243,7 @@ def sped_ecd_exportar():
     Returns:
     {
         "success": true,
-        "conteudo": "conteúdo completo do arquivo TXT",
+        "conteudo": "conte�do completo do arquivo TXT",
         "total_linhas": 1234,
         "hash": "ABC123...",
         "nome_arquivo": "ECD_CNPJ_AAAAMMDD.txt"
@@ -16257,7 +16257,7 @@ def sped_ecd_exportar():
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
         
-        # Validações
+        # Valida��es
         data_inicio = data.get('data_inicio')
         data_fim = data.get('data_fim')
         versao_plano_id = data.get('versao_plano_id')
@@ -16265,7 +16265,7 @@ def sped_ecd_exportar():
         if not data_inicio or not data_fim:
             return jsonify({
                 'success': False,
-                'error': 'data_inicio e data_fim são obrigatórios'
+                'error': 'data_inicio e data_fim s�o obrigat�rios'
             }), 400
         
         # Gerar ECD
@@ -16309,14 +16309,14 @@ def sped_ecd_exportar():
 
 
 # =============================================================================
-# SPED EFD-CONTRIBUIÇÕES - FASE 5 SPEED
+# SPED EFD-CONTRIBUI��ES - FASE 5 SPEED
 # =============================================================================
 
 @app.route('/api/sped/efd-contribuicoes/calcular', methods=['POST'])
 @require_auth
 def sped_efd_contribuicoes_calcular():
     """
-    Calcula apuração mensal de PIS/COFINS sem gerar arquivo
+    Calcula apura��o mensal de PIS/COFINS sem gerar arquivo
     
     Body:
     {
@@ -16353,14 +16353,14 @@ def sped_efd_contribuicoes_calcular():
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
         
-        # Validações
+        # Valida��es
         mes = data.get('mes')
         ano = data.get('ano')
         
         if not mes or not ano:
             return jsonify({
                 'success': False,
-                'error': 'mes e ano são obrigatórios'
+                'error': 'mes e ano s�o obrigat�rios'
             }), 400
         
         if not isinstance(mes, int) or mes < 1 or mes > 12:
@@ -16372,10 +16372,10 @@ def sped_efd_contribuicoes_calcular():
         if not isinstance(ano, int) or ano < 2000 or ano > 2100:
             return jsonify({
                 'success': False,
-                'error': 'ano inválido'
+                'error': 'ano inv�lido'
             }), 400
         
-        # Calcular apuração
+        # Calcular apura��o
         resultado = calcular_apuracao_mensal(
             empresa_id=empresa_id,
             mes=mes,
@@ -16396,13 +16396,13 @@ def sped_efd_contribuicoes_calcular():
 @require_auth
 def sped_efd_contribuicoes_gerar():
     """
-    Gera arquivo EFD-Contribuições com preview
+    Gera arquivo EFD-Contribui��es com preview
     
     Body:
     {
         "mes": 1-12,
         "ano": 2026,
-        "usar_creditos_reais": true  # Opcional, padrão: true
+        "usar_creditos_reais": true  # Opcional, padr�o: true
     }
     
     Returns:
@@ -16431,7 +16431,7 @@ def sped_efd_contribuicoes_gerar():
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
         
-        # Validações
+        # Valida��es
         mes = data.get('mes')
         ano = data.get('ano')
         usar_creditos_reais = data.get('usar_creditos_reais', True)
@@ -16439,7 +16439,7 @@ def sped_efd_contribuicoes_gerar():
         if not mes or not ano:
             return jsonify({
                 'success': False,
-                'error': 'mes e ano são obrigatórios'
+                'error': 'mes e ano s�o obrigat�rios'
             }), 400
         
         if not isinstance(mes, int) or mes < 1 or mes > 12:
@@ -16451,10 +16451,10 @@ def sped_efd_contribuicoes_gerar():
         if not isinstance(ano, int) or ano < 2000 or ano > 2100:
             return jsonify({
                 'success': False,
-                'error': 'ano inválido'
+                'error': 'ano inv�lido'
             }), 400
         
-        # Gerar EFD-Contribuições
+        # Gerar EFD-Contribui��es
         resultado = gerar_arquivo_efd_contribuicoes(
             empresa_id=empresa_id,
             mes=mes,
@@ -16483,7 +16483,7 @@ def sped_efd_contribuicoes_gerar():
         })
         
     except Exception as e:
-        logger.error(f"Erro ao gerar EFD-Contribuições: {e}")
+        logger.error(f"Erro ao gerar EFD-Contribui��es: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -16491,19 +16491,19 @@ def sped_efd_contribuicoes_gerar():
 @require_auth
 def sped_efd_contribuicoes_exportar():
     """
-    Exporta arquivo EFD-Contribuições completo
+    Exporta arquivo EFD-Contribui��es completo
     
     Body:
     {
         "mes": 1-12,
         "ano": 2026,
-        "usar_creditos_reais": true  # Opcional, padrão: true
+        "usar_creditos_reais": true  # Opcional, padr�o: true
     }
     
     Returns:
     {
         "success": true,
-        "conteudo": "conteúdo completo do arquivo TXT",
+        "conteudo": "conte�do completo do arquivo TXT",
         "total_linhas": 450,
         "hash": "ABC123...",
         "nome_arquivo": "EFD_Contribuicoes_CNPJ_AAAAMM.txt",
@@ -16523,7 +16523,7 @@ def sped_efd_contribuicoes_exportar():
         usuario = get_usuario_logado()
         empresa_id = usuario.get('empresa_id')
         
-        # Validações
+        # Valida��es
         mes = data.get('mes')
         ano = data.get('ano')
         usar_creditos_reais = data.get('usar_creditos_reais', True)
@@ -16531,7 +16531,7 @@ def sped_efd_contribuicoes_exportar():
         if not mes or not ano:
             return jsonify({
                 'success': False,
-                'error': 'mes e ano são obrigatórios'
+                'error': 'mes e ano s�o obrigat�rios'
             }), 400
         
         if not isinstance(mes, int) or mes < 1 or mes > 12:
@@ -16543,10 +16543,10 @@ def sped_efd_contribuicoes_exportar():
         if not isinstance(ano, int) or ano < 2000 or ano > 2100:
             return jsonify({
                 'success': False,
-                'error': 'ano inválido'
+                'error': 'ano inv�lido'
             }), 400
         
-        # Gerar EFD-Contribuições
+        # Gerar EFD-Contribui��es
         resultado = gerar_arquivo_efd_contribuicoes(
             empresa_id=empresa_id,
             mes=mes,
@@ -16583,7 +16583,7 @@ def sped_efd_contribuicoes_exportar():
         })
         
     except Exception as e:
-        logger.error(f"Erro ao exportar EFD-Contribuições: {e}")
+        logger.error(f"Erro ao exportar EFD-Contribui��es: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -16594,7 +16594,7 @@ def sped_efd_contribuicoes_exportar():
 @app.route('/api/integra-contador/enviar', methods=['POST'])
 @require_auth
 def integra_contador_enviar():
-    """Envia requisição para a API Integra Contador do SERPRO"""
+    """Envia requisi��o para a API Integra Contador do SERPRO"""
     try:
         data = request.get_json()
         
@@ -16604,10 +16604,10 @@ def integra_contador_enviar():
         if not tipo_operacao or not payload:
             return jsonify({
                 'success': False,
-                'error': 'tipoOperacao e payload são obrigatórios'
+                'error': 'tipoOperacao e payload s�o obrigat�rios'
             }), 400
         
-        # Importar funções
+        # Importar fun��es
         from integra_contador_functions import enviar_requisicao, validar_payload
         
         # Validar payload
@@ -16615,16 +16615,16 @@ def integra_contador_enviar():
         if not valido:
             return jsonify({
                 'success': False,
-                'error': f'Validação falhou: {mensagem}'
+                'error': f'Valida��o falhou: {mensagem}'
             }), 400
         
-        # Enviar requisição
+        # Enviar requisi��o
         resultado = enviar_requisicao(tipo_operacao, payload)
         
         return jsonify(resultado)
         
     except Exception as e:
-        logger.error(f"Erro ao enviar requisição Integra Contador: {e}")
+        logger.error(f"Erro ao enviar requisi��o Integra Contador: {e}")
         return jsonify({
             'success': False,
             'error': f'Erro no servidor: {str(e)}'
@@ -16634,13 +16634,13 @@ def integra_contador_enviar():
 @app.route('/api/integra-contador/testar', methods=['GET'])
 @require_auth
 def integra_contador_testar():
-    """Testa conexão com a API Integra Contador"""
+    """Testa conex�o com a API Integra Contador"""
     try:
         from integra_contador_functions import testar_conexao
         resultado = testar_conexao()
         return jsonify(resultado)
     except Exception as e:
-        logger.error(f"Erro ao testar conexão: {e}")
+        logger.error(f"Erro ao testar conex�o: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -16650,7 +16650,7 @@ def integra_contador_testar():
 @app.route('/api/integra-contador/token', methods=['GET'])
 @require_auth
 def integra_contador_token():
-    """Obtém token de acesso (apenas para debug)"""
+    """Obt�m token de acesso (apenas para debug)"""
     try:
         from integra_contador_functions import obter_token
         token = obter_token()
@@ -16667,13 +16667,13 @@ def integra_contador_token():
         }), 500
 
 
-# ===== MÓDULO FISCAL FEDERAL (Integra Contador SERPRO) =====
+# ===== M�DULO FISCAL FEDERAL (Integra Contador SERPRO) =====
 
 def _fiscal_get_db_empresa():
     """Helper: retorna (db, empresa_id) ou raises ValueError."""
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        raise ValueError('Empresa não identificada')
+        raise ValueError('Empresa n�o identificada')
     return db, empresa_id
 
 
@@ -17075,7 +17075,7 @@ def fiscal_fila_adicionar():
         tipo = data.get('tipo', '')
         parametros = data.get('parametros', {})
         if not tipo:
-            return jsonify({'success': False, 'error': 'Campo tipo é obrigatório'}), 400
+            return jsonify({'success': False, 'error': 'Campo tipo � obrigat�rio'}), 400
         with database.get_connection() as conn:
             cur = conn.cursor()
             cur.execute(
@@ -17087,7 +17087,7 @@ def fiscal_fila_adicionar():
             novo_id = row['id'] if hasattr(row, 'keys') else row[0]
             conn.commit()
             cur.close()
-        return jsonify({'success': True, 'id': novo_id, 'message': 'Adicionado à fila com sucesso'})
+        return jsonify({'success': True, 'id': novo_id, 'message': 'Adicionado � fila com sucesso'})
     except ValueError as e:
         return jsonify({'success': False, 'error': str(e)}), 403
     except Exception as e:
@@ -17096,19 +17096,19 @@ def fiscal_fila_adicionar():
 
 
 # ============================================================================
-# EFD-REINF — Módulo Completo
+# EFD-REINF � M�dulo Completo
 # ============================================================================
 
 def _reinf_get_db_empresa():
-    """Helper: retorna (db, empresa_id) ou lança ValueError."""
+    """Helper: retorna (db, empresa_id) ou lan�a ValueError."""
     empresa_id = session.get('empresa_id')
     if not empresa_id:
-        raise ValueError('empresa_id não encontrado na sessão')
-    return db_manager, int(empresa_id)
+        raise ValueError('empresa_id n�o encontrado na sess�o')
+    return db, int(empresa_id)
 
 
 @app.route('/api/reinf/competencias', methods=['GET'])
-@login_required
+@require_auth
 def reinf_listar_competencias():
     try:
         db, eid = _reinf_get_db_empresa()
@@ -17122,9 +17122,9 @@ def reinf_listar_competencias():
 
 
 @app.route('/api/reinf/competencia/<comp>', methods=['GET'])
-@login_required
+@require_auth
 def reinf_carregar_competencia(comp):
-    """Lista todos os eventos de uma competência."""
+    """Lista todos os eventos de uma compet�ncia."""
     try:
         db, eid = _reinf_get_db_empresa()
         from reinf_service import listar_eventos
@@ -17138,7 +17138,7 @@ def reinf_carregar_competencia(comp):
 
 
 @app.route('/api/reinf/dashboard/<comp>', methods=['GET'])
-@login_required
+@require_auth
 def reinf_dashboard(comp):
     try:
         db, eid = _reinf_get_db_empresa()
@@ -17152,7 +17152,7 @@ def reinf_dashboard(comp):
 
 
 @app.route('/api/reinf/motor-sugestoes/<comp>', methods=['GET'])
-@login_required
+@require_auth
 def reinf_motor_sugestoes(comp):
     try:
         db, eid = _reinf_get_db_empresa()
@@ -17166,7 +17166,7 @@ def reinf_motor_sugestoes(comp):
 
 
 @app.route('/api/reinf/evento/criar', methods=['POST'])
-@login_required
+@require_auth
 @csrf_instance.exempt
 def reinf_criar_evento():
     try:
@@ -17178,7 +17178,7 @@ def reinf_criar_evento():
         identificador = body.get('identificador')
 
         if not evento or not competencia:
-            return jsonify({'success': False, 'error': 'Campos obrigatórios: evento, competencia'}), 400
+            return jsonify({'success': False, 'error': 'Campos obrigat�rios: evento, competencia'}), 400
 
         from reinf_service import criar_evento, validar_evento
         erros = validar_evento(db, eid, evento, payload_dados, competencia)
@@ -17196,7 +17196,7 @@ def reinf_criar_evento():
 
 
 @app.route('/api/reinf/evento/<evento_id>/enviar', methods=['POST'])
-@login_required
+@require_auth
 @csrf_instance.exempt
 def reinf_enviar_evento(evento_id):
     try:
@@ -17206,7 +17206,7 @@ def reinf_enviar_evento(evento_id):
         autor_doc        = body.get('autor_doc', '')
 
         if not contratante_cnpj or not autor_doc:
-            return jsonify({'success': False, 'error': 'contratante_cnpj e autor_doc são obrigatórios'}), 400
+            return jsonify({'success': False, 'error': 'contratante_cnpj e autor_doc s�o obrigat�rios'}), 400
 
         from reinf_service import enviar_evento
         resultado = enviar_evento(db, eid, evento_id, contratante_cnpj, autor_doc)
@@ -17219,14 +17219,14 @@ def reinf_enviar_evento(evento_id):
 
 
 @app.route('/api/reinf/evento/<evento_id>', methods=['GET'])
-@login_required
+@require_auth
 def reinf_detalhe_evento(evento_id):
     try:
         db, eid = _reinf_get_db_empresa()
         from reinf_service import obter_evento
         ev = obter_evento(db, eid, evento_id)
         if not ev:
-            return jsonify({'success': False, 'error': 'Evento não encontrado'}), 404
+            return jsonify({'success': False, 'error': 'Evento n�o encontrado'}), 404
         return jsonify({'success': True, 'data': ev})
     except ValueError as e:
         return jsonify({'success': False, 'error': str(e)}), 403
@@ -17236,7 +17236,7 @@ def reinf_detalhe_evento(evento_id):
 
 
 @app.route('/api/reinf/evento/<evento_id>/consultar-status', methods=['POST'])
-@login_required
+@require_auth
 @csrf_instance.exempt
 def reinf_consultar_status(evento_id):
     try:
@@ -17255,13 +17255,13 @@ def reinf_consultar_status(evento_id):
 
 
 @app.route('/api/reinf/evento/<evento_id>/excluir', methods=['POST'])
-@login_required
+@require_auth
 @csrf_instance.exempt
 def reinf_excluir_evento(evento_id):
     try:
         db, eid = _reinf_get_db_empresa()
         body = request.get_json() or {}
-        motivo = body.get('motivo', 'Exclusão manual')
+        motivo = body.get('motivo', 'Exclus�o manual')
         from reinf_service import excluir_evento
         resultado = excluir_evento(db, eid, evento_id, motivo)
         return jsonify(resultado)
@@ -17273,7 +17273,7 @@ def reinf_excluir_evento(evento_id):
 
 
 @app.route('/api/reinf/fechar', methods=['POST'])
-@login_required
+@require_auth
 @csrf_instance.exempt
 def reinf_fechar_competencia():
     try:
@@ -17285,7 +17285,7 @@ def reinf_fechar_competencia():
         autor_doc        = body.get('autor_doc', '')
 
         if not competencia or not contratante_cnpj or not autor_doc:
-            return jsonify({'success': False, 'error': 'competencia, contratante_cnpj e autor_doc obrigatórios'}), 400
+            return jsonify({'success': False, 'error': 'competencia, contratante_cnpj e autor_doc obrigat�rios'}), 400
 
         from reinf_service import fechar_competencia
         resultado = fechar_competencia(db, eid, competencia, tipo_fechamento, contratante_cnpj, autor_doc)
@@ -17298,7 +17298,7 @@ def reinf_fechar_competencia():
 
 
 @app.route('/api/reinf/reabrir', methods=['POST'])
-@login_required
+@require_auth
 @csrf_instance.exempt
 def reinf_reabrir_competencia():
     try:
@@ -17319,7 +17319,7 @@ def reinf_reabrir_competencia():
 
 
 @app.route('/api/reinf/totalizadores/<comp>', methods=['GET'])
-@login_required
+@require_auth
 def reinf_totalizadores(comp):
     try:
         db, eid = _reinf_get_db_empresa()
@@ -17334,7 +17334,7 @@ def reinf_totalizadores(comp):
 
 
 @app.route('/api/reinf/sincronizar-dctfweb', methods=['POST'])
-@login_required
+@require_auth
 @csrf_instance.exempt
 def reinf_sincronizar_dctfweb():
     try:
@@ -17354,14 +17354,14 @@ def reinf_sincronizar_dctfweb():
 
 
 @app.route('/api/reinf/exportar-xml/<evento_id>', methods=['GET'])
-@login_required
+@require_auth
 def reinf_exportar_xml(evento_id):
     try:
         db, eid = _reinf_get_db_empresa()
         from reinf_service import exportar_xml_evento
         xml = exportar_xml_evento(db, eid, evento_id)
         if xml is None:
-            return jsonify({'success': False, 'error': 'Evento não encontrado'}), 404
+            return jsonify({'success': False, 'error': 'Evento n�o encontrado'}), 404
         from flask import Response
         return Response(xml, mimetype='application/xml',
                         headers={'Content-Disposition': f'attachment; filename=reinf_{evento_id}.xml'})
@@ -17382,14 +17382,14 @@ def importar_nota_fiscal():
     
     Body: {
         "tipo": "NFE" ou "NFSE",
-        "xml_content": "conteúdo do XML"
+        "xml_content": "conte�do do XML"
     }
     """
     try:
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         data = request.get_json()
         tipo = data.get('tipo', '').upper()
@@ -17398,10 +17398,10 @@ def importar_nota_fiscal():
         if not xml_content:
             return jsonify({
                 'success': False,
-                'error': 'XML não fornecido'
+                'error': 'XML n�o fornecido'
             }), 400
         
-        # Importar função apropriada
+        # Importar fun��o apropriada
         from nfe_import_functions import importar_xml_nfe, importar_xml_nfse
         
         if tipo == 'NFE':
@@ -17411,7 +17411,7 @@ def importar_nota_fiscal():
         else:
             return jsonify({
                 'success': False,
-                'error': 'Tipo inválido. Use NFE ou NFSE'
+                'error': 'Tipo inv�lido. Use NFE ou NFSE'
             }), 400
         
         return jsonify(resultado)
@@ -17438,7 +17438,7 @@ def upload_xml_nota_fiscal():
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         # Verificar se foi enviado arquivo
         if 'file' not in request.files:
@@ -17456,10 +17456,10 @@ def upload_xml_nota_fiscal():
                 'error': 'Nome de arquivo vazio'
             }), 400
         
-        # Ler conteúdo do XML
+        # Ler conte�do do XML
         xml_content = file.read().decode('utf-8')
         
-        # Importar função apropriada
+        # Importar fun��o apropriada
         from nfe_import_functions import importar_xml_nfe, importar_xml_nfse
         
         if tipo == 'NFE':
@@ -17500,7 +17500,7 @@ def listar_notas_fiscais():
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         data = request.get_json()
         tipo = data.get('tipo')
@@ -17528,12 +17528,12 @@ def listar_notas_fiscais():
 @app.route('/api/notas-fiscais/<int:nota_id>', methods=['GET'])
 @require_auth
 def obter_nota_fiscal(nota_id):
-    """Obtém detalhes completos de uma nota fiscal"""
+    """Obt�m detalhes completos de uma nota fiscal"""
     try:
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         from nfe_import_functions import obter_detalhes_nota_fiscal
         detalhes = obter_detalhes_nota_fiscal(nota_id)
@@ -17541,10 +17541,10 @@ def obter_nota_fiscal(nota_id):
         if not detalhes:
             return jsonify({
                 'success': False,
-                'error': 'Nota fiscal não encontrada'
+                'error': 'Nota fiscal n�o encontrada'
             }), 404
         
-        # Verificar se a nota pertence à empresa
+        # Verificar se a nota pertence � empresa
         if detalhes['nota']['empresa_id'] != empresa_id:
             return jsonify({
                 'success': False,
@@ -17568,7 +17568,7 @@ def obter_nota_fiscal(nota_id):
 @require_auth
 def calcular_totais_notas():
     """
-    Calcula totais de notas fiscais no período
+    Calcula totais de notas fiscais no per�odo
     
     Body: {
         "data_inicio": "2026-01-01",
@@ -17579,7 +17579,7 @@ def calcular_totais_notas():
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         data = request.get_json()
         data_inicio = data.get('data_inicio')
@@ -17588,7 +17588,7 @@ def calcular_totais_notas():
         if not data_inicio or not data_fim:
             return jsonify({
                 'success': False,
-                'error': 'data_inicio e data_fim são obrigatórios'
+                'error': 'data_inicio e data_fim s�o obrigat�rios'
             }), 400
         
         from nfe_import_functions import calcular_totais_periodo
@@ -17611,25 +17611,25 @@ def calcular_totais_notas():
         }), 500
 
 
-# ===== CRÉDITOS TRIBUTÁRIOS =====
+# ===== CR�DITOS TRIBUT�RIOS =====
 
 @app.route('/api/creditos-tributarios/calcular', methods=['POST'])
 @require_auth
 def calcular_creditos_tributarios():
     """
-    Calcula créditos tributários de PIS/COFINS
+    Calcula cr�ditos tribut�rios de PIS/COFINS
     
     Body: {
         "mes": 1,
         "ano": 2026,
-        "tipos": ["INSUMOS", "ENERGIA", "ALUGUEL"] (opcional - calcula todos se não informado)
+        "tipos": ["INSUMOS", "ENERGIA", "ALUGUEL"] (opcional - calcula todos se n�o informado)
     }
     """
     try:
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         data = request.get_json()
         mes = data.get('mes')
@@ -17639,7 +17639,7 @@ def calcular_creditos_tributarios():
         if not mes or not ano:
             return jsonify({
                 'success': False,
-                'error': 'mes e ano são obrigatórios'
+                'error': 'mes e ano s�o obrigat�rios'
             }), 400
         
         from creditos_tributarios_functions import (
@@ -17649,7 +17649,7 @@ def calcular_creditos_tributarios():
             calcular_creditos_aluguel
         )
         
-        # Se não especificou tipos, calcular todos
+        # Se n�o especificou tipos, calcular todos
         if not tipos:
             resultado = calcular_todos_creditos(empresa_id, mes, ano)
         else:
@@ -17694,7 +17694,7 @@ def calcular_creditos_tributarios():
         return jsonify(resultado)
         
     except Exception as e:
-        logger.error(f"Erro ao calcular créditos tributários: {e}")
+        logger.error(f"Erro ao calcular cr�ditos tribut�rios: {e}")
         return jsonify({
             'success': False,
             'error': f'Erro no servidor: {str(e)}'
@@ -17705,7 +17705,7 @@ def calcular_creditos_tributarios():
 @require_auth
 def listar_creditos_tributarios():
     """
-    Lista créditos tributários calculados
+    Lista cr�ditos tribut�rios calculados
     
     Body: {
         "mes": 1,
@@ -17717,7 +17717,7 @@ def listar_creditos_tributarios():
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         data = request.get_json()
         mes = data.get('mes')
@@ -17727,7 +17727,7 @@ def listar_creditos_tributarios():
         if not mes or not ano:
             return jsonify({
                 'success': False,
-                'error': 'mes e ano são obrigatórios'
+                'error': 'mes e ano s�o obrigat�rios'
             }), 400
         
         from creditos_tributarios_functions import listar_creditos_periodo
@@ -17742,7 +17742,7 @@ def listar_creditos_tributarios():
         })
         
     except Exception as e:
-        logger.error(f"Erro ao listar créditos tributários: {e}")
+        logger.error(f"Erro ao listar cr�ditos tribut�rios: {e}")
         return jsonify({
             'success': False,
             'error': f'Erro no servidor: {str(e)}'
@@ -17753,7 +17753,7 @@ def listar_creditos_tributarios():
 @require_auth
 def resumo_creditos_tributarios():
     """
-    Obtém resumo dos créditos tributários
+    Obt�m resumo dos cr�ditos tribut�rios
     
     Body: {
         "mes": 1,
@@ -17764,7 +17764,7 @@ def resumo_creditos_tributarios():
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         data = request.get_json()
         mes = data.get('mes')
@@ -17773,7 +17773,7 @@ def resumo_creditos_tributarios():
         if not mes or not ano:
             return jsonify({
                 'success': False,
-                'error': 'mes e ano são obrigatórios'
+                'error': 'mes e ano s�o obrigat�rios'
             }), 400
         
         from creditos_tributarios_functions import obter_resumo_creditos
@@ -17787,14 +17787,14 @@ def resumo_creditos_tributarios():
         })
         
     except Exception as e:
-        logger.error(f"Erro ao obter resumo de créditos: {e}")
+        logger.error(f"Erro ao obter resumo de cr�ditos: {e}")
         return jsonify({
             'success': False,
             'error': f'Erro no servidor: {str(e)}'
         }), 500
 
 
-# ===== DCTF (Declaração de Débitos Federais) =====
+# ===== DCTF (Declara��o de D�bitos Federais) =====
 
 @app.route('/api/dctf/gerar', methods=['POST'])
 @require_auth
@@ -17811,7 +17811,7 @@ def gerar_dctf():
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         data = request.get_json()
         mes = data.get('mes')
@@ -17820,7 +17820,7 @@ def gerar_dctf():
         if not mes or not ano:
             return jsonify({
                 'success': False,
-                'error': 'mes e ano são obrigatórios'
+                'error': 'mes e ano s�o obrigat�rios'
             }), 400
         
         from dctf_functions import gerar_arquivo_dctf
@@ -17839,7 +17839,7 @@ def gerar_dctf():
         }), 500
 
 
-# ===== DIRF (Declaração de IR Retido na Fonte) =====
+# ===== DIRF (Declara��o de IR Retido na Fonte) =====
 
 @app.route('/api/dirf/gerar', methods=['POST'])
 @require_auth
@@ -17855,7 +17855,7 @@ def gerar_dirf():
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         data = request.get_json()
         ano = data.get('ano')
@@ -17863,7 +17863,7 @@ def gerar_dirf():
         if not ano:
             return jsonify({
                 'success': False,
-                'error': 'ano é obrigatório'
+                'error': 'ano � obrigat�rio'
             }), 400
         
         from dirf_functions import gerar_arquivo_dirf
@@ -17886,7 +17886,7 @@ def gerar_dirf():
 @require_auth
 def resumo_dirf():
     """
-    Obtém resumo da DIRF antes de gerar
+    Obt�m resumo da DIRF antes de gerar
     
     Body: {
         "ano": 2025
@@ -17896,7 +17896,7 @@ def resumo_dirf():
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         data = request.get_json()
         ano = data.get('ano')
@@ -17904,7 +17904,7 @@ def resumo_dirf():
         if not ano:
             return jsonify({
                 'success': False,
-                'error': 'ano é obrigatório'
+                'error': 'ano � obrigat�rio'
             }), 400
         
         from dirf_functions import obter_resumo_dirf
@@ -17921,14 +17921,14 @@ def resumo_dirf():
 
 
 # ============================================================================
-# RELATÓRIOS FISCAIS - NF-e / CT-e
+# RELAT�RIOS FISCAIS - NF-e / CT-e
 # ============================================================================
 
 @app.route('/relatorios/fiscal')
 @require_auth
 @require_permission('relatorios_view')
 def relatorios_fiscal():
-    """Dashboard de relatórios fiscais (NF-e, CT-e)"""
+    """Dashboard de relat�rios fiscais (NF-e, CT-e)"""
     return render_template('relatorios_fiscais.html')
 
 
@@ -17943,7 +17943,7 @@ def listar_certificados():
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -17962,17 +17962,17 @@ def listar_certificados():
             
             certificados = cursor.fetchall()
             
-            # ✅ Valida se a senha pode ser descriptografada
+            # ? Valida se a senha pode ser descriptografada
             from relatorios.nfe import nfe_api
             import os
             chave_cripto = os.environ.get('FERNET_KEY', '').encode('utf-8')
             
             for cert in certificados:
-                # Verifica se a senha está em formato válido
+                # Verifica se a senha est� em formato v�lido
                 senha_cripto = cert.get('senha_pfx', '')
                 if len(senha_cripto) < 50:
                     cert['senha_valida'] = False
-                    cert['erro_senha'] = 'Certificado precisa ser recadastrado (senha em formato inválido)'
+                    cert['erro_senha'] = 'Certificado precisa ser recadastrado (senha em formato inv�lido)'
                 else:
                     try:
                         # Tenta descriptografar para validar
@@ -17981,12 +17981,12 @@ def listar_certificados():
                             cert['senha_valida'] = True
                         else:
                             cert['senha_valida'] = False
-                            cert['erro_senha'] = 'Chave de criptografia não configurada'
+                            cert['erro_senha'] = 'Chave de criptografia n�o configurada'
                     except Exception as e:
                         cert['senha_valida'] = False
                         cert['erro_senha'] = 'Certificado precisa ser recadastrado'
                 
-                # Remove senha_pfx do retorno (segurança)
+                # Remove senha_pfx do retorno (seguran�a)
                 cert.pop('senha_pfx', None)
         
         return jsonify({
@@ -18005,7 +18005,7 @@ def listar_certificados():
 @app.route('/api/certificado/validar', methods=['POST'])
 @require_auth
 def validar_certificado():
-    """Valida e extrai informações de um certificado digital"""
+    """Valida e extrai informa��es de um certificado digital"""
     try:
         dados = request.get_json()
         pfx_base64 = dados.get('pfx_base64')
@@ -18014,14 +18014,14 @@ def validar_certificado():
         if not pfx_base64 or not senha:
             return jsonify({
                 'sucesso': False,
-                'erro': 'Arquivo e senha são obrigatórios'
+                'erro': 'Arquivo e senha s�o obrigat�rios'
             })
         
         # Decodificar base64
         import base64
         pfx_bytes = base64.b64decode(pfx_base64)
         
-        # Processar certificado usando função do NFS-e
+        # Processar certificado usando fun��o do NFS-e
         from nfse_functions import processar_certificado
         info = processar_certificado(pfx_bytes, senha)
         
@@ -18031,10 +18031,10 @@ def validar_certificado():
                 'erro': info.get('error', 'Erro ao processar certificado')
             })
         
-        # Se não conseguiu extrair UF do certificado, tentar consultar ReceitaWS
+        # Se n�o conseguiu extrair UF do certificado, tentar consultar ReceitaWS
         if not info.get('uf') and info.get('cnpj'):
             try:
-                logger.info(f"🔍 UF não encontrada no certificado, consultando ReceitaWS para CNPJ {info['cnpj']}")
+                logger.info(f"?? UF n�o encontrada no certificado, consultando ReceitaWS para CNPJ {info['cnpj']}")
                 import requests
                 cnpj_limpo = info['cnpj'].replace('.', '').replace('/', '').replace('-', '')
                 url = f"https://www.receitaws.com.br/v1/cnpj/{cnpj_limpo}"
@@ -18046,19 +18046,19 @@ def validar_certificado():
                         uf = dados_empresa.get('uf', '').strip().upper()
                         if len(uf) == 2 and uf.isalpha():
                             info['uf'] = uf
-                            logger.info(f"✅ UF obtida via ReceitaWS: {uf}")
+                            logger.info(f"? UF obtida via ReceitaWS: {uf}")
                         else:
-                            logger.warning(f"⚠️ UF inválida retornada pela ReceitaWS: {uf}")
+                            logger.warning(f"?? UF inv�lida retornada pela ReceitaWS: {uf}")
                     else:
-                        logger.warning(f"⚠️ ReceitaWS retornou status: {dados_empresa.get('status')}")
+                        logger.warning(f"?? ReceitaWS retornou status: {dados_empresa.get('status')}")
                 else:
-                    logger.warning(f"⚠️ ReceitaWS retornou status code: {response.status_code}")
+                    logger.warning(f"?? ReceitaWS retornou status code: {response.status_code}")
             except requests.Timeout:
-                logger.warning("⚠️ Timeout ao consultar ReceitaWS (5s)")
+                logger.warning("?? Timeout ao consultar ReceitaWS (5s)")
             except Exception as e:
-                logger.warning(f"⚠️ Erro ao consultar ReceitaWS: {str(e)}")
+                logger.warning(f"?? Erro ao consultar ReceitaWS: {str(e)}")
         
-        # Retornar informações extraídas
+        # Retornar informa��es extra�das
         return jsonify({
             'sucesso': True,
             'certificado': {
@@ -18075,7 +18075,7 @@ def validar_certificado():
     except ValueError as e:
         return jsonify({
             'sucesso': False,
-            'erro': 'Senha incorreta ou arquivo inválido'
+            'erro': 'Senha incorreta ou arquivo inv�lido'
         })
     except Exception as e:
         print(f"Erro ao validar certificado: {e}")
@@ -18096,17 +18096,17 @@ def extrair_dados_certificado():
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'sucesso': False, 'erro': 'Empresa não identificada'}), 403
+            return jsonify({'sucesso': False, 'erro': 'Empresa n�o identificada'}), 403
         
         data = request.get_json()
         
         if not data.get('pfx_base64') or not data.get('senha'):
             return jsonify({
                 'sucesso': False,
-                'erro': 'PFX e senha são obrigatórios'
+                'erro': 'PFX e senha s�o obrigat�rios'
             }), 400
         
-        # Importa módulo de busca (onde está CertificadoA1)
+        # Importa m�dulo de busca (onde est� CertificadoA1)
         from relatorios.nfe import nfe_busca
         
         # Tenta carregar o certificado
@@ -18136,7 +18136,7 @@ def extrair_dados_certificado():
             
             estado_db = (empresa[0] if empresa else '') or ''
             
-            # Mapa de UF (sigla) para código IBGE (cUF)
+            # Mapa de UF (sigla) para c�digo IBGE (cUF)
             uf_para_codigo = {
                 'AC': '12', 'AL': '27', 'AP': '16', 'AM': '13', 'BA': '29',
                 'CE': '23', 'DF': '53', 'ES': '32', 'GO': '52', 'MA': '21',
@@ -18147,7 +18147,7 @@ def extrair_dados_certificado():
             }
             
             # --- Extrai nome do certificado a partir do Subject CN ---
-            # Formato típico BR: CN=NOME EMPRESA:CNPJ14DIGITS ou CN=NOME:CNPJ-TITULAR
+            # Formato t�pico BR: CN=NOME EMPRESA:CNPJ14DIGITS ou CN=NOME:CNPJ-TITULAR
             import re
             subject_str = cert.cert_data.get('subject', '')
             nome_cert_extraido = ''
@@ -18156,10 +18156,10 @@ def extrair_dados_certificado():
             cn_match = re.search(r'(?:^|,)CN=([^,]+)', subject_str)
             if cn_match:
                 cn_value = cn_match.group(1).strip()
-                # Remove parte após ":" (que geralmente é CNPJ ou código)
+                # Remove parte ap�s ":" (que geralmente � CNPJ ou c�digo)
                 nome_cert_extraido = cn_value.split(':')[0].strip()
             
-            # Se não encontrou nome válido no CN, usa O= (Organization)
+            # Se n�o encontrou nome v�lido no CN, usa O= (Organization)
             if not nome_cert_extraido or len(nome_cert_extraido) < 3:
                 o_match = re.search(r'(?:^|,)O=([^,]+)', subject_str)
                 if o_match:
@@ -18171,22 +18171,22 @@ def extrair_dados_certificado():
             
             # --- UF: tenta extrair do Subject, fallback para empresa ---
             uf_sigla = ''
-            # Alguns certs têm ST= (State) no subject
+            # Alguns certs t�m ST= (State) no subject
             st_match = re.search(r'(?:^|,)ST=([A-Z]{2})', subject_str)
             if st_match:
                 uf_sigla = st_match.group(1).strip()
             
-            # Fallback: estado da empresa (somente se for uma sigla válida de 2 letras)
+            # Fallback: estado da empresa (somente se for uma sigla v�lida de 2 letras)
             if not uf_sigla and len(estado_db.strip()) == 2 and estado_db.strip().upper() in uf_para_codigo:
                 uf_sigla = estado_db.strip().upper()
             
-            cuf = uf_para_codigo.get(uf_sigla, '')  # Deixa vazio se não souber
+            cuf = uf_para_codigo.get(uf_sigla, '')  # Deixa vazio se n�o souber
             
             # Extrai CNPJ do certificado
             cnpj_cert = cert.cert_data.get('cnpj', '')
             
             logger.info(f"[CERTIFICADO DEBUG] Subject: {subject_str[:100]}")
-            logger.info(f"[CERTIFICADO DEBUG] Nome extraído do cert: '{nome_cert_extraido}'")
+            logger.info(f"[CERTIFICADO DEBUG] Nome extra�do do cert: '{nome_cert_extraido}'")
             logger.info(f"[CERTIFICADO DEBUG] CNPJ cert: '{cnpj_cert}'")
             logger.info(f"[CERTIFICADO DEBUG] UF: sigla='{uf_sigla}' cuf='{cuf}'")
             
@@ -18231,17 +18231,17 @@ def cadastrar_certificado():
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id') or usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'sucesso': False, 'erro': 'Empresa não identificada'}), 403
+            return jsonify({'sucesso': False, 'erro': 'Empresa n�o identificada'}), 403
         
         data = request.get_json()
         
-        # Validação
+        # Valida��o
         required = ['nome_certificado', 'pfx_base64', 'senha', 'cuf']
         missing = [f for f in required if not data.get(f)]
         if missing:
             return jsonify({
                 'sucesso': False,
-                'erro': f'Campos obrigatórios faltando: {", ".join(missing)}'
+                'erro': f'Campos obrigat�rios faltando: {", ".join(missing)}'
             }), 400
         # CNPJ pode vir do form ou ser derivado da empresa
         if not data.get('cnpj'):
@@ -18254,7 +18254,7 @@ def cadastrar_certificado():
             except Exception:
                 data['cnpj'] = ''
         
-        # Importa módulo de API
+        # Importa m�dulo de API
         from relatorios.nfe import nfe_api
         
         # Salva certificado
@@ -18290,7 +18290,7 @@ def desativar_certificado(certificado_id):
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
@@ -18327,14 +18327,14 @@ def recadastrar_certificado(certificado_id):
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
 
         data = request.get_json()
         pfx_base64 = data.get('pfx_base64', '').strip()
         senha = data.get('senha', '').strip()
 
         if not pfx_base64 or not senha:
-            return jsonify({'success': False, 'error': 'Arquivo PFX e senha são obrigatórios'}), 400
+            return jsonify({'success': False, 'error': 'Arquivo PFX e senha s�o obrigat�rios'}), 400
 
         from relatorios.nfe import nfe_api, nfe_busca
         import os
@@ -18346,12 +18346,12 @@ def recadastrar_certificado(certificado_id):
                 return jsonify({'success': False, 'error': 'Certificado fora do prazo de validade'}), 400
             dados_cert = cert.cert_data
         except Exception as e:
-            return jsonify({'success': False, 'error': f'Certificado inválido ou senha incorreta: {str(e)}'}), 400
+            return jsonify({'success': False, 'error': f'Certificado inv�lido ou senha incorreta: {str(e)}'}), 400
 
         # Criptografa senha
         chave_str = os.environ.get('FERNET_KEY', '').strip()
         if not chave_str:
-            return jsonify({'success': False, 'error': 'FERNET_KEY não configurada no servidor'}), 500
+            return jsonify({'success': False, 'error': 'FERNET_KEY n�o configurada no servidor'}), 500
 
         try:
             senha_cripto = nfe_api.criptografar_senha(senha, chave_str.encode('utf-8'))
@@ -18364,13 +18364,13 @@ def recadastrar_certificado(certificado_id):
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            # Verifica que o cert pertence à empresa
+            # Verifica que o cert pertence � empresa
             cursor.execute(
                 "SELECT id FROM certificados_digitais WHERE id = %s AND empresa_id = %s",
                 (certificado_id, empresa_id)
             )
             if not cursor.fetchone():
-                return jsonify({'success': False, 'error': 'Certificado não encontrado'}), 404
+                return jsonify({'success': False, 'error': 'Certificado n�o encontrado'}), 404
 
             cursor.execute("""
                 UPDATE certificados_digitais
@@ -18393,7 +18393,7 @@ def recadastrar_certificado(certificado_id):
             ))
             conn.commit()
 
-        logger.info(f"[RECADASTRAR] ✅ Certificado ID {certificado_id} atualizado com sucesso")
+        logger.info(f"[RECADASTRAR] ? Certificado ID {certificado_id} atualizado com sucesso")
         return jsonify({'success': True, 'message': 'Certificado recadastrado com sucesso!'})
 
     except Exception as e:
@@ -18414,7 +18414,7 @@ def _auto_obter_certificado_id(empresa_id):
     try:
         with get_db_connection(allow_global=True) as conn:
             cursor = conn.cursor()
-            # Prioriza cert ativo; se não existir, pega qualquer um para reativar
+            # Prioriza cert ativo; se n�o existir, pega qualquer um para reativar
             cursor.execute("""
                 SELECT id, ativo, senha_pfx
                 FROM certificados_digitais
@@ -18450,12 +18450,12 @@ def _auto_obter_certificado_id(empresa_id):
 @require_auth
 @require_permission('relatorios_view')
 def buscar_documentos():
-    """Inicia busca automática de documentos na SEFAZ"""
+    """Inicia busca autom�tica de documentos na SEFAZ"""
     try:
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id') or usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'sucesso': False, 'erro': 'Empresa não identificada'}), 403
+            return jsonify({'sucesso': False, 'erro': 'Empresa n�o identificada'}), 403
 
         data = request.get_json() or {}
         certificado_id = data.get('certificado_id') or _auto_obter_certificado_id(empresa_id)
@@ -18464,10 +18464,10 @@ def buscar_documentos():
             return jsonify({
                 'sucesso': False,
                 'erro': 'Nenhum certificado digital cadastrado para esta empresa. '
-                        'Acesse 🏢 Dados da Empresa e Certificado Digital para cadastrar.'
+                        'Acesse ?? Dados da Empresa e Certificado Digital para cadastrar.'
             }), 400
 
-        # ── Diagnóstico do certificado antes de tentar usar ──────────────────
+        # -- Diagn�stico do certificado antes de tentar usar ------------------
         diag = {'cert_id': certificado_id}
         try:
             with get_db_connection(allow_global=True) as _conn:
@@ -18485,30 +18485,30 @@ def buscar_documentos():
                             'pfx_len','senha_len','valido_ate']
                     diag.update(dict(zip(keys, row)) if not isinstance(row, dict) else row)
                 else:
-                    diag['erro_diag'] = f'ID {certificado_id} não existe na tabela'
+                    diag['erro_diag'] = f'ID {certificado_id} n�o existe na tabela'
         except Exception as de:
             diag['erro_diag'] = str(de)
 
-        logger.info(f"[buscar_documentos] Diagnóstico cert: {diag}")
+        logger.info(f"[buscar_documentos] Diagn�stico cert: {diag}")
 
         if diag.get('erro_diag'):
             return jsonify({
                 'sucesso': False,
-                'erro': f'Certificado ID {certificado_id} não encontrado no banco.',
+                'erro': f'Certificado ID {certificado_id} n�o encontrado no banco.',
                 'diagnostico': diag
             })
 
         if not diag.get('ativo'):
             return jsonify({
                 'sucesso': False,
-                'erro': f'Certificado ID {certificado_id} está inativo (ativo=False). Recadastre em 🏢 Dados da Empresa.',
+                'erro': f'Certificado ID {certificado_id} est� inativo (ativo=False). Recadastre em ?? Dados da Empresa.',
                 'diagnostico': diag
             })
 
         if not diag.get('pfx_len'):
             return jsonify({
                 'sucesso': False,
-                'erro': f'Certificado ID {certificado_id} não tem PFX gravado (pfx_base64 vazio). Recadastre em 🏢 Dados da Empresa.',
+                'erro': f'Certificado ID {certificado_id} n�o tem PFX gravado (pfx_base64 vazio). Recadastre em ?? Dados da Empresa.',
                 'diagnostico': diag
             })
 
@@ -18519,15 +18519,15 @@ def buscar_documentos():
         if senha_parece_fernet and not fernet_key_presente:
             return jsonify({
                 'sucesso': False,
-                'erro': '⚠️ A senha do certificado está criptografada (Fernet, {} chars), mas FERNET_KEY não está configurada no servidor. '
-                        'SOLUÇÃO: Recadastre o certificado agora em 🏢 Dados da Empresa — a nova versão salva sem criptografia quando FERNET_KEY está ausente.'.format(diag['senha_len']),
+                'erro': '?? A senha do certificado est� criptografada (Fernet, {} chars), mas FERNET_KEY n�o est� configurada no servidor. '
+                        'SOLU��O: Recadastre o certificado agora em ?? Dados da Empresa � a nova vers�o salva sem criptografia quando FERNET_KEY est� ausente.'.format(diag['senha_len']),
                 'diagnostico': diag
             })
-        # ─────────────────────────────────────────────────────────────────────
+        # ---------------------------------------------------------------------
 
         from relatorios.nfe import nfe_api
 
-        # nsu_override permite re-buscar desde um NSU específico (ex: '000000000000000')
+        # nsu_override permite re-buscar desde um NSU espec�fico (ex: '000000000000000')
         nsu_override = data.get('nsu_override')  # optional, string or null
 
         resultado = nfe_api.buscar_e_processar_novos_documentos(
@@ -18536,7 +18536,7 @@ def buscar_documentos():
             nsu_override=nsu_override
         )
 
-        # Se ainda falhou, inclui diagnóstico na resposta para debug
+        # Se ainda falhou, inclui diagn�stico na resposta para debug
         if not resultado.get('sucesso'):
             resultado['diagnostico'] = diag
 
@@ -18556,19 +18556,19 @@ def buscar_documentos():
 @require_auth
 @require_permission('relatorios_view')
 def consultar_por_chave():
-    """Consulta uma NF-e específica por chave de acesso"""
+    """Consulta uma NF-e espec�fica por chave de acesso"""
     try:
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id') or usuario.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         data = request.get_json() or {}
         chave = data.get('chave')
         certificado_id = data.get('certificado_id') or _auto_obter_certificado_id(empresa_id)
 
         if not chave:
-            return jsonify({'success': False, 'error': 'chave é obrigatória'}), 400
+            return jsonify({'success': False, 'error': 'chave � obrigat�ria'}), 400
 
         if not certificado_id:
             return jsonify({
@@ -18576,7 +18576,7 @@ def consultar_por_chave():
                 'error': 'Nenhum certificado digital encontrado para esta empresa.'
             }), 400
         
-        # Importa módulos
+        # Importa m�dulos
         from relatorios.nfe import nfe_api, nfe_busca
         
         # Carrega certificado
@@ -18584,7 +18584,7 @@ def consultar_por_chave():
         if not cert:
             return jsonify({
                 'success': False,
-                'error': 'Certificado não encontrado ou inválido'
+                'error': 'Certificado n�o encontrado ou inv�lido'
             }), 404
         
         # Consulta por chave (auto-detecta NF-e/CT-e pelo modelo na chave)
@@ -18615,9 +18615,9 @@ def listar_documentos():
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
-        # Parâmetros de filtro
+        # Par�metros de filtro
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
         tipo = request.args.get('tipo')  # NFe, CTe, Evento
@@ -18654,7 +18654,7 @@ def listar_documentos():
                 sql += " AND tipo_documento = %s"
                 params.append(tipo)
             
-            # Paginação
+            # Pagina��o
             sql += " ORDER BY data_busca DESC"
             sql += " LIMIT %s OFFSET %s"
             params.extend([per_page, (page - 1) * per_page])
@@ -18706,12 +18706,12 @@ def listar_documentos():
 @require_auth
 @require_permission('relatorios_view')
 def obter_documento(doc_id):
-    """Obtém detalhes de um documento específico"""
+    """Obt�m detalhes de um documento espec�fico"""
     try:
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -18727,7 +18727,7 @@ def obter_documento(doc_id):
         if not documento:
             return jsonify({
                 'success': False,
-                'error': 'Documento não encontrado'
+                'error': 'Documento n�o encontrado'
             }), 404
         
         return jsonify({
@@ -18752,7 +18752,7 @@ def download_xml(doc_id):
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
@@ -18768,12 +18768,12 @@ def download_xml(doc_id):
         if not row:
             return jsonify({
                 'success': False,
-                'error': 'Documento não encontrado'
+                'error': 'Documento n�o encontrado'
             }), 404
         
         chave, caminho_xml, tipo_doc = row
         
-        # Lê o arquivo XML
+        # L� o arquivo XML
         if os.path.exists(caminho_xml):
             from flask import send_file
             return send_file(
@@ -18785,7 +18785,7 @@ def download_xml(doc_id):
         else:
             return jsonify({
                 'success': False,
-                'error': 'Arquivo XML não encontrado no storage'
+                'error': 'Arquivo XML n�o encontrado no storage'
             }), 404
         
     except Exception as e:
@@ -18796,18 +18796,18 @@ def download_xml(doc_id):
         }), 500
 
 
-# ===== ESTATÍSTICAS E DASHBOARDS =====
+# ===== ESTAT�STICAS E DASHBOARDS =====
 
 @app.route('/api/relatorios/estatisticas', methods=['GET'])
 @require_auth
 @require_permission('relatorios_view')
 def obter_estatisticas():
-    """Obtém estatísticas de documentos fiscais da empresa"""
+    """Obt�m estat�sticas de documentos fiscais da empresa"""
     try:
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         from relatorios.nfe import nfe_api
         
@@ -18819,7 +18819,7 @@ def obter_estatisticas():
         })
         
     except Exception as e:
-        logger.error(f"Erro ao obter estatísticas: {e}")
+        logger.error(f"Erro ao obter estat�sticas: {e}")
         return jsonify({
             'success': False,
             'error': f'Erro no servidor: {str(e)}'
@@ -18830,12 +18830,12 @@ def obter_estatisticas():
 @require_auth
 @require_permission('relatorios_view')
 def obter_nsu_status():
-    """Obtém status dos NSUs de todos os certificados"""
+    """Obt�m status dos NSUs de todos os certificados"""
     try:
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -18870,7 +18870,7 @@ def obter_nsu_status():
         }), 500
 
 
-# ===== EXPORTAÇÃO =====
+# ===== EXPORTA��O =====
 
 @app.route('/api/relatorios/exportar-excel', methods=['POST'])
 @require_auth
@@ -18881,7 +18881,7 @@ def exportar_excel():
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
         
         data = request.get_json()
         data_inicio = data.get('data_inicio')
@@ -18907,14 +18907,14 @@ def exportar_excel():
         ws = wb.active
         ws.title = "Documentos Fiscais"
         
-        # Cabeçalho
-        headers = ['NSU', 'Chave', 'Tipo', 'Número', 'Série', 'Valor', 
-                  'Emitente CNPJ', 'Emitente Nome', 'Destinatário CNPJ', 
-                  'Destinatário Nome', 'Data Emissão', 'Data Busca']
+        # Cabe�alho
+        headers = ['NSU', 'Chave', 'Tipo', 'N�mero', 'S�rie', 'Valor', 
+                  'Emitente CNPJ', 'Emitente Nome', 'Destinat�rio CNPJ', 
+                  'Destinat�rio Nome', 'Data Emiss�o', 'Data Busca']
         
         ws.append(headers)
         
-        # Estilos do cabeçalho
+        # Estilos do cabe�alho
         header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
         header_font = Font(color='FFFFFF', bold=True)
         
@@ -18980,23 +18980,23 @@ def exportar_excel():
 @app.route('/sped')
 @require_auth
 def sped_interface():
-    """Interface web para geração de arquivos SPED"""
+    """Interface web para gera��o de arquivos SPED"""
     return render_template('sped_interface.html')
 
 
 # ==============================================================================
-# 🔧 ENDPOINT ADMINISTRATIVO TEMPORÁRIO: Corrigir cliente_id nos contratos
+# ?? ENDPOINT ADMINISTRATIVO TEMPOR�RIO: Corrigir cliente_id nos contratos
 # ==============================================================================
 @app.route('/api/admin/fix-contratos-cliente-id', methods=['POST'])
 @require_admin
 def fix_contratos_cliente_id():
     """
     Endpoint administrativo para corrigir cliente_id NULL nos contratos
-    Atualiza baseado nas sessões vinculadas ou busca pelo cliente_nome
+    Atualiza baseado nas sess�es vinculadas ou busca pelo cliente_nome
     """
     try:
         print("\n" + "="*80)
-        print("🔧 INICIANDO CORREÇÃO DE CLIENTE_ID NOS CONTRATOS")
+        print("?? INICIANDO CORRE��O DE CLIENTE_ID NOS CONTRATOS")
         print("="*80)
         
         # Buscar todos os contratos
@@ -19007,7 +19007,7 @@ def fix_contratos_cliente_id():
         """
         
         contratos = database.execute_query(query_contratos)
-        print(f"\n📋 Total de contratos encontrados: {len(contratos)}")
+        print(f"\n?? Total de contratos encontrados: {len(contratos)}")
         
         contratos_corrigidos = 0
         contratos_com_problemas = []
@@ -19020,14 +19020,14 @@ def fix_contratos_cliente_id():
             cliente_nome = contrato['cliente_nome']
             
             print(f"\n{'='*80}")
-            print(f"📋 Contrato ID {contrato_id} - {numero}")
+            print(f"?? Contrato ID {contrato_id} - {numero}")
             print(f"   Nome contrato: {contrato['nome']}")
             print(f"   Cliente ID atual: {cliente_id_atual}")
             print(f"   Cliente Nome: {cliente_nome}")
             
-            # Se já tem cliente_id, pular
+            # Se j� tem cliente_id, pular
             if cliente_id_atual:
-                print(f"   ✅ Já tem cliente_id, pulando...")
+                print(f"   ? J� tem cliente_id, pulando...")
                 detalhes.append({
                     'contrato_id': contrato_id,
                     'numero': numero,
@@ -19036,7 +19036,7 @@ def fix_contratos_cliente_id():
                 })
                 continue
             
-            # Buscar sessões deste contrato
+            # Buscar sess�es deste contrato
             query_sessoes = """
                 SELECT DISTINCT cliente_id, cliente_nome
                 FROM sessoes
@@ -19046,7 +19046,7 @@ def fix_contratos_cliente_id():
             sessoes = database.execute_query(query_sessoes, (contrato_id,))
             
             if not sessoes:
-                print(f"   ⚠️ Sem sessões com cliente_id para este contrato")
+                print(f"   ?? Sem sess�es com cliente_id para este contrato")
                 
                 # Se tem cliente_nome, tentar buscar pelo nome
                 if cliente_nome:
@@ -19060,7 +19060,7 @@ def fix_contratos_cliente_id():
                     
                     if clientes:
                         novo_cliente_id = clientes[0]['id']
-                        print(f"   🔍 Cliente encontrado pelo nome: ID {novo_cliente_id}")
+                        print(f"   ?? Cliente encontrado pelo nome: ID {novo_cliente_id}")
                         
                         # Atualizar contrato
                         update_query = """
@@ -19069,7 +19069,7 @@ def fix_contratos_cliente_id():
                             WHERE id = %s
                         """
                         database.execute_update(update_query, (novo_cliente_id, contrato_id))
-                        print(f"   ✅ Contrato atualizado com cliente_id {novo_cliente_id}")
+                        print(f"   ? Contrato atualizado com cliente_id {novo_cliente_id}")
                         contratos_corrigidos += 1
                         detalhes.append({
                             'contrato_id': contrato_id,
@@ -19079,21 +19079,21 @@ def fix_contratos_cliente_id():
                             'cliente_nome': cliente_nome
                         })
                     else:
-                        print(f"   ❌ Cliente não encontrado com nome '{cliente_nome}'")
+                        print(f"   ? Cliente n�o encontrado com nome '{cliente_nome}'")
                         contratos_com_problemas.append({
                             'contrato_id': contrato_id,
                             'numero': numero,
                             'cliente_nome': cliente_nome,
-                            'motivo': 'Cliente não encontrado'
+                            'motivo': 'Cliente n�o encontrado'
                         })
                         detalhes.append({
                             'contrato_id': contrato_id,
                             'numero': numero,
                             'status': 'ERRO',
-                            'motivo': 'Cliente não encontrado'
+                            'motivo': 'Cliente n�o encontrado'
                         })
                 else:
-                    print(f"   ❌ Contrato sem cliente_nome para buscar")
+                    print(f"   ? Contrato sem cliente_nome para buscar")
                     contratos_com_problemas.append({
                         'contrato_id': contrato_id,
                         'numero': numero,
@@ -19108,18 +19108,18 @@ def fix_contratos_cliente_id():
                     })
                 continue
             
-            # Se tem múltiplos clientes nas sessões, usar o primeiro e avisar
+            # Se tem m�ltiplos clientes nas sess�es, usar o primeiro e avisar
             if len(sessoes) > 1:
-                print(f"   ⚠️ ATENÇÃO: Contrato tem sessões de {len(sessoes)} clientes diferentes!")
+                print(f"   ?? ATEN��O: Contrato tem sess�es de {len(sessoes)} clientes diferentes!")
                 for sessao in sessoes:
                     print(f"      - Cliente ID {sessao['cliente_id']}: {sessao['cliente_nome']}")
-                print(f"   ⚠️ Usando o primeiro cliente encontrado")
+                print(f"   ?? Usando o primeiro cliente encontrado")
             
-            # Atualizar com o cliente_id da sessão
+            # Atualizar com o cliente_id da sess�o
             novo_cliente_id = sessoes[0]['cliente_id']
             novo_cliente_nome = sessoes[0]['cliente_nome']
             
-            print(f"   🎯 Atualizando com cliente_id {novo_cliente_id} ({novo_cliente_nome})")
+            print(f"   ?? Atualizando com cliente_id {novo_cliente_id} ({novo_cliente_nome})")
             
             update_query = """
                 UPDATE contratos
@@ -19128,7 +19128,7 @@ def fix_contratos_cliente_id():
             """
             
             database.execute_update(update_query, (novo_cliente_id, contrato_id))
-            print(f"   ✅ Contrato atualizado com sucesso!")
+            print(f"   ? Contrato atualizado com sucesso!")
             contratos_corrigidos += 1
             detalhes.append({
                 'contrato_id': contrato_id,
@@ -19141,15 +19141,15 @@ def fix_contratos_cliente_id():
         
         # Resumo final
         print(f"\n{'='*80}")
-        print(f"📊 RESUMO DA CORREÇÃO")
+        print(f"?? RESUMO DA CORRE��O")
         print(f"{'='*80}")
-        print(f"✅ Contratos corrigidos: {contratos_corrigidos}")
-        print(f"⚠️ Contratos com problemas: {len(contratos_com_problemas)}")
+        print(f"? Contratos corrigidos: {contratos_corrigidos}")
+        print(f"?? Contratos com problemas: {len(contratos_com_problemas)}")
         print(f"{'='*80}\n")
         
         return jsonify({
             'success': True,
-            'message': f'Correção concluída',
+            'message': f'Corre��o conclu�da',
             'contratos_corrigidos': contratos_corrigidos,
             'contratos_com_problemas': len(contratos_com_problemas),
             'problemas': contratos_com_problemas,
@@ -19166,23 +19166,23 @@ def fix_contratos_cliente_id():
 
 @app.route('/api/test/db-connection', methods=['GET'])
 def test_db_connection():
-    """Endpoint de teste para verificar conexão ao banco"""
+    """Endpoint de teste para verificar conex�o ao banco"""
     try:
         empresa_id = session.get('empresa_id', 20)
         
-        logger.info(f"🔧 TEST: Testando conexão com empresa_id={empresa_id}")
+        logger.info(f"?? TEST: Testando conex�o com empresa_id={empresa_id}")
         
-        # Testar se o método existe
+        # Testar se o m�todo existe
         if not hasattr(database, 'get_db_connection'):
             return jsonify({
                 'success': False,
-                'error': 'Método get_db_connection NÃO ENCONTRADO na classe DatabaseManager',
+                'error': 'M�todo get_db_connection N�O ENCONTRADO na classe DatabaseManager',
                 'available_methods': [m for m in dir(database) if not m.startswith('_')]
             }), 500
         
-        logger.info(f"✅ TEST: Método get_db_connection existe!")
+        logger.info(f"? TEST: M�todo get_db_connection existe!")
         
-        # Testar a conexão
+        # Testar a conex�o
         with database.get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM transacoes_extrato WHERE empresa_id = %s", (empresa_id,))
@@ -19190,17 +19190,17 @@ def test_db_connection():
             total = _row_t['count'] if isinstance(_row_t, dict) else _row_t[0]
             cursor.close()
             
-            logger.info(f"✅ TEST: Conexão funcionou! {total} transações encontradas")
+            logger.info(f"? TEST: Conex�o funcionou! {total} transa��es encontradas")
             
             return jsonify({
                 'success': True,
-                'message': 'Conexão funcionando corretamente',
+                'message': 'Conex�o funcionando corretamente',
                 'empresa_id': empresa_id,
                 'total_transacoes': total
             })
             
     except Exception as e:
-        logger.error(f"❌ TEST: Erro ao testar conexão: {e}")
+        logger.error(f"? TEST: Erro ao testar conex�o: {e}")
         import traceback
         logger.error(traceback.format_exc())
         
@@ -19212,26 +19212,26 @@ def test_db_connection():
 
 
 if __name__ == '__main__':
-    # Inicializar tabelas de importação
+    # Inicializar tabelas de importa��o
     try:
         from database_import_manager import DatabaseImportManager
         import_manager = DatabaseImportManager()
         import_manager.create_import_tables()
-        print("✅ Tabelas de importação inicializadas")
+        print("? Tabelas de importa��o inicializadas")
     except Exception as e:
-        print(f"⚠️ Erro ao inicializar tabelas de importação: {e}")
+        print(f"?? Erro ao inicializar tabelas de importa��o: {e}")
     
-    # Configurar logging para produção (WARNING/ERROR apenas)
+    # Configurar logging para produ��o (WARNING/ERROR apenas)
     import logging
     log_level = logging.WARNING if os.getenv('RAILWAY_ENVIRONMENT') else logging.INFO
     logging.basicConfig(level=log_level)
     app.logger.setLevel(log_level)
     
-    # Porta configurável (Railway usa variável de ambiente PORT)
+    # Porta configur�vel (Railway usa vari�vel de ambiente PORT)
     port = int(os.getenv('PORT', 5000))
     
     print("="*60)
-    print("Sistema Financeiro - Versão Web")
+    print("Sistema Financeiro - Vers�o Web")
     print("="*60)
     print(f"Servidor iniciado em: http://0.0.0.0:{port}")
     print(f"Banco de dados: {os.getenv('DATABASE_TYPE', 'sqlite')}")
@@ -19242,7 +19242,7 @@ if __name__ == '__main__':
     is_production = bool(os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('RAILWAY_PROJECT_ID'))
     debug_mode = not is_production
     
-    logger.info(f"Iniciando servidor - Modo: {'DESENVOLVIMENTO' if debug_mode else 'PRODUÇÃO'}")
+    logger.info(f"Iniciando servidor - Modo: {'DESENVOLVIMENTO' if debug_mode else 'PRODU��O'}")
     app.run(debug=debug_mode, host='0.0.0.0', port=port, use_reloader=False)
 
 
