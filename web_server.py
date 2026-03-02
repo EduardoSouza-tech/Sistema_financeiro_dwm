@@ -13257,6 +13257,8 @@ def buscar_nfse():
             resultado = response.json()
             
             # Processar PDFs oficiais recebidos do microservi�o (se houver)
+            from database_postgresql import get_nfse_db_params as _get_nfse_db_params
+            _db_params_pdf = _get_nfse_db_params()
             try:
                 if 'pdfs_oficiais' in resultado and resultado['pdfs_oficiais']:
                     logger.info(f"?? Processando {len(resultado['pdfs_oficiais'])} PDFs oficiais recebidos...")
@@ -13292,7 +13294,7 @@ def buscar_nfse():
                                 # Atualizar danfse_path no banco
                                 logger.info(f"   ?? Atualizando banco: numero_nfse={numero_nfse}, codigo_municipio={pdf_info['codigo_municipio']}")
                                 
-                                with NFSeDatabase(db_params) as db:
+                                with NFSeDatabase(_db_params_pdf) as db:
                                     cursor = db.conn.cursor()
                                     cursor.execute("""
                                         UPDATE nfse_baixadas 
@@ -13334,9 +13336,6 @@ def buscar_nfse():
             
             # Log de auditoria
             from nfse_functions import registrar_operacao
-            from database_postgresql import get_nfse_db_params
-            
-            db_params = get_nfse_db_params()
             registrar_operacao(
                 db_params=db_params,
                 empresa_id=empresa_id,
