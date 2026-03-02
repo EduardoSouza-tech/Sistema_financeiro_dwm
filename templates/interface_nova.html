@@ -14671,15 +14671,14 @@
             // Carregar dados da empresa
             fetch(`/api/empresas/${empresaId}`)
                 .then(r => r.json())
-                .then(response => {
+                .then(async response => {
                     if (response.success && response.empresa) {
                         const emp = response.empresa;
                         document.getElementById('empresa-razao-social').textContent = emp.razao_social || '-';
-                        document.getElementById('empresa-cnpj').textContent = emp.cnpj ? formatarCNPJ(emp.cnpj) : '-';
                         document.getElementById('empresa-email').textContent = emp.email || '-';
                         document.getElementById('empresa-telefone').textContent = emp.telefone || '-';
                         document.getElementById('empresa-plano').textContent = emp.plano || '-';
-                        
+
                         // 🆕 Mostra UF/Estado
                         const estadoSpan = document.getElementById('empresa-estado');
                         if (emp.estado) {
@@ -14690,8 +14689,31 @@
                             estadoSpan.style.color = '#ffeb3b';
                             estadoSpan.title = 'Clique em Editar para cadastrar o UF';
                         }
-                        
+
+                        // 🆕 CNPJ: se vazio, puxar do certificado ativo e salvar na empresa
+                        let cnpjFinal = emp.cnpj || '';
+                        if (!cnpjFinal) {
+                            try {
+                                const certResp = await fetch('/api/relatorios/certificados');
+                                const certData = await certResp.json();
+                                if (certData.success && certData.certificados) {
+                                    const certAtivo = certData.certificados.find(c => c.ativo && c.cnpj);
+                                    if (certAtivo) {
+                                        cnpjFinal = certAtivo.cnpj;
+                                        // Salvar CNPJ na empresa automaticamente
+                                        fetch(`/api/empresas/${empresaId}`, {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ cnpj: cnpjFinal })
+                                        }).catch(() => {});
+                                    }
+                                }
+                            } catch (e) { console.warn('Fallback CNPJ cert:', e); }
+                        }
+                        document.getElementById('empresa-cnpj').textContent = cnpjFinal ? formatarCNPJ(cnpjFinal) : '-';
+
                         // Salva dados globalmente para uso posterior
+                        emp.cnpj = emp.cnpj || cnpjFinal;
                         window.currentEmpresaData = emp;
                     }
                 })
