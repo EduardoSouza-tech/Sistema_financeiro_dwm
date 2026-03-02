@@ -7936,27 +7936,31 @@ window.consultarCNPJPreencherMunicipio = async function(cnpj) {
         const nomeBruto = (empresa.municipio || '').toLowerCase();
         const nomeMunicipio = nomeBruto.replace(/\b\w/g, c => c.toUpperCase());
 
-        // 2) Buscar código IBGE de 7 dígitos via endpoint de municípios
+        // 2) Buscar código IBGE de 7 dígitos via API oficial do IBGE
         //    (BrasilAPI CNPJ retorna código TOM de 4 dígitos da Receita Federal,
         //     não o IBGE de 7 dígitos exigido pelos webservices NFS-e)
+        const normalizar = s => (s || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9 ]/g, '').trim();
+
         let codigoIBGE = '';
         if (uf && nomeBruto) {
             try {
-                const ibgeResp = await fetch(`https://brasilapi.com.br/api/ibge/municipios/v1/${uf}?providers=dados-abertos-br,gov,wikipedia`, {
-                    headers: { 'Accept': 'application/json' }
-                });
+                // API oficial IBGE — retorna [{id: 5002704, nome: "Campo Grande"}, ...]
+                const ibgeResp = await fetch(
+                    `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`,
+                    { headers: { 'Accept': 'application/json' } }
+                );
                 if (ibgeResp.ok) {
                     const municipios = await ibgeResp.json();
-                    // Normalizar nome para comparação
-                    const normalizar = s => s.toLowerCase()
-                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                        .replace(/[^a-z0-9 ]/g, '').trim();
                     const nomeBuscado = normalizar(nomeBruto);
-                    const encontrado = municipios.find(m =>
-                        normalizar(m.nome || '') === nomeBuscado
-                    );
+                    console.log(`🔍 Buscando IBGE para: "${nomeBuscado}" em ${uf} (${municipios.length} municípios)`);
+                    const encontrado = municipios.find(m => normalizar(m.nome) === nomeBuscado);
                     if (encontrado) {
-                        codigoIBGE = String(encontrado.codigo_ibge || '').trim();
+                        codigoIBGE = String(encontrado.id || '').trim();
+                        console.log(`✅ IBGE encontrado: ${encontrado.nome} → ${codigoIBGE}`);
+                    } else {
+                        console.warn(`⚠️ Município "${nomeBuscado}" não encontrado na lista IBGE de ${uf}`);
                     }
                 }
             } catch (ibgeErr) {
