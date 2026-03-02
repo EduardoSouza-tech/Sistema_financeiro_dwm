@@ -18921,7 +18921,8 @@ def download_pdf_documento(doc_id):
             except Exception:
                 conn.rollback()
             cursor.execute("""
-                SELECT chave, caminho_xml, tipo_documento, xml_content, schema_name
+                SELECT chave, caminho_xml, tipo_documento, xml_content, schema_name,
+                       cnpj_destinatario
                 FROM documentos_fiscais_log
                 WHERE id = %s AND empresa_id = %s
             """, (doc_id, empresa_id))
@@ -18936,6 +18937,7 @@ def download_pdf_documento(doc_id):
         tipo_doc       = row['tipo_documento']
         xml_content_db = row['xml_content']
         schema_name    = (row.get('schema_name') or '').lower()
+        cnpj_dest_db   = (row.get('cnpj_destinatario') or '').replace('.', '').replace('/', '').replace('-', '')
 
         # Tenta filesystem primeiro; senao usa xml_content do banco (Railway ephemeral)
         if caminho_xml and os.path.exists(str(caminho_xml)):
@@ -18959,11 +18961,119 @@ def download_pdf_documento(doc_id):
             or '<retDistDFeInt' in xml_head
         )
         if is_resumo:
-            return jsonify({
-                'success': False,
-                'error': 'Este documento esta salvo como XML de resumo (resNFe), que nao contem dados suficientes '
-                         'para gerar o DANFE. Re-sincronize em "Buscar Documentos" para baixar o XML completo (procNFe).'
-            }), 422
+            # ----------------------------------------------------------------
+            # Auto-manifest "Ciência da Operação" + download procNFe completo
+            # Só aplicável a NF-e (resNFe). CT-e resumo não tem manifestação.
+            # ----------------------------------------------------------------
+            tipo_norm_check = (tipo_doc or '').upper().replace('-','').replace('_','').replace(' ','')
+            if tipo_norm_check not in ('NFE', '55', 'NFCE', '65'):
+                return jsonify({
+                    'success': False,
+                    'error': 'Este documento e um XML de resumo (resCTe) sem dados suficientes para PDF. '
+                             'Re-sincronize em "Buscar Documentos" para obter o XML completo.'
+                }), 422
+
+            cert_id_pdf = _auto_obter_certificado_id(empresa_id)
+            if not cert_id_pdf:
+                return jsonify({
+                    'success': False,
+                    'error': 'Certificado digital nao encontrado. Cadastre em Dados da Empresa para gerar o PDF.'
+                }), 422
+
+            try:
+                from relatorios.nfe import nfe_api, nfe_busca
+
+                cert_pdf = nfe_api.obter_certificado(cert_id_pdf)
+                if not cert_pdf:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Certificado invalido ou expirado. Recadastre em Dados da Empresa.'
+                    }), 422
+
+                # Ambiente do certificado cadastrado
+                with get_db_connection(allow_global=True) as _cc:
+                    _ccur = _cc.cursor()
+                    _ccur.execute(
+                        "SELECT ambiente FROM certificados_digitais WHERE id = %s",
+                        (cert_id_pdf,)
+                    )
+                    _crow = _ccur.fetchone()
+                    cert_ambiente = (
+                        (_crow[0] if not isinstance(_crow, dict) else _crow.get('ambiente', 'producao'))
+                        or 'producao'
+                    )
+
+                # CNPJ do destinatário: usa o armazenado na linha ou cai para o CNPJ da empresa
+                cnpj_dest = cnpj_dest_db
+                if not cnpj_dest:
+                    with get_db_connection(empresa_id=empresa_id) as _ce:
+                        _ceu = _ce.cursor()
+                        _ceu.execute("SELECT cnpj FROM empresas WHERE id = %s", (empresa_id,))
+                        _cer = _ceu.fetchone()
+                        raw_cnpj = (_cer[0] if not isinstance(_cer, dict) else (_cer.get('cnpj') or '')) or ''
+                        import re as _re2
+                        cnpj_dest = _re2.sub(r'\D', '', raw_cnpj)
+
+                # 1. Manifesta Ciência da Operação
+                logger.info(f"[PDF] Manifestando Ciencia da Operacao: chave={chave} cnpj={cnpj_dest} amb={cert_ambiente}")
+                manif = nfe_busca.manifestar_ciencia_operacao(cert_pdf, chave, cnpj_dest, cert_ambiente)
+                logger.info(f"[PDF] Manifestacao result: {manif}")
+
+                if not manif.get('sucesso'):
+                    return jsonify({
+                        'success': False,
+                        'error': (
+                            f'Falha ao manifestar NF-e (cStat={manif.get("codigo_sefaz","?")}: '
+                            f'{manif.get("mensagem") or manif.get("erro","?")}). '
+                            'Tente re-sincronizar em "Buscar Documentos".'
+                        )
+                    }), 422
+
+                # 2. Aguarda processamento no SEFAZ
+                import time as _time
+                _time.sleep(5)
+
+                # 3. Baixa procNFe completo
+                logger.info(f"[PDF] Baixando procNFe: chave={chave}")
+                down = nfe_busca.baixar_procnfe_completo(cert_pdf, chave, cert_ambiente)
+                logger.info(f"[PDF] Download procNFe: sucesso={down.get('sucesso')} erro={down.get('erro','')}")
+
+                if not down.get('sucesso'):
+                    return jsonify({
+                        'success': False,
+                        'error': (
+                            f'Falha ao baixar NF-e completa: {down.get("erro","?")}. '
+                            'Tente re-sincronizar em "Buscar Documentos".'
+                        )
+                    }), 422
+
+                xml_bytes = down['xml_bytes']
+
+                # 4. Persiste procNFe no banco para próximas consultas
+                try:
+                    xml_str_save = xml_bytes.decode('utf-8') if isinstance(xml_bytes, bytes) else xml_bytes
+                    with get_db_connection(empresa_id=empresa_id) as _cs:
+                        _cs_cur = _cs.cursor()
+                        _cs_cur.execute("""
+                            UPDATE documentos_fiscais_log
+                            SET xml_content = %s, schema_name = 'procNFe_v4.00'
+                            WHERE id = %s AND empresa_id = %s
+                        """, (xml_str_save, doc_id, empresa_id))
+                        _cs.commit()
+                    logger.info(f"[PDF] procNFe salvo no banco para doc_id={doc_id}")
+                except Exception as _save_err:
+                    logger.warning(f"[PDF] Falha ao persistir procNFe: {_save_err}")
+
+                # Continua com geração do DANFE abaixo (xml_bytes agora é procNFe)
+
+            except Exception as _me:
+                logger.error(f"[PDF] Erro no auto-manifest: {_me}")
+                import traceback as _tb2
+                logger.error(_tb2.format_exc())
+                return jsonify({
+                    'success': False,
+                    'error': f'Erro ao processar manifestacao automatica: {str(_me)}'
+                }), 500
 
         from io import BytesIO as _BytesIO
         buffer = _BytesIO()

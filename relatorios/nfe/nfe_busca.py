@@ -45,6 +45,7 @@ WEBSERVICES_PRODUCAO = {
     'NFeDistribuicaoDFe': 'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
     'NfeConsultaProtocolo': 'https://www.nfe.fazenda.gov.br/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx',
     'CTeConsultaProtocolo': 'https://www1.cte.fazenda.gov.br/CTeWS/CTeConsultaV4.asmx',
+    'NFeRecepcaoEvento4': 'https://www.nfe.fazenda.gov.br/NFeRecepcaoEvento/NFeRecepcaoEvento4.asmx',
 }
 
 # URLs dos webservices SEFAZ (Homologação - AN)
@@ -52,6 +53,7 @@ WEBSERVICES_HOMOLOGACAO = {
     'NFeDistribuicaoDFe': 'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
     'NfeConsultaProtocolo': 'https://hom.nfe.fazenda.gov.br/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx',
     'CTeConsultaProtocolo': 'https://hom1.cte.fazenda.gov.br/CTeWS/CTeConsultaV4.asmx',
+    'NFeRecepcaoEvento4': 'https://hom.nfe.fazenda.gov.br/NFeRecepcaoEvento/NFeRecepcaoEvento4.asmx',
 }
 
 # Namespaces dos webservices
@@ -643,6 +645,322 @@ def buscar_multiplas_chaves(certificado: CertificadoA1, chaves: List[str],
 # ============================================================================
 # TESTE
 # ============================================================================
+
+# ============================================================================
+# MANIFESTAÇÃO DO DESTINATÁRIO (Ciência da Operação)
+# ============================================================================
+
+def _assinar_evento_xml(xml_str: str, certificado: 'CertificadoA1', ref_id: str) -> str:
+    """
+    Assina o XML de evento NF-e com xmldsig (RSA-SHA1, C14N).
+
+    Args:
+        xml_str: XML do envEvento como string (sem assinatura)
+        certificado: Instância de CertificadoA1 já carregada
+        ref_id: Valor do atributo Id= em <infEvento> (sem #)
+
+    Returns:
+        XML assinado como string UTF-8
+    """
+    import hashlib
+    from cryptography.hazmat.primitives import hashes as _crypto_hashes, serialization as _serialization
+    from cryptography.hazmat.primitives.asymmetric import padding as _asym_padding
+
+    root = etree.fromstring(xml_str.encode('utf-8') if isinstance(xml_str, str) else xml_str)
+    ns = NAMESPACE_NFE
+
+    # Localiza infEvento pelo Id
+    inf_evento = root.find(f'.//{{{ns}}}infEvento[@Id="{ref_id}"]')
+    if inf_evento is None:
+        raise ValueError(f"Elemento infEvento com Id={ref_id!r} nao encontrado no XML")
+
+    # Digest SHA-1 do infEvento canonicalizado (C14N incl. namespaces)
+    inf_c14n = etree.tostring(inf_evento, method='c14n', exclusive=False, with_comments=False)
+    digest_b64 = base64.b64encode(hashlib.sha1(inf_c14n).digest()).decode('ascii')
+
+    # Monta SignedInfo
+    signed_info_xml = (
+        '<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#">'
+        '<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>'
+        '<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>'
+        f'<Reference URI="#{ref_id}">'
+        '<Transforms>'
+        '<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>'
+        '<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>'
+        '</Transforms>'
+        '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>'
+        f'<DigestValue>{digest_b64}</DigestValue>'
+        '</Reference>'
+        '</SignedInfo>'
+    )
+
+    # Canonicaliza SignedInfo para assinar
+    signed_info_root = etree.fromstring(signed_info_xml.encode('utf-8'))
+    signed_info_c14n = etree.tostring(signed_info_root, method='c14n', exclusive=False, with_comments=False)
+
+    # Carrega chave privada PEM do certificado
+    key_pem = certificado.key_pem
+    if isinstance(key_pem, str):
+        key_pem = key_pem.encode('utf-8')
+    private_key = _serialization.load_pem_private_key(key_pem, password=None)
+
+    # Assina com RSA-PKCS1v15-SHA1
+    sig_bytes = private_key.sign(signed_info_c14n, _asym_padding.PKCS1v15(), _crypto_hashes.SHA1())
+    sig_b64 = base64.b64encode(sig_bytes).decode('ascii')
+
+    # Extrai certificado público como base64 (sem delimitadores PEM)
+    cert_pem = certificado.cert_pem
+    if isinstance(cert_pem, bytes):
+        cert_pem = cert_pem.decode('utf-8')
+    cert_b64 = (cert_pem
+                .replace('-----BEGIN CERTIFICATE-----', '')
+                .replace('-----END CERTIFICATE-----', '')
+                .replace('\r', '').replace('\n', '').strip())
+
+    # Monta elemento Signature
+    sig_xml = (
+        '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">'
+        + signed_info_xml
+        + f'<SignatureValue>{sig_b64}</SignatureValue>'
+        '<KeyInfo><X509Data>'
+        f'<X509Certificate>{cert_b64}</X509Certificate>'
+        '</X509Data></KeyInfo>'
+        '</Signature>'
+    )
+    sig_elem = etree.fromstring(sig_xml.encode('utf-8'))
+
+    # Insere Signature como filho de <evento> (após infEvento)
+    evento_elem = root.find(f'.//{{{ns}}}evento')
+    if evento_elem is not None:
+        evento_elem.append(sig_elem)
+    else:
+        root.append(sig_elem)
+
+    return etree.tostring(root, encoding='unicode')
+
+
+def manifestar_ciencia_operacao(certificado: CertificadoA1, chave: str,
+                                cnpj_dest: str,
+                                ambiente: str = 'producao') -> Dict:
+    """
+    Envia evento 'Ciência da Operação' (tpEvento=210210) ao SEFAZ para uma NF-e.
+
+    Necessário quando o XML armazenado é um resNFe (resumo de DFe) e precisamos
+    obter o procNFe completo para gerar o DANFE.
+
+    Args:
+        certificado: Certificado A1 do destinatário
+        chave: Chave de acesso de 44 dígitos
+        cnpj_dest: CNPJ do destinatário (14 dígitos, sem pontuação)
+        ambiente: 'producao' ou 'homologacao'
+
+    Returns:
+        Dict com {'sucesso': bool, 'codigo_sefaz': str, 'mensagem': str, 'protocolo': str}
+    """
+    try:
+        if not chave or len(chave) != 44:
+            return {'sucesso': False, 'erro': 'Chave de acesso invalida'}
+
+        tp_amb = '2' if ambiente == 'homologacao' else '1'
+        tp_evento = '210210'
+        n_seq_evento = '1'
+        n_lote = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
+        dh_evento = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S-00:00')
+
+        # ID do infEvento: ID + tpEvento(6) + chave(44) + nSeqEvento(2)
+        ref_id = f'ID{tp_evento}{chave}{n_seq_evento.zfill(2)}'
+
+        # XML sem assinatura
+        env_evento_xml = (
+            f'<?xml version="1.0" encoding="UTF-8"?>'
+            f'<envEvento versao="1.00" xmlns="{NAMESPACE_NFE}">'
+            f'<idLote>{n_lote}</idLote>'
+            f'<evento versao="1.00">'
+            f'<infEvento Id="{ref_id}">'
+            f'<cOrgao>91</cOrgao>'
+            f'<tpAmb>{tp_amb}</tpAmb>'
+            f'<CNPJ>{cnpj_dest}</CNPJ>'
+            f'<chNFe>{chave}</chNFe>'
+            f'<dhEvento>{dh_evento}</dhEvento>'
+            f'<tpEvento>{tp_evento}</tpEvento>'
+            f'<nSeqEvento>{n_seq_evento}</nSeqEvento>'
+            f'<verEvento>1.00</verEvento>'
+            f'<detEvento versao="1.00">'
+            f'<descEvento>Ciencia da Operacao</descEvento>'
+            f'</detEvento>'
+            f'</infEvento>'
+            f'</evento>'
+            f'</envEvento>'
+        )
+
+        # Assina o XML
+        xml_assinado = _assinar_evento_xml(env_evento_xml, certificado, ref_id)
+
+        # Monta envelope SOAP
+        url = (WEBSERVICES_HOMOLOGACAO['NFeRecepcaoEvento4']
+               if ambiente == 'homologacao'
+               else WEBSERVICES_PRODUCAO['NFeRecepcaoEvento4'])
+
+        soap_body = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" '
+            'xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4">'
+            '<soap:Header/>'
+            '<soap:Body>'
+            '<nfe:nfeRecepcaoEvento4>'
+            '<nfeDadosMsg>'
+            + xml_assinado
+            + '</nfeDadosMsg>'
+            '</nfe:nfeRecepcaoEvento4>'
+            '</soap:Body>'
+            '</soap:Envelope>'
+        )
+
+        headers = {'Content-Type': 'application/soap+xml; charset=utf-8'}
+        sess = certificado.get_session_requests()
+        response = sess.post(url, data=soap_body.encode('utf-8'), headers=headers, timeout=60)
+
+        if response.status_code != 200:
+            return {'sucesso': False, 'erro': f'Erro HTTP {response.status_code} ao manifestar'}
+
+        # Parse da resposta
+        resp_root = etree.fromstring(response.content)
+        ns = {'nfe': NAMESPACE_NFE}
+
+        ret = resp_root.find('.//nfe:retEnvEvento', ns)
+        if ret is None:
+            # Tenta extrair cStat de qualquer elemento de retorno
+            c_stat_any = resp_root.find('.//{http://www.portalfiscal.inf.br/nfe}cStat')
+            x_motivo_any = resp_root.find('.//{http://www.portalfiscal.inf.br/nfe}xMotivo')
+            c_stat = c_stat_any.text if c_stat_any is not None else '?'
+            x_motivo = x_motivo_any.text if x_motivo_any is not None else 'Resposta inesperada'
+            sucesso = c_stat in ('135', '136', '238', '573')
+            return {'sucesso': sucesso, 'codigo_sefaz': c_stat, 'mensagem': x_motivo, 'protocolo': ''}
+
+        c_stat_el = ret.find('nfe:cStat', ns)
+        x_motivo_el = ret.find('nfe:xMotivo', ns)
+        c_stat = c_stat_el.text if c_stat_el is not None else ''
+        x_motivo = x_motivo_el.text if x_motivo_el is not None else ''
+
+        # Códigos de sucesso:
+        # 135 = Lote de Evento Processado
+        # 136 = Evento registrado para o destinatário
+        # 238 = Rejeição: Evento já registrado com esta chave (tratamos como OK)
+        # 573 / 628 = Ciência da Operação já manifestada
+        sucesso = c_stat in ('135', '136', '238', '573', '628')
+
+        n_prot_el = ret.find('.//nfe:nProt', ns)
+        protocolo = n_prot_el.text if n_prot_el is not None else ''
+
+        return {
+            'sucesso': sucesso,
+            'codigo_sefaz': c_stat,
+            'mensagem': x_motivo,
+            'protocolo': protocolo,
+        }
+
+    except Exception as e:
+        logger.error(f"[manifestar_ciencia] Excecao: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {'sucesso': False, 'erro': f'Erro ao manifestar: {str(e)}'}
+
+
+def baixar_procnfe_completo(certificado: CertificadoA1, chave: str,
+                            ambiente: str = 'producao') -> Dict:
+    """
+    Baixa o procNFe completo (NFe + protNFe envolvidos em nfeProc) via
+    NfeConsultaProtocolo4, para ser usado na geração do DANFE.
+
+    Args:
+        certificado: Certificado A1 do destinatário
+        chave: Chave de acesso de 44 dígitos
+        ambiente: 'producao' ou 'homologacao'
+
+    Returns:
+        Dict com {'sucesso': bool, 'xml_bytes': bytes, 'erro': str}
+    """
+    try:
+        if not chave or len(chave) != 44:
+            return {'sucesso': False, 'erro': 'Chave de acesso invalida'}
+
+        tp_amb = 2 if ambiente == 'homologacao' else 1
+        soap_body = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" '
+            'xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4">'
+            '<soap:Header/>'
+            '<soap:Body>'
+            '<nfe:nfeConsultaNF xmlns="http://www.portalfiscal.inf.br/nfe">'
+            '<consSitNFe versao="4.00">'
+            f'<tpAmb>{tp_amb}</tpAmb>'
+            '<xServ>CONSULTAR</xServ>'
+            f'<chNFe>{chave}</chNFe>'
+            '</consSitNFe>'
+            '</nfe:nfeConsultaNF>'
+            '</soap:Body>'
+            '</soap:Envelope>'
+        )
+
+        url = (WEBSERVICES_HOMOLOGACAO['NfeConsultaProtocolo']
+               if ambiente == 'homologacao'
+               else WEBSERVICES_PRODUCAO['NfeConsultaProtocolo'])
+        headers = {'Content-Type': 'application/soap+xml; charset=utf-8'}
+        sess = certificado.get_session_requests()
+        response = sess.post(url, data=soap_body.encode('utf-8'), headers=headers, timeout=60)
+
+        if response.status_code != 200:
+            return {'sucesso': False, 'erro': f'Erro HTTP {response.status_code}'}
+
+        resp_root = etree.fromstring(response.content)
+        ns = {'nfe': NAMESPACE_NFE}
+
+        ret = resp_root.find('.//nfe:retConsSitNFe', ns)
+        if ret is None:
+            return {'sucesso': False, 'erro': 'Resposta invalida (retConsSitNFe nao encontrado)'}
+
+        c_stat_el = ret.find('nfe:cStat', ns)
+        x_motivo_el = ret.find('nfe:xMotivo', ns)
+        c_stat = c_stat_el.text if c_stat_el is not None else ''
+        x_motivo = x_motivo_el.text if x_motivo_el is not None else ''
+
+        if c_stat != '100':
+            return {
+                'sucesso': False,
+                'codigo_sefaz': c_stat,
+                'erro': f'SEFAZ retornou status {c_stat}: {x_motivo}',
+            }
+
+        # Extrai NFe e protNFe para montar procNFe
+        nfe_elem = ret.find('.//nfe:NFe', ns)
+        prot_elem = ret.find('.//nfe:protNFe', ns)
+
+        if nfe_elem is None or prot_elem is None:
+            return {'sucesso': False, 'erro': 'NFe ou protNFe nao encontrados na resposta SEFAZ'}
+
+        # Monta nfeProc encapsulando NFe + protNFe
+        proc_root = etree.Element(f'{{{NAMESPACE_NFE}}}nfeProc')
+        proc_root.set('versao', '4.00')
+        from copy import deepcopy
+        proc_root.append(deepcopy(nfe_elem))
+        proc_root.append(deepcopy(prot_elem))
+
+        xml_bytes = etree.tostring(proc_root, encoding='utf-8', xml_declaration=True)
+
+        return {
+            'sucesso': True,
+            'xml_bytes': xml_bytes,
+            'chave': chave,
+            'codigo_sefaz': c_stat,
+            'mensagem': x_motivo,
+        }
+
+    except Exception as e:
+        logger.error(f"[baixar_procnfe] Excecao: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {'sucesso': False, 'erro': f'Erro ao baixar procNFe: {str(e)}'}
+
 
 if __name__ == '__main__':
     print("=" * 70)
