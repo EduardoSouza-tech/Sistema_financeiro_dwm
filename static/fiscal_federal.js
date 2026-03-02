@@ -63,6 +63,21 @@ const FiscalFederal = (() => {
 
   function rawCNPJ(v) { return v.replace(/\D/g, ''); }
 
+  // Converte entrada do usuário MMAAAA → AAAAMM (formato da API SERPRO)
+  function _toApiComp(mmaaaa) {
+    const v = mmaaaa.replace(/\D/g, '');
+    if (v.length !== 6) return v;
+    return v.slice(2) + v.slice(0, 2); // MMAAAA → AAAAMM
+  }
+
+  // Exibe competência armazenada (AAAAMM) como MM/AAAA
+  function _fmtComp(aaaamm) {
+    if (!aaaamm) return '—';
+    const v = String(aaaamm).replace(/\D/g, '');
+    if (v.length === 6) return v.slice(4) + '/' + v.slice(0, 4); // AAAAMM → MM/AAAA
+    return aaaamm;
+  }
+
   function toast(msg, type = 'info') {
     if (typeof mostrarNotificacao === 'function') {
       mostrarNotificacao(msg, type);
@@ -284,13 +299,13 @@ const FiscalFederal = (() => {
   async function consultarDCTFWeb() {
     const cfg = getConfig();
     const competencia = document.getElementById('fiscal-dctf-comp').value.trim();
-    if (!competencia) { toast('Informe a competência (AAAAMM)', 'warning'); return; }
+    if (!competencia) { toast('Informe a competência (MMAAAA — ex: 032026)', 'warning'); return; }
     try {
       const resp = await apiFiscal('dctfweb/consultar', 'POST', {
         contratante_cnpj: cfg.contratante_cnpj,
         autor_doc: cfg.autor_doc,
         contribuinte_doc: rawCNPJ(document.getElementById('fiscal-dctf-cnpj').value || cfg.contribuinte_doc || ''),
-        competencia
+        competencia: _toApiComp(competencia)
       });
       document.getElementById('fiscal-dctf-result').innerHTML =
         `<pre class="fiscal-json">${JSON.stringify(resp, null, 2)}</pre>`;
@@ -309,7 +324,7 @@ const FiscalFederal = (() => {
       el.innerHTML = `<table class="fiscal-table"><thead><tr>
         <th>CNPJ</th><th>Competência</th><th>Situação</th><th>Valor Total</th><th>Consultado</th>
       </tr></thead><tbody>${rows.map(r => `<tr>
-        <td>${r.cnpj || '—'}</td><td>${r.competencia || '—'}</td>
+        <td>${r.cnpj || '—'}</td><td>${_fmtComp(r.competencia)}</td>
         <td>${r.situacao || '—'}</td><td>${fmtBRL(r.valor_total)}</td>
         <td>${fmtDateTime(r.consultado_em)}</td>
       </tr>`).join('')}</tbody></table>`;
@@ -359,14 +374,14 @@ const FiscalFederal = (() => {
     const cfg = getConfig();
     const evento = document.getElementById('fiscal-reinf-evento').value;
     const competencia = document.getElementById('fiscal-reinf-comp').value.trim();
-    if (!competencia) { toast('Informe a competência (AAAAMM)', 'warning'); return; }
+    if (!competencia) { toast('Informe a competência (MMAAAA — ex: 032026)', 'warning'); return; }
     try {
       const resp = await apiFiscal('reinf/consultar', 'POST', {
         contratante_cnpj: cfg.contratante_cnpj,
         autor_doc: cfg.autor_doc,
         contribuinte_doc: rawCNPJ(document.getElementById('fiscal-reinf-cnpj').value || cfg.contribuinte_doc || ''),
         evento,
-        competencia
+        competencia: _toApiComp(competencia)
       });
       document.getElementById('fiscal-reinf-result').innerHTML =
         `<pre class="fiscal-json">${JSON.stringify(resp, null, 2)}</pre>`;
@@ -385,7 +400,7 @@ const FiscalFederal = (() => {
       el.innerHTML = `<table class="fiscal-table"><thead><tr>
         <th>CNPJ</th><th>Competência</th><th>Evento</th><th>Recibo</th><th>Status</th><th>Consultado</th>
       </tr></thead><tbody>${rows.map(r => `<tr>
-        <td>${r.cnpj || '—'}</td><td>${r.competencia || '—'}</td>
+        <td>${r.cnpj || '—'}</td><td>${_fmtComp(r.competencia)}</td>
         <td>${r.evento || '—'}</td><td>${r.recibo || '—'}</td>
         <td>${r.status || '—'}</td><td>${fmtDateTime(r.consultado_em)}</td>
       </tr>`).join('')}</tbody></table>`;
@@ -417,7 +432,7 @@ const FiscalFederal = (() => {
     const cfg = getConfig();
     const campos = {
       codigo_receita: _getDarfCodigo(),
-      competencia: document.getElementById('fiscal-darf-comp').value.trim(),
+      competencia: _toApiComp(document.getElementById('fiscal-darf-comp').value.trim()),
       valor: parseFloat(document.getElementById('fiscal-darf-valor').value),
       data_vencimento: document.getElementById('fiscal-darf-venc').value.trim()
     };
@@ -464,7 +479,7 @@ const FiscalFederal = (() => {
         <th>Vencimento</th><th>Status</th><th>Ações</th>
       </tr></thead><tbody>${rows.map(r => `<tr>
         <td>${r.cnpj || '—'}</td><td>${r.codigo_receita || '—'}</td>
-        <td>${r.competencia || '—'}</td><td>${fmtBRL(r.valor)}</td>
+        <td>${r.competencia ? _fmtComp(r.competencia) : '—'}</td><td>${fmtBRL(r.valor)}</td>
         <td>${fmtDate(r.data_vencimento)}</td>
         <td><span class="fiscal-badge fiscal-badge-${r.status === 'pago' ? 'ok' : 'warn'}">${r.status}</span></td>
         <td>
