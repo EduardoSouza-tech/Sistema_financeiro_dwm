@@ -7906,30 +7906,117 @@ window.carregarMunicipiosNFSe = async function() {
 };
 
 // Auto-preenche o campo CNPJ do form de Configurar Municípios com o certificado ativo
+// Consulta BrasilAPI com CNPJ e preenche Nome do Município, Código IBGE e UF
+window.consultarCNPJPreencherMunicipio = async function(cnpj) {
+    if (!cnpj) return;
+    const digits = cnpj.replace(/\D/g, '');
+    if (digits.length !== 14) return;
+
+    const nomeInput   = document.getElementById('config-nome-municipio');
+    const ibgeInput   = document.getElementById('config-codigo-municipio');
+    const ufSelect    = document.getElementById('config-uf');
+    if (!nomeInput || !ibgeInput || !ufSelect) return;
+
+    // Feedback visual enquanto carrega
+    const statusEl = document.getElementById('config-cnpj-status');
+    if (statusEl) { statusEl.textContent = '⏳ Consultando CNPJ...'; statusEl.style.color = '#888'; }
+
+    try {
+        const resp = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (!resp.ok) {
+            if (statusEl) { statusEl.textContent = '⚠️ CNPJ não encontrado na Receita Federal'; statusEl.style.color = '#e67e22'; }
+            return;
+        }
+
+        const empresa = await resp.json();
+
+        // Nome do Município (maiúsculas → title case)
+        const nomeMunicipio = (empresa.municipio || '')
+            .toLowerCase()
+            .replace(/\b\w/g, c => c.toUpperCase());
+
+        // Código IBGE: BrasilAPI retorna como `codigo_municipio` (7 dígitos)
+        const codigoIBGE = String(empresa.codigo_municipio || '').trim();
+
+        // UF
+        const uf = (empresa.uf || '').toUpperCase().trim();
+
+        // Preenche apenas campos vazios (não sobrescreve o que o usuário já digitou)
+        if (nomeMunicipio && (!nomeInput.value || nomeInput.value.trim() === '')) {
+            nomeInput.value = nomeMunicipio;
+        }
+        if (codigoIBGE && (!ibgeInput.value || ibgeInput.value.trim() === '')) {
+            ibgeInput.value = codigoIBGE;
+        }
+        if (uf && ufSelect.value === '') {
+            // Seleciona a opção correspondente
+            for (const opt of ufSelect.options) {
+                if (opt.value === uf) { ufSelect.value = uf; break; }
+            }
+        }
+
+        if (statusEl) {
+            statusEl.textContent = nomeMunicipio ? `✅ ${nomeMunicipio}/${uf}` : '✅ CNPJ encontrado';
+            statusEl.style.color = '#27ae60';
+        }
+
+        console.log(`✅ CNPJ lookup: municipio=${nomeMunicipio}, uf=${uf}, ibge=${codigoIBGE}`);
+
+    } catch (err) {
+        console.warn('⚠️ Erro ao consultar CNPJ:', err);
+        if (statusEl) { statusEl.textContent = '⚠️ Erro ao consultar CNPJ'; statusEl.style.color = '#e74c3c'; }
+    }
+};
+
 window.preencherCNPJMunicipioDosCertificados = async function() {
     try {
         const cnpjInput = document.getElementById('config-cnpj');
         if (!cnpjInput) return;
-        // Só preenche se estiver vazio (não sobrescreve edição manual)
-        if (cnpjInput.value && cnpjInput.value.trim() !== '') return;
 
-        const response = await fetch('/api/relatorios/certificados', {
-            method: 'GET',
-            credentials: 'include'
-        });
-        if (!response.ok) return;
-        const data = await response.json();
-
-        const certs = data.certificados || [];
-        // Prioriza certificado ativo; senão pega o primeiro disponível
-        const ativo = certs.find(c => c.ativo) || certs[0];
-        if (!ativo) return;
-
-        const cnpj = ativo.cnpj || '';
-        if (cnpj) {
-            cnpjInput.value = cnpj;
-            console.log(`✅ CNPJ preenchido do certificado ativo: ${cnpj}`);
+        // Registrar listener para quando o usuário mudar o CNPJ manualmente
+        if (!cnpjInput._cnpjListenerAdded) {
+            cnpjInput._cnpjListenerAdded = true;
+            cnpjInput.addEventListener('change', function() {
+                // ao alterar, limpa campos de município para permitir novo preenchimento
+                const nomeInput = document.getElementById('config-nome-municipio');
+                const ibgeInput = document.getElementById('config-codigo-municipio');
+                const ufSelect  = document.getElementById('config-uf');
+                if (nomeInput) nomeInput.value = '';
+                if (ibgeInput) ibgeInput.value = '';
+                if (ufSelect)  ufSelect.value  = '';
+                window.consultarCNPJPreencherMunicipio(cnpjInput.value);
+            });
         }
+
+        // Só preenche CNPJ se estiver vazio (não sobrescreve edição manual)
+        if (!cnpjInput.value || cnpjInput.value.trim() === '') {
+            const response = await fetch('/api/relatorios/certificados', {
+                method: 'GET',
+                credentials: 'include'
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+
+            const certs = data.certificados || [];
+            const ativo = certs.find(c => c.ativo) || certs[0];
+            if (!ativo) return;
+
+            const cnpj = ativo.cnpj || '';
+            if (cnpj) {
+                cnpjInput.value = cnpj;
+                console.log(`✅ CNPJ preenchido do certificado ativo: ${cnpj}`);
+            }
+        }
+
+        // Consulta Receita Federal e preenche município, IBGE e UF
+        if (cnpjInput.value) {
+            await window.consultarCNPJPreencherMunicipio(cnpjInput.value);
+        }
+
     } catch (err) {
         console.warn('⚠️ Não foi possível obter CNPJ do certificado:', err);
     }
