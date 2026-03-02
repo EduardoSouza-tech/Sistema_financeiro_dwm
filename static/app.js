@@ -8591,19 +8591,25 @@ window.apagarTodasNFSe = async function() {
     }
 };
 
-// Mostrar modal de configuração de municípios
+// Mostrar configuração de municípios (agora inline na aba NFS-e do fiscal)
 window.mostrarConfigMunicipiosNFSe = async function() {
-    document.getElementById('modal-config-municipios').style.display = 'block';
-    await Promise.all([
-        window.carregarListaMunicipiosNFSe(),
-        window.carregarCertificadoNFSe()
-    ]);
+    // Garantir que a seção fiscal e a aba NFS-e estejam abertas
+    if (typeof window.showSection === 'function') window.showSection('fiscal');
+    setTimeout(async function() {
+        if (typeof window.showFiscalTab === 'function') window.showFiscalTab('nfse');
+        // Aguardar renderização e rolar até a config
+        setTimeout(function() {
+            const configDiv = document.getElementById('nfse-municipios-config');
+            if (configDiv) configDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150);
+        await window.carregarListaMunicipiosNFSe();
+    }, 100);
 };
 
-// Fechar modal de configuração
+// Fechar configuração de municípios (legacy - no-op pois agora é inline)
 window.fecharModalConfigMunicipios = function() {
-    document.getElementById('modal-config-municipios').style.display = 'none';
-    document.getElementById('form-novo-municipio-nfse').reset();
+    const form = document.getElementById('form-novo-municipio-nfse');
+    if (form) form.reset();
 };
 
 // Carregar lista de municípios configurados na tabela do modal
