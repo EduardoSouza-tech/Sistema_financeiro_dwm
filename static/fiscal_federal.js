@@ -395,10 +395,28 @@ const FiscalFederal = (() => {
   }
 
   // ─── DARF ─────────────────────────────────────────────────────────────────
+  function onDarfCodigoChange(sel) {
+    const inp = document.getElementById('fiscal-darf-codigo');
+    if (sel.value === '__outro__') {
+      inp.style.display = 'block';
+      inp.focus();
+    } else {
+      inp.style.display = 'none';
+      inp.value = '';
+    }
+  }
+
+  function _getDarfCodigo() {
+    const sel = document.getElementById('fiscal-darf-codigo-sel');
+    if (!sel) return document.getElementById('fiscal-darf-codigo').value.trim();
+    if (sel.value === '__outro__') return document.getElementById('fiscal-darf-codigo').value.trim();
+    return sel.value;
+  }
+
   async function emitirDARF() {
     const cfg = getConfig();
     const campos = {
-      codigo_receita: document.getElementById('fiscal-darf-codigo').value.trim(),
+      codigo_receita: _getDarfCodigo(),
       competencia: document.getElementById('fiscal-darf-comp').value.trim(),
       valor: parseFloat(document.getElementById('fiscal-darf-valor').value),
       data_vencimento: document.getElementById('fiscal-darf-venc').value.trim()
@@ -595,6 +613,7 @@ const FiscalFederal = (() => {
     emitirDARF,
     verificarPagamentoDARF,
     loadDARFLista,
+    onDarfCodigoChange,
     loadLogs,
     verLogDetalhe,
     loadFila,

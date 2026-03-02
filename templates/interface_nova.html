@@ -4215,7 +4215,44 @@
                         </div>
                         <div class="fiscal-field">
                             <label>Código da Receita</label>
-                            <input type="text" id="fiscal-darf-codigo" placeholder="Ex: 5952">
+                            <select id="fiscal-darf-codigo-sel"
+                                    onchange="FiscalFederal.onDarfCodigoChange(this)"
+                                    style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:5px;font-size:13px">
+                                <option value="">— selecione ou pesquise —</option>
+                                <optgroup label="IRPJ">
+                                    <option value="2089">2089 — IRPJ Lucro Presumido</option>
+                                    <option value="2120">2120 — IRPJ Lucro Real (Estimativa)</option>
+                                    <option value="2088">2088 — IRPJ Ajuste Anual</option>
+                                    <option value="0561">0561 — IRRF</option>
+                                </optgroup>
+                                <optgroup label="CSLL">
+                                    <option value="2372">2372 — CSLL Lucro Presumido / Ajuste</option>
+                                    <option value="2484">2484 — CSLL Lucro Real (Estimativa)</option>
+                                    <option value="2370">2370 — CSLL Retida na Fonte</option>
+                                </optgroup>
+                                <optgroup label="PIS">
+                                    <option value="8109">8109 — PIS Cumulativo</option>
+                                    <option value="6912">6912 — PIS Não Cumulativo</option>
+                                    <option value="5952">5952 — PIS Retido na Fonte</option>
+                                </optgroup>
+                                <optgroup label="COFINS">
+                                    <option value="2172">2172 — COFINS Cumulativa</option>
+                                    <option value="5856">5856 — COFINS Não Cumulativa</option>
+                                    <option value="5960">5960 — COFINS Retida na Fonte</option>
+                                </optgroup>
+                                <optgroup label="IRPF">
+                                    <option value="0190">0190 — IRPF Carnê-Leão</option>
+                                    <option value="4600">4600 — IRPF Ganho de Capital</option>
+                                    <option value="1889">1889 — IRPF Rendimentos Acumulados</option>
+                                </optgroup>
+                                <optgroup label="Outro">
+                                    <option value="__outro__">✏️ Digitar outro código...</option>
+                                </optgroup>
+                            </select>
+                            <input type="text" id="fiscal-darf-codigo" placeholder="Digite o código (ex: 1234)"
+                                   maxlength="4"
+                                   style="display:none;margin-top:6px;width:100%;padding:8px 10px;
+                                          border:1px solid #f9a825;border-radius:5px;font-size:13px">
                         </div>
                         <div class="fiscal-field">
                             <label>Competência (AAAAMM)</label>
