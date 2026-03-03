@@ -286,6 +286,42 @@ def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):
                     WHERE id = %s AND empresa_id = %s
                 """, (transacao_id, empresa_id))
                 
+
+                # Registrar desconciliacao no historico permanente
+                try:
+                    _deleted_lid = deleted['lancamento_id'] if deleted else None
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS historico_conciliacoes (
+                            id BIGSERIAL PRIMARY KEY, empresa_id INT NOT NULL,
+                            evento VARCHAR(20) NOT NULL, data_evento TIMESTAMPTZ DEFAULT NOW(),
+                            transacao_extrato_id INT, lancamento_id INT, data_transacao DATE,
+                            conta_bancaria VARCHAR(255), descricao_extrato TEXT,
+                            valor NUMERIC(15,2), tipo_extrato VARCHAR(50),
+                            descricao_lancamento TEXT, categoria VARCHAR(255),
+                            subcategoria VARCHAR(255), pessoa VARCHAR(255),
+                            observacoes TEXT, memo TEXT, fitid VARCHAR(255)
+                        )
+                    """)
+                    cursor.execute("""
+                        INSERT INTO historico_conciliacoes (
+                            empresa_id, evento, transacao_extrato_id, lancamento_id,
+                            data_transacao, conta_bancaria, descricao_extrato, valor, tipo_extrato,
+                            descricao_lancamento, categoria, subcategoria, pessoa, observacoes, memo, fitid
+                        )
+                        SELECT
+                            te.empresa_id, 'desconciliado', te.id, %s,
+                            te.data, te.conta_bancaria, te.descricao, ABS(COALESCE(te.valor, 0)), te.tipo,
+                            COALESCE(l.descricao, te.descricao),
+                            COALESCE(l.categoria, te.categoria),
+                            COALESCE(l.subcategoria, te.subcategoria),
+                            COALESCE(l.pessoa, te.pessoa),
+                            l.observacoes, te.memo, te.fitid
+                        FROM transacoes_extrato te
+                        LEFT JOIN lancamentos l ON l.id = %s AND l.empresa_id = te.empresa_id
+                        WHERE te.id = %s AND te.empresa_id = %s
+                    """, (_deleted_lid, _deleted_lid, transacao_id, empresa_id))
+                except Exception as _he:
+                    log(f"Historico desconciliar warning: {_he}")
                 conn.commit()
                 cursor.close()
                 log(f"✅ Transação {transacao_id} desconciliada com sucesso")
@@ -405,6 +441,41 @@ def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):
                     WHERE id = %s AND empresa_id = %s
                 """, (transacao_id, empresa_id))
                 
+
+                # Registrar no historico permanente de conciliacoes
+                try:
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS historico_conciliacoes (
+                            id BIGSERIAL PRIMARY KEY, empresa_id INT NOT NULL,
+                            evento VARCHAR(20) NOT NULL, data_evento TIMESTAMPTZ DEFAULT NOW(),
+                            transacao_extrato_id INT, lancamento_id INT, data_transacao DATE,
+                            conta_bancaria VARCHAR(255), descricao_extrato TEXT,
+                            valor NUMERIC(15,2), tipo_extrato VARCHAR(50),
+                            descricao_lancamento TEXT, categoria VARCHAR(255),
+                            subcategoria VARCHAR(255), pessoa VARCHAR(255),
+                            observacoes TEXT, memo TEXT, fitid VARCHAR(255)
+                        )
+                    """)
+                    cursor.execute("""
+                        INSERT INTO historico_conciliacoes (
+                            empresa_id, evento, transacao_extrato_id, lancamento_id,
+                            data_transacao, conta_bancaria, descricao_extrato, valor, tipo_extrato,
+                            descricao_lancamento, categoria, subcategoria, pessoa, observacoes, memo, fitid
+                        )
+                        SELECT
+                            te.empresa_id, %s, te.id, %s,
+                            te.data, te.conta_bancaria, te.descricao, ABS(COALESCE(te.valor, 0)), te.tipo,
+                            COALESCE(l.descricao, te.descricao),
+                            COALESCE(l.categoria, te.categoria),
+                            COALESCE(l.subcategoria, te.subcategoria),
+                            COALESCE(l.pessoa, te.pessoa),
+                            l.observacoes, te.memo, te.fitid
+                        FROM transacoes_extrato te
+                        LEFT JOIN lancamentos l ON l.id = %s AND l.empresa_id = te.empresa_id
+                        WHERE te.id = %s AND te.empresa_id = %s
+                    """, ('conciliado', lancamento_id, lancamento_id, transacao_id, empresa_id))
+                except Exception as _he:
+                    log(f"Historico insert warning: {_he}")
                 conn.commit()
                 cursor.close()
                 

@@ -7162,16 +7162,18 @@ window.fecharHistoricoConciliacao = function() {
 window.carregarHistoricoConciliacao = async function() {
     const tbody = document.getElementById('tbody-historico-conciliacao');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="11" style="padding:40px; text-align:center; color:#95a5a6;">⏳ Carregando histórico...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="padding:40px; text-align:center; color:#95a5a6;">⏳ Carregando histórico...</td></tr>';
 
     const conta     = document.getElementById('hist-filtro-conta')?.value || '';
     const inicio    = document.getElementById('hist-filtro-inicio')?.value || '';
     const fim       = document.getElementById('hist-filtro-fim')?.value || '';
+    const evento    = document.getElementById('hist-filtro-evento')?.value || '';
 
     const params = new URLSearchParams();
     if (conta)   params.append('conta', conta);
     if (inicio)  params.append('data_inicio', inicio);
     if (fim)     params.append('data_fim', fim);
+    if (evento)  params.append('evento', evento);
 
     try {
         const resp = await fetch(`${API_URL}/extratos/historico-conciliacao?${params}`, {
@@ -7186,7 +7188,7 @@ window.carregarHistoricoConciliacao = async function() {
         if (badge) badge.textContent = `${dados.length} registro(s)`;
 
         if (!dados.length) {
-            tbody.innerHTML = '<tr><td colspan="11" style="padding:40px; text-align:center; color:#95a5a6;">Nenhuma conciliação encontrada para os filtros selecionados.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="12" style="padding:40px; text-align:center; color:#95a5a6;">Nenhuma conciliação encontrada para os filtros selecionados.</td></tr>';
             return;
         }
 
@@ -7223,18 +7225,23 @@ window.carregarHistoricoConciliacao = async function() {
                 <td style="padding:10px 12px; font-size:12px; max-width:200px; word-break:break-word;">${escapeHtml(item.descricao_lancamento || '')||'<span style="color:#bdc3c7">—</span>'}</td>
                 <td style="padding:10px 12px; font-size:12px; white-space:nowrap; color:#7f8c8d;">${dataConc}</td>
                 <td style="padding:10px 12px; text-align:center;">
-                    ${item.conciliacao_id
+                    ${item.evento === 'desconciliado'
+                        ? '<span style="background:#fee2e2; color:#c0392b; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700;">❌ Desconciliado</span>'
+                        : '<span style="background:#d5f5e3; color:#1e8449; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700;">✅ Conciliado</span>'}
+                </td>
+                <td style="padding:10px 12px; text-align:center;">
+                    ${item.evento === 'conciliado' && item.conciliacao_id
                         ? `<button onclick="abrirEdicaoConciliacao(${item.conciliacao_id})"
                             style="padding:5px 12px; background:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600;"
                             title="Editar esta conciliação">✏️ Editar</button>`
-                        : `<span style="font-size:11px; color:#aaa;">sem registro</span>`}
+                        : `<span style="font-size:11px; color:#bdc3c7;">—</span>`}
                 </td>
             </tr>`;
         }).join('');
 
     } catch (e) {
         console.error('Erro ao carregar histórico:', e);
-        tbody.innerHTML = `<tr><td colspan="11" style="padding:30px; text-align:center; color:#e74c3c;">❌ Erro ao carregar histórico: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="12" style="padding:30px; text-align:center; color:#e74c3c;">❌ Erro ao carregar histórico: ${e.message}</td></tr>`;
     }
 };
 
@@ -7251,6 +7258,8 @@ window.limparFiltrosHistoricoConc = function() {
     if (ini) ini.value = '';
     if (fim) fim.value = '';
     if (cta) cta.value = '';
+    const evt = document.getElementById('hist-filtro-evento');
+    if (evt) evt.value = '';
     carregarHistoricoConciliacao();
 };
 

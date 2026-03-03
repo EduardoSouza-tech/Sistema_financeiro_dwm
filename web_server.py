@@ -3768,6 +3768,11 @@ def gerenciar_lancamento(lancamento_id):
             transacao_ids = [row[0] for row in cursor.fetchall()]
             print(f"  Transações de extrato vinculadas: {transacao_ids}")
 
+            # 1.5. Registrar no historico ANTES de deletar (lancamento ainda existe)
+            _garantir_tabela_historico_conciliacoes(conn)
+            for _tid in transacao_ids:
+                _inserir_historico_conciliacao(conn, empresa_id, 'desconciliado', _tid, lancamento_id)
+
             # 2. Remover registros de conciliação
             cursor.execute(
                 "DELETE FROM conciliacoes WHERE lancamento_id = %s AND empresa_id = %s",
@@ -4449,85 +4454,172 @@ def conciliar_extrato(transacao_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ============================================================================
+# HISTORICO PERMANENTE DE CONCILIACOES - Funcoes auxiliares
+# ============================================================================
+
+def _garantir_tabela_historico_conciliacoes(conn):
+    """Cria a tabela historico_conciliacoes se nao existir (idempotente)."""
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS historico_conciliacoes (
+            id                   BIGSERIAL PRIMARY KEY,
+            empresa_id           INT NOT NULL,
+            evento               VARCHAR(20) NOT NULL,
+            data_evento          TIMESTAMPTZ DEFAULT NOW(),
+            transacao_extrato_id INT,
+            lancamento_id        INT,
+            data_transacao       DATE,
+            conta_bancaria       VARCHAR(255),
+            descricao_extrato    TEXT,
+            valor                NUMERIC(15,2),
+            tipo_extrato         VARCHAR(50),
+            descricao_lancamento TEXT,
+            categoria            VARCHAR(255),
+            subcategoria         VARCHAR(255),
+            pessoa               VARCHAR(255),
+            observacoes          TEXT,
+            memo                 TEXT,
+            fitid                VARCHAR(255)
+        )
+    """)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_hist_conc_empresa_data
+            ON historico_conciliacoes (empresa_id, data_evento DESC)
+    """)
+    cur.close()
+
+
+def _inserir_historico_conciliacao(conn, empresa_id, evento, transacao_id, lancamento_id=None):
+    """Insere um evento no historico de conciliacoes, copiando dados do extrato/lancamento."""
+    try:
+        _garantir_tabela_historico_conciliacoes(conn)
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO historico_conciliacoes (
+                empresa_id, evento, transacao_extrato_id, lancamento_id,
+                data_transacao, conta_bancaria, descricao_extrato, valor, tipo_extrato,
+                descricao_lancamento, categoria, subcategoria, pessoa, observacoes, memo, fitid
+            )
+            SELECT
+                te.empresa_id, %s, te.id, %s,
+                te.data, te.conta_bancaria, te.descricao, ABS(COALESCE(te.valor, 0)), te.tipo,
+                COALESCE(l.descricao, te.descricao),
+                COALESCE(l.categoria, te.categoria),
+                COALESCE(l.subcategoria, te.subcategoria),
+                COALESCE(l.pessoa, te.pessoa),
+                l.observacoes, te.memo, te.fitid
+            FROM transacoes_extrato te
+            LEFT JOIN lancamentos l ON l.id = %s AND l.empresa_id = te.empresa_id
+            WHERE te.id = %s AND te.empresa_id = %s
+        """, (evento, lancamento_id, lancamento_id, transacao_id, empresa_id))
+        cur.close()
+    except Exception as exc:
+        logger.warning(f"_inserir_historico_conciliacao falhou: {exc}")
+
+
 @app.route('/api/extratos/historico-conciliacao', methods=['GET'])
 @require_permission('lancamentos_view')
 def historico_conciliacao():
     """
-    Retorna o histórico completo de conciliações da empresa.
+    Retorna o historico permanente de conciliacoes (tabela historico_conciliacoes).
+    Inclui eventos 'conciliado' e 'desconciliado' para auditoria completa.
+    Auto-migra registros existentes da tabela conciliacoes na primeira chamada.
 
     Query params opcionais:
-        conta       - filtrar por conta bancária
-        data_inicio - YYYY-MM-DD
-        data_fim    - YYYY-MM-DD
-
-    Security:
-        🔒 Validado empresa_id da sessão
+        conta         - filtrar por conta bancaria
+        data_inicio   - YYYY-MM-DD
+        data_fim      - YYYY-MM-DD
+        evento        - 'conciliado' ou 'desconciliado' (padrao: todos)
     """
     try:
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'erro': 'Empresa não selecionada'}), 403
+            return jsonify({'erro': 'Empresa nao selecionada'}), 403
 
-        conta      = request.args.get('conta', '').strip()
-        data_inicio = request.args.get('data_inicio', '').strip()
-        data_fim    = request.args.get('data_fim', '').strip()
+        conta         = request.args.get('conta', '').strip()
+        data_inicio   = request.args.get('data_inicio', '').strip()
+        data_fim      = request.args.get('data_fim', '').strip()
+        evento_filtro = request.args.get('evento', '').strip()
 
         filtros = []
         params  = [empresa_id]
 
         if conta:
-            filtros.append("te.conta_bancaria = %s")
+            filtros.append("h.conta_bancaria = %s")
             params.append(conta)
         if data_inicio:
-            filtros.append("te.data >= %s")
+            filtros.append("h.data_transacao >= %s")
             params.append(data_inicio)
         if data_fim:
-            filtros.append("te.data <= %s")
+            filtros.append("h.data_transacao <= %s")
             params.append(data_fim)
+        if evento_filtro in ('conciliado', 'desconciliado'):
+            filtros.append("h.evento = %s")
+            params.append(evento_filtro)
 
         where_extra = ('AND ' + ' AND '.join(filtros)) if filtros else ''
 
         import psycopg2.extras
         with database.get_db_connection(empresa_id=empresa_id) as conn:
+            # Garantir que a tabela existe
+            _garantir_tabela_historico_conciliacoes(conn)
+
+            # Auto-migrar conciliacoes existentes que ainda nao estao no historico
+            conn.cursor().execute("""
+                INSERT INTO historico_conciliacoes (
+                    empresa_id, evento, data_evento, transacao_extrato_id, lancamento_id,
+                    data_transacao, conta_bancaria, descricao_extrato, valor, tipo_extrato,
+                    descricao_lancamento, categoria, subcategoria, pessoa, observacoes, memo, fitid
+                )
+                SELECT
+                    c.empresa_id, 'conciliado',
+                    COALESCE(c.data_conciliacao, te.created_at, NOW()),
+                    te.id, l.id,
+                    te.data, te.conta_bancaria, te.descricao, ABS(COALESCE(te.valor, 0)), te.tipo,
+                    COALESCE(l.descricao, te.descricao),
+                    COALESCE(l.categoria, te.categoria),
+                    COALESCE(l.subcategoria, te.subcategoria),
+                    COALESCE(l.pessoa, te.pessoa),
+                    l.observacoes, te.memo, te.fitid
+                FROM conciliacoes c
+                JOIN transacoes_extrato te ON te.id = c.transacao_extrato_id
+                                          AND te.empresa_id = c.empresa_id
+                LEFT JOIN lancamentos l ON l.id = c.lancamento_id
+                                       AND l.empresa_id = c.empresa_id
+                WHERE c.empresa_id = %s
+                  AND NOT EXISTS (
+                      SELECT 1 FROM historico_conciliacoes h2
+                      WHERE h2.transacao_extrato_id = te.id
+                        AND h2.empresa_id = c.empresa_id
+                        AND h2.evento = 'conciliado'
+                  )
+            """, (empresa_id,))
+
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            # Usar transacoes_extrato como base (conciliado=TRUE) para garantir que
-            # entradas que não têm registro em 'conciliacoes' também apareçam.
-            # LEFT JOIN preserva todas as transações conciliadas mesmo sem linha
-            # na tabela 'conciliacoes' (ex: migrações antigas).
             cursor.execute(f"""
                 SELECT
-                    c.id                      AS conciliacao_id,
-                    COALESCE(c.data_conciliacao, te.created_at)
-                                              AS data_conciliacao,
-                    te.id                     AS transacao_id,
-                    te.data                   AS data_transacao,
-                    te.conta_bancaria,
-                    te.descricao              AS descricao_extrato,
-                    ABS(te.valor)             AS valor,
-                    te.tipo                   AS tipo_extrato,
-                    te.memo,
-                    te.fitid,
-                    l.id                      AS lancamento_id,
-                    COALESCE(l.descricao, te.descricao)
-                                              AS descricao_lancamento,
-                    COALESCE(l.categoria, te.categoria)
-                                              AS categoria,
-                    COALESCE(l.subcategoria, te.subcategoria)
-                                              AS subcategoria,
-                    COALESCE(l.pessoa, te.pessoa)
-                                              AS pessoa,
-                    l.observacoes,
-                    l.tipo                    AS tipo_lancamento,
-                    l.data_pagamento
-                FROM transacoes_extrato te
-                LEFT JOIN conciliacoes c  ON c.transacao_extrato_id = te.id
-                                        AND c.empresa_id = te.empresa_id
-                LEFT JOIN lancamentos  l  ON c.lancamento_id        = l.id
-                                        AND l.empresa_id = te.empresa_id
-                WHERE te.empresa_id = %s
-                  AND te.conciliado  = TRUE
+                    h.id                     AS conciliacao_id,
+                    h.data_evento            AS data_conciliacao,
+                    h.transacao_extrato_id   AS transacao_id,
+                    h.data_transacao,
+                    h.conta_bancaria,
+                    h.descricao_extrato,
+                    h.valor,
+                    h.tipo_extrato,
+                    h.memo,
+                    h.fitid,
+                    h.lancamento_id,
+                    h.descricao_lancamento,
+                    h.categoria,
+                    h.subcategoria,
+                    h.pessoa,
+                    h.observacoes,
+                    h.evento
+                FROM historico_conciliacoes h
+                WHERE h.empresa_id = %s
                 {where_extra}
-                ORDER BY te.data DESC, te.id DESC
+                ORDER BY h.data_evento DESC, h.id DESC
                 LIMIT 2000
             """, params)
             rows = cursor.fetchall()
@@ -4539,7 +4631,7 @@ def historico_conciliacao():
         for row in rows:
             d = dict(row)
             for k, v in d.items():
-                if isinstance(v, (_datetime,)):
+                if isinstance(v, _datetime):
                     d[k] = v.isoformat()
                 elif isinstance(v, _date):
                     d[k] = v.isoformat()
@@ -4550,7 +4642,7 @@ def historico_conciliacao():
         return jsonify(result), 200
 
     except Exception as e:
-        logger.error(f"Erro ao buscar histórico de conciliação: {e}")
+        logger.error(f"Erro no historico_conciliacao: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'erro': str(e)}), 500
@@ -4596,7 +4688,7 @@ def editar_conciliacao(conciliacao_id):
 
             # Obter lancamento_id vinculado (com segurança multi-tenant)
             cursor.execute("""
-                SELECT lancamento_id FROM conciliacoes
+                SELECT lancamento_id FROM historico_conciliacoes
                 WHERE id = %s AND empresa_id = %s
             """, (conciliacao_id, empresa_id))
             row = cursor.fetchone()
@@ -4716,11 +4808,22 @@ def regerar_conciliacao():
                                   f'{data_inicio} a {data_fim} para a conta "{conta}"')
                     }), 404
 
+                # Garantir tabela historico existe
+                _garantir_tabela_historico_conciliacoes(conn)
+
                 ids_transacoes  = [t['transacao_id'] for t in transacoes]
                 ids_lancamentos = [t['lancamento_id'] for t in transacoes if t['lancamento_id']]
 
                 logger.info(f"🔁 {len(transacoes)} transações encontradas, "
                             f"{len(ids_lancamentos)} lançamentos a excluir")
+
+                # 1.5: Registrar desconciliacoes no historico ANTES de excluir
+                for _t in transacoes:
+                    if _t['lancamento_id']:
+                        _inserir_historico_conciliacao(
+                            conn, empresa_id, 'desconciliado',
+                            _t['transacao_id'], _t['lancamento_id']
+                        )
 
                 # ── 2. Excluir lançamentos vinculados ───────────────────────────────────
                 if ids_lancamentos:
@@ -4812,6 +4915,11 @@ def regerar_conciliacao():
                         )
 
                         criados += 1
+                        # Registrar conciliacao no historico
+                        _inserir_historico_conciliacao(
+                            conn, empresa_id, 'conciliado',
+                            t['transacao_id'], novo_id
+                        )
                         logger.info(f"✅ Transação {t['transacao_id']} → lançamento #{novo_id} ({tipo_lancamento})")
 
                     except Exception as item_err:
@@ -5748,6 +5856,31 @@ def desconciliar_extrato(transacao_id):
             conciliacao = cursor.fetchone()
             
             lancamento_id = conciliacao['lancamento_id'] if conciliacao else None
+
+            # Registrar no historico ANTES de excluir o lancamento
+            try:
+                _garantir_tabela_historico_conciliacoes(conn)
+                if lancamento_id:
+                    cursor.execute("""
+                        INSERT INTO historico_conciliacoes (
+                            empresa_id, evento, transacao_extrato_id, lancamento_id,
+                            data_transacao, conta_bancaria, descricao_extrato, valor, tipo_extrato,
+                            descricao_lancamento, categoria, subcategoria, pessoa, observacoes, memo, fitid
+                        )
+                        SELECT
+                            te.empresa_id, 'desconciliado', te.id, %s,
+                            te.data, te.conta_bancaria, te.descricao, ABS(COALESCE(te.valor, 0)), te.tipo,
+                            COALESCE(l.descricao, te.descricao),
+                            COALESCE(l.categoria, te.categoria),
+                            COALESCE(l.subcategoria, te.subcategoria),
+                            COALESCE(l.pessoa, te.pessoa),
+                            l.observacoes, te.memo, te.fitid
+                        FROM transacoes_extrato te
+                        LEFT JOIN lancamentos l ON l.id = %s AND l.empresa_id = te.empresa_id
+                        WHERE te.id = %s AND te.empresa_id = %s
+                    """, (lancamento_id, lancamento_id, transacao_id, empresa_id))
+            except Exception as _he:
+                print(f"Historico insert warning: {_he}")
             print(f"?? Lan�amento ID: {lancamento_id}")
             
             # Excluir lan�amento se existir
