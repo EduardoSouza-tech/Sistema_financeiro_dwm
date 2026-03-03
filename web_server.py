@@ -3534,6 +3534,66 @@ def adicionar_lancamento():
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
+@app.route('/api/lancamentos/corrigir-tipos-conciliacao', methods=['POST'])
+@require_permission('lancamentos_edit')
+def corrigir_tipos_lancamentos_conciliacao():
+    """
+    Corrige automaticamente o tipo (receita/despesa) de lançamentos conciliados
+    que divergem do tipo registrado na transação do extrato.
+
+    Regra:
+        extrato DÉBITO  → lançamento deve ser 'despesa'
+        extrato CRÉDITO → lançamento deve ser 'receita'
+
+    Retorna:
+        { corrigidos: int }  — número de lançamentos atualizados
+    """
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+
+        import psycopg2.extras
+        with database.get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE lancamentos l
+                SET tipo = CASE
+                    WHEN te.tipo ILIKE '%DEB%' THEN 'despesa'
+                    WHEN te.tipo ILIKE '%CRE%' THEN 'receita'
+                    WHEN te.tipo ILIKE '%CRÉ%' THEN 'receita'
+                END
+                FROM conciliacoes c
+                JOIN transacoes_extrato te
+                     ON te.id = c.transacao_extrato_id
+                    AND te.empresa_id = c.empresa_id
+                WHERE c.lancamento_id   = l.id
+                  AND c.empresa_id       = l.empresa_id
+                  AND l.empresa_id       = %s
+                  AND (
+                    (te.tipo ILIKE '%%DEB%%' AND l.tipo = 'receita')
+                    OR
+                    (te.tipo ILIKE '%%CRE%%' AND l.tipo = 'despesa')
+                    OR
+                    (te.tipo ILIKE '%%CRÉ%%' AND l.tipo = 'despesa')
+                  )
+            """, (empresa_id,))
+            corrigidos = cursor.rowcount
+            conn.commit()
+            cursor.close()
+
+        if corrigidos > 0:
+            logger.info(f"🔧 corrigir_tipos_conciliacao: {corrigidos} lançamento(s) corrigido(s) para empresa {empresa_id}")
+
+        return jsonify({'success': True, 'corrigidos': corrigidos}), 200
+
+    except Exception as e:
+        logger.error(f"Erro ao corrigir tipos: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/lancamentos/<int:lancamento_id>', methods=['GET'])
 @aplicar_filtro_cliente
 @require_permission('lancamentos_view')

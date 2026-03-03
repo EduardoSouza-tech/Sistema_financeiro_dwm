@@ -2238,10 +2238,13 @@ async function loadLancamentos() {
 async function loadContasReceber() {
     console.log('🔄 loadContasReceber CHAMADA!');
     try {
+        // Auto-corrige lançamentos com tipo errado (DÉBITO→receita) antes de carregar
+        await fetch(`${API_URL}/lancamentos/corrigir-tipos-conciliacao`, { method: 'POST' }).catch(() => {});
+
         console.log('   📡 Buscando lançamentos...');
         const perPageSelect = document.getElementById('per-page-receber');
         const perPage = perPageSelect ? perPageSelect.value : 300;
-        const response = await fetch(`${API_URL}/lancamentos?per_page=${perPage}&page=1`);
+        const response = await fetch(`${API_URL}/lancamentos?per_page=${perPage}&page=1&tipo=receita`);
         const responseData = await response.json();
         const todosLancamentos = Array.isArray(responseData) ? responseData : (responseData.data || []);
         console.log('   📦 Total de lançamentos recebidos:', todosLancamentos.length);
@@ -2375,9 +2378,12 @@ async function loadContasReceber() {
 // === CONTAS A PAGAR ===
 async function loadContasPagar() {
     try {
+        // Auto-corrige lançamentos com tipo errado (CRÉDITO→despesa) antes de carregar
+        await fetch(`${API_URL}/lancamentos/corrigir-tipos-conciliacao`, { method: 'POST' }).catch(() => {});
+
         const perPageSelect = document.getElementById('per-page-pagar');
         const perPage = perPageSelect ? perPageSelect.value : 300;
-        const response = await fetch(`${API_URL}/lancamentos?per_page=${perPage}&page=1`);
+        const response = await fetch(`${API_URL}/lancamentos?per_page=${perPage}&page=1&tipo=despesa`);
         const responseData = await response.json();
         const todosLancamentos = Array.isArray(responseData) ? responseData : (responseData.data || []);
         
