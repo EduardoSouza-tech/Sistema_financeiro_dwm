@@ -3758,17 +3758,49 @@ def gerenciar_lancamento(lancamento_id):
         if not empresa_id:
             return jsonify({'erro': 'Empresa n�o selecionada'}), 403
         
-        success = db_excluir_lancamento(empresa_id, lancamento_id)
-        print(f"Resultado da exclus�o: {success}")
-        
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            # 1. Encontrar transacoes_extrato vinculadas via conciliacoes
+            cursor.execute(
+                "SELECT transacao_extrato_id FROM conciliacoes WHERE lancamento_id = %s AND empresa_id = %s",
+                (lancamento_id, empresa_id)
+            )
+            transacao_ids = [row[0] for row in cursor.fetchall()]
+            print(f"  Transações de extrato vinculadas: {transacao_ids}")
+
+            # 2. Remover registros de conciliação
+            cursor.execute(
+                "DELETE FROM conciliacoes WHERE lancamento_id = %s AND empresa_id = %s",
+                (lancamento_id, empresa_id)
+            )
+            print(f"  Conciliações removidas: {cursor.rowcount}")
+
+            # 3. Desmarcar transacoes_extrato como conciliadas
+            if transacao_ids:
+                cursor.execute(
+                    "UPDATE transacoes_extrato SET conciliado = FALSE WHERE id = ANY(%s) AND empresa_id = %s",
+                    (transacao_ids, empresa_id)
+                )
+                print(f"  Extratos desconciliados: {cursor.rowcount}")
+
+            # 4. Excluir o lançamento
+            cursor.execute(
+                "DELETE FROM lancamentos WHERE id = %s AND empresa_id = %s",
+                (lancamento_id, empresa_id)
+            )
+            success = cursor.rowcount > 0
+            cursor.close()
+
+        print(f"Resultado da exclusão: {success}")
+
         if not success:
-            print("AVISO: Nenhum registro foi exclu�do (ID n�o encontrado?)")
-            return jsonify({'success': False, 'error': 'Lan�amento n�o encontrado'}), 404
-        
-        print("Lan�amento exclu�do com sucesso!")
+            print("AVISO: Nenhum registro foi excluído (ID não encontrado?)")
+            return jsonify({'success': False, 'error': 'Lançamento não encontrado'}), 404
+
+        print("Lançamento excluído com sucesso!")
         return jsonify({'success': True})
     except Exception as e:
-        print(f"ERRO ao excluir lan�amento: {str(e)}")
+        print(f"ERRO ao excluir lançamento: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
