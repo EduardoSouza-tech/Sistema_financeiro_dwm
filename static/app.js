@@ -2659,6 +2659,51 @@ async function liquidarEmMassa(tipo) {
     return await baixarEmMassa(tipo);
 }
 
+async function excluirTudoNaTela(tbodyTipo) {
+    // Coleta todos os IDs visíveis na tbody (checkbox-receber ou checkbox-pagar)
+    const checkboxes = document.querySelectorAll(`.checkbox-${tbodyTipo}`);
+    const ids = Array.from(checkboxes).map(cb => cb.value).filter(Boolean);
+
+    if (ids.length === 0) {
+        showToast('Nenhum registro na tela para excluir.', 'warning');
+        return;
+    }
+
+    const tipo = tbodyTipo === 'receber' ? 'Contas a Receber' : 'Contas a Pagar';
+    if (!confirm(`⚠️ ATENÇÃO!\n\nIsso irá excluir PERMANENTEMENTE ${ids.length} registro(s) de ${tipo}.\n\nEsta ação NÃO pode ser desfeita!\n\nConfirma?`)) return;
+    // Segunda confirmação — ação destrutiva em massa
+    if (!confirm(`Última confirmação: excluir ${ids.length} registro(s) de ${tipo}?`)) return;
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        let sucesso = 0;
+        let erros = 0;
+
+        showToast(`Excluindo ${ids.length} registro(s)... aguarde.`, 'info');
+
+        for (const id of ids) {
+            try {
+                const res = await fetch(`${API_URL}/lancamentos/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+                });
+                const r = await res.json();
+                if (r.success) sucesso++; else erros++;
+            } catch { erros++; }
+        }
+
+        showToast(`✅ ${sucesso} excluído(s)${erros > 0 ? ` | ⚠️ ${erros} erro(s)` : ''}.`, sucesso > 0 ? 'success' : 'error');
+
+        if (tbodyTipo === 'receber') loadContasReceber();
+        else loadContasPagar();
+        if (typeof loadDashboard === 'function') loadDashboard();
+    } catch (error) {
+        console.error('Erro ao excluir tudo na tela:', error);
+        showToast('Erro ao excluir registros.', 'error');
+    }
+}
+window.excluirTudoNaTela = excluirTudoNaTela;
+
 async function excluirEmMassa(tipo) {
     const checkboxes = document.querySelectorAll(`.checkbox-${tipo === 'RECEITA' ? 'receber' : 'pagar'}:checked`);
     const ids = Array.from(checkboxes).map(cb => cb.value);
