@@ -3811,6 +3811,90 @@ def gerenciar_lancamento(lancamento_id):
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
+@app.route('/api/lancamentos/bulk-delete', methods=['POST'])
+@limiter.exempt
+@require_permission('lancamentos_delete')
+def bulk_delete_lancamentos():
+    """
+    Exclui múltiplos lançamentos de uma vez (sem rate-limit).
+    Limpa conciliacoes e transacoes_extrato.conciliado em cascata.
+
+    Body JSON:
+        ids: lista de IDs (int)
+    """
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+
+        dados = request.get_json(force=True) or {}
+        ids = [int(i) for i in (dados.get('ids') or []) if str(i).isdigit()]
+
+        if not ids:
+            return jsonify({'success': False, 'error': 'Nenhum ID fornecido'}), 400
+        if len(ids) > 500:
+            return jsonify({'success': False, 'error': 'Máximo 500 IDs por requisição'}), 400
+
+        print(f"\n=== Bulk delete: {len(ids)} lançamentos ===")
+
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+
+            # 1. Encontrar transacoes_extrato vinculadas
+            cursor.execute(
+                "SELECT transacao_extrato_id FROM conciliacoes "
+                "WHERE lancamento_id = ANY(%s) AND empresa_id = %s",
+                (ids, empresa_id)
+            )
+            transacao_ids = [row[0] for row in cursor.fetchall()]
+
+            # 2. Registrar no historico ANTES de deletar
+            _garantir_tabela_historico_conciliacoes(conn)
+            for _lid in ids:
+                cursor.execute(
+                    "SELECT transacao_extrato_id FROM conciliacoes "
+                    "WHERE lancamento_id = %s AND empresa_id = %s",
+                    (_lid, empresa_id)
+                )
+                for _row in cursor.fetchall():
+                    _inserir_historico_conciliacao(
+                        conn, empresa_id, 'desconciliado', _row[0], _lid
+                    )
+
+            # 3. Remover conciliacoes
+            cursor.execute(
+                "DELETE FROM conciliacoes WHERE lancamento_id = ANY(%s) AND empresa_id = %s",
+                (ids, empresa_id)
+            )
+            print(f"  Conciliações removidas: {cursor.rowcount}")
+
+            # 4. Desmarcar transacoes_extrato
+            if transacao_ids:
+                cursor.execute(
+                    "UPDATE transacoes_extrato SET conciliado = FALSE "
+                    "WHERE id = ANY(%s) AND empresa_id = %s",
+                    (transacao_ids, empresa_id)
+                )
+                print(f"  Extratos desconciliados: {cursor.rowcount}")
+
+            # 5. Excluir os lançamentos
+            cursor.execute(
+                "DELETE FROM lancamentos WHERE id = ANY(%s) AND empresa_id = %s",
+                (ids, empresa_id)
+            )
+            deleted = cursor.rowcount
+            cursor.close()
+
+        print(f"  Lançamentos excluídos: {deleted}")
+        return jsonify({'success': True, 'deleted': deleted})
+
+    except Exception as e:
+        print(f"ERRO bulk-delete: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
 # ============================================================================
 # ROTAS DE EXTRATO BANCARIO (IMPORTACAO OFX)
 # ============================================================================

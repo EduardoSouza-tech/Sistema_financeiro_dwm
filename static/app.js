@@ -2676,23 +2676,21 @@ async function excluirTudoNaTela(tbodyTipo) {
 
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        let sucesso = 0;
-        let erros = 0;
 
         showToast(`Excluindo ${ids.length} registro(s)... aguarde.`, 'info');
 
-        for (const id of ids) {
-            try {
-                const res = await fetch(`${API_URL}/lancamentos/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
-                });
-                const r = await res.json();
-                if (r.success) sucesso++; else erros++;
-            } catch { erros++; }
-        }
+        const res = await fetch(`${API_URL}/lancamentos/bulk-delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ ids: ids.map(Number) })
+        });
+        const r = await res.json();
 
-        showToast(`✅ ${sucesso} excluído(s)${erros > 0 ? ` | ⚠️ ${erros} erro(s)` : ''}.`, sucesso > 0 ? 'success' : 'error');
+        if (r.success) {
+            showToast(`✅ ${r.deleted} registro(s) excluído(s) com sucesso.`, 'success');
+        } else {
+            showToast(`❌ Erro ao excluir: ${r.error}`, 'error');
+        }
 
         if (tbodyTipo === 'receber') loadContasReceber();
         else loadContasPagar();
@@ -2717,27 +2715,19 @@ async function excluirEmMassa(tipo) {
     
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        let sucesso = 0;
-        let erros = 0;
-        
-        for (const id of ids) {
-            try {
-                const response = await fetch(`${API_URL}/lancamentos/${id}`, { 
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    }
-                });
-                const result = await response.json();
-                if (result.success) sucesso++;
-                else erros++;
-            } catch {
-                erros++;
-            }
+
+        const res = await fetch(`${API_URL}/lancamentos/bulk-delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ ids: ids.map(Number) })
+        });
+        const result = await res.json();
+
+        if (result.success) {
+            showToast(`✅ ${result.deleted} excluído(s).`, 'success');
+        } else {
+            showToast(`❌ Erro: ${result.error}`, 'error');
         }
-        
-        showToast(`✓ ${sucesso} excluído(s), ${erros} erro(s)`, sucesso > 0 ? 'success' : 'error');
         
         if (tipo === 'RECEITA') loadContasReceber();
         else loadContasPagar();
