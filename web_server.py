@@ -4864,21 +4864,40 @@ def regerar_conciliacao():
                         te.subcategoria      AS te_subcategoria,
                         te.pessoa            AS te_pessoa,
                         c.lancamento_id,
-                        l.descricao          AS l_descricao,
-                        l.categoria          AS l_categoria,
-                        l.subcategoria       AS l_subcategoria,
-                        l.pessoa             AS l_pessoa,
-                        l.observacoes        AS l_observacoes
+                        -- Fallback: usa dados do histórico quando lançamento foi excluído
+                        COALESCE(l.descricao,    h.descricao_lancamento) AS l_descricao,
+                        COALESCE(l.categoria,    h.categoria)            AS l_categoria,
+                        COALESCE(l.subcategoria, h.subcategoria)         AS l_subcategoria,
+                        COALESCE(l.pessoa,       h.pessoa)               AS l_pessoa,
+                        COALESCE(l.observacoes,  h.observacoes)          AS l_observacoes
                     FROM transacoes_extrato te
                     LEFT JOIN conciliacoes c ON c.transacao_extrato_id = te.id
                                             AND c.empresa_id = te.empresa_id
                     LEFT JOIN lancamentos  l ON l.id = c.lancamento_id
                                             AND l.empresa_id = te.empresa_id
+                    -- Recupera dados do histórico mais recente para transações desconciliadas
+                    LEFT JOIN LATERAL (
+                        SELECT descricao_lancamento, categoria, subcategoria, pessoa, observacoes
+                        FROM historico_conciliacoes
+                        WHERE transacao_extrato_id = te.id
+                          AND empresa_id           = te.empresa_id
+                        ORDER BY data_evento DESC
+                        LIMIT 1
+                    ) h ON TRUE
                     WHERE te.empresa_id     = %s
-                      AND te.conciliado     = TRUE
                       AND te.conta_bancaria = %s
                       AND te.data          >= %s
                       AND te.data          <= %s
+                      AND (
+                          -- Atualmente conciliada
+                          te.conciliado = TRUE
+                          -- OU foi conciliada/desconciliada anteriormente (lançamento excluído)
+                          OR EXISTS (
+                              SELECT 1 FROM historico_conciliacoes hc
+                              WHERE hc.transacao_extrato_id = te.id
+                                AND hc.empresa_id = te.empresa_id
+                          )
+                      )
                     ORDER BY te.data ASC, te.id ASC
                 """, (empresa_id, conta, data_inicio, data_fim))
 
@@ -4888,7 +4907,7 @@ def regerar_conciliacao():
                     cursor.close()
                     return jsonify({
                         'success': False,
-                        'error': (f'Nenhuma conciliação encontrada no período '
+                        'error': (f'Nenhuma conciliação (ativa ou desconciliada) encontrada no período '
                                   f'{data_inicio} a {data_fim} para a conta "{conta}"')
                     }), 404
 
