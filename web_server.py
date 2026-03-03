@@ -3765,7 +3765,7 @@ def gerenciar_lancamento(lancamento_id):
                 "SELECT transacao_extrato_id FROM conciliacoes WHERE lancamento_id = %s AND empresa_id = %s",
                 (lancamento_id, empresa_id)
             )
-            transacao_ids = [row[0] for row in cursor.fetchall()]
+            transacao_ids = [row['transacao_extrato_id'] for row in cursor.fetchall()]
             print(f"  Transações de extrato vinculadas: {transacao_ids}")
 
             # 1.5. Registrar no historico ANTES de deletar (lancamento ainda existe)
@@ -3846,7 +3846,7 @@ def bulk_delete_lancamentos():
                 "WHERE lancamento_id = ANY(%s) AND empresa_id = %s",
                 (ids, empresa_id)
             )
-            transacao_ids = [row[0] for row in cursor.fetchall()]
+            transacao_ids = [row['transacao_extrato_id'] for row in cursor.fetchall()]
 
             # 2. Registrar no historico ANTES de deletar
             _garantir_tabela_historico_conciliacoes(conn)
@@ -3858,7 +3858,7 @@ def bulk_delete_lancamentos():
                 )
                 for _row in cursor.fetchall():
                     _inserir_historico_conciliacao(
-                        conn, empresa_id, 'desconciliado', _row[0], _lid
+                        conn, empresa_id, 'desconciliado', _row['transacao_extrato_id'], _lid
                     )
 
             # 3. Remover conciliacoes
