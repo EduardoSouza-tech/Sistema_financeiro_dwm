@@ -4456,11 +4456,15 @@ window.conciliarTransacaoIndividual = async function() {
             return;
         }
         
-        // Determinar tipo do lançamento baseado no valor da transação
-        const isCredito = transacao.tipo?.toUpperCase() === 'CREDITO' || parseFloat(transacao.valor) > 0;
+        // Determinar tipo do lançamento baseado no tipo da transação
+        // ⚠️ FIX: usar tipo como fonte definitiva; valor apenas como fallback quando tipo ausente
+        // Nunca deixar parseFloat(valor) > 0 sobrepor um tipo='DEBITO' explícito
+        const tipoExtratoUpper = (transacao.tipo || '').toUpperCase();
+        const isCredito = tipoExtratoUpper === 'CREDITO'
+            || (tipoExtratoUpper !== 'DEBITO' && parseFloat(transacao.valor) > 0);
         const tipo = isCredito ? 'RECEITA' : 'DESPESA';
         
-        console.log('💰 Tipo detectado:', tipo, '(Crédito:', isCredito, ')');
+        console.log('💰 Tipo detectado:', tipo, '| tipo_extrato:', transacao.tipo, '| valor:', transacao.valor, '| isCredito:', isCredito);
         
         // Preparar dados do lançamento
         const lancamentoData = {

@@ -361,7 +361,33 @@ def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):
                         data_conciliacao = CURRENT_TIMESTAMP,
                         updated_at = CURRENT_TIMESTAMP
                 """, (empresa_id, transacao_id, lancamento_id))
-                
+
+                # ✅ CORRIGIR TIPO DO LANÇAMENTO se diverge do extrato (DEBITO→despesa, CREDITO→receita)
+                # Isso garante que um lançamento "receita" vinculado a DÉBITO seja corrigido para "despesa"
+                cursor.execute(
+                    "SELECT tipo, valor FROM transacoes_extrato WHERE id = %s AND empresa_id = %s",
+                    (transacao_id, empresa_id)
+                )
+                te_row = cursor.fetchone()
+                if te_row:
+                    te_tipo_raw = (te_row['tipo'] or '').upper()
+                    if te_tipo_raw in ('DÉBITO', 'DEBITO'):
+                        tipo_correto = 'despesa'
+                    elif te_tipo_raw in ('CRÉDITO', 'CREDITO'):
+                        tipo_correto = 'receita'
+                    else:
+                        # Fallback: sinal do valor (negativo = débito)
+                        valor_te = float(te_row['valor'] or 0)
+                        tipo_correto = 'despesa' if valor_te < 0 else 'receita'
+                    cursor.execute(
+                        "UPDATE lancamentos SET tipo = %s "
+                        "WHERE id = %s AND empresa_id = %s AND tipo != %s",
+                        (tipo_correto, lancamento_id, empresa_id, tipo_correto)
+                    )
+                    if cursor.rowcount > 0:
+                        log(f"⚠️  Tipo do lançamento #{lancamento_id} CORRIGIDO para '{tipo_correto}' "
+                            f"(extrato tipo: '{te_tipo_raw}')")
+
                 # ✅ MARCAR LANÇAMENTO COMO PAGO (requisito do usuário)
                 cursor.execute("""
                     UPDATE lancamentos
