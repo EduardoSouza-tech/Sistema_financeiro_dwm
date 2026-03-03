@@ -2660,8 +2660,9 @@ async function liquidarEmMassa(tipo) {
 }
 
 async function excluirTudoNaTela(tbodyTipo) {
-    // Coleta todos os IDs visíveis na tbody (checkbox-receber ou checkbox-pagar)
-    const checkboxes = document.querySelectorAll(`.checkbox-${tbodyTipo}`);
+    // Coleta apenas IDs dentro do tbody correto (escopo seguro)
+    const tbody = document.getElementById(`tbody-${tbodyTipo}`);
+    const checkboxes = tbody ? tbody.querySelectorAll(`.checkbox-${tbodyTipo}`) : [];
     const ids = Array.from(checkboxes).map(cb => cb.value).filter(Boolean);
 
     if (ids.length === 0) {
@@ -2670,6 +2671,26 @@ async function excluirTudoNaTela(tbodyTipo) {
     }
 
     const tipo = tbodyTipo === 'receber' ? 'Contas a Receber' : 'Contas a Pagar';
+
+    // Verifica se algum filtro está ativo — sem filtros significa excluir TODOS os registros
+    const filterIds = [
+        `filter-${tbodyTipo}`,
+        `filter-status-${tbodyTipo}`,
+        `filter-categoria-${tbodyTipo}`,
+        `filter-subcategoria-${tbodyTipo}`,
+        `filter-ano-${tbodyTipo}`,
+        `filter-mes-${tbodyTipo}`,
+        `filter-data-inicio-${tbodyTipo}`,
+        `filter-data-fim-${tbodyTipo}`,
+    ];
+    const semFiltros = filterIds.every(id => {
+        const el = document.getElementById(id);
+        return !el || !el.value;
+    });
+    if (semFiltros) {
+        if (!confirm(`🚨 PERIGO — SEM FILTROS ATIVOS!\n\nNenhum filtro está ativo. Isso irá excluir TODOS os ${ids.length} registro(s) de ${tipo} desta página!\n\nSe você tem mais registros do que o limite de página (300), os demais NÃO serão apagados agora, mas esta ação ainda é IRREVERSÍVEL.\n\nTem certeza absoluta que deseja excluir TUDO?`)) return;
+    }
+
     if (!confirm(`⚠️ ATENÇÃO!\n\nIsso irá excluir PERMANENTEMENTE ${ids.length} registro(s) de ${tipo}.\n\nEsta ação NÃO pode ser desfeita!\n\nConfirma?`)) return;
     // Segunda confirmação — ação destrutiva em massa
     if (!confirm(`Última confirmação: excluir ${ids.length} registro(s) de ${tipo}?`)) return;
