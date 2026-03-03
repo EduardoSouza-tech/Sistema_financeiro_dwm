@@ -14422,6 +14422,17 @@ def gerar_pdf_nfse_route(nfse_id):
         from database_postgresql import get_nfse_db_params
         
         db_params = get_nfse_db_params()
+
+        # Resolve o número real da NFS-e para o nome do arquivo
+        numero_nfse_str = str(nfse_id)  # fallback = db id
+        try:
+            from nfse_functions import NFSeDatabase
+            with NFSeDatabase(db_params) as _db_tmp:
+                _nfse_row = _db_tmp.get_nfse_by_id(nfse_id)
+            if _nfse_row and _nfse_row.get('numero_nfse'):
+                numero_nfse_str = str(_nfse_row['numero_nfse'])
+        except Exception:
+            pass
         
         logger.info(f"?? Chamando gerar_pdf_nfse(nfse_id={nfse_id})...")
         pdf_bytes = gerar_pdf_nfse(db_params, nfse_id)
@@ -14440,7 +14451,7 @@ def gerar_pdf_nfse_route(nfse_id):
                 temp_file.name,
                 mimetype='application/pdf',
                 as_attachment=True,
-                download_name=f'nfse_{nfse_id}.pdf'
+                download_name=f'nfse_{numero_nfse_str}.pdf'
             )
         else:
             logger.error(f"? gerar_pdf_nfse retornou None")

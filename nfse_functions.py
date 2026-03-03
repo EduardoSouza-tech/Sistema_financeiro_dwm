@@ -1599,10 +1599,11 @@ def buscar_nfse_ambiente_nacional(
                 ultimo_nsu = db.get_last_nsu_nfse(empresa_id, cnpj_informante) or 0
                 logger.info(f"📍 BUSCA INCREMENTAL: Último NSU = {ultimo_nsu}")
             
-            nsu_atual = max(ultimo_nsu + 1, 1)  # Começa do próximo (mínimo 1)
+            nsu_atual = max(ultimo_nsu + 1, 1)  # Começa do próximo NSU (mínimo 1)
             max_tentativas_404 = 100  # Para após 100 NSUs seguidos sem retorno
             tentativas_404 = 0
             documentos_processados = 0
+            maior_nsu = ultimo_nsu  # rastreia o maior ultNSU real visto
             
             logger.info(f"🔍 Buscando a partir do NSU {nsu_atual}")
             
@@ -1624,12 +1625,32 @@ def buscar_nfse_ambiente_nacional(
                 # Reset contador de 404 (encontrou algo)
                 tentativas_404 = 0
                 
-                # Extrair documentos do JSON
+                # Extrai cursores da resposta
+                # ultNSU = último NSU neste lote; maxNSU = máximo disponível na SEFAZ
+                ult_nsu_str = str(resposta.get('ultNSU', '') or '').strip()
+                max_nsu_str = str(resposta.get('maxNSU', '') or '').strip()
+                try:
+                    ult_nsu_resp = int(ult_nsu_str.lstrip('0') or '0')
+                except ValueError:
+                    ult_nsu_resp = 0
+                try:
+                    max_nsu_disp = int(max_nsu_str.lstrip('0') or '0')
+                except ValueError:
+                    max_nsu_disp = 0
+                
+                # Atualiza maior NSU real visto
+                if ult_nsu_resp > maior_nsu:
+                    maior_nsu = ult_nsu_resp
+                
+                # Calcula próximo NSU: pula direto para depois do lote atual
+                proximo_nsu = ult_nsu_resp + 1 if ult_nsu_resp > nsu_atual else nsu_atual + 1
+                
+                # Extrai documentos do JSON
                 documentos = cliente.extrair_documentos(resposta)
                 
                 if not documentos:
-                    logger.debug(f"📭 NSU {nsu_atual}: sem documentos")
-                    nsu_atual += 1
+                    logger.debug(f"📭 NSU {nsu_atual}: sem documentos (ultNSU={ult_nsu_resp})")
+                    nsu_atual = proximo_nsu
                     continue
                 
                 # Processar cada documento
@@ -1938,7 +1959,7 @@ def buscar_nfse_ambiente_nacional(
                         resultado['erros'].append(f"NSU {doc_nsu}: {str(e)}")
                         continue
                 
-                nsu_atual += 1
+                nsu_atual = proximo_nsu
             
             # Log do motivo da parada
             if documentos_processados >= max_documentos:
@@ -1948,11 +1969,14 @@ def buscar_nfse_ambiente_nacional(
                 logger.info(f"⏹️ Busca finalizada: {max_tentativas_404} NSUs consecutivos sem retorno")
             
             # Atualizar último NSU processado
-            if resultado['total_nfse'] > 0:
-                maior_nsu = nsu_atual - 1
+            # Usa maior_nsu (maior ultNSU visto na API), não o cursor interno
+            if maior_nsu > ultimo_nsu:
                 db.set_last_nsu_nfse(empresa_id, cnpj_informante, maior_nsu)
                 resultado['ultimo_nsu'] = maior_nsu
                 logger.info(f"💾 Último NSU atualizado: {maior_nsu}")
+            elif resultado['total_nfse'] > 0:
+                resultado['ultimo_nsu'] = maior_nsu
+                logger.info(f"ℹ️ NSU não avançou (maior_nsu={maior_nsu} == ultimo_nsu={ultimo_nsu})")
             
             resultado['sucesso'] = True
             
