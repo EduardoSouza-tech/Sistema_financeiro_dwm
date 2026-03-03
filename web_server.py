@@ -4341,6 +4341,169 @@ def conciliar_extrato(transacao_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/extratos/historico-conciliacao', methods=['GET'])
+@require_permission('lancamentos_view')
+def historico_conciliacao():
+    """
+    Retorna o histórico completo de conciliações da empresa.
+
+    Query params opcionais:
+        conta       - filtrar por conta bancária
+        data_inicio - YYYY-MM-DD
+        data_fim    - YYYY-MM-DD
+
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+
+        conta      = request.args.get('conta', '').strip()
+        data_inicio = request.args.get('data_inicio', '').strip()
+        data_fim    = request.args.get('data_fim', '').strip()
+
+        filtros = []
+        params  = [empresa_id]
+
+        if conta:
+            filtros.append("te.conta_bancaria = %s")
+            params.append(conta)
+        if data_inicio:
+            filtros.append("te.data >= %s")
+            params.append(data_inicio)
+        if data_fim:
+            filtros.append("te.data <= %s")
+            params.append(data_fim)
+
+        where_extra = ('AND ' + ' AND '.join(filtros)) if filtros else ''
+
+        import psycopg2.extras
+        with database.get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute(f"""
+                SELECT
+                    c.id                      AS conciliacao_id,
+                    c.data_conciliacao,
+                    te.id                     AS transacao_id,
+                    te.data                   AS data_transacao,
+                    te.conta_bancaria,
+                    te.descricao              AS descricao_extrato,
+                    te.valor,
+                    te.tipo                   AS tipo_extrato,
+                    te.memo,
+                    te.fitid,
+                    l.id                      AS lancamento_id,
+                    l.descricao               AS descricao_lancamento,
+                    l.categoria,
+                    l.subcategoria,
+                    l.pessoa,
+                    l.observacoes,
+                    l.tipo                    AS tipo_lancamento,
+                    l.data_pagamento
+                FROM conciliacoes c
+                JOIN transacoes_extrato te ON c.transacao_extrato_id = te.id
+                JOIN lancamentos        l  ON c.lancamento_id        = l.id
+                WHERE c.empresa_id = %s
+                {where_extra}
+                ORDER BY c.data_conciliacao DESC
+                LIMIT 2000
+            """, params)
+            rows = cursor.fetchall()
+            cursor.close()
+
+        from decimal import Decimal
+        from datetime import date as _date, datetime as _datetime
+        result = []
+        for row in rows:
+            d = dict(row)
+            for k, v in d.items():
+                if isinstance(v, (_datetime,)):
+                    d[k] = v.isoformat()
+                elif isinstance(v, _date):
+                    d[k] = v.isoformat()
+                elif isinstance(v, Decimal):
+                    d[k] = float(v)
+            result.append(d)
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.error(f"Erro ao buscar histórico de conciliação: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'erro': str(e)}), 500
+
+
+@app.route('/api/extratos/conciliacao/<int:conciliacao_id>', methods=['PATCH'])
+@require_permission('lancamentos_edit')
+def editar_conciliacao(conciliacao_id):
+    """
+    Edita os campos de um registro de conciliação (atualiza o lançamento vinculado).
+
+    Body JSON (todos opcionais):
+        descricao_lancamento, categoria, subcategoria, pessoa, observacoes
+
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'erro': 'Empresa não selecionada'}), 403
+
+        dados = request.get_json(force=True) or {}
+        campos_permitidos = ['descricao', 'categoria', 'subcategoria', 'pessoa', 'observacoes']
+
+        # Mapear descricao_lancamento → descricao no lancamento
+        if 'descricao_lancamento' in dados:
+            dados['descricao'] = dados.pop('descricao_lancamento')
+
+        sets   = []
+        params = []
+        for campo in campos_permitidos:
+            if campo in dados:
+                sets.append(f"{campo} = %s")
+                params.append(dados[campo])
+
+        if not sets:
+            return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
+
+        import psycopg2.extras
+        with database.get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            # Obter lancamento_id vinculado (com segurança multi-tenant)
+            cursor.execute("""
+                SELECT lancamento_id FROM conciliacoes
+                WHERE id = %s AND empresa_id = %s
+            """, (conciliacao_id, empresa_id))
+            row = cursor.fetchone()
+            if not row:
+                cursor.close()
+                return jsonify({'erro': 'Conciliação não encontrada'}), 404
+
+            lancamento_id = row['lancamento_id']
+            params.append(lancamento_id)
+            params.append(empresa_id)
+
+            cursor.execute(f"""
+                UPDATE lancamentos
+                SET {', '.join(sets)}, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s AND empresa_id = %s
+            """, params)
+
+            conn.commit()
+            cursor.close()
+
+        return jsonify({'success': True}), 200
+
+    except Exception as e:
+        logger.error(f"Erro ao editar conciliação {conciliacao_id}: {e}")
+        return jsonify({'erro': str(e)}), 500
+
+
 @app.route('/api/extratos/<int:transacao_id>/sugestoes', methods=['GET'])
 @require_permission('lancamentos_view')
 def sugerir_conciliacoes_extrato(transacao_id):

@@ -2090,6 +2090,11 @@
                                 onmouseout="this.style.background='#e67e22'">
                             🔧 Ajuste de OFX
                         </button>
+                        <button onclick="abrirHistoricoConciliacao()" class="btn btn-info" style="padding: 10px 20px; background: #2980b9; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s;"
+                                onmouseover="this.style.background='#1a6fa0'"
+                                onmouseout="this.style.background='#2980b9'">
+                            📋 Histórico de Conciliação
+                        </button>
                         <button onclick="abrirConciliacaoGeral()" class="btn btn-success" style="padding: 10px 20px; background: #27ae60; font-weight: bold;">
                             🔄 Conciliação Geral
                         </button>
@@ -6516,6 +6521,107 @@
         </div>
     </div>
     
+    <!-- Modal Histórico de Conciliação -->
+    <div id="modal-historico-conciliacao" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:10000; overflow-y:auto; padding:20px;">
+        <div style="background:white; margin:0 auto; border-radius:12px; max-width:1400px; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+            <!-- Header -->
+            <div style="padding:22px 28px; border-bottom:2px solid #ecf0f1; display:flex; justify-content:space-between; align-items:center; background:linear-gradient(135deg,#2980b9,#1a6fa0); border-radius:12px 12px 0 0;">
+                <h2 style="margin:0; color:white;">📋 Histórico de Conciliação Bancária</h2>
+                <button onclick="fecharHistoricoConciliacao()" style="background:none; border:none; font-size:28px; cursor:pointer; color:white; line-height:1;">&times;</button>
+            </div>
+            <!-- Filtros -->
+            <div style="padding:18px 28px; background:#f8f9fa; border-bottom:1px solid #dee2e6; display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;">
+                <div style="flex:1; min-width:160px;">
+                    <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:4px;">Conta Bancária</label>
+                    <select id="hist-filtro-conta" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+                        <option value="">Todas as contas</option>
+                    </select>
+                </div>
+                <div style="flex:1; min-width:140px;">
+                    <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:4px;">Data Início</label>
+                    <input type="date" id="hist-filtro-inicio" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+                </div>
+                <div style="flex:1; min-width:140px;">
+                    <label style="display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:4px;">Data Fim</label>
+                    <input type="date" id="hist-filtro-fim" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+                </div>
+                <button onclick="carregarHistoricoConciliacao()" style="padding:8px 20px; background:#2980b9; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:600; font-size:13px;">🔍 Filtrar</button>
+                <button onclick="limparFiltrosHistoricoConc()" style="padding:8px 16px; background:#95a5a6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px;">🔄 Limpar</button>
+                <span id="hist-total-badge" style="padding:8px 14px; background:#ecf0f1; border-radius:20px; font-size:13px; font-weight:600; color:#555; align-self:center;"></span>
+            </div>
+            <!-- Tabela -->
+            <div style="padding:20px 28px; overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:13px;" id="table-historico-conciliacao">
+                    <thead>
+                        <tr style="background:#2980b9; color:white;">
+                            <th style="padding:10px 12px; text-align:left; white-space:nowrap;">📅 Data Transação</th>
+                            <th style="padding:10px 12px; text-align:left;">🏦 Conta</th>
+                            <th style="padding:10px 12px; text-align:left; min-width:200px;">📝 Descrição Extrato</th>
+                            <th style="padding:10px 12px; text-align:right; white-space:nowrap;">💰 Valor</th>
+                            <th style="padding:10px 12px; text-align:center; white-space:nowrap;">📊 Tipo</th>
+                            <th style="padding:10px 12px; text-align:left;">🏷️ Categoria</th>
+                            <th style="padding:10px 12px; text-align:left;">📂 Subcategoria</th>
+                            <th style="padding:10px 12px; text-align:left; min-width:160px;">🏢 Razão Social</th>
+                            <th style="padding:10px 12px; text-align:left; min-width:180px;">📄 Desc. Lançamento</th>
+                            <th style="padding:10px 12px; text-align:left; white-space:nowrap;">🕐 Data Conciliação</th>
+                            <th style="padding:10px 12px; text-align:center; white-space:nowrap;">⚙️ Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-historico-conciliacao">
+                        <tr><td colspan="11" style="padding:40px; text-align:center; color:#95a5a6;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div style="padding:16px 28px; border-top:1px solid #ecf0f1; text-align:right;">
+                <button onclick="fecharHistoricoConciliacao()" style="padding:10px 24px; background:#95a5a6; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Conciliação -->
+    <div id="modal-editar-conciliacao" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.65); z-index:10001; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:12px; max-width:540px; width:95%; padding:0; box-shadow:0 10px 40px rgba(0,0,0,0.4);">
+            <div style="padding:20px 24px; background:linear-gradient(135deg,#e67e22,#d35400); border-radius:12px 12px 0 0; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; color:white;">✏️ Editar Conciliação</h3>
+                <button onclick="fecharEdicaoConciliacao()" style="background:none; border:none; font-size:24px; cursor:pointer; color:white;">&times;</button>
+            </div>
+            <div style="padding:24px;">
+                <input type="hidden" id="edit-conc-id">
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-weight:600; color:#444; margin-bottom:6px; font-size:13px;">📝 Descrição do Lançamento</label>
+                    <input type="text" id="edit-conc-descricao" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:14px; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-weight:600; color:#444; margin-bottom:6px; font-size:13px;">🏷️ Categoria</label>
+                    <input type="text" id="edit-conc-categoria" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:14px; box-sizing:border-box;" list="edit-conc-categorias-list">
+                    <datalist id="edit-conc-categorias-list"></datalist>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-weight:600; color:#444; margin-bottom:6px; font-size:13px;">📂 Subcategoria</label>
+                    <input type="text" id="edit-conc-subcategoria" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:14px; box-sizing:border-box;" list="edit-conc-subcategorias-list">
+                    <datalist id="edit-conc-subcategorias-list"></datalist>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-weight:600; color:#444; margin-bottom:6px; font-size:13px;">🏢 Razão Social / Pessoa</label>
+                    <input type="text" id="edit-conc-pessoa" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:14px; box-sizing:border-box;" list="edit-conc-pessoas-list">
+                    <datalist id="edit-conc-pessoas-list"></datalist>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-weight:600; color:#444; margin-bottom:6px; font-size:13px;">📋 Observações</label>
+                    <textarea id="edit-conc-observacoes" rows="3" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:14px; box-sizing:border-box; resize:vertical;"></textarea>
+                </div>
+                <!-- info somente-leitura -->
+                <div style="background:#f8f9fa; border-radius:6px; padding:12px; margin-bottom:16px; font-size:12px; color:#666; border-left:3px solid #2980b9;">
+                    <strong>Extrato:</strong> <span id="edit-conc-info-extrato"></span>
+                </div>
+            </div>
+            <div style="padding:16px 24px; background:#f8f9fa; border-radius:0 0 12px 12px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #ecf0f1;">
+                <button onclick="fecharEdicaoConciliacao()" style="padding:10px 20px; background:#95a5a6; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600;">Cancelar</button>
+                <button onclick="salvarEdicaoConciliacao()" style="padding:10px 24px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; font-size:14px;">💾 Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Conciliação Geral Extrato -->
     <div id="modal-conciliacao-geral" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; overflow-y: auto; padding: 20px;">
         <div style="background: white; margin: 0 auto; border-radius: 12px; max-width: 1200px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">

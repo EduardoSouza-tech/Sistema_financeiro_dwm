@@ -7209,6 +7209,216 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// === HISTÓRICO DE CONCILIAÇÃO BANCÁRIA ===
+
+let _historicoConciData = []; // cache para o modal de edição
+
+window.abrirHistoricoConciliacao = async function() {
+    const modal = document.getElementById('modal-historico-conciliacao');
+    if (!modal) return;
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+
+    // Preencher select de contas
+    const selectConta = document.getElementById('hist-filtro-conta');
+    if (selectConta && selectConta.options.length <= 1) {
+        try {
+            const resp = await fetch(`${API_URL}/contas`, { credentials: 'include', headers: { 'X-CSRFToken': window.csrfToken || '' } });
+            if (resp.ok) {
+                const result = await resp.json();
+                const contas = result.data || result;
+                selectConta.innerHTML = '<option value="">Todas as contas</option>';
+                contas.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.nome;
+                    opt.textContent = c.nome;
+                    selectConta.appendChild(opt);
+                });
+            }
+        } catch (e) { console.warn('Contas indisponíveis:', e); }
+    }
+
+    // Pré-preencher datas com o mês atual se vazios
+    const hoje = new Date();
+    const ini = document.getElementById('hist-filtro-inicio');
+    const fim = document.getElementById('hist-filtro-fim');
+    if (ini && !ini.value) {
+        ini.value = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+    }
+    if (fim && !fim.value) {
+        fim.value = hoje.toISOString().split('T')[0];
+    }
+
+    await carregarHistoricoConciliacao();
+};
+
+window.fecharHistoricoConciliacao = function() {
+    const modal = document.getElementById('modal-historico-conciliacao');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+};
+
+window.carregarHistoricoConciliacao = async function() {
+    const tbody = document.getElementById('tbody-historico-conciliacao');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="11" style="padding:40px; text-align:center; color:#95a5a6;">⏳ Carregando histórico...</td></tr>';
+
+    const conta     = document.getElementById('hist-filtro-conta')?.value || '';
+    const inicio    = document.getElementById('hist-filtro-inicio')?.value || '';
+    const fim       = document.getElementById('hist-filtro-fim')?.value || '';
+
+    const params = new URLSearchParams();
+    if (conta)   params.append('conta', conta);
+    if (inicio)  params.append('data_inicio', inicio);
+    if (fim)     params.append('data_fim', fim);
+
+    try {
+        const resp = await fetch(`${API_URL}/extratos/historico-conciliacao?${params}`, {
+            credentials: 'include',
+            headers: { 'X-CSRFToken': window.csrfToken || '' }
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const dados = await resp.json();
+        _historicoConciData = dados;
+
+        const badge = document.getElementById('hist-total-badge');
+        if (badge) badge.textContent = `${dados.length} registro(s)`;
+
+        if (!dados.length) {
+            tbody.innerHTML = '<tr><td colspan="11" style="padding:40px; text-align:center; color:#95a5a6;">Nenhuma conciliação encontrada para os filtros selecionados.</td></tr>';
+            return;
+        }
+
+        // Coletar sugestões para datalists do modal de edição
+        const categorias    = [...new Set(dados.map(d => d.categoria).filter(Boolean))].sort();
+        const subcategorias = [...new Set(dados.map(d => d.subcategoria).filter(Boolean))].sort();
+        const pessoas       = [...new Set(dados.map(d => d.pessoa).filter(Boolean))].sort();
+        _preencherDatalist('edit-conc-categorias-list', categorias);
+        _preencherDatalist('edit-conc-subcategorias-list', subcategorias);
+        _preencherDatalist('edit-conc-pessoas-list', pessoas);
+
+        tbody.innerHTML = dados.map((item, idx) => {
+            const valor     = parseFloat(item.valor || 0);
+            const isDebito  = (item.tipo_extrato || '').toUpperCase().includes('DEB') || valor < 0;
+            const corValor  = isDebito ? '#e74c3c' : '#27ae60';
+            const valorFmt  = (isDebito ? '- ' : '+ ') + 'R$ ' + Math.abs(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            const tipoBadge = isDebito
+                ? '<span style="background:#fee; color:#c0392b; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;">DÉBITO</span>'
+                : '<span style="background:#eafaf1; color:#27ae60; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;">CRÉDITO</span>';
+            const dataConc  = item.data_conciliacao ? item.data_conciliacao.split('T')[0] : '-';
+            const bg        = idx % 2 === 0 ? '#fff' : '#f8f9fa';
+
+            return `<tr style="background:${bg};">
+                <td style="padding:10px 12px; white-space:nowrap; color:#555;">${item.data_transacao || '-'}</td>
+                <td style="padding:10px 12px; font-size:12px; color:#555;">${escapeHtml(item.conta_bancaria || '')}</td>
+                <td style="padding:10px 12px; max-width:260px; word-break:break-word; line-height:1.4; font-size:12px;">${escapeHtml(item.descricao_extrato || '')}${item.memo && item.memo !== item.descricao_extrato ? `<br><span style="color:#95a5a6; font-size:11px;">${escapeHtml(item.memo)}</span>` : ''}</td>
+                <td style="padding:10px 12px; text-align:right; font-weight:600; color:${corValor}; white-space:nowrap;">${valorFmt}</td>
+                <td style="padding:10px 12px; text-align:center;">${tipoBadge}</td>
+                <td style="padding:10px 12px; font-size:12px;">${escapeHtml(item.categoria || '<span style="color:#bdc3c7">—</span>')}</td>
+                <td style="padding:10px 12px; font-size:12px;">${escapeHtml(item.subcategoria || '')||'<span style="color:#bdc3c7">—</span>'}</td>
+                <td style="padding:10px 12px; font-size:12px; font-weight:500;">${escapeHtml(item.pessoa || '')||'<span style="color:#bdc3c7">—</span>'}</td>
+                <td style="padding:10px 12px; font-size:12px; max-width:200px; word-break:break-word;">${escapeHtml(item.descricao_lancamento || '')||'<span style="color:#bdc3c7">—</span>'}</td>
+                <td style="padding:10px 12px; font-size:12px; white-space:nowrap; color:#7f8c8d;">${dataConc}</td>
+                <td style="padding:10px 12px; text-align:center;">
+                    <button onclick="abrirEdicaoConciliacao(${item.conciliacao_id})"
+                        style="padding:5px 12px; background:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600;"
+                        title="Editar esta conciliação">✏️ Editar</button>
+                </td>
+            </tr>`;
+        }).join('');
+
+    } catch (e) {
+        console.error('Erro ao carregar histórico:', e);
+        tbody.innerHTML = `<tr><td colspan="11" style="padding:30px; text-align:center; color:#e74c3c;">❌ Erro ao carregar histórico: ${e.message}</td></tr>`;
+    }
+};
+
+function _preencherDatalist(id, items) {
+    const dl = document.getElementById(id);
+    if (!dl) return;
+    dl.innerHTML = items.map(i => `<option value="${escapeHtml(i)}">`).join('');
+}
+
+window.limparFiltrosHistoricoConc = function() {
+    const ini = document.getElementById('hist-filtro-inicio');
+    const fim = document.getElementById('hist-filtro-fim');
+    const cta = document.getElementById('hist-filtro-conta');
+    if (ini) ini.value = '';
+    if (fim) fim.value = '';
+    if (cta) cta.value = '';
+    carregarHistoricoConciliacao();
+};
+
+window.abrirEdicaoConciliacao = function(conciliacaoId) {
+    const item = _historicoConciData.find(d => d.conciliacao_id === conciliacaoId);
+    if (!item) { showToast('Registro não encontrado', 'error'); return; }
+
+    document.getElementById('edit-conc-id').value          = conciliacaoId;
+    document.getElementById('edit-conc-descricao').value   = item.descricao_lancamento || '';
+    document.getElementById('edit-conc-categoria').value   = item.categoria || '';
+    document.getElementById('edit-conc-subcategoria').value = item.subcategoria || '';
+    document.getElementById('edit-conc-pessoa').value      = item.pessoa || '';
+    document.getElementById('edit-conc-observacoes').value = item.observacoes || '';
+
+    // Info somente-leitura
+    const valor   = parseFloat(item.valor || 0);
+    const sinal   = valor < 0 ? '-' : '+';
+    document.getElementById('edit-conc-info-extrato').textContent =
+        `${item.data_transacao}  •  ${item.conta_bancaria}  •  ${item.descricao_extrato}  •  ${sinal} R$ ${Math.abs(valor).toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+
+    const modal = document.getElementById('modal-editar-conciliacao');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+};
+
+window.fecharEdicaoConciliacao = function() {
+    const modal = document.getElementById('modal-editar-conciliacao');
+    if (modal) modal.style.display = 'none';
+};
+
+window.salvarEdicaoConciliacao = async function() {
+    const id = document.getElementById('edit-conc-id').value;
+    if (!id) return;
+
+    const payload = {
+        descricao_lancamento: document.getElementById('edit-conc-descricao').value.trim(),
+        categoria:            document.getElementById('edit-conc-categoria').value.trim(),
+        subcategoria:         document.getElementById('edit-conc-subcategoria').value.trim(),
+        pessoa:               document.getElementById('edit-conc-pessoa').value.trim(),
+        observacoes:          document.getElementById('edit-conc-observacoes').value.trim()
+    };
+
+    try {
+        const resp = await fetch(`${API_URL}/extratos/conciliacao/${id}`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.csrfToken || '' },
+            body: JSON.stringify(payload)
+        });
+        const result = await resp.json();
+        if (!resp.ok) throw new Error(result.erro || result.error || 'Erro ao salvar');
+
+        showToast('✅ Conciliação atualizada com sucesso!', 'success');
+        fecharEdicaoConciliacao();
+
+        // Atualizar cache local para refletir na tabela sem reload completo
+        const item = _historicoConciData.find(d => d.conciliacao_id === parseInt(id));
+        if (item) {
+            item.descricao_lancamento = payload.descricao_lancamento;
+            item.categoria            = payload.categoria;
+            item.subcategoria         = payload.subcategoria;
+            item.pessoa               = payload.pessoa;
+            item.observacoes          = payload.observacoes;
+        }
+        // Recarregar tabela
+        await carregarHistoricoConciliacao();
+
+    } catch (e) {
+        console.error('Erro ao salvar edição:', e);
+        showToast(`Erro ao salvar: ${e.message}`, 'error');
+    }
+};
+
 // === CONCILIAÇÃO GERAL DE EXTRATO ===
 window.abrirConciliacaoGeral = async function() {
     console.log('🔄 [APP.JS] Abrindo Conciliação Geral...');
