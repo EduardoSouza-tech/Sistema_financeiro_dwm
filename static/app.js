@@ -7298,10 +7298,12 @@ window.carregarHistoricoConciliacao = async function() {
         _preencherDatalist('edit-conc-pessoas-list', pessoas);
 
         tbody.innerHTML = dados.map((item, idx) => {
-            const valor     = parseFloat(item.valor || 0);
-            const isDebito  = (item.tipo_extrato || '').toUpperCase().includes('DEB') || valor < 0;
+            // valor já vem como ABS() do banco — sempre positivo, sem manipulação de sinal
+            const valor     = Math.abs(parseFloat(item.valor || 0));
+            const tipoRaw   = (item.tipo_extrato || '').toUpperCase();
+            const isDebito  = tipoRaw.includes('DEB') || tipoRaw.includes('DÉBITO') || tipoRaw.includes('DEBITO');
             const corValor  = isDebito ? '#e74c3c' : '#27ae60';
-            const valorFmt  = (isDebito ? '- ' : '+ ') + 'R$ ' + Math.abs(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            const valorFmt  = 'R$ ' + valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const tipoBadge = isDebito
                 ? '<span style="background:#fee; color:#c0392b; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;">DÉBITO</span>'
                 : '<span style="background:#eafaf1; color:#27ae60; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;">CRÉDITO</span>';
@@ -7312,7 +7314,7 @@ window.carregarHistoricoConciliacao = async function() {
                 <td style="padding:10px 12px; white-space:nowrap; color:#555;">${item.data_transacao || '-'}</td>
                 <td style="padding:10px 12px; font-size:12px; color:#555;">${escapeHtml(item.conta_bancaria || '')}</td>
                 <td style="padding:10px 12px; max-width:260px; word-break:break-word; line-height:1.4; font-size:12px;">${escapeHtml(item.descricao_extrato || '')}${item.memo && item.memo !== item.descricao_extrato ? `<br><span style="color:#95a5a6; font-size:11px;">${escapeHtml(item.memo)}</span>` : ''}</td>
-                <td style="padding:10px 12px; text-align:right; font-weight:600; color:${corValor}; white-space:nowrap;">${valorFmt}</td>
+                <td style="padding:10px 12px; text-align:right; font-weight:700; color:${corValor}; white-space:nowrap; font-size:13px;">${valorFmt}</td>
                 <td style="padding:10px 12px; text-align:center;">${tipoBadge}</td>
                 <td style="padding:10px 12px; font-size:12px;">${escapeHtml(item.categoria || '<span style="color:#bdc3c7">—</span>')}</td>
                 <td style="padding:10px 12px; font-size:12px;">${escapeHtml(item.subcategoria || '')||'<span style="color:#bdc3c7">—</span>'}</td>
@@ -7320,9 +7322,11 @@ window.carregarHistoricoConciliacao = async function() {
                 <td style="padding:10px 12px; font-size:12px; max-width:200px; word-break:break-word;">${escapeHtml(item.descricao_lancamento || '')||'<span style="color:#bdc3c7">—</span>'}</td>
                 <td style="padding:10px 12px; font-size:12px; white-space:nowrap; color:#7f8c8d;">${dataConc}</td>
                 <td style="padding:10px 12px; text-align:center;">
-                    <button onclick="abrirEdicaoConciliacao(${item.conciliacao_id})"
-                        style="padding:5px 12px; background:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600;"
-                        title="Editar esta conciliação">✏️ Editar</button>
+                    ${item.conciliacao_id
+                        ? `<button onclick="abrirEdicaoConciliacao(${item.conciliacao_id})"
+                            style="padding:5px 12px; background:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600;"
+                            title="Editar esta conciliação">✏️ Editar</button>`
+                        : `<span style="font-size:11px; color:#aaa;">sem registro</span>`}
                 </td>
             </tr>`;
         }).join('');
@@ -7401,7 +7405,7 @@ window.salvarEdicaoConciliacao = async function() {
         showToast('✅ Conciliação atualizada com sucesso!', 'success');
         fecharEdicaoConciliacao();
 
-        // Atualizar cache local para refletir na tabela sem reload completo
+        // Atualizar cache local e recarregar tabela
         const item = _historicoConciData.find(d => d.conciliacao_id === parseInt(id));
         if (item) {
             item.descricao_lancamento = payload.descricao_lancamento;
@@ -7410,7 +7414,6 @@ window.salvarEdicaoConciliacao = async function() {
             item.pessoa               = payload.pessoa;
             item.observacoes          = payload.observacoes;
         }
-        // Recarregar tabela
         await carregarHistoricoConciliacao();
 
     } catch (e) {

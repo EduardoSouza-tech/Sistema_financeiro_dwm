@@ -4382,32 +4382,44 @@ def historico_conciliacao():
         import psycopg2.extras
         with database.get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            # Usar transacoes_extrato como base (conciliado=TRUE) para garantir que
+            # entradas que não têm registro em 'conciliacoes' também apareçam.
+            # LEFT JOIN preserva todas as transações conciliadas mesmo sem linha
+            # na tabela 'conciliacoes' (ex: migrações antigas).
             cursor.execute(f"""
                 SELECT
                     c.id                      AS conciliacao_id,
-                    c.data_conciliacao,
+                    COALESCE(c.data_conciliacao, te.created_at)
+                                              AS data_conciliacao,
                     te.id                     AS transacao_id,
                     te.data                   AS data_transacao,
                     te.conta_bancaria,
                     te.descricao              AS descricao_extrato,
-                    te.valor,
+                    ABS(te.valor)             AS valor,
                     te.tipo                   AS tipo_extrato,
                     te.memo,
                     te.fitid,
                     l.id                      AS lancamento_id,
-                    l.descricao               AS descricao_lancamento,
-                    l.categoria,
-                    l.subcategoria,
-                    l.pessoa,
+                    COALESCE(l.descricao, te.descricao)
+                                              AS descricao_lancamento,
+                    COALESCE(l.categoria, te.categoria)
+                                              AS categoria,
+                    COALESCE(l.subcategoria, te.subcategoria)
+                                              AS subcategoria,
+                    COALESCE(l.pessoa, te.pessoa)
+                                              AS pessoa,
                     l.observacoes,
                     l.tipo                    AS tipo_lancamento,
                     l.data_pagamento
-                FROM conciliacoes c
-                JOIN transacoes_extrato te ON c.transacao_extrato_id = te.id
-                JOIN lancamentos        l  ON c.lancamento_id        = l.id
-                WHERE c.empresa_id = %s
+                FROM transacoes_extrato te
+                LEFT JOIN conciliacoes c  ON c.transacao_extrato_id = te.id
+                                        AND c.empresa_id = te.empresa_id
+                LEFT JOIN lancamentos  l  ON c.lancamento_id        = l.id
+                                        AND l.empresa_id = te.empresa_id
+                WHERE te.empresa_id = %s
+                  AND te.conciliado  = TRUE
                 {where_extra}
-                ORDER BY c.data_conciliacao DESC
+                ORDER BY te.data DESC, te.id DESC
                 LIMIT 2000
             """, params)
             rows = cursor.fetchall()
