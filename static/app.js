@@ -7426,6 +7426,10 @@ window.confirmarRegerarConciliacao = async function() {
         }
 
         await carregarHistoricoConciliacao();
+        // Atualizar Contas a Receber e Contas a Pagar com os novos lançamentos
+        if (typeof loadContasReceber === 'function') await loadContasReceber();
+        if (typeof loadContasPagar   === 'function') await loadContasPagar();
+        if (typeof loadDashboard     === 'function') loadDashboard();
     } catch (err) {
         console.error('Erro ao regerar conciliação:', err);
         fecharRegerarConciliacao();
