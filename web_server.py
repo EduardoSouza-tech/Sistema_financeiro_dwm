@@ -4532,6 +4532,226 @@ def editar_conciliacao(conciliacao_id):
         return jsonify({'erro': str(e)}), 500
 
 
+@app.route('/api/extratos/regerar-conciliacao', methods=['POST'])
+@require_permission('lancamentos_create')
+def regerar_conciliacao():
+    """
+    Regenera as conciliações de um período, recriando os lançamentos corretamente.
+
+    Fluxo:
+    1. Busca todas as transações conciliadas no período/conta
+    2. Exclui os lançamentos e registros de conciliação em bloco (transação atômica)
+    3. Recria os lançamentos com tipo correto (derivado de transacoes_extrato.tipo)
+       preservando categoria/subcategoria/pessoa/descrição do histórico
+    4. Reconcilia novamente
+
+    Body JSON:
+        conta       - nome da conta bancária (obrigatório)
+        data_inicio - YYYY-MM-DD (obrigatório)
+        data_fim    - YYYY-MM-DD (obrigatório)
+
+    Security:
+        🔒 Validado empresa_id da sessão
+    """
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+
+        dados = request.get_json(force=True) or {}
+        conta       = dados.get('conta', '').strip()
+        data_inicio = dados.get('data_inicio', '').strip()
+        data_fim    = dados.get('data_fim', '').strip()
+
+        if not conta:
+            return jsonify({'success': False, 'error': 'Conta bancária é obrigatória'}), 400
+        if not data_inicio:
+            return jsonify({'success': False, 'error': 'Data início é obrigatória'}), 400
+        if not data_fim:
+            return jsonify({'success': False, 'error': 'Data fim é obrigatória'}), 400
+
+        logger.info(f"🔁 Regerar conciliação: empresa={empresa_id}, conta={conta}, {data_inicio} a {data_fim}")
+
+        import psycopg2.extras
+        # Variáveis acessíveis após o bloco with
+        transacoes = []
+        criados    = 0
+        erros      = []
+
+        with database.get_db_connection(empresa_id=empresa_id) as conn:
+            conn.autocommit = False
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            try:
+                # ── 1. Buscar transações conciliadas no período ─────────────────────────
+                cursor.execute("""
+                    SELECT
+                        te.id                AS transacao_id,
+                        te.data,
+                        te.descricao,
+                        te.valor,
+                        te.tipo              AS tipo_extrato,
+                        te.conta_bancaria,
+                        te.categoria         AS te_categoria,
+                        te.subcategoria      AS te_subcategoria,
+                        te.pessoa            AS te_pessoa,
+                        c.lancamento_id,
+                        l.descricao          AS l_descricao,
+                        l.categoria          AS l_categoria,
+                        l.subcategoria       AS l_subcategoria,
+                        l.pessoa             AS l_pessoa,
+                        l.observacoes        AS l_observacoes
+                    FROM transacoes_extrato te
+                    LEFT JOIN conciliacoes c ON c.transacao_extrato_id = te.id
+                                            AND c.empresa_id = te.empresa_id
+                    LEFT JOIN lancamentos  l ON l.id = c.lancamento_id
+                                            AND l.empresa_id = te.empresa_id
+                    WHERE te.empresa_id     = %s
+                      AND te.conciliado     = TRUE
+                      AND te.conta_bancaria = %s
+                      AND te.data          >= %s
+                      AND te.data          <= %s
+                    ORDER BY te.data ASC, te.id ASC
+                """, (empresa_id, conta, data_inicio, data_fim))
+
+                transacoes = list(cursor.fetchall())
+
+                if not transacoes:
+                    cursor.close()
+                    return jsonify({
+                        'success': False,
+                        'error': (f'Nenhuma conciliação encontrada no período '
+                                  f'{data_inicio} a {data_fim} para a conta "{conta}"')
+                    }), 404
+
+                ids_transacoes  = [t['transacao_id'] for t in transacoes]
+                ids_lancamentos = [t['lancamento_id'] for t in transacoes if t['lancamento_id']]
+
+                logger.info(f"🔁 {len(transacoes)} transações encontradas, "
+                            f"{len(ids_lancamentos)} lançamentos a excluir")
+
+                # ── 2. Excluir lançamentos vinculados ───────────────────────────────────
+                if ids_lancamentos:
+                    cursor.execute(
+                        "DELETE FROM lancamentos WHERE id = ANY(%s) AND empresa_id = %s",
+                        (ids_lancamentos, empresa_id)
+                    )
+                    logger.info(f"🗑️  Deletados {cursor.rowcount} lançamento(s)")
+
+                # ── 3. Excluir registros de conciliação ─────────────────────────────────
+                cursor.execute(
+                    "DELETE FROM conciliacoes WHERE transacao_extrato_id = ANY(%s) AND empresa_id = %s",
+                    (ids_transacoes, empresa_id)
+                )
+                logger.info(f"🗑️  Deletadas {cursor.rowcount} conciliação(ões)")
+
+                # ── 4. Marcar transações como não conciliadas ───────────────────────────
+                cursor.execute(
+                    "UPDATE transacoes_extrato SET conciliado = FALSE "
+                    "WHERE id = ANY(%s) AND empresa_id = %s",
+                    (ids_transacoes, empresa_id)
+                )
+
+                # ── 5. Recriar lançamentos e conciliações ───────────────────────────────
+                for t in transacoes:
+                    try:
+                        # Tipo correto derivado do extrato (NÃO do lançamento problemático)
+                        tipo_extrato_raw = (t['tipo_extrato'] or '').upper()
+                        valor_float      = float(t['valor'] or 0)
+
+                        if tipo_extrato_raw in ('DÉBITO', 'DEBITO'):
+                            tipo_lancamento = 'despesa'
+                        elif tipo_extrato_raw in ('CRÉDITO', 'CREDITO'):
+                            tipo_lancamento = 'receita'
+                        else:
+                            tipo_lancamento = 'receita' if valor_float >= 0 else 'despesa'
+                            logger.warning(
+                                f"⚠️  Tipo desconhecido '{t['tipo_extrato']}' para transação "
+                                f"{t['transacao_id']} — usando sinal do valor → {tipo_lancamento}"
+                            )
+
+                        valor_abs    = abs(valor_float)
+                        # Usar dados mais completos: lançamento editado > extrato como fallback
+                        categoria    = t['l_categoria']    or t['te_categoria']    or 'Conciliação Bancária'
+                        subcategoria = t['l_subcategoria'] or t['te_subcategoria']
+                        pessoa       = t['l_pessoa']       or t['te_pessoa']
+                        descricao_lc = (t['l_descricao']   or t['descricao'] or
+                                        'Lançamento recriado via Regerar Conciliação')
+                        observacoes  = (t['l_observacoes'] or '').strip()
+
+                        cursor.execute("""
+                            INSERT INTO lancamentos (
+                                empresa_id, tipo, descricao, valor,
+                                data_vencimento, data_pagamento, status,
+                                conta_bancaria, categoria, subcategoria, pessoa,
+                                observacoes
+                            ) VALUES (
+                                %s, %s, %s, %s,
+                                %s, %s, 'pago',
+                                %s, %s, %s, %s,
+                                %s
+                            )
+                            RETURNING id
+                        """, (
+                            empresa_id,
+                            tipo_lancamento,
+                            descricao_lc,
+                            valor_abs,
+                            t['data'],
+                            t['data'],
+                            t['conta_bancaria'],
+                            categoria,
+                            subcategoria,
+                            pessoa,
+                            observacoes
+                        ))
+
+                        novo_id = cursor.fetchone()['id']
+
+                        cursor.execute("""
+                            INSERT INTO conciliacoes (empresa_id, transacao_extrato_id, lancamento_id)
+                            VALUES (%s, %s, %s)
+                        """, (empresa_id, t['transacao_id'], novo_id))
+
+                        cursor.execute(
+                            "UPDATE transacoes_extrato SET conciliado = TRUE "
+                            "WHERE id = %s AND empresa_id = %s",
+                            (t['transacao_id'], empresa_id)
+                        )
+
+                        criados += 1
+                        logger.info(f"✅ Transação {t['transacao_id']} → lançamento #{novo_id} ({tipo_lancamento})")
+
+                    except Exception as item_err:
+                        erros.append(f"Transação #{t['transacao_id']}: {str(item_err)}")
+                        logger.error(f"❌ Erro ao recriar lançamento para transação "
+                                     f"{t['transacao_id']}: {item_err}")
+
+                conn.commit()
+                cursor.close()
+                logger.info(f"✅ Regerar concluído: {criados} criados, {len(erros)} erros")
+
+            except Exception as inner_err:
+                conn.rollback()
+                cursor.close()
+                raise inner_err
+
+        return jsonify({
+            'success': criados > 0,
+            'total':   len(transacoes),
+            'criados': criados,
+            'erros':   erros,
+            'message': (f'{criados} lançamento(s) recriado(s) com sucesso'
+                        + (f'. {len(erros)} erro(s).' if erros else ''))
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Erro ao regerar conciliação: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/extratos/<int:transacao_id>/sugestoes', methods=['GET'])
 @require_permission('lancamentos_view')
 def sugerir_conciliacoes_extrato(transacao_id):

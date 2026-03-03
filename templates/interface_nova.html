@@ -6572,7 +6572,12 @@
                     </tbody>
                 </table>
             </div>
-            <div style="padding:16px 28px; border-top:1px solid #ecf0f1; text-align:right;">
+            <div style="padding:16px 28px; border-top:1px solid #ecf0f1; display:flex; justify-content:space-between; align-items:center;">
+                <button onclick="abrirRegerarConciliacao()"
+                        style="padding:10px 22px; background:#c0392b; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px;"
+                        title="Desfaz e recria os lançamentos do período filtrado, corrigindo tipos e dados">
+                    🔁 Regerar Conciliação
+                </button>
                 <button onclick="fecharHistoricoConciliacao()" style="padding:10px 24px; background:#95a5a6; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600;">Fechar</button>
             </div>
         </div>
@@ -6618,6 +6623,44 @@
             <div style="padding:16px 24px; background:#f8f9fa; border-radius:0 0 12px 12px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #ecf0f1;">
                 <button onclick="fecharEdicaoConciliacao()" style="padding:10px 20px; background:#95a5a6; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600;">Cancelar</button>
                 <button onclick="salvarEdicaoConciliacao()" style="padding:10px 24px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; font-size:14px;">💾 Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Regerar Conciliação -->
+    <div id="modal-regerar-conciliacao" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:10002; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:12px; max-width:520px; width:95%; padding:0; box-shadow:0 10px 40px rgba(0,0,0,0.4);">
+            <div style="padding:20px 24px; background:linear-gradient(135deg,#c0392b,#e74c3c); border-radius:12px 12px 0 0; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; color:white;">🔁 Regerar Conciliação</h3>
+                <button id="btn-fechar-regerar" onclick="fecharRegerarConciliacao()" style="background:none; border:none; font-size:24px; cursor:pointer; color:white; line-height:1;">&times;</button>
+            </div>
+            <div style="padding:24px;">
+                <div style="background:#fef9e7; border:1px solid #f39c12; border-radius:8px; padding:14px; margin-bottom:18px;">
+                    <p style="margin:0 0 8px 0; font-weight:700; color:#e67e22;">⚠️ Atenção: Operação Destrutiva</p>
+                    <p style="margin:0; font-size:13px; color:#7f6000; line-height:1.6;">Esta operação irá:<br>
+                        1. <strong>Excluir</strong> todos os lançamentos criados por conciliação no período<br>
+                        2. <strong>Remover</strong> os registros de conciliação<br>
+                        3. <strong>Recriar</strong> os lançamentos corretamente com base nos dados do Histórico
+                    </p>
+                </div>
+                <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:14px; margin-bottom:18px;">
+                    <p style="margin:0 0 10px 0; font-weight:700; color:#34495e; font-size:13px;">📋 Parâmetros da Operação:</p>
+                    <table style="width:100%; font-size:13px; border-collapse:collapse;">
+                        <tr><td style="padding:4px 0; color:#666; width:130px;">Conta Bancária:</td><td id="regerar-resumo-conta" style="font-weight:600; color:#2c3e50;"></td></tr>
+                        <tr><td style="padding:4px 0; color:#666;">Data Início:</td><td id="regerar-resumo-inicio" style="font-weight:600; color:#2c3e50;"></td></tr>
+                        <tr><td style="padding:4px 0; color:#666;">Data Fim:</td><td id="regerar-resumo-fim" style="font-weight:600; color:#2c3e50;"></td></tr>
+                        <tr><td style="padding:4px 0; color:#666;">Total a regerar:</td><td id="regerar-resumo-total" style="font-weight:600; color:#c0392b;"></td></tr>
+                    </table>
+                </div>
+                <div id="regerar-progress" style="display:none; text-align:center; padding:20px 0;">
+                    <div style="font-size:36px;">⏳</div>
+                    <p style="margin:10px 0 0 0; color:#555; font-weight:600;">Regenerando conciliações...</p>
+                    <p style="margin:4px 0 0 0; color:#95a5a6; font-size:12px;">Por favor, aguarde. Não feche esta janela.</p>
+                </div>
+            </div>
+            <div id="regerar-footer" style="padding:16px 24px; background:#f8f9fa; border-radius:0 0 12px 12px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #ecf0f1;">
+                <button onclick="fecharRegerarConciliacao()" style="padding:10px 20px; background:#95a5a6; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600;">Cancelar</button>
+                <button id="btn-confirmar-regerar" onclick="confirmarRegerarConciliacao()" style="padding:10px 24px; background:#c0392b; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; font-size:14px;">🔁 Confirmar Regeneração</button>
             </div>
         </div>
     </div>

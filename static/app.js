@@ -7268,6 +7268,96 @@ window.salvarEdicaoConciliacao = async function() {
     }
 };
 
+// === REGERAR CONCILIAÇÃO ===
+window.abrirRegerarConciliacao = function() {
+    const conta = document.getElementById('hist-filtro-conta')?.value || '';
+    const inicio = document.getElementById('hist-filtro-inicio')?.value || '';
+    const fim = document.getElementById('hist-filtro-fim')?.value || '';
+
+    if (!conta) {
+        mostrarToast('Selecione uma conta bancária específica antes de regerar.', 'warning');
+        return;
+    }
+    if (!inicio || !fim) {
+        mostrarToast('Defina Data Início e Data Fim antes de regerar.', 'warning');
+        return;
+    }
+    if (inicio > fim) {
+        mostrarToast('Data Início não pode ser maior que Data Fim.', 'warning');
+        return;
+    }
+
+    // Populate summary
+    const contaEl = document.getElementById('hist-filtro-conta');
+    const contaText = contaEl?.options[contaEl.selectedIndex]?.text || conta;
+    const totalBadge = document.getElementById('hist-total-badge')?.textContent || '—';
+
+    document.getElementById('regerar-resumo-conta').textContent = contaText;
+    document.getElementById('regerar-resumo-inicio').textContent = inicio.split('-').reverse().join('/');
+    document.getElementById('regerar-resumo-fim').textContent = fim.split('-').reverse().join('/');
+    document.getElementById('regerar-resumo-total').textContent = totalBadge;
+
+    // Reset UI state
+    const progress = document.getElementById('regerar-progress');
+    const footer = document.getElementById('regerar-footer');
+    const btnFechar = document.getElementById('btn-fechar-regerar');
+    const btnConfirmar = document.getElementById('btn-confirmar-regerar');
+    if (progress) progress.style.display = 'none';
+    if (footer) footer.style.display = 'flex';
+    if (btnFechar) btnFechar.disabled = false;
+    if (btnConfirmar) btnConfirmar.disabled = false;
+
+    document.getElementById('modal-regerar-conciliacao').style.display = 'flex';
+};
+
+window.fecharRegerarConciliacao = function() {
+    document.getElementById('modal-regerar-conciliacao').style.display = 'none';
+};
+
+window.confirmarRegerarConciliacao = async function() {
+    const conta = document.getElementById('hist-filtro-conta')?.value || '';
+    const inicio = document.getElementById('hist-filtro-inicio')?.value || '';
+    const fim = document.getElementById('hist-filtro-fim')?.value || '';
+
+    // Show progress, hide footer
+    const progress = document.getElementById('regerar-progress');
+    const footer = document.getElementById('regerar-footer');
+    const btnFechar = document.getElementById('btn-fechar-regerar');
+    const btnConfirmar = document.getElementById('btn-confirmar-regerar');
+    if (progress) progress.style.display = 'block';
+    if (footer) footer.style.display = 'none';
+    if (btnFechar) btnFechar.disabled = true;
+    if (btnConfirmar) btnConfirmar.disabled = true;
+
+    try {
+        const empresaId = window.currentEmpresaId || localStorage.getItem('empresa_id');
+        const response = await fetch('/api/extratos/regerar-conciliacao', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Empresa-ID': empresaId
+            },
+            body: JSON.stringify({ conta, data_inicio: inicio, data_fim: fim })
+        });
+
+        const data = await response.json();
+        fecharRegerarConciliacao();
+
+        if (response.ok && data.success) {
+            const tipo = data.erros > 0 ? 'warning' : 'success';
+            mostrarToast(data.message || `✅ Regenerados: ${data.criados} lançamentos.`, tipo);
+        } else {
+            mostrarToast(data.erro || data.message || 'Erro ao regerar conciliações.', 'error');
+        }
+
+        await carregarHistoricoConciliacao();
+    } catch (err) {
+        console.error('Erro ao regerar conciliação:', err);
+        fecharRegerarConciliacao();
+        mostrarToast('Erro de conexão ao regerar conciliações.', 'error');
+    }
+};
+
 // === CONCILIAÇÃO GERAL DE EXTRATO ===
 window.abrirConciliacaoGeral = async function() {
     console.log('🔄 [APP.JS] Abrindo Conciliação Geral...');
