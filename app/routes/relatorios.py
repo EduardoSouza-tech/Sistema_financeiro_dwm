@@ -38,105 +38,112 @@ relatorios_bp = Blueprint('relatorios', __name__, url_prefix='/api/relatorios')
 @require_permission('relatorios_view')
 def relatorio_fluxo_caixa():
     """
-    Relatório de fluxo de caixa
-    
+    Relatório de fluxo de caixa — lançamentos PAGOS no período.
+
+    Filtra diretamente por data_pagamento no SQL para garantir precisão.
+
     Security:
         🔒 Validado empresa_id da sessão
     """
-    # 🔒 VALIDAÇÃO DE SEGURANÇA OBRIGATÓRIA
     from flask import session
+    from database_postgresql import get_db_connection
+
     empresa_id = session.get('empresa_id')
     if not empresa_id:
         return jsonify({'erro': 'Empresa não selecionada'}), 403
-    
-    data_inicio_str = request.args.get('data_inicio', (date.today() - timedelta(days=30)).isoformat())
-    data_fim_str = request.args.get('data_fim', date.today().isoformat())
-    
-    # Converter strings para date objects
-    data_inicio = parse_date(data_inicio_str)
-    
-    if isinstance(data_fim_str, str):
-        data_fim = parse_date(data_fim_str)
-        
-    if isinstance(data_fim_str, str):
+
+    today = date.today()
+    data_inicio_str = request.args.get('data_inicio', (today - timedelta(days=30)).isoformat())
+    data_fim_str    = request.args.get('data_fim',    today.isoformat())
+
+    # Parse robusto das datas (aceita formato YYYY-MM-DD)
+    try:
+        data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        data_inicio = today - timedelta(days=30)
+
+    try:
         data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date()
-    else:
-        data_fim = data_fim_str
-    
-    # 🔒 Passar empresa_id explicitamente
-    lancamentos = db.listar_lancamentos(empresa_id=empresa_id)
-    
-    # Filtrar lançamentos por cliente se necessário
-    usuario = request.usuario
-    if usuario['tipo'] != 'admin' and usuario.get('cliente_id'):
-        lancamentos = [l for l in lancamentos if getattr(l, 'pessoa', None) == usuario['cliente_id']]
-    
-    lancamentos_periodo = []
-    for l in lancamentos:
-        if l.status == StatusLancamento.PAGO and l.data_pagamento:
-            # Converter data_pagamento para date se for datetime
-            if isinstance(l.data_pagamento, datetime):
-                data_pgto = l.data_pagamento.date()
-            else:
-                data_pgto = l.data_pagamento
-            
-            # Comparar apenas se ambos forem date
-            try:
-                if data_inicio <= data_pgto <= data_fim:
-                    lancamentos_periodo.append(l)
-            except TypeError as e:
-                print(f"ERRO: tipo data_inicio={type(data_inicio)}, data_pgto={type(data_pgto)}, data_fim={type(data_fim)}")
-                print(f"Valores: {data_inicio} <= {data_pgto} <= {data_fim}")
-                raise
-    
+    except (ValueError, TypeError):
+        data_fim = today
+
+    try:
+        import psycopg2.extras
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute("""
+                SELECT
+                    id, tipo, descricao, valor,
+                    data_pagamento,
+                    categoria, subcategoria, conta_bancaria,
+                    pessoa, associacao
+                FROM lancamentos
+                WHERE empresa_id = %s
+                  AND LOWER(status) = 'pago'
+                  AND data_pagamento IS NOT NULL
+                  AND data_pagamento::date >= %s
+                  AND data_pagamento::date <= %s
+                ORDER BY data_pagamento, id
+            """, (empresa_id, data_inicio, data_fim))
+            rows = cursor.fetchall()
+    except Exception as e:
+        print(f"[fluxo-caixa] Erro SQL: {e}")
+        import traceback; traceback.print_exc()
+        return jsonify({'erro': f'Erro ao consultar lançamentos: {e}'}), 500
+
     resultado = []
-    for l in lancamentos_periodo:
-        data_pgto = l.data_pagamento
-        if hasattr(data_pgto, 'date'):
-            data_pgto = data_pgto.date()
-        
-        # Para transferências, criar dois registros: débito na origem e crédito no destino
-        if l.tipo == TipoLancamento.TRANSFERENCIA:
-            # Débito na conta origem (aparece como DESPESA)
+    for row in rows:
+        # row é dict (RealDictCursor)
+        tipo_raw = (row['tipo'] or '').lower()
+        data_pgto_raw = row['data_pagamento']
+        data_pgto_str = (
+            data_pgto_raw.date().isoformat() if isinstance(data_pgto_raw, datetime)
+            else data_pgto_raw.isoformat() if hasattr(data_pgto_raw, 'isoformat')
+            else str(data_pgto_raw)
+        )
+        valor = float(row['valor'] or 0)
+
+        if tipo_raw == 'transferencia':
+            # Transferência: aparece como saída na conta origem
             resultado.append({
                 'tipo': 'despesa',
-                'descricao': f"{l.descricao} (Saída)",
-                'valor': float(l.valor),
-                'data_pagamento': data_pgto.isoformat() if data_pgto else None,
-                'categoria': l.categoria,
-                'subcategoria': l.subcategoria,
-                'pessoa': l.pessoa,
-                'conta_bancaria': l.conta_bancaria if hasattr(l, 'conta_bancaria') else None,
-                'associacao': l.associacao if hasattr(l, 'associacao') else '',
-                'id': l.id if hasattr(l, 'id') else None
+                'descricao': f"{row['descricao']} (Saída)",
+                'valor': valor,
+                'data_pagamento': data_pgto_str,
+                'categoria': row['categoria'] or '',
+                'subcategoria': row['subcategoria'] or '',
+                'pessoa': row['pessoa'] or '',
+                'conta_bancaria': row['conta_bancaria'] or '',
+                'associacao': row['associacao'] or '',
+                'id': row['id'],
             })
-            # Crédito na conta destino (aparece como RECEITA)
+            # e como entrada na conta destino (subcategoria = destino)
             resultado.append({
                 'tipo': 'receita',
-                'descricao': f"{l.descricao} (Entrada)",
-                'valor': float(l.valor),
-                'data_pagamento': data_pgto.isoformat() if data_pgto else None,
-                'categoria': l.categoria,
-                'subcategoria': l.conta_bancaria,  # Inverter: origem vai para subcategoria
-                'pessoa': l.pessoa,
-                'conta_bancaria': l.subcategoria,  # Destino vira a conta bancária
-                'associacao': l.associacao if hasattr(l, 'associacao') else '',
-                'id': l.id if hasattr(l, 'id') else None
+                'descricao': f"{row['descricao']} (Entrada)",
+                'valor': valor,
+                'data_pagamento': data_pgto_str,
+                'categoria': row['categoria'] or '',
+                'subcategoria': row['conta_bancaria'] or '',
+                'pessoa': row['pessoa'] or '',
+                'conta_bancaria': row['subcategoria'] or '',
+                'associacao': row['associacao'] or '',
+                'id': row['id'],
             })
         else:
-            # Receitas e despesas normais
             resultado.append({
-                'tipo': l.tipo.value,
-                'descricao': l.descricao,
-                'valor': float(l.valor),
-                'data_pagamento': data_pgto.isoformat() if data_pgto else None,
-                'categoria': l.categoria,
-                'subcategoria': l.subcategoria,
-                'pessoa': l.pessoa,
-                'conta_bancaria': l.conta_bancaria if hasattr(l, 'conta_bancaria') else None,
-                'associacao': l.associacao if hasattr(l, 'associacao') else '',
-                'id': l.id if hasattr(l, 'id') else None
+                'tipo': tipo_raw if tipo_raw in ('receita', 'despesa') else tipo_raw,
+                'descricao': row['descricao'] or '',
+                'valor': valor,
+                'data_pagamento': data_pgto_str,
+                'categoria': row['categoria'] or '',
+                'subcategoria': row['subcategoria'] or '',
+                'pessoa': row['pessoa'] or '',
+                'conta_bancaria': row['conta_bancaria'] or '',
+                'associacao': row['associacao'] or '',
+                'id': row['id'],
             })
+
     return jsonify(resultado)
 
 

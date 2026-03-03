@@ -6628,42 +6628,26 @@ window.carregarFluxoCaixa = async function() {
             dataFim = `${anoAtual}-${mesAtual}-${ultimoDia}`;
         }
         
-        // Buscar dados do dashboard E contas a pagar/receber
-        let url = `${API_URL}/relatorios/dashboard-completo?data_inicio=${dataInicio}&data_fim=${dataFim}`;
-        if (banco) {
-            url += `&conta=${encodeURIComponent(banco)}`;
-        }
-        
-        const [responseRealizado, responseProjetado] = await Promise.all([
-            fetch(url, {
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': window.csrfToken || ''
-                }
-            }),
-            fetch(`${API_URL}/relatorios/analise-contas`, {
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': window.csrfToken || ''
-                }
-            })
-        ]);
-        
-        if (!responseRealizado.ok || !responseProjetado.ok) throw new Error('Erro ao carregar dados');
-        
-        const dadosRealizado = await responseRealizado.json();
-        const dadosProjetado = await responseProjetado.json();
-        
-        // Carregar transações primeiro para calcular totais reais
+        // Carregar transações do período (fonte principal dos cards)
         await carregarTransacoesDetalhadas(dataInicio, dataFim, banco);
         
-        // Calcular totais das transações carregadas
+        // Calcular totais diretamente das transações carregadas
         const transacoes = window.fluxoCaixaTransacoes || [];
-        const totalEntradas = transacoes.filter(t => t.tipo === 'receita').reduce((sum, t) => sum + parseFloat(t.valor || 0), 0);
-        const totalSaidas = transacoes.filter(t => t.tipo === 'despesa').reduce((sum, t) => sum + parseFloat(t.valor || 0), 0);
+        const totalEntradas = transacoes
+            .filter(t => (t.tipo || '').toLowerCase() === 'receita')
+            .reduce((sum, t) => sum + parseFloat(t.valor || 0), 0);
+        const totalSaidas = transacoes
+            .filter(t => (t.tipo || '').toLowerCase() === 'despesa')
+            .reduce((sum, t) => sum + parseFloat(t.valor || 0), 0);
         const saldoPeriodo = totalEntradas - totalSaidas;
+
+        // Buscar dados auxiliares (dashboard + análise) — não bloqueiam os cards
+        let url = `${API_URL}/relatorios/dashboard-completo?data_inicio=${dataInicio}&data_fim=${dataFim}`;
+        if (banco) url += `&conta=${encodeURIComponent(banco)}`;
+        Promise.all([
+            fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.csrfToken || '' } }),
+            fetch(`${API_URL}/relatorios/analise-contas`, { credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.csrfToken || '' } })
+        ]).catch(e => console.warn('Dados auxiliares indisponíveis:', e));
         
         // Atualizar valores dos cards
         const cardEntradas = document.getElementById('card-total-entradas');
