@@ -307,10 +307,18 @@ def conciliar_transacao(database, empresa_id, transacao_id, lancamento_id):
                         return {'success': False, 'error': 'Transação não encontrada'}
                     
                     # Determinar tipo (débito = despesa, crédito = receita)
-                    # Aceita tanto DÉBITO (com acento) quanto DEBITO (sem acento)
+                    # Aceita DÉBITO/DEBITO e CRÉDITO/CREDITO; fallback pelo sinal do valor
                     tipo_transacao = (transacao['tipo'] or '').upper()
-                    tipo = 'despesa' if tipo_transacao in ('DÉBITO', 'DEBITO') else 'receita'
-                    valor_abs = abs(float(transacao['valor']))
+                    valor_float = float(transacao['valor'] or 0)
+                    if tipo_transacao in ('DÉBITO', 'DEBITO'):
+                        tipo = 'despesa'
+                    elif tipo_transacao in ('CRÉDITO', 'CREDITO'):
+                        tipo = 'receita'
+                    else:
+                        # Tipo desconhecido: usar sinal do valor como desempate
+                        tipo = 'receita' if valor_float >= 0 else 'despesa'
+                        log(f"⚠️ Tipo desconhecido '{transacao['tipo']}' para transação {transacao_id} — usando sinal do valor ({valor_float:.2f} → {tipo})")
+                    valor_abs = abs(valor_float)
                     
                     # Criar novo lançamento (copiando categoria, subcategoria e pessoa da transação)
                     cursor.execute("""

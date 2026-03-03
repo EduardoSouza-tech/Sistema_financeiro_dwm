@@ -4090,21 +4090,37 @@ def upload_extrato_ofx():
                 trans_type = getattr(trans, 'type', None)
                 
                 # Determinar tipo e corrigir sinal
+                # Tipos OFX padrão de DÉBITO (saída de dinheiro)
+                _TIPOS_DEBITO = {'DEBIT', 'DEB', 'PAYMENT', 'ATM', 'DIRECTDEBIT', 'REPEATPMT',
+                                 'FEE', 'SRVCHG', 'CHECK', 'POS', 'DÉBITO', 'DEBITO'}
+                # Tipos OFX padrão de CRÉDITO (entrada de dinheiro)
+                _TIPOS_CREDITO = {'CREDIT', 'DIRECTDEP', 'DEP', 'INT', 'DIV', 'XFER',
+                                  'HOLD', 'OTHER', 'CASH', 'CRÉDITO', 'CREDITO'}
                 if trans_type:
-                    if trans_type.upper() in ['DEBIT', 'D�BITO', 'DEB', 'DEBIT', 'PAYMENT', 'ATM']:
+                    _tt = trans_type.upper()
+                    if _tt in _TIPOS_DEBITO:
                         tipo = 'debito'
-                        valor_correto = -abs(valor_ofx)  # D�BITO sempre negativo
-                    else:
+                        valor_correto = -abs(valor_ofx)  # DÉBITO sempre negativo
+                    elif _tt in _TIPOS_CREDITO:
                         tipo = 'credito'
-                        valor_correto = abs(valor_ofx)  # CR�DITO sempre positivo
+                        valor_correto = abs(valor_ofx)   # CRÉDITO sempre positivo
+                    else:
+                        # Tipo desconhecido: usar sinal do valor como desempate
+                        if valor_ofx < 0:
+                            tipo = 'debito'
+                            valor_correto = valor_ofx
+                        else:
+                            tipo = 'credito'
+                            valor_correto = valor_ofx
+                        print(f"⚠️  OFX: TRNTYPE desconhecido '{trans_type}' — usando sinal do valor ({valor_ofx:.2f} → {tipo})")
                 else:
-                    # Usar sinal do valor
+                    # Sem trans_type: usar sinal do valor
                     if valor_ofx < 0:
                         tipo = 'debito'
-                        valor_correto = valor_ofx  # J� � negativo
+                        valor_correto = valor_ofx
                     else:
                         tipo = 'credito'
-                        valor_correto = valor_ofx  # J� � positivo
+                        valor_correto = valor_ofx
                 
                 transacoes_processadas.append({
                     'trans': trans,
@@ -5283,10 +5299,32 @@ def conciliacao_geral_extrato():
                 if resultado.get('success'):
                     lancamento_id = resultado.get('lancamento_id')
                     
-                    # Atualizar campos extras na transa��o do extrato (categoria, pessoa)
-                    if categoria or subcategoria or razao_social:
+                    # Atualizar campos extras no LANÇAMENTO e na transação do extrato
+                    if lancamento_id and (categoria or subcategoria or razao_social or descricao_personalizada):
                         with db.get_db_connection(empresa_id=empresa_id) as conn:
                             cursor_update = conn.cursor()
+
+                            # ✅ FIX: Atualizar o LANÇAMENTO com os dados selecionados pelo usuário
+                            # (categoria, subcategoria, pessoa, descrição personalizada)
+                            cursor_update.execute("""
+                                UPDATE lancamentos
+                                SET
+                                    categoria    = COALESCE(NULLIF(%s, ''), categoria),
+                                    subcategoria = COALESCE(NULLIF(%s, ''), subcategoria),
+                                    pessoa       = COALESCE(NULLIF(%s, ''), pessoa),
+                                    descricao    = CASE WHEN %s != '' THEN %s ELSE descricao END
+                                WHERE id = %s AND empresa_id = %s
+                            """, (
+                                categoria or '',
+                                subcategoria or '',
+                                razao_social or '',
+                                descricao_personalizada or '',
+                                descricao_personalizada or '',
+                                lancamento_id,
+                                empresa_id
+                            ))
+
+                            # Atualizar também a transação do extrato para consistência
                             cursor_update.execute("""
                                 UPDATE transacoes_extrato 
                                 SET 
