@@ -725,13 +725,15 @@ try:
             _ncur = _nm.cursor()
             _ncur.execute("""
                 ALTER TABLE nfse_baixadas
-                    ADD COLUMN IF NOT EXISTS tp_ret_issqn VARCHAR(5) DEFAULT NULL;
+                    ADD COLUMN IF NOT EXISTS tp_ret_issqn VARCHAR(5) DEFAULT NULL,
+                    ADD COLUMN IF NOT EXISTS data_pagamento DATE DEFAULT NULL,
+                    ADD COLUMN IF NOT EXISTS situacao_recebimento VARCHAR(20) DEFAULT NULL;
             """)
             _nm.commit()
             _ncur.close()
-        print("? Coluna tp_ret_issqn verificada/criada em nfse_baixadas!")
+        print("✅ Colunas tp_ret_issqn, data_pagamento, situacao_recebimento verificadas em nfse_baixadas!")
     except Exception as e:
-        print(f"?? Aviso ao migrar nfse_baixadas: {e}")
+        print(f"⚠️ Aviso ao migrar nfse_baixadas: {e}")
 
     print("? DatabaseManager pronto!")
     print("="*70 + "\n")
@@ -15154,12 +15156,20 @@ def importar_xml_nfse():
             except Exception:
                 pass
 
+        # Reconciliação automática com Contas a Receber
+        reconcil = {'reconciliadas': 0}
+        try:
+            reconcil = _reconciliar_nfse_lancamentos(empresa_id)
+        except Exception as e_rec:
+            logger.warning(f"[NFS-e] Erro na reconciliação automática: {e_rec}")
+
         return jsonify({
             'success': True,
             'importadas': importadas,
             'atualizadas': atualizadas,
             'total': importadas + atualizadas,
             'novos_clientes': novos_clientes,
+            'reconciliadas': reconcil.get('reconciliadas', 0),
             'erros': erros
         })
 
@@ -15167,6 +15177,165 @@ def importar_xml_nfse():
         logger.error(f"Erro ao importar XMLs NFS-e: {e}")
         import traceback
         traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# RECONCILIAÇÃO NFS-e ↔ CONTAS A RECEBER
+# ============================================================================
+
+def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):
+    """
+    Reconcilia automaticamente NFS-es com lançamentos de receita.
+
+    Lógica de matching (por empresa_id):
+      - Para cada NFS-e sem situacao_recebimento='PAGO':
+        1. Busca lancamentos tipo='receita' com |valor - valor_liquido| <= 0.02
+        2. Filtra pelo CNPJ/CPF do tomador OU pelo nome (razao_social_tomador)
+           comparando com lancamento.pessoa (sem maiúsculas/pontuação)
+        3. Ao encontrar: atualiza lancamento.numero_documento = 'NF {numero_nfse}'
+                         e nfse_baixadas.data_pagamento = lancamento.data_vencimento
+                         e nfse_baixadas.situacao_recebimento = 'PAGO'
+
+    Retorna: dict com contagens
+    """
+    import psycopg2
+    import re as _re
+
+    def _digits(s):
+        return _re.sub(r'\D', '', s or '')
+
+    def _normalizar(s):
+        return _re.sub(r'\s+', ' ', _re.sub(r'[^a-z0-9 ]', '', (s or '').lower())).strip()
+
+    resultado = {'reconciliadas': 0, 'ja_pagas': 0}
+
+    try:
+        # Conexão principal (lancamentos)
+        close_main = False
+        if conn_main is None:
+            conn_main = get_db_connection(empresa_id=empresa_id)
+            close_main = True
+
+        # Conexão NFS-e
+        close_nfse = False
+        if conn_nfse is None:
+            from database_postgresql import get_nfse_db_params
+            nfse_params = get_nfse_db_params()
+            conn_nfse = psycopg2.connect(**nfse_params)
+            close_nfse = True
+
+        try:
+            cur_nfse  = conn_nfse.cursor()
+            cur_main  = conn_main.cursor()
+
+            # Buscar NFS-es ainda não pagas (ou sem situacao_recebimento)
+            cur_nfse.execute("""
+                SELECT id, numero_nfse, valor_liquido, cnpj_tomador, razao_social_tomador
+                FROM nfse_baixadas
+                WHERE empresa_id = %s
+                  AND situacao = 'NORMAL'
+                  AND (situacao_recebimento IS NULL OR situacao_recebimento <> 'PAGO')
+                  AND valor_liquido > 0
+            """, (empresa_id,))
+            nfses = cur_nfse.fetchall()
+
+            for nfse_row in nfses:
+                nfse_id, numero_nfse, valor_liq, cnpj_tom, nome_tom = nfse_row
+                valor_liq = float(valor_liq or 0)
+
+                cnpj_digits = _digits(cnpj_tom)
+                nome_norm   = _normalizar(nome_tom)
+
+                # Buscar receitas com valor próximo (±2 centavos)
+                cur_main.execute("""
+                    SELECT id, pessoa, data_vencimento, numero_documento
+                    FROM lancamentos
+                    WHERE empresa_id = %s
+                      AND tipo = 'receita'
+                      AND ABS(valor - %s) <= 0.02
+                """, (empresa_id, valor_liq))
+                candidatos = cur_main.fetchall()
+
+                lancamento_match = None
+                for lanc_id, pessoa, data_venc, num_doc in candidatos:
+                    # Ignora se já tem numero_documento preenchido com outra NF
+                    if num_doc and num_doc.strip() and num_doc.strip() != f'NF {numero_nfse}':
+                        continue
+
+                    pessoa_digits = _digits(pessoa)
+                    pessoa_norm   = _normalizar(pessoa)
+
+                    # Match por CNPJ/CPF (mais preciso)
+                    if cnpj_digits and len(cnpj_digits) >= 11 and cnpj_digits == pessoa_digits:
+                        lancamento_match = (lanc_id, data_venc)
+                        break
+
+                    # Match por nome normalizado (mínimo 6 chars para evitar falsos positivos)
+                    if nome_norm and len(nome_norm) >= 6 and pessoa_norm:
+                        # Verifica se a parte mais curta está contida na mais longa
+                        s1, s2 = sorted([nome_norm, pessoa_norm], key=len)
+                        if len(s1) >= 6 and s1 in s2:
+                            lancamento_match = (lanc_id, data_venc)
+                            break
+
+                if lancamento_match:
+                    lanc_id, data_venc = lancamento_match
+                    num_doc_novo = f'NF {numero_nfse}'
+
+                    # Atualizar lancamento: preencher numero_documento
+                    cur_main.execute("""
+                        UPDATE lancamentos
+                        SET numero_documento = %s, associacao = %s
+                        WHERE id = %s AND empresa_id = %s
+                    """, (num_doc_novo, num_doc_novo, lanc_id, empresa_id))
+
+                    # Atualizar NFS-e: data_pagamento + situacao_recebimento
+                    cur_nfse.execute("""
+                        UPDATE nfse_baixadas
+                        SET data_pagamento         = %s,
+                            situacao_recebimento   = 'PAGO'
+                        WHERE id = %s AND empresa_id = %s
+                    """, (data_venc, nfse_id, empresa_id))
+
+                    resultado['reconciliadas'] += 1
+                    logger.info(f"[Reconciliar] NF {numero_nfse} ↔ lancamento {lanc_id} | data_pg={data_venc}")
+
+            conn_main.commit()
+            conn_nfse.commit()
+            cur_nfse.close()
+            cur_main.close()
+
+        finally:
+            if close_main:
+                try: conn_main.close()
+                except Exception: pass
+            if close_nfse:
+                try: conn_nfse.close()
+                except Exception: pass
+
+    except Exception as e:
+        logger.error(f"[Reconciliar NFS-e] Erro: {e}")
+        import traceback
+        traceback.print_exc()
+
+    return resultado
+
+
+@app.route('/api/nfse/reconciliar', methods=['POST'])
+@require_auth
+@require_permission('nfse_view')
+def reconciliar_nfse():
+    """Dispara reconciliação manual entre NFS-e e Contas a Receber"""
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+
+        result = _reconciliar_nfse_lancamentos(empresa_id)
+        return jsonify({'success': True, **result})
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

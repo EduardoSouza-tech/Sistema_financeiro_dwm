@@ -8480,6 +8480,14 @@ window.exibirNFSe = function(nfses) {
         }
     };
 
+    const badgeRecebimento = (sit) => {
+        switch ((sit || '').toUpperCase()) {
+            case 'PAGO':      return '<span style="background:#27ae60;color:white;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:bold;">✅ PAGO</span>';
+            case 'PENDENTE':  return '<span style="background:#f39c12;color:white;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:bold;">⏳ PENDENTE</span>';
+            default:          return '<span style="color:#bdc3c7;font-size:12px;">-</span>';
+        }
+    };
+
     nfses.forEach(nfse => {
         const baseCalc = parseFloat(nfse.valor_servico || 0) - parseFloat(nfse.valor_deducoes || 0);
         const tr = document.createElement('tr');
@@ -8495,8 +8503,8 @@ window.exibirNFSe = function(nfses) {
             <td style="text-align:right;">${fmtPct(nfse.aliquota_iss)}</td>
             <td style="text-align:right;color:#3498db;font-weight:bold;">${fmtBRL(nfse.valor_iss)}</td>
             <td style="text-align:right;color:#8e44ad;font-weight:bold;">${fmtBRL(nfse.valor_liquido)}</td>
-            <td style="text-align:center;color:#95a5a6;">-</td>
-            <td style="text-align:center;color:#95a5a6;">-</td>
+            <td style="text-align:center;">${badgeRecebimento(nfse.situacao_recebimento)}</td>
+            <td style="text-align:center;">${fmtDate(nfse.data_pagamento)}</td>
             <td style="text-align:center;white-space:nowrap;">
                 <button onclick="verDetalhesNFSe(${nfse.id})" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;background:#3498db;" title="Ver Detalhes">👁️</button>
                 <button onclick="gerarPdfNFSe(${nfse.id})" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;background:#e74c3c;margin-left:2px;" title="Gerar PDF">📄</button>
@@ -8559,11 +8567,14 @@ window.importarXMLsNFSe = async function(files) {
             if ((data.novos_clientes || 0) > 0) {
                 msg += ` | 👤 ${data.novos_clientes} novo(s) cliente(s) cadastrado(s)`;
             }
+            if ((data.reconciliadas || 0) > 0) {
+                msg += ` | 🔗 ${data.reconciliadas} NF(s) reconciliada(s) com Contas a Receber`;
+            }
             if (data.erros && data.erros.length > 0) {
                 msg += ` | ⚠️ ${data.erros.length} erro(s)`;
                 console.warn('Erros ao importar XMLs:', data.erros);
             }
-            showToast(msg, data.erros && data.erros.length > 0 ? 'warning' : 'success', 6000);
+            showToast(msg, data.erros && data.erros.length > 0 ? 'warning' : 'success', 7000);
             // Recarregar tabela
             await window.consultarNFSeLocal();
         } else {
@@ -8578,6 +8589,31 @@ window.importarXMLsNFSe = async function(files) {
         // Resetar input para permitir reimportar o mesmo arquivo
         const inp = document.getElementById('nfse-xml-file-input');
         if (inp) inp.value = '';
+    }
+};
+
+// Reconciliar NFS-e com Contas a Receber manualmente
+window.reconciliarNFSe = async function() {
+    showToast('⏳ Reconciliando NFS-e com Contas a Receber...', 'info', 3000);
+    try {
+        const response = await fetch('/api/nfse/reconciliar', {
+            method: 'POST',
+            credentials: 'include'
+        });
+        const data = await response.json();
+        if (data.success) {
+            const n = data.reconciliadas || 0;
+            if (n > 0) {
+                showToast(`🔗 ${n} NF(s) reconciliada(s) com Contas a Receber!`, 'success', 5000);
+                await window.consultarNFSeLocal();
+            } else {
+                showToast('✅ Reconciliação concluída — nenhuma nova correspondência encontrada.', 'info', 4000);
+            }
+        } else {
+            showToast(`❌ Erro: ${data.error}`, 'error');
+        }
+    } catch (e) {
+        showToast('❌ Erro de conexão ao reconciliar', 'error');
     }
 };
 
