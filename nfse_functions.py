@@ -729,30 +729,85 @@ def exportar_nfse_excel(
                 return v.strftime('%d/%m/%Y')
             return str(v)[:10]
 
-        def _fmt_num(v, decimals=2):
+        def _fmt_brl(v):
+            """Formata número como R$ 1.234,56"""
             if v is None:
                 return ''
             try:
-                return f"{float(v):.{decimals}f}".replace('.', ',')
+                f = float(v)
+                # Formata com separador de milhar ponto e decimal vírgula
+                inteiro, dec = f'{f:.2f}'.split('.')
+                # Adiciona pontos a cada 3 dígitos no inteiro
+                neg = inteiro.startswith('-')
+                digits = inteiro.lstrip('-')
+                parts = []
+                while len(digits) > 3:
+                    parts.append(digits[-3:])
+                    digits = digits[:-3]
+                parts.append(digits)
+                formatted = '.'.join(reversed(parts))
+                return f"R$ {'-' if neg else ''}{formatted},{dec}"
             except Exception:
                 return str(v)
 
-        TP_RET_LABEL = {'1': '1-Retido', '2': '2-N.Ret.', '3': '3-N/A'}
+        def _fmt_aliq(v):
+            """Formata alíquota como número simples, ex: 3 ou 3,5"""
+            if v is None:
+                return ''
+            try:
+                f = float(v)
+                return str(int(f)) if f == int(f) else f'{f:.2f}'.replace('.', ',')
+            except Exception:
+                return str(v)
+
+        # Tabela completa de cStat conforme padrão Nacional SPED
+        CSTAT_DESC = {
+            '100': '100 - NFS-e Gerada',
+            '101': '101 - NFS-e de Substituição Gerada',
+            '102': '102 - NFS-e Cancelada',
+            '103': '103 - NFS-e Gerada com Pendência',
+            '104': '104 - NFS-e Gerada',
+            '105': '105 - NFS-e Gerada',
+            '106': '106 - NFS-e Gerada',
+            '107': '107 - NFS-e Substituída',
+        }
+
+        # Mapeamento de fallback por situacao quando c_stat não disponível
+        SITUACAO_DESC = {
+            'NORMAL':      '100 - NFS-e Gerada',
+            'CANCELADA':   '102 - NFS-e Cancelada',
+            'SUBSTITUIDA': '107 - NFS-e Substituída',
+        }
+
+        TP_RET_LABEL = {
+            '1': '1 - Não Retido',
+            '2': '2 - Retido pelo Tomador',
+            '3': '3 - Retido pelo Intermediário',
+            '4': '4 - Não Incide',
+            '5': '5 - Imune',
+            '6': '6 - Exigibilidade Suspensa por Decisão Judicial',
+            '7': '7 - Exigibilidade Suspensa por Processo Administrativo',
+        }
+
+        SIT_REC_LABEL = {
+            'PAGO':     'PAGO',
+            'PENDENTE': 'EM ABERTO',
+        }
 
         headers = [
             'Número (nNFSe)',
-            'Situação NFS-e',
-            'Data Competência',
-            'Data Emissão',
-            'Tomador CNPJ/CPF',
+            'Situação NFS-e (cStat)',
+            'Data de Competência',
+            'Data da Emissão',
+            'Tomador (CNPJ)',
             'Tomador (xNome)',
-            'Tp. Ret. ISSQN',
-            'Base Cálc. (R$)',
-            'Alíq. (%)',
-            'Valor ISSQN (R$)',
-            'Valor Líquido (R$)',
-            'Município',
-            'Discriminação',
+            'Tipo Retenção ISSQN',
+            'Base Cálculo ISSQN',
+            'Alíquota ISSQN (%)',
+            'Valor ISSQN',
+            'Valor Líquido',
+            'situacao',
+            'data pg.',
         ]
 
         with open(caminho_arquivo, 'w', newline='', encoding='utf-8-sig') as f:
@@ -760,21 +815,34 @@ def exportar_nfse_excel(
             writer.writerow(headers)
 
             for nfse in nfses:
-                tp_ret = str(nfse.get('tp_ret_issqn') or '')
+                # Situação com código cStat
+                c_stat = str(nfse.get('c_stat') or '').strip()
+                situacao_raw = str(nfse.get('situacao') or 'NORMAL').strip()
+                if c_stat and c_stat in CSTAT_DESC:
+                    sit_cstat = CSTAT_DESC[c_stat]
+                else:
+                    sit_cstat = SITUACAO_DESC.get(situacao_raw, situacao_raw)
+
+                tp_ret = str(nfse.get('tp_ret_issqn') or '').strip()
+
+                # Situação de recebimento
+                sit_rec_raw = str(nfse.get('situacao_recebimento') or '').strip()
+                sit_rec = SIT_REC_LABEL.get(sit_rec_raw, 'EM ABERTO' if not sit_rec_raw else sit_rec_raw)
+
                 writer.writerow([
                     nfse.get('numero_nfse', ''),
-                    nfse.get('situacao', ''),
+                    sit_cstat,
                     _fmt_date(nfse.get('data_competencia')),
                     _fmt_date(nfse.get('data_emissao')),
                     nfse.get('cnpj_tomador') or '',
                     nfse.get('razao_social_tomador') or '',
                     TP_RET_LABEL.get(tp_ret, tp_ret),
-                    _fmt_num(nfse.get('valor_servico')),
-                    _fmt_num(nfse.get('aliquota_iss'), 2),
-                    _fmt_num(nfse.get('valor_iss')),
-                    _fmt_num(nfse.get('valor_liquido')),
-                    nfse.get('nome_municipio') or '',
-                    nfse.get('discriminacao') or '',
+                    _fmt_brl(nfse.get('valor_servico')),
+                    _fmt_aliq(nfse.get('aliquota_iss')),
+                    _fmt_brl(nfse.get('valor_iss')),
+                    _fmt_brl(nfse.get('valor_liquido')),
+                    sit_rec,
+                    _fmt_date(nfse.get('data_pagamento')),
                 ])
         
         logger.info(f"✅ Exportado {len(nfses)} NFS-e para {caminho_arquivo}")

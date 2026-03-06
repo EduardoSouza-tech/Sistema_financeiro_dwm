@@ -727,11 +727,12 @@ try:
                 ALTER TABLE nfse_baixadas
                     ADD COLUMN IF NOT EXISTS tp_ret_issqn VARCHAR(5) DEFAULT NULL,
                     ADD COLUMN IF NOT EXISTS data_pagamento DATE DEFAULT NULL,
-                    ADD COLUMN IF NOT EXISTS situacao_recebimento VARCHAR(20) DEFAULT NULL;
+                    ADD COLUMN IF NOT EXISTS situacao_recebimento VARCHAR(20) DEFAULT NULL,
+                    ADD COLUMN IF NOT EXISTS c_stat VARCHAR(5) DEFAULT NULL;
             """)
             _nm.commit()
             _ncur.close()
-        print("✅ Colunas tp_ret_issqn, data_pagamento, situacao_recebimento verificadas em nfse_baixadas!")
+        print("✅ Colunas tp_ret_issqn, data_pagamento, situacao_recebimento, c_stat verificadas em nfse_baixadas!")
     except Exception as e:
         print(f"⚠️ Aviso ao migrar nfse_baixadas: {e}")
 
@@ -14891,6 +14892,7 @@ def importar_xml_nfse():
             if root_tag == 'nfse' or root_tag.endswith('}nfse'):
                 cstat = _t(root, 'cStat') or ''
                 data['situacao']       = CSTAT_MAP.get(cstat, 'NORMAL')
+                data['c_stat']         = cstat or None
                 data['numero_nfse']    = _t(root, 'nNFSe')
                 data['nome_municipio'] = _t(root, 'xLocEmi', 'xLocPrestacao', 'xLocIncid') or ''
 
@@ -14961,10 +14963,10 @@ def importar_xml_nfse():
                     (empresa_id, numero_nfse, cnpj_prestador, cnpj_tomador,
                      razao_social_tomador, data_emissao, data_competencia,
                      valor_servico, valor_deducoes, valor_iss, aliquota_iss, valor_liquido,
-                     situacao, tp_ret_issqn, codigo_municipio, nome_municipio, uf,
+                     situacao, c_stat, tp_ret_issqn, codigo_municipio, nome_municipio, uf,
                      discriminacao, xml_content, provedor)
                 VALUES
-                    (%s,%s,%s,%s, %s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s)
+                    (%s,%s,%s,%s, %s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s, %s,%s,%s)
                 ON CONFLICT (numero_nfse, codigo_municipio)
                 DO UPDATE SET
                     cnpj_prestador       = EXCLUDED.cnpj_prestador,
@@ -14978,6 +14980,7 @@ def importar_xml_nfse():
                     aliquota_iss         = EXCLUDED.aliquota_iss,
                     valor_liquido        = EXCLUDED.valor_liquido,
                     situacao             = EXCLUDED.situacao,
+                    c_stat               = EXCLUDED.c_stat,
                     tp_ret_issqn         = EXCLUDED.tp_ret_issqn,
                     discriminacao        = EXCLUDED.discriminacao,
                     xml_content          = EXCLUDED.xml_content,
@@ -14996,6 +14999,7 @@ def importar_xml_nfse():
                 nd.get('aliquota_iss', 0),
                 nd.get('valor_liquido', 0),
                 nd.get('situacao', 'NORMAL'),
+                nd.get('c_stat'),
                 nd.get('tp_ret_issqn'),
                 nd.get('codigo_municipio', '0000000'),
                 nd.get('nome_municipio', ''),
@@ -15190,12 +15194,19 @@ def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):  
 
     Lógica de matching (por empresa_id):
       - Para cada NFS-e sem situacao_recebimento='PAGO':
-        1. Busca lancamentos tipo='receita' com |valor - valor_liquido| <= 0.02
+        1. Busca lancamentos tipo='receita' com |valor - valor_liquido| <= 1% (min R$1)
         2. Filtra pelo CNPJ/CPF do tomador OU pelo nome (razao_social_tomador)
-           comparando com lancamento.pessoa (sem maiúsculas/pontuação)
+           comparando com lancamento.descricao e lancamento.pessoa
         3. Ao encontrar: atualiza lancamento.numero_documento = 'NF {numero_nfse}'
                          e nfse_baixadas.data_pagamento = lancamento.data_vencimento
                          e nfse_baixadas.situacao_recebimento = 'PAGO'
+
+    ATENÇÃO — RealDictCursor:
+        get_db_connection usa cursor_factory=RealDictCursor (pool configurado).
+        Todas as rows do banco principal são dicts, NÃO tuplas.
+        - CORRETO:  row['id'], row['pessoa'], row['valor']
+        - ERRADO:   row[0], row[1]  → KeyError: 0
+        - ERRADO:   for a, b, c in rows:  → desempacota as CHAVES do dict
 
     Retorna: dict com contagens
     """
