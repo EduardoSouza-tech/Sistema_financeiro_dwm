@@ -15184,7 +15184,7 @@ def importar_xml_nfse():
 # RECONCILIAÇÃO NFS-e ↔ CONTAS A RECEBER
 # ============================================================================
 
-def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):
+def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):  # noqa: conn_nfse/conn_main unused, kept for compat
     """
     Reconcilia automaticamente NFS-es com lançamentos de receita.
 
@@ -15211,33 +15211,26 @@ def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):
     resultado = {'reconciliadas': 0, 'ja_pagas': 0}
 
     try:
-        # Conexão principal (lancamentos)
-        close_main = False
-        if conn_main is None:
-            conn_main = get_db_connection(empresa_id=empresa_id)
-            close_main = True
+        # Conexão NFS-e (psycopg2 direto)
+        from database_postgresql import get_nfse_db_params
+        nfse_params = get_nfse_db_params()
+        conn_nfse_local = psycopg2.connect(**nfse_params)
 
-        # Conexão NFS-e
-        close_nfse = False
-        if conn_nfse is None:
-            from database_postgresql import get_nfse_db_params
-            nfse_params = get_nfse_db_params()
-            conn_nfse = psycopg2.connect(**nfse_params)
-            close_nfse = True
+        # Conexão principal via get_db_connection (context manager)
+        with get_db_connection(empresa_id=empresa_id) as conn_main_local:
+            cur_nfse = conn_nfse_local.cursor()
+            cur_main = conn_main_local.cursor()
 
-        try:
-            cur_nfse  = conn_nfse.cursor()
-            cur_main  = conn_main.cursor()
-
-            # Buscar NFS-es ainda não pagas (ou sem situacao_recebimento)
-            cur_nfse.execute("""
-                SELECT id, numero_nfse, valor_liquido, cnpj_tomador, razao_social_tomador
-                FROM nfse_baixadas
-                WHERE empresa_id = %s
-                  AND situacao = 'NORMAL'
-                  AND (situacao_recebimento IS NULL OR situacao_recebimento <> 'PAGO')
-                  AND valor_liquido > 0
-            """, (empresa_id,))
+            try:
+                # Buscar NFS-es ainda não pagas (ou sem situacao_recebimento)
+                cur_nfse.execute("""
+                    SELECT id, numero_nfse, valor_liquido, cnpj_tomador, razao_social_tomador
+                    FROM nfse_baixadas
+                    WHERE empresa_id = %s
+                      AND situacao = 'NORMAL'
+                      AND (situacao_recebimento IS NULL OR situacao_recebimento <> 'PAGO')
+                      AND valor_liquido > 0
+                """, (empresa_id,))
             nfses = cur_nfse.fetchall()
 
             for nfse_row in nfses:
@@ -15301,18 +15294,16 @@ def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):
                     resultado['reconciliadas'] += 1
                     logger.info(f"[Reconciliar] NF {numero_nfse} ↔ lancamento {lanc_id} | data_pg={data_venc}")
 
-            conn_main.commit()
-            conn_nfse.commit()
-            cur_nfse.close()
-            cur_main.close()
+                conn_main_local.commit()
+                conn_nfse_local.commit()
+            finally:
+                cur_nfse.close()
+                cur_main.close()
 
-        finally:
-            if close_main:
-                try: conn_main.close()
-                except Exception: pass
-            if close_nfse:
-                try: conn_nfse.close()
-                except Exception: pass
+        try:
+            conn_nfse_local.close()
+        except Exception:
+            pass
 
     except Exception as e:
         logger.error(f"[Reconciliar NFS-e] Erro: {e}")
