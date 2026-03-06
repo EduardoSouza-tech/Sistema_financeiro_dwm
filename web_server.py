@@ -15237,10 +15237,10 @@ def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):  
 
                 # Diagnóstico: contar receitas disponíveis
                 cur_main.execute(
-                    "SELECT COUNT(*) FROM lancamentos WHERE empresa_id = %s AND LOWER(tipo) = 'receita'",
+                    "SELECT COUNT(*) AS cnt FROM lancamentos WHERE empresa_id = %s AND LOWER(tipo) = 'receita'",
                     (empresa_id,)
                 )
-                total_receitas = (cur_main.fetchone() or [0])[0]
+                total_receitas = (cur_main.fetchone() or {'cnt': 0})['cnt']
                 logger.info(f"[Reconciliar] Total lancamentos receita empresa {empresa_id}: {total_receitas}")
 
                 for nfse_row in nfses:
@@ -15274,7 +15274,14 @@ def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):  
                         logger.info(f"[Reconciliar] NF {numero_nfse}: receitas mais próximas = {proximas}")
 
                     lancamento_match = None
-                    for lanc_id, pessoa, descricao, data_venc, num_doc in candidatos:
+                    for _row in candidatos:
+                        # Desempacotar dict (RealDictCursor)
+                        lanc_id   = _row['id']
+                        pessoa    = _row['pessoa']
+                        descricao = _row['descricao']
+                        data_venc = _row['data_vencimento']
+                        num_doc   = _row['numero_documento']
+
                         # Ignora se já tem numero_documento preenchido com outra NF
                         if num_doc and num_doc.strip() and num_doc.strip() != f'NF {numero_nfse}':
                             logger.info(f"[Reconciliar] NF {numero_nfse}: lanc {lanc_id} já tem num_doc='{num_doc}', pulando")
@@ -15406,22 +15413,22 @@ def diagnostico_reconciliacao():
 
         with get_db_connection(empresa_id=empresa_id) as conn_main:
             cur = conn_main.cursor()
-            cur.execute("SELECT COUNT(*), MIN(valor), MAX(valor) FROM lancamentos WHERE empresa_id = %s AND LOWER(tipo) = 'receita'", (empresa_id,))
+            cur.execute("SELECT COUNT(*) AS cnt, MIN(valor) AS vmin, MAX(valor) AS vmax FROM lancamentos WHERE empresa_id = %s AND LOWER(tipo) = 'receita'", (empresa_id,))
             row = cur.fetchone()
-            receitas_info = {'count': row[0], 'valor_min': float(row[1] or 0), 'valor_max': float(row[2] or 0)}
+            receitas_info = {'count': row['cnt'], 'valor_min': float(row['vmin'] or 0), 'valor_max': float(row['vmax'] or 0)}
 
             cur.execute("""
                 SELECT id, tipo, valor, pessoa, numero_documento,
-                       COALESCE(descricao, '')
+                       COALESCE(descricao, '') AS descricao
                 FROM lancamentos WHERE empresa_id = %s AND LOWER(tipo) = 'receita'
                 ORDER BY id DESC LIMIT 10
             """, (empresa_id,))
-            lancamentos = [{'id': r[0], 'tipo': r[1], 'valor': float(r[2] or 0), 'pessoa': r[3],
-                            'num_doc': r[4], 'desc': (r[5] or '')[:80]} for r in cur.fetchall()]
+            lancamentos = [{'id': r['id'], 'tipo': r['tipo'], 'valor': float(r['valor'] or 0), 'pessoa': r['pessoa'],
+                            'num_doc': r['numero_documento'], 'desc': (r['descricao'] or '')[:80]} for r in cur.fetchall()]
 
             # Amostra de todos os tipos distintos para diagnóstico
             cur.execute("SELECT DISTINCT tipo FROM lancamentos WHERE empresa_id = %s LIMIT 20", (empresa_id,))
-            tipos = [r[0] for r in cur.fetchall()]
+            tipos = [r['tipo'] for r in cur.fetchall()]
             cur.close()
 
         return jsonify({
