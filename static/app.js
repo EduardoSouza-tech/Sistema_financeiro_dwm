@@ -8273,7 +8273,7 @@ window.consultarNFSeLocal = async function() {
     
     // Mostrar loading
     const tbody = document.getElementById('tbody-nfse');
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="font-size: 24px;">⏳</div><p>Consultando banco de dados...</p></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 40px;"><div style="font-size: 24px;">⏳</div><p>Consultando banco de dados...</p></td></tr>';
     
     try {
         const body = {
@@ -8308,12 +8308,12 @@ window.consultarNFSeLocal = async function() {
             
             showToast(`✅ ${window.nfsesCarregadas.length} NFS-e encontradas`, 'success');
         } else {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro ao Consultar</h3><p>${data.error}</p></td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro ao Consultar</h3><p>${data.error}</p></td></tr>`;
             showToast(`❌ Erro: ${data.error}`, 'error');
         }
     } catch (error) {
         console.error('❌ Erro ao consultar NFS-e:', error);
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro de Conexão</h3><p>Não foi possível conectar ao servidor.</p></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro de Conexão</h3><p>Não foi possível conectar ao servidor.</p></td></tr>';
         showToast('❌ Erro ao consultar NFS-e', 'error');
     }
 };
@@ -8352,9 +8352,9 @@ window.buscarNFSeAPI = async function() {
         : '(período automático)';
     let loadingMsg = '';
     if (metodo === 'ambiente_nacional') {
-        loadingMsg = `<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="font-size: 48px;">🌐</div><p style="font-size: 18px; font-weight: bold; color: #27ae60;">Buscando via Ambiente Nacional...</p><p style="color: #856404; font-size: 14px;">API REST oficial do governo federal</p><p style="color: #7f8c8d; font-size: 13px;">Período: ${periodoLabel} • Se for a primeira busca, pode demorar mais (histórico completo)</p></td></tr>`;
+        loadingMsg = `<tr><td colspan="14" style="text-align: center; padding: 40px;"><div style="font-size: 48px;">🌐</div><p style="font-size: 18px; font-weight: bold; color: #27ae60;">Buscando via Ambiente Nacional...</p><p style="color: #856404; font-size: 14px;">API REST oficial do governo federal</p><p style="color: #7f8c8d; font-size: 13px;">Período: ${periodoLabel} • Se for a primeira busca, pode demorar mais (histórico completo)</p></td></tr>`;
     } else {
-        loadingMsg = `<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="font-size: 48px;">📡</div><p style="font-size: 18px; font-weight: bold;">Buscando via SOAP Municipal...</p><p style="color: #856404; font-size: 14px;">Período: ${periodoLabel}</p><p style="color: #7f8c8d; font-size: 13px;">Isso pode levar vários minutos dependendo da quantidade de notas.</p></td></tr>`;
+        loadingMsg = `<tr><td colspan="14" style="text-align: center; padding: 40px;"><div style="font-size: 48px;">📡</div><p style="font-size: 18px; font-weight: bold;">Buscando via SOAP Municipal...</p><p style="color: #856404; font-size: 14px;">Período: ${periodoLabel}</p><p style="color: #7f8c8d; font-size: 13px;">Isso pode levar vários minutos dependendo da quantidade de notas.</p></td></tr>`;
     }
     tbody.innerHTML = loadingMsg;
     
@@ -8411,7 +8411,7 @@ window.buscarNFSeAPI = async function() {
                 }
             }
             
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>${errorMsg}</h3><p>${errorDetail}</p></td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>${errorMsg}</h3><p>${errorDetail}</p></td></tr>`;
             showToast(`❌ ${errorMsg}`, 'error', 8000);
             return;
         }
@@ -8426,13 +8426,13 @@ window.buscarNFSeAPI = async function() {
             // Atualizar tabela com consulta local
             await window.consultarNFSeLocal();
         } else {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro ao Buscar NFS-e</h3><p>${data.error}</p></td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro ao Buscar NFS-e</h3><p>${data.error}</p></td></tr>`;
             showToast(`❌ Erro: ${data.error}`, 'error');
         }
     } catch (error) {
         console.error('❌ Erro ao buscar NFS-e via API:', error);
         loading.style.display = 'none';
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro de Conexão</h3><p>Não foi possível conectar ao servidor.</p><p style="font-size: 12px; color: #7f8c8d; margin-top: 10px;">Tente novamente. A busca incremental continuará de onde parou.</p></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 40px; color: #e74c3c;"><div style="font-size: 48px;">❌</div><h3>Erro de Conexão</h3><p>Não foi possível conectar ao servidor.</p><p style="font-size: 12px; color: #7f8c8d; margin-top: 10px;">Tente novamente. A busca incremental continuará de onde parou.</p></td></tr>';
         showToast('❌ Erro ao buscar NFS-e', 'error');
     }
 };
@@ -8440,65 +8440,69 @@ window.buscarNFSeAPI = async function() {
 // Exibir NFS-e na tabela
 window.exibirNFSe = function(nfses) {
     const tbody = document.getElementById('tbody-nfse');
-    
+
     if (nfses.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 60px; color: #7f8c8d;"><div style="font-size: 48px; margin-bottom: 20px;">📄</div><h3 style="color: #34495e;">Nenhuma NFS-e encontrada</h3><p style="font-size: 14px;">Tente ajustar o período ou buscar via API SOAP.</p></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 60px; color: #7f8c8d;"><div style="font-size: 48px; margin-bottom: 20px;">📄</div><h3 style="color: #34495e;">Nenhuma NFS-e encontrada</h3><p style="font-size: 14px;">Tente ajustar o período, buscar via API SOAP ou importar XMLs.</p></td></tr>';
         return;
     }
-    
+
     tbody.innerHTML = '';
-    
+
+    const fmtDate = (v) => {
+        if (!v) return '-';
+        try { const [a, m, d] = v.split('T')[0].split('-'); return `${d}/${m}/${a}`; } catch { return '-'; }
+    };
+    const fmtBRL = (v) => parseFloat(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const fmtPct = (v) => v ? parseFloat(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + '%' : '-';
+    const fmtCNPJ = (v) => {
+        if (!v) return '-';
+        const d = v.replace(/\D/g, '');
+        if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+        if (d.length === 11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        return v;
+    };
+
+    const badgeSit = (s) => {
+        switch ((s || '').toUpperCase()) {
+            case 'NORMAL':      return '<span style="background:#27ae60;color:white;padding:3px 7px;border-radius:10px;font-size:11px;font-weight:bold;">✅ NORMAL</span>';
+            case 'CANCELADA':   return '<span style="background:#e74c3c;color:white;padding:3px 7px;border-radius:10px;font-size:11px;font-weight:bold;">❌ CANCELADA</span>';
+            case 'SUBSTITUIDA': return '<span style="background:#f39c12;color:white;padding:3px 7px;border-radius:10px;font-size:11px;font-weight:bold;">🔄 SUBSTITUÍDA</span>';
+            default:            return `<span style="background:#95a5a6;color:white;padding:3px 7px;border-radius:10px;font-size:11px;">${s || '?'}</span>`;
+        }
+    };
+
+    const tpRetLabel = (v) => {
+        switch (String(v || '')) {
+            case '1': return '<span title="Retido pelo Tomador" style="color:#e74c3c;font-weight:bold;">1-Retido</span>';
+            case '2': return '<span title="Não Retido" style="color:#27ae60;">2-N.Ret.</span>';
+            case '3': return '<span title="Não Aplicável" style="color:#95a5a6;">3-N/A</span>';
+            default:  return v || '-';
+        }
+    };
+
     nfses.forEach(nfse => {
+        const baseCalc = parseFloat(nfse.valor_servico || 0) - parseFloat(nfse.valor_deducoes || 0);
         const tr = document.createElement('tr');
-        
-        // Formatações
-        let dataEmissao = '-';
-        if (nfse.data_emissao) {
-            try {
-                // Remove parte do horário se existir e pega só a data
-                const dataStr = nfse.data_emissao.split('T')[0];
-                const [ano, mes, dia] = dataStr.split('-');
-                dataEmissao = `${dia}/${mes}/${ano}`;
-            } catch (e) {
-                dataEmissao = '-';
-            }
-        }
-        const valorServico = nfse.valor_servico ? parseFloat(nfse.valor_servico).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
-        const valorIss = nfse.valor_iss ? parseFloat(nfse.valor_iss).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
-        const valorLiquido = nfse.valor_liquido ? parseFloat(nfse.valor_liquido).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
-        
-        // Badge situação
-        let badgeSituacao = '';
-        switch (nfse.situacao) {
-            case 'NORMAL':
-                badgeSituacao = '<span style="background: #27ae60; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">✅ NORMAL</span>';
-                break;
-            case 'CANCELADA':
-                badgeSituacao = '<span style="background: #e74c3c; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">❌ CANCELADA</span>';
-                break;
-            case 'SUBSTITUIDA':
-                badgeSituacao = '<span style="background: #f39c12; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">🔄 SUBSTITUÍDA</span>';
-                break;
-            default:
-                badgeSituacao = `<span style="background: #95a5a6; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">${nfse.situacao || '?'}</span>`;
-        }
-        
         tr.innerHTML = `
-            <td style="text-align: center; font-weight: bold;">${nfse.numero_nfse || '-'}</td>
-            <td style="text-align: center;">${dataEmissao}</td>
-            <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${nfse.razao_social_tomador || '-'}">${nfse.razao_social_tomador || '-'}</td>
-            <td style="text-align: center;">${nfse.nome_municipio || '-'}/${nfse.uf || '-'}</td>
-            <td style="text-align: right; font-weight: bold; color: #27ae60;">${valorServico}</td>
-            <td style="text-align: right; font-weight: bold; color: #3498db;">${valorIss}</td>
-            <td style="text-align: right; font-weight: bold; color: #8e44ad;">${valorLiquido}</td>
-            <td style="text-align: center;">${badgeSituacao}</td>
-            <td style="text-align: center; white-space: nowrap;">
-                <button onclick="verDetalhesNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; background: #3498db;" title="Ver Detalhes">👁️</button>
-                <button onclick="gerarPdfNFSe(${nfse.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; background: #e74c3c; margin-left: 2px;" title="Gerar PDF">📄</button>
-                <button onclick="excluirNFSe(${nfse.id})" style="background: none; border: none; cursor: pointer; font-size: 16px; margin-left: 2px;" title="Excluir NFS-e">🗑️</button>
+            <td style="text-align:center;font-weight:bold;">${nfse.numero_nfse || '-'}</td>
+            <td style="text-align:center;">${badgeSit(nfse.situacao)}</td>
+            <td style="text-align:center;">${fmtDate(nfse.data_competencia)}</td>
+            <td style="text-align:center;">${fmtDate(nfse.data_emissao)}</td>
+            <td style="text-align:center;font-size:12px;">${fmtCNPJ(nfse.cnpj_tomador)}</td>
+            <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${nfse.razao_social_tomador || '-'}">${nfse.razao_social_tomador || '-'}</td>
+            <td style="text-align:center;">${tpRetLabel(nfse.tp_ret_issqn)}</td>
+            <td style="text-align:right;color:#2c3e50;">${fmtBRL(baseCalc)}</td>
+            <td style="text-align:right;">${fmtPct(nfse.aliquota_iss)}</td>
+            <td style="text-align:right;color:#3498db;font-weight:bold;">${fmtBRL(nfse.valor_iss)}</td>
+            <td style="text-align:right;color:#8e44ad;font-weight:bold;">${fmtBRL(nfse.valor_liquido)}</td>
+            <td style="text-align:center;color:#95a5a6;">-</td>
+            <td style="text-align:center;color:#95a5a6;">-</td>
+            <td style="text-align:center;white-space:nowrap;">
+                <button onclick="verDetalhesNFSe(${nfse.id})" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;background:#3498db;" title="Ver Detalhes">👁️</button>
+                <button onclick="gerarPdfNFSe(${nfse.id})" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;background:#e74c3c;margin-left:2px;" title="Gerar PDF">📄</button>
+                <button onclick="excluirNFSe(${nfse.id})" style="background:none;border:none;cursor:pointer;font-size:16px;margin-left:2px;" title="Excluir NFS-e">🗑️</button>
             </td>
         `;
-        
         tbody.appendChild(tr);
     });
 };
@@ -8523,6 +8527,51 @@ window.exibirNFSePaginado = function() {
         document.getElementById('nfse-paginacao').style.display = 'block';
     } else {
         document.getElementById('nfse-paginacao').style.display = 'none';
+    }
+};
+
+// Importar NFS-e a partir de arquivos XML locais
+window.importarXMLsNFSe = async function(files) {
+    if (!files || files.length === 0) return;
+
+    const tbody = document.getElementById('tbody-nfse');
+    tbody.innerHTML = `<tr><td colspan="14" style="text-align:center;padding:40px;"><div style="font-size:48px;">⏳</div><p>Importando ${files.length} arquivo(s) XML...</p></td></tr>`;
+
+    const formData = new FormData();
+    for (const f of files) {
+        formData.append('xmls', f);
+    }
+
+    try {
+        const response = await fetch('/api/nfse/importar-xml', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            let msg = `✅ ${data.importadas} importada(s), ${data.atualizadas} atualizada(s)`;
+            if (data.erros && data.erros.length > 0) {
+                msg += ` | ⚠️ ${data.erros.length} erro(s)`;
+                console.warn('Erros ao importar XMLs:', data.erros);
+            }
+            showToast(msg, data.erros && data.erros.length > 0 ? 'warning' : 'success', 5000);
+            // Recarregar tabela
+            await window.consultarNFSeLocal();
+        } else {
+            showToast(`❌ Erro ao importar: ${data.error}`, 'error');
+            tbody.innerHTML = `<tr><td colspan="14" style="text-align:center;padding:40px;color:#e74c3c;"><div style="font-size:48px;">❌</div><h3>Erro na Importação</h3><p>${data.error}</p></td></tr>`;
+        }
+    } catch (error) {
+        console.error('Erro ao importar XMLs:', error);
+        showToast('❌ Erro de conexão ao importar XMLs', 'error');
+        tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:40px;color:#e74c3c;"><div style="font-size:48px;">❌</div><h3>Erro de Conexão</h3><p>Não foi possível enviar os arquivos.</p></td></tr>';
+    } finally {
+        // Resetar input para permitir reimportar o mesmo arquivo
+        const inp = document.getElementById('nfse-xml-file-input');
+        if (inp) inp.value = '';
     }
 };
 

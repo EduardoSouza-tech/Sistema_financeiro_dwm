@@ -5143,6 +5143,11 @@
                             </div>
                             <div>
                                 <label style="font-size: 12px; color: transparent; display: block; margin-bottom: 4px; user-select: none;">&#8203;</label>
+                                <input type="file" id="nfse-xml-file-input" accept=".xml" multiple style="display:none" onchange="window.importarXMLsNFSe(this.files)">
+                                <button class="btn btn-warning" onclick="document.getElementById('nfse-xml-file-input').click()" data-permission="nfse_view" style="padding: 8px 16px; height: 38px; font-size: 13px; background: #f39c12; border-color: #f39c12; color: white;">📁 Importar XMLs</button>
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; color: transparent; display: block; margin-bottom: 4px; user-select: none;">&#8203;</label>
                                 <button class="btn btn-danger" onclick="window.apagarTodasNFSe()" data-permission="nfse_delete" style="padding: 8px 16px; height: 38px; font-size: 13px; background: #e74c3c;">🗑️ Apagar Todas</button>
                             </div>
                         </div>
@@ -5191,24 +5196,29 @@
                         <table id="table-nfse">
                             <thead>
                                 <tr>
-                                    <th onclick="window.ordenarNFSe('numero_nfse')" style="width: 100px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">Número <span id="sort-numero_nfse"></span></th>
-                                    <th onclick="window.ordenarNFSe('data_emissao')" style="width: 120px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">Data Emissão <span id="sort-data_emissao"></span></th>
-                                    <th onclick="window.ordenarNFSe('razao_social_tomador')" style="width: 250px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">Tomador <span id="sort-razao_social_tomador"></span></th>
-                                    <th onclick="window.ordenarNFSe('nome_municipio')" style="width: 180px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">Município <span id="sort-nome_municipio"></span></th>
-                                    <th onclick="window.ordenarNFSe('valor_servico')" style="width: 120px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">Valor Serviço <span id="sort-valor_servico"></span></th>
-                                    <th onclick="window.ordenarNFSe('valor_iss')" style="width: 100px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">ISS <span id="sort-valor_iss"></span></th>
-                                    <th onclick="window.ordenarNFSe('valor_liquido')" style="width: 110px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">Valor Líquido <span id="sort-valor_liquido"></span></th>
-                                    <th onclick="window.ordenarNFSe('situacao')" style="width: 100px; cursor: pointer; font-size: 14px; user-select: none;" title="Clique para ordenar">Situação <span id="sort-situacao"></span></th>
-                                    <th style="width: 140px; font-size: 14px;">Ações</th>
+                                    <th onclick="window.ordenarNFSe('numero_nfse')" style="min-width: 80px; cursor: pointer; font-size: 13px; user-select: none;" title="Clique para ordenar">Número (nNFSe) <span id="sort-numero_nfse"></span></th>
+                                    <th onclick="window.ordenarNFSe('situacao')" style="min-width: 110px; cursor: pointer; font-size: 13px; user-select: none;" title="Clique para ordenar">Situação NFS-e <span id="sort-situacao"></span></th>
+                                    <th onclick="window.ordenarNFSe('data_competencia')" style="min-width: 110px; cursor: pointer; font-size: 13px; user-select: none;" title="Clique para ordenar">Data Competência <span id="sort-data_competencia"></span></th>
+                                    <th onclick="window.ordenarNFSe('data_emissao')" style="min-width: 100px; cursor: pointer; font-size: 13px; user-select: none;" title="Clique para ordenar">Data Emissão <span id="sort-data_emissao"></span></th>
+                                    <th onclick="window.ordenarNFSe('cnpj_tomador')" style="min-width: 130px; cursor: pointer; font-size: 13px; user-select: none;" title="Clique para ordenar">Tomador CNPJ/CPF <span id="sort-cnpj_tomador"></span></th>
+                                    <th onclick="window.ordenarNFSe('razao_social_tomador')" style="min-width: 200px; cursor: pointer; font-size: 13px; user-select: none;" title="Clique para ordenar">Tomador (xNome) <span id="sort-razao_social_tomador"></span></th>
+                                    <th onclick="window.ordenarNFSe('tp_ret_issqn')" style="min-width: 90px; cursor: pointer; font-size: 13px; user-select: none;" title="Tipo Retenção ISSQN">Tp. Ret. ISSQN <span id="sort-tp_ret_issqn"></span></th>
+                                    <th onclick="window.ordenarNFSe('base_calculo')" style="min-width: 110px; cursor: pointer; font-size: 13px; user-select: none;" title="Base de Cálculo ISSQN (vBC)">Base Cálc. (R$) <span id="sort-base_calculo"></span></th>
+                                    <th onclick="window.ordenarNFSe('aliquota_iss')" style="min-width: 80px; cursor: pointer; font-size: 13px; user-select: none;" title="Alíquota ISSQN">Alíq. (%) <span id="sort-aliquota_iss"></span></th>
+                                    <th onclick="window.ordenarNFSe('valor_iss')" style="min-width: 100px; cursor: pointer; font-size: 13px; user-select: none;" title="Valor ISSQN">Valor ISSQN <span id="sort-valor_iss"></span></th>
+                                    <th onclick="window.ordenarNFSe('valor_liquido')" style="min-width: 100px; cursor: pointer; font-size: 13px; user-select: none;" title="Valor Líquido">Valor Líquido <span id="sort-valor_liquido"></span></th>
+                                    <th style="min-width: 90px; font-size: 13px;" title="Situação vinculada a Contas a Receber">Situação</th>
+                                    <th style="min-width: 80px; font-size: 13px;" title="Data de pagamento de Contas a Receber">Data Pg.</th>
+                                    <th style="min-width: 100px; font-size: 13px;">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-nfse">
                                 <tr>
-                                    <td colspan="9" style="text-align: center; padding: 60px; color: #7f8c8d;">
+                                    <td colspan="14" style="text-align: center; padding: 60px; color: #7f8c8d;">
                                         <div style="font-size: 48px; margin-bottom: 20px;">📄</div>
                                         <h3 style="color: #34495e; margin-bottom: 10px;">NFS-e - Notas Fiscais de Serviço</h3>
                                         <p style="margin: 0; font-size: 14px;">Selecione o período e clique em <strong>🔍 Consultar Banco Local</strong> para ver as NFS-e já baixadas.</p>
-                                        <p style="margin: 5px 0 0 0; font-size: 14px;">Ou clique em <strong>⬇️ Baixar NFS-e</strong> para buscar novas notas.</p>
+                                        <p style="margin: 5px 0 0 0; font-size: 14px;">Ou clique em <strong>📁 Importar XMLs</strong> para importar arquivos XML locais.</p>
                                     </td>
                                 </tr>
                             </tbody>

@@ -719,6 +719,20 @@ try:
     except Exception as e:
         print(f"?? Aviso ao criar tabelas REINF: {e}")
 
+    # -- Migração: adicionar colunas novas em nfse_baixadas -------------------
+    try:
+        with db.get_connection() as _nm:
+            _ncur = _nm.cursor()
+            _ncur.execute("""
+                ALTER TABLE nfse_baixadas
+                    ADD COLUMN IF NOT EXISTS tp_ret_issqn VARCHAR(5) DEFAULT NULL;
+            """)
+            _nm.commit()
+            _ncur.close()
+        print("? Coluna tp_ret_issqn verificada/criada em nfse_baixadas!")
+    except Exception as e:
+        print(f"?? Aviso ao migrar nfse_baixadas: {e}")
+
     print("? DatabaseManager pronto!")
     print("="*70 + "\n")
         
@@ -14794,6 +14808,228 @@ def apagar_todas_nfse():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@app.route('/api/nfse/importar-xml', methods=['POST'])
+@require_auth
+@require_permission('nfse_view')
+def importar_xml_nfse():
+    """Importa NFS-e a partir de arquivos XML enviados pelo usu�rio"""
+    try:
+        import xml.etree.ElementTree as ET
+
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa n�o selecionada'}), 403
+
+        files = request.files.getlist('xmls')
+        if not files:
+            return jsonify({'success': False, 'error': 'Nenhum arquivo XML enviado'}), 400
+
+        # Obt�m conex�o direta s/ passar pelo NFSeDatabase para simplificar
+        from database_postgresql import get_nfse_db_params
+        import psycopg2
+
+        db_params = get_nfse_db_params()
+        conn = psycopg2.connect(**db_params)
+
+        importadas = 0
+        atualizadas = 0
+        erros = []
+
+        NS_NACIONAL = {
+            'nfse': 'http://www.sped.fazenda.gov.br/nfse/2.0',
+            'ns2':  'http://www.sped.fazenda.gov.br/nfse/2.0',
+        }
+
+        def _txt(el, path, ns=None):
+            """Pega .text de um elemento ou None se n�o encontrado."""
+            found = el.find(path, ns) if ns else el.find(path)
+            return found.text.strip() if found is not None and found.text else None
+
+        def _to_float(v):
+            try:
+                return float(v.replace(',', '.')) if v else 0.0
+            except Exception:
+                return 0.0
+
+        def _parse_nfse(xml_text):
+            """Tenta interpretar XML no padr�o nacional ou ABRASF e retorna dict."""
+            try:
+                root = ET.fromstring(xml_text.encode('utf-8', errors='replace'))
+            except ET.ParseError:
+                xml_text_clean = xml_text.encode('ascii', errors='ignore').decode('ascii')
+                root = ET.fromstring(xml_text_clean)
+
+            tag = root.tag.lower()
+            data = {}
+
+            # ---------- Padr�o Nacional (namespace SPED) ----------
+            if 'sped.fazenda' in tag or 'nfse' in tag.split('}')[-1]:
+                ns = {'n': 'http://www.sped.fazenda.gov.br/nfse/2.0'}
+                # Tenta tamb�m sem namespace
+                def g(path):
+                    # Com namespace
+                    r = root.find(path, ns)
+                    if r is not None:
+                        return r
+                    # Sem namespace (fallback)
+                    plain = path.replace('n:', '')
+                    return root.find('.//' + plain)
+
+                def gt(path):
+                    el = g(path)
+                    return el.text.strip() if el is not None and el.text else None
+
+                data['numero_nfse']         = gt('.//n:nNFSe') or gt('.//nNFSe')
+                data['situacao']            = gt('.//n:cStat') or gt('.//cStat') or 'NORMAL'
+                data['data_emissao']        = gt('.//n:dhEmi') or gt('.//dhEmi')
+                data['data_competencia']    = gt('.//n:dCompet') or gt('.//dCompet') or data['data_emissao']
+                data['cnpj_prestador']      = gt('.//n:CNPJ') or gt('.//CNPJ')
+                # Tom ador
+                tom = root.find('.//n:toma', ns) or root.find('.//toma')
+                if tom is None:
+                    tom = root.find('.//n:tomador', ns) or root.find('.//tomador') or root
+                data['cnpj_tomador']        = _txt(tom, './/n:CNPJ', ns) or _txt(tom, './/CNPJ') or _txt(tom, './/CPF') or _txt(tom, './/n:CPF', ns)
+                data['razao_social_tomador']= _txt(tom, './/n:xNome', ns) or _txt(tom, './/xNome')
+                # Valores ISS
+                data['valor_servico']       = _to_float(gt('.//n:vServPrest') or gt('.//vServPrest') or gt('.//n:vBC') or gt('.//vBC') or '0')
+                data['valor_deducoes']      = _to_float(gt('.//n:vDeducao') or gt('.//vDeducao') or '0')
+                data['valor_iss']           = _to_float(gt('.//n:vISSQN') or gt('.//vISSQN') or '0')
+                data['aliquota_iss']        = _to_float(gt('.//n:pAliqAplic') or gt('.//pAliqAplic') or '0')
+                data['valor_liquido']       = _to_float(gt('.//n:vLiq') or gt('.//vLiq') or '0')
+                data['tp_ret_issqn']        = gt('.//n:tpRetISSQN') or gt('.//tpRetISSQN')
+                data['codigo_municipio']    = gt('.//n:cLocEmi') or gt('.//cLocEmi') or gt('.//n:cMun') or gt('.//cMun') or '0000000'
+                data['nome_municipio']      = gt('.//n:xMun') or gt('.//xMun') or ''
+                data['uf']                  = gt('.//n:UF') or gt('.//UF') or ''
+                data['discriminacao']       = gt('.//n:xDesc') or gt('.//xDesc') or ''
+
+            else:
+                # ---------- ABRASF / prefeitura ----------
+                def ga(path):
+                    el = root.find('.//' + path)
+                    return el.text.strip() if el is not None and el.text else None
+
+                data['numero_nfse']         = ga('Numero') or ga('NumeroNFSe') or ga('NfseNumero')
+                data['situacao']            = ga('SituacaoNfse') or ga('Situacao') or 'NORMAL'
+                data['data_emissao']        = ga('DataEmissaoNfse') or ga('DataEmissao')
+                data['data_competencia']    = ga('Competencia') or ga('DataCompetencia') or data['data_emissao']
+                data['cnpj_prestador']      = ga('CnpjPrestador') or ga('Cnpj')
+                data['cnpj_tomador']        = ga('CnpjTomador') or ga('Cnpj')
+                data['razao_social_tomador']= ga('RazaoSocialTomador') or ga('RazaoSocial')
+                data['valor_servico']       = _to_float(ga('ValorServicos') or ga('ValorServico') or '0')
+                data['valor_deducoes']      = _to_float(ga('ValorDeducoes') or '0')
+                data['valor_iss']           = _to_float(ga('ValorIss') or ga('ValorISSQN') or '0')
+                data['aliquota_iss']        = _to_float(ga('Aliquota') or '0')
+                data['valor_liquido']       = _to_float(ga('ValorLiquidoNfse') or ga('ValorLiquido') or '0')
+                data['tp_ret_issqn']        = ga('TipoRecolhimento') or ga('RetencaoIssqn')
+                data['codigo_municipio']    = ga('CodigoMunicipio') or ga('CodigoMun') or '0000000'
+                data['nome_municipio']      = ga('Municipio') or ''
+                data['uf']                  = ga('Uf') or ''
+                data['discriminacao']       = ga('Discriminacao') or ''
+
+            # Normalizar data_emissao e data_competencia para YYYY-MM-DD
+            for campo in ('data_emissao', 'data_competencia'):
+                v = data.get(campo)
+                if v:
+                    data[campo] = v[:10]  # pega apenas YYYY-MM-DD
+
+            return data
+
+        try:
+            cur = conn.cursor()
+            for f in files:
+                fname = f.filename or 'desconhecido'
+                try:
+                    xml_bytes = f.read()
+                    xml_text = xml_bytes.decode('utf-8', errors='replace')
+                    nd = _parse_nfse(xml_text)
+
+                    if not nd.get('numero_nfse'):
+                        erros.append({'arquivo': fname, 'erro': 'N�mero NFS-e n�o encontrado no XML'})
+                        continue
+
+                    cur.execute("""
+                        INSERT INTO nfse_baixadas
+                            (empresa_id, numero_nfse, cnpj_prestador, cnpj_tomador,
+                             razao_social_tomador, data_emissao, data_competencia,
+                             valor_servico, valor_deducoes, valor_iss, aliquota_iss, valor_liquido,
+                             situacao, tp_ret_issqn, codigo_municipio, nome_municipio, uf,
+                             discriminacao, xml_content, provedor)
+                        VALUES
+                            (%s,%s,%s,%s, %s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s)
+                        ON CONFLICT (numero_nfse, codigo_municipio)
+                        DO UPDATE SET
+                            cnpj_prestador      = EXCLUDED.cnpj_prestador,
+                            cnpj_tomador        = EXCLUDED.cnpj_tomador,
+                            razao_social_tomador= EXCLUDED.razao_social_tomador,
+                            data_emissao        = EXCLUDED.data_emissao,
+                            data_competencia    = EXCLUDED.data_competencia,
+                            valor_servico       = EXCLUDED.valor_servico,
+                            valor_deducoes      = EXCLUDED.valor_deducoes,
+                            valor_iss           = EXCLUDED.valor_iss,
+                            aliquota_iss        = EXCLUDED.aliquota_iss,
+                            valor_liquido       = EXCLUDED.valor_liquido,
+                            situacao            = EXCLUDED.situacao,
+                            tp_ret_issqn        = EXCLUDED.tp_ret_issqn,
+                            discriminacao       = EXCLUDED.discriminacao,
+                            xml_content         = EXCLUDED.xml_content,
+                            updated_at          = CURRENT_TIMESTAMP
+                    """, (
+                        empresa_id,
+                        nd['numero_nfse'],
+                        nd.get('cnpj_prestador'),
+                        nd.get('cnpj_tomador'),
+                        nd.get('razao_social_tomador'),
+                        nd.get('data_emissao'),
+                        nd.get('data_competencia'),
+                        nd.get('valor_servico', 0),
+                        nd.get('valor_deducoes', 0),
+                        nd.get('valor_iss', 0),
+                        nd.get('aliquota_iss', 0),
+                        nd.get('valor_liquido', 0),
+                        nd.get('situacao', 'NORMAL'),
+                        nd.get('tp_ret_issqn'),
+                        nd.get('codigo_municipio', '0000000'),
+                        nd.get('nome_municipio', ''),
+                        nd.get('uf', ''),
+                        nd.get('discriminacao', ''),
+                        xml_text,
+                        'xml_importado',
+                    ))
+
+                    # cur.rowcount == 1 = insert, UPDATE sempre retorna 1 tamb�m
+                    # Usamos lastrowid/xmax trick para diferenciar INSERT vs UPDATE
+                    if cur.statusmessage == 'INSERT 0 1':
+                        importadas += 1
+                    else:
+                        atualizadas += 1
+
+                except Exception as e_inner:
+                    erros.append({'arquivo': fname, 'erro': str(e_inner)})
+
+            conn.commit()
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+        return jsonify({
+            'success': True,
+            'importadas': importadas,
+            'atualizadas': atualizadas,
+            'total': importadas + atualizadas,
+            'erros': erros
+        })
+
+    except Exception as e:
+        logger.error(f"Erro ao importar XMLs NFS-e: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/nfse/resumo-mensal', methods=['POST'])
