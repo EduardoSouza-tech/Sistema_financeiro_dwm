@@ -14839,174 +14839,213 @@ def importar_xml_nfse():
         atualizadas = 0
         erros = []
 
-        NS_NACIONAL = {
-            'nfse': 'http://www.sped.fazenda.gov.br/nfse/2.0',
-            'ns2':  'http://www.sped.fazenda.gov.br/nfse/2.0',
+        import re as _re
+        import zipfile as _zf
+        import io as _io
+        import xml.etree.ElementTree as ET
+
+        # cStat (Padrao Nacional SPED) -> coluna situacao
+        CSTAT_MAP = {
+            '100': 'NORMAL', '101': 'NORMAL', '103': 'NORMAL',
+            '104': 'NORMAL', '105': 'NORMAL', '106': 'NORMAL',
+            '102': 'CANCELADA',
+            '107': 'SUBSTITUIDA',
         }
 
-        def _txt(el, path, ns=None):
-            """Pega .text de um elemento ou None se n�o encontrado."""
-            found = el.find(path, ns) if ns else el.find(path)
-            return found.text.strip() if found is not None and found.text else None
+        def _strip_ns(xml_text):
+            # Remove declaracoes de namespace e prefixos para simplificar XPath
+            cleaned = _re.sub(r'\s+xmlns(?::\w+)?="[^"]*"', '', xml_text)
+            cleaned = _re.sub(r'<(/?)(\w+):(\w+)', r'<\1\3', cleaned)
+            return cleaned
 
-        def _to_float(v):
+        def _t(el, *paths):
+            # Primeiro texto nao-vazio dentre os paths (busca recursiva .//)
+            for p in paths:
+                found = el.find('.//' + p)
+                if found is not None and found.text and found.text.strip():
+                    return found.text.strip()
+            return None
+
+        def _tf(el, *paths):
+            v = _t(el, *paths)
+            if not v:
+                return 0.0
             try:
-                return float(v.replace(',', '.')) if v else 0.0
+                return float(v.replace(',', '.'))
             except Exception:
                 return 0.0
 
         def _parse_nfse(xml_text):
-            """Tenta interpretar XML no padr�o nacional ou ABRASF e retorna dict."""
+            # Parse NFS-e Padrao Nacional SPED 1.x ou ABRASF. Retorna dict.
             try:
-                root = ET.fromstring(xml_text.encode('utf-8', errors='replace'))
+                root = ET.fromstring(_strip_ns(xml_text))
             except ET.ParseError:
-                xml_text_clean = xml_text.encode('ascii', errors='ignore').decode('ascii')
-                root = ET.fromstring(xml_text_clean)
+                root = ET.fromstring(_strip_ns(xml_text.encode('ascii', errors='ignore').decode()))
 
-            tag = root.tag.lower()
+            root_tag = root.tag.lower()
             data = {}
 
-            # ---------- Padr�o Nacional (namespace SPED) ----------
-            if 'sped.fazenda' in tag or 'nfse' in tag.split('}')[-1]:
-                ns = {'n': 'http://www.sped.fazenda.gov.br/nfse/2.0'}
-                # Tenta tamb�m sem namespace
-                def g(path):
-                    # Com namespace
-                    r = root.find(path, ns)
-                    if r is not None:
-                        return r
-                    # Sem namespace (fallback)
-                    plain = path.replace('n:', '')
-                    return root.find('.//' + plain)
+            # Padrao Nacional SPED (tag raiz: NFSe)
+            if root_tag == 'nfse' or root_tag.endswith('}nfse'):
+                cstat = _t(root, 'cStat') or ''
+                data['situacao']       = CSTAT_MAP.get(cstat, 'NORMAL')
+                data['numero_nfse']    = _t(root, 'nNFSe')
+                data['nome_municipio'] = _t(root, 'xLocEmi', 'xLocPrestacao', 'xLocIncid') or ''
 
-                def gt(path):
-                    el = g(path)
-                    return el.text.strip() if el is not None and el.text else None
+                emit = root.find('.//emit')
+                data['cnpj_prestador'] = _t(emit or root, 'CNPJ')
+                data['uf']             = _t(emit or root, 'UF') or ''
 
-                data['numero_nfse']         = gt('.//n:nNFSe') or gt('.//nNFSe')
-                data['situacao']            = gt('.//n:cStat') or gt('.//cStat') or 'NORMAL'
-                data['data_emissao']        = gt('.//n:dhEmi') or gt('.//dhEmi')
-                data['data_competencia']    = gt('.//n:dCompet') or gt('.//dCompet') or data['data_emissao']
-                data['cnpj_prestador']      = gt('.//n:CNPJ') or gt('.//CNPJ')
-                # Tom ador
-                tom = root.find('.//n:toma', ns) or root.find('.//toma')
-                if tom is None:
-                    tom = root.find('.//n:tomador', ns) or root.find('.//tomador') or root
-                data['cnpj_tomador']        = _txt(tom, './/n:CNPJ', ns) or _txt(tom, './/CNPJ') or _txt(tom, './/CPF') or _txt(tom, './/n:CPF', ns)
-                data['razao_social_tomador']= _txt(tom, './/n:xNome', ns) or _txt(tom, './/xNome')
-                # Valores ISS
-                data['valor_servico']       = _to_float(gt('.//n:vServPrest') or gt('.//vServPrest') or gt('.//n:vBC') or gt('.//vBC') or '0')
-                data['valor_deducoes']      = _to_float(gt('.//n:vDeducao') or gt('.//vDeducao') or '0')
-                data['valor_iss']           = _to_float(gt('.//n:vISSQN') or gt('.//vISSQN') or '0')
-                data['aliquota_iss']        = _to_float(gt('.//n:pAliqAplic') or gt('.//pAliqAplic') or '0')
-                data['valor_liquido']       = _to_float(gt('.//n:vLiq') or gt('.//vLiq') or '0')
-                data['tp_ret_issqn']        = gt('.//n:tpRetISSQN') or gt('.//tpRetISSQN')
-                data['codigo_municipio']    = gt('.//n:cLocEmi') or gt('.//cLocEmi') or gt('.//n:cMun') or gt('.//cMun') or '0000000'
-                data['nome_municipio']      = gt('.//n:xMun') or gt('.//xMun') or ''
-                data['uf']                  = gt('.//n:UF') or gt('.//UF') or ''
-                data['discriminacao']       = gt('.//n:xDesc') or gt('.//xDesc') or ''
+                toma = root.find('.//toma')
+                if toma is not None:
+                    data['cnpj_tomador']         = _t(toma, 'CNPJ', 'CPF', 'NIF')
+                    data['razao_social_tomador']  = _t(toma, 'xNome')
+                else:
+                    data['cnpj_tomador']         = None
+                    data['razao_social_tomador']  = None
 
+                data['data_emissao']     = _t(root, 'dhEmi')
+                data['data_competencia'] = _t(root, 'dCompet') or data['data_emissao']
+                data['codigo_municipio'] = _t(root, 'cLocEmi', 'cLocIncid', 'cMun') or '0000000'
+
+                # Valores do infNFSe (acima do DPS): vBC, pAliqAplic, vISSQN, vLiq
+                nfse_vals = root.find('.//infNFSe/valores') or root.find('.//valores')
+                if nfse_vals is not None:
+                    data['valor_servico'] = _tf(nfse_vals, 'vBC')
+                    data['aliquota_iss']  = _tf(nfse_vals, 'pAliqAplic')
+                    data['valor_iss']     = _tf(nfse_vals, 'vISSQN')
+                    data['valor_liquido'] = _tf(nfse_vals, 'vLiq')
+                else:
+                    data['valor_servico'] = _tf(root, 'vBC', 'vServ')
+                    data['aliquota_iss']  = _tf(root, 'pAliqAplic')
+                    data['valor_iss']     = _tf(root, 'vISSQN')
+                    data['valor_liquido'] = _tf(root, 'vLiq')
+
+                data['valor_deducoes'] = _tf(root, 'vDeducao')
+                data['tp_ret_issqn']   = _t(root, 'tpRetISSQN')
+                data['discriminacao']  = (_t(root, 'xDescServ', 'xDesc') or '')[:500]
+
+            # ABRASF / prefeitura
             else:
-                # ---------- ABRASF / prefeitura ----------
-                def ga(path):
-                    el = root.find('.//' + path)
-                    return el.text.strip() if el is not None and el.text else None
+                data['numero_nfse']          = _t(root, 'Numero', 'NumeroNFSe', 'NfseNumero')
+                data['situacao']             = _t(root, 'SituacaoNfse', 'Situacao') or 'NORMAL'
+                data['data_emissao']         = _t(root, 'DataEmissaoNfse', 'DataEmissao')
+                data['data_competencia']     = _t(root, 'Competencia', 'DataCompetencia') or data['data_emissao']
+                data['cnpj_prestador']       = _t(root, 'CnpjPrestador')
+                data['cnpj_tomador']         = _t(root, 'CnpjTomador')
+                data['razao_social_tomador'] = _t(root, 'RazaoSocialTomador', 'RazaoSocial')
+                data['valor_servico']        = _tf(root, 'ValorServicos', 'ValorServico')
+                data['valor_deducoes']       = _tf(root, 'ValorDeducoes')
+                data['valor_iss']            = _tf(root, 'ValorIss', 'ValorISSQN')
+                data['aliquota_iss']         = _tf(root, 'Aliquota')
+                data['valor_liquido']        = _tf(root, 'ValorLiquidoNfse', 'ValorLiquido')
+                data['tp_ret_issqn']         = _t(root, 'TipoRecolhimento', 'RetencaoIssqn')
+                data['codigo_municipio']     = _t(root, 'CodigoMunicipio', 'CodigoMun') or '0000000'
+                data['nome_municipio']       = _t(root, 'Municipio', 'NomeMunicipio') or ''
+                data['uf']                   = _t(root, 'Uf', 'UF') or ''
+                data['discriminacao']        = (_t(root, 'Discriminacao', 'xDescServ') or '')[:500]
 
-                data['numero_nfse']         = ga('Numero') or ga('NumeroNFSe') or ga('NfseNumero')
-                data['situacao']            = ga('SituacaoNfse') or ga('Situacao') or 'NORMAL'
-                data['data_emissao']        = ga('DataEmissaoNfse') or ga('DataEmissao')
-                data['data_competencia']    = ga('Competencia') or ga('DataCompetencia') or data['data_emissao']
-                data['cnpj_prestador']      = ga('CnpjPrestador') or ga('Cnpj')
-                data['cnpj_tomador']        = ga('CnpjTomador') or ga('Cnpj')
-                data['razao_social_tomador']= ga('RazaoSocialTomador') or ga('RazaoSocial')
-                data['valor_servico']       = _to_float(ga('ValorServicos') or ga('ValorServico') or '0')
-                data['valor_deducoes']      = _to_float(ga('ValorDeducoes') or '0')
-                data['valor_iss']           = _to_float(ga('ValorIss') or ga('ValorISSQN') or '0')
-                data['aliquota_iss']        = _to_float(ga('Aliquota') or '0')
-                data['valor_liquido']       = _to_float(ga('ValorLiquidoNfse') or ga('ValorLiquido') or '0')
-                data['tp_ret_issqn']        = ga('TipoRecolhimento') or ga('RetencaoIssqn')
-                data['codigo_municipio']    = ga('CodigoMunicipio') or ga('CodigoMun') or '0000000'
-                data['nome_municipio']      = ga('Municipio') or ''
-                data['uf']                  = ga('Uf') or ''
-                data['discriminacao']       = ga('Discriminacao') or ''
-
-            # Normalizar data_emissao e data_competencia para YYYY-MM-DD
+            # Normalizar datas -> YYYY-MM-DD
             for campo in ('data_emissao', 'data_competencia'):
                 v = data.get(campo)
                 if v:
-                    data[campo] = v[:10]  # pega apenas YYYY-MM-DD
-
+                    data[campo] = v[:10]
             return data
+
+        def _salvar_nfse(cur, nd, xml_text):
+            nonlocal importadas, atualizadas
+            cur.execute("""
+                INSERT INTO nfse_baixadas
+                    (empresa_id, numero_nfse, cnpj_prestador, cnpj_tomador,
+                     razao_social_tomador, data_emissao, data_competencia,
+                     valor_servico, valor_deducoes, valor_iss, aliquota_iss, valor_liquido,
+                     situacao, tp_ret_issqn, codigo_municipio, nome_municipio, uf,
+                     discriminacao, xml_content, provedor)
+                VALUES
+                    (%s,%s,%s,%s, %s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s)
+                ON CONFLICT (numero_nfse, codigo_municipio)
+                DO UPDATE SET
+                    cnpj_prestador       = EXCLUDED.cnpj_prestador,
+                    cnpj_tomador         = EXCLUDED.cnpj_tomador,
+                    razao_social_tomador = EXCLUDED.razao_social_tomador,
+                    data_emissao         = EXCLUDED.data_emissao,
+                    data_competencia     = EXCLUDED.data_competencia,
+                    valor_servico        = EXCLUDED.valor_servico,
+                    valor_deducoes       = EXCLUDED.valor_deducoes,
+                    valor_iss            = EXCLUDED.valor_iss,
+                    aliquota_iss         = EXCLUDED.aliquota_iss,
+                    valor_liquido        = EXCLUDED.valor_liquido,
+                    situacao             = EXCLUDED.situacao,
+                    tp_ret_issqn         = EXCLUDED.tp_ret_issqn,
+                    discriminacao        = EXCLUDED.discriminacao,
+                    xml_content          = EXCLUDED.xml_content,
+                    atualizado_em        = CURRENT_TIMESTAMP
+            """, (
+                empresa_id,
+                nd['numero_nfse'],
+                nd.get('cnpj_prestador'),
+                nd.get('cnpj_tomador'),
+                nd.get('razao_social_tomador'),
+                nd.get('data_emissao'),
+                nd.get('data_competencia'),
+                nd.get('valor_servico', 0),
+                nd.get('valor_deducoes', 0),
+                nd.get('valor_iss', 0),
+                nd.get('aliquota_iss', 0),
+                nd.get('valor_liquido', 0),
+                nd.get('situacao', 'NORMAL'),
+                nd.get('tp_ret_issqn'),
+                nd.get('codigo_municipio', '0000000'),
+                nd.get('nome_municipio', ''),
+                nd.get('uf', ''),
+                nd.get('discriminacao', ''),
+                xml_text,
+                'xml_importado',
+            ))
+            if cur.statusmessage == 'INSERT 0 1':
+                importadas += 1
+            else:
+                atualizadas += 1
+
+        def _processar_xml_bytes(cur, xml_bytes, fname):
+            xml_text = xml_bytes.decode('utf-8', errors='replace')
+            nd = _parse_nfse(xml_text)
+            if not nd.get('numero_nfse'):
+                raise ValueError('Numero NFS-e nao encontrado no XML')
+            _salvar_nfse(cur, nd, xml_text)
 
         try:
             cur = conn.cursor()
             for f in files:
                 fname = f.filename or 'desconhecido'
+                file_bytes = f.read()
                 try:
-                    xml_bytes = f.read()
-                    xml_text = xml_bytes.decode('utf-8', errors='replace')
-                    nd = _parse_nfse(xml_text)
-
-                    if not nd.get('numero_nfse'):
-                        erros.append({'arquivo': fname, 'erro': 'N�mero NFS-e n�o encontrado no XML'})
-                        continue
-
-                    cur.execute("""
-                        INSERT INTO nfse_baixadas
-                            (empresa_id, numero_nfse, cnpj_prestador, cnpj_tomador,
-                             razao_social_tomador, data_emissao, data_competencia,
-                             valor_servico, valor_deducoes, valor_iss, aliquota_iss, valor_liquido,
-                             situacao, tp_ret_issqn, codigo_municipio, nome_municipio, uf,
-                             discriminacao, xml_content, provedor)
-                        VALUES
-                            (%s,%s,%s,%s, %s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s)
-                        ON CONFLICT (numero_nfse, codigo_municipio)
-                        DO UPDATE SET
-                            cnpj_prestador      = EXCLUDED.cnpj_prestador,
-                            cnpj_tomador        = EXCLUDED.cnpj_tomador,
-                            razao_social_tomador= EXCLUDED.razao_social_tomador,
-                            data_emissao        = EXCLUDED.data_emissao,
-                            data_competencia    = EXCLUDED.data_competencia,
-                            valor_servico       = EXCLUDED.valor_servico,
-                            valor_deducoes      = EXCLUDED.valor_deducoes,
-                            valor_iss           = EXCLUDED.valor_iss,
-                            aliquota_iss        = EXCLUDED.aliquota_iss,
-                            valor_liquido       = EXCLUDED.valor_liquido,
-                            situacao            = EXCLUDED.situacao,
-                            tp_ret_issqn        = EXCLUDED.tp_ret_issqn,
-                            discriminacao       = EXCLUDED.discriminacao,
-                            xml_content         = EXCLUDED.xml_content,
-                            updated_at          = CURRENT_TIMESTAMP
-                    """, (
-                        empresa_id,
-                        nd['numero_nfse'],
-                        nd.get('cnpj_prestador'),
-                        nd.get('cnpj_tomador'),
-                        nd.get('razao_social_tomador'),
-                        nd.get('data_emissao'),
-                        nd.get('data_competencia'),
-                        nd.get('valor_servico', 0),
-                        nd.get('valor_deducoes', 0),
-                        nd.get('valor_iss', 0),
-                        nd.get('aliquota_iss', 0),
-                        nd.get('valor_liquido', 0),
-                        nd.get('situacao', 'NORMAL'),
-                        nd.get('tp_ret_issqn'),
-                        nd.get('codigo_municipio', '0000000'),
-                        nd.get('nome_municipio', ''),
-                        nd.get('uf', ''),
-                        nd.get('discriminacao', ''),
-                        xml_text,
-                        'xml_importado',
-                    ))
-
-                    # cur.rowcount == 1 = insert, UPDATE sempre retorna 1 tamb�m
-                    # Usamos lastrowid/xmax trick para diferenciar INSERT vs UPDATE
-                    if cur.statusmessage == 'INSERT 0 1':
-                        importadas += 1
+                    # ZIP: extrai e processa cada XML interno
+                    if fname.lower().endswith('.zip') or file_bytes[:2] == b'PK':
+                        with _zf.ZipFile(_io.BytesIO(file_bytes)) as zf:
+                            xml_names = [
+                                n for n in zf.namelist()
+                                if n.lower().endswith('.xml')
+                                and not n.startswith('__')
+                                and not n.startswith('.')
+                            ]
+                            if not xml_names:
+                                erros.append({'arquivo': fname,
+                                              'erro': 'Nenhum XML encontrado dentro do ZIP'})
+                                continue
+                            for xml_name in xml_names:
+                                try:
+                                    _processar_xml_bytes(cur, zf.read(xml_name), xml_name)
+                                except Exception as ex:
+                                    erros.append({'arquivo': f'{fname}/{xml_name}',
+                                                  'erro': str(ex)})
+                    # XML direto
                     else:
-                        atualizadas += 1
+                        _processar_xml_bytes(cur, file_bytes, fname)
 
+                except _zf.BadZipFile:
+                    erros.append({'arquivo': fname,
+                                  'erro': 'Arquivo ZIP invalido ou corrompido'})
                 except Exception as e_inner:
                     erros.append({'arquivo': fname, 'erro': str(e_inner)})
 

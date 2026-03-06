@@ -8530,12 +8530,15 @@ window.exibirNFSePaginado = function() {
     }
 };
 
-// Importar NFS-e a partir de arquivos XML locais
+// Importar NFS-e a partir de arquivos XML ou ZIP locais
 window.importarXMLsNFSe = async function(files) {
     if (!files || files.length === 0) return;
 
+    const hasZip = Array.from(files).some(f => f.name.toLowerCase().endsWith('.zip'));
+    const label  = hasZip ? 'arquivo(s) XML/ZIP' : `arquivo(s) XML`;
+
     const tbody = document.getElementById('tbody-nfse');
-    tbody.innerHTML = `<tr><td colspan="14" style="text-align:center;padding:40px;"><div style="font-size:48px;">⏳</div><p>Importando ${files.length} arquivo(s) XML...</p></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="14" style="text-align:center;padding:40px;"><div style="font-size:48px;">⏳</div><p>Importando ${files.length} ${label}...<br><small style="color:#7f8c8d;">XMLs dentro de ZIPs também serão processados</small></p></td></tr>`;
 
     const formData = new FormData();
     for (const f of files) {
