@@ -8556,11 +8556,14 @@ window.importarXMLsNFSe = async function(files) {
 
         if (data.success) {
             let msg = `✅ ${data.importadas} importada(s), ${data.atualizadas} atualizada(s)`;
+            if ((data.novos_clientes || 0) > 0) {
+                msg += ` | 👤 ${data.novos_clientes} novo(s) cliente(s) cadastrado(s)`;
+            }
             if (data.erros && data.erros.length > 0) {
                 msg += ` | ⚠️ ${data.erros.length} erro(s)`;
                 console.warn('Erros ao importar XMLs:', data.erros);
             }
-            showToast(msg, data.erros && data.erros.length > 0 ? 'warning' : 'success', 5000);
+            showToast(msg, data.erros && data.erros.length > 0 ? 'warning' : 'success', 6000);
             // Recarregar tabela
             await window.consultarNFSeLocal();
         } else {

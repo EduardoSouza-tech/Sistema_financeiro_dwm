@@ -15007,12 +15007,102 @@ def importar_xml_nfse():
             else:
                 atualizadas += 1
 
+        # Tomadores capturados para auto-cadastro: {cnpj: razao_social}
+        tomadores_capturados = {}
+
         def _processar_xml_bytes(cur, xml_bytes, fname):
             xml_text = xml_bytes.decode('utf-8', errors='replace')
             nd = _parse_nfse(xml_text)
             if not nd.get('numero_nfse'):
                 raise ValueError('Numero NFS-e nao encontrado no XML')
             _salvar_nfse(cur, nd, xml_text)
+            # Registrar tomador para auto-cadastro posterior
+            cnpj_t = (nd.get('cnpj_tomador') or '').strip()
+            nome_t = (nd.get('razao_social_tomador') or '').strip()
+            if cnpj_t and cnpj_t not in tomadores_capturados:
+                tomadores_capturados[cnpj_t] = nome_t
+
+        def _consultar_brasilapi(cnpj_limpo):
+            """Consulta BrasilAPI para obter dados do CNPJ. Retorna dict ou None."""
+            import urllib.request
+            import urllib.error
+            import json as _json
+            try:
+                url = f'https://brasilapi.com.br/api/cnpj/v1/{cnpj_limpo}'
+                req = urllib.request.Request(url, headers={'User-Agent': 'SistemaFinanceiro/1.0'})
+                with urllib.request.urlopen(req, timeout=6) as resp:
+                    return _json.loads(resp.read().decode('utf-8'))
+            except Exception:
+                return None
+
+        def _formatar_cnpj(cnpj):
+            c = ''.join(filter(str.isdigit, cnpj))
+            if len(c) == 14:
+                return f'{c[:2]}.{c[2:5]}.{c[5:8]}/{c[8:12]}-{c[12:]}'
+            if len(c) == 11:
+                return f'{c[:3]}.{c[3:6]}.{c[6:9]}-{c[9:]}'
+            return cnpj
+
+        def _auto_cadastrar_tomadores(cur_reg):
+            """Para cada tomador capturado, verifica se já existe como cliente e insere se não."""
+            registrados = 0
+            for cnpj_t, nome_xml in tomadores_capturados.items():
+                cnpj_digits = ''.join(filter(str.isdigit, cnpj_t))
+                # Padroniza: formata apenas se 11 ou 14 dígitos
+                cnpj_fmt = _formatar_cnpj(cnpj_t) if len(cnpj_digits) in (11, 14) else cnpj_t
+                try:
+                    # Verifica se já existe na tabela clientes (qualquer formato)
+                    cur_reg.execute("""
+                        SELECT id FROM clientes
+                        WHERE empresa_id = %s
+                          AND REGEXP_REPLACE(cpf_cnpj, '[^0-9]', '', 'g') = %s
+                    """, (empresa_id, cnpj_digits))
+                    if cur_reg.fetchone():
+                        continue  # já cadastrado
+
+                    # Tentar enriquecer via BrasilAPI (apenas CNPJ 14 dígitos)
+                    nome_final = nome_xml or cnpj_fmt
+                    email_final = None
+                    telefone_final = None
+                    endereco_final = None
+
+                    if len(cnpj_digits) == 14:
+                        dados = _consultar_brasilapi(cnpj_digits)
+                        if dados and not dados.get('message'):  # message = erro da API
+                            nome_final = (
+                                dados.get('razao_social') or
+                                dados.get('nome_fantasia') or
+                                nome_xml or cnpj_fmt
+                            ).strip()
+                            email_final = dados.get('email') or None
+                            ddd   = dados.get('ddd_telefone_1') or ''
+                            tel   = dados.get('telefone') or ''
+                            if ddd and tel:
+                                telefone_final = f'({ddd}) {tel}'
+                            # Montar endereço
+                            partes = []
+                            for campo in ('logradouro', 'numero', 'complemento', 'bairro', 'municipio'):
+                                v = (dados.get(campo) or '').strip()
+                                if v:
+                                    partes.append(v)
+                            uf  = (dados.get('uf') or '').strip()
+                            cep = (dados.get('cep') or '').strip()
+                            if uf:
+                                partes.append(uf)
+                            if cep:
+                                partes.append(f'CEP: {cep}')
+                            if partes:
+                                endereco_final = ', '.join(partes)
+
+                    cur_reg.execute("""
+                        INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco, empresa_id)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (nome_final, cnpj_fmt, email_final, telefone_final, endereco_final, empresa_id))
+                    registrados += 1
+                    logger.info(f"[NFS-e] Novo cliente auto-cadastrado: {nome_final} ({cnpj_fmt})")
+                except Exception as e_cli:
+                    logger.warning(f"[NFS-e] Nao foi possivel auto-cadastrar {cnpj_t}: {e_cli}")
+            return registrados
 
         try:
             cur = conn.cursor()
@@ -15050,6 +15140,14 @@ def importar_xml_nfse():
                     erros.append({'arquivo': fname, 'erro': str(e_inner)})
 
             conn.commit()
+
+            # Auto-cadastrar novos clientes (tomadores) detectados nos XMLs
+            novos_clientes = 0
+            try:
+                novos_clientes = _auto_cadastrar_tomadores(cur)
+                conn.commit()
+            except Exception as e_ac:
+                logger.warning(f"[NFS-e] Erro no auto-cadastro de clientes: {e_ac}")
         finally:
             try:
                 conn.close()
@@ -15061,6 +15159,7 @@ def importar_xml_nfse():
             'importadas': importadas,
             'atualizadas': atualizadas,
             'total': importadas + atualizadas,
+            'novos_clientes': novos_clientes,
             'erros': erros
         })
 
