@@ -1928,53 +1928,54 @@ def listar_contas():
                 with get_db_connection(empresa_id=empresa_id) as conn:
                     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                     
-                    # Verificar se existem transa��es de extrato para esta conta
+                    # Verificar se existem transações de extrato para esta conta
                     cursor.execute("""
-                        SELECT saldo, data, id
+                        SELECT COUNT(*) AS total
                         FROM transacoes_extrato
-                        WHERE empresa_id = %s
-                        AND conta_bancaria = %s
-                        ORDER BY data DESC, id DESC
-                        LIMIT 1
+                        WHERE empresa_id = %s AND conta_bancaria = %s
                     """, (empresa_id, c.nome))
-                    
-                    ultima_transacao_extrato = cursor.fetchone()
-                    
-                    if ultima_transacao_extrato and ultima_transacao_extrato['saldo'] is not None:
-                        # ? USAR SALDO DO EXTRATO (mais recente e confi�vel)
-                        saldo_real = float(ultima_transacao_extrato['saldo'])
-                        print(f"?? Conta {c.nome}: Saldo do extrato = R$ {saldo_real:.2f} (data: {ultima_transacao_extrato['data']})")
+                    tem_extrato = cursor.fetchone()['total'] > 0
+
+                    if tem_extrato:
+                        # ✅ CÁLCULO CORRETO: saldo_inicial + SUM(valor de todas as transações)
+                        # Mesma estratégia do extrato_functions.py — imune a saldo armazenado errado
+                        cursor.execute("""
+                            SELECT
+                                cb.saldo_inicial,
+                                cb.data_inicio,
+                                COALESCE(SUM(
+                                    CASE
+                                        WHEN te.data >= COALESCE(cb.data_inicio, '1900-01-01')
+                                        THEN te.valor
+                                        ELSE 0
+                                    END
+                                ), 0) AS soma_transacoes
+                            FROM contas_bancarias cb
+                            LEFT JOIN transacoes_extrato te
+                                   ON te.conta_bancaria = cb.nome
+                                  AND te.empresa_id     = cb.empresa_id
+                            WHERE cb.empresa_id = %s AND cb.nome = %s
+                            GROUP BY cb.saldo_inicial, cb.data_inicio
+                        """, (empresa_id, c.nome))
+                        row = cursor.fetchone()
+                        if row:
+                            saldo_real = float(row['saldo_inicial'] or 0) + float(row['soma_transacoes'] or 0)
+                            print(f"✅ Conta {c.nome}: saldo_inicial={row['saldo_inicial']} + soma={row['soma_transacoes']:.2f} = R$ {saldo_real:.2f}")
+                        else:
+                            saldo_real = float(c.saldo_inicial)
                     else:
-                        # ?? FALLBACK: Calcular com base nos lan�amentos manuais
-                        print(f"?? Conta {c.nome}: Sem extrato, calculando com lan�amentos...")
-                        
-                        # Somar receitas pagas
+                        # 📋 FALLBACK: Calcular com base nos lançamentos manuais (sem extrato OFX)
+                        print(f"📋 Conta {c.nome}: Sem extrato, calculando com lançamentos...")
                         cursor.execute("""
-                            SELECT COALESCE(SUM(valor), 0) as total_receitas
+                            SELECT
+                                COALESCE(SUM(CASE WHEN tipo = 'receita' THEN valor ELSE 0 END), 0) AS total_receitas,
+                                COALESCE(SUM(CASE WHEN tipo = 'despesa' THEN valor ELSE 0 END), 0) AS total_despesas
                             FROM lancamentos
-                            WHERE empresa_id = %s
-                            AND conta_bancaria = %s
-                            AND tipo = 'receita'
-                            AND status = 'pago'
+                            WHERE empresa_id = %s AND conta_bancaria = %s AND status = 'pago'
                         """, (empresa_id, c.nome))
-                        resultado_receitas = cursor.fetchone()
-                        total_receitas = float(resultado_receitas['total_receitas'] or 0)
-                        
-                        # Somar despesas pagas
-                        cursor.execute("""
-                            SELECT COALESCE(SUM(valor), 0) as total_despesas
-                            FROM lancamentos
-                            WHERE empresa_id = %s
-                            AND conta_bancaria = %s
-                            AND tipo = 'despesa'
-                            AND status = 'pago'
-                        """, (empresa_id, c.nome))
-                        resultado_despesas = cursor.fetchone()
-                        total_despesas = float(resultado_despesas['total_despesas'] or 0)
-                        
-                        # Calcular saldo real
-                        saldo_real = float(c.saldo_inicial) + total_receitas - total_despesas
-                        print(f"?? Conta {c.nome}: Saldo calculado = R$ {saldo_real:.2f} (inicial: {c.saldo_inicial} + receitas: {total_receitas} - despesas: {total_despesas})")
+                        result = cursor.fetchone()
+                        saldo_real = float(c.saldo_inicial) + float(result['total_receitas']) - float(result['total_despesas'])
+                        print(f"📋 Conta {c.nome}: Saldo calculado = R$ {saldo_real:.2f}")
                     
                     cursor.close()
                     
