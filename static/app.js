@@ -6030,12 +6030,15 @@ window.excluirComissao = excluirComissao;
 async function loadFluxoCaixa() {
     console.log('📈 Inicializando seção Fluxo de Caixa...');
     await carregarBancosFluxo();
-    // Definir mês atual nos filtros
+    // Pré-preencher com o mês atual
     const hoje = new Date();
-    const anoAtual = hoje.getFullYear();
-    const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
-    document.getElementById('filter-ano-fluxo').value = anoAtual;
-    document.getElementById('filter-mes-fluxo').value = mesAtual;
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    const fmt = d => d.toISOString().split('T')[0];
+    const elInicio = document.getElementById('filter-data-inicial-fluxo');
+    const elFim    = document.getElementById('filter-data-final-fluxo');
+    if (elInicio && !elInicio.value) elInicio.value = fmt(primeiroDia);
+    if (elFim    && !elFim.value)    elFim.value    = fmt(ultimoDia);
     await carregarFluxoCaixa();
 }
 
@@ -6522,26 +6525,13 @@ window.carregarFluxoCaixa = async function() {
         let dataInicio, dataFim;
         
         if (dataInicial && dataFinal) {
-            // Usar datas customizadas
             dataInicio = dataInicial;
             dataFim = dataFinal;
-        } else if (ano && mes) {
-            // Usar ano/mês específico
-            dataInicio = `${ano}-${mes}-01`;
-            const ultimoDia = new Date(parseInt(ano), parseInt(mes), 0).getDate();
-            dataFim = `${ano}-${mes}-${ultimoDia}`;
-        } else if (ano) {
-            // Usar ano inteiro
-            dataInicio = `${ano}-01-01`;
-            dataFim = `${ano}-12-31`;
         } else {
-            // Usar mês atual
+            // Fallback: mês atual
             const hoje = new Date();
-            const anoAtual = hoje.getFullYear();
-            const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
-            dataInicio = `${anoAtual}-${mesAtual}-01`;
-            const ultimoDia = new Date(anoAtual, hoje.getMonth() + 1, 0).getDate();
-            dataFim = `${anoAtual}-${mesAtual}-${ultimoDia}`;
+            dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+            dataFim    = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
         }
         
         // Carregar transações do período (fonte principal dos cards)
@@ -6838,8 +6828,6 @@ window.carregarBancosFluxo = async function() {
 };
 
 window.limparFiltrosFluxo = function() {
-    document.getElementById('filter-ano-fluxo').value = '';
-    document.getElementById('filter-mes-fluxo').value = '';
     document.getElementById('filter-data-inicial-fluxo').value = '';
     document.getElementById('filter-data-final-fluxo').value = '';
     document.getElementById('filter-banco-fluxo').value = '';
