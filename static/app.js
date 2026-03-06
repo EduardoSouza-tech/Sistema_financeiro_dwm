@@ -8464,10 +8464,10 @@ window.exibirNFSe = function(nfses) {
 
     const badgeSit = (s) => {
         switch ((s || '').toUpperCase()) {
-            case 'NORMAL':      return '<span style="background:#27ae60;color:white;padding:3px 7px;border-radius:10px;font-size:11px;font-weight:bold;">✅ NORMAL</span>';
-            case 'CANCELADA':   return '<span style="background:#e74c3c;color:white;padding:3px 7px;border-radius:10px;font-size:11px;font-weight:bold;">❌ CANCELADA</span>';
-            case 'SUBSTITUIDA': return '<span style="background:#f39c12;color:white;padding:3px 7px;border-radius:10px;font-size:11px;font-weight:bold;">🔄 SUBSTITUÍDA</span>';
-            default:            return `<span style="background:#95a5a6;color:white;padding:3px 7px;border-radius:10px;font-size:11px;">${s || '?'}</span>`;
+            case 'NORMAL':      return '<span title="Normal" style="font-size:20px;">✅</span>';
+            case 'CANCELADA':   return '<span title="Cancelada" style="font-size:20px;">❌</span>';
+            case 'SUBSTITUIDA': return '<span title="Substituída" style="font-size:20px;">🔄</span>';
+            default:            return `<span title="${s || '?'}" style="font-size:20px;">❓</span>`;
         }
     };
 
