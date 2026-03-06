@@ -720,7 +720,9 @@ def exportar_nfse_excel(
         if not nfses:
             return False, "Nenhuma NFS-e encontrada no período"
         
-        import csv
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill
+        from openpyxl.utils import get_column_letter
 
         def _fmt_date(v):
             if v is None:
@@ -810,40 +812,83 @@ def exportar_nfse_excel(
             'data pg.',
         ]
 
-        with open(caminho_arquivo, 'w', newline='', encoding='utf-8-sig') as f:
-            writer = csv.writer(f, delimiter=';')
-            writer.writerow(headers)
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'NFS-e'
 
-            for nfse in nfses:
-                # Situação com código cStat
-                c_stat = str(nfse.get('c_stat') or '').strip()
-                situacao_raw = str(nfse.get('situacao') or 'NORMAL').strip()
-                if c_stat and c_stat in CSTAT_DESC:
-                    sit_cstat = CSTAT_DESC[c_stat]
+        # Estilo cabeçalho
+        header_font = Font(bold=True, color='FFFFFF', size=11)
+        header_fill = PatternFill(fill_type='solid', fgColor='2E4057')
+        header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+        for col_idx, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+
+        ws.row_dimensions[1].height = 30
+
+        # Estilos de dados
+        fill_pago    = PatternFill(fill_type='solid', fgColor='C6EFCE')  # verde claro
+        fill_aberto  = PatternFill(fill_type='solid', fgColor='FFEB9C')  # amarelo claro
+        align_center = Alignment(horizontal='center', vertical='center')
+        align_left   = Alignment(horizontal='left', vertical='center')
+        align_right  = Alignment(horizontal='right', vertical='center')
+
+        for row_idx, nfse in enumerate(nfses, 2):
+            c_stat = str(nfse.get('c_stat') or '').strip()
+            situacao_raw = str(nfse.get('situacao') or 'NORMAL').strip()
+            if c_stat and c_stat in CSTAT_DESC:
+                sit_cstat = CSTAT_DESC[c_stat]
+            else:
+                sit_cstat = SITUACAO_DESC.get(situacao_raw, situacao_raw)
+
+            tp_ret = str(nfse.get('tp_ret_issqn') or '').strip()
+
+            sit_rec_raw = str(nfse.get('situacao_recebimento') or '').strip()
+            sit_rec = SIT_REC_LABEL.get(sit_rec_raw, 'EM ABERTO' if not sit_rec_raw else sit_rec_raw)
+
+            row_values = [
+                nfse.get('numero_nfse', ''),
+                sit_cstat,
+                _fmt_date(nfse.get('data_competencia')),
+                _fmt_date(nfse.get('data_emissao')),
+                nfse.get('cnpj_tomador') or '',
+                nfse.get('razao_social_tomador') or '',
+                TP_RET_LABEL.get(tp_ret, tp_ret),
+                _fmt_brl(nfse.get('valor_servico')),
+                _fmt_aliq(nfse.get('aliquota_iss')),
+                _fmt_brl(nfse.get('valor_iss')),
+                _fmt_brl(nfse.get('valor_liquido')),
+                sit_rec,
+                _fmt_date(nfse.get('data_pagamento')),
+            ]
+
+            row_fill = fill_pago if sit_rec == 'PAGO' else fill_aberto
+
+            for col_idx, val in enumerate(row_values, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=val)
+                # Colorir colunas situacao e data pg.
+                if col_idx in (12, 13):
+                    cell.fill = row_fill
+                # Alinhamento por tipo de coluna
+                if col_idx in (1, 3, 4, 9, 13):   # número e datas — centro
+                    cell.alignment = align_center
+                elif col_idx in (8, 10, 11):       # valores — direita
+                    cell.alignment = align_right
                 else:
-                    sit_cstat = SITUACAO_DESC.get(situacao_raw, situacao_raw)
+                    cell.alignment = align_left
 
-                tp_ret = str(nfse.get('tp_ret_issqn') or '').strip()
+        # Larguras de coluna
+        col_widths = [12, 34, 18, 16, 22, 45, 40, 20, 16, 16, 16, 14, 14]
+        for i, width in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = width
 
-                # Situação de recebimento
-                sit_rec_raw = str(nfse.get('situacao_recebimento') or '').strip()
-                sit_rec = SIT_REC_LABEL.get(sit_rec_raw, 'EM ABERTO' if not sit_rec_raw else sit_rec_raw)
+        # Congelar linha do cabeçalho
+        ws.freeze_panes = 'A2'
 
-                writer.writerow([
-                    nfse.get('numero_nfse', ''),
-                    sit_cstat,
-                    _fmt_date(nfse.get('data_competencia')),
-                    _fmt_date(nfse.get('data_emissao')),
-                    nfse.get('cnpj_tomador') or '',
-                    nfse.get('razao_social_tomador') or '',
-                    TP_RET_LABEL.get(tp_ret, tp_ret),
-                    _fmt_brl(nfse.get('valor_servico')),
-                    _fmt_aliq(nfse.get('aliquota_iss')),
-                    _fmt_brl(nfse.get('valor_iss')),
-                    _fmt_brl(nfse.get('valor_liquido')),
-                    sit_rec,
-                    _fmt_date(nfse.get('data_pagamento')),
-                ])
+        wb.save(caminho_arquivo)
         
         logger.info(f"✅ Exportado {len(nfses)} NFS-e para {caminho_arquivo}")
         return True, None
