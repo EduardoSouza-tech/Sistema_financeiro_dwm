@@ -15231,80 +15231,80 @@ def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):  
                       AND (situacao_recebimento IS NULL OR situacao_recebimento <> 'PAGO')
                       AND valor_liquido > 0
                 """, (empresa_id,))
-            nfses = cur_nfse.fetchall()
+                nfses = cur_nfse.fetchall()
 
-            for nfse_row in nfses:
-                nfse_id, numero_nfse, valor_liq, cnpj_tom, nome_tom = nfse_row
-                valor_liq = float(valor_liq or 0)
+                for nfse_row in nfses:
+                    nfse_id, numero_nfse, valor_liq, cnpj_tom, nome_tom = nfse_row
+                    valor_liq = float(valor_liq or 0)
 
-                cnpj_digits = _digits(cnpj_tom)
-                nome_norm   = _normalizar(nome_tom)
+                    cnpj_digits = _digits(cnpj_tom)
+                    nome_norm   = _normalizar(nome_tom)
 
-                # Buscar receitas com valor próximo (±2 centavos)
-                cur_main.execute("""
-                    SELECT id, pessoa, descricao, data_vencimento, numero_documento
-                    FROM lancamentos
-                    WHERE empresa_id = %s
-                      AND tipo = 'receita'
-                      AND ABS(valor - %s) <= 0.02
-                """, (empresa_id, valor_liq))
-                candidatos = cur_main.fetchall()
+                    # Buscar receitas com valor próximo (±2 centavos)
+                    cur_main.execute("""
+                        SELECT id, pessoa, descricao, data_vencimento, numero_documento
+                        FROM lancamentos
+                        WHERE empresa_id = %s
+                          AND tipo = 'receita'
+                          AND ABS(valor - %s) <= 0.02
+                    """, (empresa_id, valor_liq))
+                    candidatos = cur_main.fetchall()
 
-                lancamento_match = None
-                for lanc_id, pessoa, descricao, data_venc, num_doc in candidatos:
-                    # Ignora se já tem numero_documento preenchido com outra NF
-                    if num_doc and num_doc.strip() and num_doc.strip() != f'NF {numero_nfse}':
-                        continue
+                    lancamento_match = None
+                    for lanc_id, pessoa, descricao, data_venc, num_doc in candidatos:
+                        # Ignora se já tem numero_documento preenchido com outra NF
+                        if num_doc and num_doc.strip() and num_doc.strip() != f'NF {numero_nfse}':
+                            continue
 
-                    desc_str      = (descricao or '')
-                    desc_digits   = _digits(desc_str)
-                    desc_norm     = _normalizar(desc_str)
-                    pessoa_digits = _digits(pessoa)
-                    pessoa_norm   = _normalizar(pessoa)
+                        desc_str      = (descricao or '')
+                        desc_digits   = _digits(desc_str)
+                        desc_norm     = _normalizar(desc_str)
+                        pessoa_digits = _digits(pessoa)
+                        pessoa_norm   = _normalizar(pessoa)
 
-                    # 1. Match por CNPJ/CPF na descrição (principal - ex: "...PIX_CRED 52177416000183...")
-                    if cnpj_digits and len(cnpj_digits) >= 11 and cnpj_digits in desc_digits:
-                        lancamento_match = (lanc_id, data_venc)
-                        break
-
-                    # 2. Match por CNPJ/CPF no campo pessoa
-                    if cnpj_digits and len(cnpj_digits) >= 11 and cnpj_digits == pessoa_digits:
-                        lancamento_match = (lanc_id, data_venc)
-                        break
-
-                    # 3. Match por nome do tomador na descrição
-                    if nome_norm and len(nome_norm) >= 6 and nome_norm in desc_norm:
-                        lancamento_match = (lanc_id, data_venc)
-                        break
-
-                    # 4. Match por nome normalizado no campo pessoa
-                    if nome_norm and len(nome_norm) >= 6 and pessoa_norm:
-                        s1, s2 = sorted([nome_norm, pessoa_norm], key=len)
-                        if len(s1) >= 6 and s1 in s2:
+                        # 1. Match por CNPJ/CPF na descrição (ex: "...PIX_CRED 52177416000183...")
+                        if cnpj_digits and len(cnpj_digits) >= 11 and cnpj_digits in desc_digits:
                             lancamento_match = (lanc_id, data_venc)
                             break
 
-                if lancamento_match:
-                    lanc_id, data_venc = lancamento_match
-                    num_doc_novo = f'NF {numero_nfse}'
+                        # 2. Match por CNPJ/CPF no campo pessoa
+                        if cnpj_digits and len(cnpj_digits) >= 11 and cnpj_digits == pessoa_digits:
+                            lancamento_match = (lanc_id, data_venc)
+                            break
 
-                    # Atualizar lancamento: preencher numero_documento
-                    cur_main.execute("""
-                        UPDATE lancamentos
-                        SET numero_documento = %s, associacao = %s
-                        WHERE id = %s AND empresa_id = %s
-                    """, (num_doc_novo, num_doc_novo, lanc_id, empresa_id))
+                        # 3. Match por nome do tomador na descrição
+                        if nome_norm and len(nome_norm) >= 6 and nome_norm in desc_norm:
+                            lancamento_match = (lanc_id, data_venc)
+                            break
 
-                    # Atualizar NFS-e: data_pagamento + situacao_recebimento
-                    cur_nfse.execute("""
-                        UPDATE nfse_baixadas
-                        SET data_pagamento         = %s,
-                            situacao_recebimento   = 'PAGO'
-                        WHERE id = %s AND empresa_id = %s
-                    """, (data_venc, nfse_id, empresa_id))
+                        # 4. Match por nome normalizado no campo pessoa
+                        if nome_norm and len(nome_norm) >= 6 and pessoa_norm:
+                            s1, s2 = sorted([nome_norm, pessoa_norm], key=len)
+                            if len(s1) >= 6 and s1 in s2:
+                                lancamento_match = (lanc_id, data_venc)
+                                break
 
-                    resultado['reconciliadas'] += 1
-                    logger.info(f"[Reconciliar] NF {numero_nfse} ↔ lancamento {lanc_id} | data_pg={data_venc}")
+                    if lancamento_match:
+                        lanc_id, data_venc = lancamento_match
+                        num_doc_novo = f'NF {numero_nfse}'
+
+                        # Atualizar lancamento: preencher numero_documento
+                        cur_main.execute("""
+                            UPDATE lancamentos
+                            SET numero_documento = %s, associacao = %s
+                            WHERE id = %s AND empresa_id = %s
+                        """, (num_doc_novo, num_doc_novo, lanc_id, empresa_id))
+
+                        # Atualizar NFS-e: data_pagamento + situacao_recebimento
+                        cur_nfse.execute("""
+                            UPDATE nfse_baixadas
+                            SET data_pagamento       = %s,
+                                situacao_recebimento = 'PAGO'
+                            WHERE id = %s AND empresa_id = %s
+                        """, (data_venc, nfse_id, empresa_id))
+
+                        resultado['reconciliadas'] += 1
+                        logger.info(f"[Reconciliar] NF {numero_nfse} ↔ lancamento {lanc_id} | data_pg={data_venc}")
 
                 conn_main_local.commit()
                 conn_nfse_local.commit()
