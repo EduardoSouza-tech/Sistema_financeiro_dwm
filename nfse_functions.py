@@ -720,28 +720,62 @@ def exportar_nfse_excel(
         if not nfses:
             return False, "Nenhuma NFS-e encontrada no período"
         
-        # Exportar para Excel (implementar com openpyxl ou pandas)
-        # Por simplicidade, vou criar um CSV
         import csv
-        
+
+        def _fmt_date(v):
+            if v is None:
+                return ''
+            if hasattr(v, 'strftime'):
+                return v.strftime('%d/%m/%Y')
+            return str(v)[:10]
+
+        def _fmt_num(v, decimals=2):
+            if v is None:
+                return ''
+            try:
+                return f"{float(v):.{decimals}f}".replace('.', ',')
+            except Exception:
+                return str(v)
+
+        TP_RET_LABEL = {'1': '1-Retido', '2': '2-N.Ret.', '3': '3-N/A'}
+
+        headers = [
+            'Número (nNFSe)',
+            'Situação NFS-e',
+            'Data Competência',
+            'Data Emissão',
+            'Tomador CNPJ/CPF',
+            'Tomador (xNome)',
+            'Tp. Ret. ISSQN',
+            'Base Cálc. (R$)',
+            'Alíq. (%)',
+            'Valor ISSQN (R$)',
+            'Valor Líquido (R$)',
+            'Município',
+            'Discriminação',
+        ]
+
         with open(caminho_arquivo, 'w', newline='', encoding='utf-8-sig') as f:
-            writer = csv.DictWriter(f, fieldnames=[
-                'numero_nfse', 'data_emissao', 'cnpj_tomador', 'razao_social_tomador',
-                'valor_servico', 'valor_iss', 'municipio', 'situacao'
-            ])
-            writer.writeheader()
-            
+            writer = csv.writer(f, delimiter=';')
+            writer.writerow(headers)
+
             for nfse in nfses:
-                writer.writerow({
-                    'numero_nfse': nfse['numero_nfse'],
-                    'data_emissao': nfse['data_emissao'].strftime('%d/%m/%Y'),
-                    'cnpj_tomador': nfse['cnpj_tomador'] or '',
-                    'razao_social_tomador': nfse['razao_social_tomador'] or '',
-                    'valor_servico': nfse['valor_servico'],
-                    'valor_iss': nfse['valor_iss'],
-                    'municipio': nfse['nome_municipio'],
-                    'situacao': nfse['situacao']
-                })
+                tp_ret = str(nfse.get('tp_ret_issqn') or '')
+                writer.writerow([
+                    nfse.get('numero_nfse', ''),
+                    nfse.get('situacao', ''),
+                    _fmt_date(nfse.get('data_competencia')),
+                    _fmt_date(nfse.get('data_emissao')),
+                    nfse.get('cnpj_tomador') or '',
+                    nfse.get('razao_social_tomador') or '',
+                    TP_RET_LABEL.get(tp_ret, tp_ret),
+                    _fmt_num(nfse.get('valor_servico')),
+                    _fmt_num(nfse.get('aliquota_iss'), 2),
+                    _fmt_num(nfse.get('valor_iss')),
+                    _fmt_num(nfse.get('valor_liquido')),
+                    nfse.get('nome_municipio') or '',
+                    nfse.get('discriminacao') or '',
+                ])
         
         logger.info(f"✅ Exportado {len(nfses)} NFS-e para {caminho_arquivo}")
         return True, None
