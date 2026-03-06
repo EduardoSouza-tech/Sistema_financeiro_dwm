@@ -2132,7 +2132,6 @@
                         <div style="flex: 1; min-width: 200px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Conta:</label>
                             <select id="filtro-conta-extrato" onchange="loadExtratoTransacoes()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                <option value="">Todas as contas</option>
                             </select>
                         </div>
                         <div style="flex: 1; min-width: 150px;">
@@ -8429,9 +8428,9 @@
                 const selectUpload = document.getElementById('conta-bancaria-extrato');
                 selectUpload.innerHTML = '<option value="">Selecione a conta...</option>';
                 
-                // Preencher select de filtro (todas as contas, mas indicar inativas)
+                // Preencher select de filtro — sem opção "Todas as contas" (saldo seria incorreto)
                 const selectFiltro = document.getElementById('filtro-conta-extrato');
-                selectFiltro.innerHTML = '<option value="">Todas as contas</option>';
+                selectFiltro.innerHTML = '';
                 
                 contasAtivas.forEach(conta => {
                     const optionUpload = document.createElement('option');
@@ -8447,6 +8446,12 @@
                     optionFiltro.textContent = `${conta.banco} - ${conta.nome}${statusLabel}`;
                     selectFiltro.appendChild(optionFiltro);
                 });
+
+                // Auto-selecionar a primeira conta ativa ao abrir a seção
+                if (!selectFiltro.value && contasAtivas.length > 0) {
+                    selectFiltro.value = contasAtivas[0].nome;
+                    loadExtratoTransacoes();
+                }
             } catch (error) {
                 console.error('Erro ao carregar contas bancárias:', error);
             }
@@ -8732,7 +8737,9 @@
 
         // Limpar filtros
         function limparFiltrosExtratoOFX() {
-            document.getElementById('filtro-conta-extrato').value = '';
+            // Restaura a primeira opção disponível (nunca deixa sem conta selecionada)
+            const selectFiltro = document.getElementById('filtro-conta-extrato');
+            if (selectFiltro && selectFiltro.options.length > 0) selectFiltro.selectedIndex = 0;
             document.getElementById('filtro-data-inicio-extrato').value = '';
             document.getElementById('filtro-data-fim-extrato').value = '';
             document.getElementById('filtro-conciliado-extrato').value = '';

@@ -3727,12 +3727,16 @@ async function loadContasForExtrato() {
         }
         
         if (selectFiltro) {
-            // Filtro pode mostrar todas (incluindo inativas) para visualização
-            selectFiltro.innerHTML = '<option value="">Todas as contas</option>';
+            // Sem opção "Todas as contas" — saldo seria incorreto sem filtro de conta
+            selectFiltro.innerHTML = '';
             contas.forEach(conta => {
                 const statusLabel = conta.ativa === false ? ' (INATIVA)' : '';
                 selectFiltro.innerHTML += `<option value="${conta.nome}">${conta.nome}${statusLabel}</option>`;
             });
+            // Auto-selecionar a primeira conta ativa
+            if (!selectFiltro.value && contasAtivas.length > 0) {
+                selectFiltro.value = contasAtivas[0].nome;
+            }
         }
         
         // 🚀 Preencher filtros de data automaticamente (início do mês até hoje)
