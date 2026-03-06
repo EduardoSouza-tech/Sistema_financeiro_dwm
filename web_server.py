@@ -15242,7 +15242,7 @@ def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):  
 
                 # Buscar receitas com valor próximo (±2 centavos)
                 cur_main.execute("""
-                    SELECT id, pessoa, data_vencimento, numero_documento
+                    SELECT id, pessoa, descricao, data_vencimento, numero_documento
                     FROM lancamentos
                     WHERE empresa_id = %s
                       AND tipo = 'receita'
@@ -15251,22 +15251,34 @@ def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):  
                 candidatos = cur_main.fetchall()
 
                 lancamento_match = None
-                for lanc_id, pessoa, data_venc, num_doc in candidatos:
+                for lanc_id, pessoa, descricao, data_venc, num_doc in candidatos:
                     # Ignora se já tem numero_documento preenchido com outra NF
                     if num_doc and num_doc.strip() and num_doc.strip() != f'NF {numero_nfse}':
                         continue
 
+                    desc_str      = (descricao or '')
+                    desc_digits   = _digits(desc_str)
+                    desc_norm     = _normalizar(desc_str)
                     pessoa_digits = _digits(pessoa)
                     pessoa_norm   = _normalizar(pessoa)
 
-                    # Match por CNPJ/CPF (mais preciso)
+                    # 1. Match por CNPJ/CPF na descrição (principal - ex: "...PIX_CRED 52177416000183...")
+                    if cnpj_digits and len(cnpj_digits) >= 11 and cnpj_digits in desc_digits:
+                        lancamento_match = (lanc_id, data_venc)
+                        break
+
+                    # 2. Match por CNPJ/CPF no campo pessoa
                     if cnpj_digits and len(cnpj_digits) >= 11 and cnpj_digits == pessoa_digits:
                         lancamento_match = (lanc_id, data_venc)
                         break
 
-                    # Match por nome normalizado (mínimo 6 chars para evitar falsos positivos)
+                    # 3. Match por nome do tomador na descrição
+                    if nome_norm and len(nome_norm) >= 6 and nome_norm in desc_norm:
+                        lancamento_match = (lanc_id, data_venc)
+                        break
+
+                    # 4. Match por nome normalizado no campo pessoa
                     if nome_norm and len(nome_norm) >= 6 and pessoa_norm:
-                        # Verifica se a parte mais curta está contida na mais longa
                         s1, s2 = sorted([nome_norm, pessoa_norm], key=len)
                         if len(s1) >= 6 and s1 in s2:
                             lancamento_match = (lanc_id, data_venc)
