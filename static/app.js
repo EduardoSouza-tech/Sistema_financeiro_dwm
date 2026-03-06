@@ -6030,15 +6030,15 @@ window.excluirComissao = excluirComissao;
 async function loadFluxoCaixa() {
     console.log('📈 Inicializando seção Fluxo de Caixa...');
     await carregarBancosFluxo();
-    // Pré-preencher com o mês atual
+    // Pré-preencher: 01/01/ano_atual → último dia do mês anterior ao atual
     const hoje = new Date();
-    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    const primeiroDiaAno   = new Date(hoje.getFullYear(), 0, 1);           // 01/01/ano
+    const ultimoDiaMesAnt  = new Date(hoje.getFullYear(), hoje.getMonth(), 0); // último dia mês anterior
     const fmt = d => d.toISOString().split('T')[0];
     const elInicio = document.getElementById('filter-data-inicial-fluxo');
     const elFim    = document.getElementById('filter-data-final-fluxo');
-    if (elInicio && !elInicio.value) elInicio.value = fmt(primeiroDia);
-    if (elFim    && !elFim.value)    elFim.value    = fmt(ultimoDia);
+    if (elInicio) elInicio.value = fmt(primeiroDiaAno);
+    if (elFim)    elFim.value    = fmt(ultimoDiaMesAnt);
     await carregarFluxoCaixa();
 }
 
