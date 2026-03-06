@@ -15233,6 +15233,16 @@ def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):  
                 """, (empresa_id,))
                 nfses = cur_nfse.fetchall()
 
+                logger.info(f"[Reconciliar] empresa_id={empresa_id}: {len(nfses)} NFS-e pendentes de reconciliação")
+
+                # Diagnóstico: contar receitas disponíveis
+                cur_main.execute(
+                    "SELECT COUNT(*) FROM lancamentos WHERE empresa_id = %s AND LOWER(tipo) = 'receita'",
+                    (empresa_id,)
+                )
+                total_receitas = (cur_main.fetchone() or [0])[0]
+                logger.info(f"[Reconciliar] Total lancamentos receita empresa {empresa_id}: {total_receitas}")
+
                 for nfse_row in nfses:
                     nfse_id, numero_nfse, valor_liq, cnpj_tom, nome_tom = nfse_row
                     valor_liq = float(valor_liq or 0)
@@ -15240,41 +15250,60 @@ def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):  
                     cnpj_digits = _digits(cnpj_tom)
                     nome_norm   = _normalizar(nome_tom)
 
-                    # Buscar receitas com valor próximo (±2 centavos)
+                    # Buscar receitas com valor próximo (±1% ou mínimo R$1,00)
+                    tolerancia = max(1.00, round(valor_liq * 0.01, 2))
                     cur_main.execute("""
                         SELECT id, pessoa, descricao, data_vencimento, numero_documento
                         FROM lancamentos
                         WHERE empresa_id = %s
-                          AND tipo = 'receita'
-                          AND ABS(valor - %s) <= 0.02
-                    """, (empresa_id, valor_liq))
+                          AND LOWER(tipo) = 'receita'
+                          AND ABS(valor - %s) <= %s
+                    """, (empresa_id, valor_liq, tolerancia))
                     candidatos = cur_main.fetchall()
+
+                    logger.info(f"[Reconciliar] NF {numero_nfse}: val={valor_liq:.2f}, tol=±{tolerancia:.2f}, cnpj={cnpj_digits}, nome='{nome_tom}', candidatos={len(candidatos)}")
+
+                    if not candidatos and total_receitas > 0:
+                        # Mostrar receitas mais próximas pelo valor para diagnóstico
+                        cur_main.execute("""
+                            SELECT id, valor, pessoa, tipo FROM lancamentos
+                            WHERE empresa_id = %s AND LOWER(tipo) = 'receita'
+                            ORDER BY ABS(valor - %s) LIMIT 5
+                        """, (empresa_id, valor_liq))
+                        proximas = cur_main.fetchall()
+                        logger.info(f"[Reconciliar] NF {numero_nfse}: receitas mais próximas = {proximas}")
 
                     lancamento_match = None
                     for lanc_id, pessoa, descricao, data_venc, num_doc in candidatos:
                         # Ignora se já tem numero_documento preenchido com outra NF
                         if num_doc and num_doc.strip() and num_doc.strip() != f'NF {numero_nfse}':
+                            logger.info(f"[Reconciliar] NF {numero_nfse}: lanc {lanc_id} já tem num_doc='{num_doc}', pulando")
                             continue
 
                         desc_str      = (descricao or '')
                         desc_digits   = _digits(desc_str)
                         desc_norm     = _normalizar(desc_str)
-                        pessoa_digits = _digits(pessoa)
-                        pessoa_norm   = _normalizar(pessoa)
+                        pessoa_digits = _digits(pessoa or '')
+                        pessoa_norm   = _normalizar(pessoa or '')
+
+                        logger.info(f"[Reconciliar] NF {numero_nfse}: testando lanc {lanc_id} | pessoa='{pessoa}' | desc='{desc_str[:50]}'")
 
                         # 1. Match por CNPJ/CPF na descrição (ex: "...PIX_CRED 52177416000183...")
                         if cnpj_digits and len(cnpj_digits) >= 11 and cnpj_digits in desc_digits:
                             lancamento_match = (lanc_id, data_venc)
+                            logger.info(f"[Reconciliar] NF {numero_nfse}: MATCH P1 (CNPJ em descricao) lanc={lanc_id}")
                             break
 
                         # 2. Match por CNPJ/CPF no campo pessoa
                         if cnpj_digits and len(cnpj_digits) >= 11 and cnpj_digits == pessoa_digits:
                             lancamento_match = (lanc_id, data_venc)
+                            logger.info(f"[Reconciliar] NF {numero_nfse}: MATCH P2 (CNPJ=pessoa) lanc={lanc_id}")
                             break
 
                         # 3. Match por nome do tomador na descrição
                         if nome_norm and len(nome_norm) >= 6 and nome_norm in desc_norm:
                             lancamento_match = (lanc_id, data_venc)
+                            logger.info(f"[Reconciliar] NF {numero_nfse}: MATCH P3 (nome em desc) lanc={lanc_id}")
                             break
 
                         # 4. Match por nome normalizado no campo pessoa
@@ -15282,7 +15311,10 @@ def _reconciliar_nfse_lancamentos(empresa_id, conn_nfse=None, conn_main=None):  
                             s1, s2 = sorted([nome_norm, pessoa_norm], key=len)
                             if len(s1) >= 6 and s1 in s2:
                                 lancamento_match = (lanc_id, data_venc)
+                                logger.info(f"[Reconciliar] NF {numero_nfse}: MATCH P4 (nome⊆pessoa) lanc={lanc_id}")
                                 break
+
+                        logger.info(f"[Reconciliar] NF {numero_nfse}: lanc {lanc_id} sem match (cnpj_dig={cnpj_digits}, pessoa_dig={pessoa_digits}, nome_norm='{nome_norm[:20]}', desc_norm='{desc_norm[:30]}')")
 
                     if lancamento_match:
                         lanc_id, data_venc = lancamento_match
@@ -15340,6 +15372,68 @@ def reconciliar_nfse():
         return jsonify({'success': True, **result})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/nfse/diagnostico', methods=['GET'])
+@require_auth
+@require_permission('nfse_view')
+def diagnostico_reconciliacao():
+    """Endpoint de diagnóstico: mostra dados de NFS-e e lançamentos para depuração da reconciliação"""
+    import psycopg2, re as _re
+    def _digits(s): return _re.sub(r'\D', '', s or '')
+
+    try:
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não selecionada'}), 403
+
+        from database_postgresql import get_nfse_db_params
+        nfse_params = get_nfse_db_params()
+        conn_nfse = psycopg2.connect(**nfse_params)
+        cur_nfse = conn_nfse.cursor()
+
+        cur_nfse.execute("""
+            SELECT numero_nfse, valor_liquido, cnpj_tomador, razao_social_tomador, situacao_recebimento
+            FROM nfse_baixadas
+            WHERE empresa_id = %s AND situacao = 'NORMAL'
+            ORDER BY numero_nfse DESC LIMIT 10
+        """, (empresa_id,))
+        nfses = [{'numero': r[0], 'valor_liquido': float(r[1] or 0), 'cnpj': r[2], 'nome': r[3], 'sit_rec': r[4]} for r in cur_nfse.fetchall()]
+
+        cur_nfse.close()
+        conn_nfse.close()
+
+        with get_db_connection(empresa_id=empresa_id) as conn_main:
+            cur = conn_main.cursor()
+            cur.execute("SELECT COUNT(*), MIN(valor), MAX(valor) FROM lancamentos WHERE empresa_id = %s AND LOWER(tipo) = 'receita'", (empresa_id,))
+            row = cur.fetchone()
+            receitas_info = {'count': row[0], 'valor_min': float(row[1] or 0), 'valor_max': float(row[2] or 0)}
+
+            cur.execute("""
+                SELECT id, tipo, valor, pessoa, numero_documento,
+                       COALESCE(descricao, '')
+                FROM lancamentos WHERE empresa_id = %s AND LOWER(tipo) = 'receita'
+                ORDER BY id DESC LIMIT 10
+            """, (empresa_id,))
+            lancamentos = [{'id': r[0], 'tipo': r[1], 'valor': float(r[2] or 0), 'pessoa': r[3],
+                            'num_doc': r[4], 'desc': (r[5] or '')[:80]} for r in cur.fetchall()]
+
+            # Amostra de todos os tipos distintos para diagnóstico
+            cur.execute("SELECT DISTINCT tipo FROM lancamentos WHERE empresa_id = %s LIMIT 20", (empresa_id,))
+            tipos = [r[0] for r in cur.fetchall()]
+            cur.close()
+
+        return jsonify({
+            'empresa_id': empresa_id,
+            'nfses_sample': nfses,
+            'receitas': receitas_info,
+            'lancamentos_sample': lancamentos,
+            'tipos_lancamento': tipos
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
 
 
 @app.route('/api/nfse/resumo-mensal', methods=['POST'])
