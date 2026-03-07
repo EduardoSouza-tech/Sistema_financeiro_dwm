@@ -279,24 +279,28 @@ CORS(app,
      supports_credentials=True)
 
 # ============================================================================
-# AUTO-RENOVA��O DE SESS�O (KEEP-ALIVE)
+# AUTO-RENOVAÇÃO DE SESSÃO (KEEP-ALIVE)
 # ============================================================================
 @app.before_request
 def renovar_sessao():
     """
-    Renova a sess�o automaticamente a cada requisi��o para evitar timeout
-    durante uso ativo do sistema. A sess�o � marcada como modificada para
-    for�ar o Flask a atualizar o cookie de sess�o.
-    
-    IMPORTANTE: Verifica 'session_token' que � a chave usada pelo sistema
-    de autentica��o (n�o 'user_id' nem 'usuario_id').
+    Evita expiração da sessão permanente durante uso ativo.
+
+    MULTI-ABA: NÃO definir session.modified = True aqui.
+    Fazer isso em cada request manda Set-Cookie em TODA resposta, o que
+    cria uma race-condition quando duas abas fazem requests simultâneos:
+    a última resposta a chegar no browser "ganha" e sobrescreve o cookie
+    das outras abas, podendo apagar dados de sessão (empresa_id, csrf_token).
+
+    A sessão é permanent=True com PERMANENT_SESSION_LIFETIME=24h, então
+    não precisa ser renovada manualmente a cada request.
+    O Flask só envia Set-Cookie quando session.modified=True for definido
+    explicitamente em endpoints que realmente alteram dados da sessão
+    (login, switch-empresa, logout).
     """
-    # Verificar se h� token de sess�o ativo (chave correta do sistema)
-    if 'session_token' in session:
-        session.modified = True  # For�a renova��o do cookie de sess�o
-        # O Flask automaticamente atualiza o timestamp da sess�o
-        # logger.debug desabilitado para evitar 500+ logs/sec em produ��o
-        # logger.debug(f"?? [SESS�O] Renovada automaticamente para token: {session.get('session_token', '')[:20]}...")
+    # Apenas garantir que a sessão está marcada como permanente
+    if 'session_token' in session and not session.permanent:
+        session.permanent = True  # Garante expiração 24h, sem enviar Set-Cookie extra
 
 # ============================================================================
 # INICIALIZAR CSRF PROTECTION
@@ -327,7 +331,10 @@ if LIMITER_AVAILABLE:
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
-        default_limits=["200 per day", "50 per hour"],
+        # Limites aumentados para suportar múltiplas abas simultâneas.
+        # Uma SPA faz ~10-20 requests na inicialização; com 2 abas = 20-40 por sessão.
+        # O limite estrito de 5/min é apenas para o endpoint de login (brute-force).
+        default_limits=["2000 per day", "500 per hour"],
         storage_uri="memory://"
     )
     print("? Rate Limiting ativado")
@@ -962,8 +969,13 @@ def verify_session():
             })
         
         # ============================================================
-        # MULTI-EMPRESA: Carregar empresa atual e empresas dispon�veis
+        # MULTI-EMPRESA: Carregar empresa atual e empresas disponíveis
         # ============================================================
+        # MULTI-ABA: ler empresa_id do header X-Empresa-ID (enviado pelo fetch
+        # interceptor após checkUserAuth), com fallback para o cookie de sessão.
+        _h_emp = request.headers.get('X-Empresa-ID')
+        empresa_id_req = int(_h_emp) if _h_emp and _h_emp.isdigit() else session.get('empresa_id')
+
         empresa_atual = None
         empresas_disponiveis = []
         
@@ -971,18 +983,18 @@ def verify_session():
             # Super admin
             permissoes = ['*']
             empresas_disponiveis = database.listar_empresas({})
-            empresa_id = session.get('empresa_id')
+            empresa_id = empresa_id_req
             if empresa_id:
                 empresa_atual = database.obter_empresa(empresa_id)
         else:
-            # Usu�rio normal
+            # Usuário normal
             from auth_functions import listar_empresas_usuario
             empresas_disponiveis = listar_empresas_usuario(usuario['id'], auth_db)
             
-            empresa_id = session.get('empresa_id')
+            empresa_id = empresa_id_req
             
             if empresa_id:
-                # Carregar permiss�es espec�ficas da empresa
+                # Carregar permissões específicas da empresa
                 from auth_functions import obter_permissoes_usuario_empresa
                 permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
                 
@@ -15535,8 +15547,8 @@ def export_nfse_excel():
         data_inicial = datetime.strptime(data['data_inicial'], '%Y-%m-%d').date()
         data_final = datetime.strptime(data['data_final'], '%Y-%m-%d').date()
         
-        # Criar arquivo tempor�rio
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
+        # Criar arquivo temporário
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
         caminho_arquivo = temp_file.name
         temp_file.close()
         
@@ -15557,15 +15569,15 @@ def export_nfse_excel():
                 empresa_id=empresa_id,
                 usuario_id=usuario['id'],
                 operacao='EXPORT',
-                detalhes={'formato': 'CSV'},
+                detalhes={'formato': 'XLSX'},
                 ip_address=request.remote_addr
             )
             
             return send_file(
                 caminho_arquivo,
-                mimetype='text/csv',
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 as_attachment=True,
-                download_name=f'nfse_{data_inicial}_{data_final}.csv'
+                download_name=f'nfse_{data_inicial}_{data_final}.xlsx'
             )
         else:
             return jsonify({

@@ -73,16 +73,24 @@ def require_auth(f):
             # ============================================================
             # VALIDAÇÃO MULTI-EMPRESA
             # ============================================================
+            # MULTI-ABA: Ler empresa_id do header X-Empresa-ID enviado pelo frontend
+            # (cada aba do browser mantém seu próprio empresa_id no sessionStorage e
+            # envia via header, evitando que uma aba sobrescreva o estado de outra via
+            # o cookie de sessão compartilhado).  Fallback para session cookie.
+            _header_empresa = request.headers.get('X-Empresa-ID')
+            _empresa_id_header = int(_header_empresa) if _header_empresa and _header_empresa.isdigit() else None
+
             if usuario['tipo'] != 'admin':
                 # Usuários normais precisam ter empresa selecionada
-                empresa_id = session.get('empresa_id')
-                
+                # Prioridade: header da aba → session cookie → empresa padrão
+                empresa_id = _empresa_id_header or session.get('empresa_id')
+
                 if not empresa_id:
                     log(f"[require_auth] Usuario {usuario['username']} sem empresa na sessao")
                     # Tentar obter empresa padrão
                     from auth_functions import obter_empresa_padrao
                     empresa_id = obter_empresa_padrao(usuario['id'], auth_db)
-                    
+
                     if empresa_id:
                         session['empresa_id'] = empresa_id
                         log(f"[require_auth] Empresa padrao definida na sessao: {empresa_id}")
@@ -93,29 +101,29 @@ def require_auth(f):
                             'error': 'Selecione uma empresa para continuar',
                             'requireEmpresaSelection': True
                         }), 403
-                
+
                 # Validar se usuário tem acesso à empresa
                 from auth_functions import tem_acesso_empresa
                 if not tem_acesso_empresa(usuario['id'], empresa_id, auth_db):
                     log(f"[require_auth] Usuario {usuario['username']} sem acesso a empresa {empresa_id}")
-                    session.pop('empresa_id', None)  # Remover empresa inválida da sessão
+                    # NÃO apagar da sessão: pode ser só esta aba com empresa_id inválido
                     return jsonify({
                         'success': False,
                         'error': 'Acesso negado a esta empresa',
                         'requireEmpresaSelection': True
                     }), 403
-                
+
                 # Carregar permissões específicas da empresa
                 from auth_functions import obter_permissoes_usuario_empresa
                 permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
                 usuario['permissoes'] = permissoes
                 usuario['empresa_id'] = empresa_id
-                
-                log(f"[require_auth] Empresa validada: {empresa_id}, Permissoes: {len(permissoes)}")
+
+                log(f"[require_auth] Empresa validada: {empresa_id} (via {'header' if _empresa_id_header else 'session'}), Permissoes: {len(permissoes)}")
             else:
                 # Super admin tem acesso a todas as empresas
                 usuario['permissoes'] = ['*']  # Todas as permissões
-                empresa_id = session.get('empresa_id')
+                empresa_id = _empresa_id_header or session.get('empresa_id')
                 if empresa_id:
                     usuario['empresa_id'] = empresa_id
                 log(f"[require_auth] Super admin com acesso total")

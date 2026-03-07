@@ -7217,40 +7217,46 @@
         // Salvar fetch original
         const originalFetch = window.fetch;
         
-        // Substituir fetch global para incluir CSRF automaticamente
+        // Substituir fetch global para incluir CSRF e X-Empresa-ID automaticamente
         window.fetch = function(url, options = {}) {
-            // Se for requisição para API interna (não GET), adicionar CSRF
+            // Se for requisição para API interna, adicionar headers necessários
             if (typeof url === 'string' && url.startsWith('/api')) {
                 const method = options.method || 'GET';
+
+                // Inicializar headers como objeto simples se não existir
+                if (!options.headers) {
+                    options.headers = {};
+                }
+
+                // Se for Headers object, converter para objeto simples
+                if (options.headers instanceof Headers) {
+                    const headersObj = {};
+                    options.headers.forEach((value, key) => { headersObj[key] = value; });
+                    options.headers = headersObj;
+                }
+
                 if (method.toUpperCase() !== 'GET') {
+                    // Adicionar CSRF token em métodos que modificam dados
                     const csrfToken = getCSRFToken();
-                    
-                    // Inicializar headers como objeto simples se não existir
-                    if (!options.headers) {
-                        options.headers = {};
-                    }
-                    
-                    // Se for Headers object, converter para objeto simples
-                    if (options.headers instanceof Headers) {
-                        const headersObj = {};
-                        options.headers.forEach((value, key) => {
-                            headersObj[key] = value;
-                        });
-                        options.headers = headersObj;
-                    }
-                    
-                    // Adicionar CSRF token se não existir
                     if (!options.headers['X-CSRFToken'] && csrfToken) {
                         options.headers['X-CSRFToken'] = csrfToken;
                     }
                 }
-                
+
+                // ✅ MULTI-ABA: Enviar empresa_id da aba atual via header.
+                // sessionStorage é isolado por aba — cada aba mantém seu próprio empresa_id
+                // sem interferir na sessão do servidor que é compartilhada por todas as abas.
+                const empresaIdAba = sessionStorage.getItem('empresa_id') || window.currentEmpresaId;
+                if (empresaIdAba && !options.headers['X-Empresa-ID']) {
+                    options.headers['X-Empresa-ID'] = String(empresaIdAba);
+                }
+
                 // Garantir credentials
                 if (!options.credentials) {
                     options.credentials = 'include';
                 }
             }
-            
+
             return originalFetch(url, options);
         };
         
@@ -7614,13 +7620,16 @@
                         loadEmpresasSelector(data.empresas_disponiveis, data.empresa_atual);
                     }
                     
-                    // 🆕 Armazenar empresa_id atual globalmente
+                    // 🆕 Armazenar empresa_id atual globalmente e no sessionStorage (isolado por aba)
                     if (data.empresa_atual && data.empresa_atual.id) {
                         window.currentEmpresaId = data.empresa_atual.id;
+                        // ✅ Salvar no sessionStorage: cada aba tem seu próprio valor
+                        sessionStorage.setItem('empresa_id', data.empresa_atual.id);
                         console.log('🏢 window.currentEmpresaId definido como:', window.currentEmpresaId);
                     } else if (data.empresas_disponiveis && data.empresas_disponiveis.length > 0) {
                         // FALLBACK: Se empresa_atual não existe, usar primeira empresa disponível
                         window.currentEmpresaId = data.empresas_disponiveis[0].id;
+                        sessionStorage.setItem('empresa_id', data.empresas_disponiveis[0].id);
                         console.warn('⚠️ Empresa atual não definida! Usando primeira empresa disponível:', window.currentEmpresaId);
                     } else {
                         console.error('❌ Empresa atual não encontrada e nenhuma empresa disponível!');
