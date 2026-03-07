@@ -818,6 +818,15 @@ function getCsrfToken() {
 
 console.log('✅ Módulo agenda_calendar.js carregado');
 
+/**
+ * Atualiza a Agenda de Fotografia após mudanças em sessões.
+ * Chamado por modals.js quando uma sessão é criada/editada/status alterado.
+ */
+function refreshAgendaFotografia() {
+    if (calendar) calendar.refetchEvents();
+    if (currentView === 'list') loadAgendaListView();
+}
+
 // Expor funções globalmente
 window.initAgendaCalendar = initAgendaCalendar;
 window.toggleCalendarView = toggleCalendarView;
@@ -831,5 +840,6 @@ window.authorizeGoogleCalendar = authorizeGoogleCalendar;
 window.saveEmailSettings = saveEmailSettings;
 window.saveAllNotificationSettings = saveAllNotificationSettings;
 window.testSmtpConnection = testSmtpConnection;
+window.refreshAgendaFotografia = refreshAgendaFotografia;
 
 console.log('✅ agenda_calendar.js carregado com funções de notificação');

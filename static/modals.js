@@ -2826,6 +2826,7 @@ async function confirmarSessao(sessaoId) {
             showToast('✅ ' + result.message, 'success');
             closeModal();
             if (typeof loadSessoes === 'function') loadSessoes();
+            if (typeof refreshAgendaFotografia === 'function') refreshAgendaFotografia();
         } else {
             showToast('❌ Erro: ' + (result.message || result.error || 'Erro desconhecido'), 'error');
         }
@@ -2856,6 +2857,7 @@ async function iniciarSessao(sessaoId) {
             showToast('✅ ' + result.message, 'success');
             closeModal();
             if (typeof loadSessoes === 'function') loadSessoes();
+            if (typeof refreshAgendaFotografia === 'function') refreshAgendaFotografia();
         } else {
             showToast('❌ Erro: ' + (result.message || result.error || 'Erro desconhecido'), 'error');
         }
@@ -2888,6 +2890,7 @@ async function cancelarSessaoModal(sessaoId) {
             showToast('✅ ' + result.message, 'success');
             closeModal();
             if (typeof loadSessoes === 'function') loadSessoes();
+            if (typeof refreshAgendaFotografia === 'function') refreshAgendaFotografia();
         } else {
             showToast('❌ Erro: ' + (result.message || result.error || 'Erro desconhecido'), 'error');
         }
@@ -2917,6 +2920,7 @@ async function reabrirSessaoModal(sessaoId) {
             showToast('✅ ' + result.message, 'success');
             closeModal();
             if (typeof loadSessoes === 'function') loadSessoes();
+            if (typeof refreshAgendaFotografia === 'function') refreshAgendaFotografia();
         } else {
             showToast('❌ Erro: ' + (result.message || result.error || 'Erro desconhecido'), 'error');
         }
@@ -3494,6 +3498,7 @@ async function salvarSessao(event) {
             showToast(isEdit ? '✅ Sessão atualizada com sucesso!' : '✅ Sessão criada com sucesso!', 'success');
             closeModal();
             if (typeof loadSessoes === 'function') loadSessoes();
+            if (typeof refreshAgendaFotografia === 'function') refreshAgendaFotografia();
         } else {
             showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
             console.error('❌ Detalhes do erro:', result);
@@ -3537,6 +3542,7 @@ async function concluirSessaoModal(sessaoId) {
 
             if (typeof loadSessoes   === 'function') loadSessoes();
             if (typeof loadContratos === 'function') loadContratos();
+            if (typeof refreshAgendaFotografia === 'function') refreshAgendaFotografia();
         } else {
             showToast('❌ ' + (result.message || result.error || 'Erro ao concluir sessão'), 'error');
         }
@@ -3586,6 +3592,7 @@ async function finalizarSessaoModal(sessaoId) {
             // Recarregar listas
             if (typeof loadSessoes === 'function') loadSessoes();
             if (typeof loadContratos === 'function') loadContratos();
+            if (typeof refreshAgendaFotografia === 'function') refreshAgendaFotografia();
         } else {
             showToast('❌ Erro: ' + (result.message || result.error || 'Erro desconhecido'), 'error');
             console.error('❌ Detalhes do erro:', result);

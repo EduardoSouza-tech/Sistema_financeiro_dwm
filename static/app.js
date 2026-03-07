@@ -5551,11 +5551,6 @@ function showContratoTab(tabName) {
     }
 }
 
-// Funções de modal (placeholders - openModalContrato está em modals.js)
-function openModalSessao() {
-    showToast('Modal de nova sessão em desenvolvimento', 'info');
-}
-
 function openModalComissao() {
     showToast('Modal de nova comissão em desenvolvimento', 'info');
 }
