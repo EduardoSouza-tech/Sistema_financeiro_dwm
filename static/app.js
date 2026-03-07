@@ -8496,9 +8496,9 @@ window.exibirNFSe = function(nfses) {
 
     const badgeRecebimento = (sit) => {
         switch ((sit || '').toUpperCase()) {
-            case 'PAGO':      return '<span style="background:#27ae60;color:white;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:bold;">✅ PAGO</span>';
-            case 'PENDENTE':  return '<span style="background:#f39c12;color:white;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:bold;">⏳ PENDENTE</span>';
-            default:          return '<span style="background:#f39c12;color:white;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:bold;">⏳ PENDENTE</span>';
+            case 'PAGO':      return '<span title="Pago" style="font-size:20px;">✅</span>';
+            case 'PENDENTE':  return '<span title="Pendente" style="font-size:20px;">⏳</span>';
+            default:          return '<span title="Pendente" style="font-size:20px;">⏳</span>';
         }
     };
 
