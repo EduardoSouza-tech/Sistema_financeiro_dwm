@@ -250,6 +250,7 @@ def sessoes():
                 'equipamentos': data.get('equipamentos', []),
                 'equipamentos_alugados': data.get('equipamentos_alugados', []),
                 'custos_adicionais': data.get('custos_adicionais', []),
+                'status': data.get('status', 'agendada'),
                 'empresa_id': empresa_id_post  # 🔒 Incluir empresa_id
             }
             

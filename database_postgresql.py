@@ -5920,12 +5920,16 @@ def adicionar_sessao(dados: Dict) -> int:
         }
         
         # 🔒 INCLUIR empresa_id no INSERT
+        status = dados.get('status', 'agendada')
+        STATUS_VALIDOS = ['rascunho', 'agendada', 'em_andamento', 'finalizada', 'concluida', 'cancelada', 'reaberta']
+        if status not in STATUS_VALIDOS:
+            status = 'agendada'
         cursor.execute("""
             INSERT INTO sessoes (
                 titulo, data, data_sessao, duracao, contrato_id, cliente_id, 
-                valor, observacoes, endereco, descricao, prazo_entrega, dados_json, empresa_id
+                valor, observacoes, endereco, descricao, prazo_entrega, dados_json, empresa_id, status
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             dados.get('titulo'),
@@ -5940,7 +5944,8 @@ def adicionar_sessao(dados: Dict) -> int:
             dados.get('descricao', ''),
             dados.get('prazo_entrega'),
             json.dumps(dados_json),
-            empresa_id  # 🔒 Adicionar empresa_id
+            empresa_id,  # 🔒 Adicionar empresa_id
+            status
         ))
         
         sessao_id = cursor.fetchone()['id']
