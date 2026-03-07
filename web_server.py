@@ -14533,6 +14533,47 @@ def diagnostico_nfse():
         }), 500
 
 
+@app.route('/api/nfse/<int:nfse_id>/recebimento', methods=['PUT'])
+@require_auth
+@require_permission('nfse_view')
+def atualizar_recebimento_nfse(nfse_id):
+    """Atualiza situacao_recebimento e data_pagamento de uma NFS-e"""
+    try:
+        from database_postgresql import get_nfse_db_params
+        import psycopg2
+        import psycopg2.extras
+
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+
+        data = request.get_json() or {}
+        situacao = (data.get('situacao_recebimento') or 'PENDENTE').upper()
+        if situacao not in ('PAGO', 'PENDENTE'):
+            return jsonify({'success': False, 'error': 'Situação inválida'}), 400
+        data_pg = data.get('data_pagamento') or None
+
+        db_params = get_nfse_db_params()
+        with psycopg2.connect(**db_params) as conn:
+            conn.autocommit = False
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    UPDATE nfse_baixadas
+                    SET situacao_recebimento = %s, data_pagamento = %s
+                    WHERE id = %s AND empresa_id = %s
+                """, (situacao, data_pg, nfse_id, empresa_id))
+                if cur.rowcount == 0:
+                    conn.rollback()
+                    return jsonify({'success': False, 'error': 'NFS-e não encontrada'}), 404
+            conn.commit()
+
+        return jsonify({'success': True, 'message': 'Recebimento atualizado'})
+    except Exception as e:
+        logger.error(f"Erro ao atualizar recebimento NFS-e: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/nfse/<int:nfse_id>', methods=['GET'])
 @require_auth
 @require_permission('nfse_view')

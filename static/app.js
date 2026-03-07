@@ -8498,13 +8498,14 @@ window.exibirNFSe = function(nfses) {
         switch ((sit || '').toUpperCase()) {
             case 'PAGO':      return '<span style="background:#27ae60;color:white;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:bold;">✅ PAGO</span>';
             case 'PENDENTE':  return '<span style="background:#f39c12;color:white;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:bold;">⏳ PENDENTE</span>';
-            default:          return '<span style="color:#bdc3c7;font-size:12px;">-</span>';
+            default:          return '<span style="background:#f39c12;color:white;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:bold;">⏳ PENDENTE</span>';
         }
     };
 
     nfses.forEach(nfse => {
         const baseCalc = parseFloat(nfse.valor_servico || 0) - parseFloat(nfse.valor_deducoes || 0);
         const tr = document.createElement('tr');
+        tr.style.cursor = 'default';
         tr.innerHTML = `
             <td style="text-align:center;font-weight:bold;">${nfse.numero_nfse || '-'}</td>
             <td style="text-align:center;">${badgeSit(nfse.situacao)}</td>
@@ -8517,8 +8518,8 @@ window.exibirNFSe = function(nfses) {
             <td style="text-align:right;">${fmtPct(nfse.aliquota_iss)}</td>
             <td style="text-align:right;color:#3498db;font-weight:bold;">${fmtBRL(nfse.valor_iss)}</td>
             <td style="text-align:right;color:#8e44ad;font-weight:bold;">${fmtBRL(nfse.valor_liquido)}</td>
-            <td style="text-align:center;">${badgeRecebimento(nfse.situacao_recebimento)}</td>
-            <td style="text-align:center;">${fmtDate(nfse.data_pagamento)}</td>
+            <td style="text-align:center;cursor:pointer;" title="Clique para alterar" onclick="editarRecebimentoNFSe(${nfse.id}, '${nfse.situacao_recebimento || ''}', '${nfse.data_pagamento || ''}')"><span style="text-decoration:underline dotted;">${badgeRecebimento(nfse.situacao_recebimento)}</span></td>
+            <td style="text-align:center;cursor:pointer;" title="Clique para alterar" onclick="editarRecebimentoNFSe(${nfse.id}, '${nfse.situacao_recebimento || ''}', '${nfse.data_pagamento || ''}')"><span style="text-decoration:underline dotted;">${fmtDate(nfse.data_pagamento)}</span></td>
             <td style="text-align:center;white-space:nowrap;">
                 <button onclick="verDetalhesNFSe(${nfse.id})" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;background:#3498db;" title="Ver Detalhes">👁️</button>
                 <button onclick="gerarPdfNFSe(${nfse.id})" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;background:#e74c3c;margin-left:2px;" title="Gerar PDF">📄</button>
@@ -8527,6 +8528,57 @@ window.exibirNFSe = function(nfses) {
         `;
         tbody.appendChild(tr);
     });
+};
+
+// Editar situação de recebimento e data de pagamento de uma NFS-e
+window.editarRecebimentoNFSe = function(nfseId, situacaoAtual, dataPagamentoAtual) {
+    const sitUpper = (situacaoAtual || '').toUpperCase();
+    const dataFormatada = dataPagamentoAtual ? dataPagamentoAtual.split('T')[0] : '';
+
+    const modalHtml = `
+        <div id="modal-recebimento-nfse" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;">
+            <div style="background:white;border-radius:12px;padding:28px;width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                <h3 style="margin:0 0 20px;font-size:16px;color:#1e293b;">💳 Alterar Recebimento</h3>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Situação</label>
+                    <select id="nfse-sit-select" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">
+                        <option value="PENDENTE" ${sitUpper === 'PENDENTE' || sitUpper === '' ? 'selected' : ''}>⏳ Pendente</option>
+                        <option value="PAGO" ${sitUpper === 'PAGO' ? 'selected' : ''}>✅ Pago</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:24px;">
+                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Data de Pagamento</label>
+                    <input type="date" id="nfse-datapg-input" value="${dataFormatada}" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;box-sizing:border-box;">
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button onclick="document.getElementById('modal-recebimento-nfse').remove()" style="padding:8px 18px;background:#e5e7eb;border:none;border-radius:6px;cursor:pointer;font-size:14px;">Cancelar</button>
+                    <button onclick="salvarRecebimentoNFSe(${nfseId})" style="padding:8px 18px;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;">Salvar</button>
+                </div>
+            </div>
+        </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+window.salvarRecebimentoNFSe = async function(nfseId) {
+    const sit = document.getElementById('nfse-sit-select').value;
+    const dataPg = document.getElementById('nfse-datapg-input').value || null;
+    try {
+        const resp = await fetch(`/api/nfse/${nfseId}/recebimento`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ situacao_recebimento: sit, data_pagamento: dataPg })
+        });
+        const result = await resp.json();
+        document.getElementById('modal-recebimento-nfse').remove();
+        if (result.success) {
+            showToast('Recebimento atualizado!', 'success');
+            if (window.exibirNFSePaginado) window.exibirNFSePaginado();
+        } else {
+            showToast(result.error || 'Erro ao salvar', 'error');
+        }
+    } catch(e) {
+        showToast('Erro de comunicação', 'error');
+    }
 };
 
 // Exibir NFS-e com paginação no frontend
