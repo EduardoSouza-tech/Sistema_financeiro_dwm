@@ -1092,6 +1092,29 @@ class DatabaseManager:
         except Exception as e:
             print(f"⚠️  Aviso na migração de clientes/fornecedores: {e}")
 
+        # Migração: Atualizar CHECK constraint de status em sessoes para incluir 'concluida'
+        try:
+            cursor.execute("""
+                DO $$
+                BEGIN
+                    -- Remover constraint antiga (qualquer nome possível)
+                    ALTER TABLE sessoes DROP CONSTRAINT IF EXISTS sessoes_status_check;
+                    ALTER TABLE sessoes DROP CONSTRAINT IF EXISTS sessoes_status_check1;
+                    -- Adicionar constraint atualizada com todos os status válidos
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.constraint_column_usage
+                        WHERE table_name = 'sessoes' AND column_name = 'status'
+                        AND constraint_name = 'sessoes_status_check_v2'
+                    ) THEN
+                        ALTER TABLE sessoes ADD CONSTRAINT sessoes_status_check_v2
+                            CHECK (status IN ('rascunho','agendada','em_andamento','finalizada','concluida','cancelada','reaberta'));
+                    END IF;
+                END $$;
+            """)
+            print("✓ Migração: CHECK constraint de status em sessoes atualizada")
+        except Exception as e:
+            print(f"⚠️  Aviso na migração de status de sessoes: {e}")
+
         # Sincronizar sequi?ncias de auto-incremento com valores mi?ximos atuais
         try:
             cursor.execute("""
