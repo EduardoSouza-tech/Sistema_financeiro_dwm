@@ -5408,11 +5408,11 @@ def reabrir_sessao(empresa_id: int, sessao_id: int, usuario_id: int) -> Dict:
         
         status_anterior = sessao.get('status', 'rascunho')
         
-        # Só pode reabrir se estiver finalizada ou cancelada
-        if status_anterior not in ['finalizada', 'cancelada']:
+        # Só pode reabrir se estiver finalizada, concluída ou cancelada
+        if status_anterior not in ['finalizada', 'concluida', 'cancelada']:
             return {
                 'success': False,
-                'message': f'Apenas sessões finalizadas ou canceladas podem ser reabertas. Status atual: {status_anterior}'
+                'message': f'Apenas sessões finalizadas, concluídas ou canceladas podem ser reabertas. Status atual: {status_anterior}'
             }
         
         # Atualizar para reaberta
