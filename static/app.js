@@ -5221,7 +5221,7 @@ async function loadSessoes() {
                 <td>${tiposCaptacao}</td>
                 <td>${sessao.prazo_entrega ? new Date(sessao.prazo_entrega).toLocaleDateString('pt-BR') : '-'}</td>
                 <td>
-                    <span style="display: inline-block; background: ${badgeStatus.cor}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-bottom: 4px;">
+                    <span onclick="editarSessao(${sessao.id})" title="Clique para abrir sessão" style="display: inline-block; background: ${badgeStatus.cor}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-bottom: 4px; cursor: pointer;">
                         ${badgeStatus.label}
                     </span>
                     <br>

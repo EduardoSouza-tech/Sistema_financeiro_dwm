@@ -2713,10 +2713,12 @@ function renderBotoesStatusSessao(sessao) {
     const badge = badges[status] || badges['rascunho'];
     
     let html = `
-        <!-- Badge de Status Atual -->
-        <div style="display: inline-flex; align-items: center; justify-content: center; background: ${badge.cor}; color: white; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 13px; white-space: nowrap;">
+        <!-- Badge de Status Atual (apenas exibe - não é botão) -->
+        <span style="font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 2px; align-self: center;">Status atual:</span>
+        <span style="display: inline-flex; align-items: center; gap: 4px; background: ${badge.cor}; color: white; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: default; user-select: none;">
             ${badge.label}
-        </div>
+        </span>
+        <span style="width: 1px; height: 28px; background: #e0e0e0; display: inline-block; align-self: center; margin: 0 4px;"></span>
     `;
     
     // Botões baseados no status
