@@ -1682,6 +1682,15 @@ async function excluirCategoria(nome) {
 }
 
 // === CLIENTES ===
+
+function formatCpfCnpj(doc) {
+    if (!doc) return '-';
+    const d = doc.replace(/\D/g, '');
+    if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    if (d.length === 11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    return doc;
+}
+
 async function loadClientes(ativos = true) {
     console.log('📋 Carregando clientes...', ativos ? 'Ativos' : 'Inativos');
     
@@ -1737,11 +1746,11 @@ async function loadClientes(ativos = true) {
             const dataInativacaoCell = ativos ? '' : `<td>${cliente.data_inativacao || '-'}</td>`;
             
             tr.innerHTML = `
-                <td>${cliente.razao_social || cliente.nome || '-'}</td>
-                <td>${cliente.nome_fantasia || '-'}</td>
-                <td>${cliente.cnpj || cliente.documento || cliente.cpf_cnpj || '-'}</td>
-                <td>${cliente.cidade || '-'}</td>
-                <td>${cliente.telefone || '-'}</td>
+                <td>${escapeHtml(cliente.razao_social || cliente.nome || '-')}</td>
+                <td>${escapeHtml(cliente.nome_fantasia || '-')}</td>
+                <td>${formatCpfCnpj(cliente.cpf_cnpj)}</td>
+                <td>${escapeHtml(cliente.cidade || '-')}</td>
+                <td>${escapeHtml(cliente.telefone || '-')}</td>
                 ${dataInativacaoCell}
                 <td>${botoesAcao}</td>
             `;
@@ -6155,11 +6164,11 @@ async function loadFornecedores(ativos = true) {
             `;
             
             tr.innerHTML = `
-                <td>${forn.nome || '-'}</td>
-                <td>${forn.nome_fantasia || '-'}</td>
-                <td>${forn.cnpj || '-'}</td>
-                <td>${forn.cidade || '-'}</td>
-                <td>${forn.telefone || '-'}</td>
+                <td>${escapeHtml(forn.razao_social || forn.nome || '-')}</td>
+                <td>${escapeHtml(forn.nome_fantasia || '-')}</td>
+                <td>${formatCpfCnpj(forn.cpf_cnpj)}</td>
+                <td>${escapeHtml(forn.cidade || '-')}</td>
+                <td>${escapeHtml(forn.telefone || '-')}</td>
                 ${dataInativacaoCell}
                 <td>${botoesAcao}</td>
             `;

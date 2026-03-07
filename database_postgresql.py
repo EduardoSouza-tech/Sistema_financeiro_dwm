@@ -1012,7 +1012,86 @@ class DatabaseManager:
             print("? Migrai?i?o: Colunas juros e desconto adicionadas/verificadas")
         except Exception as e:
             print(f"??  Aviso na migrai?i?o de colunas: {e}")
-        
+
+        # Migração: Adicionar colunas de cadastro empresarial em clientes e fornecedores
+        try:
+            cursor.execute("""
+                DO $$
+                BEGIN
+                    -- clientes
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clientes' AND column_name='razao_social') THEN
+                        ALTER TABLE clientes ADD COLUMN razao_social VARCHAR(255);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clientes' AND column_name='nome_fantasia') THEN
+                        ALTER TABLE clientes ADD COLUMN nome_fantasia VARCHAR(255);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clientes' AND column_name='cidade') THEN
+                        ALTER TABLE clientes ADD COLUMN cidade VARCHAR(100);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clientes' AND column_name='estado') THEN
+                        ALTER TABLE clientes ADD COLUMN estado VARCHAR(2);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clientes' AND column_name='cep') THEN
+                        ALTER TABLE clientes ADD COLUMN cep VARCHAR(10);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clientes' AND column_name='logradouro') THEN
+                        ALTER TABLE clientes ADD COLUMN logradouro VARCHAR(255);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clientes' AND column_name='numero') THEN
+                        ALTER TABLE clientes ADD COLUMN numero VARCHAR(20);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clientes' AND column_name='complemento') THEN
+                        ALTER TABLE clientes ADD COLUMN complemento VARCHAR(100);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clientes' AND column_name='bairro') THEN
+                        ALTER TABLE clientes ADD COLUMN bairro VARCHAR(100);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clientes' AND column_name='ie') THEN
+                        ALTER TABLE clientes ADD COLUMN ie VARCHAR(30);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clientes' AND column_name='im') THEN
+                        ALTER TABLE clientes ADD COLUMN im VARCHAR(30);
+                    END IF;
+                    -- fornecedores
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='fornecedores' AND column_name='razao_social') THEN
+                        ALTER TABLE fornecedores ADD COLUMN razao_social VARCHAR(255);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='fornecedores' AND column_name='nome_fantasia') THEN
+                        ALTER TABLE fornecedores ADD COLUMN nome_fantasia VARCHAR(255);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='fornecedores' AND column_name='cidade') THEN
+                        ALTER TABLE fornecedores ADD COLUMN cidade VARCHAR(100);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='fornecedores' AND column_name='estado') THEN
+                        ALTER TABLE fornecedores ADD COLUMN estado VARCHAR(2);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='fornecedores' AND column_name='cep') THEN
+                        ALTER TABLE fornecedores ADD COLUMN cep VARCHAR(10);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='fornecedores' AND column_name='logradouro') THEN
+                        ALTER TABLE fornecedores ADD COLUMN logradouro VARCHAR(255);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='fornecedores' AND column_name='numero') THEN
+                        ALTER TABLE fornecedores ADD COLUMN numero VARCHAR(20);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='fornecedores' AND column_name='complemento') THEN
+                        ALTER TABLE fornecedores ADD COLUMN complemento VARCHAR(100);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='fornecedores' AND column_name='bairro') THEN
+                        ALTER TABLE fornecedores ADD COLUMN bairro VARCHAR(100);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='fornecedores' AND column_name='ie') THEN
+                        ALTER TABLE fornecedores ADD COLUMN ie VARCHAR(30);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='fornecedores' AND column_name='im') THEN
+                        ALTER TABLE fornecedores ADD COLUMN im VARCHAR(30);
+                    END IF;
+                END $$;
+            """)
+            print("✓ Migração: Colunas de cadastro empresarial em clientes/fornecedores verificadas")
+        except Exception as e:
+            print(f"⚠️  Aviso na migração de clientes/fornecedores: {e}")
+
         # Sincronizar sequi?ncias de auto-incremento com valores mi?ximos atuais
         try:
             cursor.execute("""
@@ -2348,12 +2427,21 @@ class DatabaseManager:
             bairro = cliente_data.get('bairro')
             cidade = cliente_data.get('cidade')
             estado = cliente_data.get('estado')
+            # 🏢 Campos de cadastro empresarial
+            razao_social = cliente_data.get('razao_social') or nome
+            nome_fantasia = cliente_data.get('nome_fantasia')
+            ie = cliente_data.get('ie')
+            im = cliente_data.get('im')
         else:
             nome = cliente_data
             email = email
             telefone = telefone
             endereco = endereco
             empresa_id = None
+            razao_social = None
+            nome_fantasia = None
+            ie = None
+            im = None
         
         # Montar endereço completo no campo TEXT se tiver campos estruturados
         if cep or logradouro or numero:
@@ -2393,10 +2481,14 @@ class DatabaseManager:
         
         # ✅ INSERT usando APENAS as colunas que existem no schema
         cursor.execute("""
-            INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco, empresa_id, proprietario_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco, empresa_id, proprietario_id,
+                                  razao_social, nome_fantasia, cidade, estado, cep, logradouro,
+                                  numero, complemento, bairro, ie, im)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (nome, cpf_cnpj, email, telefone, endereco, empresa_id, proprietario_id))
+        """, (nome, cpf_cnpj, email, telefone, endereco, empresa_id, proprietario_id,
+              razao_social, nome_fantasia, cidade, estado, cep, logradouro,
+              numero, complemento, bairro, ie, im))
         
         cliente_id = cursor.fetchone()['id']
         conn.commit()
@@ -2476,7 +2568,10 @@ class DatabaseManager:
         # ✅ UPDATE usando APENAS as colunas que existem no schema
         cursor.execute("""
             UPDATE clientes 
-            SET nome = %s, cpf_cnpj = %s, email = %s, telefone = %s, endereco = %s
+            SET nome = %s, cpf_cnpj = %s, email = %s, telefone = %s, endereco = %s,
+                razao_social = %s, nome_fantasia = %s, cidade = %s, estado = %s,
+                cep = %s, logradouro = %s, numero = %s, complemento = %s, bairro = %s,
+                ie = %s, im = %s
             WHERE UPPER(TRIM(nome)) = %s
         """, (
             dados.get('nome'),
@@ -2484,6 +2579,17 @@ class DatabaseManager:
             dados.get('email'),
             dados.get('telefone'),
             endereco,
+            dados.get('razao_social') or dados.get('nome'),
+            dados.get('nome_fantasia'),
+            dados.get('cidade'),
+            dados.get('estado'),
+            dados.get('cep'),
+            dados.get('logradouro'),
+            dados.get('numero'),
+            dados.get('complemento'),
+            dados.get('bairro'),
+            dados.get('ie'),
+            dados.get('im'),
             nome_normalizado
         ))
         
@@ -2643,15 +2749,24 @@ class DatabaseManager:
             empresa_id = fornecedor_data.get('empresa_id')
             # 🌐 Campos de endereço estruturado - montar em TEXT
             cep = fornecedor_data.get('cep')
-            logradouro = fornecedor_data.get('logradouro')
+            logradouro = fornecedor_data.get('logradouro') or fornecedor_data.get('rua')
             numero = fornecedor_data.get('numero')
             complemento = fornecedor_data.get('complemento')
             bairro = fornecedor_data.get('bairro')
             cidade = fornecedor_data.get('cidade')
             estado = fornecedor_data.get('estado')
+            # 🏢 Campos de cadastro empresarial
+            razao_social = fornecedor_data.get('razao_social') or nome
+            nome_fantasia = fornecedor_data.get('nome_fantasia')
+            ie = fornecedor_data.get('ie')
+            im = fornecedor_data.get('im')
         else:
             nome = fornecedor_data
             empresa_id = None
+            razao_social = None
+            nome_fantasia = None
+            ie = None
+            im = None
         
         # Montar endereço completo no campo TEXT se tiver campos estruturados
         if cep or logradouro or numero:
@@ -2691,10 +2806,14 @@ class DatabaseManager:
         
         # ✅ INSERT usando APENAS as colunas que existem no schema
         cursor.execute("""
-            INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco, empresa_id)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco, empresa_id,
+                                      razao_social, nome_fantasia, cidade, estado, cep, logradouro,
+                                      numero, complemento, bairro, ie, im)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (nome, cpf_cnpj, email, telefone, endereco, empresa_id))
+        """, (nome, cpf_cnpj, email, telefone, endereco, empresa_id,
+              razao_social, nome_fantasia, cidade, estado, cep, logradouro,
+              numero, complemento, bairro, ie, im))
         
         fornecedor_id = cursor.fetchone()['id']
         conn.commit()
@@ -2777,9 +2896,10 @@ class DatabaseManager:
         
         # Montar endereço completo se tiver campos estruturados
         endereco = dados.get('endereco') or ""
-        if dados.get('cep') or dados.get('logradouro') or dados.get('numero'):
+        logradouro_val = dados.get('logradouro') or dados.get('rua')
+        if dados.get('cep') or logradouro_val or dados.get('numero'):
             partes = []
-            if dados.get('logradouro'): partes.append(dados.get('logradouro'))
+            if logradouro_val: partes.append(logradouro_val)
             if dados.get('numero'): partes.append(f"nº {dados.get('numero')}")
             if dados.get('complemento'): partes.append(dados.get('complemento'))
             if dados.get('bairro'): partes.append(dados.get('bairro'))
@@ -2791,7 +2911,10 @@ class DatabaseManager:
         # ✅ UPDATE usando APENAS as colunas que existem no schema
         cursor.execute("""
             UPDATE fornecedores 
-            SET nome = %s, cpf_cnpj = %s, email = %s, telefone = %s, endereco = %s
+            SET nome = %s, cpf_cnpj = %s, email = %s, telefone = %s, endereco = %s,
+                razao_social = %s, nome_fantasia = %s, cidade = %s, estado = %s,
+                cep = %s, logradouro = %s, numero = %s, complemento = %s, bairro = %s,
+                ie = %s, im = %s
             WHERE UPPER(TRIM(nome)) = %s
         """, (
             dados.get('nome'),
@@ -2799,6 +2922,17 @@ class DatabaseManager:
             dados.get('email'),
             dados.get('telefone'),
             endereco,
+            dados.get('razao_social') or dados.get('nome'),
+            dados.get('nome_fantasia'),
+            dados.get('cidade'),
+            dados.get('estado'),
+            dados.get('cep'),
+            logradouro_val,
+            dados.get('numero'),
+            dados.get('complemento'),
+            dados.get('bairro'),
+            dados.get('ie'),
+            dados.get('im'),
             nome_normalizado
         ))
         
