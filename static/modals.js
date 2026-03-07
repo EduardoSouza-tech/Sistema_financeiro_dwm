@@ -3075,7 +3075,7 @@ async function openModalSessao(sessaoEdit = null) {
             <div class="form-group">
                 <label>Tags:</label>
                 <div id="sessao-tags-container">
-                    ${renderizarSeletorTags(isEdit && sessaoEdit.tags_ids ? sessaoEdit.tags_ids : [])}
+                    ${renderizarSeletorTags(isEdit && sessaoEdit.tags ? sessaoEdit.tags : [])}
                 </div>
             </div>
             

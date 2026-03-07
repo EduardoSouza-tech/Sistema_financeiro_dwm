@@ -5563,6 +5563,14 @@ function exportarContratosPDF() {
     showToast('Exportação de contratos para PDF em desenvolvimento', 'info');
 }
 
+function exportarSessoesExcel() {
+    window.location.href = '/api/sessoes/exportar/excel';
+}
+
+function exportarSessoesPDF() {
+    window.location.href = '/api/sessoes/exportar/pdf';
+}
+
 // ============================================================================
 // RESUMO E ANÁLISE DE CONTRATOS
 // ============================================================================
@@ -6068,6 +6076,8 @@ window.loadComissoes = loadComissoes;
 // Funções de Exportação
 window.exportarFluxoExcel = exportarFluxoExcel;
 window.exportarContratosPDF = exportarContratosPDF;
+window.exportarSessoesExcel = exportarSessoesExcel;
+window.exportarSessoesPDF = exportarSessoesPDF;
 window.exportarControleHorasPDF = exportarControleHorasPDF;
 window.exportarControleHorasExcel = exportarControleHorasExcel;
 window.exportarInadimplenciaPDF = exportarInadimplenciaPDF;
