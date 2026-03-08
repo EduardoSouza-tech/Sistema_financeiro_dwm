@@ -231,6 +231,7 @@ def auto_execute_migrations():
             ("horas_trabalhadas", "DECIMAL(10,2)"),
             ("finalizada_em",     "TIMESTAMP"),
             ("finalizada_por",    "INTEGER"),
+            ("numero_nf",         "TEXT"),
         ]:
             col_name, col_type = col_def
             try:

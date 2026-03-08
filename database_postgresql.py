@@ -5047,7 +5047,7 @@ def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
     return sucesso
 
 
-def finalizar_sessao(empresa_id: int, sessao_id: int, usuario_id: int, horas_trabalhadas: float = None) -> Dict:
+def finalizar_sessao(empresa_id: int, sessao_id: int, usuario_id: int, horas_trabalhadas: float = None, numero_nf: str = None) -> Dict:
     """
     Finaliza uma sessão e deduz horas do contrato vinculado
     
@@ -5128,9 +5128,10 @@ def finalizar_sessao(empresa_id: int, sessao_id: int, usuario_id: int, horas_tra
                 horas_trabalhadas = %s,
                 finalizada_em = CURRENT_TIMESTAMP,
                 finalizada_por = %s,
+                numero_nf = %s,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
-        """, (horas_trabalhadas, usuario_id, sessao_id))
+        """, (horas_trabalhadas, usuario_id, numero_nf, sessao_id))
         
         # 4. Se contrato TEM controle de horas, deduzir
         horas_deduzidas = 0

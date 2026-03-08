@@ -3555,42 +3555,75 @@ async function concluirSessaoModal(sessaoId) {
 }
 
 async function finalizarSessaoModal(sessaoId) {
-    if (!confirm('⚠️ Tem certeza que deseja FINALIZAR esta sessão?\n\n✅ As horas trabalhadas serão deduzidas do contrato\n❌ Esta ação não pode ser desfeita facilmente')) {
-        return;
-    }
-    
+    const modalHtml = `
+    <div class="modal-body" style="padding:20px;max-width:420px;">
+        <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:10px;padding:14px 16px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;">
+            <span style="font-size:18px;line-height:1;">⚠️</span>
+            <div>
+                <div style="font-weight:700;color:#856404;margin-bottom:4px;font-size:13px;">Atenção</div>
+                <div style="font-size:12px;color:#856404;line-height:1.5;">As horas trabalhadas serão deduzidas do contrato.<br>Esta ação não pode ser desfeita facilmente.</div>
+            </div>
+        </div>
+        <label style="display:block;font-weight:600;font-size:13px;color:#1e293b;margin-bottom:8px;">
+            📄 Número da NF emitida <span style="font-weight:400;color:#94a3b8;font-size:12px;">(opcional)</span>
+        </label>
+        <input type="text" id="input-numero-nf-finalizar"
+            placeholder="Ex: 000123"
+            style="width:100%;padding:10px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;outline:none;transition:border-color .15s;"
+            onfocus="this.style.borderColor='#3b82f6'"
+            onblur="this.style.borderColor='#d1d5db'"
+            onkeydown="if(event.key==='Enter') executarFinalizarSessao(${sessaoId})"
+        />
+        <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+            <button onclick="closeModal()"
+                style="padding:9px 20px;border:1.5px solid #d1d5db;border-radius:8px;background:white;cursor:pointer;font-size:13px;font-weight:600;color:#374151;">
+                Cancelar
+            </button>
+            <button onclick="executarFinalizarSessao(${sessaoId})"
+                style="padding:9px 20px;border:none;border-radius:8px;background:#10b981;color:white;cursor:pointer;font-size:13px;font-weight:700;box-shadow:0 2px 6px rgba(16,185,129,.35);">
+                ✅ Finalizar Sessão
+            </button>
+        </div>
+    </div>`;
+
+    createModal('✅ Finalizar Sessão', modalHtml);
+    setTimeout(() => document.getElementById('input-numero-nf-finalizar')?.focus(), 80);
+}
+
+async function executarFinalizarSessao(sessaoId) {
+    const numeroNf = (document.getElementById('input-numero-nf-finalizar')?.value || '').trim() || null;
+    closeModal();
+
     try {
-        console.log('🏁 Finalizando sessão:', sessaoId);
-        
+        console.log('🏁 Finalizando sessão:', sessaoId, '| NF:', numeroNf);
+
         const response = await fetch(`/api/sessoes/${sessaoId}/finalizar`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({})
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ numero_nf: numeroNf })
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok && result.success) {
             console.log('✅ Sessão finalizada:', result);
-            
-            let mensagem = '✅ Sessão finalizada com sucesso!\n\n';
-            
+
+            let mensagem = '✅ Sessão finalizada com sucesso!';
             if (result.controle_horas_ativo) {
-                mensagem += `⏱️ Horas trabalhadas: ${result.horas_trabalhadas}h\n`;
-                mensagem += `📉 Deduzido do contrato: ${result.horas_deduzidas}h\n`;
-                
+                mensagem += `\n\n⏱️ Horas trabalhadas: ${result.horas_trabalhadas}h`;
+                mensagem += `\n📉 Deduzido do contrato: ${result.horas_deduzidas}h`;
                 if (result.horas_extras > 0) {
-                    mensagem += `⚠️ Horas extras: ${result.horas_extras}h (saldo zerado)\n`;
+                    mensagem += `\n⚠️ Horas extras: ${result.horas_extras}h (saldo zerado)`;
                 }
-                
-                mensagem += `✅ Saldo restante: ${result.saldo_restante}h`;
+                mensagem += `\n✅ Saldo restante: ${result.saldo_restante}h`;
             }
-            
+            if (numeroNf) {
+                mensagem += `\n📄 NF: ${numeroNf}`;
+            }
+
             showToast(mensagem, 'success');
             closeModal();
-            
+
             // Recarregar listas
             if (typeof loadSessoes === 'function') loadSessoes();
             if (typeof loadContratos === 'function') loadContratos();
@@ -3599,7 +3632,7 @@ async function finalizarSessaoModal(sessaoId) {
             showToast('❌ Erro: ' + (result.message || result.error || 'Erro desconhecido'), 'error');
             console.error('❌ Detalhes do erro:', result);
         }
-        
+
     } catch (error) {
         console.error('❌ Erro ao finalizar sessão:', error);
         showToast('❌ Erro ao finalizar sessão: ' + error.message, 'error');
@@ -3610,6 +3643,7 @@ window.openModalSessao = openModalSessao;
 window.salvarSessao = salvarSessao;
 window.concluirSessaoModal = concluirSessaoModal;
 window.finalizarSessaoModal = finalizarSessaoModal;
+window.executarFinalizarSessao = executarFinalizarSessao;
 window.renderBotoesStatusSessao = renderBotoesStatusSessao;
 window.confirmarSessao = confirmarSessao;
 window.iniciarSessao = iniciarSessao;

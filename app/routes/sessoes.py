@@ -383,19 +383,22 @@ def finalizar_sessao_route(sessao_id):
         
         data = request.get_json() or {}
         horas_trabalhadas = data.get('horas_trabalhadas')  # Opcional
+        numero_nf = data.get('numero_nf') or None  # Opcional
         
         print(f"\n📊 [POST /api/sessoes/{sessao_id}/finalizar]")
         print(f"   - Usuario: {usuario.get('username')}")
         print(f"   - empresa_id: {empresa_id}")
         print(f"   - usuario_id: {usuario_id}")
         print(f"   - horas_trabalhadas: {horas_trabalhadas}")
+        print(f"   - numero_nf: {numero_nf}")
         
         # Chamar função de finalizar
         resultado = db.finalizar_sessao(
             empresa_id=empresa_id,
             sessao_id=sessao_id,
             usuario_id=usuario_id,
-            horas_trabalhadas=horas_trabalhadas
+            horas_trabalhadas=horas_trabalhadas,
+            numero_nf=numero_nf
         )
         
         if resultado['success']:
