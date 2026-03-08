@@ -1013,6 +1013,13 @@ async function loadContas() {
         
         console.log('✅ Contas carregadas com sucesso');
         console.log('💰 Saldo total calculado:', formatarMoeda(saldoTotal));
+
+        // Atualizar card de Saldo Total no Dashboard com o valor calculado aqui
+        // (usa saldo_real que é a fonte mais confiável: saldo_inicial + lancamentos/extrato)
+        const cardSaldoDashboard = document.getElementById('dashboard-saldo-total');
+        if (cardSaldoDashboard) {
+            cardSaldoDashboard.textContent = formatarMoeda(saldoTotal);
+        }
         
     } catch (error) {
         logError(context, error);
@@ -6490,6 +6497,12 @@ window.loadContasBancarias = async function() {
         }
         
         console.log('✅ Contas bancárias carregadas com sucesso');
+
+        // Atualizar card de Saldo Total no Dashboard
+        const cardSaldoDashboard = document.getElementById('dashboard-saldo-total');
+        if (cardSaldoDashboard) {
+            cardSaldoDashboard.textContent = saldoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
     } catch (error) {
         console.error('❌ Erro ao carregar contas bancárias:', error);
         const tbody = document.getElementById('tbody-contas');
