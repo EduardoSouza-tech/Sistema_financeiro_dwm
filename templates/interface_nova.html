@@ -7655,6 +7655,14 @@
                     
                     // 🆕 Filtrar menu baseado nas permissões do usuário
                     filterMenuByPermissions(data.usuario);
+
+                    // Carregar dashboard e contas bancárias APÓS autenticação confirmada
+                    if (typeof carregarDashboard === 'function') {
+                        carregarDashboard();
+                    }
+                    if (typeof loadContasBancarias === 'function') {
+                        loadContasBancarias();
+                    }
                 } else {
                     console.error('❌ Usuário não autenticado');
                     // Não autenticado, redirecionar para login
@@ -8089,24 +8097,7 @@
             }
             
             // Carregar contas bancárias no início (se tiver permissão)
-            const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
-            const permissoes = usuario.permissoes || [];
-            
-            if (typeof loadContasBancarias === 'function' && (permissoes.includes('contas_view') || permissoes.includes('lancamentos_view'))) {
-                console.log('Carregando contas bancárias...');
-                loadContasBancarias();
-            } else {
-                console.log('⏭️ Contas bancárias: Usuário sem permissão, não carregando');
-            }
-            
-            // Carregar dashboard automaticamente (se tiver permissão)
-            if (typeof carregarDashboard === 'function' && (permissoes.includes('dashboard') || permissoes.includes('relatorios_view'))) {
-                setTimeout(() => {
-                    carregarDashboard();
-                }, 1000);
-            } else {
-                console.log('⏭️ Dashboard: Usuário sem permissão, não carregando');
-            }
+            // NOTA: Também são carregadas em checkUserAuth() para timing correto.
         });
 
         // ====================================
@@ -8368,7 +8359,8 @@
                 // Verificar permissão antes de carregar
                 const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
                 const permissoes = usuario.permissoes || [];
-                if (!permissoes.includes('dashboard') && !permissoes.includes('relatorios_view')) {
+                // Admin sempre tem acesso; demais precisam de permissão explícita
+                if (usuario.tipo !== 'admin' && !permissoes.includes('dashboard') && !permissoes.includes('relatorios_view') && !permissoes.includes('lancamentos_view')) {
                     console.log('⏭️ Dashboard: Usuário sem permissão');
                     return;
                 }
