@@ -2338,19 +2338,19 @@ async function openModalContrato(contratoEdit = null) {
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
                     <div>
                         <small style="opacity: 0.9;">Total Contratado</small>
-                        <div style="font-size: 24px; font-weight: bold;">${(contratoEdit.horas_totais || 0).toFixed(1)}h</div>
+                        <div style="font-size: 24px; font-weight: bold;">${parseFloat(contratoEdit.horas_totais || 0).toFixed(1)}h</div>
                     </div>
                     <div>
                         <small style="opacity: 0.9;">Horas Utilizadas</small>
-                        <div style="font-size: 24px; font-weight: bold;">${(contratoEdit.horas_utilizadas || 0).toFixed(1)}h</div>
+                        <div style="font-size: 24px; font-weight: bold;">${parseFloat(contratoEdit.horas_utilizadas || 0).toFixed(1)}h</div>
                     </div>
                     <div>
                         <small style="opacity: 0.9;">Horas Restantes</small>
-                        <div style="font-size: 24px; font-weight: bold; color: ${(contratoEdit.horas_restantes || 0) > 0 ? '#4ade80' : '#fbbf24'};">${(contratoEdit.horas_restantes || 0).toFixed(1)}h</div>
+                        <div style="font-size: 24px; font-weight: bold; color: ${parseFloat(contratoEdit.horas_restantes || 0) > 0 ? '#4ade80' : '#fbbf24'};">${parseFloat(contratoEdit.horas_restantes || 0).toFixed(1)}h</div>
                     </div>
                     <div>
                         <small style="opacity: 0.9;">Horas Extras</small>
-                        <div style="font-size: 24px; font-weight: bold; color: ${(contratoEdit.horas_extras || 0) > 0 ? '#f87171' : 'white'};">${(contratoEdit.horas_extras || 0).toFixed(1)}h</div>
+                        <div style="font-size: 24px; font-weight: bold; color: ${parseFloat(contratoEdit.horas_extras || 0) > 0 ? '#f87171' : 'white'};">${parseFloat(contratoEdit.horas_extras || 0).toFixed(1)}h</div>
                     </div>
                 </div>
                 
