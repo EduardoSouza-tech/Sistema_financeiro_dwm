@@ -431,6 +431,7 @@
                 <button class="tab" onclick="switchTab('logs')">📋 Logs de Acesso</button>
                 <button class="tab" onclick="switchTab('export')">📦 Exportar Dados</button>
                 <button class="tab" onclick="switchTab('debug')">🔧 Debug DB</button>
+                <button class="tab" onclick="switchTab('avisos')">📣 Avisos</button>
             </div>
 
             <!-- Tab: Usuários -->
@@ -618,6 +619,79 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Tab: Avisos do Sistema -->
+            <div id="avisosTab" class="tab-content">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+                    <div>
+                        <h2>📣 Avisos do Sistema</h2>
+                        <p style="color:#666;margin-top:4px;">Envie notificações para usuários e empresas do sistema.</p>
+                    </div>
+                </div>
+
+                <!-- Formulário de criação -->
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin-bottom:30px;">
+                    <h3 style="margin:0 0 18px;color:#1e293b;font-size:15px;">✉️ Novo Aviso</h3>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                        <div style="grid-column:1/-1;">
+                            <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Título *</label>
+                            <input type="text" id="aviso-titulo" placeholder="Ex: Manutenção programada..." maxlength="200"
+                                style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:14px;box-sizing:border-box;">
+                        </div>
+                        <div style="grid-column:1/-1;">
+                            <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Mensagem *</label>
+                            <textarea id="aviso-mensagem" rows="4" placeholder="Digite o conteúdo do aviso..."
+                                style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea>
+                        </div>
+                        <div>
+                            <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Tipo</label>
+                            <select id="aviso-tipo" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:14px;">
+                                <option value="info">ℹ️ Informação</option>
+                                <option value="warning">⚠️ Atenção</option>
+                                <option value="success">✅ Sucesso / Novidade</option>
+                                <option value="danger">🚨 Urgente</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Validade (dias) <small style="font-weight:400;color:#9ca3af;">0 = sem expiração</small></label>
+                            <input type="number" id="aviso-dias" value="0" min="0" max="365"
+                                style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:14px;box-sizing:border-box;">
+                        </div>
+                        <div style="grid-column:1/-1;">
+                            <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Destinatários</label>
+                            <select id="aviso-destinatario" onchange="avisosToggleDestinatarios()" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:14px;">
+                                <option value="todos">🌐 Todos os usuários</option>
+                                <option value="empresas">🏢 Empresas específicas</option>
+                                <option value="usuarios">👤 Usuários específicos</option>
+                            </select>
+                        </div>
+                        <div id="aviso-sel-empresas" style="grid-column:1/-1;display:none;">
+                            <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Selecione as Empresas</label>
+                            <div id="aviso-empresas-list" style="background:white;border:1px solid #d1d5db;border-radius:7px;max-height:180px;overflow-y:auto;padding:8px;">
+                                <p style="color:#9ca3af;text-align:center;font-size:13px;padding:10px;">Carregando...</p>
+                            </div>
+                        </div>
+                        <div id="aviso-sel-usuarios" style="grid-column:1/-1;display:none;">
+                            <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Selecione os Usuários</label>
+                            <div id="aviso-usuarios-list" style="background:white;border:1px solid #d1d5db;border-radius:7px;max-height:180px;overflow-y:auto;padding:8px;">
+                                <p style="color:#9ca3af;text-align:center;font-size:13px;padding:10px;">Carregando...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top:18px;text-align:right;">
+                        <button onclick="criarAviso()" class="btn btn-success" style="padding:10px 24px;font-size:14px;font-weight:600;">
+                            📤 Enviar Aviso
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Lista de avisos existentes -->
+                <h3 style="margin:0 0 14px;color:#1e293b;font-size:15px;">📋 Avisos Enviados</h3>
+                <div id="avisos-lista" style="display:flex;flex-direction:column;gap:10px;">
+                    <div style="text-align:center;padding:30px;color:#9ca3af;">Carregando...</div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -2068,6 +2142,133 @@
                     carregarSchema();
                 }
             }
+
+            // Se a aba de avisos foi selecionada
+            if (tabName === 'avisos') {
+                avisosCarregarLista();
+                avisosCarregarDestinatarios();
+            }
+        }
+
+        // ============================================================
+        // AVISOS DO SISTEMA
+        // ============================================================
+        let _avisosDestinatarios = { usuarios: [], empresas: [] };
+
+        async function avisosCarregarDestinatarios() {
+            try {
+                const r = await fetch('/api/admin/avisos/destinatarios', { credentials: 'same-origin' });
+                const data = await r.json();
+                if (!data.success) return;
+                _avisosDestinatarios = data;
+                avisosRenderEmpresas(data.empresas);
+                avisosRenderUsuarios(data.usuarios);
+            } catch(e) { console.error(e); }
+        }
+
+        function avisosRenderEmpresas(empresas) {
+            const c = document.getElementById('aviso-empresas-list');
+            if (!c) return;
+            if (!empresas.length) { c.innerHTML = '<p style="color:#9ca3af;text-align:center;font-size:13px;padding:10px;">Nenhuma empresa encontrada</p>'; return; }
+            c.innerHTML = empresas.map(e => `
+                <label style="display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer;font-size:13px;">
+                    <input type="checkbox" class="aviso-chk-empresa" value="${e.id}"> ${e.nome}
+                </label>`).join('');
+        }
+
+        function avisosRenderUsuarios(usuarios) {
+            const c = document.getElementById('aviso-usuarios-list');
+            if (!c) return;
+            if (!usuarios.length) { c.innerHTML = '<p style="color:#9ca3af;text-align:center;font-size:13px;padding:10px;">Nenhum usuário encontrado</p>'; return; }
+            c.innerHTML = usuarios.map(u => `
+                <label style="display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer;font-size:13px;">
+                    <input type="checkbox" class="aviso-chk-usuario" value="${u.id}"> ${u.nome} <span style="color:#9ca3af;">(${u.email||''})</span>
+                </label>`).join('');
+        }
+
+        function avisosToggleDestinatarios() {
+            const val = document.getElementById('aviso-destinatario').value;
+            document.getElementById('aviso-sel-empresas').style.display = val === 'empresas' ? 'block' : 'none';
+            document.getElementById('aviso-sel-usuarios').style.display = val === 'usuarios' ? 'block' : 'none';
+        }
+
+        async function criarAviso() {
+            const titulo   = (document.getElementById('aviso-titulo').value || '').trim();
+            const mensagem = (document.getElementById('aviso-mensagem').value || '').trim();
+            if (!titulo || !mensagem) { showAlert('Título e mensagem são obrigatórios', 'error'); return; }
+
+            const tipo          = document.getElementById('aviso-tipo').value;
+            const destinatario  = document.getElementById('aviso-destinatario').value;
+            const dias          = parseInt(document.getElementById('aviso-dias').value) || 0;
+
+            const empresa_ids = Array.from(document.querySelectorAll('.aviso-chk-empresa:checked')).map(c => parseInt(c.value));
+            const usuario_ids = Array.from(document.querySelectorAll('.aviso-chk-usuario:checked')).map(c => parseInt(c.value));
+
+            if (destinatario === 'empresas' && !empresa_ids.length) { showAlert('Selecione ao menos uma empresa', 'error'); return; }
+            if (destinatario === 'usuarios' && !usuario_ids.length) { showAlert('Selecione ao menos um usuário', 'error'); return; }
+
+            try {
+                const r = await fetch('/api/admin/avisos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ titulo, mensagem, tipo, destinatario, empresa_ids, usuario_ids, dias_validade: dias || null })
+                });
+                const data = await r.json();
+                if (data.success) {
+                    showAlert('Aviso enviado com sucesso!', 'success');
+                    document.getElementById('aviso-titulo').value = '';
+                    document.getElementById('aviso-mensagem').value = '';
+                    avisosCarregarLista();
+                } else {
+                    showAlert(data.error || 'Erro ao enviar aviso', 'error');
+                }
+            } catch(e) { showAlert('Erro de comunicação', 'error'); }
+        }
+
+        async function avisosCarregarLista() {
+            const c = document.getElementById('avisos-lista');
+            if (!c) return;
+            c.innerHTML = '<div style="text-align:center;padding:20px;color:#9ca3af;">Carregando...</div>';
+            try {
+                const r = await fetch('/api/admin/avisos', { credentials: 'same-origin' });
+                const data = await r.json();
+                if (!data.success) { c.innerHTML = '<p style="color:#ef4444;">Erro ao carregar avisos.</p>'; return; }
+                if (!data.avisos.length) { c.innerHTML = '<div style="text-align:center;padding:30px;color:#9ca3af;">Nenhum aviso cadastrado ainda.</div>'; return; }
+                const tipoCor  = { info:'#3b82f6', warning:'#f59e0b', success:'#10b981', danger:'#ef4444' };
+                const tipoIcon = { info:'ℹ️', warning:'⚠️', success:'✅', danger:'🚨' };
+                const destLabel = { todos:'🌐 Todos', empresas:'🏢 Empresas', usuarios:'👤 Usuários' };
+                c.innerHTML = data.avisos.map(a => `
+                    <div style="background:white;border:1px solid #e2e8f0;border-left:4px solid ${tipoCor[a.tipo]||'#3b82f6'};border-radius:8px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start;">
+                        <div style="flex:1;">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+                                <span style="font-size:18px;">${tipoIcon[a.tipo]||'ℹ️'}</span>
+                                <strong style="font-size:14px;color:#1e293b;">${a.titulo}</strong>
+                                ${a.expirado ? '<span style="background:#fee2e2;color:#ef4444;font-size:11px;padding:2px 7px;border-radius:10px;font-weight:600;">EXPIRADO</span>' : ''}
+                            </div>
+                            <div style="font-size:13px;color:#475569;margin-bottom:6px;white-space:pre-wrap;">${a.mensagem}</div>
+                            <div style="font-size:11px;color:#94a3b8;display:flex;gap:12px;flex-wrap:wrap;">
+                                <span>${destLabel[a.destinatario]||a.destinatario}</span>
+                                <span>📖 Lido por: ${a.total_leituras}</span>
+                                <span>📅 ${a.criado_em ? new Date(a.criado_em).toLocaleDateString('pt-BR') : ''}</span>
+                                ${a.expira_em ? '<span>⏳ Expira: ' + new Date(a.expira_em).toLocaleDateString('pt-BR') + '</span>' : ''}
+                                <span>Por: ${a.criado_por_nome||'Admin'}</span>
+                            </div>
+                        </div>
+                        <button onclick="avisosExcluir(${a.id})" title="Excluir aviso"
+                            style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:13px;flex-shrink:0;">🗑️</button>
+                    </div>`).join('');
+            } catch(e) { c.innerHTML = '<p style="color:#ef4444;">Erro de comunicação.</p>'; }
+        }
+
+        async function avisosExcluir(id) {
+            if (!confirm('Excluir este aviso? Todos os registros de leitura também serão removidos.')) return;
+            try {
+                const r = await fetch(`/api/admin/avisos/${id}`, { method: 'DELETE', credentials: 'same-origin' });
+                const data = await r.json();
+                if (data.success) { showAlert('Aviso excluído', 'success'); avisosCarregarLista(); }
+                else showAlert(data.error || 'Erro', 'error');
+            } catch(e) { showAlert('Erro de comunicação', 'error'); }
         }
 
         // Carregar proprietários para exportação

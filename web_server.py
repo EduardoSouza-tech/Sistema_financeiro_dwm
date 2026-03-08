@@ -743,6 +743,37 @@ try:
     except Exception as e:
         print(f"⚠️ Aviso ao migrar nfse_baixadas: {e}")
 
+    # -- Tabelas de Avisos do Sistema ------------------------------------------
+    try:
+        with db.get_connection() as _ac:
+            _acur = _ac.cursor()
+            _acur.execute("""
+                CREATE TABLE IF NOT EXISTS avisos_sistema (
+                    id SERIAL PRIMARY KEY,
+                    titulo VARCHAR(200) NOT NULL,
+                    mensagem TEXT NOT NULL,
+                    tipo VARCHAR(20) DEFAULT 'info',
+                    destinatario VARCHAR(20) DEFAULT 'todos',
+                    empresa_ids JSONB DEFAULT '[]',
+                    usuario_ids JSONB DEFAULT '[]',
+                    expira_em TIMESTAMP DEFAULT NULL,
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    criado_por_nome VARCHAR(100)
+                );
+                CREATE TABLE IF NOT EXISTS avisos_leitura (
+                    id SERIAL PRIMARY KEY,
+                    aviso_id INTEGER REFERENCES avisos_sistema(id) ON DELETE CASCADE,
+                    usuario_id INTEGER NOT NULL,
+                    lido_em TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(aviso_id, usuario_id)
+                );
+            """)
+            _ac.commit()
+            _acur.close()
+        print("✅ Tabelas avisos_sistema / avisos_leitura verificadas!")
+    except Exception as e:
+        print(f"⚠️ Aviso ao criar tabelas de avisos: {e}")
+
     print("? DatabaseManager pronto!")
     print("="*70 + "\n")
         
@@ -21080,6 +21111,202 @@ def test_db_connection():
             'error': str(e),
             'traceback': traceback.format_exc()
         }), 500
+
+
+# ============================================================================
+# AVISOS DO SISTEMA
+# ============================================================================
+
+@app.route('/api/avisos', methods=['GET'])
+@require_auth
+def listar_avisos_usuario():
+    """Retorna avisos ativos não lidos pelo usuário atual"""
+    try:
+        usuario = get_usuario_logado()
+        usuario_id = usuario.get('id')
+        empresa_id = usuario.get('empresa_id')
+
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT a.id, a.titulo, a.mensagem, a.tipo, a.criado_em, a.expira_em
+                FROM avisos_sistema a
+                WHERE (a.expira_em IS NULL OR a.expira_em > NOW())
+                  AND a.id NOT IN (
+                      SELECT al.aviso_id FROM avisos_leitura al WHERE al.usuario_id = %s
+                  )
+                  AND (
+                      a.destinatario = 'todos'
+                      OR (a.destinatario = 'empresas' AND a.empresa_ids::jsonb @> %s::jsonb)
+                      OR (a.destinatario = 'usuarios' AND a.usuario_ids::jsonb @> %s::jsonb)
+                  )
+                ORDER BY a.criado_em DESC
+            """, (
+                usuario_id,
+                json.dumps([empresa_id]) if empresa_id else '[]',
+                json.dumps([usuario_id])
+            ))
+            rows = cur.fetchall()
+            cur.close()
+
+        avisos = []
+        for r in rows:
+            avisos.append({
+                'id': r['id'],
+                'titulo': r['titulo'],
+                'mensagem': r['mensagem'],
+                'tipo': r['tipo'],
+                'criado_em': r['criado_em'].isoformat() if r['criado_em'] else None,
+                'expira_em': r['expira_em'].isoformat() if r['expira_em'] else None,
+            })
+        return jsonify({'success': True, 'avisos': avisos, 'total': len(avisos)})
+    except Exception as e:
+        logger.error(f"Erro ao listar avisos: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/avisos/<int:aviso_id>/lido', methods=['POST'])
+@require_auth
+def marcar_aviso_lido(aviso_id):
+    """Marca um aviso como lido pelo usuário atual"""
+    try:
+        usuario = get_usuario_logado()
+        usuario_id = usuario.get('id')
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO avisos_leitura (aviso_id, usuario_id)
+                VALUES (%s, %s)
+                ON CONFLICT (aviso_id, usuario_id) DO NOTHING
+            """, (aviso_id, usuario_id))
+            conn.commit()
+            cur.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/admin/avisos', methods=['GET'])
+@require_admin
+def admin_listar_avisos():
+    """Admin: lista todos os avisos"""
+    try:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT a.id, a.titulo, a.mensagem, a.tipo, a.destinatario,
+                       a.empresa_ids, a.usuario_ids, a.expira_em, a.criado_em,
+                       a.criado_por_nome,
+                       (SELECT COUNT(*) FROM avisos_leitura al WHERE al.aviso_id = a.id) AS total_leituras
+                FROM avisos_sistema a
+                ORDER BY a.criado_em DESC
+            """)
+            rows = cur.fetchall()
+            cur.close()
+
+        avisos = []
+        for r in rows:
+            avisos.append({
+                'id': r['id'],
+                'titulo': r['titulo'],
+                'mensagem': r['mensagem'],
+                'tipo': r['tipo'],
+                'destinatario': r['destinatario'],
+                'empresa_ids': r['empresa_ids'] or [],
+                'usuario_ids': r['usuario_ids'] or [],
+                'expira_em': r['expira_em'].isoformat() if r['expira_em'] else None,
+                'criado_em': r['criado_em'].isoformat() if r['criado_em'] else None,
+                'criado_por_nome': r['criado_por_nome'],
+                'total_leituras': r['total_leituras'],
+                'expirado': r['expira_em'] is not None and r['expira_em'] < datetime.now(),
+            })
+        return jsonify({'success': True, 'avisos': avisos})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/admin/avisos', methods=['POST'])
+@require_admin
+def admin_criar_aviso():
+    """Admin: cria um novo aviso"""
+    try:
+        usuario = get_usuario_logado()
+        data = request.get_json() or {}
+
+        titulo = (data.get('titulo') or '').strip()
+        mensagem = (data.get('mensagem') or '').strip()
+        if not titulo or not mensagem:
+            return jsonify({'success': False, 'error': 'Título e mensagem são obrigatórios'}), 400
+
+        tipo = data.get('tipo', 'info')
+        if tipo not in ('info', 'warning', 'success', 'danger'):
+            tipo = 'info'
+
+        destinatario = data.get('destinatario', 'todos')
+        if destinatario not in ('todos', 'empresas', 'usuarios'):
+            destinatario = 'todos'
+
+        empresa_ids = json.dumps(data.get('empresa_ids', []))
+        usuario_ids = json.dumps(data.get('usuario_ids', []))
+
+        expira_em = None
+        dias = data.get('dias_validade')
+        if dias:
+            try:
+                expira_em = datetime.now() + timedelta(days=int(dias))
+            except Exception:
+                pass
+
+        criado_por_nome = usuario.get('nome') or usuario.get('username') or 'Admin'
+
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO avisos_sistema
+                    (titulo, mensagem, tipo, destinatario, empresa_ids, usuario_ids, expira_em, criado_por_nome)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (titulo, mensagem, tipo, destinatario, empresa_ids, usuario_ids, expira_em, criado_por_nome))
+            novo_id = cur.fetchone()['id']
+            conn.commit()
+            cur.close()
+
+        return jsonify({'success': True, 'id': novo_id, 'message': 'Aviso criado com sucesso!'})
+    except Exception as e:
+        logger.error(f"Erro ao criar aviso: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/admin/avisos/<int:aviso_id>', methods=['DELETE'])
+@require_admin
+def admin_excluir_aviso(aviso_id):
+    """Admin: exclui um aviso"""
+    try:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM avisos_sistema WHERE id = %s", (aviso_id,))
+            conn.commit()
+            cur.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/admin/avisos/destinatarios', methods=['GET'])
+@require_admin
+def admin_destinatarios_avisos():
+    """Admin: lista usuários e empresas disponíveis para destinar avisos"""
+    try:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id, nome, email FROM usuarios WHERE ativo = true ORDER BY nome")
+            usuarios = [{'id': r['id'], 'nome': r['nome'], 'email': r['email']} for r in cur.fetchall()]
+            cur.execute("SELECT id, nome FROM empresas ORDER BY nome")
+            empresas = [{'id': r['id'], 'nome': r['nome']} for r in cur.fetchall()]
+            cur.close()
+        return jsonify({'success': True, 'usuarios': usuarios, 'empresas': empresas})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 if __name__ == '__main__':

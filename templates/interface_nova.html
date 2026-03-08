@@ -1656,6 +1656,23 @@
             «
         </button>
 
+        <!-- Sino de Notificações -->
+        <button id="notif-bell-btn" class="notif-bell-btn" onclick="toggleNotifPanel()" title="Notificações">
+            🔔
+            <span id="notif-badge" class="notif-badge" style="display:none;">0</span>
+        </button>
+
+        <!-- Painel de Notificações -->
+        <div id="notif-panel" class="notif-panel" style="display:none;">
+            <div class="notif-panel-header">
+                <span>🔔 Avisos</span>
+                <button onclick="marcarTodosLidos()" class="notif-btn-all" title="Marcar todos como lido">✅ Marcar todos</button>
+            </div>
+            <div id="notif-list" class="notif-list">
+                <div style="text-align:center;padding:30px;color:#94a3b8;font-size:14px;">Carregando...</div>
+            </div>
+        </div>
+
         <!-- Main Content -->
         <div class="main-content">
             <!-- Toast Container -->
@@ -7878,6 +7895,111 @@
         // Inicializar dados ao carregar a página
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 DOMContentLoaded: Página carregada, iniciando sistema...');
+
+            // ----------------------------------------------------------------
+            // SISTEMA DE NOTIFICAÇÕES
+            // ----------------------------------------------------------------
+            let _avisosCache = [];
+
+            async function carregarAvisos() {
+                try {
+                    const r = await fetch('/api/avisos', { credentials: 'same-origin' });
+                    if (!r.ok) return;
+                    const data = await r.json();
+                    if (!data.success) return;
+                    _avisosCache = data.avisos || [];
+                    renderNotifBadge();
+                    renderNotifList();
+                } catch(e) { /* silencioso */ }
+            }
+
+            function renderNotifBadge() {
+                const badge = document.getElementById('notif-badge');
+                if (!badge) return;
+                const total = _avisosCache.length;
+                if (total > 0) {
+                    badge.textContent = total > 99 ? '99+' : total;
+                    badge.style.display = 'flex';
+                    document.getElementById('notif-bell-btn').classList.add('notif-bell-active');
+                } else {
+                    badge.style.display = 'none';
+                    document.getElementById('notif-bell-btn').classList.remove('notif-bell-active');
+                }
+            }
+
+            function renderNotifList() {
+                const list = document.getElementById('notif-list');
+                if (!list) return;
+                if (_avisosCache.length === 0) {
+                    list.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:14px;">🎉 Nenhum aviso no momento</div>';
+                    return;
+                }
+                const tipoIcone = { info: 'ℹ️', warning: '⚠️', success: '✅', danger: '🚨' };
+                const tipoCor   = { info: '#3b82f6', warning: '#f59e0b', success: '#10b981', danger: '#ef4444' };
+                list.innerHTML = _avisosCache.map(a => `
+                    <div class="notif-item" style="border-left:4px solid ${tipoCor[a.tipo]||'#3b82f6'};">
+                        <div class="notif-item-header">
+                            <span>${tipoIcone[a.tipo]||'ℹ️'} <strong>${escapeHtml(a.titulo)}</strong></span>
+                            <button onclick="marcarAvisoLido(${a.id})" class="notif-btn-lido" title="Marcar como lido">✕</button>
+                        </div>
+                        <div class="notif-item-msg">${escapeHtml(a.mensagem)}</div>
+                        <div class="notif-item-date">${formatNotifDate(a.criado_em)}${a.expira_em ? ' · Expira: ' + formatNotifDate(a.expira_em) : ''}</div>
+                    </div>
+                `).join('');
+            }
+
+            function escapeHtml(s) {
+                if (!s) return '';
+                return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            }
+
+            function formatNotifDate(iso) {
+                if (!iso) return '';
+                try {
+                    const d = new Date(iso);
+                    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+                } catch { return iso; }
+            }
+
+            window.toggleNotifPanel = function() {
+                const panel = document.getElementById('notif-panel');
+                if (!panel) return;
+                const visible = panel.style.display !== 'none';
+                panel.style.display = visible ? 'none' : 'block';
+                if (!visible) carregarAvisos();
+            };
+
+            window.marcarAvisoLido = async function(avisoId) {
+                try {
+                    await fetch(`/api/avisos/${avisoId}/lido`, { method: 'POST', credentials: 'same-origin' });
+                    _avisosCache = _avisosCache.filter(a => a.id !== avisoId);
+                    renderNotifBadge();
+                    renderNotifList();
+                } catch(e) { /* silencioso */ }
+            };
+
+            window.marcarTodosLidos = async function() {
+                const ids = _avisosCache.map(a => a.id);
+                await Promise.all(ids.map(id =>
+                    fetch(`/api/avisos/${id}/lido`, { method: 'POST', credentials: 'same-origin' }).catch(()=>{})
+                ));
+                _avisosCache = [];
+                renderNotifBadge();
+                renderNotifList();
+            };
+
+            // Fechar painel ao clicar fora
+            document.addEventListener('click', function(e) {
+                const panel = document.getElementById('notif-panel');
+                const bell  = document.getElementById('notif-bell-btn');
+                if (panel && bell && !panel.contains(e.target) && !bell.contains(e.target)) {
+                    panel.style.display = 'none';
+                }
+            });
+
+            // Carregar na inicialização e a cada 60 segundos
+            setTimeout(carregarAvisos, 2000);
+            setInterval(carregarAvisos, 60000);
             
             // Verificar se toggleSubmenu está disponível
             console.log('🔍 Verificando função toggleSubmenu:', typeof toggleSubmenu);

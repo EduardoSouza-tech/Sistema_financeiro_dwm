@@ -297,6 +297,140 @@ body {
     background: #3498db;
 }
 
+/* Notification Bell */
+.notif-bell-btn {
+    position: fixed;
+    top: 15px;
+    right: 20px;
+    z-index: 1001;
+    background: #2c3e50;
+    color: white;
+    border: 2px solid #3498db;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.2s;
+}
+.notif-bell-btn:hover {
+    background: #3498db;
+    transform: scale(1.1);
+}
+.notif-bell-btn.notif-bell-active {
+    background: #e74c3c;
+    border-color: #e74c3c;
+    animation: notif-shake 0.5s ease-in-out;
+}
+@keyframes notif-shake {
+    0%,100% { transform: rotate(0deg); }
+    20%      { transform: rotate(-15deg); }
+    40%      { transform: rotate(15deg); }
+    60%      { transform: rotate(-10deg); }
+    80%      { transform: rotate(10deg); }
+}
+.notif-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #e74c3c;
+    color: white;
+    border-radius: 50%;
+    min-width: 18px;
+    height: 18px;
+    font-size: 10px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+    padding: 0 3px;
+}
+.notif-panel {
+    position: fixed;
+    top: 65px;
+    right: 20px;
+    z-index: 1002;
+    width: 380px;
+    max-height: 520px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.notif-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: #1e293b;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+.notif-btn-all {
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.2s;
+}
+.notif-btn-all:hover { background: rgba(255,255,255,0.3); }
+.notif-list {
+    overflow-y: auto;
+    flex: 1;
+}
+.notif-item {
+    padding: 12px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    background: white;
+    transition: background 0.15s;
+}
+.notif-item:hover { background: #f8fafc; }
+.notif-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: #1e293b;
+}
+.notif-item-msg {
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.5;
+    margin-bottom: 4px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.notif-item-date {
+    font-size: 11px;
+    color: #94a3b8;
+}
+.notif-btn-lido {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    font-size: 14px;
+    padding: 0 2px;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.notif-btn-lido:hover { color: #ef4444; }
+
 /* Main Content - TEMA CLARO PADRÃO */
 .main-content {
     flex: 1;
