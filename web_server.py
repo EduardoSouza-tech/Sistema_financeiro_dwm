@@ -21257,7 +21257,7 @@ def admin_criar_aviso():
             except Exception:
                 pass
 
-        criado_por_nome = usuario.get('nome') or usuario.get('username') or 'Admin'
+        criado_por_nome = usuario.get('nome_completo') or usuario.get('nome') or usuario.get('username') or 'Admin'
 
         with db.get_connection() as conn:
             cur = conn.cursor()
@@ -21299,10 +21299,10 @@ def admin_destinatarios_avisos():
     try:
         with db.get_connection() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT id, nome, email FROM usuarios WHERE ativo = true ORDER BY nome")
-            usuarios = [{'id': r['id'], 'nome': r['nome'], 'email': r['email']} for r in cur.fetchall()]
-            cur.execute("SELECT id, nome FROM empresas ORDER BY nome")
-            empresas = [{'id': r['id'], 'nome': r['nome']} for r in cur.fetchall()]
+            cur.execute("SELECT id, nome_completo, email FROM usuarios WHERE ativo = true ORDER BY nome_completo")
+            usuarios = [{'id': r['id'], 'nome': r['nome_completo'] or r['id'], 'email': r['email']} for r in cur.fetchall()]
+            cur.execute("SELECT id, razao_social FROM empresas ORDER BY razao_social")
+            empresas = [{'id': r['id'], 'nome': r['razao_social']} for r in cur.fetchall()]
             cur.close()
         return jsonify({'success': True, 'usuarios': usuarios, 'empresas': empresas})
     except Exception as e:
