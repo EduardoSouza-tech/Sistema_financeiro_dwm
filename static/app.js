@@ -5123,6 +5123,7 @@ async function loadContratos() {
                 <td><span style="font-size: 11px;">${escapeHtml(contrato.forma_pagamento || '-')}</span></td>
                 <td><span class="status-badge status-${contrato.status || 'ativo'}">${contrato.status || 'Ativo'}</span></td>
                 <td style="white-space: nowrap; text-align: center;">
+                    <button onclick="verHistoricoContrato(${contrato.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Histórico de Sessões">📋</button>
                     <button onclick="editarContrato(${contrato.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
                     <button onclick="excluirContrato(${contrato.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
                 </td>
@@ -5330,6 +5331,160 @@ async function editarContrato(id) {
     } catch (error) {
         console.error('❌ Erro ao editar contrato:', error);
         showToast('❌ Erro ao carregar dados do contrato: ' + error.message, 'error');
+    }
+}
+
+async function verHistoricoContrato(contratoId) {
+    try {
+        // Buscar contrato
+        const resContrato = await fetch(`/api/contratos/${contratoId}`);
+        if (!resContrato.ok) throw new Error('Erro ao buscar contrato');
+        const resContratoData = await resContrato.json();
+        const contrato = resContratoData.contrato || resContratoData;
+
+        // Buscar sessões e filtrar pelo contrato
+        const todasSessoes = await apiGet('/sessoes');
+        const sessoes = (Array.isArray(todasSessoes) ? todasSessoes : [])
+            .filter(s => s.contrato_id === contratoId);
+
+        const fmt = v => parseFloat(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const fmtData = d => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
+
+        const statusCor = {
+            agendada:     '#3498db',
+            em_andamento: '#f39c12',
+            finalizada:   '#27ae60',
+            concluida:    '#2ecc71',
+            cancelada:    '#e74c3c',
+            reaberta:     '#9b59b6',
+            rascunho:     '#95a5a6',
+        };
+        const statusLabel = {
+            agendada: 'Agendada', em_andamento: 'Em Andamento', finalizada: 'Finalizada',
+            concluida: 'Concluída', cancelada: 'Cancelada', reaberta: 'Reaberta', rascunho: 'Rascunho',
+        };
+
+        const horasTotais    = parseFloat(contrato.horas_totais    || 0);
+        const horasUtilizadas = parseFloat(contrato.horas_utilizadas || 0);
+        const horasRestantes  = parseFloat(contrato.horas_restantes  || 0);
+        const horasExtras     = parseFloat(contrato.horas_extras     || 0);
+        const percentual      = parseFloat(contrato.percentual_utilizado || 0);
+        const barColor        = percentual > 100 ? '#e74c3c' : percentual > 80 ? '#f39c12' : '#27ae60';
+
+        const sessoesHtml = sessoes.length === 0
+            ? '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px;">Nenhuma sessão vinculada a este contrato</td></tr>'
+            : sessoes.map(s => {
+                const cor = statusCor[s.status] || '#95a5a6';
+                const label = statusLabel[s.status] || s.status;
+                const custoEquipe = (s.equipe || []).reduce((acc, m) => acc + parseFloat(m.valor || 0), 0);
+                const custoEquip  = (s.equipamentos_alugados || []).reduce((acc, e) => acc + parseFloat(e.valor || 0), 0);
+                const custoAdicional = (s.custos_adicionais || []).reduce((acc, c) => acc + parseFloat(c.valor || 0), 0);
+                const custoTotal = custoEquipe + custoEquip + custoAdicional;
+                return `
+                <tr>
+                    <td style="font-size:12px;">${fmtData(s.data)}</td>
+                    <td style="font-size:12px;">${s.horario || '-'}</td>
+                    <td style="font-size:12px;">${s.quantidade_horas ? s.quantidade_horas + 'h' : '-'}</td>
+                    <td style="font-size:12px;">${s.endereco || '-'}</td>
+                    <td style="text-align:center;">
+                        <span style="background:${cor};color:white;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">${label}</span>
+                    </td>
+                    <td style="font-size:12px;color:${custoTotal > 0 ? '#e74c3c' : '#94a3b8'};">${custoTotal > 0 ? fmt(custoTotal) : '-'}</td>
+                    <td style="text-align:center;">
+                        <button onclick="editarSessao(${s.id})" style="background:none;border:none;cursor:pointer;font-size:14px;" title="Editar sessão">✏️</button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+        const html = `
+        <div style="font-family: sans-serif; max-width: 860px;">
+            <!-- Cabeçalho do contrato -->
+            <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <div style="font-size:13px;opacity:.7;margin-bottom:4px;">${contrato.numero || ''}</div>
+                        <div style="font-size:20px;font-weight:700;">${contrato.cliente_nome || contrato.nome || 'Contrato'}</div>
+                        <div style="font-size:13px;opacity:.8;margin-top:4px;">${contrato.tipo || ''} · ${contrato.forma_pagamento || ''}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:12px;opacity:.7;">Valor Total</div>
+                        <div style="font-size:22px;font-weight:700;color:#4ade80;">${fmt(contrato.valor || contrato.valor_total || 0)}</div>
+                        <div style="font-size:12px;opacity:.7;margin-top:4px;">${fmt(contrato.valor_mensal || 0)}/mês · ${contrato.quantidade_meses || 0} meses</div>
+                    </div>
+                </div>
+
+                ${contrato.controle_horas_ativo ? `
+                <!-- Controle de Horas -->
+                <div style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.2);">
+                    <div style="font-size:12px;opacity:.7;margin-bottom:10px;">⏱️ Controle de Horas</div>
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
+                        <div style="background:rgba(255,255,255,.1);padding:10px;border-radius:8px;text-align:center;">
+                            <div style="font-size:11px;opacity:.8;">Total</div>
+                            <div style="font-size:20px;font-weight:700;">${horasTotais.toFixed(1)}h</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,.1);padding:10px;border-radius:8px;text-align:center;">
+                            <div style="font-size:11px;opacity:.8;">Utilizadas</div>
+                            <div style="font-size:20px;font-weight:700;">${horasUtilizadas.toFixed(1)}h</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,.1);padding:10px;border-radius:8px;text-align:center;">
+                            <div style="font-size:11px;opacity:.8;">Restantes</div>
+                            <div style="font-size:20px;font-weight:700;color:${horasRestantes > 0 ? '#4ade80' : '#fbbf24'};">${horasRestantes.toFixed(1)}h</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,.1);padding:10px;border-radius:8px;text-align:center;">
+                            <div style="font-size:11px;opacity:.8;">Extras</div>
+                            <div style="font-size:20px;font-weight:700;color:${horasExtras > 0 ? '#f87171' : 'white'};">${horasExtras.toFixed(1)}h</div>
+                        </div>
+                    </div>
+                    <div style="background:rgba(255,255,255,.2);height:8px;border-radius:4px;overflow:hidden;">
+                        <div style="background:${barColor};height:100%;width:${Math.min(percentual, 100)}%;transition:width .3s;"></div>
+                    </div>
+                    <div style="font-size:11px;opacity:.7;text-align:right;margin-top:4px;">${percentual.toFixed(1)}% utilizado</div>
+                </div>` : ''}
+            </div>
+
+            <!-- Tabela de sessões -->
+            <div style="font-size:15px;font-weight:600;margin-bottom:12px;color:#1e293b;">
+                📷 Sessões vinculadas (${sessoes.length})
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                    <thead>
+                        <tr style="background:#f1f5f9;">
+                            <th style="padding:10px 8px;text-align:left;font-weight:600;color:#475569;">Data</th>
+                            <th style="padding:10px 8px;text-align:left;font-weight:600;color:#475569;">Horário</th>
+                            <th style="padding:10px 8px;text-align:left;font-weight:600;color:#475569;">Horas</th>
+                            <th style="padding:10px 8px;text-align:left;font-weight:600;color:#475569;">Local</th>
+                            <th style="padding:10px 8px;text-align:center;font-weight:600;color:#475569;">Status</th>
+                            <th style="padding:10px 8px;text-align:left;font-weight:600;color:#475569;">Custos</th>
+                            <th style="padding:10px 8px;text-align:center;font-weight:600;color:#475569;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sessoesHtml}
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+
+        // Abrir modal genérico
+        const modalContent = `<div class="modal-body" style="padding:20px;max-height:75vh;overflow-y:auto;">${html}</div>`;
+        if (typeof createModal === 'function') {
+            createModal(`📋 Histórico — ${contrato.numero || 'Contrato'}`, modalContent);
+        } else {
+            // Fallback: modal existente
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody  = document.getElementById('modal-body');
+            const modal      = document.getElementById('modal');
+            if (modal && modalTitle && modalBody) {
+                modalTitle.textContent = `📋 Histórico — ${contrato.numero || 'Contrato'}`;
+                modalBody.innerHTML = html;
+                modal.style.display = 'flex';
+            }
+        }
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar histórico do contrato:', error);
+        showToast('❌ Erro ao carregar histórico: ' + error.message, 'error');
     }
 }
 
@@ -6037,6 +6192,7 @@ window.excluirKit = excluirKit;
 // Funções de Contratos e Sessões
 window.editarContrato = editarContrato;
 window.excluirContrato = excluirContrato;
+window.verHistoricoContrato = verHistoricoContrato;
 window.editarSessao = editarSessao;
 window.excluirSessao = excluirSessao;
 window.showContratoTab = showContratoTab;
