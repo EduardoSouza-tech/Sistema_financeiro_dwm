@@ -7654,16 +7654,7 @@
                     }
                     
                     // 🆕 Filtrar menu baseado nas permissões do usuário
-                    console.log('🔐 Filtrando menu baseado nas permissões...');
                     filterMenuByPermissions(data.usuario);
-                    
-                    // Carregar permissões se necessário (app.js)
-                    if (typeof carregarPermissoesUsuario === 'function') {
-                        console.log('📋 Carregando permissões...');
-                        await carregarPermissoesUsuario();
-                    } else {
-                        console.warn('⚠️ Função carregarPermissoesUsuario não encontrada');
-                    }
                 } else {
                     console.error('❌ Usuário não autenticado');
                     // Não autenticado, redirecionar para login
