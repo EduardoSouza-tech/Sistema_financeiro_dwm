@@ -1,6 +1,10 @@
 """
 Google Calendar Helper
 Funções para integração com Google Calendar API
+
+Persistência de credenciais OAuth:
+  - Railway (produção): PostgreSQL (tabela google_calendar_credentials)
+  - Desenvolvimento local: config/google_credentials.json (fallback)
 """
 
 import os
@@ -12,8 +16,65 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import config
 
-# Arquivo para armazenar credenciais
+# Arquivo local (usado apenas em desenvolvimento, ignorado no Railway)
 CREDENTIALS_FILE = 'config/google_credentials.json'
+
+# ---------------------------------------------------------------
+# Helpers de persistência: DB primeiro, arquivo como fallback
+# ---------------------------------------------------------------
+
+def _save_credentials_db(creds_data: dict, empresa_id: int = 1):
+    """Salvar credenciais OAuth no PostgreSQL"""
+    try:
+        import database_postgresql as db
+        with db.get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO google_calendar_credentials (empresa_id, credentials_json, updated_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (empresa_id)
+                DO UPDATE SET credentials_json = EXCLUDED.credentials_json,
+                              updated_at = NOW()
+            """, (empresa_id, json.dumps(creds_data)))
+            conn.commit()
+            cur.close()
+        print("✅ [Google Calendar] Credenciais salvas no PostgreSQL")
+        return True
+    except Exception as e:
+        print(f"⚠️ [Google Calendar] Falha ao salvar no DB: {e}")
+        return False
+
+def _load_credentials_db(empresa_id: int = 1):
+    """Carregar credenciais OAuth do PostgreSQL"""
+    try:
+        import database_postgresql as db
+        with db.get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT credentials_json FROM google_calendar_credentials WHERE empresa_id = %s",
+                (empresa_id,)
+            )
+            row = cur.fetchone()
+            cur.close()
+        if row:
+            data = row['credentials_json'] if isinstance(row['credentials_json'], dict) else json.loads(row['credentials_json'])
+            print("✅ [Google Calendar] Credenciais carregadas do PostgreSQL")
+            return data
+    except Exception as e:
+        print(f"⚠️ [Google Calendar] Falha ao carregar do DB: {e}")
+    return None
+
+def _delete_credentials_db(empresa_id: int = 1):
+    """Remover credenciais do PostgreSQL"""
+    try:
+        import database_postgresql as db
+        with db.get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM google_calendar_credentials WHERE empresa_id = %s", (empresa_id,))
+            conn.commit()
+            cur.close()
+    except Exception as e:
+        print(f"⚠️ [Google Calendar] Falha ao remover credenciais: {e}")
 
 def ensure_config_dir():
     """Garantir que o diretório de configuração existe"""
@@ -46,12 +107,13 @@ def get_authorization_url():
     
     return authorization_url, state
 
-def exchange_code_for_tokens(code, state=None):
+def exchange_code_for_tokens(code, state=None, empresa_id: int = 1):
     """
     Trocar código de autorização por tokens de acesso
     Args:
         code: Código de autorização retornado pelo Google
         state: Estado da sessão (opcional)
+        empresa_id: ID da empresa (para isolamento multi-tenant)
     Returns: dict com tokens
     """
     flow = Flow.from_client_config(
@@ -75,35 +137,50 @@ def exchange_code_for_tokens(code, state=None):
     
     credentials = flow.credentials
     
-    # Salvar credenciais
     creds_data = {
         'token': credentials.token,
         'refresh_token': credentials.refresh_token,
         'token_uri': credentials.token_uri,
         'client_id': credentials.client_id,
         'client_secret': credentials.client_secret,
-        'scopes': credentials.scopes,
+        'scopes': list(credentials.scopes) if credentials.scopes else [],
         'expiry': credentials.expiry.isoformat() if credentials.expiry else None
     }
     
-    ensure_config_dir()
-    with open(CREDENTIALS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(creds_data, f, indent=2)
+    # 1. Salvar no PostgreSQL (Railway-safe)
+    if not _save_credentials_db(creds_data, empresa_id):
+        # 2. Fallback: arquivo local (desenvolvimento)
+        try:
+            ensure_config_dir()
+            with open(CREDENTIALS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(creds_data, f, indent=2)
+        except Exception as e:
+            print(f"⚠️ Também não salvou em arquivo: {e}")
     
     return creds_data
 
-def get_credentials():
+def get_credentials(empresa_id: int = 1):
     """
-    Obter credenciais salvas e renovar se necessário
+    Obter credenciais OAuth salvas e renovar se necessário.
+    Tenta PostgreSQL primeiro, fallback para arquivo local.
     Returns: Credentials object ou None
     """
-    if not os.path.exists(CREDENTIALS_FILE):
+    # 1. Tentar PostgreSQL (Railway-safe)
+    creds_data = _load_credentials_db(empresa_id)
+
+    # 2. Fallback para arquivo local (desenvolvimento)
+    if not creds_data:
+        if os.path.exists(CREDENTIALS_FILE):
+            try:
+                with open(CREDENTIALS_FILE, 'r', encoding='utf-8') as f:
+                    creds_data = json.load(f)
+            except Exception as e:
+                print(f"⚠️ Erro ao ler arquivo de credenciais: {e}")
+    
+    if not creds_data:
         return None
     
     try:
-        with open(CREDENTIALS_FILE, 'r', encoding='utf-8') as f:
-            creds_data = json.load(f)
-        
         credentials = Credentials(
             token=creds_data.get('token'),
             refresh_token=creds_data.get('refresh_token'),
@@ -113,16 +190,21 @@ def get_credentials():
             scopes=creds_data.get('scopes')
         )
         
-        # Verificar se o token expirou e renovar
+        # Renovar token se expirado
         if credentials.expired and credentials.refresh_token:
             from google.auth.transport.requests import Request
             credentials.refresh(Request())
             
-            # Salvar novo token
             creds_data['token'] = credentials.token
             creds_data['expiry'] = credentials.expiry.isoformat() if credentials.expiry else None
-            with open(CREDENTIALS_FILE, 'w', encoding='utf-8') as f:
-                json.dump(creds_data, f, indent=2)
+            # Persistir token renovado
+            if not _save_credentials_db(creds_data, empresa_id):
+                try:
+                    ensure_config_dir()
+                    with open(CREDENTIALS_FILE, 'w', encoding='utf-8') as f:
+                        json.dump(creds_data, f, indent=2)
+                except Exception:
+                    pass
         
         return credentials
     except Exception as e:

@@ -32,39 +32,73 @@ def ensure_config_dir():
     os.makedirs('config', exist_ok=True)
 
 def load_email_settings():
-    """Carregar configurações de e-mail"""
-    ensure_config_dir()
+    """
+    Carregar configurações de e-mail.
+    Prioridade: env vars (Railway) > config/email_settings.json > defaults
+    """
+    file_settings = {}
     try:
+        ensure_config_dir()
         if os.path.exists(CONFIG_FILE):
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    except:
+                file_settings = json.load(f)
+    except Exception:
         pass
-    
-    # Configurações padrão
+
+    smtp_host     = os.getenv('SMTP_HOST')      or file_settings.get('smtp_host', '')
+    smtp_port     = int(os.getenv('SMTP_PORT', 0)) or file_settings.get('smtp_port', 587)
+    smtp_user     = os.getenv('SMTP_USER')      or file_settings.get('smtp_user', '')
+    smtp_password = os.getenv('SMTP_PASSWORD')  or file_settings.get('smtp_password', '')
+    smtp_from     = os.getenv('SMTP_FROM_EMAIL') or file_settings.get('smtp_from_email', smtp_user)
+    smtp_name     = os.getenv('SMTP_FROM_NAME')  or file_settings.get('smtp_from_name', 'Sistema Financeiro DWM')
+    smtp_enabled  = bool(smtp_host and smtp_user and smtp_password)
+    if os.getenv('EMAIL_NOTIFICATIONS_ENABLED', '').lower() == 'false':
+        smtp_enabled = False
+
     return {
-        'notification_emails': [],
-        'google_calendar_enabled': False,
-        'google_calendar_id': None,
-        'google_credentials': None
+        'notification_emails': file_settings.get('notification_emails', []),
+        'google_calendar_enabled': file_settings.get('google_calendar_enabled', False),
+        'google_calendar_id': file_settings.get('google_calendar_id'),
+        'google_credentials': file_settings.get('google_credentials'),
+        'smtp_enabled': smtp_enabled,
+        'smtp_host': smtp_host,
+        'smtp_port': smtp_port,
+        'smtp_user': smtp_user,
+        'smtp_password': smtp_password,
+        'smtp_from_email': smtp_from,
+        'smtp_from_name': smtp_name,
     }
 
 def save_email_settings(settings):
-    """Salvar configurações de e-mail"""
-    ensure_config_dir()
-    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-        json.dump(settings, f, indent=2, ensure_ascii=False)
+    """Salvar configurações não-sensíveis em arquivo (emails, flags)"""
+    try:
+        ensure_config_dir()
+        # Salvar apenas campos não-sensíveis no arquivo
+        # Credenciais SMTP vêm das env vars no Railway
+        safe = {k: v for k, v in settings.items()
+                if k not in ('smtp_password',)}
+        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(safe, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"⚠️ Não foi possível salvar {CONFIG_FILE}: {e}")
 
 @agenda_bp.route('/email-settings', methods=['GET'])
 def get_email_settings():
     """Obter configurações de e-mail"""
     try:
         settings = load_email_settings()
-        # Não expor credenciais sensíveis
         safe_settings = {
             'notification_emails': settings.get('notification_emails', []),
             'google_calendar_enabled': settings.get('google_calendar_enabled', False),
             'google_calendar_id': settings.get('google_calendar_id'),
+            'smtp_enabled': settings.get('smtp_enabled', False),
+            'smtp_host': settings.get('smtp_host', ''),
+            'smtp_port': settings.get('smtp_port', 587),
+            'smtp_user': settings.get('smtp_user', ''),
+            'smtp_from_email': settings.get('smtp_from_email', ''),
+            'smtp_from_name': settings.get('smtp_from_name', ''),
+            # Indica se está configurado via variável de ambiente (Railway)
+            'smtp_via_env': bool(os.getenv('SMTP_HOST') and os.getenv('SMTP_USER') and os.getenv('SMTP_PASSWORD')),
         }
         return jsonify(safe_settings)
     except Exception as e:

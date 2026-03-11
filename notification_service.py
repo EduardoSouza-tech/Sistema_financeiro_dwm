@@ -17,24 +17,42 @@ from app.utils import google_calendar_helper
 CONFIG_FILE = 'config/email_settings.json'
 
 def load_email_settings():
-    """Carregar configurações de e-mail"""
+    """
+    Carregar configurações de e-mail.
+    Prioridade: env vars (Railway) > config/email_settings.json > defaults
+    """
+    # 1. Tentar carregar do arquivo local
+    file_settings = {}
     try:
         if os.path.exists(CONFIG_FILE):
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                file_settings = json.load(f)
     except Exception as e:
-        print(f"❌ Erro ao carregar configurações: {e}")
-    
+        print(f"⚠️ Não foi possível ler {CONFIG_FILE}: {e}")
+
+    # 2. Env vars do Railway têm PRIORIDADE sobre o arquivo
+    smtp_host     = os.getenv('SMTP_HOST')     or file_settings.get('smtp_host', '')
+    smtp_port     = int(os.getenv('SMTP_PORT', 0)) or file_settings.get('smtp_port', 587)
+    smtp_user     = os.getenv('SMTP_USER')     or file_settings.get('smtp_user', '')
+    smtp_password = os.getenv('SMTP_PASSWORD') or file_settings.get('smtp_password', '')
+    smtp_from     = os.getenv('SMTP_FROM_EMAIL') or file_settings.get('smtp_from_email', smtp_user)
+    smtp_name     = os.getenv('SMTP_FROM_NAME')  or file_settings.get('smtp_from_name', 'Sistema Financeiro DWM')
+
+    # SMTP habilitado se credenciais estiverem disponíveis (env var ou arquivo)
+    smtp_enabled = bool(smtp_host and smtp_user and smtp_password)
+    if os.getenv('EMAIL_NOTIFICATIONS_ENABLED', '').lower() == 'false':
+        smtp_enabled = False
+
     return {
-        'notification_emails': [],
-        'google_calendar_enabled': False,
-        'smtp_enabled': False,
-        'smtp_host': '',
-        'smtp_port': 587,
-        'smtp_user': '',
-        'smtp_password': '',
-        'smtp_from_email': '',
-        'smtp_from_name': 'Sistema Financeiro DWM'
+        'notification_emails': file_settings.get('notification_emails', []),
+        'google_calendar_enabled': file_settings.get('google_calendar_enabled', False),
+        'smtp_enabled': smtp_enabled,
+        'smtp_host': smtp_host,
+        'smtp_port': smtp_port,
+        'smtp_user': smtp_user,
+        'smtp_password': smtp_password,
+        'smtp_from_email': smtp_from,
+        'smtp_from_name': smtp_name,
     }
 
 def send_email_notification(recipients: List[str], subject: str, html_content: str, plain_content: str = None):

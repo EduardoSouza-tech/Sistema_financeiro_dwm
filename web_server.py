@@ -580,6 +580,23 @@ try:
     except Exception as e:
         print(f"⚠️ Aviso ao adicionar numero_nf em sessoes: {e}")
 
+    # Criar tabela para credenciais Google Calendar (Railway-safe — PostgreSQL ao invés de arquivo)
+    try:
+        with db.get_connection() as _conn_gc:
+            _cur_gc = _conn_gc.cursor()
+            _cur_gc.execute("""
+                CREATE TABLE IF NOT EXISTS google_calendar_credentials (
+                    empresa_id INTEGER PRIMARY KEY,
+                    credentials_json JSONB NOT NULL,
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            _conn_gc.commit()
+            _cur_gc.close()
+        print("✅ Tabela google_calendar_credentials verificada/criada!")
+    except Exception as e:
+        print(f"⚠️ Aviso ao criar google_calendar_credentials: {e}")
+
     # ?? Criar tabelas M�dulo Fiscal Federal
     try:
         print("\n?? Verificando tabelas do M�dulo Fiscal Federal...")
