@@ -565,9 +565,20 @@ try:
             """)
             _conn.commit()
             _cur.close()
-        print("? Tabela ofx_filtros_memo verificada/criada!")
+        print("✅ Tabela ofx_filtros_memo verificada/criada!")
     except Exception as e:
-        print(f"?? Aviso ao criar ofx_filtros_memo: {e}")
+        print(f"⚠️ Aviso ao criar ofx_filtros_memo: {e}")
+
+    # 🔒 MIGRATION CRÍTICA: numero_nf em sessoes (sempre executar)
+    try:
+        with db.get_connection() as _conn_nf:
+            _cur_nf = _conn_nf.cursor()
+            _cur_nf.execute("ALTER TABLE sessoes ADD COLUMN IF NOT EXISTS numero_nf TEXT")
+            _conn_nf.commit()
+            _cur_nf.close()
+        print("✅ Coluna numero_nf em sessoes verificada/criada!")
+    except Exception as e:
+        print(f"⚠️ Aviso ao adicionar numero_nf em sessoes: {e}")
 
     # ?? Criar tabelas M�dulo Fiscal Federal
     try:
