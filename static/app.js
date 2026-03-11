@@ -5461,14 +5461,14 @@ async function verHistoricoContrato(contratoId) {
             <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.06);">
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                     <thead>
-                        <tr style="background:linear-gradient(90deg,#1e3a5f,#1565c0);color:white;">
-                            <th style="padding:12px 10px;text-align:left;font-weight:600;font-size:12px;letter-spacing:.4px;">DATA</th>
-                            <th style="padding:12px 10px;text-align:left;font-weight:600;font-size:12px;letter-spacing:.4px;">HORÁRIO</th>
-                            <th style="padding:12px 10px;text-align:left;font-weight:600;font-size:12px;letter-spacing:.4px;">HORAS</th>
-                            <th style="padding:12px 10px;text-align:center;font-weight:600;font-size:12px;letter-spacing:.4px;">STATUS</th>
-                            <th style="padding:12px 10px;text-align:left;font-weight:600;font-size:12px;letter-spacing:.4px;">NF</th>
-                            <th style="padding:12px 10px;text-align:left;font-weight:600;font-size:12px;letter-spacing:.4px;">CUSTOS</th>
-                            <th style="padding:12px 10px;text-align:center;font-weight:600;font-size:12px;letter-spacing:.4px;">AÇÕES</th>
+                        <tr style="background:#dbeafe;">
+                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#1e40af;border-bottom:2px solid #93c5fd;">DATA</th>
+                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#1e40af;border-bottom:2px solid #93c5fd;">HORÁRIO</th>
+                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#1e40af;border-bottom:2px solid #93c5fd;">HORAS</th>
+                            <th style="padding:12px 10px;text-align:center;font-weight:700;font-size:12px;letter-spacing:.4px;color:#1e40af;border-bottom:2px solid #93c5fd;">STATUS</th>
+                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#1e40af;border-bottom:2px solid #93c5fd;">NF</th>
+                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#1e40af;border-bottom:2px solid #93c5fd;">CUSTOS</th>
+                            <th style="padding:12px 10px;text-align:center;font-weight:700;font-size:12px;letter-spacing:.4px;color:#1e40af;border-bottom:2px solid #93c5fd;">AÇÕES</th>
                         </tr>
                     </thead>
                     <tbody>
