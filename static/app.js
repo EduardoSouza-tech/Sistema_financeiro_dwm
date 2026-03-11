@@ -5372,7 +5372,7 @@ async function verHistoricoContrato(contratoId) {
         const barColor        = percentual > 100 ? '#e74c3c' : percentual > 80 ? '#f39c12' : '#27ae60';
 
         const sessoesHtml = sessoes.length === 0
-            ? `<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:32px;font-size:14px;">Nenhuma sessão vinculada a este contrato</td></tr>`
+            ? `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:32px;font-size:14px;">Nenhuma sessão vinculada a este contrato</td></tr>`
             : sessoes.map((s, i) => {
                 const cor = statusCor[s.status] || '#95a5a6';
                 const label = statusLabel[s.status] || s.status;
@@ -5386,7 +5386,6 @@ async function verHistoricoContrato(contratoId) {
                     <td style="padding:10px 10px;font-size:13px;color:#1e293b;font-weight:500;">${fmtData(s.data)}</td>
                     <td style="padding:10px 10px;font-size:13px;color:#374151;">${s.horario || '-'}</td>
                     <td style="padding:10px 10px;font-size:13px;color:#374151;font-weight:600;">${s.quantidade_horas ? s.quantidade_horas + 'h' : '-'}</td>
-                    <td style="padding:10px 10px;font-size:12px;color:#64748b;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.endereco || ''}">${s.endereco || '—'}</td>
                     <td style="padding:10px 10px;text-align:center;">
                         <span style="background:${cor};color:white;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px;white-space:nowrap;">${label}</span>
                     </td>
@@ -5466,7 +5465,6 @@ async function verHistoricoContrato(contratoId) {
                             <th style="padding:12px 10px;text-align:left;font-weight:600;font-size:12px;letter-spacing:.4px;">DATA</th>
                             <th style="padding:12px 10px;text-align:left;font-weight:600;font-size:12px;letter-spacing:.4px;">HORÁRIO</th>
                             <th style="padding:12px 10px;text-align:left;font-weight:600;font-size:12px;letter-spacing:.4px;">HORAS</th>
-                            <th style="padding:12px 10px;text-align:left;font-weight:600;font-size:12px;letter-spacing:.4px;">LOCAL</th>
                             <th style="padding:12px 10px;text-align:center;font-weight:600;font-size:12px;letter-spacing:.4px;">STATUS</th>
                             <th style="padding:12px 10px;text-align:left;font-weight:600;font-size:12px;letter-spacing:.4px;">NF</th>
                             <th style="padding:12px 10px;text-align:left;font-weight:600;font-size:12px;letter-spacing:.4px;">CUSTOS</th>
