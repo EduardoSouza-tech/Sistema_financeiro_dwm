@@ -3331,9 +3331,14 @@
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                                     <div>
                                         <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Fornecedor: <span style="color: red;">*</span></label>
-                                        <select id="fornecedor-select-fornecedor" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                            <option value="">Selecione...</option>
-                                        </select>
+                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                            <select id="fornecedor-select-fornecedor" required style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                <option value="">Selecione...</option>
+                                            </select>
+                                            <button type="button" onclick="openModalFornecedorRapido()" class="btn btn-sm" style="padding: 8px 12px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; min-width: 40px; height: 40px;" title="Cadastrar novo fornecedor">
+                                                ➕
+                                            </button>
+                                        </div>
                                     </div>
                                     <div>
                                         <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Categoria:</label>
@@ -10816,6 +10821,70 @@
         // ============================================================================
         // FUNÇÕES PARA GERENCIAR FORNECEDORES DO EVENTO
         // ============================================================================
+
+        // Abrir modal de cadastro rápido de fornecedor
+        async function openModalFornecedorRapido() {
+            // Abrir o modal de fornecedor normal
+            if (typeof openModalFornecedor === 'function') {
+                openModalFornecedor();
+                
+                // Adicionar listener para detectar quando o modal for fechado
+                // e recarregar o select de fornecedores
+                const modalObserver = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        // Verificar se o modal foi removido
+                        if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                            mutation.removedNodes.forEach((node) => {
+                                if (node.id === 'dynamic-modal') {
+                                    console.log('✅ Modal de fornecedor fechado - recarregando select');
+                                    recarregarSelectFornecedores();
+                                    modalObserver.disconnect();
+                                }
+                            });
+                        }
+                    });
+                });
+                
+                modalObserver.observe(document.body, { childList: true });
+            } else {
+                console.error('❌ Função openModalFornecedor não encontrada');
+                showToast('❌ Erro ao abrir formulário de cadastro', 'error');
+            }
+        }
+        
+        // Recarregar apenas o select de fornecedores (sem recarregar toda a lista)
+        async function recarregarSelectFornecedores() {
+            try {
+                const responseFornecedores = await fetch('/api/fornecedores?ativos=true', {
+                    credentials: 'include'
+                });
+                const resultFornecedores = await responseFornecedores.json();
+                
+                const selectFornecedor = document.getElementById('fornecedor-select-fornecedor');
+                const valorAtual = selectFornecedor.value; // Preservar seleção atual se houver
+                
+                selectFornecedor.innerHTML = '<option value="">Selecione...</option>';
+                
+                if (resultFornecedores.success && resultFornecedores.data) {
+                    resultFornecedores.data.forEach(fornecedor => {
+                        const option = document.createElement('option');
+                        option.value = fornecedor.id;
+                        option.textContent = fornecedor.nome || fornecedor.razao_social;
+                        selectFornecedor.appendChild(option);
+                    });
+                    
+                    // Selecionar o último fornecedor adicionado (mais recente)
+                    if (resultFornecedores.data.length > 0) {
+                        const ultimoFornecedor = resultFornecedores.data[resultFornecedores.data.length - 1];
+                        selectFornecedor.value = ultimoFornecedor.id;
+                    }
+                }
+                
+                console.log('✅ Select de fornecedores recarregado');
+            } catch (error) {
+                console.error('❌ Erro ao recarregar select:', error);
+            }
+        }
 
         async function carregarFornecedoresEvento() {
             const eventoId = document.getElementById('equipe-evento-id').value;

@@ -1331,29 +1331,33 @@ async function salvarCliente(event) {
     console.log('nomeOriginal do campo hidden:', nomeOriginal);
     console.log('Tamanho do nomeOriginal:', nomeOriginal.length);
     
+    // Limpar e validar CNPJ (máximo 18 caracteres)
+    const cnpjRaw = document.getElementById('cliente-cnpj').value.trim();
+    const cnpjLimpo = cnpjRaw.substring(0, 18); // Garantir máximo 18 caracteres
+    
     const data = {
-        nome: document.getElementById('cliente-razao').value,
-        razao_social: document.getElementById('cliente-razao').value,
-        nome_fantasia: document.getElementById('cliente-fantasia').value,
-        cnpj: document.getElementById('cliente-cnpj').value,
-        cpf_cnpj: document.getElementById('cliente-cnpj').value,
-        documento: document.getElementById('cliente-cnpj').value,
-        ie: document.getElementById('cliente-ie').value,
-        im: document.getElementById('cliente-im').value,
+        nome: document.getElementById('cliente-razao').value.trim(),
+        razao_social: document.getElementById('cliente-razao').value.trim(),
+        nome_fantasia: document.getElementById('cliente-fantasia').value.trim(),
+        cnpj: cnpjLimpo,
+        cpf_cnpj: cnpjLimpo,
+        documento: cnpjLimpo,
+        ie: document.getElementById('cliente-ie').value.trim(),
+        im: document.getElementById('cliente-im').value.trim(),
         // 🌐 PARTE 7: Campos estruturados de endereço
-        cep: document.getElementById('cliente-cep').value,
-        logradouro: document.getElementById('cliente-rua').value,
-        numero: document.getElementById('cliente-numero').value,
-        complemento: document.getElementById('cliente-complemento').value,
-        bairro: document.getElementById('cliente-bairro').value,
-        cidade: document.getElementById('cliente-cidade').value,
+        cep: document.getElementById('cliente-cep').value.trim(),
+        logradouro: document.getElementById('cliente-rua').value.trim(),
+        numero: document.getElementById('cliente-numero').value.trim(),
+        complemento: document.getElementById('cliente-complemento').value.trim(),
+        bairro: document.getElementById('cliente-bairro').value.trim(),
+        cidade: document.getElementById('cliente-cidade').value.trim(),
         estado: document.getElementById('cliente-estado').value,
         // Campos de contato
-        telefone: document.getElementById('cliente-telefone').value,
-        contato: document.getElementById('cliente-telefone').value,
-        email: document.getElementById('cliente-email').value.toLowerCase(),
+        telefone: document.getElementById('cliente-telefone').value.trim(),
+        contato: document.getElementById('cliente-telefone').value.trim(),
+        email: document.getElementById('cliente-email').value.toLowerCase().trim(),
         // Campo legado (para retrocompatibilidade)
-        endereco: `${document.getElementById('cliente-rua').value}, ${document.getElementById('cliente-numero').value}`,
+        endereco: `${document.getElementById('cliente-rua').value.trim()}, ${document.getElementById('cliente-numero').value.trim()}`,
         empresa_id: window.currentEmpresaId
     };
     
@@ -1582,25 +1586,29 @@ async function salvarFornecedor(event) {
     const isEdit = document.getElementById('fornecedor-edit-mode').value === 'true';
     const nomeOriginal = document.getElementById('fornecedor-nome-original').value;
     
+    // Limpar e validar CNPJ (máximo 18 caracteres)
+    const cnpjRaw = document.getElementById('fornecedor-cnpj').value.trim();
+    const cnpjLimpo = cnpjRaw.substring(0, 18); // Garantir máximo 18 caracteres
+    
     const data = {
-        nome: document.getElementById('fornecedor-razao').value,
-        razao_social: document.getElementById('fornecedor-razao').value,
-        nome_fantasia: document.getElementById('fornecedor-fantasia').value,
-        cnpj: document.getElementById('fornecedor-cnpj').value,
-        ie: document.getElementById('fornecedor-ie').value,
-        im: document.getElementById('fornecedor-im').value,
-        cep: document.getElementById('fornecedor-cep').value,
-        rua: document.getElementById('fornecedor-rua').value,
-        numero: document.getElementById('fornecedor-numero').value,
-        complemento: document.getElementById('fornecedor-complemento').value,
-        bairro: document.getElementById('fornecedor-bairro').value,
-        cidade: document.getElementById('fornecedor-cidade').value,
+        nome: document.getElementById('fornecedor-razao').value.trim(),
+        razao_social: document.getElementById('fornecedor-razao').value.trim(),
+        nome_fantasia: document.getElementById('fornecedor-fantasia').value.trim(),
+        cnpj: cnpjLimpo,
+        ie: document.getElementById('fornecedor-ie').value.trim(),
+        im: document.getElementById('fornecedor-im').value.trim(),
+        cep: document.getElementById('fornecedor-cep').value.trim(),
+        rua: document.getElementById('fornecedor-rua').value.trim(),
+        numero: document.getElementById('fornecedor-numero').value.trim(),
+        complemento: document.getElementById('fornecedor-complemento').value.trim(),
+        bairro: document.getElementById('fornecedor-bairro').value.trim(),
+        cidade: document.getElementById('fornecedor-cidade').value.trim(),
         estado: document.getElementById('fornecedor-estado').value,
-        telefone: document.getElementById('fornecedor-telefone').value,
-        contato: document.getElementById('fornecedor-telefone').value,
-        email: document.getElementById('fornecedor-email').value.toLowerCase(),
-        endereco: `${document.getElementById('fornecedor-rua').value}, ${document.getElementById('fornecedor-numero').value}`,
-        documento: document.getElementById('fornecedor-cnpj').value,
+        telefone: document.getElementById('fornecedor-telefone').value.trim(),
+        contato: document.getElementById('fornecedor-telefone').value.trim(),
+        email: document.getElementById('fornecedor-email').value.toLowerCase().trim(),
+        endereco: `${document.getElementById('fornecedor-rua').value.trim()}, ${document.getElementById('fornecedor-numero').value.trim()}`,
+        documento: cnpjLimpo,
         empresa_id: window.currentEmpresaId
     };
     
