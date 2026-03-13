@@ -8240,44 +8240,69 @@ window.fecharConciliacaoGeral = function() {
 };
 
 // Cadastro rápido de Fornecedor (débito) ou Cliente (crédito) direto da Conciliação Geral
-window.quickAddConciliacao = async function(transacaoId, tipo) {
-    const tipoLabel = tipo === 'cliente' ? 'Cliente' : 'Fornecedor';
-    const nome = prompt(`Nome do ${tipoLabel}:`, '');
-    if (!nome || !nome.trim()) return;
-
-    const cnpj = prompt(`CNPJ/CPF do ${tipoLabel} (opcional — Enter para pular):`, '');
-
-    const apiUrl = `${API_URL}/${tipo === 'cliente' ? 'clientes' : 'fornecedores'}`;
-    try {
-        const payload = { nome: nome.trim() };
-        if (cnpj && cnpj.trim()) payload.cpf_cnpj = cnpj.trim();
-
-        const resp = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const result = await resp.json();
-
-        if (!resp.ok || !result.success) {
-            showToast(result.error || `Erro ao cadastrar ${tipoLabel}`, 'error');
-            return;
-        }
-
-        // Adicionar nova opção ao select da linha e selecioná-la imediatamente
-        const select = document.getElementById(`razao-${transacaoId}`);
-        if (select) {
-            const opt = document.createElement('option');
-            opt.value = nome.trim();
-            opt.textContent = nome.trim();
-            select.appendChild(opt);
-            select.value = nome.trim();
-        }
-        showToast(`${tipoLabel} "${nome.trim()}" cadastrado com sucesso!`, 'success');
-    } catch (err) {
-        showToast('Erro de conexão', 'error');
+window.quickAddConciliacao = function(transacaoId, tipo) {
+    const abrirModal = tipo === 'cliente' ? window.openModalCliente : window.openModalFornecedor;
+    if (typeof abrirModal !== 'function') {
+        showToast('❌ Formulário de cadastro não disponível', 'error');
+        return;
     }
+
+    // Capturar os valores já presentes no select ANTES de abrir,
+    // para identificar com precisão o novo item após salvar
+    const selectAtual = document.getElementById(`razao-${transacaoId}`);
+    const valoresAntigos = selectAtual
+        ? new Set([...selectAtual.options].map(o => o.value).filter(Boolean))
+        : new Set();
+
+    abrirModal();
+
+    // Detectar quando o modal dinâmico for removido (fechado/salvo)
+    const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            for (const node of mutation.removedNodes) {
+                if (node.id === 'dynamic-modal') {
+                    observer.disconnect();
+                    _recarregarSelectConciliacao(transacaoId, tipo, valoresAntigos);
+                    return;
+                }
+            }
+        }
+    });
+    observer.observe(document.body, { childList: true });
 };
+
+async function _recarregarSelectConciliacao(transacaoId, tipo, valoresAntigos) {
+    const select = document.getElementById(`razao-${transacaoId}`);
+    if (!select) return;
+
+    const endpoint = tipo === 'cliente' ? 'clientes' : 'fornecedores';
+    const label    = tipo === 'cliente' ? 'Cliente'  : 'Fornecedor';
+    try {
+        const resp   = await fetch(`${API_URL}/${endpoint}`, { credentials: 'include' });
+        const result = await resp.json();
+        if (!result.success || !result.data) return;
+
+        select.innerHTML = `<option value="">Selecione ${label}...</option>`;
+        let novoValor = null;
+
+        result.data.forEach(item => {
+            const nome = item.razao_social || item.nome;
+            const opt  = document.createElement('option');
+            opt.value       = nome;
+            opt.textContent = nome;
+            select.appendChild(opt);
+            // O último item que não existia antes é o recém-cadastrado
+            if (!valoresAntigos.has(nome)) novoValor = nome;
+        });
+
+        if (novoValor) {
+            select.value = novoValor;
+            showToast(`✅ ${label} adicionado e selecionado!`, 'success');
+        }
+    } catch (err) {
+        console.error('❌ Erro ao recarregar select conciliação:', err);
+    }
+}
 
 // ============================================================================
 // MÓDULO NFS-e (Notas Fiscais de Serviço Eletrônica)
