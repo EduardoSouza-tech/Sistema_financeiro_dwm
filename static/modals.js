@@ -1887,137 +1887,133 @@ async function salvarTransferencia() {
 }
 
 // Buscar dados do CNPJ na API BrasilAPI
-async function buscarDadosCNPJ() {
-    const cnpjInput = document.getElementById('cliente-cnpj');
-    if (!cnpjInput) return;
-    
-    let cnpj = cnpjInput.value.replace(/\D/g, ''); // Remove caracteres não numéricos
-    
-    if (cnpj.length !== 14) {
-        console.log('CNPJ incompleto, aguardando...');
-        return;
-    }
-    
-    console.log('🔍 Buscando dados do CNPJ:', cnpj);
-    
-    // Criar elemento de loading
+// ─── Fallback CNPJ lookup (BrasilAPI → ReceitaWS → CNPJ.ws) ─────────────────
+async function _fetchCNPJComFallback(cnpj) {
+    // 1. BrasilAPI
+    try {
+        const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+        if (r.ok) {
+            const d = await r.json();
+            console.log('✅ BrasilAPI OK');
+            return d;
+        }
+    } catch (e) { console.warn('⚠️ BrasilAPI falhou:', e.message); }
+
+    // 2. ReceitaWS
+    try {
+        const r = await fetch(`https://receitaws.com.br/v1/cnpj/${cnpj}`);
+        if (r.ok) {
+            const d = await r.json();
+            if (d.status !== 'ERROR') {
+                console.log('✅ ReceitaWS OK');
+                return {
+                    razao_social:   d.nome,
+                    nome_fantasia:  d.fantasia,
+                    logradouro:     d.logradouro,
+                    numero:         d.numero,
+                    complemento:    d.complemento,
+                    bairro:         d.bairro,
+                    municipio:      d.municipio,
+                    uf:             d.uf,
+                    cep:            (d.cep || '').replace(/\D/g, ''),
+                    ddd_telefone_1: (d.telefone || '').replace(/\D/g, '').slice(0, 11),
+                    email:          d.email
+                };
+            }
+        }
+    } catch (e) { console.warn('⚠️ ReceitaWS falhou:', e.message); }
+
+    // 3. CNPJ.ws (publica)
+    try {
+        const r = await fetch(`https://publica.cnpj.ws/cnpj/${cnpj}`);
+        if (r.ok) {
+            const d = await r.json();
+            console.log('✅ CNPJ.ws OK');
+            const est = d.estabelecimento || {};
+            return {
+                razao_social:   d.razao_social,
+                nome_fantasia:  est.nome_fantasia,
+                logradouro:     est.logradouro,
+                numero:         est.numero,
+                complemento:    est.complemento,
+                bairro:         est.bairro,
+                municipio:      (est.cidade || {}).nome,
+                uf:             (est.estado || {}).sigla,
+                cep:            (est.cep || '').replace(/\D/g, ''),
+                ddd_telefone_1: est.ddd1 && est.telefone1 ? `${est.ddd1}${est.telefone1}` : '',
+                email:          est.email
+            };
+        }
+    } catch (e) { console.warn('⚠️ CNPJ.ws falhou:', e.message); }
+
+    throw new Error('Todas as APIs de CNPJ falharam');
+}
+
+function _cnpjMostrarLoading() {
     const loadingDiv = document.createElement('div');
     loadingDiv.id = 'cnpj-loading';
     loadingDiv.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
+        position: fixed; top: 50%; left: 50%;
         transform: translate(-50%, -50%);
-        background: white;
-        padding: 30px 40px;
-        border-radius: 12px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-        z-index: 10001;
-        text-align: center;
+        background: white; padding: 30px 40px;
+        border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        z-index: 10001; text-align: center;
     `;
     loadingDiv.innerHTML = `
-        <div style="display: inline-block; width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-        <p style="margin: 15px 0 0 0; color: #2c3e50; font-weight: 600; font-size: 15px;">🔍 Buscando dados do CNPJ...</p>
-        <p style="margin: 5px 0 0 0; color: #7f8c8d; font-size: 12px;">Aguarde, estamos consultando a Receita Federal</p>
-        <style>
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        </style>
+        <div style="display:inline-block;width:50px;height:50px;border:5px solid #f3f3f3;border-top:5px solid #667eea;border-radius:50%;animation:spin 1s linear infinite;"></div>
+        <p style="margin:15px 0 0 0;color:#2c3e50;font-weight:600;font-size:15px;">🔍 Buscando dados do CNPJ...</p>
+        <p style="margin:5px 0 0 0;color:#7f8c8d;font-size:12px;">Aguarde, consultando a Receita Federal</p>
+        <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
     `;
-    
-    // Adicionar backdrop
     const backdrop = document.createElement('div');
     backdrop.id = 'cnpj-backdrop';
-    backdrop.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        z-index: 10000;
-    `;
-    
+    backdrop.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;`;
     document.body.appendChild(backdrop);
     document.body.appendChild(loadingDiv);
-    
+}
+
+function _cnpjRemoverLoading() {
+    const ld = document.getElementById('cnpj-loading');
+    const bd = document.getElementById('cnpj-backdrop');
+    if (ld) ld.remove();
+    if (bd) bd.remove();
+}
+
+async function buscarDadosCNPJ() {
+    const cnpjInput = document.getElementById('cliente-cnpj');
+    if (!cnpjInput) return;
+
+    const cnpj = cnpjInput.value.replace(/\D/g, '');
+    if (cnpj.length !== 14) return;
+
+    console.log('🔍 Buscando CNPJ (Cliente):', cnpj);
+    _cnpjMostrarLoading();
+    cnpjInput.disabled = true;
+
     try {
-        // Desabilitar campo
-        cnpjInput.disabled = true;
-        
-        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-        
-        if (!response.ok) {
-            throw new Error('CNPJ não encontrado');
-        }
-        
-        const dados = await response.json();
+        const dados = await _fetchCNPJComFallback(cnpj);
         console.log('✅ Dados recebidos:', dados);
-        
-        // Preencher campos
-        if (dados.razao_social) {
-            document.getElementById('cliente-razao').value = dados.razao_social;
-        }
-        
-        if (dados.nome_fantasia) {
-            document.getElementById('cliente-fantasia').value = dados.nome_fantasia;
-        } else {
-            document.getElementById('cliente-fantasia').value = dados.razao_social; // Usar razão social se não tiver fantasia
-        }
-        
-        // Endereço
-        if (dados.cep) {
-            document.getElementById('cliente-cep').value = dados.cep.replace(/(\d{5})(\d{3})/, '$1-$2');
-        }
-        
-        if (dados.logradouro) {
-            document.getElementById('cliente-rua').value = dados.logradouro;
-        }
-        
-        if (dados.numero) {
-            document.getElementById('cliente-numero').value = dados.numero;
-        }
-        
-        if (dados.complemento) {
-            document.getElementById('cliente-complemento').value = dados.complemento;
-        }
-        
-        if (dados.bairro) {
-            document.getElementById('cliente-bairro').value = dados.bairro;
-        }
-        
-        if (dados.municipio) {
-            document.getElementById('cliente-cidade').value = dados.municipio;
-        }
-        
-        if (dados.uf) {
-            document.getElementById('cliente-estado').value = dados.uf;
-        }
-        
-        // Contatos
+
+        if (dados.razao_social) document.getElementById('cliente-razao').value = dados.razao_social;
+        document.getElementById('cliente-fantasia').value = dados.nome_fantasia || dados.razao_social || '';
+        if (dados.cep)         document.getElementById('cliente-cep').value = dados.cep.replace(/(\d{5})(\d{3})/, '$1-$2');
+        if (dados.logradouro)  document.getElementById('cliente-rua').value = dados.logradouro;
+        if (dados.numero)      document.getElementById('cliente-numero').value = dados.numero;
+        if (dados.complemento) document.getElementById('cliente-complemento').value = dados.complemento;
+        if (dados.bairro)      document.getElementById('cliente-bairro').value = dados.bairro;
+        if (dados.municipio)   document.getElementById('cliente-cidade').value = dados.municipio;
+        if (dados.uf)          document.getElementById('cliente-estado').value = dados.uf;
         if (dados.ddd_telefone_1) {
-            const tel = dados.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
-            document.getElementById('cliente-telefone').value = tel;
+            document.getElementById('cliente-telefone').value = dados.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
         }
-        
-        if (dados.email) {
-            document.getElementById('cliente-email').value = dados.email;
-        }
-        
+        if (dados.email)       document.getElementById('cliente-email').value = dados.email;
+
         showToast('✅ Dados do CNPJ carregados com sucesso!', 'success');
-        
     } catch (error) {
         console.error('❌ Erro ao buscar CNPJ:', error);
         showToast('⚠️ CNPJ não encontrado ou inválido', 'warning');
     } finally {
-        // Remover loading
-        const loadingDiv = document.getElementById('cnpj-loading');
-        const backdrop = document.getElementById('cnpj-backdrop');
-        if (loadingDiv) loadingDiv.remove();
-        if (backdrop) backdrop.remove();
-        
+        _cnpjRemoverLoading();
         cnpjInput.disabled = false;
     }
 }
@@ -2026,131 +2022,38 @@ async function buscarDadosCNPJ() {
 async function buscarDadosCNPJFornecedor() {
     const cnpjInput = document.getElementById('fornecedor-cnpj');
     if (!cnpjInput) return;
-    
-    let cnpj = cnpjInput.value.replace(/\D/g, '');
-    
-    if (cnpj.length !== 14) {
-        console.log('CNPJ incompleto, aguardando...');
-        return;
-    }
-    
-    console.log('🔍 Buscando dados do CNPJ (Fornecedor):', cnpj);
-    
-    // Criar elemento de loading
-    const loadingDiv = document.createElement('div');
-    loadingDiv.id = 'cnpj-loading';
-    loadingDiv.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: white;
-        padding: 30px 40px;
-        border-radius: 12px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-        z-index: 10001;
-        text-align: center;
-    `;
-    loadingDiv.innerHTML = `
-        <div style="display: inline-block; width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-        <p style="margin: 15px 0 0 0; color: #2c3e50; font-weight: 600; font-size: 15px;">🔍 Buscando dados do CNPJ...</p>
-        <p style="margin: 5px 0 0 0; color: #7f8c8d; font-size: 12px;">Aguarde, estamos consultando a Receita Federal</p>
-        <style>
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        </style>
-    `;
-    
-    const backdrop = document.createElement('div');
-    backdrop.id = 'cnpj-backdrop';
-    backdrop.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        z-index: 10000;
-    `;
-    
-    document.body.appendChild(backdrop);
-    document.body.appendChild(loadingDiv);
-    
+
+    const cnpj = cnpjInput.value.replace(/\D/g, '');
+    if (cnpj.length !== 14) return;
+
+    console.log('🔍 Buscando CNPJ (Fornecedor):', cnpj);
+    _cnpjMostrarLoading();
+    cnpjInput.disabled = true;
+
     try {
-        cnpjInput.disabled = true;
-        
-        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-        
-        if (!response.ok) {
-            throw new Error('CNPJ não encontrado');
-        }
-        
-        const dados = await response.json();
+        const dados = await _fetchCNPJComFallback(cnpj);
         console.log('✅ Dados recebidos:', dados);
-        
-        // Preencher campos
-        if (dados.razao_social) {
-            document.getElementById('fornecedor-razao').value = dados.razao_social;
-        }
-        
-        if (dados.nome_fantasia) {
-            document.getElementById('fornecedor-fantasia').value = dados.nome_fantasia;
-        } else {
-            document.getElementById('fornecedor-fantasia').value = dados.razao_social;
-        }
-        
-        // Endereço
-        if (dados.cep) {
-            document.getElementById('fornecedor-cep').value = dados.cep.replace(/(\d{5})(\d{3})/, '$1-$2');
-        }
-        
-        if (dados.logradouro) {
-            document.getElementById('fornecedor-rua').value = dados.logradouro;
-        }
-        
-        if (dados.numero) {
-            document.getElementById('fornecedor-numero').value = dados.numero;
-        }
-        
-        if (dados.complemento) {
-            document.getElementById('fornecedor-complemento').value = dados.complemento;
-        }
-        
-        if (dados.bairro) {
-            document.getElementById('fornecedor-bairro').value = dados.bairro;
-        }
-        
-        if (dados.municipio) {
-            document.getElementById('fornecedor-cidade').value = dados.municipio;
-        }
-        
-        if (dados.uf) {
-            document.getElementById('fornecedor-estado').value = dados.uf;
-        }
-        
-        // Contatos
+
+        if (dados.razao_social) document.getElementById('fornecedor-razao').value = dados.razao_social;
+        document.getElementById('fornecedor-fantasia').value = dados.nome_fantasia || dados.razao_social || '';
+        if (dados.cep)         document.getElementById('fornecedor-cep').value = dados.cep.replace(/(\d{5})(\d{3})/, '$1-$2');
+        if (dados.logradouro)  document.getElementById('fornecedor-rua').value = dados.logradouro;
+        if (dados.numero)      document.getElementById('fornecedor-numero').value = dados.numero;
+        if (dados.complemento) document.getElementById('fornecedor-complemento').value = dados.complemento;
+        if (dados.bairro)      document.getElementById('fornecedor-bairro').value = dados.bairro;
+        if (dados.municipio)   document.getElementById('fornecedor-cidade').value = dados.municipio;
+        if (dados.uf)          document.getElementById('fornecedor-estado').value = dados.uf;
         if (dados.ddd_telefone_1) {
-            const tel = dados.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
-            document.getElementById('fornecedor-telefone').value = tel;
+            document.getElementById('fornecedor-telefone').value = dados.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
         }
-        
-        if (dados.email) {
-            document.getElementById('fornecedor-email').value = dados.email;
-        }
-        
+        if (dados.email)       document.getElementById('fornecedor-email').value = dados.email;
+
         showToast('✅ Dados do CNPJ carregados com sucesso!', 'success');
-        
     } catch (error) {
         console.error('❌ Erro ao buscar CNPJ:', error);
         showToast('⚠️ CNPJ não encontrado ou inválido', 'warning');
     } finally {
-        const loadingDiv = document.getElementById('cnpj-loading');
-        const backdrop = document.getElementById('cnpj-backdrop');
-        if (loadingDiv) loadingDiv.remove();
-        if (backdrop) backdrop.remove();
-        
+        _cnpjRemoverLoading();
         cnpjInput.disabled = false;
     }
 }

@@ -7801,7 +7801,7 @@ window.abrirConciliacaoGeral = async function() {
                 </div>
             </div>
             
-            <div style="max-height: 500px; overflow-y: auto;" id="conciliacao-tabela-container">
+            <div style="max-height: calc(100vh - 300px); overflow-y: auto;" id="conciliacao-tabela-container">
                 <table class="data-table" style="width: 100%; border-collapse: collapse;">
                     <thead style="position: sticky; top: 0; background: #34495e; color: white; z-index: 1;">
                         <tr>
@@ -7810,7 +7810,7 @@ window.abrirConciliacaoGeral = async function() {
                             <th style="min-width: 200px;">Descrição Original</th>
                             <th style="width: 120px;">Valor</th>
                             <th style="width: 80px;">Tipo</th>
-                            <th style="width: 200px;">Razão Social</th>
+                            <th style="min-width: 280px;">Razão Social</th>
                             <th style="width: 200px;">Categoria</th>
                             <th style="width: 200px;">Subcategoria</th>
                             <th style="min-width: 250px;">📝 Descrição</th>
