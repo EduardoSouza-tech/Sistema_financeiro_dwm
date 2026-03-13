@@ -8256,6 +8256,12 @@ window.quickAddConciliacao = function(transacaoId, tipo) {
 
     abrirModal();
 
+    // O modal de conciliação tem z-index 10000 — elevar o dynamic-modal acima dele
+    const dynModal = document.getElementById('dynamic-modal');
+    if (dynModal) {
+        dynModal.style.zIndex = '20000';
+    }
+
     // Detectar quando o modal dinâmico for removido (fechado/salvo)
     const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
