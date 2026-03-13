@@ -7275,9 +7275,54 @@
                 }
             }
 
-            return originalFetch(url, options);
+            // 🔄 Sync cross-tab: broadcast mutações bem-sucedidas para outras abas
+            const _fetchPromise = originalFetch(url, options);
+            if (['POST', 'PUT', 'DELETE', 'PATCH'].includes((options.method || 'GET').toUpperCase())) {
+                _fetchPromise.then(resp => {
+                    if (resp.ok && window._dwmSyncChannel) {
+                        const _res = url.split('/').filter(Boolean)[1];
+                        if (_res && _res !== 'auth' && _res !== 'avisos') {
+                            window._dwmSyncChannel.postMessage({
+                                type: 'data-changed',
+                                resource: _res,
+                                empresa_id: window.currentEmpresaId
+                            });
+                        }
+                    }
+                }).catch(() => {});
+            }
+            return _fetchPromise;
         };
-        
+
+        // =============================================
+        // SINCRONIZAÇÃO EM TEMPO REAL ENTRE ABAS
+        // =============================================
+        // BroadcastChannel: quando qualquer aba salva dados, as demais recarregam
+        // automaticamente a seção correspondente sem precisar de refresh manual.
+        try {
+            window._dwmSyncChannel = new BroadcastChannel('dwm-data-sync');
+            const _tabReloaders = {
+                'clientes':     () => window.loadClientes?.(),
+                'fornecedores': () => window.loadFornecedores?.(),
+                'lancamentos':  () => { window.loadLancamentos?.(); window.loadContasReceber?.(); window.loadContasPagar?.(); },
+                'contas':       () => { window.loadContas?.(); window.loadContasBancarias?.(); },
+                'categorias':   () => window.loadCategorias?.(),
+                'contratos':    () => window.loadContratos?.(),
+                'funcionarios': () => window.loadFuncionariosRH?.(),
+            };
+            window._dwmSyncChannel.onmessage = function(ev) {
+                const { type, resource, empresa_id } = ev.data || {};
+                if (type !== 'data-changed') return;
+                // Ignorar se a mensagem veio de uma aba de outra empresa
+                if (empresa_id && window.currentEmpresaId && empresa_id !== window.currentEmpresaId) return;
+                console.log(`🔄 [Sync cross-tab] Atualização remota: ${resource}`);
+                (_tabReloaders[resource] || (() => {}))();
+            };
+            console.log('✅ Sync cross-tab inicializado (BroadcastChannel)');
+        } catch (_bcErr) {
+            console.warn('⚠️ BroadcastChannel indisponível:', _bcErr);
+        }
+
         // ====================================
         // GERENCIAMENTO DE USUÁRIOS (ADMIN)
         // ====================================

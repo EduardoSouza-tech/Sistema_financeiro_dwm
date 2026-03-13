@@ -2824,24 +2824,34 @@ class DatabaseManager:
             fornecedor_existente = cursor.fetchone()
             if fornecedor_existente:
                 cursor.close()
-                conn.close()
+                return_to_pool(conn)
                 raise ValueError(f"CPF/CNPJ {cpf_cnpj} já cadastrado para o fornecedor '{fornecedor_existente['nome']}'")
         
-        # ✅ INSERT usando APENAS as colunas que existem no schema
-        cursor.execute("""
-            INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco, empresa_id,
-                                      razao_social, nome_fantasia, cidade, estado, cep, logradouro,
-                                      numero, complemento, bairro, ie, im)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (nome, cpf_cnpj, email, telefone, endereco, empresa_id,
-              razao_social, nome_fantasia, cidade, estado, cep, logradouro,
-              numero, complemento, bairro, ie, im))
-        
-        fornecedor_id = cursor.fetchone()['id']
-        conn.commit()
-        
-        return fornecedor_id
+        try:
+            # ✅ INSERT usando APENAS as colunas que existem no schema
+            cursor.execute("""
+                INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco, empresa_id,
+                                          razao_social, nome_fantasia, cidade, estado, cep, logradouro,
+                                          numero, complemento, bairro, ie, im)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (nome, cpf_cnpj, email, telefone, endereco, empresa_id,
+                  razao_social, nome_fantasia, cidade, estado, cep, logradouro,
+                  numero, complemento, bairro, ie, im))
+            
+            fornecedor_id = cursor.fetchone()['id']
+            conn.commit()
+            cursor.close()
+            return_to_pool(conn)
+            return fornecedor_id
+        except Exception as _insert_err:
+            conn.rollback()
+            cursor.close()
+            return_to_pool(conn)
+            # Chave duplicada — CNPJ já existe (violação de constraint)
+            if hasattr(_insert_err, 'pgcode') and _insert_err.pgcode == '23505':
+                raise ValueError(f"CPF/CNPJ {cpf_cnpj or 'informado'} já está cadastrado no sistema")
+            raise
     
     def listar_fornecedores(self, ativos: bool = True, filtro_cliente_id: int = None) -> List[Dict]:
         """Lista todos os fornecedores com suporte a multi-tenancy

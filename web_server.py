@@ -597,6 +597,35 @@ try:
     except Exception as e:
         print(f"⚠️ Aviso ao criar google_calendar_credentials: {e}")
 
+    # Corrigir constraint CNPJ fornecedores: única por empresa (não global)
+    try:
+        with db.get_connection() as _conn_forn:
+            _cur_forn = _conn_forn.cursor()
+            _cur_forn.execute("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conname = 'fornecedores_cpf_cnpj_key' AND contype = 'u'
+                    ) THEN
+                        ALTER TABLE fornecedores DROP CONSTRAINT fornecedores_cpf_cnpj_key;
+                    END IF;
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conname = 'fornecedores_cpf_cnpj_empresa_key'
+                    ) THEN
+                        ALTER TABLE fornecedores ADD CONSTRAINT fornecedores_cpf_cnpj_empresa_key
+                            UNIQUE (cpf_cnpj, empresa_id);
+                    END IF;
+                END
+                $$;
+            """)
+            _conn_forn.commit()
+            _cur_forn.close()
+        print("✅ Constraint CNPJ fornecedores: única por empresa")
+    except Exception as e:
+        print(f"⚠️ Aviso constraint CNPJ fornecedores: {e}")
+
     # ?? Criar tabelas M�dulo Fiscal Federal
     try:
         print("\n?? Verificando tabelas do M�dulo Fiscal Federal...")

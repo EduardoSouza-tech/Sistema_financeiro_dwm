@@ -7855,13 +7855,18 @@ window.abrirConciliacaoGeral = async function() {
                         </span>
                     </td>
                     <td>
-                        <select id="razao-${t.id}"
-                                style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
-                            <option value="">Selecione ${isCredito ? 'Cliente' : 'Fornecedor'}...</option>
-                            ${(isCredito ? clientesOpcoes : fornecedoresOpcoes).map(p => 
-                                `<option value="${p.value}" ${p.value === razaoSugerida ? 'selected' : ''}>${p.label}</option>`
-                            ).join('')}
-                        </select>
+                        <div style="display:flex;gap:4px;align-items:center;">
+                            <select id="razao-${t.id}"
+                                    style="flex:1;min-width:0;padding:6px;border:1px solid #ddd;border-radius:4px;font-size:12px;">
+                                <option value="">Selecione ${isCredito ? 'Cliente' : 'Fornecedor'}...</option>
+                                ${(isCredito ? clientesOpcoes : fornecedoresOpcoes).map(p => 
+                                    `<option value="${p.value}" ${p.value === razaoSugerida ? 'selected' : ''}>${p.label}</option>`
+                                ).join('')}
+                            </select>
+                            <button onclick="quickAddConciliacao(${t.id},'${isCredito ? 'cliente' : 'fornecedor'}')"
+                                    title="Cadastrar ${isCredito ? 'Cliente' : 'Fornecedor'} rapidamente"
+                                    style="padding:4px 10px;background:#27ae60;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:16px;font-weight:bold;flex-shrink:0;">+</button>
+                        </div>
                     </td>
                     <td>
                         <select id="categoria-${t.id}" 
@@ -8232,6 +8237,46 @@ window.fecharConciliacaoGeral = function() {
     document.getElementById('modal-conciliacao-geral').style.display = 'none';
     window.transacoesConciliacao = null;
     window.categoriasConciliacao = null;
+};
+
+// Cadastro rápido de Fornecedor (débito) ou Cliente (crédito) direto da Conciliação Geral
+window.quickAddConciliacao = async function(transacaoId, tipo) {
+    const tipoLabel = tipo === 'cliente' ? 'Cliente' : 'Fornecedor';
+    const nome = prompt(`Nome do ${tipoLabel}:`, '');
+    if (!nome || !nome.trim()) return;
+
+    const cnpj = prompt(`CNPJ/CPF do ${tipoLabel} (opcional — Enter para pular):`, '');
+
+    const apiUrl = `${API_URL}/${tipo === 'cliente' ? 'clientes' : 'fornecedores'}`;
+    try {
+        const payload = { nome: nome.trim() };
+        if (cnpj && cnpj.trim()) payload.cpf_cnpj = cnpj.trim();
+
+        const resp = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await resp.json();
+
+        if (!resp.ok || !result.success) {
+            showToast(result.error || `Erro ao cadastrar ${tipoLabel}`, 'error');
+            return;
+        }
+
+        // Adicionar nova opção ao select da linha e selecioná-la imediatamente
+        const select = document.getElementById(`razao-${transacaoId}`);
+        if (select) {
+            const opt = document.createElement('option');
+            opt.value = nome.trim();
+            opt.textContent = nome.trim();
+            select.appendChild(opt);
+            select.value = nome.trim();
+        }
+        showToast(`${tipoLabel} "${nome.trim()}" cadastrado com sucesso!`, 'success');
+    } catch (err) {
+        showToast('Erro de conexão', 'error');
+    }
 };
 
 // ============================================================================
