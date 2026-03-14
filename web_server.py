@@ -20275,7 +20275,7 @@ def listar_documentos():
         data_fim = request.args.get('data_fim')
         tipo = request.args.get('tipo')  # NFe, CTe, Evento
         page = int(request.args.get('page', 1))
-        per_page = int(request.args.get('per_page', 50))
+        per_page = min(int(request.args.get('per_page', 500)), 1000)
         
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)

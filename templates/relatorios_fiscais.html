@@ -354,6 +354,11 @@
                             </div>
                         </div>
 
+                        <!-- Contagem -->
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small id="docContagem" class="text-muted"></small>
+                        </div>
+
                         <!-- Tabela -->
                         <div class="table-responsive">
                             <table class="table table-hover" id="tabelaDocumentos">
@@ -796,7 +801,7 @@
             const dataFim = $('#filtroDataFim').val();
             const tipo = $('#filtroTipo').val();
 
-            let url = '/api/relatorios/documentos?';
+            let url = '/api/relatorios/documentos?per_page=500&';
             if (dataInicio) url += `data_inicio=${dataInicio}&`;
             if (dataFim) url += `data_fim=${dataFim}&`;
             if (tipo) url += `tipo=${tipo}&`;
@@ -808,6 +813,10 @@
                 
                 if (response.success) {
                     const docs = response.documentos;
+                    const total = response.total || docs.length;
+                    $('#docContagem').text(docs.length < total
+                        ? `Exibindo ${docs.length} de ${total} documentos`
+                        : `${total} documento${total !== 1 ? 's' : ''}`);
                     let html = '';
 
                     if (docs.length === 0) {
