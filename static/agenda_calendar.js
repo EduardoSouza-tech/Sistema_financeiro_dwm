@@ -573,19 +573,28 @@ function toggleSmtpConfig(enabled) {
 async function testSmtpConnection() {
     try {
         showNotification('🧪 Testando conexão SMTP...', 'info');
-        
+
+        const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token') || '';
+        const empresaId = window.currentEmpresaId || '';
+
         const response = await fetch('/api/notifications/test', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-Token': getCsrfToken()
+                'X-CSRF-Token': getCsrfToken(),
+                ...(token    ? { 'Authorization': `Bearer ${token}` } : {}),
+                ...(empresaId ? { 'X-Empresa-ID': String(empresaId) }  : {})
             }
         });
-        
-        if (response.ok) {
-            showNotification('✅ E-mail de teste enviado! Verifique sua caixa de entrada.', 'success');
+
+        const data = await response.json().catch(() => ({}));
+
+        if (data.success) {
+            showNotification(data.message || '✅ E-mail enviado! Verifique sua caixa de entrada.', 'success');
         } else {
-            throw new Error('Falha no teste');
+            const msg = data.message || data.error || 'Falha ao enviar e-mail. Verifique as configurações.';
+            showNotification(`❌ ${msg}`, 'error');
+            if (data.log) console.warn('📋 Log do servidor:', data.log);
         }
     } catch (error) {
         console.error('❌ Erro ao testar SMTP:', error);

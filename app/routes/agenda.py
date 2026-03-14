@@ -138,20 +138,19 @@ def load_email_settings():
 
 def save_email_settings(settings):
     """
-    Salvar configurações não-sensíveis.
-    Primário: PostgreSQL (persiste no Railway).
-    Secundário: arquivo local (dev local / fallback).
+    Salvar configurações.
+    Primário: PostgreSQL (persiste no Railway) — inclui smtp_password.
+    Secundário: arquivo local (dev/fallback) — exclui smtp_password.
     """
-    safe = {k: v for k, v in settings.items() if k not in ('smtp_password',)}
+    # Salvar TUDO no banco, incluindo senha (dados do próprio usuário, tráfego HTTPS)
+    _save_to_db(settings)
 
-    # Salvar no banco (Railway-safe)
-    _save_to_db(safe)
-
-    # Também salvar em arquivo (compatibilidade local / dev)
+    # No arquivo local, excluir a senha (compatibilidade / segurança de disco)
+    safe_file = {k: v for k, v in settings.items() if k not in ('smtp_password',)}
     try:
         ensure_config_dir()
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-            json.dump(safe, f, indent=2, ensure_ascii=False)
+            json.dump(safe_file, f, indent=2, ensure_ascii=False)
     except Exception as e:
         print(f"⚠️ Não foi possível salvar {CONFIG_FILE}: {e}")
 
@@ -374,22 +373,84 @@ def google_calendar_status():
 @agenda_bp.route('/notifications/test', methods=['POST'])
 def test_notifications():
     """Testar envio de notificações (endpoint manual)"""
+    import io
+    import contextlib
+    import notification_service
+
+    empresa_id = session.get('empresa_id', 1)
+
+    # Capturar prints do serviço para incluir no retorno
+    log_buffer = io.StringIO()
     try:
-        empresa_id = session.get('empresa_id', 1)
-        
-        # Importar serviço de notificações
-        import notification_service
-        
-        # Executar verificação manual
-        notification_service.send_notification_batch(empresa_id)
-        
-        return jsonify({
-            'success': True,
-            'message': 'Notificações de teste enviadas. Verifique sua caixa de entrada.'
-        })
+        with contextlib.redirect_stdout(log_buffer):
+            notification_service.send_notification_batch(empresa_id)
+        log_output = log_buffer.getvalue()
+        print(log_output, end='')  # também mostrar no log do servidor
+
+        # Se nenhuma linha de sucesso no log, determinar causa
+        if '✅ E-mail enviado' in log_output:
+            return jsonify({
+                'success': True,
+                'message': 'E-mail enviado com sucesso! Verifique sua caixa de entrada.',
+                'log': log_output
+            })
+        elif '⚠️ SMTP não configurado' in log_output:
+            return jsonify({
+                'success': False,
+                'message': 'SMTP não configurado. Preencha host, usuário e senha SMTP nas configurações.',
+                'log': log_output
+            })
+        elif '⚠️ Nenhum e-mail configurado' in log_output:
+            return jsonify({
+                'success': False,
+                'message': 'Nenhum e-mail destinatário configurado. Adicione e-mails na aba Notificações.',
+                'log': log_output
+            })
+        elif '❌ Erro ao enviar e-mail' in log_output:
+            return jsonify({
+                'success': False,
+                'message': 'Erro ao enviar e-mail. Verifique as credenciais SMTP.',
+                'log': log_output
+            })
+        else:
+            # Sem sessões/contratos para notificar — testar envio direto
+            settings = load_email_settings()
+            recipients = settings.get('notification_emails', [])
+            if not recipients:
+                return jsonify({
+                    'success': False,
+                    'message': 'Nenhum e-mail destinatário configurado. Adicione e-mails na aba Notificações.',
+                    'log': log_output
+                })
+            if not settings.get('smtp_enabled'):
+                return jsonify({
+                    'success': False,
+                    'message': 'SMTP não configurado. Preencha host, usuário e senha SMTP nas configurações.',
+                    'log': log_output
+                })
+            # Enviar e-mail de teste direto (sem dados de agenda, só para confirmar SMTP)
+            sent = notification_service.send_email_notification(
+                recipients,
+                '✅ Teste de Notificação — Sistema Financeiro DWM',
+                '<p>Este é um e-mail de teste enviado pelo Sistema Financeiro DWM.</p>'
+                '<p>Se você recebeu este e-mail, as notificações estão configuradas corretamente!</p>',
+                'Teste de notificação — Sistema Financeiro DWM.'
+            )
+            if sent:
+                return jsonify({
+                    'success': True,
+                    'message': f'E-mail de teste enviado para {len(recipients)} destinatário(s)! Verifique sua caixa de entrada.',
+                    'log': log_output
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Falha ao enviar e-mail. Verifique as credenciais SMTP.',
+                    'log': log_output
+                })
     except Exception as e:
         print(f"❌ Erro ao testar notificações: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @agenda_bp.route('/notifications/settings', methods=['GET', 'POST'])
 def notification_settings():
