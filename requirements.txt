@@ -31,9 +31,9 @@ google-api-python-client==2.116.0
 cryptography==42.0.0
 
 # PDF Generation
-fpdf2==2.8.1  # DANFSE
-reportlab==4.0.9  # DRE e relatórios contábeis
-brazilfiscalreport  # DANFE (NF-e) e DACTE (CT-e)
+fpdf2>=2.8.3  # DANFSE (brazilfiscalreport 0.6.x requer >=2.8.3)
+reportlab>=4.0.9  # DRE e relatórios contábeis
+brazilfiscalreport==0.6.3  # DANFE (NF-e) e DACTE (CT-e)
 
 # NFS-e SOAP (certificado A1)
 requests-pkcs12==1.24
