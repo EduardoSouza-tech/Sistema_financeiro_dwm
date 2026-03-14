@@ -20712,13 +20712,13 @@ def reparar_numeros_documentos():
 
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor()
-            # chave NF-e: pos 24-27 = série (3 dig), pos 27-36 = nNF (9 dig)
-            # SUBSTRING é 1-based no PostgreSQL
+            # Estrutura chave NF-e (0-based): serie[22:25], nNF[25:34]
+            # SUBSTRING é 1-based no PostgreSQL → FROM 23 e FROM 26
             cursor.execute("""
                 UPDATE documentos_fiscais_log
                 SET
-                    numero_documento = LTRIM(SUBSTRING(chave FROM 28 FOR 9), '0'),
-                    serie            = LTRIM(SUBSTRING(chave FROM 25 FOR 3), '0')
+                    numero_documento = LTRIM(SUBSTRING(chave FROM 26 FOR 9), '0'),
+                    serie            = LTRIM(SUBSTRING(chave FROM 23 FOR 3), '0')
                 WHERE empresa_id = %s
                   AND (numero_documento IS NULL OR numero_documento = '')
                   AND chave IS NOT NULL
