@@ -317,7 +317,10 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span>Documentos Fiscais</span>
-                        <div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="repararNumeros()" title="Preenche Número e Série a partir da chave de acesso">
+                                <i class="bi bi-wrench"></i> Reparar Números
+                            </button>
                             <button class="btn btn-success btn-sm" onclick="exportarExcel()">
                                 <i class="bi bi-file-earmark-excel"></i> Exportar Excel
                             </button>
@@ -888,6 +891,26 @@
                 error: function() {
                     hideLoading();
                     showToast('Erro ao exportar Excel', 'error');
+                }
+            });
+        }
+
+        // ===== REPARAR NÚMEROS =====
+        function repararNumeros() {
+            if (!confirm('Preencher Número e Série dos documentos que estão sem essas informações?')) return;
+            $.ajax({
+                url: '/api/relatorios/documentos/reparar-numeros',
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        showToast(`${response.atualizados} registros atualizados!`);
+                        carregarDocumentos();
+                    } else {
+                        showToast('Erro: ' + response.error, 'error');
+                    }
+                },
+                error: function() {
+                    showToast('Erro ao reparar números', 'error');
                 }
             });
         }

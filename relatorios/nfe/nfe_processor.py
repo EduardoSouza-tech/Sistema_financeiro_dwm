@@ -446,7 +446,12 @@ def _extrair_resnfe(root: etree._Element, cnpj_empresa: str) -> Dict[str, any]:
         # Situação
         situacao_elem = root.find('nfe:cSitNFe', ns)
         situacao = 'Autorizada' if situacao_elem is not None and situacao_elem.text == '1' else 'Cancelada'
-        
+
+        # Número e série: extraídos da chave de acesso (não existem no XML resumo)
+        # Chave: cUF(2)+AAMM(6)+CNPJ(14)+Modelo(2)+Serie(3)+nNF(9)+...
+        numero = str(int(chave[27:36])) if chave and len(chave) == 44 else None
+        serie  = str(int(chave[24:27])) if chave and len(chave) == 44 else None
+
         # Protocolo
         numero_protocolo = root.find('nfe:nProt', ns).text if root.find('nfe:nProt', ns) is not None else None
         
@@ -467,6 +472,10 @@ def _extrair_resnfe(root: etree._Element, cnpj_empresa: str) -> Dict[str, any]:
             # Destinatário (não disponível no resumo)
             'cnpj_destinatario': None,
             'nome_destinatario': None,
+            
+            # Número e série (extraídos da chave)
+            'numero': numero,
+            'serie':  serie,
             
             # Valores (limitados)
             'valor_total': valor_total,
