@@ -821,7 +821,18 @@ def manifestar_ciencia_operacao(certificado: CertificadoA1, chave: str,
         response = sess.post(url, data=soap_body.encode('utf-8'), headers=headers, timeout=60)
 
         if response.status_code != 200:
-            return {'sucesso': False, 'erro': f'Erro HTTP {response.status_code} ao manifestar'}
+            # 404 normalmente indica que a NF-e já foi manifestada anteriormente
+            # ou que o SEFAZ nacional não encontrou o documento para re-manifestar.
+            # Tratamos como "já manifestado" para que o fluxo tente baixar o procNFe.
+            ja_manifestado = response.status_code in (404, 400)
+            return {
+                'sucesso': ja_manifestado,
+                'ja_manifestado': ja_manifestado,
+                'codigo_sefaz': '?',
+                'mensagem': 'Documento ja manifestado ou nao requer nova manifestacao',
+                'protocolo': '',
+                'erro': f'Erro HTTP {response.status_code} ao manifestar',
+            }
 
         # Parse da resposta
         resp_root = etree.fromstring(response.content)

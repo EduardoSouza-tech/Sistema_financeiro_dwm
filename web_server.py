@@ -20587,42 +20587,36 @@ def download_pdf_documento(doc_id):
                         import re as _re2
                         cnpj_dest = _re2.sub(r'\D', '', raw_cnpj)
 
-                # 1. Manifesta Ciência da Operação
+                # 1. Tenta manifestar Ciência da Operação
                 logger.info(f"[PDF] Manifestando Ciencia da Operacao: chave={chave} cnpj={cnpj_dest} amb={cert_ambiente}")
                 manif = nfe_busca.manifestar_ciencia_operacao(cert_pdf, chave, cnpj_dest, cert_ambiente)
                 logger.info(f"[PDF] Manifestacao result: {manif}")
 
-                if not manif.get('sucesso'):
-                    return jsonify({
-                        'success': False,
-                        'error': (
-                            f'Falha ao manifestar NF-e (cStat={manif.get("codigo_sefaz","?")}: '
-                            f'{manif.get("mensagem") or manif.get("erro","?")}). '
-                            'Tente re-sincronizar em "Buscar Documentos".'
-                        )
-                    }), 422
+                if manif.get('sucesso'):
+                    # Manifestação OK — aguarda SEFAZ e baixa procNFe
+                    import time as _time
+                    _time.sleep(5)
 
-                # 2. Aguarda processamento no SEFAZ
-                import time as _time
-                _time.sleep(5)
-
-                # 3. Baixa procNFe completo
+                # 2. Baixa procNFe completo (seja após manifestar ou direto se já manifestado)
                 logger.info(f"[PDF] Baixando procNFe: chave={chave}")
                 down = nfe_busca.baixar_procnfe_completo(cert_pdf, chave, cert_ambiente)
                 logger.info(f"[PDF] Download procNFe: sucesso={down.get('sucesso')} erro={down.get('erro','')}")
 
                 if not down.get('sucesso'):
+                    # Informa o motivo original da manifestação se disponível
+                    motivo_manif = manif.get('mensagem') or manif.get('erro', '?')
                     return jsonify({
                         'success': False,
                         'error': (
-                            f'Falha ao baixar NF-e completa: {down.get("erro","?")}. '
+                            f'Falha ao obter NF-e completa. Manifestacao: {motivo_manif}. '
+                            f'Download: {down.get("erro","?")}. '
                             'Tente re-sincronizar em "Buscar Documentos".'
                         )
                     }), 422
 
                 xml_bytes = down['xml_bytes']
 
-                # 4. Persiste procNFe no banco para próximas consultas
+                # 3. Persiste procNFe no banco para próximas consultas
                 try:
                     xml_str_save = xml_bytes.decode('utf-8') if isinstance(xml_bytes, bytes) else xml_bytes
                     with get_db_connection(empresa_id=empresa_id) as _cs:
