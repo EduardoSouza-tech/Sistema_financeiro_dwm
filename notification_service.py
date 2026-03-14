@@ -4,7 +4,9 @@ Envia alertas sobre contratos e sessões via e-mail e Google Calendar
 """
 
 import os
+import json
 import smtplib
+import urllib.request
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
@@ -43,55 +45,91 @@ def load_email_settings():
             'smtp_from_name': smtp_name,
         }
 
+def _send_via_resend(recipients: List[str], subject: str, html_content: str,
+                     plain_content: str, from_email: str, from_name: str) -> bool:
+    """
+    Envia e-mail via Resend HTTP API (porta 443 — nunca bloqueada pelo Railway).
+    Requer env var RESEND_API_KEY.
+    """
+    api_key = os.getenv('RESEND_API_KEY', '')
+    if not api_key:
+        return False
+
+    payload = json.dumps({
+        'from': f'{from_name} <{from_email}>',
+        'to': recipients,
+        'subject': subject,
+        'html': html_content,
+        **(({'text': plain_content}) if plain_content else {}),
+    }).encode('utf-8')
+
+    req = urllib.request.Request(
+        'https://api.resend.com/emails',
+        data=payload,
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+        },
+        method='POST',
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            status = resp.status
+            if status in (200, 201):
+                print(f"✅ E-mail enviado via Resend para {len(recipients)} destinatário(s)")
+                return True
+            body = resp.read().decode()
+            print(f"❌ Resend retornou status {status}: {body}")
+            return False
+    except Exception as e:
+        print(f"❌ Erro ao enviar via Resend: {e}")
+        return False
+
+
 def send_email_notification(recipients: List[str], subject: str, html_content: str, plain_content: str = None):
     """
-    Enviar notificação por e-mail
-    Args:
-        recipients: Lista de e-mails destinatários
-        subject: Assunto do e-mail
-        html_content: Conteúdo em HTML
-        plain_content: Conteúdo em texto simples (opcional)
-    Returns:
-        bool: True se enviado com sucesso
+    Enviar notificação por e-mail.
+    Estratégia:
+      1. Se RESEND_API_KEY estiver configurada → usa Resend (HTTPS, Railway-safe)
+      2. Caso contrário → tenta SMTP (porta 587/465, pode ser bloqueada em alguns PaaS)
     """
-    settings = load_email_settings()
-    
-    if not settings.get('smtp_enabled'):
-        print("⚠️ SMTP não configurado")
-        return False
-    
     if not recipients:
         print("⚠️ Nenhum destinatário especificado")
         return False
-    
+
+    settings = load_email_settings()
+    from_email = settings.get('smtp_from_email', '')
+    from_name  = settings.get('smtp_from_name', 'Sistema Financeiro DWM')
+
+    # -- Tentativa 1: Resend (HTTPS) --
+    if os.getenv('RESEND_API_KEY'):
+        return _send_via_resend(recipients, subject, html_content,
+                                plain_content or '', from_email, from_name)
+
+    # -- Tentativa 2: SMTP direto --
+    if not settings.get('smtp_enabled'):
+        print("⚠️ SMTP não configurado e RESEND_API_KEY não definida")
+        return False
+
     try:
-        # Criar mensagem
         msg = MIMEMultipart('alternative')
-        msg['From'] = f"{settings['smtp_from_name']} <{settings['smtp_from_email']}>"
-        msg['To'] = ', '.join(recipients)
+        msg['From']    = f"{from_name} <{from_email}>"
+        msg['To']      = ', '.join(recipients)
         msg['Subject'] = subject
-        
-        # Adicionar texto simples
+
         if plain_content:
-            part1 = MIMEText(plain_content, 'plain', 'utf-8')
-            msg.attach(part1)
-        
-        # Adicionar HTML
-        part2 = MIMEText(html_content, 'html', 'utf-8')
-        msg.attach(part2)
-        
-        # Conectar ao servidor SMTP
+            msg.attach(MIMEText(plain_content, 'plain', 'utf-8'))
+        msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+
         server = smtplib.SMTP(settings['smtp_host'], settings['smtp_port'])
         server.starttls()
         server.login(settings['smtp_user'], settings['smtp_password'])
-        
-        # Enviar
         server.send_message(msg)
         server.quit()
-        
-        print(f"✅ E-mail enviado para {len(recipients)} destinatário(s)")
+
+        print(f"✅ E-mail enviado via SMTP para {len(recipients)} destinatário(s)")
         return True
-    
+
     except Exception as e:
         print(f"❌ Erro ao enviar e-mail: {e}")
         return False
