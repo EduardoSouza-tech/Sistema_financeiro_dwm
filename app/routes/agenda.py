@@ -65,8 +65,8 @@ def _load_from_db():
                 "SELECT valor FROM config_sistema WHERE chave = 'agenda_email_settings'"
             )
             row = cur.fetchone()
-            if row and row[0]:
-                return json.loads(row[0])
+            if row and row['valor']:
+                return json.loads(row['valor'])
     except Exception as e:
         print(f"⚠️ Não foi possível carregar config do banco: {e}")
     return {}
