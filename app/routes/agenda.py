@@ -24,18 +24,80 @@ except ImportError:
 
 agenda_bp = Blueprint('agenda', __name__, url_prefix='/api')
 
-# Arquivo para armazenar configurações
+# Arquivo para armazenar configurações (fallback local / dev)
 CONFIG_FILE = 'config/email_settings.json'
+
+_CONFIG_TABLE_ENSURED = False
 
 def ensure_config_dir():
     """Garantir que o diretório de configuração existe"""
     os.makedirs('config', exist_ok=True)
 
+# ---------------------------------------------------------------------------
+# Helpers de persistência no PostgreSQL
+# ---------------------------------------------------------------------------
+
+def _ensure_config_table(cur):
+    """Cria a tabela config_sistema se ainda não existir (idempotente)."""
+    global _CONFIG_TABLE_ENSURED
+    if _CONFIG_TABLE_ENSURED:
+        return
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS config_sistema (
+            chave TEXT PRIMARY KEY,
+            valor TEXT,
+            atualizado_em TIMESTAMP DEFAULT NOW()
+        )
+    """)
+    _CONFIG_TABLE_ENSURED = True
+
+def _load_from_db():
+    """
+    Carrega as configurações de e-mail/agenda salvas no PostgreSQL.
+    Retorna dict vazio em caso de erro (não interrompe startup).
+    """
+    try:
+        from database_postgresql import get_db_connection
+        with get_db_connection(allow_global=True) as conn:
+            cur = conn.cursor()
+            _ensure_config_table(cur)
+            cur.execute(
+                "SELECT valor FROM config_sistema WHERE chave = 'agenda_email_settings'"
+            )
+            row = cur.fetchone()
+            if row and row[0]:
+                return json.loads(row[0])
+    except Exception as e:
+        print(f"⚠️ Não foi possível carregar config do banco: {e}")
+    return {}
+
+def _save_to_db(settings):
+    """
+    Persiste as configurações no PostgreSQL (sobrevive a redeploys no Railway).
+    """
+    try:
+        from database_postgresql import get_db_connection
+        value = json.dumps(settings, ensure_ascii=False)
+        with get_db_connection(allow_global=True) as conn:
+            cur = conn.cursor()
+            _ensure_config_table(cur)
+            cur.execute("""
+                INSERT INTO config_sistema (chave, valor, atualizado_em)
+                VALUES ('agenda_email_settings', %s, NOW())
+                ON CONFLICT (chave) DO UPDATE
+                    SET valor = EXCLUDED.valor, atualizado_em = NOW()
+            """, (value,))
+    except Exception as e:
+        print(f"⚠️ Não foi possível salvar config no banco: {e}")
+
+# ---------------------------------------------------------------------------
+
 def load_email_settings():
     """
     Carregar configurações de e-mail.
-    Prioridade: env vars (Railway) > config/email_settings.json > defaults
+    Prioridade: env vars (Railway) > PostgreSQL > config/email_settings.json > defaults
     """
+    # 1. Tentar arquivo local (fallback / dev local)
     file_settings = {}
     try:
         ensure_config_dir()
@@ -44,6 +106,11 @@ def load_email_settings():
                 file_settings = json.load(f)
     except Exception:
         pass
+
+    # 2. DB sobrescreve o arquivo (persiste no Railway após redeploys)
+    db_settings = _load_from_db()
+    if db_settings:
+        file_settings.update(db_settings)
 
     smtp_host     = os.getenv('SMTP_HOST')      or file_settings.get('smtp_host', '')
     smtp_port     = int(os.getenv('SMTP_PORT', 0)) or file_settings.get('smtp_port', 587)
@@ -70,13 +137,19 @@ def load_email_settings():
     }
 
 def save_email_settings(settings):
-    """Salvar configurações não-sensíveis em arquivo (emails, flags)"""
+    """
+    Salvar configurações não-sensíveis.
+    Primário: PostgreSQL (persiste no Railway).
+    Secundário: arquivo local (dev local / fallback).
+    """
+    safe = {k: v for k, v in settings.items() if k not in ('smtp_password',)}
+
+    # Salvar no banco (Railway-safe)
+    _save_to_db(safe)
+
+    # Também salvar em arquivo (compatibilidade local / dev)
     try:
         ensure_config_dir()
-        # Salvar apenas campos não-sensíveis no arquivo
-        # Credenciais SMTP vêm das env vars no Railway
-        safe = {k: v for k, v in settings.items()
-                if k not in ('smtp_password',)}
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump(safe, f, indent=2, ensure_ascii=False)
     except Exception as e:
