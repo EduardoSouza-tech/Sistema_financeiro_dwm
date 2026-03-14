@@ -880,8 +880,12 @@ def manifestar_ciencia_operacao(certificado: CertificadoA1, chave: str,
 def baixar_procnfe_completo(certificado: CertificadoA1, chave: str,
                             ambiente: str = 'producao') -> Dict:
     """
-    Baixa o procNFe completo (NFe + protNFe envolvidos em nfeProc) via
-    NfeConsultaProtocolo4, para ser usado na geração do DANFE.
+    Baixa o procNFe completo via NFeDistribuicaoDFe/consChNFeDFe.
+
+    NFeConsultaProtocolo4 é um serviço por-UF/emitente — não está disponível
+    via URL nacional para destinatários. O caminho correto para o destinatário
+    é consultar o serviço de distribuição DFe (AN centralizado) pelo chave,
+    que após a Ciência da Operação retorna o schema nfeProc_v4.00.
 
     Args:
         certificado: Certificado A1 do destinatário
@@ -895,75 +899,92 @@ def baixar_procnfe_completo(certificado: CertificadoA1, chave: str,
         if not chave or len(chave) != 44:
             return {'sucesso': False, 'erro': 'Chave de acesso invalida'}
 
+        cnpj = (certificado.cert_data or {}).get('cnpj', '')
+        if not cnpj:
+            return {'sucesso': False, 'erro': 'CNPJ nao encontrado no certificado digital'}
+
         tp_amb = 2 if ambiente == 'homologacao' else 1
-        soap_body = (
-            '<?xml version="1.0" encoding="UTF-8"?>'
-            '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" '
-            'xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4">'
-            '<soap:Header/>'
-            '<soap:Body>'
-            '<nfe:nfeConsultaNF xmlns="http://www.portalfiscal.inf.br/nfe">'
-            '<consSitNFe versao="4.00">'
-            f'<tpAmb>{tp_amb}</tpAmb>'
-            '<xServ>CONSULTAR</xServ>'
-            f'<chNFe>{chave}</chNFe>'
-            '</consSitNFe>'
-            '</nfe:nfeConsultaNF>'
-            '</soap:Body>'
-            '</soap:Envelope>'
-        )
+        # cUFAutor: usa a UF do emitente extraída da chave (primeiros 2 dígitos).
+        # O endpoint nacional AN roteia por chave internamente, então esse valor
+        # serve apenas para conformidade com o schema.
+        cuf_autor = int(chave[:2])
 
-        url = (WEBSERVICES_HOMOLOGACAO['NfeConsultaProtocolo']
-               if ambiente == 'homologacao'
-               else WEBSERVICES_PRODUCAO['NfeConsultaProtocolo'])
-        headers = {'Content-Type': 'application/soap+xml; charset=utf-8'}
-        sess = certificado.get_session_requests()
-        response = sess.post(url, data=soap_body.encode('utf-8'), headers=headers, timeout=60)
+        wsdl = WSDL_DISTRIBUICAO_HOMOLOG if ambiente == 'homologacao' else WSDL_DISTRIBUICAO_PRODUCAO
+        logger.info(f"[baixar_procnfe] consChNFeDFe chave={chave} cnpj={cnpj} cuf={cuf_autor} wsdl={wsdl}")
 
-        if response.status_code != 200:
-            return {'sucesso': False, 'erro': f'Erro HTTP {response.status_code}'}
+        try:
+            client = certificado.get_zeep_dist_client(wsdl)
+        except Exception as e:
+            return {'sucesso': False, 'erro': f'Falha ao conectar SEFAZ DFe: {e}'}
 
-        resp_root = etree.fromstring(response.content)
+        # Monta distDFeInt com consChNFe (busca por chave específica)
+        dist_int = etree.Element('distDFeInt', xmlns=NAMESPACE_NFE, versao='1.01')
+        etree.SubElement(dist_int, 'tpAmb').text    = str(tp_amb)
+        etree.SubElement(dist_int, 'cUFAutor').text = str(cuf_autor)
+        etree.SubElement(dist_int, 'CNPJ').text     = cnpj
+        cons_ch = etree.SubElement(dist_int, 'consChNFe')
+        etree.SubElement(cons_ch, 'chNFe').text     = chave
+
+        xml_enviado = etree.tostring(dist_int, encoding='unicode')
+        logger.info(f"[baixar_procnfe] nfeDadosMsg:\n{xml_enviado}")
+
+        try:
+            from zeep.exceptions import Fault as ZeepFault
+            resp = client.service.nfeDistDFeInteresse(nfeDadosMsg=dist_int)
+        except ZeepFault as fault:
+            logger.error(f"[baixar_procnfe] SOAP Fault: {fault}")
+            return {'sucesso': False, 'erro': f'SOAP Fault SEFAZ: {fault}'}
+        except Exception as e:
+            logger.error(f"[baixar_procnfe] Erro na chamada DFe: {e}")
+            return {'sucesso': False, 'erro': f'Erro SEFAZ DFe: {e}'}
+
+        xml_resp = etree.tostring(resp, encoding='unicode')
+        logger.info(f"[baixar_procnfe] Resposta DFe:\n{xml_resp[:2000]}")
+
+        root = etree.fromstring(xml_resp.encode('utf-8'))
         ns = {'nfe': NAMESPACE_NFE}
 
-        ret = resp_root.find('.//nfe:retConsSitNFe', ns)
-        if ret is None:
-            return {'sucesso': False, 'erro': 'Resposta invalida (retConsSitNFe nao encontrado)'}
+        c_stat  = root.findtext('.//nfe:cStat',   namespaces=ns) or ''
+        x_motivo = root.findtext('.//nfe:xMotivo', namespaces=ns) or ''
+        logger.info(f"[baixar_procnfe] cStat={c_stat} motivo={x_motivo}")
 
-        c_stat_el = ret.find('nfe:cStat', ns)
-        x_motivo_el = ret.find('nfe:xMotivo', ns)
-        c_stat = c_stat_el.text if c_stat_el is not None else ''
-        x_motivo = x_motivo_el.text if x_motivo_el is not None else ''
-
-        if c_stat != '100':
+        # Códigos válidos: 137=sem docs no NSU, 138=nenhum disponível, 134=lote processado
+        if c_stat not in ('134', '137', '138'):
             return {
                 'sucesso': False,
                 'codigo_sefaz': c_stat,
-                'erro': f'SEFAZ retornou status {c_stat}: {x_motivo}',
+                'erro': f'SEFAZ DFe cStat={c_stat}: {x_motivo}',
             }
 
-        # Extrai NFe e protNFe para montar procNFe
-        nfe_elem = ret.find('.//nfe:NFe', ns)
-        prot_elem = ret.find('.//nfe:protNFe', ns)
+        # Procura docZip com schema nfeProc (NF-e completa com protocolo)
+        for doc_zip_el in root.findall('.//nfe:docZip', ns):
+            schema = doc_zip_el.get('schema', '')
+            nsu    = doc_zip_el.get('NSU', '')
+            if 'nfeProc' in schema or 'procNFe' in schema:
+                try:
+                    xml_content = gzip.decompress(
+                        base64.b64decode(doc_zip_el.text or '')
+                    ).decode('utf-8')
+                    logger.info(f"[baixar_procnfe] procNFe obtido NSU={nsu} schema={schema}")
+                    return {
+                        'sucesso':       True,
+                        'xml_bytes':     xml_content.encode('utf-8'),
+                        'chave':         chave,
+                        'codigo_sefaz':  c_stat,
+                        'mensagem':      x_motivo,
+                    }
+                except Exception as e:
+                    return {'sucesso': False, 'erro': f'Erro ao descompactar procNFe (NSU={nsu}): {e}'}
 
-        if nfe_elem is None or prot_elem is None:
-            return {'sucesso': False, 'erro': 'NFe ou protNFe nao encontrados na resposta SEFAZ'}
-
-        # Monta nfeProc encapsulando NFe + protNFe
-        proc_root = etree.Element(f'{{{NAMESPACE_NFE}}}nfeProc')
-        proc_root.set('versao', '4.00')
-        from copy import deepcopy
-        proc_root.append(deepcopy(nfe_elem))
-        proc_root.append(deepcopy(prot_elem))
-
-        xml_bytes = etree.tostring(proc_root, encoding='utf-8', xml_declaration=True)
-
+        # Se ainda retornou só resNFe, a manifestação ainda não foi processada pelo SEFAZ
+        schemas_recebidos = [d.get('schema', '') for d in root.findall('.//nfe:docZip', ns)]
         return {
-            'sucesso': True,
-            'xml_bytes': xml_bytes,
-            'chave': chave,
-            'codigo_sefaz': c_stat,
-            'mensagem': x_motivo,
+            'sucesso': False,
+            'erro': (
+                f'NF-e ainda nao disponivel como procNFe (schemas recebidos: {schemas_recebidos}). '
+                'O SEFAZ pode levar alguns minutos para processar a Ciencia da Operacao. '
+                'Tente novamente em instantes ou re-sincronize em "Buscar Documentos".'
+            ),
         }
 
     except Exception as e:
