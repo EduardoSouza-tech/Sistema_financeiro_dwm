@@ -191,14 +191,34 @@ def create_notification_html(title: str, items: List[Dict], notification_type: s
     }
     color = colors.get(notification_type, '#3498db')
     
+    def _fmt_date(value):
+        """Converte aaaa-mm-dd para dd/mm/aaaa; retorna o valor original se falhar."""
+        if not value:
+            return 'Não informada'
+        try:
+            return datetime.strptime(str(value)[:10], '%Y-%m-%d').strftime('%d/%m/%Y')
+        except Exception:
+            return value
+
     # Criar HTML dos itens
     items_html = ""
     for item in items:
         if 'data' in item:  # Sessão
+            # Equipamentos próprios (lista de dicts com 'nome' ou strings)
+            equipamentos = item.get('equipamentos') or []
+            if equipamentos:
+                equip_nomes = [
+                    (e.get('nome') if isinstance(e, dict) else str(e))
+                    for e in equipamentos if e
+                ]
+                equip_str = ', '.join(filter(None, equip_nomes)) or 'Não informado'
+            else:
+                equip_str = 'Não informado'
+
             items_html += f"""
             <div style="background: #f8f9fa; padding: 15px; border-left: 4px solid {color}; margin-bottom: 10px; border-radius: 4px;">
                 <div style="font-weight: bold; color: #2c3e50; margin-bottom: 5px;">
-                    📅 {item['data']} - {item.get('horario', 'Horário não definido')}
+                    📅 {_fmt_date(item['data'])} - {item.get('horario', 'Horário não definido')}
                 </div>
                 <div style="color: #34495e; margin-bottom: 3px;">
                     👤 Cliente: <strong>{item.get('cliente_nome', 'Não informado')}</strong>
@@ -208,6 +228,9 @@ def create_notification_html(title: str, items: List[Dict], notification_type: s
                 </div>
                 <div style="color: #7f8c8d; font-size: 13px;">
                     📝 Tipo: {item.get('tipo_captacao', 'Não informado')}
+                </div>
+                <div style="color: #7f8c8d; font-size: 13px;">
+                    🎒 Equipamento(s): {equip_str}
                 </div>
             </div>
             """
@@ -221,7 +244,7 @@ def create_notification_html(title: str, items: List[Dict], notification_type: s
                     👤 Cliente: <strong>{item.get('cliente_nome', 'Não informado')}</strong>
                 </div>
                 <div style="color: #7f8c8d; font-size: 13px;">
-                    📅 Validade: {item.get('data_fim', 'Não informada')}
+                    📅 Validade: {_fmt_date(item.get('data_fim'))}
                 </div>
                 <div style="color: #7f8c8d; font-size: 13px;">
                     ⏱️ Horas: {item.get('horas_utilizadas', 0)} / {item.get('horas_totais', 0)}
