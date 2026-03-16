@@ -394,6 +394,14 @@ def test_notifications():
                 'message': 'E-mail enviado com sucesso! Verifique sua caixa de entrada.',
                 'log': log_output
             })
+        elif '❌ Erro ao enviar via Resend' in log_output or '❌ Erro ao enviar e-mail' in log_output:
+            # Extrair linha de erro para mensagem mais precisa
+            erro_linha = next((l for l in log_output.splitlines() if '❌ Erro ao enviar' in l), '')
+            return jsonify({
+                'success': False,
+                'message': f'Erro ao enviar via Resend. Detalhes: {erro_linha}',
+                'log': log_output
+            })
         elif '⚠️ SMTP não configurado' in log_output:
             return jsonify({
                 'success': False,
@@ -406,12 +414,6 @@ def test_notifications():
                 'message': 'Nenhum e-mail destinatário configurado. Adicione e-mails na aba Notificações.',
                 'log': log_output
             })
-        elif '❌ Erro ao enviar e-mail' in log_output:
-            return jsonify({
-                'success': False,
-                'message': 'Erro ao enviar e-mail. Verifique as credenciais SMTP.',
-                'log': log_output
-            })
         else:
             # Sem sessões/contratos para notificar — testar envio direto
             settings = load_email_settings()
@@ -422,31 +424,41 @@ def test_notifications():
                     'message': 'Nenhum e-mail destinatário configurado. Adicione e-mails na aba Notificações.',
                     'log': log_output
                 })
-            if not settings.get('smtp_enabled'):
+            # Verificar se há algum provedor configurado (Resend ou SMTP)
+            import os as _os
+            resend_ok = bool(_os.getenv('RESEND_API_KEY'))
+            smtp_ok = bool(settings.get('smtp_enabled') and settings.get('smtp_host'))
+            if not resend_ok and not smtp_ok:
                 return jsonify({
                     'success': False,
-                    'message': 'SMTP não configurado. Preencha host, usuário e senha SMTP nas configurações.',
+                    'message': 'Nenhum provedor de e-mail configurado (RESEND_API_KEY ou SMTP).',
                     'log': log_output
                 })
-            # Enviar e-mail de teste direto (sem dados de agenda, só para confirmar SMTP)
-            sent = notification_service.send_email_notification(
-                recipients,
-                '✅ Teste de Notificação — Sistema Financeiro DWM',
-                '<p>Este é um e-mail de teste enviado pelo Sistema Financeiro DWM.</p>'
-                '<p>Se você recebeu este e-mail, as notificações estão configuradas corretamente!</p>',
-                'Teste de notificação — Sistema Financeiro DWM.'
-            )
+            # Enviar e-mail de teste direto (sem dados de agenda, só para confirmar envio)
+            log_buffer2 = io.StringIO()
+            with contextlib.redirect_stdout(log_buffer2):
+                sent = notification_service.send_email_notification(
+                    recipients,
+                    '✅ Teste de Notificação — Sistema Financeiro DWM',
+                    '<p>Este é um e-mail de teste enviado pelo Sistema Financeiro DWM.</p>'
+                    '<p>Se você recebeu este e-mail, as notificações estão configuradas corretamente!</p>',
+                    'Teste de notificação — Sistema Financeiro DWM.'
+                )
+            log_output2 = log_buffer2.getvalue()
+            print(log_output2, end='')
+            combined_log = log_output + log_output2
             if sent:
                 return jsonify({
                     'success': True,
                     'message': f'E-mail de teste enviado para {len(recipients)} destinatário(s)! Verifique sua caixa de entrada.',
-                    'log': log_output
+                    'log': combined_log
                 })
             else:
+                erro_linha = next((l for l in log_output2.splitlines() if '❌' in l), '')
                 return jsonify({
                     'success': False,
-                    'message': 'Falha ao enviar e-mail. Verifique as credenciais SMTP.',
-                    'log': log_output
+                    'message': f'Falha ao enviar e-mail. {erro_linha}',
+                    'log': combined_log
                 })
     except Exception as e:
         print(f"❌ Erro ao testar notificações: {e}")

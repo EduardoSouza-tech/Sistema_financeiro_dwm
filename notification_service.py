@@ -81,6 +81,14 @@ def _send_via_resend(recipients: List[str], subject: str, html_content: str,
             body = resp.read().decode()
             print(f"❌ Resend retornou status {status}: {body}")
             return False
+    except urllib.error.HTTPError as e:
+        body = ''
+        try:
+            body = e.read().decode('utf-8', errors='replace')
+        except Exception:
+            pass
+        print(f"❌ Erro ao enviar via Resend: HTTP {e.code} {e.reason} | from={from_email} | body={body}")
+        return False
     except Exception as e:
         print(f"❌ Erro ao enviar via Resend: {e}")
         return False
