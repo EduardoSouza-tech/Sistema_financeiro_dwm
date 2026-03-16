@@ -20,6 +20,203 @@ from typing import List, Dict
 import database_postgresql as db
 from app.utils import google_calendar_helper
 
+# ---------------------------------------------------------------------------
+# Log de notificações enviadas (tabela notificacoes_log)
+# ---------------------------------------------------------------------------
+
+def _ensure_log_table():
+    """Cria a tabela notificacoes_log se não existir (idempotente)."""
+    try:
+        from database_postgresql import get_db_connection
+        with get_db_connection(allow_global=True) as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS notificacoes_log (
+                    id            SERIAL PRIMARY KEY,
+                    empresa_id    INTEGER NOT NULL,
+                    tipo          VARCHAR(50) NOT NULL,
+                    referencia_id INTEGER,
+                    referencia_data DATE,
+                    destinatarios TEXT NOT NULL,
+                    assunto       TEXT NOT NULL,
+                    status        VARCHAR(20) NOT NULL DEFAULT 'enviado',
+                    erro_detalhe  TEXT,
+                    enviado_em    TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_notif_log_empresa_tipo
+                ON notificacoes_log(empresa_id, tipo, referencia_id, enviado_em)
+            """)
+    except Exception as e:
+        print(f"⚠️ Erro ao criar tabela notificacoes_log: {e}")
+
+
+def log_notification_sent(empresa_id: int, tipo: str, referencia_id,
+                          referencia_data, destinatarios: List[str],
+                          assunto: str, status: str, erro_detalhe: str = None):
+    """Registra no banco um e-mail enviado (ou tentativa com erro)."""
+    try:
+        from database_postgresql import get_db_connection
+        with get_db_connection(allow_global=True) as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO notificacoes_log
+                    (empresa_id, tipo, referencia_id, referencia_data,
+                     destinatarios, assunto, status, erro_detalhe)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                empresa_id, tipo, referencia_id,
+                referencia_data if referencia_data else None,
+                json.dumps(destinatarios, ensure_ascii=False),
+                assunto, status, erro_detalhe,
+            ))
+    except Exception as e:
+        print(f"⚠️ Erro ao registrar log de notificação: {e}")
+
+
+def was_notified_today(empresa_id: int, tipo: str, referencia_id) -> bool:
+    """Retorna True se já existe um envio bem-sucedido deste tipo/item hoje."""
+    try:
+        from database_postgresql import get_db_connection
+        with get_db_connection(allow_global=True) as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT 1 FROM notificacoes_log
+                WHERE empresa_id   = %s
+                  AND tipo         = %s
+                  AND referencia_id = %s
+                  AND status        = 'enviado'
+                  AND enviado_em   >= CURRENT_DATE
+                  AND enviado_em   <  CURRENT_DATE + INTERVAL '1 day'
+                LIMIT 1
+            """, (empresa_id, tipo, referencia_id))
+            return cur.fetchone() is not None
+    except Exception as e:
+        print(f"⚠️ Erro ao verificar deduplicação: {e}")
+        return False   # Em caso de falha, permite reenvio (safe default)
+
+
+def get_notifications_log(empresa_id: int, limit: int = 50) -> List[Dict]:
+    """Retorna o histórico de notificações da empresa (mais recentes primeiro)."""
+    _ensure_log_table()
+    try:
+        from database_postgresql import get_db_connection
+        with get_db_connection(allow_global=True) as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, tipo, referencia_id, referencia_data,
+                       destinatarios, assunto, status, erro_detalhe,
+                       TO_CHAR(enviado_em AT TIME ZONE 'America/Sao_Paulo',
+                               'DD/MM/YYYY HH24:MI') AS enviado_em_fmt
+                FROM notificacoes_log
+                WHERE empresa_id = %s
+                ORDER BY enviado_em DESC
+                LIMIT %s
+            """, (empresa_id, limit))
+            rows = cur.fetchall()
+            result = []
+            for row in rows:
+                dest = row['destinatarios']
+                if isinstance(dest, str):
+                    try:
+                        dest = json.loads(dest)
+                    except Exception:
+                        pass
+                result.append({
+                    'id':              row['id'],
+                    'tipo':            row['tipo'],
+                    'referencia_id':   row['referencia_id'],
+                    'referencia_data': str(row['referencia_data']) if row['referencia_data'] else None,
+                    'destinatarios':   dest,
+                    'assunto':         row['assunto'],
+                    'status':          row['status'],
+                    'erro_detalhe':    row['erro_detalhe'],
+                    'enviado_em':      row['enviado_em_fmt'],
+                })
+            return result
+    except Exception as e:
+        print(f"⚠️ Erro ao buscar log de notificações: {e}")
+        return []
+
+
+def send_upcoming_session_reminders(empresa_id: int, days_ahead: int = 3) -> Dict:
+    """
+    Envia lembretes para sessões próximas ainda não notificadas hoje.
+    Faz deduplicação por sessão (não reenvía se já mandou hoje).
+    Retorna resumo: {'sent': N, 'skipped': N, 'error': N, 'sessions': [...]}
+    """
+    _ensure_log_table()
+    settings = load_email_settings()
+    recipients = settings.get('notification_emails', [])
+
+    result = {'sent': 0, 'skipped': 0, 'error': 0, 'sessions': [], 'total_upcoming': 0}
+
+    if not recipients:
+        result['error_msg'] = 'Nenhum e-mail destinatário configurado'
+        return result
+
+    upcoming = check_upcoming_sessions(empresa_id, days_ahead=days_ahead)
+    result['total_upcoming'] = len(upcoming)
+
+    if not upcoming:
+        result['error_msg'] = f'Nenhuma sessão agendada nos próximos {days_ahead} dias'
+        return result
+
+    # Separar sessões já notificadas hoje das que ainda precisam de lembrete
+    to_notify = []
+    for sessao in upcoming:
+        sessao_id = sessao.get('id')
+        if sessao_id and was_notified_today(empresa_id, 'lembrete_sessao', sessao_id):
+            result['skipped'] += 1
+            result['sessions'].append({
+                'id': sessao_id,
+                'acao': 'pulado',
+                'motivo': 'já notificado hoje',
+                'data': sessao.get('data'),
+                'cliente': sessao.get('cliente_nome'),
+            })
+        else:
+            to_notify.append(sessao)
+
+    if not to_notify:
+        return result
+
+    # Montar e enviar e-mail
+    assunto = f"📅 Lembrete — {len(to_notify)} Sessão(ões) nos Próximos {days_ahead} Dias"
+    html = create_notification_html(
+        f"📅 Lembrete: {len(to_notify)} Sessão(ões) nos Próximos {days_ahead} Dias",
+        to_notify,
+        'sessoes_proximas'
+    )
+    ok = send_email_notification(recipients, assunto, html)
+    status_log = 'enviado' if ok else 'erro'
+    erro_detalhe = None if ok else 'Falha ao enviar via Resend/SMTP'
+
+    # Registrar log por sessão
+    for sessao in to_notify:
+        sessao_id  = sessao.get('id')
+        sessao_dt  = sessao.get('data')
+        log_notification_sent(
+            empresa_id, 'lembrete_sessao', sessao_id,
+            sessao_dt, recipients, assunto, status_log, erro_detalhe,
+        )
+        result['sessions'].append({
+            'id':      sessao_id,
+            'acao':    status_log,
+            'data':    sessao_dt,
+            'cliente': sessao.get('cliente_nome'),
+        })
+
+    if ok:
+        result['sent'] = len(to_notify)
+    else:
+        result['error'] = len(to_notify)
+        result['error_msg'] = erro_detalhe
+
+    return result
+
+# ---------------------------------------------------------------------------
 # Usar load_email_settings do blueprint de agenda (que persiste no PostgreSQL)
 def load_email_settings():
     """
@@ -442,94 +639,84 @@ def check_expired_contracts(empresa_id: int) -> List[Dict]:
 
 def send_notification_batch(empresa_id: int):
     """
-    Enviar lote de notificações para uma empresa
-    Args:
-        empresa_id: ID da empresa
+    Enviar lote de notificações para uma empresa.
+    Usa deduplicação por sessão/contrato (não reenvía o mesmo item no mesmo dia).
+    Registra cada envio na tabela notificacoes_log.
     """
+    _ensure_log_table()
     settings = load_email_settings()
     recipients = settings.get('notification_emails', [])
-    
+
     if not recipients:
         print(f"⚠️ Nenhum e-mail configurado para empresa {empresa_id}")
         return
-    
+
     print(f"🔍 Verificando notificações para empresa {empresa_id}...")
-    
-    # Verificar sessões próximas (3 dias)
+
+    def _send_and_log(items, tipo, assunto, titulo, notif_type):
+        """Filtra itens ainda não notificados hoje, envia e registra."""
+        novos = [i for i in items
+                 if not was_notified_today(empresa_id, tipo, i.get('id'))]
+        if not novos:
+            print(f"  ⏭️ {tipo}: todos os {len(items)} já notificados hoje")
+            return
+        html = create_notification_html(titulo, novos, notif_type)
+        ok   = send_email_notification(recipients, assunto.format(N=len(novos)), html)
+        status = 'enviado' if ok else 'erro'
+        erro   = None if ok else 'Falha ao enviar via Resend/SMTP'
+        for item in novos:
+            log_notification_sent(
+                empresa_id, tipo, item.get('id'),
+                item.get('data') or item.get('data_fim'),
+                recipients, assunto.format(N=len(novos)), status, erro,
+            )
+        print(f"  {'✅' if ok else '❌'} {tipo}: {len(novos)} enviado(s)")
+
+    # Sessões próximas (3 dias)
     upcoming_sessions = check_upcoming_sessions(empresa_id, days_ahead=3)
     if upcoming_sessions:
-        print(f"  📅 {len(upcoming_sessions)} sessões próximas")
-        html = create_notification_html(
-            "⚠️ Sessões Próximas - Prepare-se!",
-            upcoming_sessions,
-            'sessoes_proximas'
+        _send_and_log(
+            upcoming_sessions, 'lembrete_sessao',
+            "⚠️ {N} Sessão(ões) nos Próximos 3 Dias",
+            "⚠️ Sessões Próximas - Prepare-se!", 'sessoes_proximas',
         )
-        send_email_notification(
-            recipients,
-            f"⚠️ {len(upcoming_sessions)} Sessão(ões) nos Próximos 3 Dias",
-            html
-        )
-    
-    # Verificar sessões atrasadas
+
+    # Sessões atrasadas
     overdue_sessions = check_overdue_sessions(empresa_id)
     if overdue_sessions:
-        print(f"  🚨 {len(overdue_sessions)} sessões atrasadas")
-        html = create_notification_html(
-            "🚨 Sessões Atrasadas - Ação Necessária!",
-            overdue_sessions,
-            'sessoes_atrasadas'
+        _send_and_log(
+            overdue_sessions, 'sessao_atrasada',
+            "🚨 {N} Sessão(ões) Atrasada(s)",
+            "🚨 Sessões Atrasadas - Ação Necessária!", 'sessoes_atrasadas',
         )
-        send_email_notification(
-            recipients,
-            f"🚨 {len(overdue_sessions)} Sessão(ões) Atrasada(s)",
-            html
-        )
-    
-    # Verificar sessões em aberto
+
+    # Sessões em aberto (> 10)
     open_sessions = check_open_sessions(empresa_id)
-    if open_sessions and len(open_sessions) > 10:  # Só notificar se houver muitas
-        print(f"  📝 {len(open_sessions)} sessões em aberto")
-        html = create_notification_html(
-            "📝 Muitas Sessões em Aberto",
-            open_sessions[:10],  # Enviar apenas as 10 primeiras
-            'sessoes_abertas'
+    if open_sessions and len(open_sessions) > 10:
+        _send_and_log(
+            open_sessions[:10], 'sessoes_abertas',
+            "📝 {N} Sessão(ões) em Aberto",
+            "📝 Muitas Sessões em Aberto", 'sessoes_abertas',
         )
-        send_email_notification(
-            recipients,
-            f"📝 {len(open_sessions)} Sessão(ões) em Aberto",
-            html
-        )
-    
-    # Verificar contratos próximos do vencimento (30 dias)
+
+    # Contratos próximos do vencimento (30 dias)
     upcoming_contracts = check_upcoming_contracts(empresa_id, days_ahead=30)
     if upcoming_contracts:
-        print(f"  📄 {len(upcoming_contracts)} contratos próximos do vencimento")
-        html = create_notification_html(
-            "📄 Contratos Próximos do Vencimento",
-            upcoming_contracts,
-            'contratos_proximos'
+        _send_and_log(
+            upcoming_contracts, 'contrato_proximo',
+            "📄 {N} Contrato(s) Vencendo em 30 Dias",
+            "📄 Contratos Próximos do Vencimento", 'contratos_proximos',
         )
-        send_email_notification(
-            recipients,
-            f"📄 {len(upcoming_contracts)} Contrato(s) Vencendo em 30 Dias",
-            html
-        )
-    
-    # Verificar contratos vencidos
+
+    # Contratos vencidos
     expired_contracts = check_expired_contracts(empresa_id)
     if expired_contracts:
-        print(f"  🚨 {len(expired_contracts)} contratos vencidos")
-        html = create_notification_html(
-            "🚨 Contratos Vencidos",
-            expired_contracts,
-            'contratos_vencidos'
+        _send_and_log(
+            expired_contracts, 'contrato_vencido',
+            "🚨 {N} Contrato(s) Vencido(s)",
+            "🚨 Contratos Vencidos", 'contratos_vencidos',
         )
-        send_email_notification(
-            recipients,
-            f"🚨 {len(expired_contracts)} Contrato(s) Vencido(s)",
-            html
-        )
-    
+
     print(f"✅ Verificação concluída para empresa {empresa_id}")
 
 def run_notifications_for_all_companies():

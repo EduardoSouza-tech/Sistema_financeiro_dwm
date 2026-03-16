@@ -815,6 +815,133 @@ async function loadEmailSettings() {
 }
 
 /**
+ * Enviar lembretes de sessões próximas (com deduplicação)
+ */
+async function testSendReminders() {
+    showNotification('📬 Enviando lembretes de sessões próximas...', 'info');
+    try {
+        const resp = await fetch('/api/notifications/send-reminders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': getCsrfToken(),
+            },
+            body: JSON.stringify({ days_ahead: 3 }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (data.success) {
+            showNotification(data.message || '✅ Lembretes enviados!', 'success');
+        } else {
+            showNotification(`❌ ${data.message || data.error || 'Falha ao enviar lembretes'}`, 'error');
+        }
+    } catch (err) {
+        console.error('❌ Erro ao enviar lembretes:', err);
+        showNotification('❌ Erro de conexão ao enviar lembretes.', 'error');
+    }
+}
+
+/**
+ * Exibir modal com histórico de e-mails enviados
+ */
+async function viewNotificationsLog() {
+    const oldModal = document.getElementById('notifications-log-modal');
+    if (oldModal) oldModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'notifications-log-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 860px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #2980b9 0%, #1a5276 100%); color: white;">
+                <h3>📋 Histórico de E-mails Enviados</h3>
+                <button class="modal-close" onclick="closeModal('notifications-log-modal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="notif-log-content" style="min-height: 100px; display:flex; align-items:center; justify-content:center;">
+                    <span style="color:#999">Carregando histórico...</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('notifications-log-modal')">Fechar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.classList.add('show');
+
+    try {
+        const resp = await fetch('/api/notifications/log?limit=50');
+        const data = await resp.json().catch(() => ({}));
+        const container = document.getElementById('notif-log-content');
+
+        if (!data.success) {
+            container.innerHTML = `<p style="color:#e74c3c">❌ ${data.error || 'Erro ao carregar histórico'}</p>`;
+            return;
+        }
+
+        const logs = data.logs || [];
+        if (logs.length === 0) {
+            container.innerHTML = '<p style="color:#999; text-align:center">Nenhum e-mail registrado ainda.</p>';
+            return;
+        }
+
+        const tipoLabel = {
+            lembrete_sessao:  '📅 Lembrete Sessão',
+            sessao_atrasada:  '🚨 Sessão Atrasada',
+            sessoes_abertas:  '📝 Sessões Abertas',
+            contrato_proximo: '📄 Contrato Próximo',
+            contrato_vencido: '🚨 Contrato Vencido',
+        };
+
+        container.innerHTML = `
+            <p style="color:#7f8c8d; font-size:12px; margin-bottom:10px;">
+                Exibindo os ${logs.length} registros mais recentes
+            </p>
+            <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                    <tr style="background:#2980b9; color:white; text-align:left;">
+                        <th style="padding:8px 10px;">Data/Hora</th>
+                        <th style="padding:8px 10px;">Tipo</th>
+                        <th style="padding:8px 10px;">Assunto</th>
+                        <th style="padding:8px 10px;">Destinatários</th>
+                        <th style="padding:8px 10px; text-align:center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${logs.map((log, i) => {
+                        const dest = Array.isArray(log.destinatarios)
+                            ? log.destinatarios.join(', ')
+                            : log.destinatarios;
+                        const statusBadge = log.status === 'enviado'
+                            ? '<span style="background:#27ae60;color:white;padding:2px 8px;border-radius:10px;font-size:11px;">✅ enviado</span>'
+                            : '<span style="background:#e74c3c;color:white;padding:2px 8px;border-radius:10px;font-size:11px;">❌ erro</span>';
+                        const tipo = tipoLabel[log.tipo] || log.tipo;
+                        const rowBg = i % 2 === 0 ? '#fff' : '#f8f9fa';
+                        return `
+                            <tr style="background:${rowBg}; border-bottom:1px solid #ecf0f1;">
+                                <td style="padding:8px 10px; white-space:nowrap; color:#7f8c8d;">${log.enviado_em}</td>
+                                <td style="padding:8px 10px; white-space:nowrap;">${tipo}</td>
+                                <td style="padding:8px 10px;">${log.assunto}</td>
+                                <td style="padding:8px 10px; color:#555;">${dest}</td>
+                                <td style="padding:8px 10px; text-align:center;">
+                                    ${statusBadge}
+                                    ${log.erro_detalhe ? `<br><small style="color:#e74c3c">${log.erro_detalhe}</small>` : ''}
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+            </div>
+        `;
+    } catch (err) {
+        const container = document.getElementById('notif-log-content');
+        if (container) container.innerHTML = `<p style="color:#e74c3c">❌ Erro de conexão: ${err.message}</p>`;
+    }
+}
+
+/**
  * Atualizar resumo da agenda
  */
 function updateAgendaSummary(totalSessoes) {
@@ -885,6 +1012,8 @@ window.authorizeGoogleCalendar = authorizeGoogleCalendar;
 window.saveEmailSettings = saveEmailSettings;
 window.saveAllNotificationSettings = saveAllNotificationSettings;
 window.testSmtpConnection = testSmtpConnection;
+window.testSendReminders = testSendReminders;
+window.viewNotificationsLog = viewNotificationsLog;
 window.refreshAgendaFotografia = refreshAgendaFotografia;
 
 console.log('✅ agenda_calendar.js carregado com funções de notificação');

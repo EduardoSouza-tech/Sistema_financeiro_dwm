@@ -370,6 +370,80 @@ def google_calendar_status():
     except Exception as e:
         print(f"❌ Erro ao verificar status: {e}")
         return jsonify({'error': str(e)}), 500
+
+@agenda_bp.route('/notifications/send-reminders', methods=['POST'])
+def send_session_reminders():
+    """
+    Envia lembretes de sessões próximas com deduplicação (não reenvía o mesmo item no mesmo dia).
+    Retorna resumo do que foi enviado/pulado.
+    """
+    import notification_service
+
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+
+    data = request.json or {}
+    days_ahead = int(data.get('days_ahead', 3))
+
+    try:
+        result = notification_service.send_upcoming_session_reminders(empresa_id, days_ahead=days_ahead)
+        sent    = result.get('sent', 0)
+        skipped = result.get('skipped', 0)
+        error   = result.get('error', 0)
+        total   = result.get('total_upcoming', 0)
+
+        if error > 0:
+            return jsonify({
+                'success': False,
+                'message': result.get('error_msg', 'Erro ao enviar lembretes'),
+                'result': result,
+            })
+
+        if sent == 0 and total == 0:
+            return jsonify({
+                'success': True,
+                'message': result.get('error_msg', f'Nenhuma sessão nos próximos {days_ahead} dias.'),
+                'result': result,
+            })
+
+        if sent == 0 and skipped > 0:
+            return jsonify({
+                'success': True,
+                'message': f'Lembretes já enviados hoje para todas as {skipped} sessão(ões) próximas. Nenhum reenvio necessário.',
+                'result': result,
+            })
+
+        return jsonify({
+            'success': True,
+            'message': (
+                f'✅ {sent} lembrete(s) enviado(s)!'
+                + (f' ({skipped} já haviam sido notificados hoje e foram pulados)' if skipped else '')
+            ),
+            'result': result,
+        })
+    except Exception as e:
+        print(f"❌ Erro ao enviar lembretes: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@agenda_bp.route('/notifications/log', methods=['GET'])
+def notifications_log():
+    """Retorna o histórico de notificações da empresa."""
+    import notification_service
+
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+
+    limit = int(request.args.get('limit', 50))
+    try:
+        logs = notification_service.get_notifications_log(empresa_id, limit=limit)
+        return jsonify({'success': True, 'logs': logs, 'total': len(logs)})
+    except Exception as e:
+        print(f"❌ Erro ao buscar log: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @agenda_bp.route('/notifications/test', methods=['POST'])
 def test_notifications():
     """Testar envio de notificações (endpoint manual)"""
