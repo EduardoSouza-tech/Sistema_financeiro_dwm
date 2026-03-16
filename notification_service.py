@@ -183,9 +183,9 @@ def send_upcoming_session_reminders(empresa_id: int, days_ahead: int = 3) -> Dic
         return result
 
     # Montar e enviar e-mail
-    assunto = f"📅 Lembrete — {len(to_notify)} Sessão(ões) nos Próximos {days_ahead} Dias"
+    assunto = f"\U0001f4c5 Lembrete \u2014 {len(to_notify)} Sessões nos Próximos {days_ahead} Dias"
     html = create_notification_html(
-        f"📅 Lembrete: {len(to_notify)} Sessão(ões) nos Próximos {days_ahead} Dias",
+        f"\U0001f4c5 Lembrete: {len(to_notify)} Sessões nos Próximos {days_ahead} Dias",
         to_notify,
         'sessoes_proximas'
     )
@@ -368,6 +368,48 @@ def send_email_notification(recipients: List[str], subject: str, html_content: s
         print(f"❌ Erro ao enviar e-mail: {e}")
         return False
 
+def _resolve_kit_names(empresa_id: int, kit_ids: list) -> str:
+    """
+    Recebe uma lista de IDs ou dicts de kits e retorna string com os nomes.
+    Ex: [9, 8] -> 'Canon EOS R5, Tripé'
+    """
+    if not kit_ids:
+        return 'Não informado'
+    # Se já são dicts com 'nome', apenas concatenar
+    if all(isinstance(e, dict) for e in kit_ids):
+        nomes = [e.get('nome', '') for e in kit_ids if e.get('nome')]
+        return ', '.join(nomes) if nomes else 'Não informado'
+    # IDs numéricos: buscar nomes no banco
+    ids = [int(e) for e in kit_ids if str(e).isdigit()]
+    if not ids:
+        return ', '.join(str(e) for e in kit_ids)
+    try:
+        from database_postgresql import get_db_connection
+        placeholders = ','.join(['%s'] * len(ids))
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"SELECT id, nome FROM kits_equipamentos WHERE id IN ({placeholders})",
+                ids,
+            )
+            rows = cur.fetchall()
+        if not rows:
+            # Tentar tabela alternativa 'kits'
+            with get_db_connection(empresa_id=empresa_id) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    f"SELECT id, nome FROM kits WHERE id IN ({placeholders})",
+                    ids,
+                )
+                rows = cur.fetchall()
+        id_to_name = {r['id']: r['nome'] for r in rows}
+        nomes = [id_to_name.get(i, f'Kit #{i}') for i in ids]
+        return ', '.join(nomes)
+    except Exception as e:
+        print(f"⚠️ Erro ao resolver nomes de kits: {e}")
+        return ', '.join(str(e) for e in kit_ids)
+
+
 def create_notification_html(title: str, items: List[Dict], notification_type: str) -> str:
     """
     Criar HTML para notificação
@@ -404,11 +446,14 @@ def create_notification_html(title: str, items: List[Dict], notification_type: s
             # Equipamentos próprios (lista de dicts com 'nome' ou strings)
             equipamentos = item.get('equipamentos') or []
             if equipamentos:
-                equip_nomes = [
-                    (e.get('nome') if isinstance(e, dict) else str(e))
-                    for e in equipamentos if e
-                ]
-                equip_str = ', '.join(filter(None, equip_nomes)) or 'Não informado'
+                # Pode ser lista de IDs (int) ou dicts com 'nome' — resolver ambos
+                has_ids = any(not isinstance(e, dict) for e in equipamentos)
+                if has_ids:
+                    empresa_id_item = item.get('empresa_id')
+                    equip_str = _resolve_kit_names(empresa_id_item, equipamentos)
+                else:
+                    nomes = [e.get('nome', '') for e in equipamentos if e.get('nome')]
+                    equip_str = ', '.join(nomes) or 'Não informado'
             else:
                 equip_str = 'Não informado'
 
@@ -679,7 +724,7 @@ def send_notification_batch(empresa_id: int):
     if upcoming_sessions:
         _send_and_log(
             upcoming_sessions, 'lembrete_sessao',
-            "⚠️ {N} Sessão(ões) nos Próximos 3 Dias",
+            "⚠️ {N} Sessões nos Próximos 3 Dias",
             "⚠️ Sessões Próximas - Prepare-se!", 'sessoes_proximas',
         )
 
@@ -688,7 +733,7 @@ def send_notification_batch(empresa_id: int):
     if overdue_sessions:
         _send_and_log(
             overdue_sessions, 'sessao_atrasada',
-            "🚨 {N} Sessão(ões) Atrasada(s)",
+            "🚨 {N} Sessões Atrasadas",
             "🚨 Sessões Atrasadas - Ação Necessária!", 'sessoes_atrasadas',
         )
 
@@ -697,7 +742,7 @@ def send_notification_batch(empresa_id: int):
     if open_sessions and len(open_sessions) > 10:
         _send_and_log(
             open_sessions[:10], 'sessoes_abertas',
-            "📝 {N} Sessão(ões) em Aberto",
+            "📝 {N} Sessões em Aberto",
             "📝 Muitas Sessões em Aberto", 'sessoes_abertas',
         )
 
