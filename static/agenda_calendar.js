@@ -850,24 +850,80 @@ async function viewNotificationsLog() {
     const modal = document.createElement('div');
     modal.id = 'notifications-log-modal';
     modal.className = 'modal-overlay';
+    modal.style.cssText = 'display:flex; align-items:center; justify-content:center; z-index:9999;';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 860px; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #2980b9 0%, #1a5276 100%); color: white;">
-                <h3>📋 Histórico de E-mails Enviados</h3>
-                <button class="modal-close" onclick="closeModal('notifications-log-modal')">✕</button>
+        <div style="
+            background:#f8fafc;
+            border-radius:20px;
+            width:100%;
+            max-width:900px;
+            max-height:88vh;
+            display:flex;
+            flex-direction:column;
+            box-shadow:0 24px 64px rgba(30,41,59,0.28);
+            overflow:hidden;
+            animation: modalFadeIn 0.2s ease;
+        ">
+            <!-- Header -->
+            <div style="
+                background: linear-gradient(135deg, #1a1f3a 0%, #2c3e50 100%);
+                padding: 20px 24px;
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                border-bottom: 3px solid #3498db;
+                flex-shrink:0;
+            ">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="background:rgba(52,152,219,0.25); width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px;">📬</div>
+                    <div>
+                        <div style="color:#fff; font-size:16px; font-weight:700; line-height:1.2;">Histórico de E-mails</div>
+                        <div style="color:#94a3b8; font-size:12px; margin-top:2px;">Registro de todas as notificações enviadas</div>
+                    </div>
+                </div>
+                <button onclick="closeModal('notifications-log-modal')" style="
+                    background:rgba(255,255,255,0.1);
+                    border:none; cursor:pointer; color:#fff;
+                    width:32px; height:32px; border-radius:50%;
+                    font-size:14px; font-weight:700;
+                    display:flex; align-items:center; justify-content:center;
+                    transition:background 0.2s;
+                " onmouseover="this.style.background='rgba(239,68,68,0.7)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">✕</button>
             </div>
-            <div class="modal-body">
-                <div id="notif-log-content" style="min-height: 100px; display:flex; align-items:center; justify-content:center;">
-                    <span style="color:#999">Carregando histórico...</span>
+
+            <!-- Body -->
+            <div style="overflow-y:auto; flex:1; padding:20px 24px;">
+                <div id="notif-log-content" style="min-height:120px; display:flex; align-items:center; justify-content:center;">
+                    <div style="text-align:center; color:#94a3b8;">
+                        <div style="font-size:28px; margin-bottom:8px;">⏳</div>
+                        <div style="font-size:14px;">Carregando histórico...</div>
+                    </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn" onclick="closeModal('notifications-log-modal')">Fechar</button>
+
+            <!-- Footer -->
+            <div style="
+                padding:14px 24px;
+                background:#fff;
+                border-top:1px solid #e2e8f0;
+                display:flex;
+                justify-content:flex-end;
+                flex-shrink:0;
+            ">
+                <button onclick="closeModal('notifications-log-modal')" style="
+                    background: linear-gradient(135deg, #1a1f3a, #2c3e50);
+                    color:white; border:none; padding:9px 22px;
+                    border-radius:8px; cursor:pointer; font-size:13px; font-weight:600;
+                    transition: opacity 0.2s;
+                " onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Fechar</button>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
     modal.classList.add('show');
+
+    // Fechar ao clicar fora
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal('notifications-log-modal'); });
 
     try {
         const resp = await fetch('/api/notifications/log?limit=50');
@@ -875,69 +931,97 @@ async function viewNotificationsLog() {
         const container = document.getElementById('notif-log-content');
 
         if (!data.success) {
-            container.innerHTML = `<p style="color:#e74c3c">❌ ${data.error || 'Erro ao carregar histórico'}</p>`;
+            container.innerHTML = `<div style="text-align:center;padding:30px;color:#ef4444;">❌ ${data.error || 'Erro ao carregar histórico'}</div>`;
             return;
         }
 
         const logs = data.logs || [];
         if (logs.length === 0) {
-            container.innerHTML = '<p style="color:#999; text-align:center">Nenhum e-mail registrado ainda.</p>';
+            container.innerHTML = `
+                <div style="text-align:center; padding:40px 20px; color:#94a3b8;">
+                    <div style="font-size:40px; margin-bottom:12px;">📭</div>
+                    <div style="font-size:15px; font-weight:600; color:#64748b;">Nenhum e-mail registrado ainda</div>
+                    <div style="font-size:13px; margin-top:4px;">Envie lembretes para que apareçam aqui.</div>
+                </div>`;
             return;
         }
 
-        const tipoLabel = {
-            lembrete_sessao:  '📅 Lembrete Sessão',
-            sessao_atrasada:  '🚨 Sessão Atrasada',
-            sessoes_abertas:  '📝 Sessões Abertas',
-            contrato_proximo: '📄 Contrato Próximo',
-            contrato_vencido: '🚨 Contrato Vencido',
+        const tipoMeta = {
+            lembrete_sessao:  { label: 'Lembrete',       icon: '📅', bg: '#eff6ff', color: '#3b82f6' },
+            sessao_atrasada:  { label: 'Atrasada',        icon: '🚨', bg: '#fef2f2', color: '#ef4444' },
+            sessoes_abertas:  { label: 'Em Aberto',       icon: '📝', bg: '#fff7ed', color: '#f59e0b' },
+            contrato_proximo: { label: 'Ctr. Próximo',    icon: '📄', bg: '#f0fdf4', color: '#10b981' },
+            contrato_vencido: { label: 'Ctr. Vencido',    icon: '🚨', bg: '#fef2f2', color: '#ef4444' },
         };
 
+        const total   = logs.length;
+        const enviados = logs.filter(l => l.status === 'enviado').length;
+        const erros    = total - enviados;
+
         container.innerHTML = `
-            <p style="color:#7f8c8d; font-size:12px; margin-bottom:10px;">
-                Exibindo os ${logs.length} registros mais recentes
-            </p>
-            <div style="overflow-x:auto;">
-            <table style="width:100%; border-collapse:collapse; font-size:13px;">
-                <thead>
-                    <tr style="background:#2980b9; color:white; text-align:left;">
-                        <th style="padding:8px 10px;">Data/Hora</th>
-                        <th style="padding:8px 10px;">Tipo</th>
-                        <th style="padding:8px 10px;">Assunto</th>
-                        <th style="padding:8px 10px;">Destinatários</th>
-                        <th style="padding:8px 10px; text-align:center;">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${logs.map((log, i) => {
-                        const dest = Array.isArray(log.destinatarios)
-                            ? log.destinatarios.join(', ')
-                            : log.destinatarios;
-                        const statusBadge = log.status === 'enviado'
-                            ? '<span style="background:#27ae60;color:white;padding:2px 8px;border-radius:10px;font-size:11px;">✅ enviado</span>'
-                            : '<span style="background:#e74c3c;color:white;padding:2px 8px;border-radius:10px;font-size:11px;">❌ erro</span>';
-                        const tipo = tipoLabel[log.tipo] || log.tipo;
-                        const rowBg = i % 2 === 0 ? '#fff' : '#f8f9fa';
-                        return `
-                            <tr style="background:${rowBg}; border-bottom:1px solid #ecf0f1;">
-                                <td style="padding:8px 10px; white-space:nowrap; color:#7f8c8d;">${log.enviado_em}</td>
-                                <td style="padding:8px 10px; white-space:nowrap;">${tipo}</td>
-                                <td style="padding:8px 10px;">${log.assunto}</td>
-                                <td style="padding:8px 10px; color:#555;">${dest}</td>
-                                <td style="padding:8px 10px; text-align:center;">
-                                    ${statusBadge}
-                                    ${log.erro_detalhe ? `<br><small style="color:#e74c3c">${log.erro_detalhe}</small>` : ''}
-                                </td>
-                            </tr>
-                        `;
-                    }).join('')}
-                </tbody>
-            </table>
+            <!-- Stats -->
+            <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:120px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 18px; display:flex; align-items:center; gap:12px; box-shadow:0 1px 4px rgba(30,41,59,0.06);">
+                    <div style="background:#eff6ff; width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:18px;">📨</div>
+                    <div><div style="font-size:20px; font-weight:800; color:#1e293b;">${total}</div><div style="font-size:11px; color:#64748b; font-weight:500;">Total</div></div>
+                </div>
+                <div style="flex:1; min-width:120px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 18px; display:flex; align-items:center; gap:12px; box-shadow:0 1px 4px rgba(30,41,59,0.06);">
+                    <div style="background:#f0fdf4; width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:18px;">✅</div>
+                    <div><div style="font-size:20px; font-weight:800; color:#10b981;">${enviados}</div><div style="font-size:11px; color:#64748b; font-weight:500;">Enviados</div></div>
+                </div>
+                ${erros > 0 ? `
+                <div style="flex:1; min-width:120px; background:#fff; border:1px solid #fecaca; border-radius:12px; padding:14px 18px; display:flex; align-items:center; gap:12px; box-shadow:0 1px 4px rgba(30,41,59,0.06);">
+                    <div style="background:#fef2f2; width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:18px;">❌</div>
+                    <div><div style="font-size:20px; font-weight:800; color:#ef4444;">${erros}</div><div style="font-size:11px; color:#64748b; font-weight:500;">Erros</div></div>
+                </div>` : ''}
             </div>
+
+            <!-- Table -->
+            <div style="background:#fff; border-radius:14px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 4px rgba(30,41,59,0.06);">
+                <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                    <thead>
+                        <tr style="background:linear-gradient(135deg,#1a1f3a,#2c3e50); color:#fff;">
+                            <th style="padding:11px 14px; font-weight:600; text-align:left; white-space:nowrap;">🕐 Data/Hora</th>
+                            <th style="padding:11px 14px; font-weight:600; text-align:left;">Tipo</th>
+                            <th style="padding:11px 14px; font-weight:600; text-align:left;">Assunto</th>
+                            <th style="padding:11px 14px; font-weight:600; text-align:left;">Destinatário(s)</th>
+                            <th style="padding:11px 14px; font-weight:600; text-align:center;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${logs.map((log, i) => {
+                            const dest = Array.isArray(log.destinatarios)
+                                ? log.destinatarios.join(', ')
+                                : (log.destinatarios || '—');
+                            const m = tipoMeta[log.tipo] || { label: log.tipo, icon: '📧', bg: '#f8fafc', color: '#64748b' };
+                            const ok = log.status === 'enviado';
+                            const rowBg = i % 2 === 0 ? '#fff' : '#f8fafc';
+                            return `
+                                <tr style="background:${rowBg}; border-bottom:1px solid #f1f5f9; transition:background 0.12s;"
+                                    onmouseover="this.style.background='#eff6ff'"
+                                    onmouseout="this.style.background='${rowBg}'">
+                                    <td style="padding:10px 14px; white-space:nowrap; color:#64748b; font-size:12px;">${log.enviado_em}</td>
+                                    <td style="padding:10px 14px; white-space:nowrap;">
+                                        <span style="background:${m.bg}; color:${m.color}; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; display:inline-flex; align-items:center; gap:4px;">${m.icon} ${m.label}</span>
+                                    </td>
+                                    <td style="padding:10px 14px; color:#1e293b; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${log.assunto}">${log.assunto}</td>
+                                    <td style="padding:10px 14px; color:#475569; font-size:12px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${dest}">${dest}</td>
+                                    <td style="padding:10px 14px; text-align:center;">
+                                        ${ok
+                                            ? '<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">✓ Enviado</span>'
+                                            : '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">✗ Erro</span>'}
+                                        ${log.erro_detalhe ? `<div style="color:#dc2626;font-size:10px;margin-top:3px;">${log.erro_detalhe}</div>` : ''}
+                                    </td>
+                                </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <div style="text-align:right; margin-top:8px; color:#94a3b8; font-size:11px;">Exibindo os ${total} registros mais recentes</div>
         `;
     } catch (err) {
         const container = document.getElementById('notif-log-content');
-        if (container) container.innerHTML = `<p style="color:#e74c3c">❌ Erro de conexão: ${err.message}</p>`;
+        if (container) container.innerHTML = `<div style="text-align:center;padding:30px;color:#ef4444;">❌ Erro de conexão: ${err.message}</div>`;
     }
 }
 
