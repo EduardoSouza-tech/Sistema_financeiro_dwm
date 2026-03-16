@@ -388,11 +388,15 @@ body {
     justify-content: space-between;
     padding: 14px 18px;
     background: linear-gradient(135deg, #1a1f3a 0%, #2c3e50 100%);
-    color: white;
+    color: #ffffff !important;
     font-weight: 700;
     font-size: 14px;
     letter-spacing: 0.3px;
     border-bottom: 2px solid rgba(52,152,219,0.4);
+}
+.notif-panel-header span,
+.notif-panel-header * {
+    color: #ffffff !important;
 }
 .notif-btn-all {
     background: #3498db;
