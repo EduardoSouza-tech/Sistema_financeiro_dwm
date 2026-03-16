@@ -517,9 +517,10 @@ def check_upcoming_sessions(empresa_id: int, days_ahead: int = 3) -> List[Dict]:
         
         upcoming = []
         for sessao in all_sessions:
-            if sessao.get('status') not in ['finalizada', 'cancelada']:
+            # Excluir apenas canceladas — finalizadas com data futura ainda precisam de lembrete
+            if sessao.get('status') != 'cancelada':
                 try:
-                    sessao_date = datetime.strptime(sessao['data'], '%Y-%m-%d').date()
+                    sessao_date = datetime.strptime(str(sessao['data'])[:10], '%Y-%m-%d').date()
                     if today <= sessao_date <= limit_date:
                         upcoming.append(sessao)
                 except:
@@ -545,9 +546,10 @@ def check_overdue_sessions(empresa_id: int) -> List[Dict]:
         
         overdue = []
         for sessao in all_sessions:
+            # Excluir apenas canceladas e finalizadas (sessão atrasada = não realizada ainda)
             if sessao.get('status') not in ['finalizada', 'cancelada']:
                 try:
-                    sessao_date = datetime.strptime(sessao['data'], '%Y-%m-%d').date()
+                    sessao_date = datetime.strptime(str(sessao['data'])[:10], '%Y-%m-%d').date()
                     if sessao_date < today:
                         overdue.append(sessao)
                 except:
