@@ -7,6 +7,12 @@ import os
 import json
 import smtplib
 import urllib.request
+import urllib.error
+try:
+    import requests as _requests
+    _REQUESTS_AVAILABLE = True
+except ImportError:
+    _REQUESTS_AVAILABLE = False
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
@@ -55,17 +61,37 @@ def _send_via_resend(recipients: List[str], subject: str, html_content: str,
     if not api_key:
         return False
 
-    payload = json.dumps({
+    payload = {
         'from': f'{from_name} <{from_email}>',
         'to': recipients,
         'subject': subject,
         'html': html_content,
-        **(({'text': plain_content}) if plain_content else {}),
-    }).encode('utf-8')
+    }
+    if plain_content:
+        payload['text'] = plain_content
 
+    if _REQUESTS_AVAILABLE:
+        try:
+            resp = _requests.post(
+                'https://api.resend.com/emails',
+                json=payload,
+                headers={'Authorization': f'Bearer {api_key}'},
+                timeout=15,
+            )
+            if resp.status_code in (200, 201):
+                print(f"✅ E-mail enviado via Resend para {len(recipients)} destinatário(s)")
+                return True
+            print(f"❌ Erro ao enviar via Resend: HTTP {resp.status_code} | from={from_email} | body={resp.text}")
+            return False
+        except Exception as e:
+            print(f"❌ Erro ao enviar via Resend: {e}")
+            return False
+
+    # fallback urllib (caso requests não esteja disponível)
+    encoded_payload = json.dumps(payload).encode('utf-8')
     req = urllib.request.Request(
         'https://api.resend.com/emails',
-        data=payload,
+        data=encoded_payload,
         headers={
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json',
