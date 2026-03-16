@@ -103,8 +103,11 @@ def send_email_notification(recipients: List[str], subject: str, html_content: s
 
     # -- Tentativa 1: Resend (HTTPS) --
     if os.getenv('RESEND_API_KEY'):
+        # Resend exige remetente do domínio verificado — não pode ser @gmail.com
+        resend_from = os.getenv('RESEND_FROM_EMAIL', from_email)
+        resend_name = os.getenv('RESEND_FROM_NAME', from_name)
         return _send_via_resend(recipients, subject, html_content,
-                                plain_content or '', from_email, from_name)
+                                plain_content or '', resend_from, resend_name)
 
     # -- Tentativa 2: SMTP direto --
     if not settings.get('smtp_enabled'):
