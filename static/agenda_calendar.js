@@ -328,7 +328,7 @@ function toggleCalendarView() {
     if (currentView === 'calendar') {
         calendarView.style.display = 'block';
         listView.style.display = 'none';
-        if (calendar) calendar.refetchEvents();
+        if (calendar) loadCalendarEvents();
     } else {
         calendarView.style.display = 'none';
         listView.style.display = 'block';
@@ -448,7 +448,7 @@ async function syncGoogleCalendar() {
                 ? 'Nenhuma alteração necessária — tudo já está sincronizado.'
                 : `${criados} evento(s) criado(s), ${atualizados} atualizado(s).`;
             showNotification(`✅ Sincronização concluída! ${detalhes}`, 'success');
-            if (calendar) calendar.refetchEvents();
+            if (calendar) loadCalendarEvents();
         } else if (response.status === 401) {
             showNotification('⚠️ Google Calendar não autorizado. Clique em "🔐 Autorizar Google Calendar" primeiro.', 'warning');
             openEmailSettings();
@@ -995,7 +995,7 @@ console.log('✅ Módulo agenda_calendar.js carregado');
  * Chamado por modals.js quando uma sessão é criada/editada/status alterado.
  */
 function refreshAgendaFotografia() {
-    if (calendar) calendar.refetchEvents();
+    if (calendar) loadCalendarEvents();
     if (currentView === 'list') loadAgendaListView();
 }
 
