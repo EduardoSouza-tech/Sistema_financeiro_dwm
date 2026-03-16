@@ -334,14 +334,16 @@ body {
 .notif-bell-btn.notif-bell-active {
     background: #e74c3c;
     border-color: #e74c3c;
-    animation: notif-shake 0.5s ease-in-out;
+}
+.notif-bell-btn.notif-bell-ringing {
+    animation: notif-shake 0.6s ease-in-out;
 }
 @keyframes notif-shake {
     0%,100% { transform: rotate(0deg); }
-    20%      { transform: rotate(-15deg); }
-    40%      { transform: rotate(15deg); }
-    60%      { transform: rotate(-10deg); }
-    80%      { transform: rotate(10deg); }
+    20%      { transform: rotate(-18deg); }
+    40%      { transform: rotate(18deg); }
+    60%      { transform: rotate(-12deg); }
+    80%      { transform: rotate(12deg); }
 }
 .notif-badge {
     position: absolute;

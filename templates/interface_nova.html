@@ -7959,6 +7959,30 @@
             // SISTEMA DE NOTIFICAÇÕES
             // ----------------------------------------------------------------
             let _avisosCache = [];
+            let _notifRingInterval = null;
+
+            function _doNotifRing() {
+                const btn = document.getElementById('notif-bell-btn');
+                if (!btn || !btn.classList.contains('notif-bell-active')) return;
+                btn.classList.remove('notif-bell-ringing');
+                void btn.offsetWidth; // force reflow para reiniciar a animação
+                btn.classList.add('notif-bell-ringing');
+            }
+
+            function startNotifRing() {
+                if (_notifRingInterval) return;
+                _doNotifRing();
+                _notifRingInterval = setInterval(_doNotifRing, 3000);
+            }
+
+            function stopNotifRing() {
+                if (_notifRingInterval) {
+                    clearInterval(_notifRingInterval);
+                    _notifRingInterval = null;
+                }
+                const btn = document.getElementById('notif-bell-btn');
+                if (btn) btn.classList.remove('notif-bell-ringing');
+            }
 
             async function carregarAvisos() {
                 try {
@@ -7980,9 +8004,11 @@
                     badge.textContent = total > 99 ? '99+' : total;
                     badge.style.display = 'flex';
                     document.getElementById('notif-bell-btn').classList.add('notif-bell-active');
+                    startNotifRing();
                 } else {
                     badge.style.display = 'none';
                     document.getElementById('notif-bell-btn').classList.remove('notif-bell-active');
+                    stopNotifRing();
                 }
             }
 
@@ -8025,7 +8051,10 @@
                 if (!panel) return;
                 const visible = panel.style.display !== 'none';
                 panel.style.display = visible ? 'none' : 'block';
-                if (!visible) carregarAvisos();
+                if (!visible) {
+                    stopNotifRing();
+                    carregarAvisos();
+                }
             };
 
             window.marcarAvisoLido = async function(avisoId) {
