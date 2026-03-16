@@ -536,7 +536,7 @@ function openEmailSettings() {
                                    value="${emailSettings.google_calendar_id || ''}"
                                    placeholder="seu-email@gmail.com">
                             <p style="font-size: 11px; color: #666; margin-top: 5px;">
-                                Encontre em: Google Calendar → Configurações → ID do calendário
+                                Encontre em: <a href="https://calendar.google.com/calendar/r/settings" target="_blank" rel="noopener noreferrer" style="color: #4285F4;">calendar.google.com → Configurações → seu calendário → ID do calendário</a>
                             </p>
                         </div>
                         <button class="btn" style="background: #DB4437; color: white;" onclick="authorizeGoogleCalendar()">
