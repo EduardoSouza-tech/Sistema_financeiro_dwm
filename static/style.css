@@ -364,83 +364,119 @@ body {
 }
 .notif-panel {
     position: fixed;
-    top: 65px;
+    top: 68px;
     right: 20px;
     z-index: 1002;
     width: 380px;
-    max-height: 520px;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-    border: 1px solid #e2e8f0;
+    max-height: 540px;
+    background: #f8fafc;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(30,41,59,0.22), 0 2px 8px rgba(30,41,59,0.10);
+    border: 1px solid rgba(52,152,219,0.18);
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    animation: notif-panel-in 0.18s ease;
+}
+@keyframes notif-panel-in {
+    from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 .notif-panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 16px;
-    background: #1e293b;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, #1a1f3a 0%, #2c3e50 100%);
     color: white;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 14px;
+    letter-spacing: 0.3px;
+    border-bottom: 2px solid rgba(52,152,219,0.4);
 }
 .notif-btn-all {
-    background: rgba(255,255,255,0.15);
+    background: #3498db;
     border: none;
     color: white;
-    padding: 4px 10px;
-    border-radius: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
     cursor: pointer;
     font-size: 12px;
-    transition: background 0.2s;
+    font-weight: 600;
+    transition: background 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
-.notif-btn-all:hover { background: rgba(255,255,255,0.3); }
+.notif-btn-all:hover { background: #2980b9; transform: scale(1.04); }
 .notif-list {
     overflow-y: auto;
     flex: 1;
+    padding: 10px 10px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
+.notif-list::-webkit-scrollbar { width: 5px; }
+.notif-list::-webkit-scrollbar-track { background: transparent; }
+.notif-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 .notif-item {
     padding: 12px 14px;
-    border-bottom: 1px solid #f1f5f9;
+    border-radius: 12px;
     background: white;
-    transition: background 0.15s;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #3b82f6;
+    box-shadow: 0 1px 4px rgba(30,41,59,0.07);
+    transition: box-shadow 0.15s, transform 0.12s;
 }
-.notif-item:hover { background: #f8fafc; }
+.notif-item:hover {
+    box-shadow: 0 4px 12px rgba(30,41,59,0.13);
+    transform: translateY(-1px);
+}
 .notif-item-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 8px;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
     font-size: 13px;
+    font-weight: 600;
     color: #1e293b;
 }
 .notif-item-msg {
     font-size: 13px;
     color: #475569;
-    line-height: 1.5;
-    margin-bottom: 4px;
+    line-height: 1.6;
+    margin-bottom: 8px;
     white-space: pre-wrap;
     word-break: break-word;
 }
 .notif-item-date {
     font-size: 11px;
     color: #94a3b8;
+    background: #f1f5f9;
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
 }
 .notif-btn-lido {
-    background: none;
+    background: #f1f5f9;
     border: none;
     cursor: pointer;
     color: #94a3b8;
-    font-size: 14px;
-    padding: 0 2px;
+    font-size: 11px;
+    font-weight: 700;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
     line-height: 1;
 }
-.notif-btn-lido:hover { color: #ef4444; }
+.notif-btn-lido:hover { background: #fee2e2; color: #ef4444; }
 
 /* ── Mobile: Top Controls Bar ────────────────────────────────────────── */
 @media (max-width: 768px) {
@@ -508,7 +544,7 @@ body {
         right: 0;
         width: 100%;
         max-width: 100%;
-        border-radius: 0 0 14px 14px;
+        border-radius: 0 0 16px 16px;
         max-height: 65vh;
     }
 }

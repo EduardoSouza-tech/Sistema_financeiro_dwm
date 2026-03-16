@@ -8021,16 +8021,20 @@
                 }
                 const tipoIcone = { info: 'ℹ️', warning: '⚠️', success: '✅', danger: '🚨' };
                 const tipoCor   = { info: '#3b82f6', warning: '#f59e0b', success: '#10b981', danger: '#ef4444' };
-                list.innerHTML = _avisosCache.map(a => `
-                    <div class="notif-item" style="border-left:4px solid ${tipoCor[a.tipo]||'#3b82f6'};">
+                const tipoBg    = { info: '#eff6ff', warning: '#fffbeb', success: '#f0fdf4', danger: '#fef2f2' };
+                list.innerHTML = _avisosCache.map(a => {
+                    const cor = tipoCor[a.tipo] || '#3b82f6';
+                    const bg  = tipoBg[a.tipo]  || '#eff6ff';
+                    return `
+                    <div class="notif-item" style="border-left-color:${cor}; background:${bg};">
                         <div class="notif-item-header">
-                            <span>${tipoIcone[a.tipo]||'ℹ️'} <strong>${escapeHtml(a.titulo)}</strong></span>
+                            <span style="color:${cor}">${tipoIcone[a.tipo]||'ℹ️'} <strong style="color:#1e293b">${escapeHtml(a.titulo)}</strong></span>
                             <button onclick="marcarAvisoLido(${a.id})" class="notif-btn-lido" title="Marcar como lido">✕</button>
                         </div>
                         <div class="notif-item-msg">${escapeHtml(a.mensagem)}</div>
-                        <div class="notif-item-date">${formatNotifDate(a.criado_em)}${a.expira_em ? ' · Expira: ' + formatNotifDate(a.expira_em) : ''}</div>
+                        <div class="notif-item-date">🕐 ${formatNotifDate(a.criado_em)}${a.expira_em ? ' &nbsp;·&nbsp; ⏳ Expira: ' + formatNotifDate(a.expira_em) : ''}</div>
                     </div>
-                `).join('');
+                `}).join('');
             }
 
             function escapeHtml(s) {
