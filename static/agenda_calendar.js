@@ -110,8 +110,33 @@ function initAgendaCalendar() {
     
     // Carregar configurações de e-mail
     loadEmailSettings();
+
+    // Verificar mensagem de retorno do OAuth do Google
+    _handleGoogleAuthMessage();
     
     console.log('✅ Calendário totalmente inicializado');
+}
+
+/**
+ * Lê o parâmetro ?message da URL e exibe feedback do OAuth do Google
+ */
+function _handleGoogleAuthMessage() {
+    const params = new URLSearchParams(window.location.search);
+    const message = params.get('message');
+    if (!message) return;
+
+    if (message === 'google_auth_success') {
+        showNotification('✅ Google Calendar autorizado com sucesso! Agora você pode sincronizar suas sessões.', 'success');
+        // Recarregar configurações para refletir google_calendar_enabled = true
+        loadEmailSettings();
+    } else if (message === 'google_auth_failed' || message === 'google_auth_error') {
+        const error = params.get('error') || 'Erro desconhecido';
+        showNotification(`❌ Falha na autorização do Google Calendar: ${error}`, 'error');
+    }
+
+    // Limpar o parâmetro da URL sem recarregar a página
+    const cleanUrl = window.location.pathname + window.location.hash;
+    window.history.replaceState({}, '', cleanUrl);
 }
 
 /**
@@ -405,7 +430,6 @@ async function syncGoogleCalendar() {
         
         showNotification('🔄 Sincronizando com Google Calendar...', 'info');
         
-        // Implementar sincronização
         const response = await fetch('/api/google-calendar/sync', {
             method: 'POST',
             headers: {
@@ -413,16 +437,28 @@ async function syncGoogleCalendar() {
                 'X-CSRF-Token': getCsrfToken()
             }
         });
-        
-        if (response.ok) {
-            showNotification('✅ Sincronizado com sucesso!', 'success');
+
+        let data = {};
+        try { data = await response.json(); } catch(e) {}
+
+        if (response.ok && data.success) {
+            const criados   = data.events_created  ?? 0;
+            const atualizados = data.events_updated ?? 0;
+            const detalhes = criados + atualizados === 0
+                ? 'Nenhuma alteração necessária — tudo já está sincronizado.'
+                : `${criados} evento(s) criado(s), ${atualizados} atualizado(s).`;
+            showNotification(`✅ Sincronização concluída! ${detalhes}`, 'success');
             if (calendar) calendar.refetchEvents();
+        } else if (response.status === 401) {
+            showNotification('⚠️ Google Calendar não autorizado. Clique em "🔐 Autorizar Google Calendar" primeiro.', 'warning');
+            openEmailSettings();
         } else {
-            throw new Error('Falha na sincronização');
+            const errMsg = data.error || 'Falha na sincronização';
+            throw new Error(errMsg);
         }
     } catch (error) {
         console.error('❌ Erro ao sincronizar:', error);
-        showNotification('❌ Erro ao sincronizar com Google Calendar', 'error');
+        showNotification(`❌ Erro ao sincronizar com Google Calendar: ${error.message}`, 'error');
     }
 }
 
