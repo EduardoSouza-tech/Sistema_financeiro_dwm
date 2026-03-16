@@ -532,6 +532,59 @@ def get_db_connection(empresa_id=None, allow_global=False):
         pool_obj.putconn(conn)
 
 
+class _PooledConnection:
+    """
+    Wrapper transparente que devolve a conexão ao pool automaticamente no __exit__.
+
+    Corrige o leak causado por `with db.get_connection() as conn:` — o psycopg2
+    nativo faz apenas commit/rollback no __exit__ mas NÃO devolve ao pool.
+    Com este wrapper, a conexão é sempre devolvida ao sair do bloco `with`
+    ou quando o objeto for coletado pelo garbage collector.
+    """
+    def __init__(self, conn):
+        object.__setattr__(self, '_conn', conn)
+        object.__setattr__(self, '_returned', False)
+
+    # Proxy transparente: delega todos os métodos/atributos à conexão real
+    def __getattr__(self, name):
+        return getattr(object.__getattribute__(self, '_conn'), name)
+
+    def __setattr__(self, name, value):
+        if name in ('_conn', '_returned'):
+            object.__setattr__(self, name, value)
+        else:
+            setattr(object.__getattribute__(self, '_conn'), name, value)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self._return_conn()
+        return False
+
+    def _return_conn(self):
+        returned = object.__getattribute__(self, '_returned')
+        if not returned:
+            object.__setattr__(self, '_returned', True)
+            conn = object.__getattribute__(self, '_conn')
+            try:
+                pool_obj = _get_connection_pool()
+                pool_obj.putconn(conn)
+            except Exception as e:
+                print(f"⚠️ _PooledConnection: erro ao devolver ao pool: {e}")
+
+    def close(self):
+        self._return_conn()
+
+    def __del__(self):
+        try:
+            returned = object.__getattribute__(self, '_returned')
+            if not returned:
+                self._return_conn()
+        except Exception:
+            pass
+
+
 def return_to_pool(conn):
     """Devolve uma conexão ao pool manualmente.
     
@@ -539,6 +592,10 @@ def return_to_pool(conn):
     o context manager já chama putconn() no finally, evitando duplo-retorno
     que corrompe o pool e causa 500s intermitentes.
     """
+    # Se for wrapper _PooledConnection, usar método próprio
+    if isinstance(conn, _PooledConnection):
+        conn._return_conn()
+        return
     try:
         # Se gerenciada pelo context manager, NÃO devolver — ele cuida disso.
         if conn in _managed_connections:
@@ -764,7 +821,7 @@ class DatabaseManager:
                         cursor = conn.cursor()
                         cursor.execute("SELECT 1")
                         cursor.close()
-                        return conn
+                        return _PooledConnection(conn)
                     except (OperationalError, InterfaceError) as e:
                         # Conexão está morta, descartar e tentar novamente
                         print(f"⚠️ Conexão morta detectada (tentativa {attempt + 1}/{max_retries}): {e}")
@@ -791,7 +848,7 @@ class DatabaseManager:
                     pool_obj = _get_connection_pool()
                     conn = pool_obj.getconn()
                     conn.autocommit = True
-                    return conn
+                    return _PooledConnection(conn)
                 time.sleep(retry_delay)
                 
             except Error as e:
