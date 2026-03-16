@@ -140,10 +140,11 @@ def get_notifications_log(empresa_id: int, limit: int = 50) -> List[Dict]:
         return []
 
 
-def send_upcoming_session_reminders(empresa_id: int, days_ahead: int = 3) -> Dict:
+def send_upcoming_session_reminders(empresa_id: int, days_ahead: int = 3, force: bool = False) -> Dict:
     """
-    Envia lembretes para sessões próximas ainda não notificadas hoje.
-    Faz deduplicação por sessão (não reenvía se já mandou hoje).
+    Envia lembretes para sessões próximas.
+    force=True pula a deduplicação diária (uso manual).
+    force=False (padrão) respeita o limite de 1 e-mail por sessão por dia (uso automático).
     Retorna resumo: {'sent': N, 'skipped': N, 'error': N, 'sessions': [...]}
     """
     _ensure_log_table()
@@ -167,7 +168,7 @@ def send_upcoming_session_reminders(empresa_id: int, days_ahead: int = 3) -> Dic
     to_notify = []
     for sessao in upcoming:
         sessao_id = sessao.get('id')
-        if sessao_id and was_notified_today(empresa_id, 'lembrete_sessao', sessao_id):
+        if not force and sessao_id and was_notified_today(empresa_id, 'lembrete_sessao', sessao_id):
             result['skipped'] += 1
             result['sessions'].append({
                 'id': sessao_id,

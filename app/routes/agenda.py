@@ -385,9 +385,10 @@ def send_session_reminders():
 
     data = request.json or {}
     days_ahead = int(data.get('days_ahead', 3))
+    force = bool(data.get('force', True))  # manual sempre força o envio
 
     try:
-        result = notification_service.send_upcoming_session_reminders(empresa_id, days_ahead=days_ahead)
+        result = notification_service.send_upcoming_session_reminders(empresa_id, days_ahead=days_ahead, force=force)
         sent    = result.get('sent', 0)
         skipped = result.get('skipped', 0)
         error   = result.get('error', 0)
