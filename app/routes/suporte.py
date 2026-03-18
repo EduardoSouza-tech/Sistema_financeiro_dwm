@@ -335,9 +335,10 @@ def detalhe_chamado(chamado_id):
         return jsonify({'error': str(e)}), 500
 
 
-@suporte_bp.route('/chamados/<int:chamado_id>/status', methods=['PUT'])
+@suporte_bp.route('/chamados/<int:chamado_id>/status', methods=['PUT', 'POST', 'PATCH'])
 def atualizar_status_chamado(chamado_id):
     """Admin atualiza status e/ou resposta do chamado."""
+    print(f"\n🔧 [SUPORTE] atualizar_status_chamado chamado_id={chamado_id} method={request.method}")
     try:
         from database_postgresql import get_db_connection
 

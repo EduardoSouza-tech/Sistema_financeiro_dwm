@@ -2213,7 +2213,6 @@
 
             // Se a aba de chamados foi selecionada
             if (tabName === 'chamados') {
-                console.log('🎧 [chamados] Aba Chamados ativada - carregando dados...');
                 carregarChamadosAdmin();
                 carregarStatsChamados();
                 _iniciarAutoRefreshChamados();
@@ -2235,7 +2234,7 @@
             _chamadosAutoRefreshInterval = setInterval(() => {
                 carregarChamadosAdmin();
                 carregarStatsChamados();
-            }, 10000); // Atualiza a cada 10 segundos
+            }, 60000); // Atualiza a cada 60 segundos
         }
 
         function _pararAutoRefreshChamados() {
@@ -2247,16 +2246,9 @@
 
         async function carregarStatsChamados() {
             try {
-                console.log('🔍 [chamados] Buscando stats...');
                 const r = await fetch('/api/suporte/chamados/stats', { credentials: 'same-origin' });
-                console.log('🔍 [chamados] Stats response status:', r.status);
-                if (!r.ok) {
-                    const text = await r.text();
-                    console.error('❌ [chamados] Stats HTTP error:', r.status, text);
-                    return;
-                }
+                if (!r.ok) return;
                 const data = await r.json();
-                console.log('🔍 [chamados] Stats data:', data);
                 if (data.success) {
                     document.getElementById('statAbertos').textContent = data.stats.abertos || 0;
                     document.getElementById('statEmAndamento').textContent = data.stats.em_andamento || 0;
@@ -2277,18 +2269,14 @@
                 const url = _chamadosFiltroAtual
                     ? `/api/suporte/admin/chamados?status=${_chamadosFiltroAtual}`
                     : '/api/suporte/admin/chamados';
-                console.log('🔍 [chamados] Buscando chamados:', url);
                 const r = await fetch(url, { credentials: 'same-origin' });
-                console.log('🔍 [chamados] Response status:', r.status);
                 if (!r.ok) {
                     const errText = await r.text();
-                    console.error('❌ [chamados] HTTP error:', r.status, errText);
                     loading.style.display = 'none';
                     lista.innerHTML = `<div style="text-align:center;padding:40px;color:#e74c3c;"><div style="font-size:50px;margin-bottom:10px;">⚠️</div><p>Erro HTTP ${r.status}</p><pre style="font-size:11px;text-align:left;max-height:200px;overflow:auto;background:#f8f8f8;padding:10px;border-radius:6px;">${errText}</pre></div>`;
                     return;
                 }
                 const data = await r.json();
-                console.log('🔍 [chamados] Data:', data);
                 loading.style.display = 'none';
 
                 if (!data.success || !data.chamados || !data.chamados.length) {
@@ -2458,13 +2446,18 @@
             const novoStatus = document.getElementById('chamado-novo-status').value;
             const resposta = document.getElementById('chamado-resposta-admin').value;
 
+            console.log('💾 [chamados] Salvando chamado', chamadoId, 'status:', novoStatus);
             try {
                 const r = await fetch(`/api/suporte/chamados/${chamadoId}/status`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
                     credentials: 'same-origin',
                     body: JSON.stringify({ status: novoStatus, resposta_admin: resposta })
                 });
+                console.log('💾 [chamados] Response status:', r.status);
                 const data = await r.json();
                 if (data.success) {
                     showAlert('✅ Chamado atualizado com sucesso!', 'success');
