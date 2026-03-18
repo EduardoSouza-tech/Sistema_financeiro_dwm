@@ -114,17 +114,17 @@ function atualizarPreviewLogs() {
     }
 
     container.innerHTML = recentLogs.map(log => {
-        let color = '#ccc';
+        let color = '#666';
         let icon = '📝';
-        if (log.level === 'ERROR' || log.level === 'UNCAUGHT') { color = '#ff6b6b'; icon = '❌'; }
-        else if (log.level === 'WARN') { color = '#ffa500'; icon = '⚠️'; }
-        else if (log.level === 'PROMISE_REJECT') { color = '#ff4757'; icon = '💥'; }
+        if (log.level === 'ERROR' || log.level === 'UNCAUGHT') { color = '#c0392b'; icon = '❌'; }
+        else if (log.level === 'WARN') { color = '#e67e22'; icon = '⚠️'; }
+        else if (log.level === 'PROMISE_REJECT') { color = '#e74c3c'; icon = '💥'; }
 
         const time = log.timestamp.split('T')[1].split('.')[0];
         const msg = log.message.length > 200 ? log.message.substring(0, 200) + '...' : log.message;
         const escapedMsg = msg.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return `<div style="padding: 3px 6px; border-left: 3px solid ${color}; margin-bottom: 2px; font-size: 11px; font-family: monospace; word-break: break-all;">
-            <span style="color: #888;">${time}</span> ${icon} <span style="color: ${color};">[${log.level}]</span> ${escapedMsg}
+        return `<div style="padding: 3px 6px; border-left: 3px solid ${color}; margin-bottom: 2px; font-size: 11px; font-family: monospace; word-break: break-all; color: #333;">
+            <span style="color: #999;">${time}</span> ${icon} <span style="color: ${color}; font-weight: bold;">[${log.level}]</span> ${escapedMsg}
         </div>`;
     }).join('');
 
