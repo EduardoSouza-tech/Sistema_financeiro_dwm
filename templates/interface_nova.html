@@ -1645,6 +1645,11 @@
                 <button class="submenu-button" onclick="showSection('folha-pagamento')" data-permission="folha_pagamento_view">👥 Folha de Pagamento</button>
             </div>
             
+            <!-- Botão Suporte - Fixo acima do footer -->
+            <button class="nav-button" onclick="abrirModalSuporte()" id="btn-suporte" style="margin-top: auto; background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; border: none; font-weight: bold;">
+                🎧 Suporte
+            </button>
+            
             <!-- Footer Copyright -->
             <div class="sidebar-footer">
                 <p>© 2026 DWM Systems Developer.<br>Todos os direitos reservados.</p>
@@ -15910,6 +15915,74 @@
     document.getElementById('modal-ajuste-ofx').addEventListener('click', function(e) {
         if (e.target === this) fecharAjusteOFX();
     });
+    <!-- Modal de Suporte -->
+    <div id="modal-suporte" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:10000; justify-content:center; align-items:center;">
+        <div style="background: white; border-radius: 12px; width: 95%; max-width: 650px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; padding: 20px 25px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="margin: 0; font-size: 18px;">🎧 Suporte - Abrir Chamado</h3>
+                    <p style="margin: 5px 0 0; font-size: 12px; opacity: 0.9;">Descreva o problema e enviaremos automaticamente os dados de diagnóstico</p>
+                </div>
+                <button onclick="fecharModalSuporte()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 5px;">✕</button>
+            </div>
+            
+            <!-- Conteúdo do Formulário -->
+            <div id="suporte-form-content" style="padding: 25px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50; font-size: 13px;">📌 Título do Problema</label>
+                    <input type="text" id="suporte-titulo" placeholder="Ex: Erro ao salvar lançamento, Botão não funciona..."
+                        style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; box-sizing: border-box; transition: border-color 0.2s;"
+                        onfocus="this.style.borderColor='#e74c3c'" onblur="this.style.borderColor='#e0e0e0'">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50; font-size: 13px;">📝 Descrição Detalhada</label>
+                    <textarea id="suporte-descricao" rows="5" placeholder="Descreva o problema com o máximo de detalhes possível. O que estava fazendo? O que aconteceu? O que esperava que acontecesse?"
+                        style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; resize: vertical; box-sizing: border-box; transition: border-color 0.2s;"
+                        onfocus="this.style.borderColor='#e74c3c'" onblur="this.style.borderColor='#e0e0e0'"></textarea>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50; font-size: 13px;">⚡ Prioridade</label>
+                    <select id="suporte-prioridade" style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        <option value="baixa">🟢 Baixa - Melhoria ou dúvida</option>
+                        <option value="media" selected>🟡 Média - Problema que não impede uso</option>
+                        <option value="alta">🟠 Alta - Funcionalidade comprometida</option>
+                        <option value="critica">🔴 Crítica - Sistema parado / não funciona</option>
+                    </select>
+                </div>
+                
+                <!-- Console Logs Preview -->
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <label style="font-weight: bold; color: #2c3e50; font-size: 13px;">🔍 Debug do Console (automático)</label>
+                        <button onclick="atualizarPreviewLogs()" style="padding: 4px 10px; background: #ecf0f1; border: 1px solid #bdc3c7; border-radius: 4px; cursor: pointer; font-size: 11px;">🔄 Atualizar</button>
+                    </div>
+                    <div id="suporte-console-preview" style="background: #1e1e1e; color: #d4d4d4; border-radius: 8px; padding: 10px; max-height: 180px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 11px;">
+                        <div style="color: #999; text-align: center; padding: 20px;">Carregando logs...</div>
+                    </div>
+                    <p style="color: #999; font-size: 11px; margin-top: 5px;">
+                        ℹ️ Esses dados são enviados automaticamente para ajudar nossa equipe a diagnosticar o problema.
+                    </p>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: space-between;">
+                    <button onclick="verMeusChamados()" style="padding: 12px 20px; background: #ecf0f1; color: #2c3e50; border: 1px solid #bdc3c7; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold;">
+                        📋 Meus Chamados
+                    </button>
+                    <button id="btn-enviar-chamado" onclick="enviarChamadoSuporte()" style="padding: 12px 30px; background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; box-shadow: 0 4px 15px rgba(231,76,60,0.3);">
+                        📨 Enviar Chamado
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Resultado (número + protocolo) -->
+            <div id="suporte-resultado" style="display: none; padding: 25px;"></div>
+        </div>
+    </div>
+
+    <script src="/static/suporte.js"></script>
     </script>
 </body>
 </html>

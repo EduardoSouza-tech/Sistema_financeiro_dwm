@@ -424,6 +424,7 @@
         <div class="card">
             <!-- Tabs -->
             <div class="tabs">
+                <button class="tab" onclick="switchTab('chamados')" style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white;">🎧 Chamados/Suporte</button>
                 <button class="tab active" onclick="switchTab('users')">👥 Usuários</button>
                 <button class="tab" onclick="switchTab('companies')">🏢 Empresas</button>
                 <button class="tab" onclick="switchTab('access')">🔗 Acessos Multi-Empresa</button>
@@ -432,6 +433,63 @@
                 <button class="tab" onclick="switchTab('export')">📦 Exportar Dados</button>
                 <button class="tab" onclick="switchTab('debug')">🔧 Debug DB</button>
                 <button class="tab" onclick="switchTab('avisos')">📣 Avisos</button>
+            </div>
+
+            <!-- Tab: Chamados/Suporte -->
+            <div id="chamadosTab" class="tab-content">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                    <div>
+                        <h2>🎧 Chamados de Suporte</h2>
+                        <p style="color:#666;margin-top:4px;">Gerencie os chamados abertos pelos usuários do sistema.</p>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button onclick="filtrarChamadosAdmin('')" class="btn btn-primary" style="font-size:12px;">📋 Todos</button>
+                        <button onclick="filtrarChamadosAdmin('aberto')" class="btn" style="background:#ffe0e0;color:#c0392b;border:1px solid #e74c3c;font-size:12px;">🔴 Abertos</button>
+                        <button onclick="filtrarChamadosAdmin('em_andamento')" class="btn" style="background:#fff3cd;color:#856404;border:1px solid #f39c12;font-size:12px;">🟡 Em Andamento</button>
+                        <button onclick="filtrarChamadosAdmin('resolvido')" class="btn" style="background:#d4edda;color:#155724;border:1px solid #27ae60;font-size:12px;">🟢 Resolvidos</button>
+                    </div>
+                </div>
+
+                <!-- Stats dos Chamados -->
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:20px;">
+                    <div style="background:#ffe0e0;border-radius:10px;padding:15px;text-align:center;border-left:4px solid #e74c3c;">
+                        <div id="statAbertos" style="font-size:28px;font-weight:bold;color:#c0392b;">0</div>
+                        <div style="color:#c0392b;font-size:13px;">🔴 Abertos</div>
+                    </div>
+                    <div style="background:#fff3cd;border-radius:10px;padding:15px;text-align:center;border-left:4px solid #f39c12;">
+                        <div id="statEmAndamento" style="font-size:28px;font-weight:bold;color:#856404;">0</div>
+                        <div style="color:#856404;font-size:13px;">🟡 Em Andamento</div>
+                    </div>
+                    <div style="background:#d4edda;border-radius:10px;padding:15px;text-align:center;border-left:4px solid #27ae60;">
+                        <div id="statResolvidos" style="font-size:28px;font-weight:bold;color:#155724;">0</div>
+                        <div style="color:#155724;font-size:13px;">🟢 Resolvidos</div>
+                    </div>
+                    <div style="background:#e3f2fd;border-radius:10px;padding:15px;text-align:center;border-left:4px solid #2196F3;">
+                        <div id="statTotal" style="font-size:28px;font-weight:bold;color:#1565C0;">0</div>
+                        <div style="color:#1565C0;font-size:13px;">📊 Total</div>
+                    </div>
+                </div>
+
+                <!-- Lista de Chamados -->
+                <div id="chamadosLoading" style="text-align:center;padding:30px;display:none;">
+                    <div class="spinner"></div>
+                    <p>Carregando chamados...</p>
+                </div>
+                <div id="chamadosLista"></div>
+            </div>
+
+            <!-- Modal Detalhe do Chamado (Admin) -->
+            <div id="modal-chamado-detalhe" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;justify-content:center;align-items:center;">
+                <div style="background:white;border-radius:12px;width:95%;max-width:800px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                    <div id="chamado-detalhe-header" style="background:linear-gradient(135deg,#e74c3c,#c0392b);color:white;padding:20px 25px;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <h3 style="margin:0;" id="chamado-detalhe-titulo">Detalhes do Chamado</h3>
+                            <p style="margin:5px 0 0;font-size:12px;opacity:0.9;" id="chamado-detalhe-numero"></p>
+                        </div>
+                        <button onclick="fecharDetalheChamado()" style="background:none;border:none;color:white;font-size:24px;cursor:pointer;">✕</button>
+                    </div>
+                    <div id="chamado-detalhe-body" style="padding:25px;"></div>
+                </div>
             </div>
 
             <!-- Tab: Usuários -->
@@ -2148,7 +2206,241 @@
                 avisosCarregarLista();
                 avisosCarregarDestinatarios();
             }
+
+            // Se a aba de chamados foi selecionada
+            if (tabName === 'chamados') {
+                carregarChamadosAdmin();
+                carregarStatsChamados();
+            }
         }
+
+
+        // ============================================================
+        // CHAMADOS / SUPORTE
+        // ============================================================
+
+        let _chamadosFiltroAtual = '';
+
+        async function carregarStatsChamados() {
+            try {
+                const r = await fetch('/api/suporte/chamados/stats', { credentials: 'same-origin' });
+                const data = await r.json();
+                if (data.success) {
+                    document.getElementById('statAbertos').textContent = data.stats.abertos || 0;
+                    document.getElementById('statEmAndamento').textContent = data.stats.em_andamento || 0;
+                    document.getElementById('statResolvidos').textContent = data.stats.resolvidos || 0;
+                    document.getElementById('statTotal').textContent = data.stats.total || 0;
+                }
+            } catch (e) { console.error('Erro stats chamados:', e); }
+        }
+
+        async function carregarChamadosAdmin(filtro) {
+            if (filtro !== undefined) _chamadosFiltroAtual = filtro;
+            const lista = document.getElementById('chamadosLista');
+            const loading = document.getElementById('chamadosLoading');
+            loading.style.display = 'block';
+            lista.innerHTML = '';
+
+            try {
+                const url = _chamadosFiltroAtual
+                    ? `/api/suporte/admin/chamados?status=${_chamadosFiltroAtual}`
+                    : '/api/suporte/admin/chamados';
+                const r = await fetch(url, { credentials: 'same-origin' });
+                const data = await r.json();
+                loading.style.display = 'none';
+
+                if (!data.success || !data.chamados.length) {
+                    lista.innerHTML = '<div style="text-align:center;padding:40px;color:#999;"><div style="font-size:50px;margin-bottom:10px;">📭</div><p>Nenhum chamado encontrado</p></div>';
+                    return;
+                }
+
+                const statusConfig = {
+                    'aberto':       { cor: '#ffe0e0', corTexto: '#c0392b', label: '🔴 Aberto',        bordaCor: '#e74c3c' },
+                    'em_andamento': { cor: '#fff3cd', corTexto: '#856404', label: '🟡 Em Andamento',   bordaCor: '#f39c12' },
+                    'resolvido':    { cor: '#d4edda', corTexto: '#155724', label: '🟢 Resolvido',      bordaCor: '#27ae60' }
+                };
+                const prioridadeConfig = {
+                    'baixa':   { icon: '🟢', label: 'Baixa' },
+                    'media':   { icon: '🟡', label: 'Média' },
+                    'alta':    { icon: '🟠', label: 'Alta' },
+                    'critica': { icon: '🔴', label: 'Crítica' }
+                };
+
+                let html = '';
+                data.chamados.forEach(c => {
+                    const st = statusConfig[c.status] || statusConfig['aberto'];
+                    const pr = prioridadeConfig[c.prioridade] || prioridadeConfig['media'];
+                    const dataF = new Date(c.created_at).toLocaleDateString('pt-BR') + ' ' + new Date(c.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+                    html += `
+                        <div style="background:${st.cor};border-left:5px solid ${st.bordaCor};border-radius:8px;padding:15px;margin-bottom:10px;cursor:pointer;transition:transform 0.1s,box-shadow 0.1s;"
+                             onmouseover="this.style.transform='translateX(3px)';this.style.boxShadow='0 2px 10px rgba(0,0,0,0.1)'"
+                             onmouseout="this.style.transform='';this.style.boxShadow=''"
+                             onclick="abrirDetalheChamado(${c.id})">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                                <div style="flex:1;">
+                                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                        <strong style="color:${st.corTexto};font-size:13px;">${c.numero_chamado}</strong>
+                                        <span style="background:${st.bordaCor};color:white;padding:2px 8px;border-radius:10px;font-size:11px;">${st.label}</span>
+                                        <span style="font-size:11px;">${pr.icon} ${pr.label}</span>
+                                    </div>
+                                    <div style="font-weight:bold;margin-top:5px;color:#2c3e50;font-size:15px;">${c.titulo}</div>
+                                    <div style="color:#666;font-size:12px;margin-top:3px;">
+                                        👤 ${c.usuario_nome} &nbsp;|&nbsp; 🔑 Protocolo: <strong>${c.protocolo}</strong>
+                                    </div>
+                                </div>
+                                <div style="text-align:right;color:#888;font-size:11px;min-width:100px;">
+                                    ${dataF}
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                lista.innerHTML = html;
+            } catch (e) {
+                loading.style.display = 'none';
+                lista.innerHTML = '<div style="text-align:center;padding:30px;color:#e74c3c;">❌ Erro ao carregar chamados</div>';
+                console.error('Erro chamados admin:', e);
+            }
+        }
+
+        function filtrarChamadosAdmin(status) {
+            carregarChamadosAdmin(status);
+        }
+
+        async function abrirDetalheChamado(chamadoId) {
+            const modal = document.getElementById('modal-chamado-detalhe');
+            const body = document.getElementById('chamado-detalhe-body');
+            body.innerHTML = '<div style="text-align:center;padding:30px;"><div class="spinner"></div></div>';
+            modal.style.display = 'flex';
+
+            try {
+                const r = await fetch(`/api/suporte/chamados/${chamadoId}`, { credentials: 'same-origin' });
+                const data = await r.json();
+                if (!data.success) { body.innerHTML = '<p style="color:red;">Erro ao carregar</p>'; return; }
+
+                const c = data.chamado;
+                document.getElementById('chamado-detalhe-titulo').textContent = c.titulo;
+                document.getElementById('chamado-detalhe-numero').textContent = `${c.numero_chamado} | Protocolo: ${c.protocolo}`;
+
+                const statusOptions = `
+                    <option value="aberto" ${c.status==='aberto'?'selected':''}>🔴 Aberto</option>
+                    <option value="em_andamento" ${c.status==='em_andamento'?'selected':''}>🟡 Em Andamento</option>
+                    <option value="resolvido" ${c.status==='resolvido'?'selected':''}>🟢 Resolvido</option>
+                `;
+
+                let consoleLogs = '';
+                try {
+                    const logs = JSON.parse(c.console_logs || '[]');
+                    consoleLogs = logs.map(log => {
+                        let color = '#ccc';
+                        if (log.level === 'ERROR' || log.level === 'UNCAUGHT') color = '#ff6b6b';
+                        else if (log.level === 'WARN') color = '#ffa500';
+                        const time = (log.timestamp||'').split('T')[1]?.split('.')[0] || '';
+                        const msg = (log.message||'').substring(0, 300);
+                        const escaped = msg.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                        return `<div style="padding:2px 6px;border-left:3px solid ${color};margin-bottom:1px;font-size:11px;word-break:break-all;">
+                            <span style="color:#888;">${time}</span> <span style="color:${color};">[${log.level}]</span> ${escaped}
+                        </div>`;
+                    }).join('');
+                } catch (e) { consoleLogs = '<div style="color:#999;padding:10px;">Não disponível</div>'; }
+
+                let navegadorInfo = '';
+                try {
+                    const info = JSON.parse(c.navegador_info || '{}');
+                    navegadorInfo = Object.entries(info).map(([k,v]) => `<div style="font-size:12px;"><strong>${k}:</strong> ${v}</div>`).join('');
+                } catch (e) { navegadorInfo = '<div style="color:#999;">Não disponível</div>'; }
+
+                const dataFormatada = new Date(c.created_at).toLocaleDateString('pt-BR') + ' ' + new Date(c.created_at).toLocaleTimeString('pt-BR');
+
+                body.innerHTML = `
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px;">
+                        <div>
+                            <strong>👤 Usuário:</strong> ${c.usuario_nome}<br>
+                            <strong>📅 Aberto em:</strong> ${dataFormatada}<br>
+                            <strong>🔗 URL:</strong> <span style="font-size:11px;word-break:break-all;">${c.url_pagina || '-'}</span>
+                        </div>
+                        <div>
+                            <strong>🔑 Protocolo:</strong> ${c.protocolo}<br>
+                            <strong>📋 Número:</strong> ${c.numero_chamado}<br>
+                            <strong>⚡ Prioridade:</strong> ${c.prioridade}
+                        </div>
+                    </div>
+
+                    <div style="background:#f8f9fa;border-radius:8px;padding:15px;margin-bottom:15px;">
+                        <strong>📝 Descrição do Problema:</strong>
+                        <div style="margin-top:8px;white-space:pre-wrap;color:#2c3e50;">${c.descricao}</div>
+                    </div>
+
+                    <details style="margin-bottom:15px;">
+                        <summary style="cursor:pointer;font-weight:bold;padding:10px;background:#1e1e1e;color:#d4d4d4;border-radius:8px 8px 0 0;">🔍 Console Logs do Navegador do Usuário (${(JSON.parse(c.console_logs||'[]')).length} entradas)</summary>
+                        <div style="background:#1e1e1e;color:#d4d4d4;padding:10px;border-radius:0 0 8px 8px;max-height:300px;overflow-y:auto;font-family:Consolas,monospace;">
+                            ${consoleLogs || '<div style="color:#999;text-align:center;padding:15px;">Sem logs</div>'}
+                        </div>
+                    </details>
+
+                    <details style="margin-bottom:15px;">
+                        <summary style="cursor:pointer;font-weight:bold;padding:10px;background:#ecf0f1;border-radius:8px 8px 0 0;">🖥️ Informações do Navegador</summary>
+                        <div style="background:#f8f9fa;padding:10px;border-radius:0 0 8px 8px;">
+                            ${navegadorInfo}
+                        </div>
+                    </details>
+
+                    <div style="background:#fff3cd;border-radius:8px;padding:15px;margin-bottom:15px;border:1px solid #ffc107;">
+                        <strong>⚙️ Ações do Administrador</strong>
+                        <div style="margin-top:10px;">
+                            <label style="display:block;margin-bottom:5px;font-size:13px;">Status:</label>
+                            <select id="chamado-novo-status" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-bottom:10px;">
+                                ${statusOptions}
+                            </select>
+                            <label style="display:block;margin-bottom:5px;font-size:13px;">Resposta ao Usuário:</label>
+                            <textarea id="chamado-resposta-admin" rows="3" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;resize:vertical;box-sizing:border-box;" placeholder="Descreva a solução ou andamento do chamado...">${c.resposta_admin || ''}</textarea>
+                            <div style="display:flex;gap:10px;margin-top:10px;justify-content:flex-end;">
+                                <button onclick="fecharDetalheChamado()" style="padding:10px 20px;background:#6c757d;color:white;border:none;border-radius:6px;cursor:pointer;">Fechar</button>
+                                <button onclick="salvarAlteracaoChamado(${c.id})" style="padding:10px 20px;background:#27ae60;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">💾 Salvar Alterações</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (e) {
+                body.innerHTML = '<p style="color:red;">❌ Erro ao carregar detalhes</p>';
+                console.error('Erro detalhe chamado:', e);
+            }
+        }
+
+        function fecharDetalheChamado() {
+            document.getElementById('modal-chamado-detalhe').style.display = 'none';
+        }
+
+        async function salvarAlteracaoChamado(chamadoId) {
+            const novoStatus = document.getElementById('chamado-novo-status').value;
+            const resposta = document.getElementById('chamado-resposta-admin').value;
+
+            try {
+                const r = await fetch(`/api/suporte/chamados/${chamadoId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ status: novoStatus, resposta_admin: resposta })
+                });
+                const data = await r.json();
+                if (data.success) {
+                    showAlert('✅ Chamado atualizado com sucesso!', 'success');
+                    fecharDetalheChamado();
+                    carregarChamadosAdmin();
+                    carregarStatsChamados();
+                } else {
+                    showAlert('❌ ' + (data.error || 'Erro ao atualizar'), 'error');
+                }
+            } catch (e) {
+                showAlert('❌ Erro ao salvar alterações', 'error');
+                console.error('Erro salvar chamado:', e);
+            }
+        }
+
+        // Fechar modal ao clicar fora
+        document.getElementById('modal-chamado-detalhe').addEventListener('click', function(e) {
+            if (e.target === this) fecharDetalheChamado();
+        });
 
         // ============================================================
         // AVISOS DO SISTEMA

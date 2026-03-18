@@ -129,6 +129,16 @@ def register_blueprints(app):
         import traceback
         print(f"   Traceback: {traceback.format_exc()}")
     
+    # SUPORTE / CHAMADOS
+    try:
+        from .suporte import suporte_bp
+        app.register_blueprint(suporte_bp)
+        print("✅ Blueprint 'suporte' registrado em /api/suporte")
+    except ImportError as e:
+        print(f"⚠️  Blueprint 'suporte' não encontrado: {e}")
+    except Exception as e:
+        print(f"❌ Erro ao registrar blueprint 'suporte': {e}")
+
     # Adicionar outros blueprints aqui conforme forem criados
     # from .clientes import clientes_bp
     # app.register_blueprint(clientes_bp, url_prefix='/api')
