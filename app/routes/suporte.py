@@ -272,6 +272,12 @@ def criar_chamado():
                   titulo, descricao, console_logs, navegador_info, url_pagina, prioridade))
 
             row = cur.fetchone()
+            print(f"✅ [criar_chamado] Chamado criado: id={row['id']}, numero={row['numero_chamado']}, empresa_id={empresa_id}, usuario={usuario_nome}")
+
+            # Verificar se realmente persistiu
+            cur.execute("SELECT COUNT(*) as total FROM chamados_suporte")
+            total = cur.fetchone()['total']
+            print(f"✅ [criar_chamado] Total de chamados na tabela agora: {total}")
 
             return jsonify({
                 'success': True,
@@ -406,13 +412,24 @@ def stats_chamados():
         from database_postgresql import get_db_connection
 
         info = _get_user_info()
-        empresa_id = info['empresa_id'] if info else None
+        tipo_usuario = info['user_type'] if info else 'cliente'
 
         with get_db_connection(allow_global=True) as conn:
             cur = conn.cursor()
             _ensure_chamados_table(cur)
 
-            if empresa_id:
+            # Admin vê stats de TODOS; usuário normal vê só da sua empresa
+            if tipo_usuario == 'admin':
+                cur.execute("""
+                    SELECT
+                        COUNT(*) FILTER (WHERE status = 'aberto') AS abertos,
+                        COUNT(*) FILTER (WHERE status = 'em_andamento') AS em_andamento,
+                        COUNT(*) FILTER (WHERE status = 'resolvido') AS resolvidos,
+                        COUNT(*) AS total
+                    FROM chamados_suporte
+                """)
+            else:
+                empresa_id = info['empresa_id'] if info else None
                 cur.execute("""
                     SELECT
                         COUNT(*) FILTER (WHERE status = 'aberto') AS abertos,
@@ -422,16 +439,6 @@ def stats_chamados():
                     FROM chamados_suporte
                     WHERE empresa_id = %s
                 """, (empresa_id,))
-            else:
-                # Admin sem empresa selecionada: mostrar stats de TODOS
-                cur.execute("""
-                    SELECT
-                        COUNT(*) FILTER (WHERE status = 'aberto') AS abertos,
-                        COUNT(*) FILTER (WHERE status = 'em_andamento') AS em_andamento,
-                        COUNT(*) FILTER (WHERE status = 'resolvido') AS resolvidos,
-                        COUNT(*) AS total
-                    FROM chamados_suporte
-                """)
 
             row = cur.fetchone()
             return jsonify({
@@ -447,45 +454,34 @@ def stats_chamados():
 # ---------------------------------------------------------------------------
 @suporte_bp.route('/admin/chamados', methods=['GET'])
 def admin_listar_chamados():
-    """Lista todos os chamados para o painel admin (filtra por empresa_id da session)."""
+    """Lista TODOS os chamados para o painel admin (super admin vê tudo)."""
     try:
         from database_postgresql import get_db_connection
 
         info = _get_user_info()
         if not info:
+            print("❌ [admin_chamados] Usuário não autenticado")
             return jsonify({'error': 'Não autenticado'}), 401
 
         tipo_usuario = info['user_type']
         if tipo_usuario != 'admin':
+            print(f"❌ [admin_chamados] Acesso negado - tipo: {tipo_usuario}")
             return jsonify({'error': 'Acesso negado'}), 403
 
         status_filter = request.args.get('status', '')
-        empresa_id = info['empresa_id']
 
         with get_db_connection(allow_global=True) as conn:
             cur = conn.cursor()
             _ensure_chamados_table(cur)
 
-            # Admin sem empresa selecionada vê TODOS os chamados
-            if empresa_id and status_filter and status_filter in ('aberto', 'em_andamento', 'resolvido'):
-                cur.execute("""
-                    SELECT * FROM chamados_suporte
-                    WHERE empresa_id = %s AND status = %s
-                    ORDER BY created_at DESC
-                """, (empresa_id, status_filter))
-            elif empresa_id:
-                cur.execute("""
-                    SELECT * FROM chamados_suporte
-                    WHERE empresa_id = %s
-                    ORDER BY
-                        CASE status
-                            WHEN 'aberto' THEN 1
-                            WHEN 'em_andamento' THEN 2
-                            WHEN 'resolvido' THEN 3
-                        END,
-                        created_at DESC
-                """, (empresa_id,))
-            elif status_filter and status_filter in ('aberto', 'em_andamento', 'resolvido'):
+            # Debug: contar total na tabela
+            cur.execute("SELECT COUNT(*) as total FROM chamados_suporte")
+            total_row = cur.fetchone()
+            total_geral = total_row['total'] if total_row else 0
+            print(f"🔍 [admin_chamados] Total de chamados na tabela: {total_geral}")
+
+            # Admin vê TODOS os chamados (sem filtro de empresa)
+            if status_filter and status_filter in ('aberto', 'em_andamento', 'resolvido'):
                 cur.execute("""
                     SELECT * FROM chamados_suporte
                     WHERE status = %s
@@ -504,9 +500,46 @@ def admin_listar_chamados():
                 """)
 
             chamados = cur.fetchall()
+            result = [dict(c) for c in chamados] if chamados else []
+            print(f"✅ [admin_chamados] Retornando {len(result)} chamados")
             return jsonify({
                 'success': True,
-                'chamados': [dict(c) for c in chamados] if chamados else []
+                'chamados': result
             })
     except Exception as e:
+        print(f"❌ [admin_chamados] Erro: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+@suporte_bp.route('/debug/status', methods=['GET'])
+def debug_chamados_status():
+    """Rota de debug para verificar estado dos chamados no banco."""
+    try:
+        from database_postgresql import get_db_connection
+
+        with get_db_connection(allow_global=True) as conn:
+            cur = conn.cursor()
+            _ensure_chamados_table(cur)
+
+            cur.execute("SELECT COUNT(*) as total FROM chamados_suporte")
+            total = cur.fetchone()['total']
+
+            cur.execute("""
+                SELECT id, numero_chamado, empresa_id, usuario_nome, status, titulo,
+                       created_at
+                FROM chamados_suporte
+                ORDER BY created_at DESC
+                LIMIT 10
+            """)
+            chamados = cur.fetchall()
+
+            return jsonify({
+                'success': True,
+                'total_chamados': total,
+                'ultimos_10': [dict(c) for c in chamados] if chamados else [],
+                'tabela_existe': True
+            })
+    except Exception as e:
+        return jsonify({'error': str(e), 'tabela_existe': False}), 500
