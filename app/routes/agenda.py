@@ -207,8 +207,10 @@ def google_calendar_authorize():
         # Gerar URL de autorização
         authorization_url, state = google_calendar_helper.get_authorization_url()
         
-        # Salvar state na sessão para validação no callback
+        # CORREÇÃO: Salvar state com timestamp para validação de expiração
+        import time
         session['google_oauth_state'] = state
+        session['google_oauth_state_timestamp'] = time.time()
         
         # Redirecionar para autorização do Google
         return redirect(authorization_url)
@@ -236,11 +238,24 @@ def google_calendar_callback():
         if not code:
             return redirect(url_for('index') + '?message=google_auth_failed&error=no_code')
         
-        # Validar state (segurança)
+        # CORREÇÃO: Validar state com verificação de expiração (10 min)
         saved_state = session.get('google_oauth_state')
+        state_timestamp = session.get('google_oauth_state_timestamp', 0)
+        
         if state != saved_state:
             print(f"❌ State inválido: {state} != {saved_state}")
             return redirect(url_for('index') + '?message=google_auth_failed&error=invalid_state')
+        
+        import time
+        if time.time() - state_timestamp > 600:  # 10 minutos
+            print(f"❌ State expirado: {time.time() - state_timestamp}s")
+            session.pop('google_oauth_state', None)
+            session.pop('google_oauth_state_timestamp', None)
+            return redirect(url_for('index') + '?message=google_auth_failed&error=state_expired')
+        
+        # Limpar state da sessão após uso
+        session.pop('google_oauth_state', None)
+        session.pop('google_oauth_state_timestamp', None)
         
         # Trocar código por tokens
         creds_data = google_calendar_helper.exchange_code_for_tokens(code, state)

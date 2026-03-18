@@ -20,10 +20,24 @@ let emailSettings = {
 function initAgendaCalendar() {
     console.log('📅 Inicializando Agenda de Fotografia...');
     
+    // CORREÇÃO: Verificar se FullCalendar está carregado
+    if (typeof FullCalendar === 'undefined') {
+        console.error('❌ FullCalendar não carregado. Aguardando...');
+        setTimeout(initAgendaCalendar, 500);
+        return;
+    }
+    
     const calendarEl = document.getElementById('calendar-container');
     if (!calendarEl) {
         console.error('❌ Elemento calendar-container não encontrado');
         return;
+    }
+
+    // Limpar calendário anterior se existir (prevenir duplicação)
+    if (calendar) {
+        console.log('🔄 Destruindo calendário anterior...');
+        calendar.destroy();
+        calendar = null;
     }
 
     // Inicializar FullCalendar com layout compacto estilo Windows
@@ -264,8 +278,12 @@ async function loadCalendarEvents() {
         // Atualizar contador no UI
         updateAgendaSummary(events.length);
         
-        // Adicionar eventos ao calendário
+        // CORREÇÃO: Limpar TODAS as event sources antes de adicionar (prevenir duplicação)
+        const allEventSources = calendar.getEventSources();
+        allEventSources.forEach(source => source.remove());
         calendar.removeAllEvents();
+        
+        // Adicionar eventos ao calendário
         calendar.addEventSource(events);
         
         console.log('✅ Eventos adicionados ao calendário');
