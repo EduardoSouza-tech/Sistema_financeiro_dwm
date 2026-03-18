@@ -136,8 +136,12 @@ def register_blueprints(app):
         print("✅ Blueprint 'suporte' registrado em /api/suporte")
     except ImportError as e:
         print(f"⚠️  Blueprint 'suporte' não encontrado: {e}")
+        import traceback
+        traceback.print_exc()
     except Exception as e:
         print(f"❌ Erro ao registrar blueprint 'suporte': {e}")
+        import traceback
+        traceback.print_exc()
 
     # Adicionar outros blueprints aqui conforme forem criados
     # from .clientes import clientes_bp

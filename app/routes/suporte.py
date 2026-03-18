@@ -15,31 +15,53 @@ import time
 import os
 import sys
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from auth_middleware import get_usuario_logado
+# Garantir que o diretório raiz do projeto está no path
+_project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 
 def _get_user_info():
     """
     Obtém informações do usuário logado usando auth_middleware.
     Retorna dict com user_id, user_name, user_type, empresa_id ou None se não autenticado.
+    Importação lazy para não bloquear registro do blueprint.
     """
-    usuario = get_usuario_logado()
+    try:
+        from auth_middleware import get_usuario_logado
+        usuario = get_usuario_logado()
+    except Exception as e:
+        print(f"❌ [suporte] Erro ao importar/chamar get_usuario_logado: {e}")
+        usuario = None
+
     if not usuario:
-        return None
+        print(f"⚠️ [suporte] Usuário não autenticado via get_usuario_logado, tentando session...")
+        # Fallback: tentar session diretamente
+        user_id = session.get('user_id')
+        if not user_id:
+            return None
+        return {
+            'user_id': user_id,
+            'user_name': session.get('user_name', 'Usuário'),
+            'user_type': session.get('user_type', 'cliente'),
+            'empresa_id': session.get('empresa_id'),
+        }
 
-    # empresa_id: header X-Empresa-ID > session > None
-    header_empresa = request.headers.get('X-Empresa-ID')
-    empresa_id = int(header_empresa) if header_empresa and header_empresa.isdigit() else None
-    empresa_id = empresa_id or session.get('empresa_id')
+    # empresa_id: objeto do usuario > header X-Empresa-ID > session
+    empresa_id = usuario.get('empresa_id')
+    if not empresa_id:
+        header_empresa = request.headers.get('X-Empresa-ID')
+        empresa_id = int(header_empresa) if header_empresa and header_empresa.isdigit() else None
+        empresa_id = empresa_id or session.get('empresa_id')
 
-    return {
+    info = {
         'user_id': usuario.get('id'),
-        'user_name': usuario.get('nome') or usuario.get('username', 'Usuário'),
+        'user_name': usuario.get('nome_completo') or usuario.get('username', 'Usuário'),
         'user_type': (usuario.get('tipo') or 'cliente').strip().lower(),
         'empresa_id': empresa_id,
     }
+    print(f"🔍 [suporte] _get_user_info: tipo={info['user_type']}, empresa_id={info['empresa_id']}, user={info['user_name']}")
+    return info
 
 suporte_bp = Blueprint('suporte', __name__, url_prefix='/api/suporte')
 
@@ -284,9 +306,15 @@ def detalhe_chamado(chamado_id):
             cur = conn.cursor()
             _ensure_chamados_table(cur)
 
-            cur.execute("""
-                SELECT * FROM chamados_suporte WHERE id = %s AND empresa_id = %s
-            """, (chamado_id, empresa_id))
+            if tipo_usuario == 'admin':
+                # Admin pode ver qualquer chamado
+                cur.execute("""
+                    SELECT * FROM chamados_suporte WHERE id = %s
+                """, (chamado_id,))
+            else:
+                cur.execute("""
+                    SELECT * FROM chamados_suporte WHERE id = %s AND empresa_id = %s
+                """, (chamado_id, empresa_id))
 
             chamado = cur.fetchone()
             if not chamado:
@@ -331,17 +359,31 @@ def atualizar_status_chamado(chamado_id):
 
             resolvido_clause = ", resolvido_em = NOW()" if novo_status == 'resolvido' else ""
 
-            cur.execute(f"""
-                UPDATE chamados_suporte
-                SET status = %s,
-                    resposta_admin = COALESCE(%s, resposta_admin),
-                    admin_id = %s,
-                    admin_nome = %s,
-                    updated_at = NOW()
-                    {resolvido_clause}
-                WHERE id = %s AND empresa_id = %s
-                RETURNING id, numero_chamado, status
-            """, (novo_status, resposta, admin_id, admin_nome, chamado_id, empresa_id))
+            # Admin pode atualizar qualquer chamado
+            if empresa_id:
+                cur.execute(f"""
+                    UPDATE chamados_suporte
+                    SET status = %s,
+                        resposta_admin = COALESCE(%s, resposta_admin),
+                        admin_id = %s,
+                        admin_nome = %s,
+                        updated_at = NOW()
+                        {resolvido_clause}
+                    WHERE id = %s AND empresa_id = %s
+                    RETURNING id, numero_chamado, status
+                """, (novo_status, resposta, admin_id, admin_nome, chamado_id, empresa_id))
+            else:
+                cur.execute(f"""
+                    UPDATE chamados_suporte
+                    SET status = %s,
+                        resposta_admin = COALESCE(%s, resposta_admin),
+                        admin_id = %s,
+                        admin_nome = %s,
+                        updated_at = NOW()
+                        {resolvido_clause}
+                    WHERE id = %s
+                    RETURNING id, numero_chamado, status
+                """, (novo_status, resposta, admin_id, admin_nome, chamado_id))
 
             row = cur.fetchone()
             if not row:

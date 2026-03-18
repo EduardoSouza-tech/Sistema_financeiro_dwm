@@ -963,6 +963,10 @@
                 await loadPermissions();
                 // NÃO carregar empresas aqui - será carregado ao clicar na aba
                 await loadUsers();
+                
+                // Pré-carregar chamados em background (não bloqueia)
+                carregarChamadosAdmin();
+                carregarStatsChamados();
             } catch (error) {
                 console.error('Erro ao verificar autenticação:', error);
                 window.location.href = '/login';
