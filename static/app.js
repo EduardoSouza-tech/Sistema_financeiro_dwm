@@ -5405,48 +5405,48 @@ async function verHistoricoContrato(contratoId) {
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:880px;">
 
             <!-- Card do contrato -->
-            <div style="background:linear-gradient(135deg,#1a237e 0%,#1565c0 60%,#0288d1 100%);color:white;padding:22px 24px;border-radius:14px;margin-bottom:20px;box-shadow:0 4px 20px rgba(21,101,192,.35);">
+            <div style="background:white;color:#1e293b;padding:22px 24px;border-radius:14px;margin-bottom:20px;box-shadow:0 4px 20px rgba(0,0,0,.1);border:1px solid #e2e8f0;">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
                     <div style="flex:1;min-width:200px;">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.65;margin-bottom:6px;">${escapeHtml(contrato.numero || '')}</div>
-                        <div style="font-size:18px;font-weight:700;line-height:1.3;">${escapeHtml(contrato.cliente_nome || contrato.nome || 'Contrato')}</div>
-                        <div style="font-size:12px;opacity:.75;margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
-                            ${contrato.tipo ? `<span style="background:rgba(255,255,255,.15);padding:2px 8px;border-radius:10px;">${escapeHtml(contrato.tipo)}</span>` : ''}
-                            ${contrato.forma_pagamento ? `<span style="background:rgba(255,255,255,.15);padding:2px 8px;border-radius:10px;">${escapeHtml(contrato.forma_pagamento)}</span>` : ''}
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:6px;">${escapeHtml(contrato.numero || '')}</div>
+                        <div style="font-size:18px;font-weight:700;line-height:1.3;color:#1e293b;">${escapeHtml(contrato.cliente_nome || contrato.nome || 'Contrato')}</div>
+                        <div style="font-size:12px;color:#475569;margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+                            ${contrato.tipo ? `<span style="background:#f1f5f9;color:#334155;padding:2px 8px;border-radius:10px;border:1px solid #e2e8f0;">${escapeHtml(contrato.tipo)}</span>` : ''}
+                            ${contrato.forma_pagamento ? `<span style="background:#f1f5f9;color:#334155;padding:2px 8px;border-radius:10px;border:1px solid #e2e8f0;">${escapeHtml(contrato.forma_pagamento)}</span>` : ''}
                         </div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-size:11px;opacity:.65;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Valor Total</div>
-                        <div style="font-size:26px;font-weight:800;color:#a5f3a5;letter-spacing:-.5px;">${fmt(contrato.valor || contrato.valor_total || 0)}</div>
-                        <div style="font-size:12px;opacity:.7;margin-top:4px;">${fmt(contrato.valor_mensal || 0)}/mês &nbsp;·&nbsp; ${contrato.quantidade_meses || 0} meses</div>
+                        <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Valor Total</div>
+                        <div style="font-size:26px;font-weight:800;color:#059669;letter-spacing:-.5px;">${fmt(contrato.valor || contrato.valor_total || 0)}</div>
+                        <div style="font-size:12px;color:#64748b;margin-top:4px;">${fmt(contrato.valor_mensal || 0)}/mês &nbsp;·&nbsp; ${contrato.quantidade_meses || 0} meses</div>
                     </div>
                 </div>
 
                 ${contrato.controle_horas_ativo ? `
-                <div style="margin-top:20px;padding-top:18px;border-top:1px solid rgba(255,255,255,.2);">
-                    <div style="font-size:12px;opacity:.65;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;">⏱ Controle de Horas</div>
+                <div style="margin-top:20px;padding-top:18px;border-top:1px solid #e2e8f0;">
+                    <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;font-weight:600;">⏱ Controle de Horas</div>
                     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;">
-                        <div style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);padding:12px 8px;border-radius:10px;text-align:center;">
-                            <div style="font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Total</div>
-                            <div style="font-size:22px;font-weight:800;color:#e0f2fe;">${horasTotais.toFixed(1)}h</div>
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px 8px;border-radius:10px;text-align:center;">
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Total</div>
+                            <div style="font-size:22px;font-weight:800;color:#0369a1;">${horasTotais.toFixed(1)}h</div>
                         </div>
-                        <div style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);padding:12px 8px;border-radius:10px;text-align:center;">
-                            <div style="font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Utilizadas</div>
-                            <div style="font-size:22px;font-weight:800;color:#fde68a;">${horasUtilizadas.toFixed(1)}h</div>
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px 8px;border-radius:10px;text-align:center;">
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Utilizadas</div>
+                            <div style="font-size:22px;font-weight:800;color:#d97706;">${horasUtilizadas.toFixed(1)}h</div>
                         </div>
-                        <div style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);padding:12px 8px;border-radius:10px;text-align:center;">
-                            <div style="font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Restantes</div>
-                            <div style="font-size:22px;font-weight:800;color:${horasRestantes > 0 ? '#86efac' : '#fbbf24'};">${horasRestantes.toFixed(1)}h</div>
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px 8px;border-radius:10px;text-align:center;">
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Restantes</div>
+                            <div style="font-size:22px;font-weight:800;color:${horasRestantes > 0 ? '#059669' : '#d97706'};">${horasRestantes.toFixed(1)}h</div>
                         </div>
-                        <div style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);padding:12px 8px;border-radius:10px;text-align:center;">
-                            <div style="font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Extras</div>
-                            <div style="font-size:22px;font-weight:800;color:${horasExtras > 0 ? '#fca5a5' : 'rgba(255,255,255,.5)'};">${horasExtras.toFixed(1)}h</div>
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px 8px;border-radius:10px;text-align:center;">
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Extras</div>
+                            <div style="font-size:22px;font-weight:800;color:${horasExtras > 0 ? '#dc2626' : '#94a3b8'};">${horasExtras.toFixed(1)}h</div>
                         </div>
                     </div>
-                    <div style="background:rgba(0,0,0,.25);height:8px;border-radius:6px;overflow:hidden;">
+                    <div style="background:#e2e8f0;height:8px;border-radius:6px;overflow:hidden;">
                         <div style="background:${barColor};height:100%;width:${Math.min(percentual, 100)}%;border-radius:6px;transition:width .4s ease;box-shadow:0 0 6px ${barColor}80;"></div>
                     </div>
-                    <div style="font-size:11px;opacity:.6;text-align:right;margin-top:6px;">${percentual.toFixed(1)}% utilizado</div>
+                    <div style="font-size:11px;color:#64748b;text-align:right;margin-top:6px;">${percentual.toFixed(1)}% utilizado</div>
                 </div>` : ''}
             </div>
 
@@ -5461,14 +5461,14 @@ async function verHistoricoContrato(contratoId) {
             <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.06);">
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                     <thead>
-                        <tr style="background:#2563eb;">
-                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#fff !important;border-bottom:2px solid #1d4ed8;">DATA</th>
-                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#fff !important;border-bottom:2px solid #1d4ed8;">HORÁRIO</th>
-                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#fff !important;border-bottom:2px solid #1d4ed8;">HORAS</th>
-                            <th style="padding:12px 10px;text-align:center;font-weight:700;font-size:12px;letter-spacing:.4px;color:#fff !important;border-bottom:2px solid #1d4ed8;">STATUS</th>
-                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#fff !important;border-bottom:2px solid #1d4ed8;">NF</th>
-                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#fff !important;border-bottom:2px solid #1d4ed8;">CUSTOS</th>
-                            <th style="padding:12px 10px;text-align:center;font-weight:700;font-size:12px;letter-spacing:.4px;color:#fff !important;border-bottom:2px solid #1d4ed8;">AÇÕES</th>
+                        <tr style="background:#f1f5f9;">
+                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">DATA</th>
+                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">HORÁRIO</th>
+                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">HORAS</th>
+                            <th style="padding:12px 10px;text-align:center;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">STATUS</th>
+                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">NF</th>
+                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">CUSTOS</th>
+                            <th style="padding:12px 10px;text-align:center;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">AÇÕES</th>
                         </tr>
                     </thead>
                     <tbody>
