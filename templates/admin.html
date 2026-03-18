@@ -2211,6 +2211,9 @@
             if (tabName === 'chamados') {
                 carregarChamadosAdmin();
                 carregarStatsChamados();
+                _iniciarAutoRefreshChamados();
+            } else {
+                _pararAutoRefreshChamados();
             }
         }
 
@@ -2220,6 +2223,22 @@
         // ============================================================
 
         let _chamadosFiltroAtual = '';
+        let _chamadosAutoRefreshInterval = null;
+
+        function _iniciarAutoRefreshChamados() {
+            _pararAutoRefreshChamados();
+            _chamadosAutoRefreshInterval = setInterval(() => {
+                carregarChamadosAdmin();
+                carregarStatsChamados();
+            }, 10000); // Atualiza a cada 10 segundos
+        }
+
+        function _pararAutoRefreshChamados() {
+            if (_chamadosAutoRefreshInterval) {
+                clearInterval(_chamadosAutoRefreshInterval);
+                _chamadosAutoRefreshInterval = null;
+            }
+        }
 
         async function carregarStatsChamados() {
             try {
@@ -2249,8 +2268,9 @@
                 const data = await r.json();
                 loading.style.display = 'none';
 
-                if (!data.success || !data.chamados.length) {
-                    lista.innerHTML = '<div style="text-align:center;padding:40px;color:#999;"><div style="font-size:50px;margin-bottom:10px;">📭</div><p>Nenhum chamado encontrado</p></div>';
+                if (!data.success || !data.chamados || !data.chamados.length) {
+                    const msg = data.error || 'Nenhum chamado encontrado';
+                    lista.innerHTML = `<div style="text-align:center;padding:40px;color:#999;"><div style="font-size:50px;margin-bottom:10px;">📭</div><p>${msg}</p></div>`;
                     return;
                 }
 

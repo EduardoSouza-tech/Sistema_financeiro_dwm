@@ -17,6 +17,30 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from auth_middleware import get_usuario_logado
+
+
+def _get_user_info():
+    """
+    Obtém informações do usuário logado usando auth_middleware.
+    Retorna dict com user_id, user_name, user_type, empresa_id ou None se não autenticado.
+    """
+    usuario = get_usuario_logado()
+    if not usuario:
+        return None
+
+    # empresa_id: header X-Empresa-ID > session > None
+    header_empresa = request.headers.get('X-Empresa-ID')
+    empresa_id = int(header_empresa) if header_empresa and header_empresa.isdigit() else None
+    empresa_id = empresa_id or session.get('empresa_id')
+
+    return {
+        'user_id': usuario.get('id'),
+        'user_name': usuario.get('nome') or usuario.get('username', 'Usuário'),
+        'user_type': (usuario.get('tipo') or 'cliente').strip().lower(),
+        'empresa_id': empresa_id,
+    }
+
 suporte_bp = Blueprint('suporte', __name__, url_prefix='/api/suporte')
 
 # ---------------------------------------------------------------------------
@@ -129,15 +153,19 @@ def listar_chamados():
     try:
         from database_postgresql import get_db_connection
 
-        usuario_id = session.get('user_id')
-        empresa_id = session.get('empresa_id', 1)
-        tipo_usuario = session.get('user_type', 'cliente')
+        info = _get_user_info()
+        if not info:
+            return jsonify({'error': 'Não autenticado'}), 401
+
+        usuario_id = info['user_id']
+        empresa_id = info['empresa_id']
+        tipo_usuario = info['user_type']
 
         with get_db_connection(allow_global=True) as conn:
             cur = conn.cursor()
             _ensure_chamados_table(cur)
 
-            if tipo_usuario == 'admin':
+            if tipo_usuario == 'admin' and empresa_id:
                 cur.execute("""
                     SELECT * FROM chamados_suporte
                     WHERE empresa_id = %s
@@ -149,6 +177,17 @@ def listar_chamados():
                         END,
                         created_at DESC
                 """, (empresa_id,))
+            elif tipo_usuario == 'admin':
+                cur.execute("""
+                    SELECT * FROM chamados_suporte
+                    ORDER BY
+                        CASE status
+                            WHEN 'aberto' THEN 1
+                            WHEN 'em_andamento' THEN 2
+                            WHEN 'resolvido' THEN 3
+                        END,
+                        created_at DESC
+                """)
             else:
                 cur.execute("""
                     SELECT * FROM chamados_suporte
@@ -172,10 +211,14 @@ def criar_chamado():
     try:
         from database_postgresql import get_db_connection
 
+        info = _get_user_info()
+        if not info:
+            return jsonify({'error': 'Não autenticado'}), 401
+
         data = request.json
-        usuario_id = session.get('user_id')
-        usuario_nome = session.get('user_name', 'Usuário')
-        empresa_id = session.get('empresa_id', 1)
+        usuario_id = info['user_id']
+        usuario_nome = info['user_name']
+        empresa_id = info['empresa_id']
 
         titulo = (data.get('titulo') or '').strip()
         descricao = (data.get('descricao') or '').strip()
@@ -229,9 +272,13 @@ def detalhe_chamado(chamado_id):
     try:
         from database_postgresql import get_db_connection
 
-        usuario_id = session.get('user_id')
-        empresa_id = session.get('empresa_id', 1)
-        tipo_usuario = session.get('user_type', 'cliente')
+        info = _get_user_info()
+        if not info:
+            return jsonify({'error': 'Não autenticado'}), 401
+
+        usuario_id = info['user_id']
+        empresa_id = info['empresa_id']
+        tipo_usuario = info['user_type']
 
         with get_db_connection(allow_global=True) as conn:
             cur = conn.cursor()
@@ -260,16 +307,20 @@ def atualizar_status_chamado(chamado_id):
     try:
         from database_postgresql import get_db_connection
 
-        tipo_usuario = session.get('user_type', 'cliente')
+        info = _get_user_info()
+        if not info:
+            return jsonify({'error': 'Não autenticado'}), 401
+
+        tipo_usuario = info['user_type']
         if tipo_usuario != 'admin':
             return jsonify({'error': 'Apenas administradores podem alterar status'}), 403
 
         data = request.json
         novo_status = data.get('status')
         resposta = data.get('resposta_admin', '')
-        admin_id = session.get('user_id')
-        admin_nome = session.get('user_name', 'Admin')
-        empresa_id = session.get('empresa_id', 1)
+        admin_id = info['user_id']
+        admin_nome = info['user_name']
+        empresa_id = info['empresa_id']
 
         if novo_status not in ('aberto', 'em_andamento', 'resolvido'):
             return jsonify({'error': 'Status inválido'}), 400
@@ -312,21 +363,33 @@ def stats_chamados():
     try:
         from database_postgresql import get_db_connection
 
-        empresa_id = session.get('empresa_id', 1)
+        info = _get_user_info()
+        empresa_id = info['empresa_id'] if info else None
 
         with get_db_connection(allow_global=True) as conn:
             cur = conn.cursor()
             _ensure_chamados_table(cur)
 
-            cur.execute("""
-                SELECT
-                    COUNT(*) FILTER (WHERE status = 'aberto') AS abertos,
-                    COUNT(*) FILTER (WHERE status = 'em_andamento') AS em_andamento,
-                    COUNT(*) FILTER (WHERE status = 'resolvido') AS resolvidos,
-                    COUNT(*) AS total
-                FROM chamados_suporte
-                WHERE empresa_id = %s
-            """, (empresa_id,))
+            if empresa_id:
+                cur.execute("""
+                    SELECT
+                        COUNT(*) FILTER (WHERE status = 'aberto') AS abertos,
+                        COUNT(*) FILTER (WHERE status = 'em_andamento') AS em_andamento,
+                        COUNT(*) FILTER (WHERE status = 'resolvido') AS resolvidos,
+                        COUNT(*) AS total
+                    FROM chamados_suporte
+                    WHERE empresa_id = %s
+                """, (empresa_id,))
+            else:
+                # Admin sem empresa selecionada: mostrar stats de TODOS
+                cur.execute("""
+                    SELECT
+                        COUNT(*) FILTER (WHERE status = 'aberto') AS abertos,
+                        COUNT(*) FILTER (WHERE status = 'em_andamento') AS em_andamento,
+                        COUNT(*) FILTER (WHERE status = 'resolvido') AS resolvidos,
+                        COUNT(*) AS total
+                    FROM chamados_suporte
+                """)
 
             row = cur.fetchone()
             return jsonify({
@@ -346,24 +409,29 @@ def admin_listar_chamados():
     try:
         from database_postgresql import get_db_connection
 
-        tipo_usuario = session.get('user_type', 'cliente')
+        info = _get_user_info()
+        if not info:
+            return jsonify({'error': 'Não autenticado'}), 401
+
+        tipo_usuario = info['user_type']
         if tipo_usuario != 'admin':
             return jsonify({'error': 'Acesso negado'}), 403
 
         status_filter = request.args.get('status', '')
-        empresa_id = session.get('empresa_id', 1)
+        empresa_id = info['empresa_id']
 
         with get_db_connection(allow_global=True) as conn:
             cur = conn.cursor()
             _ensure_chamados_table(cur)
 
-            if status_filter and status_filter in ('aberto', 'em_andamento', 'resolvido'):
+            # Admin sem empresa selecionada vê TODOS os chamados
+            if empresa_id and status_filter and status_filter in ('aberto', 'em_andamento', 'resolvido'):
                 cur.execute("""
                     SELECT * FROM chamados_suporte
                     WHERE empresa_id = %s AND status = %s
                     ORDER BY created_at DESC
                 """, (empresa_id, status_filter))
-            else:
+            elif empresa_id:
                 cur.execute("""
                     SELECT * FROM chamados_suporte
                     WHERE empresa_id = %s
@@ -375,6 +443,23 @@ def admin_listar_chamados():
                         END,
                         created_at DESC
                 """, (empresa_id,))
+            elif status_filter and status_filter in ('aberto', 'em_andamento', 'resolvido'):
+                cur.execute("""
+                    SELECT * FROM chamados_suporte
+                    WHERE status = %s
+                    ORDER BY created_at DESC
+                """, (status_filter,))
+            else:
+                cur.execute("""
+                    SELECT * FROM chamados_suporte
+                    ORDER BY
+                        CASE status
+                            WHEN 'aberto' THEN 1
+                            WHEN 'em_andamento' THEN 2
+                            WHEN 'resolvido' THEN 3
+                        END,
+                        created_at DESC
+                """)
 
             chamados = cur.fetchall()
             return jsonify({
