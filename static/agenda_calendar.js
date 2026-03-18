@@ -324,14 +324,22 @@ function toggleCalendarView() {
     
     const calendarView = document.getElementById('calendar-view');
     const listView = document.getElementById('list-view');
+    const toggleIcon = document.getElementById('toggle-view-icon');
+    const toggleText = document.getElementById('toggle-view-text');
     
     if (currentView === 'calendar') {
         calendarView.style.display = 'block';
         listView.style.display = 'none';
+        // Atualizar botão para modo lista
+        if (toggleIcon) toggleIcon.textContent = '📋';
+        if (toggleText) toggleText.textContent = 'Ver Lista';
         if (calendar) loadCalendarEvents();
     } else {
         calendarView.style.display = 'none';
         listView.style.display = 'block';
+        // Atualizar botão para modo calendário
+        if (toggleIcon) toggleIcon.textContent = '📅';
+        if (toggleText) toggleText.textContent = 'Ver Calendário';
         loadAgendaListView();
     }
 }
@@ -1038,23 +1046,31 @@ function updateAgendaSummary(totalSessoes) {
 }
 
 /**
- * Editar sessão a partir da agenda
+ * Editar sessão a partir da agenda (renomeado para evitar conflito com app.js e contratos.js)
  */
 function editarSessaoAgenda(sessaoId) {
-    console.log('Editando sessão:', sessaoId);
-    // Redirecionar para a seção de contratos/sessões com o ID
-    showSection('contratos');
-    setTimeout(() => {
-        // Procurar o botão de edição da sessão
-        const editBtn = document.querySelector(`[onclick*="editarSessao(${sessaoId})"]`);
-        if (editBtn) {
-            editBtn.click();
-        } else {
-            // Se não encontrar, mostrar detalhes da sessão
-            showNotification('📋 Carregando detalhes da sessão...', 'info');
-            // Aqui você pode adicionar lógica adicional para abrir modal de edição
-        }
-    }, 500);
+    console.log('📅 [Agenda] Editando sessão:', sessaoId);
+    
+    // Verificar se existe função global editarSessao (de modals.js ou app.js)
+    if (typeof window.editarSessao === 'function') {
+        window.editarSessao(sessaoId);
+    } else if (typeof window.openModalSessao === 'function') {
+        // Fallback: abrir modal de sessão com ID
+        window.openModalSessao(sessaoId);
+    } else {
+        // Último recurso: redirecionar para a seção de contratos/sessões
+        console.log('⚠️ Função de edição não encontrada, redirecionando...');
+        showSection('contratos');
+        setTimeout(() => {
+            // Procurar o botão de edição da sessão
+            const editBtn = document.querySelector(`[onclick*="editarSessao(${sessaoId})"]`);
+            if (editBtn) {
+                editBtn.click();
+            } else {
+                showNotification('📋 Carregando detalhes da sessão...', 'info');
+            }
+        }, 500);
+    }
 }
 
 /**

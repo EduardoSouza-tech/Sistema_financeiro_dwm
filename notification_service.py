@@ -94,7 +94,9 @@ def was_notified_today(empresa_id: int, tipo: str, referencia_id) -> bool:
             return cur.fetchone() is not None
     except Exception as e:
         print(f"⚠️ Erro ao verificar deduplicação: {e}")
-        return False   # Em caso de falha, permite reenvio (safe default)
+        # CORREÇÃO: Em caso de erro na verificação, assumir que já foi notificado
+        # para evitar spam de e-mails em caso de problemas de conexão com banco
+        return True   # Previne envio múltiplo em caso de falha
 
 
 def get_notifications_log(empresa_id: int, limit: int = 50) -> List[Dict]:

@@ -277,14 +277,62 @@ def google_calendar_sync():
         if not settings.get('google_calendar_enabled'):
             return jsonify({'error': 'Google Calendar não habilitado'}), 400
         
-        # Obter sessões do banco (implementar integração com database_postgresql.py)
-        # Por enquanto, retornar sucesso simulado
+        # Obter sessões do banco
+        empresa_id = session.get('empresa_id', 1)
+        try:
+            import database_postgresql as db
+            sessoes = db.listar_sessoes(empresa_id=empresa_id)
+        except Exception as e:
+            print(f"❌ Erro ao buscar sessões: {e}")
+            return jsonify({'error': 'Erro ao buscar sessões do banco'}), 500
+        
+        events_created = 0
+        events_updated = 0
+        errors = []
+        
+        # Sincronizar cada sessão com Google Calendar
+        for sessao in sessoes:
+            # Pular sessões canceladas
+            if sessao.get('status') == 'cancelada':
+                continue
+            
+            try:
+                session_data = {
+                    'title': f"{sessao.get('cliente_nome', 'Cliente')} - Sessão",
+                    'date': str(sessao.get('data', ''))[:10],
+                    'time': sessao.get('horario', '00:00').split(' ')[0] if sessao.get('horario') else '00:00',
+                    'duration': int(float(sessao.get('quantidade_horas', 1)) * 60),
+                    'description': sessao.get('descricao', ''),
+                    'location': sessao.get('endereco', '')
+                }
+                
+                # Verificar se já existe evento no Google (através de google_event_id salvo)
+                google_event_id = sessao.get('google_event_id')
+                
+                if google_event_id:
+                    # Atualizar evento existente
+                    result = google_calendar_helper.update_calendar_event(google_event_id, session_data)
+                    if 'error' not in result:
+                        events_updated += 1
+                    else:
+                        errors.append(f"Sessão {sessao.get('id')}: {result['error']}")
+                else:
+                    # Criar novo evento
+                    result = google_calendar_helper.create_calendar_event(session_data)
+                    if 'error' not in result:
+                        events_created += 1
+                        # TODO: Salvar google_event_id no banco para futuras atualizações
+                    else:
+                        errors.append(f"Sessão {sessao.get('id')}: {result['error']}")
+            except Exception as e:
+                errors.append(f"Sessão {sessao.get('id')}: {str(e)}")
         
         return jsonify({
             'success': True, 
-            'message': 'Sincronização concluída',
-            'events_created': 0,
-            'events_updated': 0
+            'message': f'Sincronização concluída: {events_created} criados, {events_updated} atualizados',
+            'events_created': events_created,
+            'events_updated': events_updated,
+            'errors': errors[:5] if errors else []  # Limitar a 5 erros para não sobrecarregar resposta
         })
     except Exception as e:
         print(f"❌ Erro ao sincronizar: {e}")
