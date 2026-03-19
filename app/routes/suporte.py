@@ -380,7 +380,13 @@ def atualizar_status_chamado(chamado_id):
 
             row = cur.fetchone()
             if not row:
+                # Debug: verificar se o chamado existe
+                cur.execute("SELECT id, status, empresa_id FROM chamados_suporte WHERE id = %s", (chamado_id,))
+                existing = cur.fetchone()
+                print(f"⚠️ [SUPORTE] UPDATE retornou vazio. chamado_id={chamado_id}, existe_no_banco={dict(existing) if existing else 'NÃO'}")
                 return jsonify({'error': 'Chamado não encontrado'}), 404
+
+            print(f"✅ [SUPORTE] Chamado {row['numero_chamado']} atualizado para {novo_status}")
 
             return jsonify({
                 'success': True,

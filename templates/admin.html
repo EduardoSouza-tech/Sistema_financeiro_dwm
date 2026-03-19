@@ -2459,6 +2459,7 @@
                 });
                 console.log('💾 [chamados] Response status:', r.status);
                 const data = await r.json();
+                console.log('💾 [chamados] Response body:', JSON.stringify(data));
                 if (data.success) {
                     showAlert('✅ Chamado atualizado com sucesso!', 'success');
                     fecharDetalheChamado();
