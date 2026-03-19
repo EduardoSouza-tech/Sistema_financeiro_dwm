@@ -359,6 +359,28 @@ def atualizar_status_chamado(chamado_id):
         if novo_status not in ('aberto', 'em_andamento', 'resolvido'):
             return jsonify({'error': 'Status inválido'}), 400
 
+        # Textos padrão de notificação por status
+        _notif_config = {
+            'em_andamento': {
+                'titulo': '🟡 Chamado em Andamento',
+                'mensagem': 'Seu chamado {numero} está sendo analisado pela equipe de suporte.',
+                'tipo': 'info',
+                'dias_validade': 7,
+            },
+            'resolvido': {
+                'titulo': '🟢 Chamado Resolvido',
+                'mensagem': 'Seu chamado {numero} foi resolvido pela equipe de suporte.',
+                'tipo': 'success',
+                'dias_validade': 14,
+            },
+            'aberto': {
+                'titulo': '🔴 Chamado Reaberto',
+                'mensagem': 'Seu chamado {numero} foi reaberto para reavaliação.',
+                'tipo': 'warning',
+                'dias_validade': 7,
+            },
+        }
+
         with get_db_connection(allow_global=True) as conn:
             cur = conn.cursor()
             _ensure_chamados_table(cur)
@@ -375,7 +397,7 @@ def atualizar_status_chamado(chamado_id):
                     updated_at = NOW()
                     {resolvido_clause}
                 WHERE id = %s
-                RETURNING id, numero_chamado, status
+                RETURNING id, numero_chamado, status, usuario_id, titulo
             """, (novo_status, resposta, admin_id, admin_nome, chamado_id))
 
             row = cur.fetchone()
@@ -387,6 +409,41 @@ def atualizar_status_chamado(chamado_id):
                 return jsonify({'error': 'Chamado não encontrado'}), 404
 
             print(f"✅ [SUPORTE] Chamado {row['numero_chamado']} atualizado para {novo_status}")
+
+            # Criar notificação in-app para o usuário do chamado
+            try:
+                import json as _json
+                from datetime import datetime, timedelta
+
+                notif = _notif_config.get(novo_status, _notif_config['em_andamento'])
+                numero_chamado = row['numero_chamado']
+                titulo_chamado = row['titulo']
+
+                notif_titulo = notif['titulo']
+                notif_msg = notif['mensagem'].format(numero=numero_chamado)
+                if resposta:
+                    notif_msg += f'\n\n💬 Resposta do suporte: {resposta}'
+                notif_msg += f'\n📋 Assunto: {titulo_chamado}'
+
+                expira_em = datetime.now() + timedelta(days=notif['dias_validade'])
+                usuario_id_chamado = row['usuario_id']
+
+                cur.execute("""
+                    INSERT INTO avisos_sistema
+                        (titulo, mensagem, tipo, destinatario, usuario_ids, expira_em, criado_por_nome)
+                    VALUES (%s, %s, %s, 'usuarios', %s, %s, %s)
+                """, (
+                    notif_titulo,
+                    notif_msg,
+                    notif['tipo'],
+                    _json.dumps([usuario_id_chamado]),
+                    expira_em,
+                    admin_nome,
+                ))
+                print(f"🔔 [SUPORTE] Notificação criada para usuario_id={usuario_id_chamado}")
+            except Exception as notif_err:
+                # Não falhar o update por causa da notificação
+                print(f"⚠️ [SUPORTE] Erro ao criar notificação: {notif_err}")
 
             return jsonify({
                 'success': True,
