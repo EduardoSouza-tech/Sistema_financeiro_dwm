@@ -355,7 +355,6 @@ def atualizar_status_chamado(chamado_id):
         resposta = data.get('resposta_admin', '')
         admin_id = info['user_id']
         admin_nome = info['user_name']
-        empresa_id = info['empresa_id']
 
         if novo_status not in ('aberto', 'em_andamento', 'resolvido'):
             return jsonify({'error': 'Status inválido'}), 400
@@ -366,31 +365,18 @@ def atualizar_status_chamado(chamado_id):
 
             resolvido_clause = ", resolvido_em = NOW()" if novo_status == 'resolvido' else ""
 
-            # Admin pode atualizar qualquer chamado
-            if empresa_id:
-                cur.execute(f"""
-                    UPDATE chamados_suporte
-                    SET status = %s,
-                        resposta_admin = COALESCE(%s, resposta_admin),
-                        admin_id = %s,
-                        admin_nome = %s,
-                        updated_at = NOW()
-                        {resolvido_clause}
-                    WHERE id = %s AND empresa_id = %s
-                    RETURNING id, numero_chamado, status
-                """, (novo_status, resposta, admin_id, admin_nome, chamado_id, empresa_id))
-            else:
-                cur.execute(f"""
-                    UPDATE chamados_suporte
-                    SET status = %s,
-                        resposta_admin = COALESCE(%s, resposta_admin),
-                        admin_id = %s,
-                        admin_nome = %s,
-                        updated_at = NOW()
-                        {resolvido_clause}
-                    WHERE id = %s
-                    RETURNING id, numero_chamado, status
-                """, (novo_status, resposta, admin_id, admin_nome, chamado_id))
+            # Admin pode atualizar qualquer chamado (sem filtro empresa_id)
+            cur.execute(f"""
+                UPDATE chamados_suporte
+                SET status = %s,
+                    resposta_admin = COALESCE(%s, resposta_admin),
+                    admin_id = %s,
+                    admin_nome = %s,
+                    updated_at = NOW()
+                    {resolvido_clause}
+                WHERE id = %s
+                RETURNING id, numero_chamado, status
+            """, (novo_status, resposta, admin_id, admin_nome, chamado_id))
 
             row = cur.fetchone()
             if not row:
