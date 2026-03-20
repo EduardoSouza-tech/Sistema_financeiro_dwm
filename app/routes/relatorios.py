@@ -67,11 +67,19 @@ def relatorio_fluxo_caixa():
     except (ValueError, TypeError):
         data_fim = today
 
+    # Limite de registros (0 ou vazio = sem limite)
+    limit_str = request.args.get('limit', '0')
+    try:
+        limit = int(limit_str)
+    except (ValueError, TypeError):
+        limit = 0
+
     try:
         import psycopg2.extras
         with get_db_connection(empresa_id=empresa_id) as conn:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cursor.execute("""
+
+            sql = """
                 SELECT
                     id, tipo, descricao, valor,
                     data_pagamento,
@@ -83,8 +91,15 @@ def relatorio_fluxo_caixa():
                   AND data_pagamento IS NOT NULL
                   AND data_pagamento::date >= %s
                   AND data_pagamento::date <= %s
-                ORDER BY data_pagamento, id
-            """, (empresa_id, data_inicio, data_fim))
+                ORDER BY data_pagamento DESC, id DESC
+            """
+            params = [empresa_id, data_inicio, data_fim]
+
+            if limit > 0:
+                sql += " LIMIT %s"
+                params.append(limit)
+
+            cursor.execute(sql, params)
             rows = cursor.fetchall()
     except Exception as e:
         print(f"[fluxo-caixa] Erro SQL: {e}")

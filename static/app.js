@@ -6738,7 +6738,7 @@ window.carregarFluxoCaixa = async function() {
             .filter(t => (t.tipo || '').toLowerCase() === 'receita')
             .reduce((sum, t) => sum + parseFloat(t.valor || 0), 0);
         const totalSaidas = transacoes
-            .filter(t => (t.tipo || '').toLowerCase() === 'despesa')
+            .filter(t => { const tp = (t.tipo || '').toLowerCase(); return tp === 'despesa' || tp === 'saida' || tp === 'saída'; })
             .reduce((sum, t) => sum + parseFloat(t.valor || 0), 0);
         const saldoPeriodo = totalEntradas - totalSaidas;
 
@@ -6824,7 +6824,8 @@ window.carregarFluxoCaixa = async function() {
 // Função para carregar transações detalhadas
 async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
     try {
-        let url = `${API_URL}/relatorios/fluxo-caixa?data_inicio=${dataInicio}&data_fim=${dataFim}`;
+        const limite = document.getElementById('filter-limite-fluxo')?.value || '100';
+        let url = `${API_URL}/relatorios/fluxo-caixa?data_inicio=${dataInicio}&data_fim=${dataFim}&limit=${limite}`;
         if (banco) {
             // Filtrar por banco no frontend já que o backend não suporta esse filtro ainda
         }
@@ -6864,8 +6865,9 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
         tbody.innerHTML = '';
         
         transacoes.forEach((transacao, index) => {
-            const entrada = transacao.tipo === 'receita' ? formatarMoeda(transacao.valor) : '-';
-            const saida = transacao.tipo === 'despesa' ? formatarMoeda(transacao.valor) : '-';
+            const tipoLower = (transacao.tipo || '').toLowerCase();
+            const entrada = tipoLower === 'receita' ? formatarMoeda(transacao.valor) : '-';
+            const saida = (tipoLower === 'despesa' || tipoLower === 'saida' || tipoLower === 'saída') ? formatarMoeda(transacao.valor) : '-';
             
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -7026,6 +7028,8 @@ window.limparFiltrosFluxo = function() {
     document.getElementById('filter-data-inicial-fluxo').value = '';
     document.getElementById('filter-data-final-fluxo').value = '';
     document.getElementById('filter-banco-fluxo').value = '';
+    const limiteSelect = document.getElementById('filter-limite-fluxo');
+    if (limiteSelect) limiteSelect.value = '100';
     window.carregarFluxoCaixa();
 };
 
