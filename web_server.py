@@ -1082,6 +1082,16 @@ def verify_session():
             
             empresa_id = empresa_id_req
             
+            # FALLBACK: Se empresa_id não veio no header nem na sessão,
+            # usar a primeira empresa disponível do usuário.
+            # Isso resolve o problema de sessão restaurada após horas
+            # onde empresa_id se perde e permissões voltam vazias.
+            if not empresa_id and empresas_disponiveis:
+                empresa_id = empresas_disponiveis[0].get('empresa_id')
+                if empresa_id:
+                    session['empresa_id'] = empresa_id
+                    print(f"🔄 [verify] Fallback: empresa_id={empresa_id} (primeira disponível para usuario {usuario['id']})")
+            
             if empresa_id:
                 # Carregar permissões específicas da empresa
                 from auth_functions import obter_permissoes_usuario_empresa

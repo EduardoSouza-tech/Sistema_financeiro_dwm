@@ -809,6 +809,13 @@
             }
         }
 
+        .loading-overlay.fade-out {
+            opacity: 0;
+            transform: scale(1.05);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            pointer-events: none;
+        }
+
         .toast.hiding {
             animation: slideOutRight 0.3s ease-in forwards;
         }
@@ -1546,6 +1553,22 @@
     <script src="https://apis.google.com/js/api.js"></script>
 </head>
 <body style="background: #f5f7fa !important; color: #2c3e50 !important;">
+    <!-- Loading Overlay - Exibido ao carregar a página -->
+    <div id="pageLoadingOverlay" class="loading-overlay">
+        <div class="loading-container">
+            <div class="loading-dots">
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+            </div>
+            <p class="loading-text">💰 Sistema Financeiro</p>
+            <p class="loading-subtext">Carregando seu painel...</p>
+            <div class="loading-progress-bar">
+                <div class="loading-progress-fill"></div>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
@@ -7724,16 +7747,32 @@
                     if (typeof loadContasBancarias === 'function') {
                         loadContasBancarias();
                     }
+
+                    // Esconder overlay de carregamento com fade-out
+                    hidePageLoadingOverlay();
                 } else {
                     console.error('❌ Usuário não autenticado');
+                    hidePageLoadingOverlay();
                     // Não autenticado, redirecionar para login
                     window.location.href = '/login';
                 }
             } catch (error) {
                 console.error('❌ Erro ao verificar autenticação:', error);
                 console.error('Stack trace:', error.stack);
+                hidePageLoadingOverlay();
                 // Em caso de erro, também redirecionar para login
                 // window.location.href = '/login';
+            }
+        }
+
+        // Esconder overlay de carregamento com animação suave
+        function hidePageLoadingOverlay() {
+            const overlay = document.getElementById('pageLoadingOverlay');
+            if (overlay) {
+                overlay.classList.add('fade-out');
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                }, 500);
             }
         }
         
