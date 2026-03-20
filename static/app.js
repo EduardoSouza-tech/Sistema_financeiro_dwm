@@ -6903,13 +6903,13 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
             // Badge de status
             let statusBadge = '';
             if (statusLower === 'pago') {
-                statusBadge = '<span style="background:#27ae60;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">✅ Pago</span>';
+                statusBadge = '<span title="Pago" style="font-size:16px;cursor:default;">✅</span>';
             } else if (statusLower === 'pendente') {
-                statusBadge = '<span style="background:#f39c12;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">🕐 Pendente</span>';
+                statusBadge = '<span title="Pendente" style="font-size:16px;cursor:default;">🕐</span>';
             } else if (statusLower === 'vencido') {
-                statusBadge = '<span style="background:#e74c3c;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">⚠️ Vencido</span>';
+                statusBadge = '<span title="Vencido" style="font-size:16px;cursor:default;">⚠️</span>';
             } else {
-                statusBadge = `<span style="background:#95a5a6;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;">${statusLower || '?'}</span>`;
+                statusBadge = '<span title="' + (statusLower || '?') + '" style="font-size:16px;cursor:default;">❓</span>';
             }
             
             // Estilo de linha para pendente/vencido
