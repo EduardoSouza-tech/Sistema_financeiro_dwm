@@ -2931,6 +2931,11 @@ button,
 
 /* ---------- TABLETS (max 1024px) ---------- */
 @media (max-width: 1024px) {
+    /* CATCH-ALL: todos os flex containers permitem wrap em tablets */
+    div[style*="display: flex"] {
+        flex-wrap: wrap !important;
+    }
+
     /* Headers de seção: título + botões empilham */
     .content-card > div[style*="justify-content: space-between"] {
         flex-wrap: wrap !important;
@@ -2954,6 +2959,11 @@ button,
 
 /* ---------- MOBILE (max 768px) ---------- */
 @media (max-width: 768px) {
+    /* ===== CATCH-ALL: todos os flex containers permitem wrap ===== */
+    div[style*="display: flex"] {
+        flex-wrap: wrap !important;
+    }
+
     /* ===== LAYOUT GERAL ===== */
     .main-content {
         padding: 10px !important;

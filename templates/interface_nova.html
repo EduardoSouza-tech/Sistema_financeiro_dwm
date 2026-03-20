@@ -1841,9 +1841,9 @@
 
             <!-- Contas a Receber -->
             <div id="contas-receber-section" class="content-card hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="margin: 0;">Contas a Receber</h2>
-                    <div style="display: flex; gap: 10px;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button class="btn btn-primary" onclick="openModalReceita()" style="padding: 8px 16px; font-size: 13px;">➕ Nova Receita</button>
                         <button class="btn btn-primary" onclick="exportarContasReceberPDF()" style="padding: 8px 16px; font-size: 13px; background: #e74c3c;">📝 PDF</button>
                         <button class="btn btn-primary" onclick="exportarContasReceberExcel()" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📊 Excel</button>
@@ -1979,9 +1979,9 @@
 
             <!-- Contas a Pagar -->
             <div id="contas-pagar-section" class="content-card hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="margin: 0;">Contas a Pagar</h2>
-                    <div style="display: flex; gap: 10px;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button class="btn btn-primary" onclick="openModalDespesa()" style="padding: 8px 16px; font-size: 13px;">➕ Nova Despesa</button>
                         <button class="btn btn-primary" onclick="exportarContasPagarPDF()" style="padding: 8px 16px; font-size: 13px; background: #e74c3c;">📝 PDF</button>
                         <button class="btn btn-primary" onclick="exportarContasPagarExcel()" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📊 Excel</button>
@@ -2124,9 +2124,9 @@
 
             <!-- Extrato Bancário -->
             <div id="extrato-bancario-section" class="content-card hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="margin: 0; color: #2c3e50;">🏦 Extrato Bancário - Importação OFX</h2>
-                    <div style="display: flex; gap: 10px;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button onclick="abrirConfiguracaoRegras()" class="btn btn-secondary" style="padding: 10px 20px; background: #9b59b6; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; transition: all 0.3s;"
                                 onmouseover="this.style.background='#8e44ad'"
                                 onmouseout="this.style.background='#9b59b6'">
@@ -2654,7 +2654,7 @@
                     </div>
                     <div class="modal-body">
                         <!-- Abas -->
-                        <div style="display: flex; gap: 5px; border-bottom: 2px solid #ddd; margin-bottom: 20px;">
+                        <div style="display: flex; gap: 5px; border-bottom: 2px solid #ddd; margin-bottom: 20px; flex-wrap: wrap;">
                             <button type="button" class="tab-btn active" data-aba="dados-pessoais" onclick="mudarAbaFuncionario('dados-pessoais')" 
                                     style="padding: 10px 20px; border: none; background: rgba(52, 152, 219, 0.1); cursor: pointer; border-bottom: 3px solid #3498db;">
                                 👤 Dados Pessoais
@@ -3057,9 +3057,9 @@
 
             <!-- Eventos -->
             <div id="eventos-section" class="content-card hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="margin: 0;">🎉 Eventos Operacionais</h2>
-                    <div style="display: flex; gap: 10px;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button onclick="abrirModalFuncoes()" class="btn btn-secondary" style="padding: 10px 20px; background: #9b59b6;">
                             👔 Funções
                         </button>
@@ -3214,7 +3214,7 @@
                         </div>
 
                         <!-- Abas: Individual / Em Massa / Fornecedores / Assinatura / Credenciamento -->
-                        <div style="margin-bottom: 20px; display: flex; gap: 10px; border-bottom: 2px solid #ddd;">
+                        <div style="margin-bottom: 20px; display: flex; gap: 10px; border-bottom: 2px solid #ddd; flex-wrap: wrap;">
                             <button id="tab-individual" onclick="trocarAbaEquipe('individual')" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-bottom: 3px solid #3498db; cursor: pointer; font-weight: bold;">👤 Individual</button>
                             <button id="tab-massa" onclick="trocarAbaEquipe('massa')" style="padding: 10px 20px; background: #ecf0f1; color: #555; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-weight: bold;">👥 Em Massa</button>
                             <button id="tab-fornecedores" onclick="trocarAbaEquipe('fornecedores')" style="padding: 10px 20px; background: #ecf0f1; color: #555; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-weight: bold;">🏢 Fornecedores</button>
@@ -3787,19 +3787,18 @@
 
             <!-- Fluxo de Caixa -->
             <div id="fluxo-caixa-section" class="content-card hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="margin: 0;">📈 Fluxo de Caixa</h2>
                     
                     <!-- Botões de Exportação -->
-                    <div style="display: flex; gap: 10px;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button class="btn btn-primary" onclick="exportarFluxoCaixaPDF()" style="padding: 8px 16px; font-size: 13px; background: #e74c3c;">📝 PDF</button>
                         <button class="btn btn-primary" onclick="exportarFluxoCaixaExcel()" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📊 Excel</button>
                     </div>
                 </div>
                 
                 <!-- Filtros -->
-                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                    <!-- Filtro de Período -->
+                <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
                     <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #2c3e50; font-size: 14px;">Filtrar Período:</label>
                         <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
@@ -4583,9 +4582,9 @@
                 
                 <!-- Conteúdo Aba Parceiros -->
                 <div id="content-parceiros" class="tab-content">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                         <h3 style="margin: 0; color: #555; font-size: 18px;">Resumo por Cliente/Fornecedor</h3>
-                        <div style="display: flex; gap: 10px;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <button class="btn btn-primary" onclick="exportarResumoParceirosPDF()" style="padding: 8px 16px; font-size: 13px; background: #e74c3c;">📝 PDF</button>
                             <button class="btn btn-primary" onclick="exportarResumoParceirosExcel()" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📊 Excel</button>
                         </div>
@@ -4631,9 +4630,9 @@
                 
                 <!-- Conteúdo Aba Categorias -->
                 <div id="content-categorias" class="tab-content" style="display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                         <h3 style="margin: 0; color: #555; font-size: 18px;">Análise por Categoria</h3>
-                        <div style="display: flex; gap: 10px;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <button class="btn btn-primary" onclick="exportarAnaliseCategoriasPDF()" style="padding: 8px 16px; font-size: 13px; background: #e74c3c;">📝 PDF</button>
                             <button class="btn btn-primary" onclick="exportarAnaliseCategoriasExcel()" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📊 Excel</button>
                         </div>
@@ -5190,9 +5189,9 @@
 
                 <!-- Tab Content: Documentos -->
                 <div id="fiscal-content-documentos" class="fiscal-tab-content hidden">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                         <h3>Documentos Fiscais</h3>
-                        <div style="display: flex; gap: 8px;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <button class="btn btn-success" onclick="exportarExcelFiscal()" style="padding: 8px 16px;">
                                 📊 Exportar Excel
                             </button>
@@ -5482,9 +5481,9 @@
             <!-- CONTABILIDADE - PLANO DE CONTAS -->
             <!-- ================================================================= -->
             <div id="plano-contas-section" class="content-card hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="margin: 0;">📒 Plano de Contas</h2>
-                    <div style="display: flex; gap: 10px;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button class="btn btn-secondary" onclick="abrirModalVersaoPlano()" style="padding: 8px 16px; font-size: 13px; background: #95a5a6;">📋 Versões</button>
                         <button class="btn btn-success" onclick="importarPlanoPadrao()" style="padding: 8px 16px; font-size: 13px; background: #9b59b6;">📦 Importar Plano Padrão</button>
                         <button class="btn btn-primary" onclick="importarPlanoContas()" style="padding: 8px 16px; font-size: 13px; background: #3498db;">📥 Importar CSV</button>
@@ -5733,7 +5732,7 @@
             <!-- DRE - DEMONSTRAÇÃO DO RESULTADO DO EXERCÍCIO -->
             <!-- ================================================================= -->
             <div id="dre-section" class="content-card hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="margin: 0;">📈 DRE - Demonstração do Resultado do Exercício</h2>
                     <button onclick="abrirModalConfiguracaoDRE()" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px; background: #9b59b6; color: white;">
                         ⚙️ Configurar Mapeamento
@@ -5873,7 +5872,7 @@
             <!-- DASHBOARD GERENCIAL -->
             <!-- ================================================================= -->
             <div id="dashboard-gerencial-section" class="content-card hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="margin: 0;">📊 Dashboard Gerencial</h2>
                     <button onclick="carregarDashboardGerencial()" class="btn btn-primary" style="padding: 8px 16px; font-size: 13px; background: #3498db;">🔄 Atualizar</button>
                 </div>
@@ -5942,7 +5941,7 @@
             <!-- Categorias -->
             <div id="categorias-section" class="content-card hidden">
                 <h2 style="color: #000000 !important; font-weight: 700;">Categorias</h2>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="openModalCategoria()">➕ Nova Categoria</button>
                     <button class="btn btn-secondary" onclick="abrirModalImportarCategorias()" style="background: #6c757d;">
                         📥 Importar de Outra Empresa
@@ -6004,7 +6003,7 @@
                 </div>
                 
                 <!-- Tabs de Status -->
-                <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd;">
+                <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd; flex-wrap: wrap;">
                     <button class="tab-button active" onclick="showClienteTab('ativos')" id="tab-clientes-ativos" style="padding: 10px 20px; border: none; background: #9b59b6; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;">
                         Ativos
                     </button>
@@ -6043,7 +6042,7 @@
                 </div>
                 
                 <!-- Tabs de Status -->
-                <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd;">
+                <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd; flex-wrap: wrap;">
                     <button class="tab-button active" onclick="showFornecedorTab('ativos')" id="tab-fornecedores-ativos" style="padding: 10px 20px; border: none; background: #9b59b6; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;">
                         Ativos
                     </button>
@@ -6100,13 +6099,13 @@
             <!-- Gerenciamento de Usuários (Admin) -->
             <div id="usuarios-section" class="content-card hidden">
                 <h2 style="color: #000000 !important; font-weight: 700;">🔐 Gerenciamento de Usuários</h2>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="openModalUsuario()">➕ Novo Usuário</button>
                     <button class="btn" onclick="refreshUsuarios()" style="background: #3498db; color: white;">🔄 Atualizar</button>
                 </div>
                 
                 <!-- Tabs -->
-                <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd;">
+                <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd; flex-wrap: wrap;">
                     <button class="tab-button active" onclick="showUsuariosTab('ativos')" id="tab-usuarios-ativos" style="padding: 10px 20px; border: none; background: #27ae60; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;">
                         ✅ Ativos
                     </button>
@@ -6173,7 +6172,7 @@
             <!-- Logs de Acesso (Admin) -->
             <div id="logs-section" class="content-card hidden">
                 <h2 style="color: #000000 !important; font-weight: 700;">📋 Logs de Acesso</h2>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                     <button class="btn" onclick="refreshLogs()" style="background: #3498db; color: white;">🔄 Atualizar</button>
                     <input type="date" id="filter-log-data-inicio" onchange="filterLogs()" style="padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
                     <input type="date" id="filter-log-data-fim" onchange="filterLogs()" style="padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
@@ -6207,7 +6206,7 @@
                 <h2 style="color: #000000 !important; font-weight: 700;">Contratos e Sessões</h2>
                 
                 <!-- Tabs -->
-                <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd;">
+                <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #ddd; flex-wrap: wrap;">
                     <button class="tab-button active" onclick="showContratoTab('resumo')" id="tab-resumo" style="padding: 10px 20px; border: none; background: #9b59b6; color: white; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;">
                         📊 Resumo
                     </button>
@@ -6290,7 +6289,7 @@
 
                 <!-- Tab Contratos -->
                 <div id="tab-content-contratos" style="display: none;">
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                         <button class="btn btn-primary" onclick="openModalContrato()">➕ Novo Contrato</button>
                         <button class="btn" onclick="exportarContratosPDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
                         <button class="btn" onclick="exportarContratosExcel()" style="background: #27ae60; color: white;">📊 Exportar Excel</button>
@@ -6321,7 +6320,7 @@
 
                 <!-- Tab Sessões -->
                 <div id="tab-content-sessoes" style="display: none;">
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                         <button class="btn btn-primary" onclick="openModalSessao()">➕ Nova Sessão</button>
                         <button class="btn" onclick="exportarSessoesExcel()" style="background: #27ae60; color: white;">📊 Exportar Excel</button>
                         <button class="btn" onclick="exportarSessoesPDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
@@ -6350,7 +6349,7 @@
 
                 <!-- Tab Controle de Horas -->
                 <div id="tab-content-controle-horas" style="display: none;">
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                         <button class="btn btn-primary" onclick="exportarControleHorasPDF()" style="padding: 8px 16px; font-size: 13px; background: #e74c3c;">📄 Exportar PDF</button>
                         <button class="btn btn-primary" onclick="exportarControleHorasExcel()" style="padding: 8px 16px; font-size: 13px; background: #27ae60;">📊 Exportar Excel</button>
                     </div>
@@ -6409,7 +6408,7 @@
                 </div>
 
                 <!-- Legenda de Status -->
-                <div style="display: flex; gap: 20px; margin-bottom: 20px; padding: 12px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);">
+                <div style="display: flex; gap: 20px; margin-bottom: 20px; padding: 12px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3); flex-wrap: wrap;">
                     <div style="color: white; font-weight: 600; font-size: 14px; margin-right: 10px;">Status:</div>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <div style="width: 20px; height: 20px; background: #27ae60; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
@@ -6461,7 +6460,7 @@
             <!-- Kits de Equipamentos -->
             <div id="kits-equipamentos-section" class="content-card hidden">
                 <h2 style="color: #000000 !important; font-weight: 700;">Kits de Equipamentos</h2>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="openModalKit()">➕ Novo Kit</button>
                 </div>
                 <div class="table-scroll-container">
