@@ -251,6 +251,15 @@ def require_permission(permission_code: str):
             
             # 🔒 MULTI-TENANT: Verificar permissões da empresa
             empresa_id = session.get('empresa_id')
+            
+            # Fallback: usar header X-Empresa-ID se sessão não tiver
+            if not empresa_id:
+                _h_emp = request.headers.get('X-Empresa-ID')
+                if _h_emp and _h_emp.isdigit():
+                    empresa_id = int(_h_emp)
+                    session['empresa_id'] = empresa_id
+                    print(f"🔄 [PERMISSION CHECK] empresa_id obtido do header X-Empresa-ID: {empresa_id}")
+            
             print(f"🔒 [PERMISSION CHECK] empresa_id da sessão: {empresa_id}")
             
             if not empresa_id:

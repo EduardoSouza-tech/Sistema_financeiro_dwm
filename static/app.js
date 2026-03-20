@@ -6830,17 +6830,33 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
             // Filtrar por banco no frontend já que o backend não suporta esse filtro ainda
         }
         
+        const empresaId = window.currentEmpresaId || sessionStorage.getItem('empresa_id') || '';
         const response = await fetch(url, {
             credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': window.csrfToken || ''
+                'X-CSRFToken': window.csrfToken || '',
+                'X-Empresa-ID': String(empresaId)
             }
         });
         
-        if (!response.ok) throw new Error('Erro ao carregar transações');
+        console.log('📈 Fluxo de Caixa - Response status:', response.status);
+        
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            console.error('❌ Fluxo de Caixa - Erro:', response.status, errData);
+            throw new Error(errData.error || errData.erro || 'Erro ao carregar transações');
+        }
         
         let transacoes = await response.json();
+        
+        // Verificar se o resultado é um array (pode vir objeto com erro)
+        if (!Array.isArray(transacoes)) {
+            console.error('❌ Fluxo de Caixa - Resposta inesperada:', transacoes);
+            transacoes = transacoes.data || [];
+        }
+        
+        console.log(`📈 Fluxo de Caixa - ${transacoes.length} transações carregadas`);
         
         // Filtrar por banco se especificado
         if (banco) {

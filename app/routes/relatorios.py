@@ -105,6 +105,7 @@ def relatorio_fluxo_caixa():
 
             cursor.execute(sql, params)
             rows = cursor.fetchall()
+            print(f"[📈 fluxo-caixa] Query retornou {len(rows)} registros (periodo={data_inicio} a {data_fim}, limit={limit})")
     except Exception as e:
         print(f"[fluxo-caixa] Erro SQL: {e}")
         import traceback; traceback.print_exc()
