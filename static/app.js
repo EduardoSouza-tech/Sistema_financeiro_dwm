@@ -6858,6 +6858,17 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
         
         console.log(`📈 Fluxo de Caixa - ${transacoes.length} transações carregadas`);
         
+        // Diagnóstico: breakdown por tipo e status
+        const breakdown = {};
+        transacoes.forEach(t => {
+            const key = `${(t.tipo||'?').toLowerCase()}/${(t.status||'?').toLowerCase()}`;
+            breakdown[key] = (breakdown[key] || 0) + 1;
+        });
+        console.log('📊 Breakdown tipo/status:', breakdown);
+        if (transacoes.length > 0) {
+            console.log('📊 Exemplo transação[0]:', JSON.stringify(transacoes[0]));
+        }
+        
         // Filtrar por banco se especificado
         if (banco) {
             transacoes = transacoes.filter(t => t.conta_bancaria === banco);
@@ -6874,7 +6885,7 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
         }
         
         if (transacoes.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">Nenhuma transação encontrada no período</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #999;">Nenhuma transação encontrada no período</td></tr>';
             return;
         }
         
@@ -6885,8 +6896,21 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
             const statusLower = (transacao.status || '').toLowerCase();
             const isPendente = statusLower === 'pendente';
             const isVencido = statusLower === 'vencido';
+            const isDespesa = tipoLower === 'despesa' || tipoLower === 'saida' || tipoLower === 'saída';
             const entrada = tipoLower === 'receita' ? formatarMoeda(transacao.valor) : '-';
-            const saida = (tipoLower === 'despesa' || tipoLower === 'saida' || tipoLower === 'saída') ? formatarMoeda(transacao.valor) : '-';
+            const saida = isDespesa ? formatarMoeda(transacao.valor) : '-';
+            
+            // Badge de status
+            let statusBadge = '';
+            if (statusLower === 'pago') {
+                statusBadge = '<span style="background:#27ae60;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">✅ Pago</span>';
+            } else if (statusLower === 'pendente') {
+                statusBadge = '<span style="background:#f39c12;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">🕐 Pendente</span>';
+            } else if (statusLower === 'vencido') {
+                statusBadge = '<span style="background:#e74c3c;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">⚠️ Vencido</span>';
+            } else {
+                statusBadge = `<span style="background:#95a5a6;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;">${statusLower || '?'}</span>`;
+            }
             
             // Estilo de linha para pendente/vencido
             const rowStyle = isVencido ? 'background: #fff5f5;' : isPendente ? 'background: #fffbf0;' : '';
@@ -6897,6 +6921,7 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
             tr.innerHTML = `
                 <td>${formatarData(transacao.data_pagamento)}</td>
                 <td>${transacao.descricao || '-'}</td>
+                <td style="text-align: center;">${statusBadge}</td>
                 <td>${transacao.categoria || '-'}</td>
                 <td>${transacao.subcategoria || '-'}</td>
                 <td style="text-align: right; color: #27ae60; font-weight: bold;">${entrada}</td>
@@ -6923,7 +6948,7 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
         console.error('Erro ao carregar transações detalhadas:', error);
         const tbody = document.getElementById('tbody-transacoes-fluxo');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;">❌ Erro ao carregar transações</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #e74c3c;">❌ Erro ao carregar transações</td></tr>';
         }
     }
 }
