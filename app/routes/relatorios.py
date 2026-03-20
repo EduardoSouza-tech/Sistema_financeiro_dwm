@@ -82,18 +82,22 @@ def relatorio_fluxo_caixa():
             sql = """
                 SELECT
                     id, tipo, descricao, valor,
-                    data_pagamento,
+                    data_pagamento, data_vencimento, status,
                     categoria, subcategoria, conta_bancaria,
                     pessoa, associacao
                 FROM lancamentos
                 WHERE empresa_id = %s
-                  AND LOWER(status) = 'pago'
-                  AND data_pagamento IS NOT NULL
-                  AND data_pagamento::date >= %s
-                  AND data_pagamento::date <= %s
-                ORDER BY data_pagamento DESC, id DESC
+                  AND LOWER(status) IN ('pago', 'pendente', 'vencido')
+                  AND (
+                      (LOWER(status) = 'pago' AND data_pagamento IS NOT NULL
+                       AND data_pagamento::date >= %s AND data_pagamento::date <= %s)
+                      OR
+                      (LOWER(status) IN ('pendente', 'vencido') AND data_vencimento IS NOT NULL
+                       AND data_vencimento::date >= %s AND data_vencimento::date <= %s)
+                  )
+                ORDER BY COALESCE(data_pagamento, data_vencimento) DESC, id DESC
             """
-            params = [empresa_id, data_inicio, data_fim]
+            params = [empresa_id, data_inicio, data_fim, data_inicio, data_fim]
 
             if limit > 0:
                 sql += " LIMIT %s"
@@ -110,13 +114,22 @@ def relatorio_fluxo_caixa():
     for row in rows:
         # row é dict (RealDictCursor)
         tipo_raw = (row['tipo'] or '').lower()
-        data_pgto_raw = row['data_pagamento']
+        status_raw = (row['status'] or '').lower()
+        # Usar data_pagamento para pagos, data_vencimento para pendentes/vencidos
+        data_ref_raw = row['data_pagamento'] or row['data_vencimento']
         data_pgto_str = (
-            data_pgto_raw.date().isoformat() if isinstance(data_pgto_raw, datetime)
-            else data_pgto_raw.isoformat() if hasattr(data_pgto_raw, 'isoformat')
-            else str(data_pgto_raw)
+            data_ref_raw.date().isoformat() if isinstance(data_ref_raw, datetime)
+            else data_ref_raw.isoformat() if hasattr(data_ref_raw, 'isoformat')
+            else str(data_ref_raw) if data_ref_raw else ''
         )
         valor = float(row['valor'] or 0)
+
+        # Indicar se é pendente/vencido na descrição
+        status_label = ''
+        if status_raw == 'pendente':
+            status_label = ' 🕐'
+        elif status_raw == 'vencido':
+            status_label = ' ⚠️'
 
         if tipo_raw == 'transferencia':
             # Transferência: aparece como saída na conta origem
@@ -125,6 +138,7 @@ def relatorio_fluxo_caixa():
                 'descricao': f"{row['descricao']} (Saída)",
                 'valor': valor,
                 'data_pagamento': data_pgto_str,
+                'status': status_raw,
                 'categoria': row['categoria'] or '',
                 'subcategoria': row['subcategoria'] or '',
                 'pessoa': row['pessoa'] or '',
@@ -138,6 +152,7 @@ def relatorio_fluxo_caixa():
                 'descricao': f"{row['descricao']} (Entrada)",
                 'valor': valor,
                 'data_pagamento': data_pgto_str,
+                'status': status_raw,
                 'categoria': row['categoria'] or '',
                 'subcategoria': row['conta_bancaria'] or '',
                 'pessoa': row['pessoa'] or '',
@@ -148,9 +163,10 @@ def relatorio_fluxo_caixa():
         else:
             resultado.append({
                 'tipo': tipo_raw if tipo_raw in ('receita', 'despesa') else tipo_raw,
-                'descricao': row['descricao'] or '',
+                'descricao': (row['descricao'] or '') + status_label,
                 'valor': valor,
                 'data_pagamento': data_pgto_str,
+                'status': status_raw,
                 'categoria': row['categoria'] or '',
                 'subcategoria': row['subcategoria'] or '',
                 'pessoa': row['pessoa'] or '',

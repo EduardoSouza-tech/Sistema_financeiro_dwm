@@ -6858,7 +6858,7 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
         }
         
         if (transacoes.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">Nenhuma transação paga encontrada no período</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">Nenhuma transação encontrada no período</td></tr>';
             return;
         }
         
@@ -6866,17 +6866,25 @@ async function carregarTransacoesDetalhadas(dataInicio, dataFim, banco) {
         
         transacoes.forEach((transacao, index) => {
             const tipoLower = (transacao.tipo || '').toLowerCase();
+            const statusLower = (transacao.status || '').toLowerCase();
+            const isPendente = statusLower === 'pendente';
+            const isVencido = statusLower === 'vencido';
             const entrada = tipoLower === 'receita' ? formatarMoeda(transacao.valor) : '-';
             const saida = (tipoLower === 'despesa' || tipoLower === 'saida' || tipoLower === 'saída') ? formatarMoeda(transacao.valor) : '-';
             
+            // Estilo de linha para pendente/vencido
+            const rowStyle = isVencido ? 'background: #fff5f5;' : isPendente ? 'background: #fffbf0;' : '';
+            const saidaColor = isVencido ? '#c0392b' : isPendente ? '#e67e22' : '#e74c3c';
+            
             const tr = document.createElement('tr');
+            tr.style.cssText = rowStyle;
             tr.innerHTML = `
                 <td>${formatarData(transacao.data_pagamento)}</td>
                 <td>${transacao.descricao || '-'}</td>
                 <td>${transacao.categoria || '-'}</td>
                 <td>${transacao.subcategoria || '-'}</td>
                 <td style="text-align: right; color: #27ae60; font-weight: bold;">${entrada}</td>
-                <td style="text-align: right; color: #e74c3c; font-weight: bold;">${saida}</td>
+                <td style="text-align: right; color: ${saidaColor}; font-weight: bold;">${saida}</td>
                 <td>${transacao.conta_bancaria || '-'}</td>
                 <td>
                     <input 
