@@ -6723,9 +6723,9 @@ window.carregarFluxoCaixa = async function() {
             dataInicio = dataInicial;
             dataFim = dataFinal;
         } else {
-            // Fallback: mês atual
+            // Fallback: últimos 3 meses
             const hoje = new Date();
-            dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+            dataInicio = new Date(hoje.getFullYear(), hoje.getMonth() - 2, 1).toISOString().split('T')[0];
             dataFim    = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
         }
         

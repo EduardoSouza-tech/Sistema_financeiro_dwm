@@ -50,7 +50,14 @@ def relatorio_fluxo_caixa():
 
     empresa_id = session.get('empresa_id')
     if not empresa_id:
+        _h = request.headers.get('X-Empresa-ID')
+        if _h and _h.isdigit():
+            empresa_id = int(_h)
+            session['empresa_id'] = empresa_id
+    if not empresa_id:
         return jsonify({'erro': 'Empresa não selecionada'}), 403
+
+    print(f"[📈 fluxo-caixa] empresa_id={empresa_id}")
 
     today = date.today()
     data_inicio_str = request.args.get('data_inicio', (today - timedelta(days=30)).isoformat())
