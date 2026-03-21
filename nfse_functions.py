@@ -1366,51 +1366,101 @@ def gerar_pdf_nfse(db_params: Dict, nfse_id: int) -> Optional[bytes]:
         # Serve registros antigos que ainda não têm danfse_base64 no banco.
         # O PDF oficial da ADN tem layout governamental com brasão e QR Code.
         try:
-            import re as _re, base64 as _b64
-            import requests as _req
+            import re as _re, base64 as _b64, tempfile as _tmpfile, os as _os
+            import psycopg2 as _psycopg2
+            from psycopg2.extras import RealDictCursor as _RDC
 
             # Obter chave_acesso: coluna do banco (nova) ou extrair do XML armazenado
             chave_acesso = nfse.get('chave_acesso')
             if not chave_acesso:
                 xml_raw = nfse.get('xml_content') or ''
-                m = _re.search(r'Id="NFS([A-Za-z0-9]{50})"', xml_raw, _re.IGNORECASE)
+                m = _re.search(r'Id=["\']?NFS([A-Za-z0-9]{50})["\']?', xml_raw, _re.IGNORECASE)
                 if m:
                     chave_acesso = m.group(1)
 
-            if chave_acesso:
-                logger.info(f"📥 [on-demand] Tentando DANFSe da ADN para chave {chave_acesso[:20]}...")
-                url = f"https://adn.nfse.gov.br/danfse/{chave_acesso}"
-                resp = _req.get(url, timeout=30, headers={'Accept': 'application/pdf'}, verify=True)
+            empresa_id_nfse = nfse.get('empresa_id')
 
-                if resp.status_code == 200 and resp.content[:4] == b'%PDF':
-                    pdf_bytes = resp.content
-                    pdf_b64 = _b64.b64encode(pdf_bytes).decode('utf-8')
+            if chave_acesso and empresa_id_nfse:
+                # Buscar certificado ativo no banco
+                _cert_row = None
+                try:
+                    with _psycopg2.connect(**db_params) as _cc:
+                        with _cc.cursor(cursor_factory=_RDC) as _ccur:
+                            _ccur.execute("""
+                                SELECT pfx_base64, senha_pfx, ambiente
+                                FROM certificados_digitais
+                                WHERE empresa_id = %s AND ativo = TRUE
+                                ORDER BY criado_em DESC LIMIT 1
+                            """, (empresa_id_nfse,))
+                            _cert_row = _ccur.fetchone()
+                except Exception as _ec:
+                    logger.warning(f"⚠️ [on-demand] Erro ao buscar certificado: {_ec}")
 
-                    # Persistir no banco para requisições futuras
+                if _cert_row and _cert_row.get('pfx_base64'):
+                    pfx_b64_cert = _cert_row['pfx_base64']
+                    senha_cripto = _cert_row['senha_pfx']
+                    ambiente_cert = (_cert_row.get('ambiente') or 'producao').lower()
+
+                    # Descriptografar senha do certificado
                     try:
-                        with NFSeDatabase(db_params) as _db_save:
-                            _cur = _db_save.conn.cursor()
-                            _cur.execute("""
-                                UPDATE nfse_baixadas
-                                SET danfse_base64 = %s, chave_acesso = %s,
-                                    atualizado_em = CURRENT_TIMESTAMP
-                                WHERE id = %s
-                            """, (pdf_b64, chave_acesso, nfse['id']))
-                            _db_save.conn.commit()
-                            _cur.close()
-                        logger.info(f"💾 [on-demand] danfse_base64 salvo no banco (NFS-e id={nfse['id']})")
-                    except Exception as _e_save:
-                        logger.warning(f"⚠️ [on-demand] Erro ao salvar danfse_base64: {_e_save}")
+                        from relatorios.nfe import nfe_api as _nfe_api
+                        _fernet_key = _os.getenv('FERNET_KEY', '').encode('utf-8')
+                        senha_cert = _nfe_api.descriptografar_senha(senha_cripto, _fernet_key)
+                    except Exception:
+                        senha_cert = senha_cripto  # tenta como texto plano
 
-                    logger.info(f"✅ [on-demand] DANFSe oficial obtido ({len(pdf_bytes):,} bytes)")
-                    return pdf_bytes
+                    # Escrever PFX em arquivo temporário
+                    _tmp_path = None
+                    try:
+                        pfx_raw = _b64.b64decode(pfx_b64_cert)
+                        with _tmpfile.NamedTemporaryFile(delete=False, suffix='.pfx') as _tf:
+                            _tf.write(pfx_raw)
+                            _tmp_path = _tf.name
+
+                        from nfse_service import NFSeAmbienteNacional as _ADN
+                        _cliente = _ADN(
+                            certificado_path=_tmp_path,
+                            certificado_senha=senha_cert,
+                            ambiente=ambiente_cert
+                        )
+                        logger.info(f"📥 [on-demand mTLS] Tentando DANFSe para chave {chave_acesso[:20]}...")
+                        pdf_bytes = _cliente.consultar_danfse(chave_acesso, retry=2)
+
+                        if pdf_bytes and pdf_bytes[:4] == b'%PDF':
+                            pdf_b64 = _b64.b64encode(pdf_bytes).decode('utf-8')
+                            # Persistir no banco para requisições futuras
+                            try:
+                                with NFSeDatabase(db_params) as _db_save:
+                                    _cur = _db_save.conn.cursor()
+                                    _cur.execute("""
+                                        UPDATE nfse_baixadas
+                                        SET danfse_base64 = %s, chave_acesso = %s,
+                                            atualizado_em = CURRENT_TIMESTAMP
+                                        WHERE id = %s
+                                    """, (pdf_b64, chave_acesso, nfse['id']))
+                                    _db_save.conn.commit()
+                                    _cur.close()
+                                logger.info(f"💾 [on-demand mTLS] danfse_base64 salvo (id={nfse['id']})")
+                            except Exception as _e_save:
+                                logger.warning(f"⚠️ [on-demand mTLS] Erro ao salvar: {_e_save}")
+
+                            logger.info(f"✅ [on-demand mTLS] DANFSe oficial obtido ({len(pdf_bytes):,} bytes)")
+                            return pdf_bytes
+                        else:
+                            logger.warning(f"⚠️ [on-demand mTLS] ADN não retornou PDF válido para {chave_acesso[:20]}")
+                    finally:
+                        if _tmp_path:
+                            try:
+                                _os.unlink(_tmp_path)
+                            except Exception:
+                                pass
                 else:
-                    logger.warning(f"⚠️ [on-demand] ADN retornou {resp.status_code} para chave {chave_acesso[:20]}")
+                    logger.warning(f"⚠️ [on-demand mTLS] Nenhum certificado ativo para empresa_id={empresa_id_nfse}")
             else:
-                logger.warning("⚠️ [on-demand] Chave de acesso não encontrada no banco nem no XML")
+                logger.warning(f"⚠️ [on-demand mTLS] chave_acesso={bool(chave_acesso)}, empresa_id={empresa_id_nfse}")
 
         except Exception as _e_adn:
-            logger.warning(f"⚠️ [on-demand] Erro ao chamar ADN: {_e_adn}")
+            logger.warning(f"⚠️ [on-demand mTLS] Erro: {_e_adn}")
 
         # PRIORIDADE 3: PDF genérico via FPDF
         logger.info(f"🖨️ Gerando PDF genérico para NFS-e {nfse.get('numero_nfse', 'N/A')}...")
