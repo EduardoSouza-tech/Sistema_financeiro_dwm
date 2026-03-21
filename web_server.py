@@ -20803,11 +20803,8 @@ def apagar_documentos_fiscais():
             cursor.execute("""
                 UPDATE certificados_digitais
                 SET ultimo_nsu = '000000000000000',
-                    proximo_nsu = '000000000000000',
-                    total_documentos_baixados = 0,
-                    total_nfes = 0,
-                    total_ctes = 0,
-                    total_eventos = 0
+                    max_nsu = NULL,
+                    total_documentos_baixados = 0
                 WHERE empresa_id = %s
             """, (empresa_id,))
 
