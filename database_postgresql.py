@@ -1865,6 +1865,81 @@ class DatabaseManager:
             )
         """)
         
+        # Tabela de Funcionários (RH / Eventos)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS funcionarios (
+                id SERIAL PRIMARY KEY,
+                empresa_id INTEGER NOT NULL,
+                nome VARCHAR(255) NOT NULL,
+                cpf VARCHAR(14) NOT NULL,
+                endereco TEXT,
+                tipo_chave_pix VARCHAR(50),
+                chave_pix VARCHAR(255),
+                ativo BOOLEAN DEFAULT TRUE,
+                data_admissao DATE,
+                data_demissao DATE,
+                observacoes TEXT,
+                data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT uk_cpf_empresa UNIQUE (cpf, empresa_id)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_empresa ON funcionarios(empresa_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_cpf ON funcionarios(cpf)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_funcionarios_ativo ON funcionarios(ativo)")
+        
+        # Tabela de Eventos Operacionais
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS eventos (
+                id SERIAL PRIMARY KEY,
+                empresa_id INTEGER NOT NULL,
+                nome_evento VARCHAR(255) NOT NULL,
+                data_evento DATE NOT NULL,
+                nf_associada VARCHAR(100),
+                valor_liquido_nf DECIMAL(15, 2),
+                custo_evento DECIMAL(15, 2),
+                margem DECIMAL(15, 2),
+                tipo_evento VARCHAR(100),
+                status VARCHAR(50) DEFAULT 'PENDENTE',
+                observacoes TEXT,
+                data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_eventos_empresa ON eventos(empresa_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_eventos_data ON eventos(data_evento)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_eventos_status ON eventos(status)")
+        
+        # Tabela de Funções de Evento
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS funcoes_evento (
+                id SERIAL PRIMARY KEY,
+                nome VARCHAR(100) NOT NULL,
+                descricao TEXT,
+                ativo BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                CONSTRAINT uk_funcoes_evento_nome UNIQUE (nome)
+            )
+        """)
+        
+        # Tabela de Evento-Funcionários (alocação de equipe)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS evento_funcionarios (
+                id SERIAL PRIMARY KEY,
+                evento_id INTEGER NOT NULL REFERENCES eventos(id) ON DELETE CASCADE,
+                funcionario_id INTEGER NOT NULL REFERENCES funcionarios(id) ON DELETE CASCADE,
+                funcao_id INTEGER NULL REFERENCES funcoes_evento(id) ON DELETE SET NULL,
+                funcao_nome VARCHAR(100) NULL,
+                valor DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+                observacoes TEXT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                CONSTRAINT uk_evento_funcionario_funcao UNIQUE (evento_id, funcionario_id, funcao_id),
+                CONSTRAINT chk_evento_funcionarios_valor_positivo CHECK (valor >= 0.00)
+            )
+        """)
+        
         # ===== INICIALIZAi?i?O DE DADOS PADRi?O =====
         
         # Inserir permissi?es padri?o

@@ -10415,6 +10415,14 @@
                     credentials: 'include',
                     cache: 'no-cache' // Forçar buscar do servidor
                 });
+                
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    console.error('❌ [EVENTOS] Erro do servidor:', response.status, errData.error || errData);
+                    document.getElementById('tbody-eventos').innerHTML = `<tr><td colspan="10" style="text-align: center; color: #e74c3c; padding: 30px;">Erro ${response.status}: ${errData.error || 'Erro ao carregar eventos'}</td></tr>`;
+                    return;
+                }
+                
                 const result = await response.json();
                 
                 console.log('🔄 [DEBUG LOAD] Eventos recebidos do servidor:', result.eventos?.length || 0);
