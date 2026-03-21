@@ -9061,7 +9061,7 @@ window.atualizarResumoNFSe = function(nfses) {
     document.getElementById('total-nfse').textContent = totalNotas;
     document.getElementById('valor-total-nfse').textContent = valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     document.getElementById('iss-total-nfse').textContent = issTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    document.getElementById('municipios-nfse').textContent = municipiosUnicos;
+    // municipios-nfse removido do layout
 };
 
 // Diagnóstico de omissões
