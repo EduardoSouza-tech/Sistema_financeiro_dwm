@@ -946,7 +946,30 @@ def obter_estatisticas_empresa(empresa_id: int) -> Dict[str, any]:
             """, (empresa_id,))
 
             stats['certificados_ativos'] = cursor.fetchone()['total_certs']
-            
+
+            # Estatísticas de NFS-e (banco separado, mesma instância)
+            try:
+                cursor.execute("""
+                    SELECT
+                        COUNT(*)                                         AS total_nfse,
+                        COALESCE(SUM(valor_servico), 0)                  AS valor_total_nfse,
+                        COALESCE(SUM(valor_iss), 0)                      AS iss_total_nfse,
+                        COUNT(DISTINCT COALESCE(codigo_municipio, ''))   AS municipios_nfse
+                    FROM nfse_baixadas
+                    WHERE empresa_id = %s
+                """, (empresa_id,))
+                r_nfse = cursor.fetchone()
+                if r_nfse:
+                    stats['total_nfse']        = r_nfse['total_nfse'] or 0
+                    stats['valor_total_nfse']  = float(r_nfse['valor_total_nfse']) if r_nfse['valor_total_nfse'] else 0.0
+                    stats['iss_total_nfse']    = float(r_nfse['iss_total_nfse']) if r_nfse['iss_total_nfse'] else 0.0
+                    stats['municipios_nfse']   = r_nfse['municipios_nfse'] or 0
+            except Exception as e_nfse:
+                stats['total_nfse']       = 0
+                stats['valor_total_nfse'] = 0.0
+                stats['iss_total_nfse']   = 0.0
+                stats['municipios_nfse']  = 0
+
             return stats
         
     except Exception as e:
