@@ -7532,9 +7532,9 @@ def listar_eventos():
         cursor = conn.cursor()
         
         query = """
-            SELECT id, empresa_id, nome_evento, data_evento, nf_associada,
+            SELECT id, empresa_id, nome_evento, data_evento::text, nf_associada,
                    valor_liquido_nf, custo_evento, margem, tipo_evento, status,
-                   observacoes, data_criacao, data_atualizacao
+                   observacoes, data_criacao::text, data_atualizacao::text
             FROM eventos
             WHERE empresa_id = %s
         """
