@@ -9056,11 +9056,14 @@ window.atualizarResumoNFSe = function(nfses) {
     const totalNotas = nfses.length;
     const valorTotal = nfses.reduce((sum, nfse) => sum + (parseFloat(nfse.valor_servico) || 0), 0);
     const issTotal = nfses.reduce((sum, nfse) => sum + (parseFloat(nfse.valor_iss) || 0), 0);
-    const municipiosUnicos = [...new Set(nfses.map(nfse => nfse.codigo_municipio))].length;
-    
+
     document.getElementById('total-nfse').textContent = totalNotas;
     document.getElementById('valor-total-nfse').textContent = valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     document.getElementById('iss-total-nfse').textContent = issTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    // Atualizar "Documentos Baixados" somando NF-e/CT-e (do card) + NFS-e do período
+    const totalNFeCTe = parseInt(document.getElementById('fiscal-statTotalNFes').textContent) || 0;
+    document.getElementById('fiscal-statTotalNFes').textContent = totalNFeCTe + totalNotas;
     // municipios-nfse removido do layout
 };
 

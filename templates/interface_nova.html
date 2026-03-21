@@ -14347,6 +14347,10 @@
             carregarDocumentosFiscais();
             nseLoadState();
             nseRenderStatus();
+            // Carrega NFS-e em background para stats imediatos 
+            setTimeout(function() {
+                if (typeof window.loadNFSeSection === 'function') window.loadNFSeSection();
+            }, 200);
         };
 
         // Controle de Tabs Fiscais
@@ -14420,15 +14424,10 @@
                         const stats = response.estatisticas;
                         // NF-e / CT-e stats
                         document.getElementById('fiscal-statTotalDocs').textContent = (stats.total_nfes || 0) + (stats.total_ctes || 0);
-                        document.getElementById('fiscal-statTotalNFes').textContent = (stats.total_nfes || 0) + (stats.total_ctes || 0) + (stats.total_nfse || 0);
+                        document.getElementById('fiscal-statTotalNFes').textContent = (stats.total_nfes || 0) + (stats.total_ctes || 0);
                         document.getElementById('fiscal-statValorTotal').textContent = formatarMoedaFiscal(stats.valor_total_nfes);
-                        // NFS-e stats (pre-popula; consultarNFSeLocal pode sobrescrever)
-                        if (stats.total_nfse !== undefined) {
-                            document.getElementById('total-nfse').textContent = stats.total_nfse || 0;
-                            document.getElementById('valor-total-nfse').textContent = formatarMoedaFiscal(stats.valor_total_nfse || 0);
-                            document.getElementById('iss-total-nfse').textContent   = formatarMoedaFiscal(stats.iss_total_nfse || 0);
-                            // municipios-nfse removido do layout
-                        }
+                        // NFS-e cards são populados pelo loadNFSeSection (data filtrada)
+                        // Não pré-popular aqui com dados sem filtro de data
                     }
                 })
                 .catch(err => console.error('Erro ao carregar estatísticas fiscais:', err));
