@@ -2210,8 +2210,8 @@ def buscar_nfse_ambiente_nacional(
                         continue
                     else:
                         # Documento processado com sucesso — atualiza cursor de fallback
-                        if doc_nsu > ultimo_doc_nsu:
-                            ultimo_doc_nsu = doc_nsu
+                        if int(doc_nsu) > ultimo_doc_nsu:
+                            ultimo_doc_nsu = int(doc_nsu)
                 
                 nsu_atual = proximo_nsu
             
