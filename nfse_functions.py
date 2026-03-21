@@ -1362,6 +1362,56 @@ def gerar_pdf_nfse(db_params: Dict, nfse_id: int) -> Optional[bytes]:
             else:
                 logger.warning(f"⚠️ danfse_path aponta para arquivo inexistente (Railway = esperado): {danfse_path}")
 
+        # PRIORIDADE 2.5: Download on-demand direto da ADN (endpoint público DANFSe)
+        # Serve registros antigos que ainda não têm danfse_base64 no banco.
+        # O PDF oficial da ADN tem layout governamental com brasão e QR Code.
+        try:
+            import re as _re, base64 as _b64
+            import requests as _req
+
+            # Obter chave_acesso: coluna do banco (nova) ou extrair do XML armazenado
+            chave_acesso = nfse.get('chave_acesso')
+            if not chave_acesso:
+                xml_raw = nfse.get('xml_content') or ''
+                m = _re.search(r'Id="NFS([A-Za-z0-9]{50})"', xml_raw, _re.IGNORECASE)
+                if m:
+                    chave_acesso = m.group(1)
+
+            if chave_acesso:
+                logger.info(f"📥 [on-demand] Tentando DANFSe da ADN para chave {chave_acesso[:20]}...")
+                url = f"https://adn.nfse.gov.br/danfse/{chave_acesso}"
+                resp = _req.get(url, timeout=30, headers={'Accept': 'application/pdf'}, verify=True)
+
+                if resp.status_code == 200 and resp.content[:4] == b'%PDF':
+                    pdf_bytes = resp.content
+                    pdf_b64 = _b64.b64encode(pdf_bytes).decode('utf-8')
+
+                    # Persistir no banco para requisições futuras
+                    try:
+                        with NFSeDatabase(db_params) as _db_save:
+                            _cur = _db_save.conn.cursor()
+                            _cur.execute("""
+                                UPDATE nfse_baixadas
+                                SET danfse_base64 = %s, chave_acesso = %s,
+                                    atualizado_em = CURRENT_TIMESTAMP
+                                WHERE id = %s
+                            """, (pdf_b64, chave_acesso, nfse['id']))
+                            _db_save.conn.commit()
+                            _cur.close()
+                        logger.info(f"💾 [on-demand] danfse_base64 salvo no banco (NFS-e id={nfse['id']})")
+                    except Exception as _e_save:
+                        logger.warning(f"⚠️ [on-demand] Erro ao salvar danfse_base64: {_e_save}")
+
+                    logger.info(f"✅ [on-demand] DANFSe oficial obtido ({len(pdf_bytes):,} bytes)")
+                    return pdf_bytes
+                else:
+                    logger.warning(f"⚠️ [on-demand] ADN retornou {resp.status_code} para chave {chave_acesso[:20]}")
+            else:
+                logger.warning("⚠️ [on-demand] Chave de acesso não encontrada no banco nem no XML")
+
+        except Exception as _e_adn:
+            logger.warning(f"⚠️ [on-demand] Erro ao chamar ADN: {_e_adn}")
+
         # PRIORIDADE 3: PDF genérico via FPDF
         logger.info(f"🖨️ Gerando PDF genérico para NFS-e {nfse.get('numero_nfse', 'N/A')}...")
         try:
