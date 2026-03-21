@@ -816,11 +816,13 @@ try:
                     ADD COLUMN IF NOT EXISTS tp_ret_issqn VARCHAR(5) DEFAULT NULL,
                     ADD COLUMN IF NOT EXISTS data_pagamento DATE DEFAULT NULL,
                     ADD COLUMN IF NOT EXISTS situacao_recebimento VARCHAR(20) DEFAULT NULL,
-                    ADD COLUMN IF NOT EXISTS c_stat VARCHAR(5) DEFAULT NULL;
+                    ADD COLUMN IF NOT EXISTS c_stat VARCHAR(5) DEFAULT NULL,
+                    ADD COLUMN IF NOT EXISTS danfse_base64 TEXT DEFAULT NULL,
+                    ADD COLUMN IF NOT EXISTS chave_acesso VARCHAR(60) DEFAULT NULL;
             """)
             _nm.commit()
             _ncur.close()
-        print("✅ Colunas tp_ret_issqn, data_pagamento, situacao_recebimento, c_stat verificadas em nfse_baixadas!")
+        print("✅ Colunas nfse_baixadas (incl. danfse_base64, chave_acesso) verificadas!")
     except Exception as e:
         print(f"⚠️ Aviso ao migrar nfse_baixadas: {e}")
 
@@ -14195,33 +14197,29 @@ def buscar_nfse():
                             
                             logger.info(f"   ?? PDF salvo em: {pdf_path}")
                             
-                            if pdf_path:
-                                # Atualizar danfse_path no banco
-                                logger.info(f"   ?? Atualizando banco: numero_nfse={numero_nfse}, codigo_municipio={pdf_info['codigo_municipio']}")
-                                
-                                with NFSeDatabase(_db_params_pdf) as db:
-                                    cursor = db.conn.cursor()
-                                    cursor.execute("""
-                                        UPDATE nfse_baixadas 
-                                        SET danfse_path = %s, atualizado_em = CURRENT_TIMESTAMP
-                                        WHERE numero_nfse = %s AND codigo_municipio = %s
-                                    """, (pdf_path, numero_nfse, pdf_info['codigo_municipio']))
-                                    
-                                    rows_affected = cursor.rowcount
-                                    db.conn.commit()
-                                    cursor.close()
-                                    
-                                    logger.info(f"   ? Banco atualizado: {rows_affected} linha(s) afetada(s)")
-                                    
-                                    if rows_affected == 0:
-                                        logger.warning(f"   ?? NENHUMA linha foi atualizada! NFS-e pode n�o existir no banco")
-                                    else:
-                                        logger.info(f"   ?? danfse_path salvo: {pdf_path}")
-                                
+                            # Salvar base64 no banco SEMPRE (independente do filesystem)
+                            # Isso garante que o PDF oficial persiste no Railway
+                            with NFSeDatabase(_db_params_pdf) as db:
+                                cursor = db.conn.cursor()
+                                cursor.execute("""
+                                    UPDATE nfse_baixadas
+                                    SET danfse_base64 = %s,
+                                        danfse_path = %s,
+                                        chave_acesso = %s,
+                                        atualizado_em = CURRENT_TIMESTAMP
+                                    WHERE numero_nfse = %s AND codigo_municipio = %s
+                                """, (pdf_info['pdf_base64'], pdf_path,
+                                      pdf_info.get('chave_acesso'),
+                                      numero_nfse, pdf_info['codigo_municipio']))
+                                rows_affected = cursor.rowcount
+                                db.conn.commit()
+                                cursor.close()
+
+                            if rows_affected > 0:
                                 pdfs_salvos += 1
-                                logger.info(f"   ? PDF {numero_nfse} processado com sucesso")
+                                logger.info(f"   ✅ PDF {numero_nfse}: base64 salvo no banco ({len(pdf_info['pdf_base64'])} chars)")
                             else:
-                                logger.error(f"   ? salvar_pdf_nfse retornou None para {numero_nfse}")
+                                logger.warning(f"   ⚠️ NENHUMA linha atualizada para NFS-e {numero_nfse} / {pdf_info['codigo_municipio']}")
                         
                         except Exception as e_pdf:
                             logger.error(f"   ? Erro ao processar PDF {numero_nfse}: {e_pdf}")

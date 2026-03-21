@@ -1311,61 +1311,62 @@ def get_certificado_para_soap(db_params: Dict, empresa_id: int) -> Optional[Tupl
 def gerar_pdf_nfse(db_params: Dict, nfse_id: int) -> Optional[bytes]:
     """
     Gera PDF (DANFSE) da NFS-e usando os dados armazenados no banco.
-    
+
     PRIORIDADE:
-    1. Se existe PDF oficial (danfse_path), retorna ele
-    2. Senão, gera PDF genérico usando FPDF
-    
+    1. danfse_base64 no banco (PDF oficial, persiste no Railway)
+    2. danfse_path no filesystem (legado, não persiste em Railway)
+    3. PDF genérico via FPDF (último recurso)
+
     Retorna bytes do PDF ou None se falhar.
     """
     from io import BytesIO
     from pathlib import Path
-    
+
     try:
         logger.info(f"📄 gerar_pdf_nfse: Iniciando para ID {nfse_id}")
-        
+
         # Buscar dados da NFS-e
         with NFSeDatabase(db_params) as db:
             nfse = db.get_nfse_by_id(nfse_id)
-        
+
         if not nfse:
             logger.error(f"❌ NFS-e ID {nfse_id} não encontrada no banco")
             return None
-        
+
         logger.info(f"✅ NFS-e encontrada: {nfse.get('numero_nfse', 'N/A')}")
-        
-        # PRIORIDADE 1: Tentar usar PDF oficial se existir
+
+        # PRIORIDADE 1: PDF oficial salvo como base64 no banco (sobrevive a restarts)
+        danfse_base64 = nfse.get('danfse_base64')
+        if danfse_base64:
+            try:
+                import base64 as _b64
+                pdf_bytes = _b64.b64decode(danfse_base64)
+                if pdf_bytes[:4] == b'%PDF':
+                    logger.info(f"✅ DANFSe oficial carregado do banco ({len(pdf_bytes):,} bytes)")
+                    return pdf_bytes
+                logger.warning("⚠️ danfse_base64 no banco não é PDF válido, tentando próxima fonte")
+            except Exception as e:
+                logger.error(f"❌ Erro ao decodificar danfse_base64: {e}")
+
+        # PRIORIDADE 2: Arquivo no filesystem (só funciona em dev local)
         danfse_path = nfse.get('danfse_path')
-        logger.info(f"🔍 danfse_path no banco: {danfse_path}")
-        
         if danfse_path and danfse_path.strip():
             pdf_file = Path(danfse_path)
-            logger.info(f"📂 Caminho absoluto: {pdf_file.absolute()}")
-            logger.info(f"📊 Arquivo existe? {pdf_file.exists()}")
-            
             if pdf_file.exists():
                 try:
-                    with open(pdf_file, 'rb') as f:
-                        pdf_bytes = f.read()
-                    logger.info(f"✅ PDF oficial lido com sucesso: {len(pdf_bytes):,} bytes")
-                    logger.info(f"🎯 RETORNANDO PDF OFICIAL: {danfse_path}")
+                    pdf_bytes = pdf_file.read_bytes()
+                    logger.info(f"✅ PDF oficial lido do filesystem: {len(pdf_bytes):,} bytes")
                     return pdf_bytes
                 except Exception as e:
-                    logger.error(f"❌ Erro ao ler PDF oficial: {e}")
-                    logger.info(f"📝 Gerando PDF genérico como fallback...")
+                    logger.error(f"❌ Erro ao ler PDF do filesystem: {e}")
             else:
-                logger.warning(f"⚠️ PDF oficial não encontrado no filesystem")
-                logger.warning(f"   Caminho esperado: {pdf_file.absolute()}")
-                logger.info(f"📝 Gerando PDF genérico como fallback...")
-        else:
-            logger.info(f"ℹ️ danfse_path vazio ou None, gerando PDF genérico...")
-        
-        # PRIORIDADE 2: Gerar PDF genérico
+                logger.warning(f"⚠️ danfse_path aponta para arquivo inexistente (Railway = esperado): {danfse_path}")
+
+        # PRIORIDADE 3: PDF genérico via FPDF
         logger.info(f"🖨️ Gerando PDF genérico para NFS-e {nfse.get('numero_nfse', 'N/A')}...")
         try:
             from fpdf import FPDF
         except ImportError:
-            # Fallback: gerar PDF minimal sem fpdf2
             return _gerar_pdf_minimal(nfse)
         
         pdf = FPDF()
@@ -2084,7 +2085,8 @@ def buscar_nfse_ambiente_nacional(
                                                     'numero_nfse': str(numero_nfse),
                                                     'cnpj_prestador': str(cnpj_prestador),
                                                     'codigo_municipio': str(codigo_municipio),
-                                                    'data_emissao': str(data_emissao)
+                                                    'data_emissao': str(data_emissao),
+                                                    'chave_acesso': chave_acesso,
                                                 }
                                                 logger.debug(f"   📝 PDF {numero_nfse} adicionado ao resultado")
                                             else:
