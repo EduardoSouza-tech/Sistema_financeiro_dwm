@@ -3510,6 +3510,79 @@ button,
     #inadimplencia-section div[style*="display: flex"] {
         flex-wrap: wrap !important;
     }
+
+    /* ===== IOS ZOOM PREVENTION (font-size < 16px causa zoom no iOS) ===== */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+
+    /* ===== BOTÕES - RESPONSIVIDADE GERAL ===== */
+    /* Botões em tabelas: compactos */
+    table .btn,
+    table button {
+        padding: 4px 8px !important;
+        font-size: 11px !important;
+        white-space: nowrap !important;
+    }
+
+    /* Tabs: padding e fonte menores */
+    div[style*="border-bottom: 2px solid #ddd"] > button,
+    div[style*="border-bottom: 3px solid"] > button,
+    .tab-btn {
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+    }
+
+    /* Modal footer: empilhar botões */
+    div[style*="display: flex"][style*="justify-content: flex-end"][style*="margin-top: 20px"] {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    div[style*="display: flex"][style*="justify-content: flex-end"][style*="margin-top: 20px"] > button,
+    div[style*="display: flex"][style*="justify-content: flex-end"][style*="margin-top: 20px"] > .btn {
+        width: 100% !important;
+    }
+
+    div[style*="display: flex"][style*="justify-content: space-between"][style*="border-top"] {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    div[style*="display: flex"][style*="justify-content: space-between"][style*="border-top"] > button,
+    div[style*="display: flex"][style*="justify-content: space-between"][style*="border-top"] > .btn {
+        width: 100% !important;
+    }
+
+    /* Remover min-width fixo de filter inputs */
+    div[style*="flex: 1; min-width: 200px"],
+    div[style*="flex: 1; min-width: 250px"],
+    div[style*="flex: 1; min-width: 300px"],
+    div[style*="flex: 1; min-width: 150px"] {
+        min-width: 0 !important;
+        width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+
+    /* Botão com white-space: nowrap → permitir wrap */
+    button[style*="white-space: nowrap"] {
+        white-space: normal !important;
+        height: auto !important;
+        min-height: 36px !important;
+    }
+
+    /* Botões com height fixo → min-height */
+    button[style*="height: 43px"],
+    button[style*="height: 40px"],
+    button[style*="height: 36px"] {
+        height: auto !important;
+        min-height: 36px !important;
+    }
+
+    /* Touch targets mínimos: 44px (WCAG) */
+    button, .btn, [role="button"] {
+        min-height: 38px !important;
+    }
 }
 
 /* ---------- CELULARES PEQUENOS (max 480px) ---------- */
@@ -3617,6 +3690,19 @@ button,
         padding: 8px 12px !important;
     }
 
+    /* Tabs menores */
+    div[style*="border-bottom: 2px solid #ddd"] > button,
+    .tab-btn {
+        padding: 6px 10px !important;
+        font-size: 11px !important;
+    }
+
+    /* Modal save/cancel full width */
+    div[style*="display: flex"][style*="gap: 10px"][style*="margin-top"] > button {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+    }
+
     /* Top bar brand */
     .top-bar-brand {
         font-size: 12px !important;
@@ -3655,6 +3741,14 @@ button,
     .btn {
         font-size: 11px !important;
         padding: 6px 10px !important;
+    }
+
+    /* Tabs: uma por linha em telas muito pequenas */
+    div[style*="border-bottom: 2px solid #ddd"] > button,
+    .tab-btn {
+        padding: 5px 8px !important;
+        font-size: 10px !important;
+        flex: 1 1 auto !important;
     }
 
     .modal-header h2,
