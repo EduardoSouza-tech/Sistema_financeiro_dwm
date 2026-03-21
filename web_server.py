@@ -112,7 +112,21 @@ from app.utils import (
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
 # ============================================================================
-# AUTO-EXECUTAR MIGRATION DE EVENTOS (STARTUP)
+# UTILITÁRIO GLOBAL: CONVERSÃO SEGURA DE DATAS
+# Evita ValueError "year XXXX is out of range" quando datas no banco extrapolam
+# o limite do Python (1 <= year <= 9999). Retorna string ao invés de crash.
+# ============================================================================
+def safe_isoformat(d):
+    """Converte date/datetime em string ISO sem lançar exceção para anos inválidos."""
+    if d is None:
+        return None
+    try:
+        return d.isoformat()
+    except (ValueError, OverflowError, AttributeError):
+        # Ano fora do range Python (ex: 22026). Retorna repr textual.
+        return str(d)
+
+
 # ============================================================================
 def auto_execute_migrations():
     """Executa migrations automaticamente no startup - DESABILITADA TEMPORARIAMENTE"""
@@ -497,7 +511,16 @@ try:
     db = DatabaseManager()
     print("DatabaseManager inicializado com sucesso!")
     print(f"   Pool de conexoes: 2-20 conexoes simultaneas")
-    
+
+    # =========================================================================
+    # HEALTH CHECK: verifica tabelas e integridade de dados no startup
+    # =========================================================================
+    try:
+        from startup_health_check import verificar_saude_startup
+        verificar_saude_startup(db)
+    except Exception as _hc_err:
+        print(f"[HEALTH CHECK] Aviso: nao foi possivel executar health check: {_hc_err}")
+
     # Executar migra��es necess�rias (controlado por flag EXECUTAR_MIGRATIONS_STARTUP)
     if EXECUTAR_MIGRATIONS_STARTUP:
         try:
@@ -6599,7 +6622,7 @@ def listar_funcionarios():
                     'observacoes': row[9],
                     'nacionalidade': row[10],
                     'estado_civil': row[11],
-                    'data_nascimento': row[12].isoformat() if row[12] else None,
+                    'data_nascimento': safe_isoformat(row[12]),
                     'idade': row[13],
                     'profissao': row[14],
                     'rua_av': row[15],
@@ -7410,8 +7433,8 @@ def obter_funcionario(funcionario_id):
                 'data_admissao': row['data_admissao'].isoformat() if row['data_admissao'] else None,
                 'observacoes': row['observacoes'],
                 'ativo': row['ativo'],
-                'data_criacao': row['data_criacao'].isoformat() if row['data_criacao'] else None,
-                'data_atualizacao': row['data_atualizacao'].isoformat() if row['data_atualizacao'] else None
+                'data_criacao': safe_isoformat(row['data_criacao']),
+                'data_atualizacao': safe_isoformat(row['data_atualizacao'])
             }
         else:
             funcionario = {
@@ -7426,7 +7449,7 @@ def obter_funcionario(funcionario_id):
                 'observacoes': row[8],
                 'ativo': row[9],
                 'data_criacao': row[10].isoformat() if row[10] else None,
-                'data_atualizacao': row[11].isoformat() if row[11] else None
+                'data_atualizacao': safe_isoformat(row[11])
             }
         
         return jsonify(funcionario), 200
@@ -7551,7 +7574,7 @@ def listar_eventos():
                     'id': row['id'],
                     'empresa_id': row['empresa_id'],
                     'nome_evento': row['nome_evento'],
-                    'data_evento': row['data_evento'].isoformat() if row['data_evento'] else None,
+                    'data_evento': safe_isoformat(row['data_evento']),
                     'nf_associada': row['nf_associada'],
                     'valor_liquido_nf': float(row['valor_liquido_nf']) if row['valor_liquido_nf'] else None,
                     'custo_evento': float(row['custo_evento']) if row['custo_evento'] else None,
@@ -7559,15 +7582,15 @@ def listar_eventos():
                     'tipo_evento': row['tipo_evento'],
                     'status': row['status'],
                     'observacoes': row['observacoes'],
-                    'data_criacao': row['data_criacao'].isoformat() if row['data_criacao'] else None,
-                    'data_atualizacao': row['data_atualizacao'].isoformat() if row['data_atualizacao'] else None
+                    'data_criacao': safe_isoformat(row['data_criacao']),
+                    'data_atualizacao': safe_isoformat(row['data_atualizacao'])
                 })
             else:
                 eventos.append({
                     'id': row[0],
                     'empresa_id': row[1],
                     'nome_evento': row[2],
-                    'data_evento': row[3].isoformat() if row[3] else None,
+                    'data_evento': safe_isoformat(row[3]),
                     'nf_associada': row[4],
                     'valor_liquido_nf': float(row[5]) if row[5] else None,
                     'custo_evento': float(row[6]) if row[6] else None,
@@ -7575,8 +7598,8 @@ def listar_eventos():
                     'tipo_evento': row[8],
                     'status': row[9],
                     'observacoes': row[10],
-                    'data_criacao': row[11].isoformat() if row[11] else None,
-                    'data_atualizacao': row[12].isoformat() if row[12] else None
+                    'data_criacao': safe_isoformat(row[11]),
+                    'data_atualizacao': safe_isoformat(row[12])
                 })
         
         logger.info(f"[EVENTOS LIST] Total eventos: {len(eventos)}")
@@ -7772,7 +7795,7 @@ def atualizar_evento(evento_id):
                 evento_resp = {
                     'id': evento_atualizado['id'],
                     'nome_evento': evento_atualizado['nome_evento'],
-                    'data_evento': evento_atualizado['data_evento'].isoformat() if evento_atualizado['data_evento'] else None,
+                    'data_evento': safe_isoformat(evento_atualizado['data_evento']),
                     'nf_associada': evento_atualizado['nf_associada'],
                     'valor_liquido_nf': float(evento_atualizado['valor_liquido_nf']) if evento_atualizado['valor_liquido_nf'] else None,
                     'custo_evento': float(evento_atualizado['custo_evento']) if evento_atualizado['custo_evento'] else None,
