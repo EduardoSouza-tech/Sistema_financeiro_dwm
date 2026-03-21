@@ -373,7 +373,12 @@ def buscar_nfse():
         
         logger.info(f"✅ Busca concluída: {resultado.get('total_nfse', 0)} NFS-e encontradas")
         
-        return jsonify(resultado)
+        erros = resultado.get('erros', [])
+        return jsonify({
+            'success': resultado.get('sucesso', True),
+            'resultado': resultado,
+            'error': erros[0] if erros else None
+        })
         
     except Exception as e:
         logger.error(f"❌ Erro ao buscar NFS-e: {e}", exc_info=True)
