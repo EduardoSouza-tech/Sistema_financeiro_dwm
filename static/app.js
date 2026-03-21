@@ -10108,7 +10108,10 @@ window.gerarPdfNFSe = async function(nfseId) {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `nfse_${nfseId}.pdf`;
+            // Ler nome do arquivo do header Content-Disposition (ex: nfse_4.pdf)
+            const disposition = response.headers.get('Content-Disposition') || '';
+            const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            a.download = match ? match[1].replace(/['"]/g, '') : `NFS-e_${nfseId}.pdf`;
             document.body.appendChild(a);
             a.click();
             a.remove();

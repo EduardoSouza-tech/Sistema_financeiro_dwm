@@ -16044,7 +16044,7 @@ def gerar_pdf_nfse_route(nfse_id):
                 temp_file.name,
                 mimetype='application/pdf',
                 as_attachment=True,
-                download_name=f'nfse_{numero_nfse_str}.pdf'
+                download_name=f'NFS-e_{numero_nfse_str}.pdf'
             )
         else:
             logger.error(f"? gerar_pdf_nfse retornou None")
