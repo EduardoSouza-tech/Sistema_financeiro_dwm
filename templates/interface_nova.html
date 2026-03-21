@@ -5096,7 +5096,7 @@
                         <h3 id="fiscal-statTotalNFes" style="margin: 10px 0 0 0; font-size: 28px; font-weight: 700;">-</h3>
                     </div>
                     <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 10px; color: white;">
-                        <p style="margin: 0; opacity: 0.9; font-size: 13px;">Total de Documentos</p>
+                        <p style="margin: 0; opacity: 0.9; font-size: 13px;">Total de NF-e / CT-e</p>
                         <h3 id="fiscal-statValorTotal" style="margin: 10px 0 0 0; font-size: 28px; font-weight: 700;">R$ 0,00</h3>
                     </div>
                     <!-- NFS-e stats (atualizados via carregarEstatisticasFiscais e consultarNFSeLocal) -->
@@ -5111,10 +5111,6 @@
                     <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(79,172,254,0.3); color: white; text-align: center;">
                         <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px; font-weight: 600;">🏛️ ISS TOTAL</div>
                         <div id="iss-total-nfse" style="font-size: 28px; font-weight: bold;">R$ 0,00</div>
-                    </div>
-                    <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); padding: 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(67,233,123,0.3); color: white; text-align: center;">
-                        <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px; font-weight: 600;">🏙️ MUNICÍPIOS</div>
-                        <div id="municipios-nfse" style="font-size: 28px; font-weight: bold;">0</div>
                     </div>
                 </div>
 
@@ -14431,7 +14427,7 @@
                             document.getElementById('total-nfse').textContent = stats.total_nfse || 0;
                             document.getElementById('valor-total-nfse').textContent = formatarMoedaFiscal(stats.valor_total_nfse || 0);
                             document.getElementById('iss-total-nfse').textContent   = formatarMoedaFiscal(stats.iss_total_nfse || 0);
-                            document.getElementById('municipios-nfse').textContent  = stats.municipios_nfse || 0;
+                            // municipios-nfse removido do layout
                         }
                     }
                 })
