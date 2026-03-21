@@ -1852,6 +1852,7 @@ def buscar_nfse_ambiente_nacional(
             tentativas_404 = 0
             documentos_processados = 0
             maior_nsu = ultimo_nsu  # rastreia o maior ultNSU real visto
+            ultimo_doc_nsu = ultimo_nsu  # rastreia o NSU do último doc processado
             
             logger.info(f"🔍 Buscando a partir do NSU {nsu_atual}")
             
@@ -2207,6 +2208,10 @@ def buscar_nfse_ambiente_nacional(
                         logger.error(f"❌ Erro ao processar NSU {doc_nsu}: {e}")
                         resultado['erros'].append(f"NSU {doc_nsu}: {str(e)}")
                         continue
+                    else:
+                        # Documento processado com sucesso — atualiza cursor de fallback
+                        if doc_nsu > ultimo_doc_nsu:
+                            ultimo_doc_nsu = doc_nsu
                 
                 nsu_atual = proximo_nsu
             
@@ -2218,14 +2223,15 @@ def buscar_nfse_ambiente_nacional(
                 logger.info(f"⏹️ Busca finalizada: {max_tentativas_404} NSUs consecutivos sem retorno")
             
             # Atualizar último NSU processado
-            # Usa maior_nsu (maior ultNSU visto na API), não o cursor interno
-            if maior_nsu > ultimo_nsu:
-                db.set_last_nsu_nfse(empresa_id, cnpj_informante, maior_nsu)
-                resultado['ultimo_nsu'] = maior_nsu
-                logger.info(f"💾 Último NSU atualizado: {maior_nsu}")
-            elif resultado['total_nfse'] > 0:
-                resultado['ultimo_nsu'] = maior_nsu
-                logger.info(f"ℹ️ NSU não avançou (maior_nsu={maior_nsu} == ultimo_nsu={ultimo_nsu})")
+            # Preferência: ultNSU da API (maior_nsu); fallback: doc_nsu do último doc processado
+            nsu_para_salvar = maior_nsu if maior_nsu > ultimo_nsu else ultimo_doc_nsu
+            if nsu_para_salvar > ultimo_nsu:
+                db.set_last_nsu_nfse(empresa_id, cnpj_informante, nsu_para_salvar)
+                resultado['ultimo_nsu'] = nsu_para_salvar
+                logger.info(f"💾 Último NSU atualizado: {nsu_para_salvar}")
+            else:
+                resultado['ultimo_nsu'] = nsu_para_salvar
+                logger.info(f"ℹ️ NSU não avançou (nsu_para_salvar={nsu_para_salvar} == ultimo_nsu={ultimo_nsu})")
             
             resultado['sucesso'] = True
             
