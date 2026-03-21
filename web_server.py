@@ -20787,10 +20787,11 @@ def apagar_documentos_fiscais():
 
             # Conta documentos antes de deletar
             cursor.execute(
-                "SELECT COUNT(*) FROM documentos_fiscais_log WHERE empresa_id = %s",
+                "SELECT COUNT(*) AS total FROM documentos_fiscais_log WHERE empresa_id = %s",
                 (empresa_id,)
             )
-            total = cursor.fetchone()[0]
+            row = cursor.fetchone()
+            total = row['total'] if isinstance(row, dict) else row[0]
 
             # Apaga todos os documentos
             cursor.execute(
