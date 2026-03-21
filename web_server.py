@@ -7714,7 +7714,7 @@ def atualizar_evento(evento_id):
         
         # 1. Verificar se evento existe e pertence a empresa
         cursor.execute(
-            "SELECT id, data_evento, nome_evento FROM eventos WHERE id = %s AND empresa_id = %s",
+            "SELECT id, data_evento::text, nome_evento FROM eventos WHERE id = %s AND empresa_id = %s",
             (evento_id, empresa_id)
         )
         evento_atual = cursor.fetchone()
@@ -7782,7 +7782,7 @@ def atualizar_evento(evento_id):
         
         # 6. Verificacao pos-commit - ler de volta do banco
         cursor.execute(
-            """SELECT id, nome_evento, data_evento, nf_associada, valor_liquido_nf,
+            """SELECT id, nome_evento, data_evento::text, nf_associada, valor_liquido_nf,
                       custo_evento, margem, tipo_evento, status, observacoes
                FROM eventos WHERE id = %s""",
             (evento_id,)
