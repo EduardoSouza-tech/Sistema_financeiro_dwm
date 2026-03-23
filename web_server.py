@@ -3221,6 +3221,8 @@ def importar_clientes_de_empresa():
 
             # Iniciar bloco de transação para permitir SAVEPOINTs
             cur.execute("BEGIN")
+            # O trigger validate_empresa_clientes valida empresa_id vs app.current_empresa_id
+            cur.execute("SELECT set_config('app.current_empresa_id', %s, true)", (str(empresa_destino_id),))
 
             # CPFs/nomes já existentes no destino
             cur.execute(
