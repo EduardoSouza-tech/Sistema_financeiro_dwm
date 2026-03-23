@@ -950,6 +950,12 @@ async function viewNotificationsLog() {
     document.body.appendChild(modal);
     modal.classList.add('show');
 
+    // Forçar cores do cabeçalho (override da regra global !important do style.css)
+    const _hdrTitle = modal.querySelector('.notif-hdr-title');
+    const _hdrSub   = modal.querySelector('.notif-hdr-sub');
+    if (_hdrTitle) _hdrTitle.style.setProperty('color', '#f8fafc', 'important');
+    if (_hdrSub)   _hdrSub.style.setProperty('color',   '#94a3b8', 'important');
+
     // Fechar ao clicar fora
     modal.addEventListener('click', e => { if (e.target === modal) closeModal('notifications-log-modal'); });
 
