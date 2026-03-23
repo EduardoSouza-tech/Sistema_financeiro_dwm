@@ -879,50 +879,50 @@ async function viewNotificationsLog() {
     modal.style.cssText = 'display:flex; align-items:center; justify-content:center; z-index:9999;';
     modal.innerHTML = `
         <div style="
-            background:#f8fafc;
+            background:#f1f5f9;
             border-radius:20px;
-            width:100%;
-            max-width:900px;
-            max-height:88vh;
+            width:95%;
+            max-width:1060px;
+            max-height:90vh;
             display:flex;
             flex-direction:column;
-            box-shadow:0 24px 64px rgba(30,41,59,0.28);
+            box-shadow:0 28px 72px rgba(15,23,42,0.35);
             overflow:hidden;
-            animation: modalFadeIn 0.2s ease;
+            animation: modalFadeIn 0.22s ease;
         ">
             <!-- Header -->
             <div style="
-                background: linear-gradient(135deg, #1a1f3a 0%, #2c3e50 100%);
-                padding: 20px 24px;
+                background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+                padding: 22px 28px;
                 display:flex;
                 align-items:center;
                 justify-content:space-between;
-                border-bottom: 3px solid #3498db;
+                border-bottom: 3px solid #3b82f6;
                 flex-shrink:0;
             ">
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <div style="background:rgba(52,152,219,0.25); width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px;">📬</div>
+                <div style="display:flex; align-items:center; gap:14px;">
+                    <div style="background:rgba(59,130,246,0.22); width:46px; height:46px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; border:1px solid rgba(59,130,246,0.3); flex-shrink:0;">📬</div>
                     <div>
-                        <div style="color:#fff; font-size:16px; font-weight:700; line-height:1.2;">Histórico de E-mails</div>
-                        <div style="color:#94a3b8; font-size:12px; margin-top:2px;">Registro de todas as notificações enviadas</div>
+                        <div style="color:#f8fafc; font-size:17px; font-weight:700; line-height:1.2;">Histórico de E-mails</div>
+                        <div id="notif-log-subtitle" style="color:#94a3b8; font-size:12px; margin-top:3px;">Carregando registros...</div>
                     </div>
                 </div>
                 <button onclick="closeModal('notifications-log-modal')" style="
-                    background:rgba(255,255,255,0.1);
-                    border:none; cursor:pointer; color:#fff;
-                    width:32px; height:32px; border-radius:50%;
-                    font-size:14px; font-weight:700;
+                    background:rgba(255,255,255,0.08);
+                    border:1px solid rgba(255,255,255,0.12); cursor:pointer; color:#cbd5e1;
+                    width:34px; height:34px; border-radius:50%;
+                    font-size:15px; font-weight:700;
                     display:flex; align-items:center; justify-content:center;
-                    transition:background 0.2s;
-                " onmouseover="this.style.background='rgba(239,68,68,0.7)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">✕</button>
+                    transition:all 0.2s; flex-shrink:0;
+                " onmouseover="this.style.background='rgba(239,68,68,0.65)';this.style.color='#fff'" onmouseout="this.style.background='rgba(255,255,255,0.08)';this.style.color='#cbd5e1'">✕</button>
             </div>
 
             <!-- Body -->
-            <div style="overflow-y:auto; flex:1; padding:20px 24px;">
-                <div id="notif-log-content" style="min-height:120px; display:flex; align-items:center; justify-content:center;">
+            <div style="overflow-y:auto; flex:1; padding:20px 24px; display:flex; flex-direction:column; gap:14px;">
+                <div id="notif-log-content" style="min-height:140px; display:flex; align-items:center; justify-content:center;">
                     <div style="text-align:center; color:#94a3b8;">
-                        <div style="font-size:28px; margin-bottom:8px;">⏳</div>
-                        <div style="font-size:14px;">Carregando histórico...</div>
+                        <div style="font-size:32px; margin-bottom:10px;">⏳</div>
+                        <div style="font-size:14px; font-weight:500;">Carregando histórico...</div>
                     </div>
                 </div>
             </div>
@@ -933,12 +933,14 @@ async function viewNotificationsLog() {
                 background:#fff;
                 border-top:1px solid #e2e8f0;
                 display:flex;
-                justify-content:flex-end;
+                align-items:center;
+                justify-content:space-between;
                 flex-shrink:0;
             ">
+                <span id="notif-log-footer-count" style="color:#94a3b8; font-size:12px;"></span>
                 <button onclick="closeModal('notifications-log-modal')" style="
-                    background: linear-gradient(135deg, #1a1f3a, #2c3e50);
-                    color:white; border:none; padding:9px 22px;
+                    background: linear-gradient(135deg, #0f172a, #1e3a5f);
+                    color:white; border:none; padding:9px 24px;
                     border-radius:8px; cursor:pointer; font-size:13px; font-weight:600;
                     transition: opacity 0.2s;
                 " onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Fechar</button>
@@ -952,102 +954,221 @@ async function viewNotificationsLog() {
     modal.addEventListener('click', e => { if (e.target === modal) closeModal('notifications-log-modal'); });
 
     try {
-        const resp = await fetch('/api/notifications/log?limit=50');
+        const resp = await fetch('/api/notifications/log?limit=100');
         const data = await resp.json().catch(() => ({}));
         const container = document.getElementById('notif-log-content');
 
         if (!data.success) {
-            container.innerHTML = `<div style="text-align:center;padding:30px;color:#ef4444;">❌ ${data.error || 'Erro ao carregar histórico'}</div>`;
+            container.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;"><div style="font-size:32px;margin-bottom:10px;">❌</div><div>${data.error || 'Erro ao carregar histórico'}</div></div>`;
             return;
         }
 
         const logs = data.logs || [];
+        const subtitle = document.getElementById('notif-log-subtitle');
+
         if (logs.length === 0) {
+            if (subtitle) subtitle.textContent = 'Nenhum registro encontrado';
             container.innerHTML = `
-                <div style="text-align:center; padding:40px 20px; color:#94a3b8;">
-                    <div style="font-size:40px; margin-bottom:12px;">📭</div>
+                <div style="text-align:center; padding:50px 20px; color:#94a3b8;">
+                    <div style="font-size:48px; margin-bottom:14px;">📭</div>
                     <div style="font-size:15px; font-weight:600; color:#64748b;">Nenhum e-mail registrado ainda</div>
-                    <div style="font-size:13px; margin-top:4px;">Envie lembretes para que apareçam aqui.</div>
+                    <div style="font-size:13px; margin-top:5px;">Envie lembretes para que apareçam aqui.</div>
                 </div>`;
             return;
         }
 
         const tipoMeta = {
-            lembrete_sessao:  { label: 'Lembrete',       icon: '📅', bg: '#eff6ff', color: '#3b82f6' },
-            sessao_atrasada:  { label: 'Atrasada',        icon: '🚨', bg: '#fef2f2', color: '#ef4444' },
-            sessoes_abertas:  { label: 'Em Aberto',       icon: '📝', bg: '#fff7ed', color: '#f59e0b' },
-            contrato_proximo: { label: 'Ctr. Próximo',    icon: '📄', bg: '#f0fdf4', color: '#10b981' },
-            contrato_vencido: { label: 'Ctr. Vencido',    icon: '🚨', bg: '#fef2f2', color: '#ef4444' },
+            lembrete_sessao:  { label: 'Lembrete de Sessão', icon: '📅', bg: '#eff6ff', color: '#2563eb', border: '#bfdbfe' },
+            sessao_atrasada:  { label: 'Sessão Atrasada',    icon: '🚨', bg: '#fef2f2', color: '#dc2626', border: '#fecaca' },
+            sessoes_abertas:  { label: 'Sessões em Aberto',  icon: '📝', bg: '#fff7ed', color: '#d97706', border: '#fed7aa' },
+            contrato_proximo: { label: 'Contrato Próximo',   icon: '📄', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' },
+            contrato_vencido: { label: 'Contrato Vencido',   icon: '⚠️', bg: '#fef3c7', color: '#b45309', border: '#fde68a' },
         };
 
-        const total   = logs.length;
+        const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+        const total    = logs.length;
         const enviados = logs.filter(l => l.status === 'enviado').length;
         const erros    = total - enviados;
 
-        container.innerHTML = `
-            <!-- Stats -->
-            <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
-                <div style="flex:1; min-width:120px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 18px; display:flex; align-items:center; gap:12px; box-shadow:0 1px 4px rgba(30,41,59,0.06);">
-                    <div style="background:#eff6ff; width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:18px;">📨</div>
-                    <div><div style="font-size:20px; font-weight:800; color:#1e293b;">${total}</div><div style="font-size:11px; color:#64748b; font-weight:500;">Total</div></div>
+        if (subtitle) subtitle.textContent = `${total} registro${total !== 1 ? 's' : ''} · ${enviados} enviado${enviados !== 1 ? 's' : ''}${erros > 0 ? ` · ${erros} com erro` : ''}`;
+
+        const footerCount = document.getElementById('notif-log-footer-count');
+        if (footerCount) footerCount.textContent = `Exibindo ${total} registro${total !== 1 ? 's' : ''} mais recentes`;
+
+        // ── Stats ──────────────────────────────────────────────────────────
+        const statsHtml = `
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:120px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; display:flex; align-items:center; gap:12px; box-shadow:0 1px 3px rgba(15,23,42,0.07);">
+                    <div style="background:#eff6ff; width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">📨</div>
+                    <div><div style="font-size:22px; font-weight:800; color:#0f172a; line-height:1;">${total}</div><div style="font-size:11px; color:#64748b; font-weight:500; margin-top:3px;">Total</div></div>
                 </div>
-                <div style="flex:1; min-width:120px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 18px; display:flex; align-items:center; gap:12px; box-shadow:0 1px 4px rgba(30,41,59,0.06);">
-                    <div style="background:#f0fdf4; width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:18px;">✅</div>
-                    <div><div style="font-size:20px; font-weight:800; color:#10b981;">${enviados}</div><div style="font-size:11px; color:#64748b; font-weight:500;">Enviados</div></div>
+                <div style="flex:1; min-width:120px; background:#fff; border:1px solid #bbf7d0; border-radius:12px; padding:14px 16px; display:flex; align-items:center; gap:12px; box-shadow:0 1px 3px rgba(15,23,42,0.07);">
+                    <div style="background:#f0fdf4; width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">✅</div>
+                    <div><div style="font-size:22px; font-weight:800; color:#16a34a; line-height:1;">${enviados}</div><div style="font-size:11px; color:#64748b; font-weight:500; margin-top:3px;">Enviados</div></div>
                 </div>
                 ${erros > 0 ? `
-                <div style="flex:1; min-width:120px; background:#fff; border:1px solid #fecaca; border-radius:12px; padding:14px 18px; display:flex; align-items:center; gap:12px; box-shadow:0 1px 4px rgba(30,41,59,0.06);">
-                    <div style="background:#fef2f2; width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:18px;">❌</div>
-                    <div><div style="font-size:20px; font-weight:800; color:#ef4444;">${erros}</div><div style="font-size:11px; color:#64748b; font-weight:500;">Erros</div></div>
+                <div style="flex:1; min-width:120px; background:#fff; border:1px solid #fecaca; border-radius:12px; padding:14px 16px; display:flex; align-items:center; gap:12px; box-shadow:0 1px 3px rgba(15,23,42,0.07);">
+                    <div style="background:#fef2f2; width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">❌</div>
+                    <div><div style="font-size:22px; font-weight:800; color:#dc2626; line-height:1;">${erros}</div><div style="font-size:11px; color:#64748b; font-weight:500; margin-top:3px;">Com Erro</div></div>
                 </div>` : ''}
-            </div>
+            </div>`;
 
-            <!-- Table -->
-            <div style="background:#fff; border-radius:14px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 4px rgba(30,41,59,0.06);">
-                <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        // ── Filter bar ─────────────────────────────────────────────────────
+        const filterHtml = `
+            <div style="background:#fff; border-radius:12px; padding:12px 16px; border:1px solid #e2e8f0; display:flex; align-items:center; gap:12px; flex-wrap:wrap; box-shadow:0 1px 3px rgba(15,23,42,0.05);">
+                <div style="position:relative; flex:1; min-width:180px;">
+                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:13px; pointer-events:none;">🔍</span>
+                    <input id="notif-log-search" type="text" placeholder="Buscar por assunto ou destinatário..."
+                        style="width:100%; padding:7px 10px 7px 32px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; color:#334155; outline:none; box-sizing:border-box; transition:border-color 0.15s;"
+                        onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'"
+                        oninput="window._filterNotifLog()">
+                </div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button class="notif-filter-btn" data-filter="all" onclick="window._notifLogFilter('all',this)"
+                        style="padding:6px 14px; border-radius:20px; border:1px solid #3b82f6; background:#3b82f6; color:#fff; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.15s;">
+                        Todos (${total})</button>
+                    <button class="notif-filter-btn" data-filter="enviado" onclick="window._notifLogFilter('enviado',this)"
+                        style="padding:6px 14px; border-radius:20px; border:1px solid #e2e8f0; background:#fff; color:#64748b; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.15s;">
+                        ✅ Enviados (${enviados})</button>
+                    ${erros > 0 ? `<button class="notif-filter-btn" data-filter="erro" onclick="window._notifLogFilter('erro',this)"
+                        style="padding:6px 14px; border-radius:20px; border:1px solid #e2e8f0; background:#fff; color:#64748b; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.15s;">
+                        ❌ Erros (${erros})</button>` : ''}
+                </div>
+            </div>`;
+
+        // ── Table ──────────────────────────────────────────────────────────
+        const rowsHtml = logs.map((log, i) => {
+            const dest = Array.isArray(log.destinatarios)
+                ? log.destinatarios.join(', ')
+                : (log.destinatarios || '—');
+            const m = tipoMeta[log.tipo] || { label: log.tipo, icon: '📧', bg: '#f8fafc', color: '#64748b', border: '#e2e8f0' };
+            const ok = log.status === 'enviado';
+            const rowBg = ok ? (i % 2 === 0 ? '#fff' : '#f8fafc') : '#fff7f7';
+            const searchData = esc((log.assunto || '') + ' ' + dest).toLowerCase();
+            return `
+                <tr class="notif-log-row" data-status="${log.status}" data-search="${searchData}"
+                    style="background:${rowBg}; border-bottom:1px solid #f1f5f9; cursor:pointer;"
+                    onclick="window._toggleNotifLogRow(this)"
+                    onmouseover="this.style.background='${ok ? '#eff6ff' : '#fff1f1'}'"
+                    onmouseout="this.style.background='${rowBg}'">
+                    <td style="padding:11px 16px; white-space:nowrap; color:#64748b; font-size:12px; font-family:monospace;">${esc(log.enviado_em)}</td>
+                    <td style="padding:11px 16px; white-space:nowrap;">
+                        <span style="background:${m.bg}; color:${m.color}; border:1px solid ${m.border}; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">${m.icon} ${m.label}</span>
+                    </td>
+                    <td style="padding:11px 16px; color:#1e293b; max-width:0; width:36%;">
+                        <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${esc(log.assunto)}">${esc(log.assunto)}</div>
+                    </td>
+                    <td style="padding:11px 16px; color:#475569; font-size:12px; max-width:0; width:22%;">
+                        <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${esc(dest)}">${esc(dest)}</div>
+                    </td>
+                    <td style="padding:11px 10px; text-align:center; white-space:nowrap;">
+                        ${ok
+                            ? '<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:3px;">✓ Enviado</span>'
+                            : '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:3px;">✗ Erro</span>'}
+                    </td>
+                </tr>
+                <tr class="notif-log-expand" style="display:none; background:${ok ? '#f8fafc' : '#fff5f5'}; border-bottom:1px solid #e2e8f0;">
+                    <td colspan="5" style="padding:12px 16px 14px 44px;">
+                        <div style="display:grid; grid-template-columns:max-content 1fr; gap:6px 12px; align-items:start;">
+                            <span style="color:#94a3b8; font-size:11px; font-weight:700; text-transform:uppercase; padding-top:2px;">Assunto:</span>
+                            <span style="color:#334155; font-size:13px; line-height:1.5;">${esc(log.assunto)}</span>
+                            <span style="color:#94a3b8; font-size:11px; font-weight:700; text-transform:uppercase; padding-top:2px;">Destinatários:</span>
+                            <span style="color:#334155; font-size:13px; line-height:1.5;">${esc(dest)}</span>
+                            ${log.referencia_data ? `
+                            <span style="color:#94a3b8; font-size:11px; font-weight:700; text-transform:uppercase; padding-top:2px;">Referência:</span>
+                            <span style="color:#334155; font-size:13px;">${esc(log.referencia_data)}</span>` : ''}
+                            ${log.erro_detalhe ? `
+                            <span style="color:#94a3b8; font-size:11px; font-weight:700; text-transform:uppercase; padding-top:4px;">Erro:</span>
+                            <span style="color:#dc2626; font-size:12px; font-family:monospace; background:#fef2f2; padding:5px 10px; border-radius:6px; border:1px solid #fecaca; line-height:1.5;">${esc(log.erro_detalhe)}</span>` : ''}
+                        </div>
+                    </td>
+                </tr>`;
+        }).join('');
+
+        const tableHtml = `
+            <div style="background:#fff; border-radius:14px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 4px rgba(15,23,42,0.07);">
+                <table style="width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed;">
+                    <colgroup>
+                        <col style="width:130px">
+                        <col style="width:175px">
+                        <col>
+                        <col style="width:200px">
+                        <col style="width:110px">
+                    </colgroup>
                     <thead>
-                        <tr style="background:linear-gradient(135deg,#1a1f3a,#2c3e50); color:#fff;">
-                            <th style="padding:11px 14px; font-weight:600; text-align:left; white-space:nowrap;">🕐 Data/Hora</th>
-                            <th style="padding:11px 14px; font-weight:600; text-align:left;">Tipo</th>
-                            <th style="padding:11px 14px; font-weight:600; text-align:left;">Assunto</th>
-                            <th style="padding:11px 14px; font-weight:600; text-align:left;">Destinatário(s)</th>
-                            <th style="padding:11px 14px; font-weight:600; text-align:center;">Status</th>
+                        <tr style="background:linear-gradient(135deg,#0f172a,#1e3a5f); color:#e2e8f0;">
+                            <th style="padding:12px 16px; font-weight:600; text-align:left; font-size:12px; letter-spacing:0.04em;">🕐 Data/Hora</th>
+                            <th style="padding:12px 16px; font-weight:600; text-align:left; font-size:12px; letter-spacing:0.04em;">Tipo</th>
+                            <th style="padding:12px 16px; font-weight:600; text-align:left; font-size:12px; letter-spacing:0.04em;">Assunto</th>
+                            <th style="padding:12px 16px; font-weight:600; text-align:left; font-size:12px; letter-spacing:0.04em;">Destinatário(s)</th>
+                            <th style="padding:12px 10px; font-weight:600; text-align:center; font-size:12px; letter-spacing:0.04em;">Status</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        ${logs.map((log, i) => {
-                            const dest = Array.isArray(log.destinatarios)
-                                ? log.destinatarios.join(', ')
-                                : (log.destinatarios || '—');
-                            const m = tipoMeta[log.tipo] || { label: log.tipo, icon: '📧', bg: '#f8fafc', color: '#64748b' };
-                            const ok = log.status === 'enviado';
-                            const rowBg = i % 2 === 0 ? '#fff' : '#f8fafc';
-                            return `
-                                <tr style="background:${rowBg}; border-bottom:1px solid #f1f5f9; transition:background 0.12s;"
-                                    onmouseover="this.style.background='#eff6ff'"
-                                    onmouseout="this.style.background='${rowBg}'">
-                                    <td style="padding:10px 14px; white-space:nowrap; color:#64748b; font-size:12px;">${log.enviado_em}</td>
-                                    <td style="padding:10px 14px; white-space:nowrap;">
-                                        <span style="background:${m.bg}; color:${m.color}; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; display:inline-flex; align-items:center; gap:4px;">${m.icon} ${m.label}</span>
-                                    </td>
-                                    <td style="padding:10px 14px; color:#1e293b; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${log.assunto}">${log.assunto}</td>
-                                    <td style="padding:10px 14px; color:#475569; font-size:12px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${dest}">${dest}</td>
-                                    <td style="padding:10px 14px; text-align:center;">
-                                        ${ok
-                                            ? '<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">✓ Enviado</span>'
-                                            : '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">✗ Erro</span>'}
-                                        ${log.erro_detalhe ? `<div style="color:#dc2626;font-size:10px;margin-top:3px;">${log.erro_detalhe}</div>` : ''}
-                                    </td>
-                                </tr>`;
-                        }).join('')}
-                    </tbody>
+                    <tbody id="notif-log-tbody">${rowsHtml}</tbody>
                 </table>
-            </div>
-            <div style="text-align:right; margin-top:8px; color:#94a3b8; font-size:11px;">Exibindo os ${total} registros mais recentes</div>
-        `;
+                <div id="notif-log-empty-filter" style="display:none; text-align:center; padding:32px; color:#94a3b8;">
+                    <div style="font-size:28px; margin-bottom:8px;">🔍</div>
+                    <div style="font-size:13px;">Nenhum resultado para essa busca</div>
+                </div>
+            </div>`;
+
+        container.style.cssText = 'display:flex; flex-direction:column; gap:14px;';
+        container.innerHTML = statsHtml + filterHtml + tableHtml;
+
+        // ── Interactivity helpers (closure over `logs`, `total`) ───────────
+        let _currentFilter = 'all';
+
+        function _applyFilters() {
+            const tbody = document.getElementById('notif-log-tbody');
+            if (!tbody) return;
+            const searchVal = (document.getElementById('notif-log-search')?.value || '').toLowerCase().trim();
+            const dataRows   = tbody.querySelectorAll('.notif-log-row');
+            const expandRows = tbody.querySelectorAll('.notif-log-expand');
+            let visible = 0;
+            dataRows.forEach((r, i) => {
+                const statusOk = _currentFilter === 'all' || r.dataset.status === _currentFilter;
+                const searchOk = !searchVal || r.dataset.search.includes(searchVal);
+                const show = statusOk && searchOk;
+                r.style.display = show ? 'table-row' : 'none';
+                if (expandRows[i]) expandRows[i].style.display = 'none';
+                if (show) visible++;
+            });
+            const emptyEl   = document.getElementById('notif-log-empty-filter');
+            const footerEl  = document.getElementById('notif-log-footer-count');
+            if (emptyEl)  emptyEl.style.display  = visible === 0 ? 'block' : 'none';
+            if (footerEl) footerEl.textContent    = `Exibindo ${visible} de ${total} registro${total !== 1 ? 's' : ''}`;
+        }
+
+        window._toggleNotifLogRow = function(row) {
+            const tbody = document.getElementById('notif-log-tbody');
+            if (!tbody) return;
+            const dataRows   = Array.from(tbody.querySelectorAll('.notif-log-row'));
+            const expandRows = tbody.querySelectorAll('.notif-log-expand');
+            const idx = dataRows.indexOf(row);
+            if (idx < 0 || !expandRows[idx]) return;
+            const isOpen = expandRows[idx].style.display !== 'none';
+            // Collapse all first, then open this one if it was closed
+            expandRows.forEach(r => { r.style.display = 'none'; });
+            if (!isOpen) expandRows[idx].style.display = 'table-row';
+        };
+
+        window._notifLogFilter = function(filter, btn) {
+            _currentFilter = filter;
+            document.querySelectorAll('.notif-filter-btn').forEach(b => {
+                const active = b.dataset.filter === filter;
+                b.style.background   = active ? '#3b82f6' : '#fff';
+                b.style.borderColor  = active ? '#3b82f6' : '#e2e8f0';
+                b.style.color        = active ? '#fff'    : '#64748b';
+            });
+            _applyFilters();
+        };
+
+        window._filterNotifLog = _applyFilters;
+
     } catch (err) {
         const container = document.getElementById('notif-log-content');
-        if (container) container.innerHTML = `<div style="text-align:center;padding:30px;color:#ef4444;">❌ Erro de conexão: ${err.message}</div>`;
+        if (container) container.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;"><div style="font-size:32px;margin-bottom:10px;">❌</div><div>Erro de conexão: ${err.message}</div></div>`;
     }
 }
 
