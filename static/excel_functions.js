@@ -4,8 +4,27 @@
 
 console.log('✓ Funções Excel profissionais carregadas - v20251206');
 
+// Garante que a biblioteca XLSX está carregada antes de usar (lazy load)
+function _ensureXLSX(callback) {
+    if (typeof XLSX !== 'undefined') { callback(); return; }
+    if (typeof window.loadXLSX === 'function') {
+        window.loadXLSX(callback);
+    } else {
+        // Fallback: carregar diretamente se o lazy loader não estiver disponível
+        var s = document.createElement('script');
+        s.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+        s.onload = callback;
+        document.head.appendChild(s);
+    }
+}
+
 // Exportar Contas a Pagar para Excel
 async function exportarContasPagarExcel() {
+    if (typeof XLSX === 'undefined') {
+        if (typeof showToast === 'function') showToast('⏳ Preparando exportação...', 'info');
+        _ensureXLSX(() => exportarContasPagarExcel());
+        return;
+    }
     try {
         console.log('=== INÍCIO EXPORTAÇÃO CONTAS A PAGAR EXCEL ===');
         
@@ -192,6 +211,11 @@ async function exportarContasPagarExcel() {
 
 // Exportar Contas a Receber para Excel
 async function exportarContasReceberExcel() {
+    if (typeof XLSX === 'undefined') {
+        if (typeof showToast === 'function') showToast('⏳ Preparando exportação...', 'info');
+        _ensureXLSX(() => exportarContasReceberExcel());
+        return;
+    }
     try {
         console.log('=== INÍCIO EXPORTAÇÃO CONTAS A RECEBER EXCEL ===');
         

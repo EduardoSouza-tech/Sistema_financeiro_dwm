@@ -6,6 +6,7 @@ Deploy: 2026-02-15 16:40 - Fix campos associacao e numero_documento no GET
 """
 from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
+from flask_compress import Compress
 from functools import wraps
 import os
 import sys
@@ -294,6 +295,15 @@ CORS(app,
      supports_credentials=True)
 
 # ============================================================================
+# COMPRESSÃO GZIP (Flask-Compress)
+# Reduz HTML/JSON em 60-80% - Essential para notebooks lentos
+# ============================================================================
+app.config['COMPRESS_REGISTER'] = True
+app.config['COMPRESS_LEVEL'] = 6          # Nível 6 = melhor custo/benefício
+app.config['COMPRESS_MIN_SIZE'] = 1000    # Comprimir respostas > 1KB
+Compress(app)
+
+# ============================================================================
 # AUTO-RENOVAÇÃO DE SESSÃO (KEEP-ALIVE)
 # ============================================================================
 @app.before_request
@@ -393,14 +403,20 @@ def log_request_info():
     # print(f"{'??'*40}")
 
 @app.after_request
-def add_no_cache_headers(response):
-    """For�a navegador a NUNCA cachear HTML, CSS e JS"""
-    # Para arquivos est�ticos (JS, CSS), desabilita cache agressivamente
-    if request.path.startswith('/static/') or request.path.endswith(('.html', '.js', '.css')):
-        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '-1'
+def add_cache_headers(response):
+    """Cache inteligente: estaticos versionados = 1 ano; HTML dinamico = sem cache."""
+    if request.path.startswith('/static/'):
+        # Arquivos com ?v= sao imutaveis ate a versao mudar - cache por 1 ano
+        if b'v=' in request.query_string:
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        else:
+            response.headers['Cache-Control'] = 'public, max-age=3600'
         response.headers['X-Content-Type-Options'] = 'nosniff'
+    elif response.content_type and 'text/html' in response.content_type:
+        # Paginas HTML dinamicas nao devem ser cacheadas
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
     return response
 
 @app.before_request

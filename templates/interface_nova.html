@@ -1273,8 +1273,8 @@
     </style>
     
     <!-- FullCalendar JS (v6 injeta o CSS automaticamente via JS, não há arquivo CSS separado) -->
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
-    <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/pt-br.global.min.js'></script>
+    <script defer src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+    <script defer src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/pt-br.global.min.js'></script>
     
     <!-- Estilos personalizados para o calendário -->
     <style>
@@ -1549,7 +1549,7 @@
     </style>
     
     <!-- Google Calendar API -->
-    <script src="https://apis.google.com/js/api.js"></script>
+    <script defer src="https://apis.google.com/js/api.js"></script>
 </head>
 <body style="background: #f5f7fa !important; color: #2c3e50 !important;">
     <!-- Loading Overlay - Exibido ao carregar a página -->
@@ -11332,6 +11332,10 @@
         // ==========================================
 
         function exportarAssinaturaPDF() {
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                window.loadJsPDF(function() { exportarAssinaturaPDF(); });
+                return;
+            }
             const { jsPDF } = window.jspdf;
             
             // Obter dados
@@ -13750,10 +13754,49 @@
         });
     </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <!-- Chart.js: defer para nao bloquear render inicial -->
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- xlsx e jsPDF: lazy load sob demanda (economiza ~1MB no carregamento inicial) -->
+    <script>
+    (function() {
+        var _xlsxLoaded = false, _jspdfLoaded = false;
+        var _xlsxCbs = [], _jspdfCbs = [];
+
+        function loadScript(src, cb) {
+            var s = document.createElement("script");
+            s.src = src;
+            s.onload = cb;
+            s.onerror = function() { console.warn("Falha ao carregar:", src); cb(); };
+            document.head.appendChild(s);
+        }
+
+        // Disponibilizado globalmente para pdf_functions.js e excel_functions.js
+        window.loadXLSX = function(cb) {
+            if (_xlsxLoaded || typeof XLSX !== "undefined") { if (cb) cb(); return; }
+            _xlsxCbs.push(cb);
+            if (_xlsxCbs.length > 1) return; // ja esta carregando
+            loadScript("https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js", function() {
+                _xlsxLoaded = true;
+                _xlsxCbs.forEach(function(fn) { if (fn) fn(); });
+                _xlsxCbs = [];
+            });
+        };
+
+        window.loadJsPDF = function(cb) {
+            if (_jspdfLoaded || typeof jsPDF !== "undefined" || (typeof window.jspdf !== "undefined")) { if (cb) cb(); return; }
+            _jspdfCbs.push(cb);
+            if (_jspdfCbs.length > 1) return;
+            loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js", function() {
+                loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js", function() {
+                    _jspdfLoaded = true;
+                    _jspdfCbs.forEach(function(fn) { if (fn) fn(); });
+                    _jspdfCbs = [];
+                });
+            });
+        };
+    })();
+    </script>
     <script src="/static/utils.js?v={{ build_timestamp }}"></script>
     <script src="/static/lazy-loader.js?v={{ build_timestamp }}"></script>
     <script src="/static/app.js?v={{ build_timestamp }}"></script>
@@ -13764,8 +13807,7 @@
     <script src="/static/analise_functions.js?v={{ build_timestamp }}"></script>
     <script src="/static/modals.js?v={{ build_timestamp }}"></script>
     
-    <!-- Chart.js para gráficos -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <!-- Chart.js v4.4.0 ja carregado acima - duplicata v3.9.1 removida -->
     
     <!-- Módulos DRE e Dashboard Gerencial -->
     <script src="/static/dre_module.js?v={{ build_timestamp }}"></script>
