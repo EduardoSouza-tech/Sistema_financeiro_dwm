@@ -3126,6 +3126,120 @@ def modificar_cliente(nome):
             return jsonify({'success': False, 'error': str(e)}), 400
 
 
+# === IMPORTAÇÃO DE CLIENTES ENTRE EMPRESAS ===
+
+@app.route('/api/clientes/empresas-disponiveis', methods=['GET'])
+@require_permission('clientes_view')
+def clientes_empresas_disponiveis():
+    """Retorna as outras empresas do usuário que possuem clientes para importação."""
+    try:
+        usuario = get_usuario_logado()
+        empresa_atual_id = session.get('empresa_id')
+
+        from auth_functions import listar_empresas_usuario
+        empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
+
+        resultado = []
+        for emp in empresas_usuario:
+            eid = emp.get('empresa_id')
+            if eid == empresa_atual_id:
+                continue
+            clientes_origem = db.listar_clientes(ativos=True, filtro_cliente_id=eid)
+            if not clientes_origem:
+                continue
+            resultado.append({
+                'empresa_id': eid,
+                'razao_social': emp.get('razao_social') or emp.get('nome_fantasia') or f'Empresa {eid}',
+                'total_clientes': len(clientes_origem),
+                'clientes': [
+                    {
+                        'nome': c.get('nome'),
+                        'razao_social': c.get('razao_social') or c.get('nome'),
+                        'cpf_cnpj': c.get('cpf_cnpj') or '',
+                        'cidade': c.get('cidade') or '',
+                        'email': c.get('email') or '',
+                    }
+                    for c in clientes_origem
+                ]
+            })
+
+        return jsonify({'success': True, 'data': resultado})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/clientes/importar-de-empresa', methods=['POST'])
+@require_permission('clientes_create')
+def importar_clientes_de_empresa():
+    """Importa clientes de outra empresa do mesmo usuário para a empresa atual."""
+    try:
+        data = request.json or {}
+        empresa_origem_id = data.get('empresa_origem_id')
+        if not empresa_origem_id:
+            return jsonify({'success': False, 'error': 'empresa_origem_id é obrigatório'}), 400
+
+        usuario = get_usuario_logado()
+        empresa_destino_id = session.get('empresa_id')
+        if not empresa_destino_id:
+            return jsonify({'success': False, 'error': 'Empresa destino não identificada'}), 400
+
+        from auth_functions import listar_empresas_usuario
+        empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
+        tem_acesso = any(e.get('empresa_id') == empresa_origem_id for e in empresas_usuario)
+        if not tem_acesso:
+            return jsonify({'success': False, 'error': 'Sem permissão para acessar empresa origem'}), 403
+
+        clientes_origem = db.listar_clientes(ativos=True, filtro_cliente_id=empresa_origem_id)
+        clientes_destino = db.listar_clientes(ativos=True, filtro_cliente_id=empresa_destino_id)
+
+        # Dedup por CPF/CNPJ (preferencial) ou razao_social em maiúsculas
+        cpfs_destino = {c.get('cpf_cnpj') for c in clientes_destino if c.get('cpf_cnpj')}
+        nomes_destino = {(c.get('razao_social') or c.get('nome') or '').upper() for c in clientes_destino}
+
+        importados = 0
+        duplicados = 0
+        erros = []
+
+        for cli in clientes_origem:
+            try:
+                cpf = cli.get('cpf_cnpj') or ''
+                nome_upper = (cli.get('razao_social') or cli.get('nome') or '').upper()
+
+                if cpf and cpf in cpfs_destino:
+                    duplicados += 1
+                    continue
+                if not cpf and nome_upper in nomes_destino:
+                    duplicados += 1
+                    continue
+
+                novo = dict(cli)
+                novo['empresa_id'] = empresa_destino_id
+                novo.pop('id', None)
+                novo.pop('created_at', None)
+                novo.pop('ativo', None)
+                novo.pop('proprietario_id', None)
+
+                db.adicionar_cliente(novo)
+                importados += 1
+                if cpf:
+                    cpfs_destino.add(cpf)
+                nomes_destino.add(nome_upper)
+            except Exception as e_cli:
+                erros.append(f"{cli.get('nome', '?')}: {str(e_cli)}")
+
+        return jsonify({
+            'success': True,
+            'importados': importados,
+            'duplicados': duplicados,
+            'erros': erros,
+            'message': f'{importados} cliente(s) importado(s) com sucesso'
+        })
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # === ROTAS DE FORNECEDORES ===
 
 @app.route('/api/fornecedores', methods=['GET'])
@@ -3406,7 +3520,120 @@ def reativar_fornecedor(nome):
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
-# === ROTAS DE LAN�AMENTOS ===
+# === IMPORTAÇÃO DE FORNECEDORES ENTRE EMPRESAS ===
+
+@app.route('/api/fornecedores/empresas-disponiveis', methods=['GET'])
+@require_permission('fornecedores_view')
+def fornecedores_empresas_disponiveis():
+    """Retorna as outras empresas do usuário que possuem fornecedores para importação."""
+    try:
+        usuario = get_usuario_logado()
+        empresa_atual_id = session.get('empresa_id')
+
+        from auth_functions import listar_empresas_usuario
+        empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
+
+        resultado = []
+        for emp in empresas_usuario:
+            eid = emp.get('empresa_id')
+            if eid == empresa_atual_id:
+                continue
+            fornecedores_origem = db.listar_fornecedores(ativos=True, filtro_cliente_id=eid)
+            if not fornecedores_origem:
+                continue
+            resultado.append({
+                'empresa_id': eid,
+                'razao_social': emp.get('razao_social') or emp.get('nome_fantasia') or f'Empresa {eid}',
+                'total_fornecedores': len(fornecedores_origem),
+                'fornecedores': [
+                    {
+                        'nome': f.get('nome'),
+                        'razao_social': f.get('razao_social') or f.get('nome'),
+                        'cpf_cnpj': f.get('cpf_cnpj') or '',
+                        'cidade': f.get('cidade') or '',
+                        'email': f.get('email') or '',
+                    }
+                    for f in fornecedores_origem
+                ]
+            })
+
+        return jsonify({'success': True, 'data': resultado})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fornecedores/importar-de-empresa', methods=['POST'])
+@require_permission('fornecedores_create')
+def importar_fornecedores_de_empresa():
+    """Importa fornecedores de outra empresa do mesmo usuário para a empresa atual."""
+    try:
+        data = request.json or {}
+        empresa_origem_id = data.get('empresa_origem_id')
+        if not empresa_origem_id:
+            return jsonify({'success': False, 'error': 'empresa_origem_id é obrigatório'}), 400
+
+        usuario = get_usuario_logado()
+        empresa_destino_id = session.get('empresa_id')
+        if not empresa_destino_id:
+            return jsonify({'success': False, 'error': 'Empresa destino não identificada'}), 400
+
+        from auth_functions import listar_empresas_usuario
+        empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
+        tem_acesso = any(e.get('empresa_id') == empresa_origem_id for e in empresas_usuario)
+        if not tem_acesso:
+            return jsonify({'success': False, 'error': 'Sem permissão para acessar empresa origem'}), 403
+
+        fornecedores_origem = db.listar_fornecedores(ativos=True, filtro_cliente_id=empresa_origem_id)
+        fornecedores_destino = db.listar_fornecedores(ativos=True, filtro_cliente_id=empresa_destino_id)
+
+        # Dedup por CPF/CNPJ (preferencial) ou razao_social em maiúsculas
+        cpfs_destino = {f.get('cpf_cnpj') for f in fornecedores_destino if f.get('cpf_cnpj')}
+        nomes_destino = {(f.get('razao_social') or f.get('nome') or '').upper() for f in fornecedores_destino}
+
+        importados = 0
+        duplicados = 0
+        erros = []
+
+        for forn in fornecedores_origem:
+            try:
+                cpf = forn.get('cpf_cnpj') or ''
+                nome_upper = (forn.get('razao_social') or forn.get('nome') or '').upper()
+
+                if cpf and cpf in cpfs_destino:
+                    duplicados += 1
+                    continue
+                if not cpf and nome_upper in nomes_destino:
+                    duplicados += 1
+                    continue
+
+                novo = dict(forn)
+                novo['empresa_id'] = empresa_destino_id
+                novo.pop('id', None)
+                novo.pop('created_at', None)
+                novo.pop('ativo', None)
+
+                db.adicionar_fornecedor(novo)
+                importados += 1
+                if cpf:
+                    cpfs_destino.add(cpf)
+                nomes_destino.add(nome_upper)
+            except Exception as e_forn:
+                erros.append(f"{forn.get('nome', '?')}: {str(e_forn)}")
+
+        return jsonify({
+            'success': True,
+            'importados': importados,
+            'duplicados': duplicados,
+            'erros': erros,
+            'message': f'{importados} fornecedor(es) importado(s) com sucesso'
+        })
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# === ROTAS DE LANÇAMENTOS ===
 
 @app.route('/api/lancamentos', methods=['GET'])
 @require_permission('lancamentos_view')

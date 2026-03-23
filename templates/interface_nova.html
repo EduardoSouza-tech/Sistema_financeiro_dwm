@@ -5993,6 +5993,7 @@
                     <button class="btn btn-primary" onclick="openModalCliente()">➕ Novo Cliente</button>
                     <button class="btn" onclick="exportarClientesPDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
                     <button class="btn" onclick="exportarClientesExcel()" style="background: #27ae60; color: white;">📊 Exportar Excel</button>
+                    <button class="btn btn-secondary" onclick="abrirModalImportarClientes()" style="background: #6c757d;">📥 Importar de Outra Empresa</button>
                 </div>
                 
                 <!-- Tabs de Status -->
@@ -6032,6 +6033,7 @@
                     <button class="btn btn-primary" onclick="openModalFornecedor()">➕ Novo Fornecedor</button>
                     <button class="btn" onclick="exportarFornecedoresPDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
                     <button class="btn" onclick="exportarFornecedoresExcel()" style="background: #27ae60; color: white;">📊 Exportar Excel</button>
+                    <button class="btn btn-secondary" onclick="abrirModalImportarFornecedores()" style="background: #6c757d;">📥 Importar de Outra Empresa</button>
                 </div>
                 
                 <!-- Tabs de Status -->
@@ -14037,6 +14039,234 @@
                 fecharModalImportarCategorias();
             }
         });
+    </script>
+
+    <!-- Modal: Importar Clientes de Outra Empresa -->
+    <div id="modal-importar-clientes" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 10px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto;">
+            <h3 style="margin-top: 0; color: #333;">📥 Importar Clientes de Outra Empresa</h3>
+            <div id="clientes-importar-empresas-container">
+                <p style="color: #666;">Carregando empresas...</p>
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="fecharModalImportarClientes()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Importar Fornecedores de Outra Empresa -->
+    <div id="modal-importar-fornecedores" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 10px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto;">
+            <h3 style="margin-top: 0; color: #333;">📥 Importar Fornecedores de Outra Empresa</h3>
+            <div id="fornecedores-importar-empresas-container">
+                <p style="color: #666;">Carregando empresas...</p>
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="fecharModalImportarFornecedores()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // === IMPORTAÇÃO DE CLIENTES ENTRE EMPRESAS ===
+
+    async function abrirModalImportarClientes() {
+        const modal = document.getElementById('modal-importar-clientes');
+        const container = document.getElementById('clientes-importar-empresas-container');
+        modal.style.display = 'flex';
+        container.innerHTML = '<p style="color:#666;">🔄 Carregando empresas...</p>';
+
+        try {
+            const response = await fetch('/api/clientes/empresas-disponiveis', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await response.json();
+
+            if (!data.success || !data.data || data.data.length === 0) {
+                container.innerHTML = '<p style="color:#999;">ℹ️ Nenhuma outra empresa com clientes cadastrados.</p>';
+                return;
+            }
+
+            let html = '';
+            for (const empresa of data.data) {
+                html += `
+                    <div style="border:1px solid #ddd; border-radius:8px; padding:15px; margin-bottom:15px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <div>
+                                <h4 style="margin:0; color:#333;">${empresa.razao_social}</h4>
+                                <p style="margin:5px 0 0 0; color:#666; font-size:14px;">${empresa.total_clientes} cliente(s) disponível(is)</p>
+                            </div>
+                            <button class="btn btn-primary" onclick="importarClientesDeEmpresa(${empresa.empresa_id}, '${empresa.razao_social.replace(/'/g, "\\'")}')">📥 Importar Todos</button>
+                        </div>
+                        <details style="margin-top:10px;">
+                            <summary style="cursor:pointer; color:#0066cc; font-size:14px;">Ver clientes</summary>
+                            <div style="margin-top:10px; padding-left:15px;">
+                                ${empresa.clientes.map(c => `
+                                    <div style="margin:5px 0; font-size:14px;">
+                                        <strong>${c.razao_social || c.nome}</strong>
+                                        ${c.cpf_cnpj ? `<span style="color:#666;"> — ${c.cpf_cnpj}</span>` : ''}
+                                        ${c.cidade ? `<span style="color:#999;"> (${c.cidade})</span>` : ''}
+                                    </div>`).join('')}
+                            </div>
+                        </details>
+                    </div>`;
+            }
+            container.innerHTML = html;
+        } catch (error) {
+            console.error('Erro ao carregar empresas:', error);
+            container.innerHTML = '<p style="color:#d9534f;">❌ Erro ao carregar empresas. Tente novamente.</p>';
+        }
+    }
+
+    async function importarClientesDeEmpresa(empresaId, razaoSocial) {
+        if (!confirm(`Deseja importar TODOS os clientes da empresa "${razaoSocial}"?\n\nClientes com CNPJ/CPF duplicado serão ignorados.`)) return;
+
+        try {
+            const response = await fetch('/api/clientes/importar-de-empresa', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ empresa_origem_id: empresaId })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                const msg = `<p><strong>✅ ${data.importados}</strong> cliente(s) importado(s)</p>
+                    ${data.duplicados > 0 ? `<p><strong>⏭️ ${data.duplicados}</strong> já existiam (duplicados ignorados)</p>` : ''}
+                    ${data.erros && data.erros.length > 0 ? `<p style="color:#d9534f;"><strong>❌ Erros:</strong><br>${data.erros.join('<br>')}</p>` : ''}`;
+                if (typeof Swal !== 'undefined') {
+                    await Swal.fire({ icon: 'success', title: 'Importação Concluída!', html: msg, confirmButtonText: 'OK' });
+                } else {
+                    alert(`✅ Importação Concluída!\n\n${data.importados} cliente(s) importado(s)${data.duplicados > 0 ? '\n' + data.duplicados + ' já existiam' : ''}`);
+                }
+                if (typeof carregarClientes === 'function') carregarClientes();
+                else if (typeof loadClientes === 'function') loadClientes();
+                fecharModalImportarClientes();
+            } else {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Erro ao Importar', text: data.error || 'Erro desconhecido', confirmButtonText: 'OK' });
+                } else {
+                    alert('❌ Erro: ' + (data.error || 'Erro desconhecido'));
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao importar clientes:', error);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Erro de Conexão', text: 'Erro ao processar a importação. Tente novamente.', confirmButtonText: 'OK' });
+            } else {
+                alert('❌ Erro de conexão. Tente novamente.');
+            }
+        }
+    }
+
+    function fecharModalImportarClientes() {
+        document.getElementById('modal-importar-clientes').style.display = 'none';
+    }
+    document.getElementById('modal-importar-clientes').addEventListener('click', function(e) {
+        if (e.target === this) fecharModalImportarClientes();
+    });
+
+    // === IMPORTAÇÃO DE FORNECEDORES ENTRE EMPRESAS ===
+
+    async function abrirModalImportarFornecedores() {
+        const modal = document.getElementById('modal-importar-fornecedores');
+        const container = document.getElementById('fornecedores-importar-empresas-container');
+        modal.style.display = 'flex';
+        container.innerHTML = '<p style="color:#666;">🔄 Carregando empresas...</p>';
+
+        try {
+            const response = await fetch('/api/fornecedores/empresas-disponiveis', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await response.json();
+
+            if (!data.success || !data.data || data.data.length === 0) {
+                container.innerHTML = '<p style="color:#999;">ℹ️ Nenhuma outra empresa com fornecedores cadastrados.</p>';
+                return;
+            }
+
+            let html = '';
+            for (const empresa of data.data) {
+                html += `
+                    <div style="border:1px solid #ddd; border-radius:8px; padding:15px; margin-bottom:15px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <div>
+                                <h4 style="margin:0; color:#333;">${empresa.razao_social}</h4>
+                                <p style="margin:5px 0 0 0; color:#666; font-size:14px;">${empresa.total_fornecedores} fornecedor(es) disponível(is)</p>
+                            </div>
+                            <button class="btn btn-primary" onclick="importarFornecedoresDeEmpresa(${empresa.empresa_id}, '${empresa.razao_social.replace(/'/g, "\\'")}')">📥 Importar Todos</button>
+                        </div>
+                        <details style="margin-top:10px;">
+                            <summary style="cursor:pointer; color:#0066cc; font-size:14px;">Ver fornecedores</summary>
+                            <div style="margin-top:10px; padding-left:15px;">
+                                ${empresa.fornecedores.map(f => `
+                                    <div style="margin:5px 0; font-size:14px;">
+                                        <strong>${f.razao_social || f.nome}</strong>
+                                        ${f.cpf_cnpj ? `<span style="color:#666;"> — ${f.cpf_cnpj}</span>` : ''}
+                                        ${f.cidade ? `<span style="color:#999;"> (${f.cidade})</span>` : ''}
+                                    </div>`).join('')}
+                            </div>
+                        </details>
+                    </div>`;
+            }
+            container.innerHTML = html;
+        } catch (error) {
+            console.error('Erro ao carregar empresas:', error);
+            container.innerHTML = '<p style="color:#d9534f;">❌ Erro ao carregar empresas. Tente novamente.</p>';
+        }
+    }
+
+    async function importarFornecedoresDeEmpresa(empresaId, razaoSocial) {
+        if (!confirm(`Deseja importar TODOS os fornecedores da empresa "${razaoSocial}"?\n\nFornecedores com CNPJ/CPF duplicado serão ignorados.`)) return;
+
+        try {
+            const response = await fetch('/api/fornecedores/importar-de-empresa', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ empresa_origem_id: empresaId })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                const msg = `<p><strong>✅ ${data.importados}</strong> fornecedor(es) importado(s)</p>
+                    ${data.duplicados > 0 ? `<p><strong>⏭️ ${data.duplicados}</strong> já existiam (duplicados ignorados)</p>` : ''}
+                    ${data.erros && data.erros.length > 0 ? `<p style="color:#d9534f;"><strong>❌ Erros:</strong><br>${data.erros.join('<br>')}</p>` : ''}`;
+                if (typeof Swal !== 'undefined') {
+                    await Swal.fire({ icon: 'success', title: 'Importação Concluída!', html: msg, confirmButtonText: 'OK' });
+                } else {
+                    alert(`✅ Importação Concluída!\n\n${data.importados} fornecedor(es) importado(s)${data.duplicados > 0 ? '\n' + data.duplicados + ' já existiam' : ''}`);
+                }
+                if (typeof carregarFornecedores === 'function') carregarFornecedores();
+                else if (typeof loadFornecedores === 'function') loadFornecedores();
+                fecharModalImportarFornecedores();
+            } else {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Erro ao Importar', text: data.error || 'Erro desconhecido', confirmButtonText: 'OK' });
+                } else {
+                    alert('❌ Erro: ' + (data.error || 'Erro desconhecido'));
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao importar fornecedores:', error);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Erro de Conexão', text: 'Erro ao processar a importação. Tente novamente.', confirmButtonText: 'OK' });
+            } else {
+                alert('❌ Erro de conexão. Tente novamente.');
+            }
+        }
+    }
+
+    function fecharModalImportarFornecedores() {
+        document.getElementById('modal-importar-fornecedores').style.display = 'none';
+    }
+    document.getElementById('modal-importar-fornecedores').addEventListener('click', function(e) {
+        if (e.target === this) fecharModalImportarFornecedores();
+    });
     </script>
     
     <script>
