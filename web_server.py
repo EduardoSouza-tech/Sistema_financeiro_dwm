@@ -3269,7 +3269,7 @@ def importar_clientes_de_empresa():
                     erros.append(f"{cli.get('nome', '?')}: {str(e_cli)}")
                     print(f"[IMPORT CLIENTES] erro em '{cli.get('nome')}': {e_cli}")
 
-            conn.commit()
+            cur.execute("COMMIT")  # autocommit=True torna conn.commit() no-op; usar SQL direto
 
         print(f"[IMPORT CLIENTES] resultado: {importados} importados, {duplicados} duplicados, {len(erros)} erros")
         return jsonify({
@@ -3706,7 +3706,7 @@ def importar_fornecedores_de_empresa():
                     erros.append(f"{forn.get('nome', '?')}: {str(e_forn)}")
                     print(f"[IMPORT FORNECEDORES] erro em '{forn.get('nome')}': {e_forn}")
 
-            conn.commit()
+            cur.execute("COMMIT")  # autocommit=True torna conn.commit() no-op; usar SQL direto
 
         print(f"[IMPORT FORNECEDORES] resultado: {importados} importados, {duplicados} duplicados, {len(erros)} erros")
         return jsonify({
