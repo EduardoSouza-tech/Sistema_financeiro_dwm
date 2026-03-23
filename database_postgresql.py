@@ -1172,6 +1172,56 @@ class DatabaseManager:
         except Exception as e:
             print(f"⚠️  Aviso na migração de status de sessoes: {e}")
 
+        # Migração: converter UNIQUE(cpf_cnpj) global → UNIQUE(cpf_cnpj, empresa_id) em clientes e fornecedores
+        # A constraint global impede o mesmo CPF/CNPJ em múltiplas empresas (multi-tenant)
+        try:
+            cursor.execute("""
+                DO $$
+                BEGIN
+                    -- Clientes: remover constraint global e adicionar por empresa
+                    IF EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conname = 'clientes_cpf_cnpj_key'
+                        AND conrelid = 'clientes'::regclass
+                    ) THEN
+                        ALTER TABLE clientes DROP CONSTRAINT clientes_cpf_cnpj_key;
+                        RAISE NOTICE '✓ clientes_cpf_cnpj_key removida';
+                    END IF;
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conname = 'clientes_cpf_cnpj_empresa_key'
+                        AND conrelid = 'clientes'::regclass
+                    ) THEN
+                        ALTER TABLE clientes
+                            ADD CONSTRAINT clientes_cpf_cnpj_empresa_key
+                            UNIQUE (cpf_cnpj, empresa_id);
+                        RAISE NOTICE '✓ clientes_cpf_cnpj_empresa_key criada';
+                    END IF;
+                    -- Fornecedores: idem
+                    IF EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conname = 'fornecedores_cpf_cnpj_key'
+                        AND conrelid = 'fornecedores'::regclass
+                    ) THEN
+                        ALTER TABLE fornecedores DROP CONSTRAINT fornecedores_cpf_cnpj_key;
+                        RAISE NOTICE '✓ fornecedores_cpf_cnpj_key removida';
+                    END IF;
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conname = 'fornecedores_cpf_cnpj_empresa_key'
+                        AND conrelid = 'fornecedores'::regclass
+                    ) THEN
+                        ALTER TABLE fornecedores
+                            ADD CONSTRAINT fornecedores_cpf_cnpj_empresa_key
+                            UNIQUE (cpf_cnpj, empresa_id);
+                        RAISE NOTICE '✓ fornecedores_cpf_cnpj_empresa_key criada';
+                    END IF;
+                END $$;
+            """)
+            print("✓ Migração: UNIQUE cpf_cnpj convertido para por-empresa em clientes e fornecedores")
+        except Exception as e:
+            print(f"⚠️  Aviso na migração de constraint cpf_cnpj: {e}")
+
         # Sincronizar sequi?ncias de auto-incremento com valores mi?ximos atuais
         try:
             cursor.execute("""

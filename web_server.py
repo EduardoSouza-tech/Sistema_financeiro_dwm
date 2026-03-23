@@ -3222,16 +3222,9 @@ def importar_clientes_de_empresa():
             if not clientes_origem:
                 print(f"[IMPORT CLIENTES] nenhum cliente encontrado na origem")
             else:
-                # Buscar todos CPFs/CNPJs globalmente (UNIQUE constraint em clientes é global)
-                # Feito ANTES de mudar autocommit para garantir SELECT sem filtro RLS
-                cur.execute(
-                    "SELECT cpf_cnpj FROM clientes WHERE cpf_cnpj IS NOT NULL AND cpf_cnpj != ''"
-                )
-                cpfs_globais = {r['cpf_cnpj'] for r in cur.fetchall()}
-
                 # Usar transação psycopg2 nativa (autocommit=False) para:
                 # 1. conn.commit() funcionar de verdade
-                # 2. SET LOCAL (set_config is_local=true) persistir durante toda a transação
+                # 2. SET LOCAL persistir durante toda a transação
                 # 3. SAVEPOINTs funcionarem corretamente
                 conn.autocommit = False
                 try:
@@ -3241,20 +3234,22 @@ def importar_clientes_de_empresa():
                         (str(empresa_destino_id),)
                     )
 
-                    # Nomes já existentes no destino
+                    # CPFs e nomes já existentes no destino (UNIQUE agora é por empresa)
                     cur.execute(
-                        "SELECT razao_social, nome FROM clientes WHERE empresa_id = %s",
+                        "SELECT cpf_cnpj, razao_social, nome FROM clientes WHERE empresa_id = %s",
                         (empresa_destino_id,)
                     )
+                    dest_rows = cur.fetchall()
+                    cpfs_destino = {r['cpf_cnpj'] for r in dest_rows if r.get('cpf_cnpj')}
                     nomes_destino = {(r.get('razao_social') or r.get('nome') or '').upper()
-                                     for r in cur.fetchall()}
+                                     for r in dest_rows}
 
                     for cli in clientes_origem:
                         cpf = cli.get('cpf_cnpj') or ''
                         nome_upper = (cli.get('razao_social') or cli.get('nome') or '').upper()
 
-                        # Verificar duplicado por CPF globalmente (evita violação UNIQUE global)
-                        if cpf and cpf in cpfs_globais:
+                        # Verificar duplicado por CPF na empresa destino
+                        if cpf and cpf in cpfs_destino:
                             duplicados += 1
                             continue
                         # Verificar duplicado por nome no destino (clientes sem CPF)
@@ -3281,7 +3276,7 @@ def importar_clientes_de_empresa():
                             cur.execute("RELEASE SAVEPOINT sp_cli")
                             importados += 1
                             if cpf:
-                                cpfs_globais.add(cpf)
+                                cpfs_destino.add(cpf)
                             nomes_destino.add(nome_upper)
                         except Exception as e_cli:
                             cur.execute("ROLLBACK TO SAVEPOINT sp_cli")
