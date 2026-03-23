@@ -3137,31 +3137,44 @@ def clientes_empresas_disponiveis():
         empresa_atual_id = session.get('empresa_id')
 
         from auth_functions import listar_empresas_usuario
+        from database_postgresql import get_db_connection
         empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
+        # aceitar chave 'empresa_id' ou 'id' dependendo da versão do helper
+        ids_autorizados = {e.get('empresa_id') or e.get('id') for e in empresas_usuario} - {None}
 
         resultado = []
-        for emp in empresas_usuario:
-            eid = emp.get('empresa_id')
-            if eid == empresa_atual_id:
-                continue
-            clientes_origem = db.listar_clientes(ativos=True, filtro_cliente_id=eid)
-            if not clientes_origem:
-                continue
-            resultado.append({
-                'empresa_id': eid,
-                'razao_social': emp.get('razao_social') or emp.get('nome_fantasia') or f'Empresa {eid}',
-                'total_clientes': len(clientes_origem),
-                'clientes': [
-                    {
-                        'nome': c.get('nome'),
-                        'razao_social': c.get('razao_social') or c.get('nome'),
-                        'cpf_cnpj': c.get('cpf_cnpj') or '',
-                        'cidade': c.get('cidade') or '',
-                        'email': c.get('email') or '',
-                    }
-                    for c in clientes_origem
-                ]
-            })
+        with get_db_connection(allow_global=True) as conn:
+            cur = conn.cursor()
+            for eid in ids_autorizados:
+                if eid == empresa_atual_id:
+                    continue
+                cur.execute(
+                    "SELECT nome, razao_social, cpf_cnpj, cidade, email FROM clientes "
+                    "WHERE ativo = TRUE AND empresa_id = %s ORDER BY nome",
+                    (eid,)
+                )
+                rows = [dict(r) for r in cur.fetchall()]
+                if not rows:
+                    continue
+                razao_emp = next(
+                    (e.get('razao_social') or e.get('nome_fantasia') or f'Empresa {eid}')
+                    for e in empresas_usuario
+                    if (e.get('empresa_id') or e.get('id')) == eid
+                )
+                resultado.append({
+                    'empresa_id': eid,
+                    'razao_social': razao_emp,
+                    'total_clientes': len(rows),
+                    'clientes': [
+                        {
+                            'nome': r.get('nome'),
+                            'razao_social': r.get('razao_social') or r.get('nome'),
+                            'cpf_cnpj': r.get('cpf_cnpj') or '',
+                            'cidade': r.get('cidade') or '',
+                        }
+                        for r in rows
+                    ]
+                })
 
         return jsonify({'success': True, 'data': resultado})
     except Exception as e:
@@ -3185,24 +3198,37 @@ def importar_clientes_de_empresa():
             return jsonify({'success': False, 'error': 'Empresa destino não identificada'}), 400
 
         from auth_functions import listar_empresas_usuario
+        from database_postgresql import get_db_connection
         empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
-        tem_acesso = any(e.get('empresa_id') == empresa_origem_id for e in empresas_usuario)
-        if not tem_acesso:
+        ids_autorizados = {e.get('empresa_id') or e.get('id') for e in empresas_usuario} - {None}
+        if empresa_origem_id not in ids_autorizados:
             return jsonify({'success': False, 'error': 'Sem permissão para acessar empresa origem'}), 403
-
-        clientes_origem = db.listar_clientes(ativos=True, filtro_cliente_id=empresa_origem_id)
-        clientes_destino = db.listar_clientes(ativos=True, filtro_cliente_id=empresa_destino_id)
-
-        # Dedup por CPF/CNPJ (preferencial) ou razao_social em maiúsculas
-        cpfs_destino = {c.get('cpf_cnpj') for c in clientes_destino if c.get('cpf_cnpj')}
-        nomes_destino = {(c.get('razao_social') or c.get('nome') or '').upper() for c in clientes_destino}
 
         importados = 0
         duplicados = 0
         erros = []
 
-        for cli in clientes_origem:
-            try:
+        with get_db_connection(allow_global=True) as conn:
+            cur = conn.cursor()
+
+            # Clientes da empresa origem
+            cur.execute(
+                "SELECT * FROM clientes WHERE ativo = TRUE AND empresa_id = %s ORDER BY nome",
+                (empresa_origem_id,)
+            )
+            clientes_origem = [dict(r) for r in cur.fetchall()]
+            print(f"[IMPORT CLIENTES] origem={empresa_origem_id} destino={empresa_destino_id} → {len(clientes_origem)} clientes")
+
+            # CPFs/nomes já existentes no destino
+            cur.execute(
+                "SELECT cpf_cnpj, razao_social, nome FROM clientes WHERE empresa_id = %s",
+                (empresa_destino_id,)
+            )
+            dest_rows = cur.fetchall()
+            cpfs_destino = {r['cpf_cnpj'] for r in dest_rows if r.get('cpf_cnpj')}
+            nomes_destino = {(r.get('razao_social') or r.get('nome') or '').upper() for r in dest_rows}
+
+            for cli in clientes_origem:
                 cpf = cli.get('cpf_cnpj') or ''
                 nome_upper = (cli.get('razao_social') or cli.get('nome') or '').upper()
 
@@ -3213,21 +3239,36 @@ def importar_clientes_de_empresa():
                     duplicados += 1
                     continue
 
-                novo = dict(cli)
-                novo['empresa_id'] = empresa_destino_id
-                novo.pop('id', None)
-                novo.pop('created_at', None)
-                novo.pop('ativo', None)
-                novo.pop('proprietario_id', None)
+                try:
+                    cur.execute("SAVEPOINT sp_cli")
+                    cur.execute("""
+                        INSERT INTO clientes (
+                            nome, cpf_cnpj, email, telefone, endereco, empresa_id,
+                            razao_social, nome_fantasia, cidade, estado, cep, logradouro,
+                            numero, complemento, bairro, ie, im
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    """, (
+                        cli.get('nome'), cli.get('cpf_cnpj'), cli.get('email'),
+                        cli.get('telefone'), cli.get('endereco'), empresa_destino_id,
+                        cli.get('razao_social'), cli.get('nome_fantasia'),
+                        cli.get('cidade'), cli.get('estado'), cli.get('cep'),
+                        cli.get('logradouro'), cli.get('numero'), cli.get('complemento'),
+                        cli.get('bairro'), cli.get('ie'), cli.get('im')
+                    ))
+                    cur.execute("RELEASE SAVEPOINT sp_cli")
+                    importados += 1
+                    if cpf:
+                        cpfs_destino.add(cpf)
+                    nomes_destino.add(nome_upper)
+                except Exception as e_cli:
+                    cur.execute("ROLLBACK TO SAVEPOINT sp_cli")
+                    cur.execute("RELEASE SAVEPOINT sp_cli")
+                    erros.append(f"{cli.get('nome', '?')}: {str(e_cli)}")
+                    print(f"[IMPORT CLIENTES] erro em '{cli.get('nome')}': {e_cli}")
 
-                db.adicionar_cliente(novo)
-                importados += 1
-                if cpf:
-                    cpfs_destino.add(cpf)
-                nomes_destino.add(nome_upper)
-            except Exception as e_cli:
-                erros.append(f"{cli.get('nome', '?')}: {str(e_cli)}")
+            conn.commit()
 
+        print(f"[IMPORT CLIENTES] resultado: {importados} importados, {duplicados} duplicados, {len(erros)} erros")
         return jsonify({
             'success': True,
             'importados': importados,
@@ -3531,31 +3572,43 @@ def fornecedores_empresas_disponiveis():
         empresa_atual_id = session.get('empresa_id')
 
         from auth_functions import listar_empresas_usuario
+        from database_postgresql import get_db_connection
         empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
+        ids_autorizados = {e.get('empresa_id') or e.get('id') for e in empresas_usuario} - {None}
 
         resultado = []
-        for emp in empresas_usuario:
-            eid = emp.get('empresa_id')
-            if eid == empresa_atual_id:
-                continue
-            fornecedores_origem = db.listar_fornecedores(ativos=True, filtro_cliente_id=eid)
-            if not fornecedores_origem:
-                continue
-            resultado.append({
-                'empresa_id': eid,
-                'razao_social': emp.get('razao_social') or emp.get('nome_fantasia') or f'Empresa {eid}',
-                'total_fornecedores': len(fornecedores_origem),
-                'fornecedores': [
-                    {
-                        'nome': f.get('nome'),
-                        'razao_social': f.get('razao_social') or f.get('nome'),
-                        'cpf_cnpj': f.get('cpf_cnpj') or '',
-                        'cidade': f.get('cidade') or '',
-                        'email': f.get('email') or '',
-                    }
-                    for f in fornecedores_origem
-                ]
-            })
+        with get_db_connection(allow_global=True) as conn:
+            cur = conn.cursor()
+            for eid in ids_autorizados:
+                if eid == empresa_atual_id:
+                    continue
+                cur.execute(
+                    "SELECT nome, razao_social, cpf_cnpj, cidade, email FROM fornecedores "
+                    "WHERE ativo = TRUE AND empresa_id = %s ORDER BY nome",
+                    (eid,)
+                )
+                rows = [dict(r) for r in cur.fetchall()]
+                if not rows:
+                    continue
+                razao_emp = next(
+                    (e.get('razao_social') or e.get('nome_fantasia') or f'Empresa {eid}')
+                    for e in empresas_usuario
+                    if (e.get('empresa_id') or e.get('id')) == eid
+                )
+                resultado.append({
+                    'empresa_id': eid,
+                    'razao_social': razao_emp,
+                    'total_fornecedores': len(rows),
+                    'fornecedores': [
+                        {
+                            'nome': r.get('nome'),
+                            'razao_social': r.get('razao_social') or r.get('nome'),
+                            'cpf_cnpj': r.get('cpf_cnpj') or '',
+                            'cidade': r.get('cidade') or '',
+                        }
+                        for r in rows
+                    ]
+                })
 
         return jsonify({'success': True, 'data': resultado})
     except Exception as e:
@@ -3579,24 +3632,37 @@ def importar_fornecedores_de_empresa():
             return jsonify({'success': False, 'error': 'Empresa destino não identificada'}), 400
 
         from auth_functions import listar_empresas_usuario
+        from database_postgresql import get_db_connection
         empresas_usuario = listar_empresas_usuario(usuario.get('id'), auth_db)
-        tem_acesso = any(e.get('empresa_id') == empresa_origem_id for e in empresas_usuario)
-        if not tem_acesso:
+        ids_autorizados = {e.get('empresa_id') or e.get('id') for e in empresas_usuario} - {None}
+        if empresa_origem_id not in ids_autorizados:
             return jsonify({'success': False, 'error': 'Sem permissão para acessar empresa origem'}), 403
-
-        fornecedores_origem = db.listar_fornecedores(ativos=True, filtro_cliente_id=empresa_origem_id)
-        fornecedores_destino = db.listar_fornecedores(ativos=True, filtro_cliente_id=empresa_destino_id)
-
-        # Dedup por CPF/CNPJ (preferencial) ou razao_social em maiúsculas
-        cpfs_destino = {f.get('cpf_cnpj') for f in fornecedores_destino if f.get('cpf_cnpj')}
-        nomes_destino = {(f.get('razao_social') or f.get('nome') or '').upper() for f in fornecedores_destino}
 
         importados = 0
         duplicados = 0
         erros = []
 
-        for forn in fornecedores_origem:
-            try:
+        with get_db_connection(allow_global=True) as conn:
+            cur = conn.cursor()
+
+            # Fornecedores da empresa origem
+            cur.execute(
+                "SELECT * FROM fornecedores WHERE ativo = TRUE AND empresa_id = %s ORDER BY nome",
+                (empresa_origem_id,)
+            )
+            fornecedores_origem = [dict(r) for r in cur.fetchall()]
+            print(f"[IMPORT FORNECEDORES] origem={empresa_origem_id} destino={empresa_destino_id} → {len(fornecedores_origem)} fornecedores")
+
+            # CPFs/nomes já existentes no destino
+            cur.execute(
+                "SELECT cpf_cnpj, razao_social, nome FROM fornecedores WHERE empresa_id = %s",
+                (empresa_destino_id,)
+            )
+            dest_rows = cur.fetchall()
+            cpfs_destino = {r['cpf_cnpj'] for r in dest_rows if r.get('cpf_cnpj')}
+            nomes_destino = {(r.get('razao_social') or r.get('nome') or '').upper() for r in dest_rows}
+
+            for forn in fornecedores_origem:
                 cpf = forn.get('cpf_cnpj') or ''
                 nome_upper = (forn.get('razao_social') or forn.get('nome') or '').upper()
 
@@ -3607,20 +3673,36 @@ def importar_fornecedores_de_empresa():
                     duplicados += 1
                     continue
 
-                novo = dict(forn)
-                novo['empresa_id'] = empresa_destino_id
-                novo.pop('id', None)
-                novo.pop('created_at', None)
-                novo.pop('ativo', None)
+                try:
+                    cur.execute("SAVEPOINT sp_forn")
+                    cur.execute("""
+                        INSERT INTO fornecedores (
+                            nome, cpf_cnpj, email, telefone, endereco, empresa_id,
+                            razao_social, nome_fantasia, cidade, estado, cep, logradouro,
+                            numero, complemento, bairro, ie, im
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    """, (
+                        forn.get('nome'), forn.get('cpf_cnpj'), forn.get('email'),
+                        forn.get('telefone'), forn.get('endereco'), empresa_destino_id,
+                        forn.get('razao_social'), forn.get('nome_fantasia'),
+                        forn.get('cidade'), forn.get('estado'), forn.get('cep'),
+                        forn.get('logradouro'), forn.get('numero'), forn.get('complemento'),
+                        forn.get('bairro'), forn.get('ie'), forn.get('im')
+                    ))
+                    cur.execute("RELEASE SAVEPOINT sp_forn")
+                    importados += 1
+                    if cpf:
+                        cpfs_destino.add(cpf)
+                    nomes_destino.add(nome_upper)
+                except Exception as e_forn:
+                    cur.execute("ROLLBACK TO SAVEPOINT sp_forn")
+                    cur.execute("RELEASE SAVEPOINT sp_forn")
+                    erros.append(f"{forn.get('nome', '?')}: {str(e_forn)}")
+                    print(f"[IMPORT FORNECEDORES] erro em '{forn.get('nome')}': {e_forn}")
 
-                db.adicionar_fornecedor(novo)
-                importados += 1
-                if cpf:
-                    cpfs_destino.add(cpf)
-                nomes_destino.add(nome_upper)
-            except Exception as e_forn:
-                erros.append(f"{forn.get('nome', '?')}: {str(e_forn)}")
+            conn.commit()
 
+        print(f"[IMPORT FORNECEDORES] resultado: {importados} importados, {duplicados} duplicados, {len(erros)} erros")
         return jsonify({
             'success': True,
             'importados': importados,
