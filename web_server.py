@@ -3219,6 +3219,9 @@ def importar_clientes_de_empresa():
             clientes_origem = [dict(r) for r in cur.fetchall()]
             print(f"[IMPORT CLIENTES] origem={empresa_origem_id} destino={empresa_destino_id} → {len(clientes_origem)} clientes")
 
+            # Iniciar bloco de transação para permitir SAVEPOINTs
+            cur.execute("BEGIN")
+
             # CPFs/nomes já existentes no destino
             cur.execute(
                 "SELECT cpf_cnpj, razao_social, nome FROM clientes WHERE empresa_id = %s",
@@ -3652,6 +3655,9 @@ def importar_fornecedores_de_empresa():
             )
             fornecedores_origem = [dict(r) for r in cur.fetchall()]
             print(f"[IMPORT FORNECEDORES] origem={empresa_origem_id} destino={empresa_destino_id} → {len(fornecedores_origem)} fornecedores")
+
+            # Iniciar bloco de transação para permitir SAVEPOINTs
+            cur.execute("BEGIN")
 
             # CPFs/nomes já existentes no destino
             cur.execute(
