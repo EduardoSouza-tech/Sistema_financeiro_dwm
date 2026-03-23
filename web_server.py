@@ -3211,7 +3211,7 @@ def importar_clientes_de_empresa():
         with get_db_connection(allow_global=True) as conn:
             cur = conn.cursor()
 
-            # Clientes da empresa origem
+            # Clientes da empresa origem (em autocommit=True → sem restrição RLS de empresa)
             cur.execute(
                 "SELECT * FROM clientes WHERE ativo = TRUE AND empresa_id = %s ORDER BY nome",
                 (empresa_origem_id,)
@@ -3219,59 +3219,82 @@ def importar_clientes_de_empresa():
             clientes_origem = [dict(r) for r in cur.fetchall()]
             print(f"[IMPORT CLIENTES] origem={empresa_origem_id} destino={empresa_destino_id} → {len(clientes_origem)} clientes")
 
-            # Iniciar bloco de transação para permitir SAVEPOINTs
-            cur.execute("BEGIN")
-            # O trigger validate_empresa_clientes valida empresa_id vs app.current_empresa_id
-            cur.execute("SELECT set_config('app.current_empresa_id', %s, true)", (str(empresa_destino_id),))
+            if not clientes_origem:
+                print(f"[IMPORT CLIENTES] nenhum cliente encontrado na origem")
+            else:
+                # Buscar todos CPFs/CNPJs globalmente (UNIQUE constraint em clientes é global)
+                # Feito ANTES de mudar autocommit para garantir SELECT sem filtro RLS
+                cur.execute(
+                    "SELECT cpf_cnpj FROM clientes WHERE cpf_cnpj IS NOT NULL AND cpf_cnpj != ''"
+                )
+                cpfs_globais = {r['cpf_cnpj'] for r in cur.fetchall()}
 
-            # CPFs/nomes já existentes no destino
-            cur.execute(
-                "SELECT cpf_cnpj, razao_social, nome FROM clientes WHERE empresa_id = %s",
-                (empresa_destino_id,)
-            )
-            dest_rows = cur.fetchall()
-            cpfs_destino = {r['cpf_cnpj'] for r in dest_rows if r.get('cpf_cnpj')}
-            nomes_destino = {(r.get('razao_social') or r.get('nome') or '').upper() for r in dest_rows}
-
-            for cli in clientes_origem:
-                cpf = cli.get('cpf_cnpj') or ''
-                nome_upper = (cli.get('razao_social') or cli.get('nome') or '').upper()
-
-                if cpf and cpf in cpfs_destino:
-                    duplicados += 1
-                    continue
-                if not cpf and nome_upper in nomes_destino:
-                    duplicados += 1
-                    continue
-
+                # Usar transação psycopg2 nativa (autocommit=False) para:
+                # 1. conn.commit() funcionar de verdade
+                # 2. SET LOCAL (set_config is_local=true) persistir durante toda a transação
+                # 3. SAVEPOINTs funcionarem corretamente
+                conn.autocommit = False
                 try:
-                    cur.execute("SAVEPOINT sp_cli")
-                    cur.execute("""
-                        INSERT INTO clientes (
-                            nome, cpf_cnpj, email, telefone, endereco, empresa_id,
-                            razao_social, nome_fantasia, cidade, estado, cep, logradouro,
-                            numero, complemento, bairro, ie, im
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    """, (
-                        cli.get('nome'), cli.get('cpf_cnpj'), cli.get('email'),
-                        cli.get('telefone'), cli.get('endereco'), empresa_destino_id,
-                        cli.get('razao_social'), cli.get('nome_fantasia'),
-                        cli.get('cidade'), cli.get('estado'), cli.get('cep'),
-                        cli.get('logradouro'), cli.get('numero'), cli.get('complemento'),
-                        cli.get('bairro'), cli.get('ie'), cli.get('im')
-                    ))
-                    cur.execute("RELEASE SAVEPOINT sp_cli")
-                    importados += 1
-                    if cpf:
-                        cpfs_destino.add(cpf)
-                    nomes_destino.add(nome_upper)
-                except Exception as e_cli:
-                    cur.execute("ROLLBACK TO SAVEPOINT sp_cli")
-                    cur.execute("RELEASE SAVEPOINT sp_cli")
-                    erros.append(f"{cli.get('nome', '?')}: {str(e_cli)}")
-                    print(f"[IMPORT CLIENTES] erro em '{cli.get('nome')}': {e_cli}")
+                    # Configurar empresa_id para satisfazer trigger validate_empresa_clientes
+                    cur.execute(
+                        "SELECT set_config('app.current_empresa_id', %s, true)",
+                        (str(empresa_destino_id),)
+                    )
 
-            cur.execute("COMMIT")  # autocommit=True torna conn.commit() no-op; usar SQL direto
+                    # Nomes já existentes no destino
+                    cur.execute(
+                        "SELECT razao_social, nome FROM clientes WHERE empresa_id = %s",
+                        (empresa_destino_id,)
+                    )
+                    nomes_destino = {(r.get('razao_social') or r.get('nome') or '').upper()
+                                     for r in cur.fetchall()}
+
+                    for cli in clientes_origem:
+                        cpf = cli.get('cpf_cnpj') or ''
+                        nome_upper = (cli.get('razao_social') or cli.get('nome') or '').upper()
+
+                        # Verificar duplicado por CPF globalmente (evita violação UNIQUE global)
+                        if cpf and cpf in cpfs_globais:
+                            duplicados += 1
+                            continue
+                        # Verificar duplicado por nome no destino (clientes sem CPF)
+                        if not cpf and nome_upper in nomes_destino:
+                            duplicados += 1
+                            continue
+
+                        try:
+                            cur.execute("SAVEPOINT sp_cli")
+                            cur.execute("""
+                                INSERT INTO clientes (
+                                    nome, cpf_cnpj, email, telefone, endereco, empresa_id,
+                                    razao_social, nome_fantasia, cidade, estado, cep, logradouro,
+                                    numero, complemento, bairro, ie, im
+                                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                            """, (
+                                cli.get('nome'), cli.get('cpf_cnpj'), cli.get('email'),
+                                cli.get('telefone'), cli.get('endereco'), empresa_destino_id,
+                                cli.get('razao_social'), cli.get('nome_fantasia'),
+                                cli.get('cidade'), cli.get('estado'), cli.get('cep'),
+                                cli.get('logradouro'), cli.get('numero'), cli.get('complemento'),
+                                cli.get('bairro'), cli.get('ie'), cli.get('im')
+                            ))
+                            cur.execute("RELEASE SAVEPOINT sp_cli")
+                            importados += 1
+                            if cpf:
+                                cpfs_globais.add(cpf)
+                            nomes_destino.add(nome_upper)
+                        except Exception as e_cli:
+                            cur.execute("ROLLBACK TO SAVEPOINT sp_cli")
+                            cur.execute("RELEASE SAVEPOINT sp_cli")
+                            erros.append(f"{cli.get('nome', '?')}: {str(e_cli)}")
+                            print(f"[IMPORT CLIENTES] erro em '{cli.get('nome')}': {e_cli}")
+
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                    raise
+                finally:
+                    conn.autocommit = True  # Restaurar para o pool
 
         print(f"[IMPORT CLIENTES] resultado: {importados} importados, {duplicados} duplicados, {len(erros)} erros")
         return jsonify({
