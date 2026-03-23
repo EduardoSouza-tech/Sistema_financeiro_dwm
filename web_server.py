@@ -420,7 +420,7 @@ def add_cache_headers(response):
     return response
 
 @app.before_request
-def log_request_info():
+def _registrar_req_auditoria():
     """Log de todas as requisi��es HTTP para auditoria e detec��o mobile"""
     # Pular verifica��es para rotas de API mobile (j� autenticadas via JWT)
     if request.path.startswith('/api/mobile/'):
@@ -9895,6 +9895,17 @@ def debug_usuario():
         }
     
     return jsonify(debug_info)
+
+# ============================================================================
+# KEEP-ALIVE / HEALTH CHECK
+# Endpoint leve para prevenir cold start no Railway.
+# Configure UptimeRobot ou cron-job.org para GET /ping a cada 14 minutos.
+# URL: https://sistemafinanceirodwm-production.up.railway.app/ping
+# ============================================================================
+@app.route('/ping')
+def ping():
+    """Health check sem autenticacao - apenas confirma que o processo esta ativo"""
+    return jsonify({'status': 'ok', 'timestamp': int(time.time())}), 200
 
 @app.route('/')
 def index():

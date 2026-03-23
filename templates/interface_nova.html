@@ -10455,7 +10455,13 @@
                                 <td>${evt.tipo_evento || '-'}</td>
                                 <td>${statusBadge[evt.status] || evt.status}</td>
                                 <td>
-                                    <button onclick='abrirModalEquipeEvento(${evt.id}, "${evt.nome_evento}", "${evt.data_evento}", ${evt.custo_evento || 0})' class="btn btn-sm btn-info" title="Alocar Equipe" style="background: #9b59b6; margin-right: 5px;">👥</button>
+                                    <button
+                                        data-evt-id="${evt.id}"
+                                        data-evt-nome="${(evt.nome_evento || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;')}"
+                                        data-evt-data="${evt.data_evento || ''}"
+                                        data-evt-custo="${evt.custo_evento || 0}"
+                                        onclick="abrirModalEquipeEvento(parseInt(this.dataset.evtId), this.dataset.evtNome, this.dataset.evtData, parseFloat(this.dataset.evtCusto || 0))"
+                                        class="btn btn-sm btn-info" title="Alocar Equipe" style="background: #9b59b6; margin-right: 5px;">👥</button>
                                     <button onclick='abrirModalEvento(${JSON.stringify(evt)})' class="btn btn-sm btn-primary" title="Editar">✏️</button>
                                     <button onclick="deletarEvento(${evt.id})" class="btn btn-sm btn-danger" title="Deletar">🗑️</button>
                                 </td>
@@ -10508,24 +10514,30 @@
         // ==========================================
         
         async function abrirModalEquipeEvento(eventoId, nomeEvento, dataEvento, custoAtual) {
-            document.getElementById('equipe-evento-id').value = eventoId;
-            document.getElementById('equipe-evento-nome').textContent = nomeEvento;
-            document.getElementById('equipe-evento-data').textContent = formatarData(dataEvento);
-            document.getElementById('equipe-evento-custo-atual').textContent = formatarMoeda(custoAtual || 0);
-            
-            // Carregar funcionários disponíveis
-            await carregarFuncionariosDisponiveis();
-            
-            // Carregar funções disponíveis
-            await carregarFuncoesDisponiveis();
-            
-            // Carregar setores disponíveis
-            await carregarSetoresDisponiveis();
-            
-            // Carregar equipe já alocada
-            await carregarEquipeEvento(eventoId);
-            
-            document.getElementById('modal-equipe-evento').style.display = 'flex';
+            try {
+                document.getElementById('equipe-evento-id').value = eventoId;
+                document.getElementById('equipe-evento-nome').textContent = nomeEvento;
+                // Usa formatarData se já estiver disponível, senão exibe a data diretamente
+                document.getElementById('equipe-evento-data').textContent =
+                    typeof formatarData === 'function' ? formatarData(dataEvento) : (dataEvento || '-');
+                document.getElementById('equipe-evento-custo-atual').textContent =
+                    typeof formatarMoeda === 'function' ? formatarMoeda(custoAtual || 0) : `R$ ${parseFloat(custoAtual||0).toFixed(2)}`;
+
+                // Carregar todos os dados em paralelo (4x mais rápido que sequencial)
+                await Promise.all([
+                    carregarFuncionariosDisponiveis(),
+                    carregarFuncoesDisponiveis(),
+                    carregarSetoresDisponiveis(),
+                    carregarEquipeEvento(eventoId)
+                ]);
+
+                document.getElementById('modal-equipe-evento').style.display = 'flex';
+            } catch (error) {
+                console.error('Erro ao abrir modal Alocar Equipe:', error);
+                if (typeof showToast === 'function') {
+                    showToast('❌ Erro ao abrir Alocar Equipe: ' + error.message, 'error');
+                }
+            }
         }
 
         function fecharModalEquipeEvento() {
