@@ -3351,6 +3351,17 @@ button,
         min-width: 1200px !important;
     }
 
+/* ============================================================================
+   MODAL HISTÓRICO DE E-MAILS — textos do cabeçalho escuro
+   Necessário pois a regra global força color:#000 !important em divs
+   ============================================================================ */
+body:not(.dark-mode) #notifications-log-modal .notif-hdr-title {
+    color: #f8fafc !important;
+}
+body:not(.dark-mode) #notifications-log-modal .notif-hdr-sub {
+    color: #94a3b8 !important;
+}
+
     /* ===== DASHBOARD CARDS ===== */
     div[style*="display: grid"][style*="repeat(auto-fit, minmax(280px"] {
         grid-template-columns: 1fr !important;

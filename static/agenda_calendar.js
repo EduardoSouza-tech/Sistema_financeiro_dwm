@@ -903,8 +903,8 @@ async function viewNotificationsLog() {
                 <div style="display:flex; align-items:center; gap:14px;">
                     <div style="background:rgba(59,130,246,0.22); width:46px; height:46px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; border:1px solid rgba(59,130,246,0.3); flex-shrink:0;">📬</div>
                     <div>
-                        <div style="color:#f8fafc; font-size:17px; font-weight:700; line-height:1.2;">Histórico de E-mails</div>
-                        <div id="notif-log-subtitle" style="color:#94a3b8; font-size:12px; margin-top:3px;">Carregando registros...</div>
+                        <div class="notif-hdr-title" style="color:#f8fafc; font-size:17px; font-weight:700; line-height:1.2;">Histórico de E-mails</div>
+                        <div id="notif-log-subtitle" class="notif-hdr-sub" style="color:#94a3b8; font-size:12px; margin-top:3px;">Carregando registros...</div>
                     </div>
                 </div>
                 <button onclick="closeModal('notifications-log-modal')" style="
