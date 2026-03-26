@@ -1143,6 +1143,19 @@ class DatabaseManager:
                     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='fornecedores' AND column_name='im') THEN
                         ALTER TABLE fornecedores ADD COLUMN im VARCHAR(30);
                     END IF;
+                    -- tipo_documento: distingue CPF (pessoa física) de CNPJ (pessoa jurídica)
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clientes' AND column_name='tipo_documento') THEN
+                        ALTER TABLE clientes ADD COLUMN tipo_documento VARCHAR(4) DEFAULT 'cnpj';
+                        UPDATE clientes SET tipo_documento = 'cpf'
+                            WHERE cpf_cnpj IS NOT NULL
+                              AND regexp_replace(cpf_cnpj, '[^0-9]', '', 'g') ~ '^[0-9]{11}$';
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='fornecedores' AND column_name='tipo_documento') THEN
+                        ALTER TABLE fornecedores ADD COLUMN tipo_documento VARCHAR(4) DEFAULT 'cnpj';
+                        UPDATE fornecedores SET tipo_documento = 'cpf'
+                            WHERE cpf_cnpj IS NOT NULL
+                              AND regexp_replace(cpf_cnpj, '[^0-9]', '', 'g') ~ '^[0-9]{11}$';
+                    END IF;
                 END $$;
             """)
             print("✓ Migração: Colunas de cadastro empresarial em clientes/fornecedores verificadas")
@@ -2637,6 +2650,7 @@ class DatabaseManager:
             nome_fantasia = cliente_data.get('nome_fantasia')
             ie = cliente_data.get('ie')
             im = cliente_data.get('im')
+            tipo_documento = cliente_data.get('tipo_documento', 'cnpj')
         else:
             nome = cliente_data
             email = email
@@ -2647,6 +2661,7 @@ class DatabaseManager:
             nome_fantasia = None
             ie = None
             im = None
+            tipo_documento = 'cnpj'
         
         # Montar endereço completo no campo TEXT se tiver campos estruturados
         if cep or logradouro or numero:
@@ -2688,12 +2703,12 @@ class DatabaseManager:
         cursor.execute("""
             INSERT INTO clientes (nome, cpf_cnpj, email, telefone, endereco, empresa_id, proprietario_id,
                                   razao_social, nome_fantasia, cidade, estado, cep, logradouro,
-                                  numero, complemento, bairro, ie, im)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                  numero, complemento, bairro, ie, im, tipo_documento)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (nome, cpf_cnpj, email, telefone, endereco, empresa_id, proprietario_id,
               razao_social, nome_fantasia, cidade, estado, cep, logradouro,
-              numero, complemento, bairro, ie, im))
+              numero, complemento, bairro, ie, im, tipo_documento))
         
         cliente_id = cursor.fetchone()['id']
         conn.commit()
@@ -2776,7 +2791,7 @@ class DatabaseManager:
             SET nome = %s, cpf_cnpj = %s, email = %s, telefone = %s, endereco = %s,
                 razao_social = %s, nome_fantasia = %s, cidade = %s, estado = %s,
                 cep = %s, logradouro = %s, numero = %s, complemento = %s, bairro = %s,
-                ie = %s, im = %s
+                ie = %s, im = %s, tipo_documento = %s
             WHERE UPPER(TRIM(nome)) = %s
         """, (
             dados.get('nome'),
@@ -2795,6 +2810,7 @@ class DatabaseManager:
             dados.get('bairro'),
             dados.get('ie'),
             dados.get('im'),
+            dados.get('tipo_documento', 'cnpj'),
             nome_normalizado
         ))
         
@@ -2965,6 +2981,7 @@ class DatabaseManager:
             nome_fantasia = fornecedor_data.get('nome_fantasia')
             ie = fornecedor_data.get('ie')
             im = fornecedor_data.get('im')
+            tipo_documento = fornecedor_data.get('tipo_documento', 'cnpj')
         else:
             nome = fornecedor_data
             empresa_id = None
@@ -2972,6 +2989,7 @@ class DatabaseManager:
             nome_fantasia = None
             ie = None
             im = None
+            tipo_documento = 'cnpj'
         
         # Montar endereço completo no campo TEXT se tiver campos estruturados
         if cep or logradouro or numero:
@@ -3014,12 +3032,12 @@ class DatabaseManager:
             cursor.execute("""
                 INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco, empresa_id,
                                           razao_social, nome_fantasia, cidade, estado, cep, logradouro,
-                                          numero, complemento, bairro, ie, im)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                          numero, complemento, bairro, ie, im, tipo_documento)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (nome, cpf_cnpj, email, telefone, endereco, empresa_id,
                   razao_social, nome_fantasia, cidade, estado, cep, logradouro,
-                  numero, complemento, bairro, ie, im))
+                  numero, complemento, bairro, ie, im, tipo_documento))
             
             fornecedor_id = cursor.fetchone()['id']
             conn.commit()
@@ -3129,7 +3147,7 @@ class DatabaseManager:
             SET nome = %s, cpf_cnpj = %s, email = %s, telefone = %s, endereco = %s,
                 razao_social = %s, nome_fantasia = %s, cidade = %s, estado = %s,
                 cep = %s, logradouro = %s, numero = %s, complemento = %s, bairro = %s,
-                ie = %s, im = %s
+                ie = %s, im = %s, tipo_documento = %s
             WHERE UPPER(TRIM(nome)) = %s
         """, (
             dados.get('nome'),
@@ -3148,6 +3166,7 @@ class DatabaseManager:
             dados.get('bairro'),
             dados.get('ie'),
             dados.get('im'),
+            dados.get('tipo_documento', 'cnpj'),
             nome_normalizado
         ))
         

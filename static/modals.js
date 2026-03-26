@@ -1112,6 +1112,9 @@ function openModalCliente(clienteEdit = null) {
     const razaoSocial = isEdit ? (clienteEdit.razao_social || clienteEdit.nome || '') : '';
     const nomeFantasia = isEdit ? (clienteEdit.nome_fantasia || clienteEdit.nome || '') : '';
     const cnpj = isEdit ? (clienteEdit.cnpj || clienteEdit.cpf_cnpj || clienteEdit.documento || '') : '';
+    // Auto-detectar tipo de documento pelo número de dígitos se não vier do banco
+    const _tipoAutoDetect = (num) => { const n = (num || '').replace(/\D/g, ''); return n.length === 11 ? 'cpf' : 'cnpj'; };
+    const tipoDocumento = isEdit ? (clienteEdit.tipo_documento || _tipoAutoDetect(cnpj)) : 'cnpj';
     const ie = isEdit ? (clienteEdit.ie || clienteEdit.inscricao_estadual || '') : '';
     const im = isEdit ? (clienteEdit.im || clienteEdit.inscricao_municipal || '') : '';
     const cep = isEdit ? (clienteEdit.cep || '') : '';
@@ -1130,9 +1133,23 @@ function openModalCliente(clienteEdit = null) {
             <input type="hidden" id="cliente-nome-original" value="${escapeHtml(nomeOriginal)}">
             
             <div class="form-group">
-                <label>*CNPJ:</label>
-                <input type="text" id="cliente-cnpj" value="${escapeHtml(cnpj)}" required placeholder="00.000.000/0000-00" onblur="buscarDadosCNPJ()">
-                <small style="color: #7f8c8d; font-size: 11px;">Digite o CNPJ para buscar dados automaticamente</small>
+                <label>*Tipo de Documento:</label>
+                <div style="display: flex; gap: 20px; margin-top: 4px;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer;">
+                        <input type="radio" name="cliente-tipo-doc" id="cliente-tipo-cnpj" value="cnpj" ${tipoDocumento !== 'cpf' ? 'checked' : ''} onchange="onClienteTipoDocChange()">
+                        CNPJ – Pessoa Jurídica
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer;">
+                        <input type="radio" name="cliente-tipo-doc" id="cliente-tipo-cpf" value="cpf" ${tipoDocumento === 'cpf' ? 'checked' : ''} onchange="onClienteTipoDocChange()">
+                        CPF – Pessoa Física
+                    </label>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label id="cliente-doc-label">*${tipoDocumento === 'cpf' ? 'CPF' : 'CNPJ'}:</label>
+                <input type="text" id="cliente-cnpj" value="${escapeHtml(cnpj)}" required placeholder="${tipoDocumento === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00'}" onblur="clienteDocBlur()">
+                <small id="cliente-doc-hint" style="color: #7f8c8d; font-size: 11px;">${tipoDocumento === 'cpf' ? 'CPF da Pessoa Física (não confundir com CPF de funcionários)' : 'Digite o CNPJ para buscar dados automaticamente'}</small>
             </div>
             
             <div class="form-group">
@@ -1334,6 +1351,7 @@ async function salvarCliente(event) {
     // Limpar e validar CNPJ (máximo 18 caracteres)
     const cnpjRaw = document.getElementById('cliente-cnpj').value.trim();
     const cnpjLimpo = cnpjRaw.substring(0, 18); // Garantir máximo 18 caracteres
+    const tipoDocCliente = (document.querySelector('input[name="cliente-tipo-doc"]:checked') || {value: 'cnpj'}).value;
     
     const data = {
         nome: document.getElementById('cliente-razao').value.trim(),
@@ -1342,6 +1360,7 @@ async function salvarCliente(event) {
         cnpj: cnpjLimpo,
         cpf_cnpj: cnpjLimpo,
         documento: cnpjLimpo,
+        tipo_documento: tipoDocCliente,
         ie: document.getElementById('cliente-ie').value.trim(),
         im: document.getElementById('cliente-im').value.trim(),
         // 🌐 PARTE 7: Campos estruturados de endereço
@@ -1412,6 +1431,9 @@ function openModalFornecedor(fornecedorEdit = null) {
     const razaoSocial = isEdit ? (fornecedorEdit.razao_social || fornecedorEdit.nome || '') : '';
     const nomeFantasia = isEdit ? (fornecedorEdit.nome_fantasia || fornecedorEdit.nome || '') : '';
     const cnpj = isEdit ? (fornecedorEdit.cnpj || fornecedorEdit.cpf_cnpj || fornecedorEdit.documento || '') : '';
+    // Auto-detectar tipo de documento pelo número de dígitos se não vier do banco
+    const _tipoAutoDetectForn = (num) => { const n = (num || '').replace(/\D/g, ''); return n.length === 11 ? 'cpf' : 'cnpj'; };
+    const tipoDocForn = isEdit ? (fornecedorEdit.tipo_documento || _tipoAutoDetectForn(cnpj)) : 'cnpj';
     const ie = isEdit ? (fornecedorEdit.ie || fornecedorEdit.inscricao_estadual || '') : '';
     const im = isEdit ? (fornecedorEdit.im || fornecedorEdit.inscricao_municipal || '') : '';
     const cep = isEdit ? (fornecedorEdit.cep || '') : '';
@@ -1430,9 +1452,23 @@ function openModalFornecedor(fornecedorEdit = null) {
             <input type="hidden" id="fornecedor-nome-original" value="${escapeHtml(nomeOriginal)}">
             
             <div class="form-group">
-                <label>*CNPJ:</label>
-                <input type="text" id="fornecedor-cnpj" value="${escapeHtml(cnpj)}" required placeholder="00.000.000/0000-00" onblur="buscarDadosCNPJFornecedor()">
-                <small style="color: #7f8c8d; font-size: 11px;">Digite o CNPJ para buscar dados automaticamente</small>
+                <label>*Tipo de Documento:</label>
+                <div style="display: flex; gap: 20px; margin-top: 4px;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer;">
+                        <input type="radio" name="fornecedor-tipo-doc" id="fornecedor-tipo-cnpj" value="cnpj" ${tipoDocForn !== 'cpf' ? 'checked' : ''} onchange="onFornecedorTipoDocChange()">
+                        CNPJ – Pessoa Jurídica
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer;">
+                        <input type="radio" name="fornecedor-tipo-doc" id="fornecedor-tipo-cpf" value="cpf" ${tipoDocForn === 'cpf' ? 'checked' : ''} onchange="onFornecedorTipoDocChange()">
+                        CPF – Pessoa Física
+                    </label>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label id="fornecedor-doc-label">*${tipoDocForn === 'cpf' ? 'CPF' : 'CNPJ'}:</label>
+                <input type="text" id="fornecedor-cnpj" value="${escapeHtml(cnpj)}" required placeholder="${tipoDocForn === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00'}" onblur="fornecedorDocBlur()">
+                <small id="fornecedor-doc-hint" style="color: #7f8c8d; font-size: 11px;">${tipoDocForn === 'cpf' ? 'CPF da Pessoa Física (não confundir com CPF de funcionários)' : 'Digite o CNPJ para buscar dados automaticamente'}</small>
             </div>
             
             <div class="form-group">
@@ -1589,6 +1625,7 @@ async function salvarFornecedor(event) {
     // Limpar e validar CNPJ (máximo 18 caracteres)
     const cnpjRaw = document.getElementById('fornecedor-cnpj').value.trim();
     const cnpjLimpo = cnpjRaw.substring(0, 18); // Garantir máximo 18 caracteres
+    const tipoDocFornecedor = (document.querySelector('input[name="fornecedor-tipo-doc"]:checked') || {value: 'cnpj'}).value;
     
     const data = {
         nome: document.getElementById('fornecedor-razao').value.trim(),
@@ -1597,6 +1634,7 @@ async function salvarFornecedor(event) {
         cnpj: cnpjLimpo,
         ie: document.getElementById('fornecedor-ie').value.trim(),
         im: document.getElementById('fornecedor-im').value.trim(),
+        tipo_documento: tipoDocFornecedor,
         cep: document.getElementById('fornecedor-cep').value.trim(),
         rua: document.getElementById('fornecedor-rua').value.trim(),
         numero: document.getElementById('fornecedor-numero').value.trim(),
@@ -1987,6 +2025,50 @@ function _cnpjRemoverLoading() {
     if (bd) bd.remove();
 }
 
+// === HELPERS DE TIPO DE DOCUMENTO ===
+
+function onClienteTipoDocChange() {
+    const tipo = (document.querySelector('input[name="cliente-tipo-doc"]:checked') || {value: 'cnpj'}).value;
+    const label = document.getElementById('cliente-doc-label');
+    const input = document.getElementById('cliente-cnpj');
+    const hint  = document.getElementById('cliente-doc-hint');
+    if (tipo === 'cpf') {
+        if (label) label.textContent = '*CPF:';
+        if (input) { input.placeholder = '000.000.000-00'; input.value = ''; }
+        if (hint)  hint.textContent = 'CPF da Pessoa Física (não confundir com CPF de funcionários)';
+    } else {
+        if (label) label.textContent = '*CNPJ:';
+        if (input) { input.placeholder = '00.000.000/0000-00'; input.value = ''; }
+        if (hint)  hint.textContent = 'Digite o CNPJ para buscar dados automaticamente';
+    }
+}
+
+function clienteDocBlur() {
+    const tipo = (document.querySelector('input[name="cliente-tipo-doc"]:checked') || {value: 'cnpj'}).value;
+    if (tipo === 'cnpj') buscarDadosCNPJ();
+}
+
+function onFornecedorTipoDocChange() {
+    const tipo = (document.querySelector('input[name="fornecedor-tipo-doc"]:checked') || {value: 'cnpj'}).value;
+    const label = document.getElementById('fornecedor-doc-label');
+    const input = document.getElementById('fornecedor-cnpj');
+    const hint  = document.getElementById('fornecedor-doc-hint');
+    if (tipo === 'cpf') {
+        if (label) label.textContent = '*CPF:';
+        if (input) { input.placeholder = '000.000.000-00'; input.value = ''; }
+        if (hint)  hint.textContent = 'CPF da Pessoa Física (não confundir com CPF de funcionários)';
+    } else {
+        if (label) label.textContent = '*CNPJ:';
+        if (input) { input.placeholder = '00.000.000/0000-00'; input.value = ''; }
+        if (hint)  hint.textContent = 'Digite o CNPJ para buscar dados automaticamente';
+    }
+}
+
+function fornecedorDocBlur() {
+    const tipo = (document.querySelector('input[name="fornecedor-tipo-doc"]:checked') || {value: 'cnpj'}).value;
+    if (tipo === 'cnpj') buscarDadosCNPJFornecedor();
+}
+
 async function buscarDadosCNPJ() {
     const cnpjInput = document.getElementById('cliente-cnpj');
     if (!cnpjInput) return;
@@ -2072,6 +2154,10 @@ window.closeModalTransferencia = closeModalTransferencia;
 window.salvarTransferencia = salvarTransferencia;
 window.buscarDadosCNPJ = buscarDadosCNPJ;
 window.buscarDadosCNPJFornecedor = buscarDadosCNPJFornecedor;
+window.onClienteTipoDocChange = onClienteTipoDocChange;
+window.clienteDocBlur = clienteDocBlur;
+window.onFornecedorTipoDocChange = onFornecedorTipoDocChange;
+window.fornecedorDocBlur = fornecedorDocBlur;
 
 // ============================================================================
 // MODAL CONTRATO

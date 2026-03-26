@@ -1698,6 +1698,17 @@ function formatCpfCnpj(doc) {
     return doc;
 }
 
+function formatDocComBadge(doc, tipo) {
+    if (!doc) return '-';
+    const d = doc.replace(/\D/g, '');
+    const tipoDetectado = tipo || (d.length === 11 ? 'cpf' : 'cnpj');
+    const formatted = tipoDetectado === 'cpf'
+        ? (d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : doc)
+        : (d.length === 14 ? d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5') : doc);
+    const badgeColor = tipoDetectado === 'cpf' ? '#3498db' : '#27ae60';
+    return `<span style="background:${badgeColor};color:white;font-size:10px;padding:1px 6px;border-radius:3px;margin-right:4px;font-weight:bold;">${tipoDetectado.toUpperCase()}</span>${formatted}`;
+}
+
 async function loadClientes(ativos = true) {
     console.log('📋 Carregando clientes...', ativos ? 'Ativos' : 'Inativos');
     
@@ -1755,7 +1766,7 @@ async function loadClientes(ativos = true) {
             tr.innerHTML = `
                 <td>${escapeHtml(cliente.razao_social || cliente.nome || '-')}</td>
                 <td>${escapeHtml(cliente.nome_fantasia || '-')}</td>
-                <td>${formatCpfCnpj(cliente.cpf_cnpj)}</td>
+                <td>${formatDocComBadge(cliente.cpf_cnpj, cliente.tipo_documento)}</td>
                 <td>${escapeHtml(cliente.cidade || '-')}</td>
                 <td>${escapeHtml(cliente.telefone || '-')}</td>
                 ${dataInativacaoCell}
@@ -6346,7 +6357,7 @@ async function loadFornecedores(ativos = true) {
             tr.innerHTML = `
                 <td>${escapeHtml(forn.razao_social || forn.nome || '-')}</td>
                 <td>${escapeHtml(forn.nome_fantasia || '-')}</td>
-                <td>${formatCpfCnpj(forn.cpf_cnpj)}</td>
+                <td>${formatDocComBadge(forn.cpf_cnpj, forn.tipo_documento)}</td>
                 <td>${escapeHtml(forn.cidade || '-')}</td>
                 <td>${escapeHtml(forn.telefone || '-')}</td>
                 ${dataInativacaoCell}
