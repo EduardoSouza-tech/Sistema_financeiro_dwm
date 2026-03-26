@@ -582,6 +582,23 @@ function openEmailSettings() {
                 <!-- Seção 3: Google Calendar -->
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                     <h4 style="margin: 0 0 10px 0; color: #2c3e50;">🗓️ Google Calendar</h4>
+                    
+                    <!-- Instruções de configuração -->
+                    <div style="background: #e8f4fd; border-left: 4px solid #4285F4; border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+                        <p style="font-weight: 700; color: #1a237e; margin: 0 0 8px 0;">📋 Como configurar:</p>
+                        <p style="font-size: 12px; color: #333; margin: 0 0 6px 0;"><strong>Requisitos:</strong> Ter uma conta Google e habilitar integração com o Google Agenda em sua conta.</p>
+                        <ol style="font-size: 12px; color: #333; margin: 8px 0 8px 16px; padding: 0; line-height: 1.8;">
+                            <li>Acesse o link: <a href="https://developers.google.com/workspace/guides/create-project" target="_blank" rel="noopener noreferrer" style="color: #1565C0;">developers.google.com/workspace/guides/create-project</a></li>
+                            <li>Crie um projeto. Após isso, habilite <strong>API e serviços</strong> deste projeto.</li>
+                            <li>Ao habilitar API e serviços, busque por <strong>Google Calendar API</strong>.</li>
+                            <li>Ao habilitar a Google Calendar API, clique em <strong>"Criar credenciais"</strong> para gerar os arquivos necessários.</li>
+                            <li>Preencha as informações conforme solicitado.</li>
+                            <li><strong>IMPORTANTE:</strong> não esqueça de permitir que estas credenciais acessem: <a href="https://app.conectaGestor.com.br/google-agenda/token" target="_blank" rel="noopener noreferrer" style="color: #1565C0;">app.conectaGestor.com.br/google-agenda/token</a></li>
+                            <li>Clique em baixar as credenciais geradas. Após baixar, clique em <strong>"Concluir"</strong>.</li>
+                            <li>Envie o arquivo baixado através do formulário abaixo.</li>
+                        </ol>
+                    </div>
+                    
                     <div class="form-group">
                         <label style="display: flex; align-items: center; gap: 10px;">
                             <input type="checkbox" id="google-calendar-enabled" 
