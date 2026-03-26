@@ -2587,7 +2587,7 @@
 
                 <!-- Filtros e Busca -->
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-                    <input type="text" id="busca-funcionario" placeholder="🔍 Buscar por nome, CPF ou email..." 
+                    <input type="text" id="busca-funcionario" placeholder="🔍 Buscar por nome, CPF, e-mail, celular, profissão, endereço, CEP, Chave PIX, PIS/PASEP..." 
                            style="flex: 1; min-width: 300px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"
                            onkeyup="filtrarFuncionariosRH()">
                     
@@ -9951,68 +9951,54 @@
         }
 
         function filtrarFuncionariosRH() {
-            console.log('🔍🔍 filtrarFuncionariosRH chamada');
-            const busca = document.getElementById('busca-funcionario')?.value.toLowerCase() || '';
+            const busca = (document.getElementById('busca-funcionario')?.value || '').toLowerCase().trim();
             const status = document.getElementById('filtro-status-funcionario')?.value || '';
-            
-            console.log('   Busca:', busca);
-            console.log('   Status:', status);
-            console.log('   Total funcionários:', funcionariosGlobal.length);
-            
+
             let filtered = [...funcionariosGlobal];
-            
-            // Filtro de busca (nome, CPF, email, celular, profissão, endereço)
+
             if (busca) {
-                console.log('   🔍 Aplicando filtro de busca...');
-                let primeiroMatch = true;
+                const buscaDigitos = busca.replace(/\D/g, '');
                 filtered = filtered.filter(f => {
-                    const nome = (f.nome || '').toLowerCase();
-                    const cpf = (f.cpf || '').replace(/\D/g, '');
-                    const email = (f.email || '').toLowerCase();
-                    const celular = (f.celular || '').replace(/\D/g, '');
-                    const profissao = (f.profissao || '').toLowerCase();
-                    const cidade = (f.cidade || '').toLowerCase();
-                    const estado = (f.estado || '').toLowerCase();
-                    const buscaSemFormatacao = busca.replace(/\D/g, '');
-                    
-                    const nomeMatch = nome.includes(busca);
-                    const cpfMatch = cpf.includes(buscaSemFormatacao);
-                    const emailMatch = email.includes(busca);
-                    const celularMatch = celular.includes(buscaSemFormatacao);
-                    const profissaoMatch = profissao.includes(busca);
-                    const cidadeMatch = cidade.includes(busca);
-                    const estadoMatch = estado.includes(busca);
-                    
-                    const match = nomeMatch || cpfMatch || emailMatch || celularMatch || profissaoMatch || cidadeMatch || estadoMatch;
-                    
-                    // Debug detalhado do primeiro match
-                    if (match && primeiroMatch) {
-                        console.log('   ✅ Primeiro match:', nome);
-                        console.log('      - Nome:', nomeMatch, '(', nome, ')');
-                        console.log('      - CPF:', cpfMatch, '(', cpf, ')');
-                        console.log('      - Email:', emailMatch, '(', email, ')');
-                        console.log('      - Celular:', celularMatch, '(', celular, ')');
-                        console.log('      - Profissão:', profissaoMatch, '(', profissao, ')');
-                        console.log('      - Cidade:', cidadeMatch, '(', cidade, ')');
-                        console.log('      - Estado:', estadoMatch, '(', estado, ')');
-                        primeiroMatch = false;
+                    // Campos de texto direto
+                    if ((f.nome              || '').toLowerCase().includes(busca))  return true;
+                    if ((f.email             || '').toLowerCase().includes(busca))  return true;
+                    if ((f.profissao         || '').toLowerCase().includes(busca))  return true;
+                    if ((f.nacionalidade     || '').toLowerCase().includes(busca))  return true;
+                    if ((f.estado_civil      || '').toLowerCase().includes(busca))  return true;
+                    if ((f.rua_av            || '').toLowerCase().includes(busca))  return true;
+                    if ((f.complemento       || '').toLowerCase().includes(busca))  return true;
+                    if ((f.bairro            || '').toLowerCase().includes(busca))  return true;
+                    if ((f.cidade            || '').toLowerCase().includes(busca))  return true;
+                    if ((f.estado            || '').toLowerCase().includes(busca))  return true;
+                    if ((f.chave_pix         || '').toLowerCase().includes(busca))  return true;
+                    if ((f.pis_pasep         || '').toLowerCase().includes(busca))  return true;
+                    // Status (ativo/inativo)
+                    const statusTxt = f.ativo ? 'ativo' : 'inativo';
+                    if (statusTxt.includes(busca)) return true;
+                    // Data de nascimento (aceita busca por dd/mm/aaaa ou partes)
+                    if (f.data_nascimento) {
+                        const dataFmt = new Date(f.data_nascimento + 'T00:00:00').toLocaleDateString('pt-BR');
+                        if (dataFmt.includes(busca)) return true;
                     }
-                    
-                    return match;
+                    // Número da residência
+                    if ((String(f.numero_residencia || '')).toLowerCase().includes(busca)) return true;
+                    // Campos numéricos (CPF, celular, CEP, PIS/PASEP, chave PIX): comparar só dígitos se busca tiver dígitos
+                    if (buscaDigitos) {
+                        if ((f.cpf      || '').replace(/\D/g, '').includes(buscaDigitos)) return true;
+                        if ((f.celular  || '').replace(/\D/g, '').includes(buscaDigitos)) return true;
+                        if ((f.cep      || '').replace(/\D/g, '').includes(buscaDigitos)) return true;
+                        if ((f.pis_pasep|| '').replace(/\D/g, '').includes(buscaDigitos)) return true;
+                    }
+                    return false;
                 });
-                console.log('   📊 Após filtro de busca:', filtered.length);
             }
-            
-            // Filtro de status
+
+            // Filtro de status via dropdown
             if (status !== '') {
                 const isAtivo = status === 'true';
                 filtered = filtered.filter(f => f.ativo === isAtivo);
             }
-            
-            console.log('   Filtrados:', filtered.length);
-            if (filtered.length > 0 && filtered.length < 10) {
-                console.log('   📋 Funcionários filtrados:', filtered.map(f => f.nome).join(', '));
-            }
+
             renderFuncionarios(filtered);
         }
 
