@@ -1133,7 +1133,7 @@ function openModalCliente(clienteEdit = null) {
             <input type="hidden" id="cliente-nome-original" value="${escapeHtml(nomeOriginal)}">
             
             <div class="form-group">
-                <label>*Tipo de Documento:</label>
+                <label>*CNPJ / CPF:</label>
                 <div style="display: flex; gap: 20px; margin-top: 4px;">
                     <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer;">
                         <input type="radio" name="cliente-tipo-doc" id="cliente-tipo-cnpj" value="cnpj" ${tipoDocumento !== 'cpf' ? 'checked' : ''} onchange="onClienteTipoDocChange()">
@@ -1452,7 +1452,7 @@ function openModalFornecedor(fornecedorEdit = null) {
             <input type="hidden" id="fornecedor-nome-original" value="${escapeHtml(nomeOriginal)}">
             
             <div class="form-group">
-                <label>*Tipo de Documento:</label>
+                <label>*CNPJ / CPF:</label>
                 <div style="display: flex; gap: 20px; margin-top: 4px;">
                     <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer;">
                         <input type="radio" name="fornecedor-tipo-doc" id="fornecedor-tipo-cnpj" value="cnpj" ${tipoDocForn !== 'cpf' ? 'checked' : ''} onchange="onFornecedorTipoDocChange()">
