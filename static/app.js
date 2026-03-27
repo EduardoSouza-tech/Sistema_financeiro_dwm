@@ -3852,7 +3852,7 @@ async function importarExtrato() {
         
         const result = await response.json();
         
-        // 🔒 Tratamento especial para conflito de período (409)
+        // 🔒 Tratamento especial para conflito de período (409) — mantido por compatibilidade
         if (response.status === 409 && result.details) {
             const details = result.details;
             showToast(
@@ -3869,12 +3869,40 @@ async function importarExtrato() {
         
         if (!response.ok) throw new Error(result.error || 'Erro ao importar extrato');
         
-        showToast(
-            `✅ Importação concluída!\n` +
-            `✔️ ${result.transacoes_importadas || result.inseridas || 0} transações inseridas\n` +
-            `⚠️ ${result.transacoes_duplicadas || result.duplicadas || 0} transações duplicadas (ignoradas)`,
-            'success'
-        );
+        const inseridas = result.transacoes_importadas || result.inseridas || 0;
+        const ignoradas = result.transacoes_duplicadas || result.duplicadas || 0;
+        const ignoradasInfo = result.ignoradas_info;
+
+        if (inseridas === 0 && ignoradas > 0) {
+            // Todas as transações já existiam — arquivo já importado antes
+            const periodo = ignoradasInfo
+                ? ` (${ignoradasInfo.data_inicio} até ${ignoradasInfo.data_fim})`
+                : '';
+            showToast(
+                `ℹ️ Nenhuma transação nova importada.\n` +
+                `⚠️ ${ignoradas} transação(ões) ignorada(s) — já existiam no extrato${periodo}.`,
+                'warning',
+                8000
+            );
+        } else if (inseridas > 0 && ignoradas > 0) {
+            // Importação parcial: algumas novas, outras já existiam
+            const periodo = ignoradasInfo
+                ? ` (${ignoradasInfo.data_inicio} até ${ignoradasInfo.data_fim})`
+                : '';
+            showToast(
+                `✅ ${inseridas} transação(ões) importada(s) com sucesso!\n` +
+                `⚠️ ${ignoradas} transação(ões) ignorada(s) — período${periodo} já estava importado.`,
+                'success',
+                8000
+            );
+        } else {
+            // Importação limpa — nenhuma duplicata
+            showToast(
+                `✅ Importação concluída!\n` +
+                `✔️ ${inseridas} transações importadas`,
+                'success'
+            );
+        }
         
         // Limpar inputs
         fileInput.value = '';

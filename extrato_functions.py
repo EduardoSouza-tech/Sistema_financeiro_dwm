@@ -24,7 +24,7 @@ def salvar_transacoes_extrato(database, empresa_id, conta_bancaria, transacoes, 
         importacao_id: ID unico da importacao (para rastrear)
     
     Returns:
-        dict: {'success': bool, 'inseridas': int, 'duplicadas': int}
+        dict: {'success': bool, 'inseridas': int, 'duplicadas': int, 'ignoradas_datas': list}
     """
     try:
         if not importacao_id:
@@ -32,6 +32,7 @@ def salvar_transacoes_extrato(database, empresa_id, conta_bancaria, transacoes, 
         
         inseridas = 0
         duplicadas = 0
+        ignoradas_datas = []  # lista de datas das transações ignoradas por já existirem
         
         # 🔒 Passar empresa_id para RLS
         with database.get_db_connection(empresa_id=empresa_id) as conn:
@@ -50,6 +51,10 @@ def salvar_transacoes_extrato(database, empresa_id, conta_bancaria, transacoes, 
                     
                     if cursor.fetchone():
                         duplicadas += 1
+                        # Registrar a data desta transação ignorada
+                        data_ignorada = trans.get('data')
+                        if data_ignorada and data_ignorada not in ignoradas_datas:
+                            ignoradas_datas.append(data_ignorada)
                         continue
                 
                 # Inserir transacao
@@ -76,12 +81,25 @@ def salvar_transacoes_extrato(database, empresa_id, conta_bancaria, transacoes, 
             conn.commit()
             cursor.close()
             
-            log(f"Extrato importado: {inseridas} novas, {duplicadas} duplicadas")
+            # Calcular intervalo de datas ignoradas para exibição amigável
+            ignoradas_datas_sorted = sorted(ignoradas_datas) if ignoradas_datas else []
+            ignoradas_info = None
+            if ignoradas_datas_sorted:
+                data_ini = ignoradas_datas_sorted[0]
+                data_fim = ignoradas_datas_sorted[-1]
+                ignoradas_info = {
+                    'data_inicio': data_ini.strftime('%d/%m/%Y') if hasattr(data_ini, 'strftime') else str(data_ini),
+                    'data_fim': data_fim.strftime('%d/%m/%Y') if hasattr(data_fim, 'strftime') else str(data_fim),
+                    'total_datas': len(ignoradas_datas_sorted)
+                }
+
+            log(f"Extrato importado: {inseridas} novas, {duplicadas} duplicadas ignoradas")
             return {
                 'success': True,
                 'inseridas': inseridas,
                 'duplicadas': duplicadas,
-                'importacao_id': importacao_id
+                'importacao_id': importacao_id,
+                'ignoradas_info': ignoradas_info
             }
         
     except Exception as e:

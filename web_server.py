@@ -4604,120 +4604,7 @@ def upload_extrato_ofx():
         except Exception as e:
             return jsonify({'success': False, 'error': f'Erro ao processar OFX: {str(e)}'}), 400
         
-        # ?? VALIDA��O: Verificar se j� existe importa��o no per�odo (ANTES de processar)
-        try:
-            for account in ofx.accounts:
-                # Extrair per�odo do OFX (ignorar timezone para evitar bugs)
-                start_date_ofx = account.statement.start_date
-                end_date_ofx = account.statement.end_date
-                
-                # Converter para date (ignorar timezone)
-                if hasattr(start_date_ofx, 'year'):
-                    periodo_inicio = date(start_date_ofx.year, start_date_ofx.month, start_date_ofx.day)
-                elif hasattr(start_date_ofx, 'date'):
-                    periodo_inicio = start_date_ofx.date()
-                else:
-                    periodo_inicio = start_date_ofx
-                
-                if hasattr(end_date_ofx, 'year'):
-                    periodo_fim = date(end_date_ofx.year, end_date_ofx.month, end_date_ofx.day)
-                elif hasattr(end_date_ofx, 'date'):
-                    periodo_fim = end_date_ofx.date()
-                else:
-                    periodo_fim = end_date_ofx
-                
-                print(f"\n?? VALIDANDO PER�ODO: {periodo_inicio} at� {periodo_fim}")
-                
-                # Consultar per�odos j� importados para esta conta/empresa
-                with db.get_connection() as conn:
-                    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-                    
-                    # ?? DIAGN�STICO: Contar transa��es �rf�s (sem importacao_id)
-                    cursor.execute("""
-                        SELECT COUNT(*) as total_orfas
-                        FROM transacoes_extrato
-                        WHERE empresa_id = %s 
-                        AND conta_bancaria = %s 
-                        AND (importacao_id IS NULL OR importacao_id = '')
-                    """, (empresa_id, conta_bancaria))
-                    
-                    resultado_orfas = cursor.fetchone()
-                    total_orfas = resultado_orfas['total_orfas'] if resultado_orfas else 0
-                    
-                    if total_orfas > 0:
-                        print(f"?? ATEN��O: {total_orfas} transa��es �rf�s detectadas (sem importacao_id)")
-                        logger.warning(f"Conta {conta_bancaria}: {total_orfas} transa��es sem importacao_id")
-                    
-                    # Buscar apenas importa��es v�lidas (com importacao_id preenchido)
-                    cursor.execute("""
-                        SELECT 
-                            importacao_id,
-                            MIN(data) as inicio,
-                            MAX(data) as fim,
-                            COUNT(*) as qtd_transacoes
-                        FROM transacoes_extrato
-                        WHERE empresa_id = %s 
-                        AND conta_bancaria = %s
-                        AND importacao_id IS NOT NULL 
-                        AND importacao_id != ''
-                        GROUP BY importacao_id
-                        HAVING COUNT(*) > 0
-                        ORDER BY MAX(data) DESC
-                    """, (empresa_id, conta_bancaria))
-                    
-                    periodos_existentes = cursor.fetchall()
-                    
-                    print(f"?? Total de importa��es encontradas: {len(periodos_existentes)}")
-                    for i, p in enumerate(periodos_existentes, 1):
-                        print(f"   [{i}] ID: {p['importacao_id'][:8]}... | {p['inicio']} a {p['fim']} ({p['qtd_transacoes']} transa��es)")
-                    
-                    cursor.close()
-                
-                # Verificar sobreposi��o com cada per�odo existente
-                for periodo_existente in periodos_existentes:
-                    inicio_existente = periodo_existente['inicio']
-                    fim_existente = periodo_existente['fim']
-                    importacao_id_existente = periodo_existente['importacao_id']
-                    
-                    # L�gica de sobreposi��o: novo_inicio <= existente_fim AND novo_fim >= existente_inicio
-                    if periodo_inicio <= fim_existente and periodo_fim >= inicio_existente:
-                        print(f"? SOBREPOSI��O DETECTADA!")
-                        print(f"   Per�odo tentando importar: {periodo_inicio} at� {periodo_fim}")
-                        print(f"   Per�odo j� existente (ID {importacao_id_existente[:8]}...): {inicio_existente} at� {fim_existente}")
-                        
-                        # Mensagem detalhada para o usu�rio
-                        erro_msg = f'? J� existe uma importa��o no per�odo de {inicio_existente.strftime("%d/%m/%Y")} at� {fim_existente.strftime("%d/%m/%Y")}'
-                        
-                        if total_orfas > 0:
-                            erro_msg = f'?? ATEN��O: {total_orfas} transa��o(�es) �rf�(s) detectada(s) sem ID de importa��o! Exclua manualmente na tela de Extrato Banc�rio antes de reimportar.'
-                        
-                        return jsonify({
-                            'success': False,
-                            'error': erro_msg,
-                            'details': {
-                                'periodo_tentado': {
-                                    'inicio': periodo_inicio.strftime('%d/%m/%Y'),
-                                    'fim': periodo_fim.strftime('%d/%m/%Y')
-                                },
-                                'periodo_existente': {
-                                    'importacao_id': importacao_id_existente,
-                                    'inicio': inicio_existente.strftime('%d/%m/%Y'),
-                                    'fim': fim_existente.strftime('%d/%m/%Y'),
-                                    'transacoes': periodo_existente['qtd_transacoes']
-                                },
-                                'transacoes_orfas': total_orfas,
-                                'mensagem': 'Use o bot�o "Deletar Extrato" na tela de Extrato Banc�rio (filtrar por per�odo e clicar em "Deletar Extrato").',
-                                'solucao': f'DELETE FROM transacoes_extrato WHERE importacao_id = \'{importacao_id_existente}\' AND empresa_id = {empresa_id};'
-                            }
-                        }), 409  # 409 Conflict
-                
-                print(f"? Per�odo v�lido, sem sobreposi��o com importa��es existentes")
-        
-        except Exception as e:
-            logger.error(f"Erro na valida��o de per�odo: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'success': False, 'error': f'Erro ao validar per�odo: {str(e)}'}), 500
+        print(f"\n?? Importando OFX: deduplicacao por FITID ativa - transacoes ja existentes serao ignoradas")
         
         # Extrair transacoes
         transacoes = []
@@ -4913,13 +4800,28 @@ def upload_extrato_ofx():
         )
         
         if resultado['success']:
+            inseridas = resultado.get('inseridas', 0)
+            duplicadas = resultado.get('duplicadas', 0)
+            ignoradas_info = resultado.get('ignoradas_info')  # {data_inicio, data_fim, total_datas} ou None
+
+            # Montar mensagem de alerta quando houver transações ignoradas
+            aviso_ignoradas = None
+            if duplicadas > 0 and ignoradas_info:
+                aviso_ignoradas = (
+                    f"{duplicadas} transa\u00e7\u00e3o(oes) ignorada(s) \u2014 "
+                    f"j\u00e1 importadas de {ignoradas_info['data_inicio']} "
+                    f"a\u0301 {ignoradas_info['data_fim']}"
+                )
+
             # Formatar resposta para o frontend
             return jsonify({
                 'success': True,
                 'message': 'Extrato importado com sucesso',
-                'transacoes_importadas': resultado.get('inseridas', 0),
-                'transacoes_duplicadas': resultado.get('duplicadas', 0),
-                'importacao_id': resultado.get('importacao_id')
+                'transacoes_importadas': inseridas,
+                'transacoes_duplicadas': duplicadas,
+                'importacao_id': resultado.get('importacao_id'),
+                'aviso_ignoradas': aviso_ignoradas,
+                'ignoradas_info': ignoradas_info
             }), 200
         else:
             return jsonify(resultado), 400
