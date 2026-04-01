@@ -137,8 +137,7 @@ body {
     box-shadow: 2px 0 10px rgba(0,0,0,0.1);
     position: relative;
     height: 100vh;
-    overflow-y: auto;
-    padding-bottom: 70px;
+    overflow: hidden;
 }
 
 .sidebar-header {
@@ -154,6 +153,7 @@ body {
 .sidebar-nav {
     flex: 1;
     overflow-y: auto;
+    min-height: 0;
     padding: 10px 0;
 }
 
@@ -215,6 +215,7 @@ body {
 }
 
 .sidebar-footer {
+    flex-shrink: 0;
     padding: 15px;
     background: rgba(13, 17, 23, 0.5);
     color: #95a5a6;
