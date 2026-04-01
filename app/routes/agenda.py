@@ -277,6 +277,29 @@ def google_calendar_callback():
         print(f"❌ Erro no callback: {e}")
         return redirect(url_for('index') + f'?message=google_auth_error&error={str(e)}')
 
+def _parse_horario_time(horario: str) -> str:
+    """
+    Parse horario field to HH:MM string.
+    Handles formats: '9 AS 17', '14H:00', '14H AS 17H', '9:00', '14:00', '09:00'
+    Returns: zero-padded HH:MM string, e.g. '09:00', '14:00'
+    """
+    import re
+    if not horario:
+        return '00:00'
+    # Take the first token (before first space)
+    part = horario.strip().split(' ')[0]
+    # Remove any 'H' or 'h' characters (e.g. '14H:00' -> '14:00', '14H' -> '14')
+    part = re.sub(r'[Hh]', '', part)
+    # If it has a colon, split into hour/minute and zero-pad
+    if ':' in part:
+        h, m = part.split(':', 1)
+        return f"{int(h):02d}:{m.zfill(2)}"
+    # Otherwise it's just an hour number
+    if part.isdigit():
+        return f"{int(part):02d}:00"
+    return '00:00'
+
+
 @agenda_bp.route('/google-calendar/sync', methods=['POST'])
 def google_calendar_sync():
     """Sincronizar sessões com Google Calendar"""
@@ -315,7 +338,7 @@ def google_calendar_sync():
                 session_data = {
                     'title': f"{sessao.get('cliente_nome', 'Cliente')} - Sessão",
                     'date': str(sessao.get('data', ''))[:10],
-                    'time': sessao.get('horario', '00:00').split(' ')[0] if sessao.get('horario') else '00:00',
+                    'time': _parse_horario_time(sessao.get('horario', '')),
                     'duration': int(float(sessao.get('quantidade_horas', 1)) * 60),
                     'description': sessao.get('descricao', ''),
                     'location': sessao.get('endereco', '')
