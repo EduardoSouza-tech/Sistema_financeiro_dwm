@@ -59,9 +59,10 @@ def contratos():
             
             print(f"📋 [CONTRATOS] Total de contratos: {len(contratos)}")
             
-            # Adicionar cliente_id para cada contrato
+            # Adicionar cliente_nome do join se não vier no contrato
             for contrato in contratos:
-                contrato['cliente_id'] = contrato.get('cliente')
+                if 'cliente_nome' not in contrato:
+                    contrato['cliente_nome'] = contrato.get('cliente', '')
             
             # 🔧 FIX: Adicionar empresa_id ao dict do usuario para o filtro funcionar
             usuario_com_empresa = usuario.copy()

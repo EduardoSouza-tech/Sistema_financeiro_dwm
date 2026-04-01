@@ -2981,13 +2981,20 @@ async function openModalSessao(sessaoEdit = null) {
         }).join('')
         : '<option value="">Nenhum cliente cadastrado</option>';
     
-    // Opções de contratos
-    const opcoesContratos = window.contratos && window.contratos.length > 0
-        ? window.contratos.map(c => {
+    // Opções de contratos — filtradas pelo cliente selecionado (edit) ou vazias (criação)
+    const clienteIdInicial = isEdit ? sessaoEdit.cliente_id : null;
+    const contratosFiltrados = clienteIdInicial && window.contratos
+        ? window.contratos.filter(c => c.cliente_id === clienteIdInicial || c.cliente_id === String(clienteIdInicial))
+        : [];
+    const opcoesContratos = contratosFiltrados.length > 0
+        ? contratosFiltrados.map(c => {
             const selected = isEdit && sessaoEdit.contrato_id === c.id ? 'selected' : '';
             return `<option value="${c.id}" ${selected}>${c.nome || c.numero}</option>`;
         }).join('')
-        : '<option value="">Nenhum contrato cadastrado</option>';
+        : (clienteIdInicial
+            ? '<option value="">Nenhum contrato para este cliente</option>'
+            : '<option value="">Selecione um cliente primeiro</option>');
+
     
     // Opções de funcionários
     const opcoesFuncionarios = window.funcionarios && window.funcionarios.length > 0
@@ -3013,7 +3020,7 @@ async function openModalSessao(sessaoEdit = null) {
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div class="form-group">
                     <label>*Cliente:</label>
-                    <select id="sessao-cliente" required>
+                    <select id="sessao-cliente" required onchange="_filtrarContratosSessao(this.value)">
                         <option value="">Selecione...</option>
                         ${opcoesClientes}
                     </select>
@@ -3638,6 +3645,40 @@ async function executarFinalizarSessao(sessaoId) {
         showToast('❌ Erro ao finalizar sessão: ' + error.message, 'error');
     }
 }
+
+/**
+ * Filtra o select de contratos pelo cliente selecionado no modal de sessão.
+ * Chamado via onchange do #sessao-cliente.
+ */
+function _filtrarContratosSessao(clienteId) {
+    const select = document.getElementById('sessao-contrato');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Selecione...</option>';
+
+    if (!clienteId || !window.contratos) {
+        select.innerHTML += '<option value="" disabled>Selecione um cliente primeiro</option>';
+        return;
+    }
+
+    const id = parseInt(clienteId);
+    const filtrados = window.contratos.filter(c =>
+        parseInt(c.cliente_id) === id
+    );
+
+    if (filtrados.length === 0) {
+        select.innerHTML += '<option value="" disabled>Nenhum contrato para este cliente</option>';
+        return;
+    }
+
+    filtrados.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.nome || c.numero || `Contrato #${c.id}`;
+        select.appendChild(opt);
+    });
+}
+window._filtrarContratosSessao = _filtrarContratosSessao;
 
 window.openModalSessao = openModalSessao;
 window.salvarSessao = salvarSessao;

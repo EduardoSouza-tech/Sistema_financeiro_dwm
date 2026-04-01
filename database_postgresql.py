@@ -4909,6 +4909,7 @@ def listar_contratos(empresa_id: int) -> List[Dict]:
         
         # Preservar campos importantes da tabela ANTES de mesclar com JSON
         campos_preservar = {
+            'cliente_id': contrato.get('cliente_id'),
             'descricao': contrato.get('descricao'),
             'numero': contrato.get('numero'),
             'valor': contrato.get('valor'),
