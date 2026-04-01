@@ -288,7 +288,10 @@ def create_calendar_event(session_data):
         return {'error': f'Erro ao criar evento: {error}'}
     except Exception as e:
         print(f"❌ Erro ao criar evento: {e}")
-        return {'error': str(e)}
+        err_str = str(e)
+        if 'invalid_grant' in err_str or 'Token has been expired or revoked' in err_str:
+            return {'error': 'Token do Google Calendar expirou. Reconecte nas configurações.', 'token_expired': True}
+        return {'error': err_str}
 
 def update_calendar_event(event_id, session_data):
     """
@@ -349,7 +352,10 @@ def update_calendar_event(event_id, session_data):
         return {'error': f'Erro ao atualizar evento: {error}'}
     except Exception as e:
         print(f"❌ Erro ao atualizar evento: {e}")
-        return {'error': str(e)}
+        err_str = str(e)
+        if 'invalid_grant' in err_str or 'Token has been expired or revoked' in err_str:
+            return {'error': 'Token do Google Calendar expirou. Reconecte nas configurações.', 'token_expired': True}
+        return {'error': err_str}
 
 def delete_calendar_event(event_id):
     """

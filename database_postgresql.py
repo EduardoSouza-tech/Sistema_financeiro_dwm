@@ -1663,6 +1663,19 @@ class DatabaseManager:
                 END IF;
             END $$;
         """)
+
+        # Migração: Adicionar google_event_id em sessoes
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='sessoes' AND column_name='google_event_id'
+                ) THEN
+                    ALTER TABLE sessoes ADD COLUMN google_event_id VARCHAR(255);
+                END IF;
+            END $$;
+        """)
         
         # Tabela de tipos de sessi?o - DEPRECATED (removida da interface em 2026-01-23)
         # Mantida apenas para preservar dados existentes
@@ -5260,6 +5273,26 @@ def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
     cursor.close()
     return_to_pool(conn)
     return sucesso
+
+
+def salvar_google_event_id(sessao_id: int, google_event_id: str) -> bool:
+    """Salva o google_event_id de uma sessão após sincronização com Google Calendar"""
+    db_mgr = DatabaseManager()
+    conn = db_mgr.get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE sessoes SET google_event_id = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+            (google_event_id, sessao_id)
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        print(f"⚠️ [salvar_google_event_id] Erro: {e}")
+        return False
+    finally:
+        cursor.close()
+        return_to_pool(conn)
 
 
 def finalizar_sessao(empresa_id: int, sessao_id: int, usuario_id: int, horas_trabalhadas: float = None, numero_nf: str = None) -> Dict:

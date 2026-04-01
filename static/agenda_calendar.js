@@ -474,6 +474,9 @@ async function syncGoogleCalendar() {
                 ? 'Nenhuma alteração necessária — tudo já está sincronizado.'
                 : `${criados} evento(s) criado(s), ${atualizados} atualizado(s).`;
             showNotification(`✅ Sincronização concluída! ${detalhes}`, 'success');
+            if (data.google_oauth_expired) {
+                showGoogleTokenExpiredWarning();
+            }
             if (calendar) loadCalendarEvents();
         } else if (response.status === 401) {
             showNotification('⚠️ Google Calendar não autorizado. Clique em "🔐 Autorizar Google Calendar" primeiro.', 'warning');

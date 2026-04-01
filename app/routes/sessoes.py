@@ -17,7 +17,85 @@ from auth_middleware import require_permission, filtrar_por_cliente, get_usuario
 from auth_functions import obter_permissoes_usuario_empresa
 import database_postgresql as db
 
-# Criar blueprint
+try:
+    from app.utils import google_calendar_helper as _gcal
+    _GCAL_AVAILABLE = True
+except ImportError:
+    _GCAL_AVAILABLE = False
+
+import re as _re
+
+
+def _parse_horario_time(horario: str) -> str:
+    """Converte campo horario ('9 AS 17', '14H:00') para 'HH:MM'"""
+    if not horario:
+        return '00:00'
+    part = horario.strip().split(' ')[0]
+    part = _re.sub(r'[Hh]', '', part)
+    if ':' in part:
+        h, m = part.split(':', 1)
+        return f"{int(h):02d}:{m.zfill(2)}"
+    if part.isdigit():
+        return f"{int(part):02d}:00"
+    return '00:00'
+
+
+def _sync_sessao_google(sessao_id: int, dados: dict, empresa_id: int, google_event_id: str = None) -> dict:
+    """
+    Cria ou atualiza evento no Google Calendar para a sessão.
+    Retorna dict com 'event_id', 'token_expired' ou 'error'.
+    """
+    if not _GCAL_AVAILABLE:
+        return {'skipped': True}
+    try:
+        if not _gcal.is_authorized(empresa_id=empresa_id):
+            return {'skipped': True}
+    except Exception:
+        return {'skipped': True}
+
+    # Obter cliente_nome da sessão (se disponível)
+    try:
+        sessao = db.buscar_sessao(sessao_id)
+        cliente_nome = sessao.get('cliente_nome', 'Cliente') if sessao else 'Cliente'
+        # Pegar google_event_id do banco se não foi passado
+        if not google_event_id:
+            google_event_id = sessao.get('google_event_id') if sessao else None
+    except Exception:
+        cliente_nome = 'Cliente'
+
+    session_data = {
+        'title': f"{cliente_nome} - Sessão",
+        'date': str(dados.get('data', ''))[:10],
+        'time': _parse_horario_time(dados.get('horario', '')),
+        'duration': int(float(dados.get('quantidade_horas', 1)) * 60),
+        'description': dados.get('descricao', ''),
+        'location': dados.get('endereco', ''),
+    }
+
+    try:
+        if google_event_id:
+            result = _gcal.update_calendar_event(google_event_id, session_data)
+        else:
+            result = _gcal.create_calendar_event(session_data)
+
+        if result.get('token_expired'):
+            print(f"⚠️ [Google Calendar] Token expirado para empresa {empresa_id}")
+            return {'token_expired': True}
+
+        if result.get('success') and result.get('event_id'):
+            db.salvar_google_event_id(sessao_id, result['event_id'])
+            print(f"✅ [Google Calendar] Evento {'atualizado' if google_event_id else 'criado'}: {result['event_id']}")
+            return {'event_id': result['event_id']}
+
+        if 'error' in result:
+            print(f"⚠️ [Google Calendar] Erro (não crítico): {result['error']}")
+            return {'error': result['error']}
+    except Exception as e:
+        print(f"⚠️ [Google Calendar] Exceção (não crítica): {e}")
+
+    return {}
+
+
 sessoes_bp = Blueprint('sessoes', __name__, url_prefix='/api/sessoes')
 
 
@@ -263,7 +341,17 @@ def sessoes():
             
             sessao_id = db.adicionar_sessao(dados_mapeados)
             print(f"✅ Sessão criada com ID: {sessao_id}")
-            return jsonify({'success': True, 'message': 'Sessão criada com sucesso', 'id': sessao_id}), 201
+
+            # 📅 Auto-sincronizar com Google Calendar
+            gcal = _sync_sessao_google(sessao_id, dados_mapeados, empresa_id_post)
+
+            response_data = {'success': True, 'message': 'Sessão criada com sucesso', 'id': sessao_id}
+            if gcal.get('token_expired'):
+                response_data['google_calendar_token_expired'] = True
+            elif gcal.get('event_id'):
+                response_data['google_event_id'] = gcal['event_id']
+
+            return jsonify(response_data), 201
         except Exception as e:
             print(f"❌ ERRO ao criar sessão: {e}")
             import traceback
@@ -315,7 +403,18 @@ def sessao_detalhes(sessao_id):
             success = db.atualizar_sessao(sessao_id, data)
             if success:
                 print(f"✅ Sessão {sessao_id} atualizada")
-                return jsonify({'success': True, 'message': 'Sessão atualizada com sucesso'})
+
+                # 📅 Auto-sincronizar com Google Calendar
+                empresa_id_put = session.get('empresa_id')
+                gcal = _sync_sessao_google(sessao_id, data, empresa_id_put, google_event_id=data.get('google_event_id'))
+
+                response_data = {'success': True, 'message': 'Sessão atualizada com sucesso'}
+                if gcal.get('token_expired'):
+                    response_data['google_calendar_token_expired'] = True
+                elif gcal.get('event_id'):
+                    response_data['google_event_id'] = gcal['event_id']
+
+                return jsonify(response_data)
             print(f"❌ Sessão {sessao_id} não encontrada")
             return jsonify({'success': False, 'error': 'Sessão não encontrada'}), 404
         except Exception as e:

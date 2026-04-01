@@ -3495,6 +3495,9 @@ async function salvarSessao(event) {
         
         if (result.success || response.ok) {
             showToast(isEdit ? '✅ Sessão atualizada com sucesso!' : '✅ Sessão criada com sucesso!', 'success');
+            if (result.google_calendar_token_expired) {
+                setTimeout(() => showGoogleTokenExpiredWarning(), 800);
+            }
             closeModal();
             if (typeof loadSessoes === 'function') loadSessoes();
             if (typeof refreshAgendaFotografia === 'function') refreshAgendaFotografia();

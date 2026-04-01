@@ -327,6 +327,7 @@ def google_calendar_sync():
         events_created = 0
         events_updated = 0
         errors = []
+        token_expired = False
         
         # Sincronizar cada sessão com Google Calendar
         for sessao in sessoes:
@@ -353,14 +354,21 @@ def google_calendar_sync():
                     if 'error' not in result:
                         events_updated += 1
                     else:
+                        if result.get('token_expired'):
+                            token_expired = True
                         errors.append(f"Sessão {sessao.get('id')}: {result['error']}")
                 else:
                     # Criar novo evento
                     result = google_calendar_helper.create_calendar_event(session_data)
                     if 'error' not in result:
                         events_created += 1
-                        # TODO: Salvar google_event_id no banco para futuras atualizações
+                        # Salvar google_event_id no banco
+                        if result.get('event_id'):
+                            import database_postgresql as _db
+                            _db.salvar_google_event_id(sessao.get('id'), result['event_id'])
                     else:
+                        if result.get('token_expired'):
+                            token_expired = True
                         errors.append(f"Sessão {sessao.get('id')}: {result['error']}")
             except Exception as e:
                 errors.append(f"Sessão {sessao.get('id')}: {str(e)}")
@@ -370,7 +378,8 @@ def google_calendar_sync():
             'message': f'Sincronização concluída: {events_created} criados, {events_updated} atualizados',
             'events_created': events_created,
             'events_updated': events_updated,
-            'errors': errors[:5] if errors else []  # Limitar a 5 erros para não sobrecarregar resposta
+            'errors': errors[:5] if errors else [],
+            'google_oauth_expired': token_expired
         })
     except Exception as e:
         print(f"❌ Erro ao sincronizar: {e}")
