@@ -26,6 +26,29 @@ except ImportError:
 import re as _re
 
 
+def _sincronizar_horas_contrato(contrato_id, empresa_id):
+    """Recalcula horas_utilizadas do contrato somando duracao das sessoes nao canceladas."""
+    if not contrato_id or not empresa_id:
+        return
+    try:
+        from database_postgresql import get_db_connection
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE contratos
+                SET horas_utilizadas = (
+                    SELECT COALESCE(SUM(duracao) / 60.0, 0)
+                    FROM sessoes
+                    WHERE contrato_id = %s AND status != 'cancelada'
+                ),
+                updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (contrato_id, contrato_id))
+        print(f"✅ [SYNC] horas_utilizadas sincronizadas para contrato {contrato_id}")
+    except Exception as e:
+        print(f"⚠️ [SYNC] Erro ao sincronizar horas do contrato {contrato_id}: {e}")
+
+
 def _parse_horario_time(horario: str) -> str:
     """Converte campo horario ('9 AS 17', '14H:00') para 'HH:MM'"""
     if not horario:
@@ -342,7 +365,10 @@ def sessoes():
             sessao_id = db.adicionar_sessao(dados_mapeados)
             print(f"✅ Sessão criada com ID: {sessao_id}")
 
-            # 📅 Auto-sincronizar com Google Calendar
+            # � Sincronizar horas do contrato (se vinculado)
+            _sincronizar_horas_contrato(dados_mapeados.get('contrato_id'), empresa_id_post)
+
+            # �📅 Auto-sincronizar com Google Calendar
             gcal = _sync_sessao_google(sessao_id, dados_mapeados, empresa_id_post)
 
             response_data = {'success': True, 'message': 'Sessão criada com sucesso', 'id': sessao_id}
@@ -404,7 +430,12 @@ def sessao_detalhes(sessao_id):
             if success:
                 print(f"✅ Sessão {sessao_id} atualizada")
 
-                # 📅 Auto-sincronizar com Google Calendar
+                # � Sincronizar horas do contrato (se vinculado)
+                contrato_id_put = data.get('contrato_id')
+                if contrato_id_put:
+                    _sincronizar_horas_contrato(contrato_id_put, session.get('empresa_id'))
+
+                # �📅 Auto-sincronizar com Google Calendar
                 empresa_id_put = session.get('empresa_id')
                 gcal = _sync_sessao_google(sessao_id, data, empresa_id_put, google_event_id=data.get('google_event_id'))
 
@@ -425,9 +456,17 @@ def sessao_detalhes(sessao_id):
     else:  # DELETE
         try:
             print(f"🔍 Deletando sessão {sessao_id}")
+            # Buscar contrato_id antes de deletar para sincronizar depois
+            sessao_atual = db.buscar_sessao(sessao_id)
+            contrato_id_del = sessao_atual.get('contrato_id') if sessao_atual else None
+            empresa_id_del = session.get('empresa_id')
+
             success = db.deletar_sessao(sessao_id)
             if success:
                 print(f"✅ Sessão {sessao_id} deletada")
+                # 🔄 Sincronizar horas do contrato
+                if contrato_id_del:
+                    _sincronizar_horas_contrato(contrato_id_del, empresa_id_del)
                 return jsonify({'success': True, 'message': 'Sessão excluída com sucesso'})
             print(f"❌ Sessão {sessao_id} não encontrada")
             return jsonify({'success': False, 'error': 'Sessão não encontrada'}), 404

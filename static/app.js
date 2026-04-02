@@ -5452,11 +5452,14 @@ async function verHistoricoContrato(contratoId) {
         // ── Calcular horas em TEMPO REAL a partir das sessões ──────────────────
         const horasTotais = parseFloat(contrato.horas_totais || 0);
         const sessoesAtivas = sessoes.filter(s => s.status !== 'cancelada');
-        const horasUtilizadas = sessoesAtivas.reduce((acc, s) => acc + parseFloat(s.quantidade_horas || 0), 0);
+        const horasSessoes = sessoesAtivas.reduce((acc, s) => acc + parseFloat(s.quantidade_horas || 0), 0);
+        // Se há sessões → usa soma real das sessões; se não há → usa valor armazenado no contrato
+        const horasUtilizadas = sessoesAtivas.length > 0 ? horasSessoes : parseFloat(contrato.horas_utilizadas || 0);
         const horasRestantes  = Math.max(horasTotais - horasUtilizadas, 0);
         const horasExtras     = Math.max(horasUtilizadas - horasTotais, 0);
         const percentual      = horasTotais > 0 ? (horasUtilizadas / horasTotais) * 100 : 0;
         const barColor        = percentual > 100 ? '#e74c3c' : percentual > 80 ? '#f39c12' : '#27ae60';
+        const fonteHoras      = sessoesAtivas.length > 0 ? 'sessões' : 'contrato';
 
         const sessoesHtml = sessoes.length === 0
             ? `<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:32px;font-size:14px;">Nenhuma sessão vinculada a este contrato</td></tr>`
@@ -5524,7 +5527,7 @@ async function verHistoricoContrato(contratoId) {
                 <!-- Controle de horas calculado em tempo real -->
                 ${horasTotais > 0 ? `
                 <div style="margin-top:20px;padding-top:18px;border-top:1px solid #e2e8f0;">
-                    <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;font-weight:600;">⏱ Controle de Horas (tempo real)</div>
+                    <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;font-weight:600;">⏱ Controle de Horas ${fonteHoras === 'sessões' ? '<span style="background:#dcfce7;color:#166534;font-size:10px;padding:1px 6px;border-radius:8px;vertical-align:middle;">tempo real</span>' : '<span style="background:#fef9c3;color:#854d0e;font-size:10px;padding:1px 6px;border-radius:8px;vertical-align:middle;">lançamento manual</span>'}</div>
                     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;">
                         <div style="background:#eff6ff;border:1px solid #bfdbfe;padding:12px 8px;border-radius:10px;text-align:center;">
                             <div style="font-size:10px;color:#1e40af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Contratadas</div>
@@ -5533,7 +5536,7 @@ async function verHistoricoContrato(contratoId) {
                         <div style="background:#fefce8;border:1px solid #fde68a;padding:12px 8px;border-radius:10px;text-align:center;">
                             <div style="font-size:10px;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Utilizadas</div>
                             <div style="font-size:22px;font-weight:800;color:#d97706;">${horasUtilizadas.toFixed(1)}h</div>
-                            <div style="font-size:10px;color:#92400e;margin-top:2px;">${sessoesAtivas.length} sessão(ões)</div>
+                            <div style="font-size:10px;color:#92400e;margin-top:2px;">${sessoesAtivas.length > 0 ? sessoesAtivas.length + ' sessão(ões)' : 'lançado no contrato'}</div>
                         </div>
                         <div style="background:${horasRestantes > 0 ? '#f0fdf4' : '#fef3c7'};border:1px solid ${horasRestantes > 0 ? '#bbf7d0' : '#fde68a'};padding:12px 8px;border-radius:10px;text-align:center;">
                             <div style="font-size:10px;color:${horasRestantes > 0 ? '#14532d' : '#92400e'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Restantes</div>
