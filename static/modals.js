@@ -3808,6 +3808,8 @@ async function _abrirModalRapidoFuncionario() {
     });
 }
 window._abrirModalRapidoFuncionario = _abrirModalRapidoFuncionario;
+
+function _calcularHorasSessao() {
     const inicio = document.getElementById('sessao-hora-inicio')?.value;
     const fim    = document.getElementById('sessao-hora-fim')?.value;
     const horas  = document.getElementById('sessao-horas');
