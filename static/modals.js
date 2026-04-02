@@ -2164,33 +2164,12 @@ window.fornecedorDocBlur = fornecedorDocBlur;
 // ============================================================================
 
 async function openModalContrato(contratoEdit = null) {
-    console.log('📋 openModalContrato chamada', contratoEdit ? 'MODO EDIÇÃO' : 'MODO CRIAÇÃO');
-    
-    if (contratoEdit) {
-        console.log('📦 Dados COMPLETOS do contrato recebidos:', contratoEdit);
-        console.log('📝 Campos específicos:');
-        console.log('   - descricao:', contratoEdit.descricao);
-        console.log('   - data_inicio:', contratoEdit.data_inicio);
-        console.log('   - data_contrato:', contratoEdit.data_contrato);
-        console.log('   - valor:', contratoEdit.valor, '(tipo:', typeof contratoEdit.valor + ')');
-        console.log('   - valor_total:', contratoEdit.valor_total);
-        console.log('   - valor_mensal:', contratoEdit.valor_mensal);
-        console.log('   - quantidade_meses:', contratoEdit.quantidade_meses);
-        console.log('   - imposto:', contratoEdit.imposto);
-        console.log('   - imposto_percentual:', contratoEdit.imposto_percentual);
-        console.log('   - comissoes:', contratoEdit.comissoes);
-    }
-    
-    // Carregar clientes se necessário
-    if (!window.clientes || window.clientes.length === 0) {
-        await loadClientes();
-    }
-    
-    // Carregar funcionários se necessário
-    if (!window.funcionarios || window.funcionarios.length === 0) {
-        await loadFuncionarios();
-    }
-    
+    // Carregar dependências em paralelo
+    const cargas = [];
+    if (!window.clientes     || window.clientes.length === 0)    cargas.push(loadClientes());
+    if (!window.funcionarios || window.funcionarios.length === 0) cargas.push(loadFuncionarios());
+    if (cargas.length > 0) await Promise.all(cargas);
+
     const isEdit = contratoEdit !== null;
     const titulo = isEdit ? 'Editar Contrato' : 'Novo Contrato';
     
@@ -2200,10 +2179,8 @@ async function openModalContrato(contratoEdit = null) {
         const dataRaw = contratoEdit.data_inicio || contratoEdit.data_contrato;
         try {
             const dataObj = new Date(dataRaw);
-            dataContratoFormatada = dataObj.toISOString().split('T')[0]; // yyyy-MM-dd
-            console.log('📅 Data convertida:', dataRaw, '→', dataContratoFormatada);
+            dataContratoFormatada = dataObj.toISOString().split('T')[0];
         } catch (e) {
-            console.error('❌ Erro ao converter data:', e);
             dataContratoFormatada = '';
         }
     }
@@ -2930,48 +2907,25 @@ async function reabrirSessaoModal(sessaoId) {
 }
 
 async function openModalSessao(sessaoEdit = null) {
-    console.log('📋 openModalSessao chamada', sessaoEdit ? 'MODO EDIÇÃO' : 'MODO CRIAÇÃO');
-    
-    // Carregar dependências
-    if (!window.clientes || window.clientes.length === 0) {
-        await loadClientes();
-    }
-    if (!window.contratos || window.contratos.length === 0) {
-        await loadContratos();
-    }
-    if (!window.funcionarios || window.funcionarios.length === 0) {
-        if (typeof loadFuncionariosRH === 'function') {
-            await loadFuncionariosRH();
-        } else if (typeof loadFuncionarios === 'function') {
-            await loadFuncionarios();
-        }
-    }
-    if (!window.kits || window.kits.length === 0) {
-        await loadKits();
-    }
-    if (!window.funcoesResponsaveis || window.funcoesResponsaveis.length === 0) {
-        await loadFuncoesResponsaveis();
-    }
-    if (!window.custosOperacionais || window.custosOperacionais.length === 0) {
-        await loadCustosOperacionais();
-    }
-    if (!window.tagsDisponiveis || window.tagsDisponiveis.length === 0) {
-        await loadTags();
-    }
-    
     const isEdit = sessaoEdit !== null;
-    const titulo = isEdit ? 'Editar Sessão' : 'Nova Sessão';
-    
-    // Debug: Verificar dados carregados
-    console.log('🔍 Dados carregados para modal:');
-    console.log('  - Clientes:', window.clientes ? window.clientes.length : 0);
-    console.log('  - Contratos:', window.contratos ? window.contratos.length : 0);
-    console.log('  - Funcionários:', window.funcionarios ? window.funcionarios.length : 0);
-    console.log('  - Kits:', window.kits ? window.kits.length : 0);
-    
-    if (window.funcionarios && window.funcionarios.length > 0) {
-        console.log('  - Exemplo funcionário:', window.funcionarios[0]);
+
+    // Disparar todas as cargas em paralelo (apenas as que ainda não estão em cache)
+    const cargas = [];
+    if (!window.clientes        || window.clientes.length === 0)         cargas.push(loadClientes());
+    if (!window.contratos       || window.contratos.length === 0)         cargas.push(loadContratos());
+    if (!window.funcionarios    || window.funcionarios.length === 0) {
+        const fn = typeof loadFuncionariosRH === 'function' ? loadFuncionariosRH
+                 : typeof loadFuncionarios    === 'function' ? loadFuncionarios : null;
+        if (fn) cargas.push(fn());
     }
+    if (!window.kits            || window.kits.length === 0)             cargas.push(loadKits());
+    if (!window.funcoesResponsaveis   || window.funcoesResponsaveis.length === 0)  cargas.push(loadFuncoesResponsaveis());
+    if (!window.custosOperacionais    || window.custosOperacionais.length === 0)   cargas.push(loadCustosOperacionais());
+    if (!window.tagsDisponiveis       || window.tagsDisponiveis.length === 0)      cargas.push(loadTags());
+
+    if (cargas.length > 0) await Promise.all(cargas);
+
+    const titulo = isEdit ? 'Editar Sessão' : 'Nova Sessão';
     
     // Opções de clientes — com onchange para endereço + contratos
     const opcoesClientes = window.clientes && window.clientes.length > 0
