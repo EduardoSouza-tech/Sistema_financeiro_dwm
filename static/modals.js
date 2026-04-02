@@ -2260,7 +2260,7 @@ async function openModalContrato(contratoEdit = null) {
                 
                 <div class="form-group">
                     <label>Valor Total:</label>
-                    <input type="text" id="contrato-valor-total" readonly="readonly" disabled style="background: #f0f0f0; font-weight: bold; color: #27ae60; font-size: 16px;" value="${valorTotalFormatado}">
+                    <input type="text" id="contrato-valor-total" readonly style="background: #f0f0f0; font-weight: bold; color: #27ae60; font-size: 16px;" value="${valorTotalFormatado}">
                 </div>
             </div>
             
@@ -2444,18 +2444,8 @@ function atualizarCalculoContrato() {
     const campoTotal = document.getElementById('contrato-valor-total');
     const campoTipo = document.getElementById('contrato-tipo');
     
-    console.log('🧮 Calculando:');
-    console.log('   📍 campoValorMensal existe?', !!campoValorMensal);
-    console.log('   📍 campoMeses existe?', !!campoMeses);
-    console.log('   📍 campoHoras existe?', !!campoHoras);
-    console.log('   📍 campoTotal existe?', !!campoTotal);
-    console.log('   📍 campoTipo existe?', !!campoTipo);
-    
-    if (!campoValorMensal || !campoMeses || !campoTotal || !campoTipo) {
-        console.warn('⚠️ Campos de cálculo não encontrados - abortando atualização');
-        return;
-    }
-    
+    if (!campoValorMensal || !campoMeses || !campoTotal || !campoTipo) return;
+
     const tipo = campoTipo.value;
     let valorTotal = 0;
     
@@ -2548,7 +2538,9 @@ async function salvarContrato(event) {
         valor_mensal: valorMensal,
         quantidade_meses: quantidadeMeses,
         valor_total: valorTotal,
-        horas_mensais: parseInt(document.getElementById('contrato-horas').value) || null,
+        horas_mensais: ehPacote
+            ? parseInt(document.getElementById('contrato-horas-pacote')?.value) || null
+            : parseInt(document.getElementById('contrato-horas').value) || null,
         forma_pagamento: document.getElementById('contrato-pagamento').value,
         quantidade_parcelas: parseInt(document.getElementById('contrato-parcelas').value),
         data_contrato: document.getElementById('contrato-data').value,
@@ -2558,14 +2550,9 @@ async function salvarContrato(event) {
         comissoes: comissoes
     };
     
-    console.log('📦 Dados a enviar:', JSON.stringify(data, null, 2));
-    
     try {
         const url = isEdit ? `/api/contratos/${id}` : '/api/contratos';
         const method = isEdit ? 'PUT' : 'POST';
-        
-        console.log('🌐 URL:', url);
-        console.log('📤 Method:', method);
         
         const response = await fetch(url, {
             method: method,
@@ -2573,16 +2560,10 @@ async function salvarContrato(event) {
             body: JSON.stringify(data)
         });
         
-        console.log('📡 Status da resposta:', response.status);
-        
         let result;
         try {
             result = await response.json();
-            console.log('📡 Resposta do servidor:', result);
         } catch (e) {
-            console.error('❌ Erro ao parsear JSON:', e);
-            const text = await response.text();
-            console.error('📄 Resposta em texto:', text);
             throw new Error('Resposta inválida do servidor');
         }
         
@@ -2592,7 +2573,6 @@ async function salvarContrato(event) {
             if (typeof loadContratos === 'function') loadContratos();
         } else {
             showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
-            console.error('❌ Detalhes do erro:', result);
         }
         
     } catch (error) {
@@ -5003,7 +4983,7 @@ function alterarTipoContrato() {
         if (grupoValorMensal) grupoValorMensal.style.display = '';
         if (campoValorMensal) { campoValorMensal.required = true; campoValorMensal.placeholder = '1000.00'; }
         if (labelValorMensal) labelValorMensal.textContent = '*Valor por Pacote:';
-        if (grupoHorasPacote) grupoHorasPacote.style.display = 'none';
+        if (grupoHorasPacote) grupoHorasPacote.style.display = '';
         if (grupoHorasMensal) grupoHorasMensal.style.display = 'none';
         if (grupoMeses) grupoMeses.style.order = '';
         if (labelMeses) labelMeses.textContent = '*Qtd. Pacotes:';
