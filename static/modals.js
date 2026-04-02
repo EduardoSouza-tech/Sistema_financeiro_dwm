@@ -3063,20 +3063,19 @@ async function openModalSessao(sessaoEdit = null) {
     `);
     
     // Verificar e forçar ID após criar modal (CRÍTICO para evitar duplicação)
+    // Salvar referência ao modal atual para evitar race condition se um novo modal for criado antes do timeout
+    const thisModalElement = document.getElementById('dynamic-modal');
     setTimeout(() => {
+        // Guard: se o modal atual foi substituído por outro, não contaminar o novo modal
+        const currentModal = document.getElementById('dynamic-modal');
+        if (currentModal !== thisModalElement) return;
+
         const sessaoIdField = document.getElementById('sessao-id');
-        
-        console.log('🔍 Verificação após criar modal:');
-        console.log('   📝 Campo sessao-id existe?', !!sessaoIdField);
-        console.log('   📝 Valor do campo ID:', sessaoIdField ? sessaoIdField.value : 'CAMPO NÃO ENCONTRADO');
-        console.log('   📝 isEdit:', isEdit);
-        console.log('   📝 sessaoEdit.id:', sessaoEdit ? sessaoEdit.id : 'N/A');
         
         // Se estiver editando, forçar o valor novamente (PREVINE DUPLICAÇÃO)
         if (isEdit && sessaoEdit) {
             if (sessaoIdField && sessaoEdit.id) {
                 sessaoIdField.value = sessaoEdit.id;
-                console.log('   ✅ ID forçado novamente para:', sessaoEdit.id);
             }
         }
     }, 50);

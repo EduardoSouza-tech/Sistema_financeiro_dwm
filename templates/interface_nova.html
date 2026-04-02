@@ -6371,7 +6371,7 @@
                 
                 <!-- Botões de Ação -->
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
-                    <button class="btn btn-primary" onclick="showSection('contratos'); setTimeout(() => document.querySelector('[onclick*=sessoes]').click(), 100)" style="font-weight: 600;">
+                    <button class="btn btn-primary" onclick="openModalSessao()" style="font-weight: 600;">
                         ➕ Nova Sessão
                     </button>
                     <button class="btn" onclick="toggleCalendarView()" style="background: #3498db; color: white; font-weight: 500;">
@@ -8415,8 +8415,10 @@
                 if (typeof initAgendaCalendar === 'function' && !window.calendarInitialized) {
                     initAgendaCalendar();
                     window.calendarInitialized = true;
+                } else if (typeof window.refreshAgendaFotografia === 'function') {
+                    // Recarregar eventos e lista (respeita o modo atual: calendar ou list)
+                    window.refreshAgendaFotografia();
                 } else if (window.calendar) {
-                    // Recarregar eventos se calendário já existe
                     window.calendar.refetchEvents();
                 }
             } else if (sectionId === 'gestao-estoque') {
