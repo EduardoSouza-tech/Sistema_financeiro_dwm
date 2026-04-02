@@ -40,7 +40,10 @@ GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'https://sistemafinanceir
 # Scopes necessários para Google Calendar
 GOOGLE_SCOPES = [
     'https://www.googleapis.com/auth/calendar.events',
-    'https://www.googleapis.com/auth/calendar.readonly'
+    'https://www.googleapis.com/auth/calendar.readonly',
+    'openid',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile'
 ]
 # =========================================
 # EMAIL/SMTP CONFIGURATION
