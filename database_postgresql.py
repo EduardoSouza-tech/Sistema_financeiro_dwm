@@ -3841,13 +3841,13 @@ class DatabaseManager:
             raise ValueError("empresa_id é obrigatório")
         return listar_sessoes(empresa_id=empresa_id)
     
-    def atualizar_sessao(self, sessao_id: int, dados: Dict) -> bool:
+    def atualizar_sessao(self, sessao_id: int, dados: Dict, empresa_id: int = None) -> bool:
         """Atualiza uma sessi?o"""
-        return atualizar_sessao(sessao_id, dados)
+        return atualizar_sessao(sessao_id, dados, empresa_id=empresa_id)
     
-    def deletar_sessao(self, sessao_id: int) -> bool:
+    def deletar_sessao(self, sessao_id: int, empresa_id: int = None) -> bool:
         """Deleta uma sessi?o"""
-        return deletar_sessao(sessao_id)
+        return deletar_sessao(sessao_id, empresa_id=empresa_id)
     
     def adicionar_comissao(self, dados: Dict) -> int:
         """Adiciona uma nova comissi?o"""
@@ -5166,30 +5166,34 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
     return sessoes
 
 
-def buscar_sessao(sessao_id: int) -> Dict:
+def buscar_sessao(sessao_id: int, empresa_id: int = None) -> Dict:
     """Busca uma sessão específica"""
     import json
-    
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        SELECT 
-            s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
-            s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
-            s.status,
-            c.nome AS cliente_nome,
-            ct.numero AS contrato_numero, ct.descricao AS contrato_nome
-        FROM sessoes s
-        LEFT JOIN clientes c ON s.cliente_id = c.id
-        LEFT JOIN contratos ct ON s.contrato_id = ct.id
-        WHERE s.id = %s
-    """, (sessao_id,))
-    
-    row = cursor.fetchone()
-    cursor.close()
-    return_to_pool(conn)
+
+    if not empresa_id:
+        try:
+            from flask import session as flask_session
+            empresa_id = flask_session.get('empresa_id')
+        except Exception:
+            pass
+
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
+                s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
+                s.status,
+                c.nome AS cliente_nome,
+                ct.numero AS contrato_numero, ct.descricao AS contrato_nome
+            FROM sessoes s
+            LEFT JOIN clientes c ON s.cliente_id = c.id
+            LEFT JOIN contratos ct ON s.contrato_id = ct.id
+            WHERE s.id = %s
+        """, (sessao_id,))
+
+        row = cursor.fetchone()
+        cursor.close()
     
     if not row:
         return None
@@ -5230,14 +5234,17 @@ def buscar_sessao(sessao_id: int) -> Dict:
     }
 
 
-def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
+def atualizar_sessao(sessao_id: int, dados: Dict, empresa_id: int = None) -> bool:
     """Atualiza uma sessão existente"""
     import json
-    
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
-    
+
+    if not empresa_id:
+        try:
+            from flask import session as flask_session
+            empresa_id = flask_session.get('empresa_id')
+        except Exception:
+            pass
+
     # Preparar dados JSON
     dados_json = {
         'horario': dados.get('horario'),
@@ -5252,29 +5259,34 @@ def atualizar_sessao(sessao_id: int, dados: Dict) -> bool:
         'equipamentos_alugados': dados.get('equipamentos_alugados', []),
         'custos_adicionais': dados.get('custos_adicionais', [])
     }
-    
-    cursor.execute("""
-        UPDATE sessoes
-        SET cliente_id = %s, contrato_id = %s, data = %s, endereco = %s,
-            descricao = %s, prazo_entrega = %s, observacoes = %s, dados_json = %s,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = %s
-    """, (
-        dados.get('cliente_id'),
-        dados.get('contrato_id'),
-        dados.get('data'),
-        dados.get('endereco'),
-        dados.get('descricao'),
-        dados.get('prazo_entrega'),
-        dados.get('observacoes'),
-        json.dumps(dados_json),
-        sessao_id
-    ))
-    
-    conn.commit()  # Commit da transação
-    sucesso = cursor.rowcount > 0
-    cursor.close()
-    return_to_pool(conn)
+
+    status = dados.get('status', 'rascunho')
+    duracao = int(dados.get('quantidade_horas', 0) * 60) if dados.get('quantidade_horas') else None
+
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE sessoes
+            SET cliente_id = %s, contrato_id = %s, data = %s, endereco = %s,
+                descricao = %s, prazo_entrega = %s, observacoes = %s, dados_json = %s,
+                status = %s, duracao = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (
+            dados.get('cliente_id'),
+            dados.get('contrato_id'),
+            dados.get('data'),
+            dados.get('endereco'),
+            dados.get('descricao'),
+            dados.get('prazo_entrega'),
+            dados.get('observacoes'),
+            json.dumps(dados_json),
+            status,
+            duracao,
+            sessao_id
+        ))
+        sucesso = cursor.rowcount > 0
+        cursor.close()
     return sucesso
 
 
@@ -5693,17 +5705,20 @@ def reabrir_sessao(empresa_id: int, sessao_id: int, usuario_id: int) -> Dict:
         }
 
 
-def deletar_sessao(sessao_id: int) -> bool:
+def deletar_sessao(sessao_id: int, empresa_id: int = None) -> bool:
     """Deleta uma sessão"""
-    db = DatabaseManager()
-    conn = db.get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("DELETE FROM sessoes WHERE id = %s", (sessao_id,))
-    
-    sucesso = cursor.rowcount > 0
-    cursor.close()
-    return_to_pool(conn)
+    if not empresa_id:
+        try:
+            from flask import session as flask_session
+            empresa_id = flask_session.get('empresa_id')
+        except Exception:
+            pass
+
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM sessoes WHERE id = %s", (sessao_id,))
+        sucesso = cursor.rowcount > 0
+        cursor.close()
     return sucesso
 
 

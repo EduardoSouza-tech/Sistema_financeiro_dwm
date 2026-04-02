@@ -78,7 +78,8 @@ def _sync_sessao_google(sessao_id: int, dados: dict, empresa_id: int, google_eve
 
     # Obter cliente_nome da sessão (se disponível)
     try:
-        sessao = db.buscar_sessao(sessao_id)
+        _emp_id_sync = session.get('empresa_id') if session else None
+        sessao = db.buscar_sessao(sessao_id, empresa_id=_emp_id_sync)
         cliente_nome = sessao.get('cliente_nome', 'Cliente') if sessao else 'Cliente'
         # Pegar google_event_id do banco se não foi passado
         if not google_event_id:
@@ -393,7 +394,7 @@ def sessao_detalhes(sessao_id):
         try:
             import json
             print(f"\n🔍 [GET /api/sessoes/{sessao_id}] Buscando sessão...")
-            sessao = db.buscar_sessao(sessao_id)
+            sessao = db.buscar_sessao(sessao_id, empresa_id=session.get('empresa_id'))
             if sessao:
                 print(f"📊 Campos disponíveis: {list(sessao.keys())}")
                 print(f"   - data: {sessao.get('data')}")
@@ -426,7 +427,8 @@ def sessao_detalhes(sessao_id):
         try:
             data = request.json
             print(f"🔍 Atualizando sessão {sessao_id} com dados: {data}")
-            success = db.atualizar_sessao(sessao_id, data)
+            empresa_id_put_rls = session.get('empresa_id')
+            success = db.atualizar_sessao(sessao_id, data, empresa_id=empresa_id_put_rls)
             if success:
                 print(f"✅ Sessão {sessao_id} atualizada")
 
@@ -457,11 +459,11 @@ def sessao_detalhes(sessao_id):
         try:
             print(f"🔍 Deletando sessão {sessao_id}")
             # Buscar contrato_id antes de deletar para sincronizar depois
-            sessao_atual = db.buscar_sessao(sessao_id)
-            contrato_id_del = sessao_atual.get('contrato_id') if sessao_atual else None
             empresa_id_del = session.get('empresa_id')
+            sessao_atual = db.buscar_sessao(sessao_id, empresa_id=empresa_id_del)
+            contrato_id_del = sessao_atual.get('contrato_id') if sessao_atual else None
 
-            success = db.deletar_sessao(sessao_id)
+            success = db.deletar_sessao(sessao_id, empresa_id=empresa_id_del)
             if success:
                 print(f"✅ Sessão {sessao_id} deletada")
                 # 🔄 Sincronizar horas do contrato
@@ -1066,7 +1068,7 @@ def gerar_lancamento_sessao(sessao_id):
         print(f"   - Usuario: {usuario.get('username')}")
         
         # Verificar se sessão pertence à empresa
-        sessao = db.buscar_sessao(sessao_id)
+        sessao = db.buscar_sessao(sessao_id, empresa_id=empresa_id)
         if not sessao:
             return jsonify({'erro': 'Sessão não encontrada'}), 404
         
@@ -1140,7 +1142,7 @@ def estornar_lancamento_sessao(sessao_id):
         print(f"\n💰 [POST /api/sessoes/{sessao_id}/estornar-lancamento] Deletar: {deletar}")
         
         # Verificar se sessão pertence à empresa
-        sessao = db.buscar_sessao(sessao_id)
+        sessao = db.buscar_sessao(sessao_id, empresa_id=empresa_id)
         if not sessao:
             return jsonify({'erro': 'Sessão não encontrada'}), 404
         
@@ -1341,7 +1343,7 @@ def configurar_lancamento_automatico(sessao_id):
         print(f"   - Usuario: {usuario.get('username')}")
         
         # Verificar se sessão pertence à empresa
-        sessao = db.buscar_sessao(sessao_id)
+        sessao = db.buscar_sessao(sessao_id, empresa_id=empresa_id)
         if not sessao:
             return jsonify({'erro': 'Sessão não encontrada'}), 404
         
