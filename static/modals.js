@@ -2465,42 +2465,17 @@ function atualizarCalculoContrato() {
     const meses = parseInt(campoMeses.value) || 0;
     
     if (tipo === 'Pacote') {
-        // === CÁLCULO TIPO PACOTE: qtd_pacotes × horas_pacote ===
-        const horasPacote = parseInt(document.getElementById('contrato-horas-pacote')?.value) || 0;
-        valorTotal = meses * horasPacote;
-        
-    } else {
-        // === CÁLCULO TIPO MENSAL/ÚNICO ===
-        // valorTotal = valor_mensal × qtd_meses
+        // === CÁLCULO TIPO PACOTE: valor_pacote × qtd_pacotes ===
         valorTotal = valorMensal * meses;
-        
-        console.log('🧮 Calculando (MENSAL/ÚNICO):');
-        console.log('   📝 Valor Mensal (.value):', campoValorMensal.value);
-        console.log('   💰 Valor Mensal (parseado):', valorMensal);
-        console.log('   📝 Meses (.value):', campoMeses.value);
-        console.log('   🔢 Meses (parseado):', meses);
-        console.log('   💵 Valor Total:', valorTotal, '=', valorMensal, '×', meses);
+
+    } else {
+        // === CÁLCULO TIPO MENSAL/ÚNICO: valor_mensal × qtd_meses ===
+        valorTotal = valorMensal * meses;
     }
-    
+
     // Formatar e exibir
-    const valorFormatado = 'R$ ' + valorTotal.toLocaleString('pt-BR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-    
-    console.log('   🎨 Valor formatado:', valorFormatado);
-    console.log('   📍 Campo existe?', !!campoTotal);
-    console.log('   📍 Campo ID:', campoTotal ? campoTotal.id : 'N/A');
-    console.log('   📍 Campo readonly?', campoTotal ? campoTotal.readOnly : 'N/A');
-    console.log('   📍 Valor ANTES:', campoTotal.value);
-    
-    // Tentar ambos os métodos
-    campoTotal.value = valorFormatado;
-    campoTotal.setAttribute('value', valorFormatado);
-    
-    console.log('   📍 Valor DEPOIS (.value):', campoTotal.value);
-    console.log('   📍 Valor DEPOIS (getAttribute):', campoTotal.getAttribute('value'));
-    console.log('   ✅ Campo atualizado');
+    campoTotal.value = 'R$ ' + valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    campoTotal.setAttribute('value', campoTotal.value);
 }
 
 function adicionarComissaoContrato(dadosIniciais = null) {
@@ -2552,48 +2527,20 @@ async function salvarContrato(event) {
         }
     });
     
-    // 🔧 Parse correto de valor brasileiro: remove pontos (milhar), troca vírgula por ponto (decimal)
+    // Parse valor brasileiro
     const tipo = document.getElementById('contrato-tipo').value;
     const quantidadeMeses = parseInt(document.getElementById('contrato-meses').value) || 1;
-    const ehPacote = tipo === 'Pacote';
     const valorMensalRaw = document.getElementById('contrato-valor-mensal').value;
     const valorMensalStr = String(valorMensalRaw).replace(/\./g, '').replace(/,/g, '.');
-    const valorMensal = ehPacote ? 0 : (parseFloat(valorMensalStr) || 0);
-    const horasPacote = ehPacote ? parseInt(document.getElementById('contrato-horas-pacote')?.value) || 0 : 0;
-    const valorTotal = ehPacote ? quantidadeMeses * horasPacote : valorMensal * quantidadeMeses;
-    
-    console.log('💰 Valores coletados no salvar:');
-    console.log('   📝 Valor Mensal (campo .value RAW):', valorMensalRaw);
-    console.log('   💰 Valor Mensal (parseado):', valorMensal);
-    console.log('   🔢 Qtd Meses (campo .value):', document.getElementById('contrato-meses').value);
-    console.log('   🔢 Qtd Meses (parseado):', quantidadeMeses);
-    console.log('   💵 Valor Total calculado:', valorTotal);
-    
-    // Recuperar numero do campo hidden (preservado do edit)
-    const numero = document.getElementById('contrato-numero')?.value || undefined;
-    console.log('   🔢 Numero (campo hidden):', numero);
+    const valorMensal = parseFloat(valorMensalStr) || 0;
+    const valorTotal = valorMensal * quantidadeMeses;
+    const ehPacote = tipo === 'Pacote';
     
     // Capturar descrição
-    const campoDescricao = document.getElementById('contrato-descricao');
-    console.log('   🔍 Campo descricao encontrado?', !!campoDescricao);
-    console.log('   🔍 Campo descricao element:', campoDescricao);
-    
-    const descricao = campoDescricao?.value || '';
-    console.log('   📝 Descrição (campo textarea):', descricao);
-    console.log('   📝 Descrição length:', descricao.length);
-    
-    // Verificar se há múltiplos elementos com mesmo ID (BUG)
-    const todosDescricao = document.querySelectorAll('#contrato-descricao');
-    console.log('   ⚠️ Total de campos com ID contrato-descricao:', todosDescricao.length);
-    if (todosDescricao.length > 1) {
-        console.log('   🚨 ERRO: Múltiplos campos com mesmo ID!');
-        todosDescricao.forEach((el, idx) => {
-            console.log(`      [${idx}] value: "${el.value}"`);
-        });
-    }
-    
+    const descricao = document.getElementById('contrato-descricao')?.value || '';
+
     const data = {
-        numero: numero,  // Preservar número no edit via campo hidden
+        numero: numero,
         cliente_id: parseInt(document.getElementById('contrato-cliente').value),
         tipo: document.getElementById('contrato-tipo').value,
         nome: document.getElementById('contrato-nome').value,
@@ -2601,9 +2548,7 @@ async function salvarContrato(event) {
         valor_mensal: valorMensal,
         quantidade_meses: quantidadeMeses,
         valor_total: valorTotal,
-        horas_mensais: ehPacote
-            ? parseInt(document.getElementById('contrato-horas-pacote')?.value) || null
-            : parseInt(document.getElementById('contrato-horas').value) || null,
+        horas_mensais: parseInt(document.getElementById('contrato-horas').value) || null,
         forma_pagamento: document.getElementById('contrato-pagamento').value,
         quantidade_parcelas: parseInt(document.getElementById('contrato-parcelas').value),
         data_contrato: document.getElementById('contrato-data').value,
@@ -5053,30 +4998,26 @@ function alterarTipoContrato() {
     const labelMeses        = grupoMeses?.querySelector('label');
 
     if (tipo === 'Pacote') {
-        // === MODO PACOTE: Qtd.Pacotes | Horas por Pacote | Valor Total ===
-        if (grupoValorMensal) grupoValorMensal.style.display = 'none';
-        if (campoValorMensal) campoValorMensal.required = false;
-        if (grupoHorasPacote) grupoHorasPacote.style.display = '';
+        // === MODO PACOTE: Valor por Pacote | Qtd.Pacotes | Valor Total ===
+        const labelValorMensal = grupoValorMensal?.querySelector('label');
+        if (grupoValorMensal) grupoValorMensal.style.display = '';
+        if (campoValorMensal) { campoValorMensal.required = true; campoValorMensal.placeholder = '1000.00'; }
+        if (labelValorMensal) labelValorMensal.textContent = '*Valor por Pacote:';
+        if (grupoHorasPacote) grupoHorasPacote.style.display = 'none';
         if (grupoHorasMensal) grupoHorasMensal.style.display = 'none';
-
-        // Reordenar Linha 3: Qtd.Pacotes primeiro (order:1), Horas por Pacote segundo (order:2)
-        if (grupoMeses)       grupoMeses.style.order = '1';
-        if (grupoHorasPacote) grupoHorasPacote.style.order = '2';
-
+        if (grupoMeses) grupoMeses.style.order = '';
         if (labelMeses) labelMeses.textContent = '*Qtd. Pacotes:';
         if (campoMeses) campoMeses.placeholder = '10';
 
     } else {
         // === MODO MENSAL/ÚNICO: Valor Mensal | Qtd.Meses | Valor Total ===
+        const labelValorMensal = grupoValorMensal?.querySelector('label');
         if (grupoValorMensal) grupoValorMensal.style.display = '';
         if (campoValorMensal) { campoValorMensal.required = true; campoValorMensal.placeholder = '3500.00'; }
+        if (labelValorMensal) labelValorMensal.textContent = '*Valor Mensal:';
         if (grupoHorasPacote) grupoHorasPacote.style.display = 'none';
         if (grupoHorasMensal) grupoHorasMensal.style.display = '';
-
-        // Resetar CSS order para layout padrão
-        if (grupoMeses)       grupoMeses.style.order = '';
-        if (grupoHorasPacote) grupoHorasPacote.style.order = '';
-
+        if (grupoMeses) grupoMeses.style.order = '';
         if (labelMeses) labelMeses.textContent = '*Qtd. Meses:';
         if (campoMeses) campoMeses.placeholder = '12';
     }
