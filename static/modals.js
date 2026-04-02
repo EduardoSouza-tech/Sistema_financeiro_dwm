@@ -2245,7 +2245,7 @@ async function openModalContrato(contratoEdit = null) {
             <div id="contrato-linha3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                 <div id="grupo-contrato-valor-mensal" class="form-group">
                     <label>*Valor Mensal:</label>
-                    <input type="number" id="contrato-valor-mensal" step="any" min="0" required value="${isEdit ? contratoEdit.valor_mensal || '' : ''}" placeholder="3500.00" oninput="atualizarCalculoContrato()">
+                    <input type="text" inputmode="decimal" id="contrato-valor-mensal" required value="${isEdit ? contratoEdit.valor_mensal || '' : ''}" placeholder="3.500,00" oninput="atualizarCalculoContrato()">
                 </div>
 
                 <div id="grupo-contrato-horas-pacote" class="form-group" style="display:none">
