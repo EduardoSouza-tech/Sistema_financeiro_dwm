@@ -27,7 +27,7 @@ def _save_credentials_db(creds_data: dict, empresa_id: int = 1):
     """Salvar credenciais OAuth no PostgreSQL"""
     try:
         import database_postgresql as db
-        with db.get_db_connection() as conn:
+        with db.get_db_connection(allow_global=True) as conn:
             cur = conn.cursor()
             cur.execute("""
                 INSERT INTO google_calendar_credentials (empresa_id, credentials_json, updated_at)
@@ -48,7 +48,7 @@ def _load_credentials_db(empresa_id: int = 1):
     """Carregar credenciais OAuth do PostgreSQL"""
     try:
         import database_postgresql as db
-        with db.get_db_connection() as conn:
+        with db.get_db_connection(allow_global=True) as conn:
             cur = conn.cursor()
             cur.execute(
                 "SELECT credentials_json FROM google_calendar_credentials WHERE empresa_id = %s",
@@ -68,7 +68,7 @@ def _delete_credentials_db(empresa_id: int = 1):
     """Remover credenciais do PostgreSQL"""
     try:
         import database_postgresql as db
-        with db.get_db_connection() as conn:
+        with db.get_db_connection(allow_global=True) as conn:
             cur = conn.cursor()
             cur.execute("DELETE FROM google_calendar_credentials WHERE empresa_id = %s", (empresa_id,))
             conn.commit()

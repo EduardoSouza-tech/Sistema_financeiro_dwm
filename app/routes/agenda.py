@@ -258,7 +258,8 @@ def google_calendar_callback():
         session.pop('google_oauth_state_timestamp', None)
         
         # Trocar código por tokens
-        creds_data = google_calendar_helper.exchange_code_for_tokens(code, state)
+        empresa_id_oauth = session.get('empresa_id', 1)
+        creds_data = google_calendar_helper.exchange_code_for_tokens(code, state, empresa_id=empresa_id_oauth)
         
         if 'error' in creds_data:
             return redirect(url_for('index') + f'?message=google_auth_failed&error={creds_data["error"]}')
