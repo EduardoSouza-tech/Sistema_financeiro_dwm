@@ -101,7 +101,6 @@ def get_authorization_url():
     
     authorization_url, state = flow.authorization_url(
         access_type='offline',
-        include_granted_scopes='true',
         prompt='consent'  # Força nova autorização para garantir refresh_token
     )
     
@@ -132,7 +131,12 @@ def exchange_code_for_tokens(code, state=None, empresa_id: int = 1):
     
     if state:
         flow.state = state
-    
+
+    # Permite que o Google retorne escopos adicionais (openid, profile, etc.)
+    # sem que o requests_oauthlib lance ScopeChanged
+    import os as _os
+    _os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
+
     flow.fetch_token(code=code)
     
     credentials = flow.credentials
