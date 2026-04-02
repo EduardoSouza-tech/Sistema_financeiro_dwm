@@ -2260,7 +2260,7 @@ async function openModalContrato(contratoEdit = null) {
                 
                 <div class="form-group">
                     <label>Valor Total:</label>
-                    <input type="text" id="contrato-valor-total" readonly style="background: #f0f0f0; font-weight: bold; color: #27ae60; font-size: 16px;" value="${valorTotalFormatado}">
+                    <div id="contrato-valor-total" style="background: #f0f0f0; font-weight: bold; color: #27ae60; font-size: 16px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; min-height: 38px; display: flex; align-items: center;">${valorTotalFormatado}</div>
                 </div>
             </div>
             
@@ -2450,32 +2450,23 @@ function parseValorBR(valor) {
 function atualizarCalculoContrato() {
     const campoValorMensal = document.getElementById('contrato-valor-mensal');
     const campoMeses = document.getElementById('contrato-meses');
-    const campoHoras = document.getElementById('contrato-horas');
     const campoTotal = document.getElementById('contrato-valor-total');
     const campoTipo = document.getElementById('contrato-tipo');
     
     if (!campoValorMensal || !campoMeses || !campoTotal || !campoTipo) return;
 
     const tipo = campoTipo.value;
-    let valorTotal = 0;
-    
-    // 🔧 Parse correto de valor brasileiro: remove pontos (milhar), troca vírgula por ponto (decimal)
+
+    // Parse valor brasileiro: remove pontos de milhar, troca vírgula por ponto decimal
     const valorMensalStr = String(campoValorMensal.value).replace(/\./g, '').replace(/,/g, '.');
     const valorMensal = parseFloat(valorMensalStr) || 0;
     const meses = parseInt(campoMeses.value) || 0;
-    
-    if (tipo === 'Pacote') {
-        // === CÁLCULO TIPO PACOTE: valor_pacote × qtd_pacotes ===
-        valorTotal = valorMensal * meses;
+    const valorTotal = valorMensal * meses;
 
-    } else {
-        // === CÁLCULO TIPO MENSAL/ÚNICO: valor_mensal × qtd_meses ===
-        valorTotal = valorMensal * meses;
-    }
-
-    // Formatar e exibir
-    campoTotal.value = 'R$ ' + valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    campoTotal.setAttribute('value', campoTotal.value);
+    const formatado = 'R$ ' + valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Atualiza div (textContent) — não depende de .value de input readonly
+    campoTotal.textContent = formatado;
+    console.log('[calc] tipo=' + tipo + ' valor=' + valorMensal + ' x ' + meses + ' = ' + formatado);
 }
 
 function adicionarComissaoContrato(dadosIniciais = null) {
