@@ -5422,19 +5422,18 @@ async function editarContrato(id) {
 
 async function verHistoricoContrato(contratoId) {
     try {
-        // Buscar contrato
-        const resContrato = await fetch(`/api/contratos/${contratoId}`);
-        if (!resContrato.ok) throw new Error('Erro ao buscar contrato');
-        const resContratoData = await resContrato.json();
-        const contrato = resContratoData.contrato || resContratoData;
-
-        // Buscar sessões e filtrar pelo contrato
-        const todasSessoes = await apiGet('/sessoes');
+        // Buscar contrato e sessões em paralelo
+        const [resContrato, todasSessoes] = await Promise.all([
+            fetch(`/api/contratos/${contratoId}`).then(r => r.json()),
+            apiGet('/sessoes')
+        ]);
+        const contrato = resContrato.contrato || resContrato;
         const sessoes = (Array.isArray(todasSessoes) ? todasSessoes : [])
-            .filter(s => s.contrato_id === contratoId);
+            .filter(s => s.contrato_id === contratoId)
+            .sort((a, b) => new Date(a.data) - new Date(b.data));
 
         const fmt = v => parseFloat(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        const fmtData = d => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
+        const fmtData = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
 
         const statusCor = {
             agendada:     '#3498db',
@@ -5450,52 +5449,66 @@ async function verHistoricoContrato(contratoId) {
             concluida: 'Concluída', cancelada: 'Cancelada', reaberta: 'Reaberta', rascunho: 'Rascunho',
         };
 
-        const horasTotais    = parseFloat(contrato.horas_totais    || 0);
-        const horasUtilizadas = parseFloat(contrato.horas_utilizadas || 0);
-        const horasRestantes  = parseFloat(contrato.horas_restantes  || 0);
-        const horasExtras     = parseFloat(contrato.horas_extras     || 0);
-        const percentual      = parseFloat(contrato.percentual_utilizado || 0);
+        // ── Calcular horas em TEMPO REAL a partir das sessões ──────────────────
+        const horasTotais = parseFloat(contrato.horas_totais || 0);
+        const sessoesAtivas = sessoes.filter(s => s.status !== 'cancelada');
+        const horasUtilizadas = sessoesAtivas.reduce((acc, s) => acc + parseFloat(s.quantidade_horas || 0), 0);
+        const horasRestantes  = Math.max(horasTotais - horasUtilizadas, 0);
+        const horasExtras     = Math.max(horasUtilizadas - horasTotais, 0);
+        const percentual      = horasTotais > 0 ? (horasUtilizadas / horasTotais) * 100 : 0;
         const barColor        = percentual > 100 ? '#e74c3c' : percentual > 80 ? '#f39c12' : '#27ae60';
 
         const sessoesHtml = sessoes.length === 0
-            ? `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:32px;font-size:14px;">Nenhuma sessão vinculada a este contrato</td></tr>`
+            ? `<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:32px;font-size:14px;">Nenhuma sessão vinculada a este contrato</td></tr>`
             : sessoes.map((s, i) => {
-                const cor = statusCor[s.status] || '#95a5a6';
-                const label = statusLabel[s.status] || s.status;
-                const custoEquipe = (s.equipe || []).reduce((acc, m) => acc + parseFloat(m.valor || 0), 0);
-                const custoEquip  = (s.equipamentos_alugados || []).reduce((acc, e) => acc + parseFloat(e.valor || 0), 0);
+                const cor     = statusCor[s.status] || '#95a5a6';
+                const label   = statusLabel[s.status] || s.status;
+                const horas   = parseFloat(s.quantidade_horas || 0);
+                const isCancelada = s.status === 'cancelada';
+                const custoEquipe    = (s.equipe || []).reduce((acc, m) => acc + parseFloat(m.pagamento || m.valor || 0), 0);
+                const custoEquip     = (s.equipamentos_alugados || []).reduce((acc, e) => acc + parseFloat(e.valor || 0), 0);
                 const custoAdicional = (s.custos_adicionais || []).reduce((acc, c) => acc + parseFloat(c.valor || 0), 0);
-                const custoTotal = custoEquipe + custoEquip + custoAdicional;
+                const custoTotal     = custoEquipe + custoEquip + custoAdicional;
                 const rowBg = i % 2 === 0 ? '#fff' : '#f8fafc';
                 return `
-                <tr style="background:${rowBg};border-bottom:1px solid #e2e8f0;transition:background .15s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='${rowBg}'">
-                    <td style="padding:10px 10px;font-size:13px;color:#1e293b;font-weight:500;">${fmtData(s.data)}</td>
-                    <td style="padding:10px 10px;font-size:13px;color:#374151;">${s.horario || '-'}</td>
-                    <td style="padding:10px 10px;font-size:13px;color:#374151;font-weight:600;">${s.quantidade_horas ? s.quantidade_horas + 'h' : '-'}</td>
-                    <td style="padding:10px 10px;text-align:center;">
-                        <span style="background:${cor};color:white;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px;white-space:nowrap;">${label}</span>
+                <tr style="background:${rowBg};border-bottom:1px solid #e2e8f0;${isCancelada ? 'opacity:.55;' : ''}" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='${rowBg}'">
+                    <td style="padding:10px;font-size:13px;color:#1e293b;font-weight:500;">${fmtData(s.data)}</td>
+                    <td style="padding:10px;font-size:13px;color:#374151;">${escapeHtml(s.descricao || s.contrato_nome || '-')}</td>
+                    <td style="padding:10px;font-size:13px;color:#374151;">${s.horario || '-'}</td>
+                    <td style="padding:10px;font-size:13px;font-weight:700;color:${isCancelada ? '#94a3b8' : '#0369a1'};text-align:center;">
+                        ${isCancelada ? '<s>' + horas.toFixed(1) + 'h</s>' : horas.toFixed(1) + 'h'}
                     </td>
-                    <td style="padding:10px 10px;font-size:12px;color:#64748b;">
+                    <td style="padding:10px;text-align:center;">
+                        <span style="background:${cor};color:white;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${label}</span>
+                    </td>
+                    <td style="padding:10px;font-size:12px;color:#64748b;">
                         ${s.numero_nf
-                            ? `<span style="background:#eff6ff;color:#1d4ed8;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;">NF ${s.numero_nf}</span>`
+                            ? `<span style="background:#eff6ff;color:#1d4ed8;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">NF ${escapeHtml(s.numero_nf)}</span>`
                             : '<span style="color:#cbd5e1;">—</span>'}
                     </td>
-                    <td style="padding:10px 10px;font-size:13px;font-weight:600;color:${custoTotal > 0 ? '#dc2626' : '#94a3b8'};">${custoTotal > 0 ? fmt(custoTotal) : '—'}</td>
-                    <td style="padding:10px 10px;text-align:center;">
-                        <button onclick="editarSessao(${s.id})" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;padding:4px 8px;font-size:13px;line-height:1;transition:background .15s;" title="Editar sessão" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#f1f5f9'">✏️</button>
+                    <td style="padding:10px;font-size:13px;font-weight:600;color:${custoTotal > 0 ? '#dc2626' : '#94a3b8'};">${custoTotal > 0 ? fmt(custoTotal) : '—'}</td>
+                    <td style="padding:10px;text-align:center;">
+                        <button onclick="editarSessao(${s.id})" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;padding:4px 8px;font-size:13px;" title="Editar" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#f1f5f9'">✏️</button>
                     </td>
                 </tr>`;
-            }).join('');
+            }).join('') + `
+                <tr style="background:#f0fdf4;border-top:2px solid #27ae60;">
+                    <td colspan="3" style="padding:10px;font-size:13px;font-weight:700;color:#14532d;">TOTAL UTILIZADO</td>
+                    <td style="padding:10px;font-size:14px;font-weight:800;color:#14532d;text-align:center;">${horasUtilizadas.toFixed(1)}h</td>
+                    <td colspan="4" style="padding:10px;font-size:12px;color:#166534;">
+                        ${horasTotais > 0 ? `de ${horasTotais.toFixed(1)}h contratadas &nbsp;·&nbsp; ${horasRestantes.toFixed(1)}h restantes` : 'Contrato sem controle de horas'}
+                    </td>
+                </tr>`;
 
         const html = `
-        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:880px;">
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:900px;">
 
             <!-- Card do contrato -->
-            <div style="background:white;color:#1e293b;padding:22px 24px;border-radius:14px;margin-bottom:20px;box-shadow:0 4px 20px rgba(0,0,0,.1);border:1px solid #e2e8f0;">
+            <div style="background:white;padding:22px 24px;border-radius:14px;margin-bottom:20px;box-shadow:0 4px 20px rgba(0,0,0,.08);border:1px solid #e2e8f0;">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
                     <div style="flex:1;min-width:200px;">
                         <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:6px;">${escapeHtml(contrato.numero || '')}</div>
-                        <div style="font-size:18px;font-weight:700;line-height:1.3;color:#1e293b;">${escapeHtml(contrato.cliente_nome || contrato.nome || 'Contrato')}</div>
+                        <div style="font-size:18px;font-weight:700;color:#1e293b;">${escapeHtml(contrato.cliente_nome || contrato.nome || 'Contrato')}</div>
                         <div style="font-size:12px;color:#475569;margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
                             ${contrato.tipo ? `<span style="background:#f1f5f9;color:#334155;padding:2px 8px;border-radius:10px;border:1px solid #e2e8f0;">${escapeHtml(contrato.tipo)}</span>` : ''}
                             ${contrato.forma_pagamento ? `<span style="background:#f1f5f9;color:#334155;padding:2px 8px;border-radius:10px;border:1px solid #e2e8f0;">${escapeHtml(contrato.forma_pagamento)}</span>` : ''}
@@ -5503,44 +5516,47 @@ async function verHistoricoContrato(contratoId) {
                     </div>
                     <div style="text-align:right;">
                         <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Valor Total</div>
-                        <div style="font-size:26px;font-weight:800;color:#059669;letter-spacing:-.5px;">${fmt(contrato.valor || contrato.valor_total || 0)}</div>
+                        <div style="font-size:26px;font-weight:800;color:#059669;">${fmt(contrato.valor || contrato.valor_total || 0)}</div>
                         <div style="font-size:12px;color:#64748b;margin-top:4px;">${fmt(contrato.valor_mensal || 0)}/mês &nbsp;·&nbsp; ${contrato.quantidade_meses || 0} meses</div>
                     </div>
                 </div>
 
-                ${contrato.controle_horas_ativo ? `
+                <!-- Controle de horas calculado em tempo real -->
+                ${horasTotais > 0 ? `
                 <div style="margin-top:20px;padding-top:18px;border-top:1px solid #e2e8f0;">
-                    <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;font-weight:600;">⏱ Controle de Horas</div>
+                    <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;font-weight:600;">⏱ Controle de Horas (tempo real)</div>
                     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;">
-                        <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px 8px;border-radius:10px;text-align:center;">
-                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Total</div>
-                            <div style="font-size:22px;font-weight:800;color:#0369a1;">${horasTotais.toFixed(1)}h</div>
+                        <div style="background:#eff6ff;border:1px solid #bfdbfe;padding:12px 8px;border-radius:10px;text-align:center;">
+                            <div style="font-size:10px;color:#1e40af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Contratadas</div>
+                            <div style="font-size:22px;font-weight:800;color:#1e40af;">${horasTotais.toFixed(1)}h</div>
                         </div>
-                        <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px 8px;border-radius:10px;text-align:center;">
-                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Utilizadas</div>
+                        <div style="background:#fefce8;border:1px solid #fde68a;padding:12px 8px;border-radius:10px;text-align:center;">
+                            <div style="font-size:10px;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Utilizadas</div>
                             <div style="font-size:22px;font-weight:800;color:#d97706;">${horasUtilizadas.toFixed(1)}h</div>
+                            <div style="font-size:10px;color:#92400e;margin-top:2px;">${sessoesAtivas.length} sessão(ões)</div>
                         </div>
-                        <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px 8px;border-radius:10px;text-align:center;">
-                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Restantes</div>
+                        <div style="background:${horasRestantes > 0 ? '#f0fdf4' : '#fef3c7'};border:1px solid ${horasRestantes > 0 ? '#bbf7d0' : '#fde68a'};padding:12px 8px;border-radius:10px;text-align:center;">
+                            <div style="font-size:10px;color:${horasRestantes > 0 ? '#14532d' : '#92400e'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Restantes</div>
                             <div style="font-size:22px;font-weight:800;color:${horasRestantes > 0 ? '#059669' : '#d97706'};">${horasRestantes.toFixed(1)}h</div>
                         </div>
-                        <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px 8px;border-radius:10px;text-align:center;">
-                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Extras</div>
+                        <div style="background:${horasExtras > 0 ? '#fef2f2' : '#f8fafc'};border:1px solid ${horasExtras > 0 ? '#fecaca' : '#e2e8f0'};padding:12px 8px;border-radius:10px;text-align:center;">
+                            <div style="font-size:10px;color:${horasExtras > 0 ? '#991b1b' : '#64748b'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Extras</div>
                             <div style="font-size:22px;font-weight:800;color:${horasExtras > 0 ? '#dc2626' : '#94a3b8'};">${horasExtras.toFixed(1)}h</div>
                         </div>
                     </div>
-                    <div style="background:#e2e8f0;height:8px;border-radius:6px;overflow:hidden;">
-                        <div style="background:${barColor};height:100%;width:${Math.min(percentual, 100)}%;border-radius:6px;transition:width .4s ease;box-shadow:0 0 6px ${barColor}80;"></div>
+                    <div style="background:#e2e8f0;height:10px;border-radius:6px;overflow:hidden;">
+                        <div style="background:${barColor};height:100%;width:${Math.min(percentual, 100)}%;border-radius:6px;transition:width .4s ease;"></div>
                     </div>
-                    <div style="font-size:11px;color:#64748b;text-align:right;margin-top:6px;">${percentual.toFixed(1)}% utilizado</div>
+                    <div style="font-size:11px;color:#64748b;text-align:right;margin-top:5px;">${percentual.toFixed(1)}% utilizado</div>
                 </div>` : ''}
             </div>
 
-            <!-- Título da tabela -->
+            <!-- Título -->
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
                 <span style="background:#1565c0;color:white;width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;">📋</span>
                 <span style="font-size:15px;font-weight:700;color:#1e293b;">Sessões vinculadas</span>
                 <span style="background:#e0f2fe;color:#0369a1;font-size:12px;font-weight:600;padding:2px 10px;border-radius:12px;">${sessoes.length}</span>
+                ${sessoes.filter(s=>s.status==='cancelada').length > 0 ? `<span style="background:#fee2e2;color:#991b1b;font-size:11px;padding:2px 8px;border-radius:12px;">${sessoes.filter(s=>s.status==='cancelada').length} cancelada(s) — não contam nas horas</span>` : ''}
             </div>
 
             <!-- Tabela -->
@@ -5548,13 +5564,14 @@ async function verHistoricoContrato(contratoId) {
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                     <thead>
                         <tr style="background:#f1f5f9;">
-                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">DATA</th>
-                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">HORÁRIO</th>
-                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">HORAS</th>
-                            <th style="padding:12px 10px;text-align:center;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">STATUS</th>
-                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">NF</th>
-                            <th style="padding:12px 10px;text-align:left;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">CUSTOS</th>
-                            <th style="padding:12px 10px;text-align:center;font-weight:700;font-size:12px;letter-spacing:.4px;color:#000000 !important;border-bottom:2px solid #cbd5e1;">AÇÕES</th>
+                            <th style="padding:11px 10px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">DATA</th>
+                            <th style="padding:11px 10px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">DESCRIÇÃO</th>
+                            <th style="padding:11px 10px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">HORÁRIO</th>
+                            <th style="padding:11px 10px;text-align:center;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">HORAS</th>
+                            <th style="padding:11px 10px;text-align:center;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">STATUS</th>
+                            <th style="padding:11px 10px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">NF</th>
+                            <th style="padding:11px 10px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">CUSTOS</th>
+                            <th style="padding:11px 10px;text-align:center;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">AÇÕES</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -5564,18 +5581,14 @@ async function verHistoricoContrato(contratoId) {
             </div>
         </div>`;
 
-        // Abrir modal genérico
-        const modalContent = `<div class="modal-body" style="padding:20px;max-height:75vh;overflow-y:auto;">${html}</div>`;
+        const modalContent = `<div class="modal-body" style="padding:20px;max-height:80vh;overflow-y:auto;">${html}</div>`;
         if (typeof createModal === 'function') {
             createModal(`📋 Histórico — ${contrato.numero || 'Contrato'}`, modalContent);
         } else {
-            // Fallback: modal existente
-            const modalTitle = document.getElementById('modal-title');
-            const modalBody  = document.getElementById('modal-body');
-            const modal      = document.getElementById('modal');
-            if (modal && modalTitle && modalBody) {
-                modalTitle.textContent = `📋 Histórico — ${contrato.numero || 'Contrato'}`;
-                modalBody.innerHTML = html;
+            const modal = document.getElementById('modal');
+            if (modal) {
+                document.getElementById('modal-title').textContent = `📋 Histórico — ${contrato.numero || 'Contrato'}`;
+                document.getElementById('modal-body').innerHTML = html;
                 modal.style.display = 'flex';
             }
         }
