@@ -19,6 +19,11 @@ import config
 # Arquivo local (usado apenas em desenvolvimento, ignorado no Railway)
 CREDENTIALS_FILE = 'config/google_credentials.json'
 
+# Permite que a resposta OAuth do Google contenha escopos adicionais
+# (openid, userinfo.email, userinfo.profile) sem que requests-oauthlib
+# lance MismatchingStateError / ScopeChanged.
+os.environ.setdefault('OAUTHLIB_RELAX_TOKEN_SCOPE', '1')
+
 # ---------------------------------------------------------------
 # Helpers de persistência: DB primeiro, arquivo como fallback
 # ---------------------------------------------------------------
@@ -132,11 +137,6 @@ def exchange_code_for_tokens(code, state=None, empresa_id: int = 1):
     if state:
         flow.state = state
 
-    # Permite que o Google retorne escopos adicionais (openid, profile, etc.)
-    # sem que o requests_oauthlib lance ScopeChanged
-    import os as _os
-    _os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
-
     flow.fetch_token(code=code)
     
     credentials = flow.credentials
@@ -185,13 +185,22 @@ def get_credentials(empresa_id: int = 1):
         return None
     
     try:
+        expiry_str = creds_data.get('expiry')
+        expiry = None
+        if expiry_str:
+            try:
+                expiry = datetime.fromisoformat(expiry_str)
+            except (ValueError, TypeError):
+                expiry = None
+
         credentials = Credentials(
             token=creds_data.get('token'),
             refresh_token=creds_data.get('refresh_token'),
             token_uri=creds_data.get('token_uri'),
             client_id=creds_data.get('client_id'),
             client_secret=creds_data.get('client_secret'),
-            scopes=creds_data.get('scopes')
+            scopes=creds_data.get('scopes'),
+            expiry=expiry
         )
         
         # Renovar token se expirado
@@ -200,6 +209,9 @@ def get_credentials(empresa_id: int = 1):
             credentials.refresh(Request())
             
             creds_data['token'] = credentials.token
+            # Atualizar refresh_token caso o Google tenha rotacionado
+            if credentials.refresh_token:
+                creds_data['refresh_token'] = credentials.refresh_token
             creds_data['expiry'] = credentials.expiry.isoformat() if credentials.expiry else None
             # Persistir token renovado
             if not _save_credentials_db(creds_data, empresa_id):
