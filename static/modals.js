@@ -2448,10 +2448,13 @@ function parseValorBR(valor) {
 }
 
 function atualizarCalculoContrato() {
-    const campoValorMensal = document.getElementById('contrato-valor-mensal');
-    const campoMeses = document.getElementById('contrato-meses');
-    const campoTotal = document.getElementById('contrato-valor-total');
-    const campoTipo = document.getElementById('contrato-tipo');
+    // Escopar dentro do modal dinâmico para evitar conflito com elementos estáticos no HTML
+    const modal = document.getElementById('dynamic-modal');
+    const scope = modal || document;
+    const campoValorMensal = scope.querySelector('#contrato-valor-mensal');
+    const campoMeses = scope.querySelector('#contrato-meses');
+    const campoTotal = scope.querySelector('#contrato-valor-total');
+    const campoTipo = scope.querySelector('#contrato-tipo');
     
     if (!campoValorMensal || !campoMeses || !campoTotal || !campoTipo) return;
 
