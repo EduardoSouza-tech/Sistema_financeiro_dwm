@@ -5160,7 +5160,15 @@ async function loadContratos() {
                 <td style="font-weight: bold; color: #27ae60;">${formatarMoeda(valorTotal)}</td>
                 <td>${dataFormatada}</td>
                 <td><span style="font-size: 11px;">${escapeHtml(contrato.forma_pagamento || '-')}</span></td>
-                <td><span class="status-badge status-${contrato.status || 'ativo'}">${contrato.status || 'Ativo'}</span></td>
+                <td>
+                    <select class="contrato-status-select" data-id="${contrato.id}" onchange="alterarStatusContrato(this)" style="border: none; background: transparent; cursor: pointer; font-size: 12px; font-weight: bold; padding: 3px 6px; border-radius: 4px; outline: none;">
+                        <option value="Aberto"   ${ (contrato.status||'') === 'Aberto'   ? 'selected' : '' }>Aberto</option>
+                        <option value="Editado"  ${ (contrato.status||'') === 'Editado'  ? 'selected' : '' }>Editado</option>
+                        <option value="Entregue" ${ (contrato.status||'') === 'Entregue' ? 'selected' : '' }>Entregue</option>
+                        <option value="ativo"    ${ !['Aberto','Editado','Entregue','inativo'].includes(contrato.status||'') ? 'selected' : '' }>Ativo</option>
+                        <option value="inativo"  ${ (contrato.status||'') === 'inativo'  ? 'selected' : '' }>Inativo</option>
+                    </select>
+                </td>
                 <td style="white-space: nowrap; text-align: center;">
                     <button onclick="verHistoricoContrato(${contrato.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Histórico de Sessões">📋</button>
                     <button onclick="editarContrato(${contrato.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
@@ -5169,6 +5177,9 @@ async function loadContratos() {
             `;
             tbody.appendChild(tr);
         });
+
+        // Colorir todos os selects de status após render
+        document.querySelectorAll('.contrato-status-select').forEach(_colorirStatusSelect);
         
         console.log('✅ Contratos carregados:', contratos.length);
         
@@ -5180,8 +5191,44 @@ async function loadContratos() {
         }
     }
 }
-// Expor globalmente para uso em showSection()
+
+function _colorirStatusSelect(sel) {
+    const cores = {
+        'Aberto':   { bg: '#fff3cd', color: '#856404', border: '#ffc107' },
+        'Editado':  { bg: '#cfe2ff', color: '#084298', border: '#3498db' },
+        'Entregue': { bg: '#d1e7dd', color: '#0a4438', border: '#27ae60' },
+        'ativo':    { bg: '#d1e7dd', color: '#0a4438', border: '#27ae60' },
+        'inativo':  { bg: '#f8d7da', color: '#842029', border: '#e74c3c' },
+    };
+    const c = cores[sel.value] || { bg: '#f0f0f0', color: '#333', border: '#ccc' };
+    sel.style.background = c.bg;
+    sel.style.color = c.color;
+    sel.style.border = `1px solid ${c.border}`;
+}
+
+async function alterarStatusContrato(selectEl) {
+    const contratoId = selectEl.dataset.id;
+    const novoStatus = selectEl.value;
+    _colorirStatusSelect(selectEl);
+    try {
+        const resp = await fetch(`${API_URL}/contratos/${contratoId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'X-Empresa-ID': window.currentEmpresaId },
+            credentials: 'include',
+            body: JSON.stringify({ status: novoStatus })
+        });
+        const result = await resp.json();
+        if (!result.success) {
+            showToast('❌ Erro ao atualizar status: ' + (result.error || ''), 'error');
+            loadContratos(); // revert
+        }
+    } catch (e) {
+        showToast('❌ Erro de conexão', 'error');
+        loadContratos();
+    }
+}
 window.loadContratos = loadContratos;
+window.alterarStatusContrato = alterarStatusContrato;
 
 /**
  * Carrega lista de sessões

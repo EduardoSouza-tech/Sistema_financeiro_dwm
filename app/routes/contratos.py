@@ -318,6 +318,33 @@ def exportar_contratos_excel():
 # COMPENSAÇÃO DE HORAS ENTRE CONTRATOS
 # ============================================================================
 
+@contratos_bp.route('/<int:contrato_id>/status', methods=['PATCH'])
+@require_permission('contratos_edit')
+def atualizar_status_contrato(contrato_id: int):
+    """Atualiza apenas o status de um contrato"""
+    data = request.json or {}
+    novo_status = data.get('status', '').strip()
+    status_validos = {'Aberto', 'Editado', 'Entregue', 'ativo', 'inativo', 'cancelado'}
+    if novo_status not in status_validos:
+        return jsonify({'success': False, 'error': f'Status inválido: {novo_status}'}), 400
+
+    empresa_id = session.get('empresa_id')
+    try:
+        from database_postgresql import get_db_connection
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE contratos SET status = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                (novo_status, contrato_id)
+            )
+            sucesso = cursor.rowcount > 0
+        if sucesso:
+            return jsonify({'success': True, 'status': novo_status})
+        return jsonify({'success': False, 'error': 'Contrato não encontrado'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @contratos_bp.route('/<int:origem_id>/compensar-horas', methods=['POST'])
 @require_permission('contratos_edit')
 def compensar_horas_contratos(origem_id: int):
