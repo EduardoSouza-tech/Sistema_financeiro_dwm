@@ -238,16 +238,19 @@ def google_calendar_callback():
         if not code:
             return redirect(url_for('index') + '?message=google_auth_failed&error=no_code')
         
-        # CORREÇÃO: Validar state com verificação de expiração (10 min)
+        # Validar state — logar divergência mas não bloquear se sessão foi perdida
         saved_state = session.get('google_oauth_state')
         state_timestamp = session.get('google_oauth_state_timestamp', 0)
-        
-        if state != saved_state:
+
+        if saved_state and state != saved_state:
             print(f"❌ State inválido: {state} != {saved_state}")
             return redirect(url_for('index') + '?message=google_auth_failed&error=invalid_state')
-        
+
+        if saved_state is None:
+            print(f"⚠️ [OAuth] google_oauth_state ausente da sessão — sessão pode ter sido perdida, continuando")
+
         import time
-        if time.time() - state_timestamp > 600:  # 10 minutos
+        if saved_state and time.time() - state_timestamp > 600:  # 10 minutos
             print(f"❌ State expirado: {time.time() - state_timestamp}s")
             session.pop('google_oauth_state', None)
             session.pop('google_oauth_state_timestamp', None)
@@ -457,15 +460,38 @@ def google_calendar_status():
     try:
         if not GOOGLE_CALENDAR_AVAILABLE:
             return jsonify({'authorized': False, 'available': False})
-        
+
         empresa_id = session.get('empresa_id', 1)
         is_auth = google_calendar_helper.is_authorized(empresa_id)
         settings = load_email_settings()
-        
+
+        # Diagnóstico: verificar se credenciais existem na tabela (sem descriptografar)
+        creds_exist_db = False
+        creds_exist_file = False
+        try:
+            import database_postgresql as _db
+            with _db.get_db_connection(empresa_id=empresa_id) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT empresa_id, updated_at FROM google_calendar_credentials WHERE empresa_id = %s",
+                    (empresa_id,)
+                )
+                row = cur.fetchone()
+                cur.close()
+            creds_exist_db = row is not None
+        except Exception as e:
+            print(f"⚠️ [Status] Erro ao checar DB: {e}")
+
+        import os as _os
+        creds_exist_file = _os.path.exists(google_calendar_helper.CREDENTIALS_FILE)
+
         return jsonify({
             'authorized': is_auth,
             'available': True,
-            'enabled': settings.get('google_calendar_enabled', False)
+            'enabled': settings.get('google_calendar_enabled', False),
+            'empresa_id': empresa_id,
+            'creds_in_db': creds_exist_db,
+            'creds_in_file': creds_exist_file,
         })
     except Exception as e:
         print(f"❌ Erro ao verificar status: {e}")
