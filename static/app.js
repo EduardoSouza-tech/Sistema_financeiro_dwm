@@ -5161,7 +5161,7 @@ async function loadContratos() {
                 <td>${dataFormatada}</td>
                 <td><span style="font-size: 11px;">${escapeHtml(contrato.forma_pagamento || '-')}</span></td>
                 <td>
-                    <select class="contrato-status-select" data-id="${contrato.id}" onchange="alterarStatusContrato(this)" style="border: none; background: transparent; cursor: pointer; font-size: 12px; font-weight: bold; padding: 3px 6px; border-radius: 4px; outline: none;">
+                    <select class="contrato-status-select" data-id="${contrato.id}" onchange="alterarStatusContrato(this)" style="border: none; background: transparent; cursor: pointer; font-size: 12px; font-weight: bold; padding: 3px 6px; border-radius: 4px; outline: none; min-width: 90px; width: auto;">
                         <option value="Aberto"   ${ (contrato.status||'') === 'Aberto'   ? 'selected' : '' }>Aberto</option>
                         <option value="Editado"  ${ (contrato.status||'') === 'Editado'  ? 'selected' : '' }>Editado</option>
                         <option value="Entregue" ${ (contrato.status||'') === 'Entregue' ? 'selected' : '' }>Entregue</option>
