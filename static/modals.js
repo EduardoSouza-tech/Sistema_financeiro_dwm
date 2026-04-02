@@ -2266,12 +2266,17 @@ async function openModalContrato(contratoEdit = null) {
             
             <!-- Linha 3: Valores e Meses -->
             <div id="contrato-linha3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-                <div class="form-group">
+                <div id="grupo-contrato-valor-mensal" class="form-group">
                     <label>*Valor Mensal:</label>
                     <input type="number" id="contrato-valor-mensal" step="any" min="0" required value="${isEdit ? contratoEdit.valor_mensal || '' : ''}" placeholder="3500.00" oninput="atualizarCalculoContrato()">
                 </div>
-                
-                <div class="form-group">
+
+                <div id="grupo-contrato-horas-pacote" class="form-group" style="display:none">
+                    <label>*Horas por Pacote:</label>
+                    <input type="number" id="contrato-horas-pacote" min="1" step="1" value="${isEdit && contratoEdit.tipo === 'Pacote' ? contratoEdit.horas_mensais || '' : ''}" placeholder="8" oninput="atualizarCalculoContrato()">
+                </div>
+
+                <div id="grupo-contrato-meses" class="form-group">
                     <label>*Qtd. Meses:</label>
                     <input type="number" id="contrato-meses" min="1" step="1" required value="${isEdit ? contratoEdit.quantidade_meses || '1' : '1'}" oninput="atualizarCalculoContrato()">
                 </div>
@@ -2284,7 +2289,7 @@ async function openModalContrato(contratoEdit = null) {
             
             <!-- Linha 4: Horas, Pagamento, Parcelas -->
             <div id="contrato-linha4" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-                <div class="form-group">
+                <div id="grupo-contrato-horas-mensal" class="form-group">
                     <label>Horas Mensais:</label>
                     <input type="number" id="contrato-horas" min="0" value="${isEdit ? contratoEdit.horas_mensais || '' : ''}" placeholder="8">
                 </div>
@@ -2483,9 +2488,8 @@ function atualizarCalculoContrato() {
     const meses = parseInt(campoMeses.value) || 0;
     
     if (tipo === 'Pacote') {
-        // === CÁLCULO TIPO PACOTE ===
-        // valorTotal = qtd_pacotes × horas_pacote
-        const horasPacote = parseInt(campoHoras?.value) || 0;
+        // === CÁLCULO TIPO PACOTE: qtd_pacotes × horas_pacote ===
+        const horasPacote = parseInt(document.getElementById('contrato-horas-pacote')?.value) || 0;
         valorTotal = meses * horasPacote;
         
     } else {
@@ -2573,12 +2577,13 @@ async function salvarContrato(event) {
     
     // 🔧 Parse correto de valor brasileiro: remove pontos (milhar), troca vírgula por ponto (decimal)
     const tipo = document.getElementById('contrato-tipo').value;
+    const quantidadeMeses = parseInt(document.getElementById('contrato-meses').value) || 1;
+    const ehPacote = tipo === 'Pacote';
     const valorMensalRaw = document.getElementById('contrato-valor-mensal').value;
     const valorMensalStr = String(valorMensalRaw).replace(/\./g, '').replace(/,/g, '.');
-    const valorMensal = parseFloat(valorMensalStr) || 0;
-    const quantidadeMeses = parseInt(document.getElementById('contrato-meses').value) || 1;
-    const horasPacote = parseInt(document.getElementById('contrato-horas').value) || 0;
-    const valorTotal = tipo === 'Pacote' ? quantidadeMeses * horasPacote : valorMensal * quantidadeMeses;
+    const valorMensal = ehPacote ? 0 : (parseFloat(valorMensalStr) || 0);
+    const horasPacote = ehPacote ? parseInt(document.getElementById('contrato-horas-pacote')?.value) || 0 : 0;
+    const valorTotal = ehPacote ? quantidadeMeses * horasPacote : valorMensal * quantidadeMeses;
     
     console.log('💰 Valores coletados no salvar:');
     console.log('   📝 Valor Mensal (campo .value RAW):', valorMensalRaw);
@@ -2619,7 +2624,9 @@ async function salvarContrato(event) {
         valor_mensal: valorMensal,
         quantidade_meses: quantidadeMeses,
         valor_total: valorTotal,
-        horas_mensais: parseInt(document.getElementById('contrato-horas').value) || null,
+        horas_mensais: ehPacote
+            ? parseInt(document.getElementById('contrato-horas-pacote')?.value) || null
+            : parseInt(document.getElementById('contrato-horas').value) || null,
         forma_pagamento: document.getElementById('contrato-pagamento').value,
         quantidade_parcelas: parseInt(document.getElementById('contrato-parcelas').value),
         data_contrato: document.getElementById('contrato-data').value,
@@ -4957,83 +4964,44 @@ window.salvarKit = salvarKit;
 function alterarTipoContrato() {
     const tipoSelect = document.getElementById('contrato-tipo');
     const tipo = tipoSelect ? tipoSelect.value : 'Mensal';
-    
-    const campoValorMensal = document.getElementById('contrato-valor-mensal');
-    const campoMeses = document.getElementById('contrato-meses');
-    const campoHoras = document.getElementById('contrato-horas');
-    
-    // Obter labels (parent > label)
-    const labelValorMensal = campoValorMensal?.parentElement?.querySelector('label');
-    const labelMeses = campoMeses?.parentElement?.querySelector('label');
-    const labelHoras = campoHoras?.parentElement?.querySelector('label');
-    
+
+    const grupoValorMensal  = document.getElementById('grupo-contrato-valor-mensal');
+    const grupoHorasPacote  = document.getElementById('grupo-contrato-horas-pacote');
+    const grupoMeses        = document.getElementById('grupo-contrato-meses');
+    const grupoHorasMensal  = document.getElementById('grupo-contrato-horas-mensal');
+    const campoValorMensal  = document.getElementById('contrato-valor-mensal');
+    const campoMeses        = document.getElementById('contrato-meses');
+    const labelMeses        = grupoMeses?.querySelector('label');
+
     if (tipo === 'Pacote') {
-        // === MODO PACOTE ===
-        // Ocultar campo Valor por Hora (não utilizado em Pacote)
-        const grupoValorMensal = campoValorMensal?.closest('.form-group');
+        // === MODO PACOTE: Qtd.Pacotes | Horas por Pacote | Valor Total ===
         if (grupoValorMensal) grupoValorMensal.style.display = 'none';
         if (campoValorMensal) campoValorMensal.required = false;
+        if (grupoHorasPacote) grupoHorasPacote.style.display = '';
+        if (grupoHorasMensal) grupoHorasMensal.style.display = 'none';
 
-        // Altera label "Qtd. Meses" → "Qtd. Pacotes"
+        // Reordenar Linha 3: Qtd.Pacotes primeiro (order:1), Horas por Pacote segundo (order:2)
+        if (grupoMeses)       grupoMeses.style.order = '1';
+        if (grupoHorasPacote) grupoHorasPacote.style.order = '2';
+
         if (labelMeses) labelMeses.textContent = '*Qtd. Pacotes:';
-        if (campoMeses) {
-            campoMeses.placeholder = '10';
-            campoMeses.title = 'Quantidade de pacotes contratados';
-        }
-
-        // Altera label "Horas Mensais" → "Horas por Pacote" e torna obrigatório
-        if (labelHoras) labelHoras.textContent = '*Horas por Pacote:';
-        if (campoHoras) {
-            campoHoras.required = true;
-            campoHoras.placeholder = '8';
-            campoHoras.title = 'Horas incluídas em cada pacote';
-            campoHoras.oninput = atualizarCalculoContrato;
-        }
-
-        // Mover campo Horas para Linha 3 (ao lado de Qtd. Pacotes e Valor Total)
-        const linha3 = document.getElementById('contrato-linha3');
-        const grupoHoras = campoHoras?.closest('.form-group');
-        const grupoTotal = document.getElementById('contrato-valor-total')?.closest('.form-group');
-        if (linha3 && grupoHoras && grupoTotal && grupoHoras.parentElement !== linha3) {
-            linha3.insertBefore(grupoHoras, grupoTotal);
-        }
+        if (campoMeses) campoMeses.placeholder = '10';
 
     } else {
-        // === MODO MENSAL/ÚNICO ===
-        // Restaurar campo Valor Mensal
-        const grupoValorMensal = campoValorMensal?.closest('.form-group');
+        // === MODO MENSAL/ÚNICO: Valor Mensal | Qtd.Meses | Valor Total ===
         if (grupoValorMensal) grupoValorMensal.style.display = '';
-        if (campoValorMensal) {
-            campoValorMensal.required = true;
-            campoValorMensal.placeholder = '3500.00';
-            campoValorMensal.title = 'Valor mensal do contrato';
-        }
+        if (campoValorMensal) { campoValorMensal.required = true; campoValorMensal.placeholder = '3500.00'; }
+        if (grupoHorasPacote) grupoHorasPacote.style.display = 'none';
+        if (grupoHorasMensal) grupoHorasMensal.style.display = '';
 
-        // Restaura label "Qtd. Pacotes" → "Qtd. Meses"
+        // Resetar CSS order para layout padrão
+        if (grupoMeses)       grupoMeses.style.order = '';
+        if (grupoHorasPacote) grupoHorasPacote.style.order = '';
+
         if (labelMeses) labelMeses.textContent = '*Qtd. Meses:';
-        if (campoMeses) {
-            campoMeses.placeholder = '12';
-            campoMeses.title = 'Duração do contrato em meses';
-        }
-
-        // Mover campo Horas de volta para Linha 4 (se tiver sido movido)
-        const linha4 = document.getElementById('contrato-linha4');
-        const grupoHoras = campoHoras?.closest('.form-group');
-        if (linha4 && grupoHoras && grupoHoras.parentElement !== linha4) {
-            linha4.insertBefore(grupoHoras, linha4.firstChild);
-        }
-
-        // Restaura label "Horas por Pacote" → "Horas Mensais" e remove obrigatoriedade
-        if (labelHoras) labelHoras.textContent = 'Horas Mensais:';
-        if (campoHoras) {
-            campoHoras.required = false;
-            campoHoras.placeholder = '8';
-            campoHoras.title = 'Horas mensais estimadas (opcional)';
-            campoHoras.oninput = null;
-        }
+        if (campoMeses) campoMeses.placeholder = '12';
     }
-    
-    // Recalcula valor total com nova lógica
+
     atualizarCalculoContrato();
 }
 
