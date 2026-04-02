@@ -3106,7 +3106,10 @@ async function openModalSessao(sessaoEdit = null) {
                 <label style="font-size: 18px; font-weight: bold; color: #2c3e50; margin-top: 20px; border-bottom: 2px solid #3498db; padding-bottom: 5px;">Equipe</label>
                 <div id="sessao-equipe-container" style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9; margin-top: 10px;">
                     <div id="sessao-equipe-list"></div>
-                    <button type="button" onclick="adicionarEquipeSessao()" class="btn btn-sm" style="margin-top: 10px; background: #3498db; color: white;">➕ Adicionar Membro</button>
+                    <div style="display: flex; gap: 8px; margin-top: 10px;">
+                        <button type="button" onclick="adicionarEquipeSessao()" class="btn btn-sm" style="background: #3498db; color: white;">➕ Adicionar Membro</button>
+                        <button type="button" onclick="_abrirModalRapidoFuncionario()" class="btn btn-sm" style="background: #27ae60; color: white;" title="Cadastrar novo funcionário rapidamente">👤 Novo Funcionário</button>
+                    </div>
                 </div>
             </div>
             
@@ -3684,7 +3687,127 @@ function _parseHorarioParaHoras(horario) {
 }
 window._parseHorarioParaHoras = _parseHorarioParaHoras;
 
-function _calcularHorasSessao() {
+async function _abrirModalRapidoFuncionario() {
+    // Mini-modal flutuante para cadastro rápido de funcionário
+    const overlayId = 'modal-rapido-funcionario';
+    if (document.getElementById(overlayId)) return; // evita duplicata
+
+    const overlay = document.createElement('div');
+    overlay.id = overlayId;
+    overlay.style.cssText = `
+        position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+        display: flex; align-items: center; justify-content: center; z-index: 99999;
+    `;
+    overlay.innerHTML = `
+        <div style="background:#fff; border-radius:12px; padding:28px; width:380px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+            <h3 style="margin:0 0 20px; color:#2c3e50; font-size:18px;">👤 Novo Funcionário</h3>
+            <div class="form-group" style="margin-bottom:14px;">
+                <label style="display:block; margin-bottom:4px; font-weight:600;">*Nome:</label>
+                <input id="_rf-nome" type="text" placeholder="Nome completo" autofocus
+                    style="width:100%; padding:9px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom:14px;">
+                <label style="display:block; margin-bottom:4px; font-weight:600;">*CPF:</label>
+                <input id="_rf-cpf" type="text" placeholder="000.000.000-00" maxlength="14"
+                    style="width:100%; padding:9px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom:20px;">
+                <label style="display:block; margin-bottom:4px; font-weight:600;">Celular:</label>
+                <input id="_rf-celular" type="text" placeholder="(11) 99999-9999"
+                    style="width:100%; padding:9px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;">
+            </div>
+            <div id="_rf-erro" style="color:#e74c3c; font-size:13px; margin-bottom:10px; display:none;"></div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button id="_rf-cancelar" type="button"
+                    style="padding:9px 20px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer;">
+                    Cancelar
+                </button>
+                <button id="_rf-salvar" type="button"
+                    style="padding:9px 20px; background:#27ae60; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:600;">
+                    Salvar
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // Máscara CPF
+    const cpfInput = document.getElementById('_rf-cpf');
+    cpfInput.addEventListener('input', () => {
+        let v = cpfInput.value.replace(/\D/g, '').slice(0, 11);
+        if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+        else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+        else if (v.length > 3) v = v.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+        cpfInput.value = v;
+    });
+
+    const fechar = () => overlay.remove();
+    document.getElementById('_rf-cancelar').onclick = fechar;
+    overlay.addEventListener('click', e => { if (e.target === overlay) fechar(); });
+
+    document.getElementById('_rf-salvar').onclick = async () => {
+        const erroEl = document.getElementById('rf-erro') || document.getElementById('_rf-erro');
+        erroEl.style.display = 'none';
+
+        const nome   = document.getElementById('_rf-nome').value.trim();
+        const cpf    = document.getElementById('_rf-cpf').value.trim();
+        const celular = document.getElementById('_rf-celular').value.trim();
+
+        if (!nome) { erroEl.textContent = 'Nome é obrigatório.'; erroEl.style.display = 'block'; return; }
+        if (!cpf)  { erroEl.textContent = 'CPF é obrigatório.'; erroEl.style.display = 'block'; return; }
+
+        const btn = document.getElementById('_rf-salvar');
+        btn.disabled = true; btn.textContent = 'Salvando...';
+
+        try {
+            const resp = await fetch('/api/funcionarios', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome, cpf, celular: celular || undefined })
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+                erroEl.textContent = data.error || 'Erro ao salvar.';
+                erroEl.style.display = 'block';
+                btn.disabled = false; btn.textContent = 'Salvar';
+                return;
+            }
+            // Adiciona ao cache global
+            if (!window.funcionarios) window.funcionarios = [];
+            window.funcionarios.push({ id: data.id, nome });
+
+            // Adiciona linha na equipe já com o novo funcionário selecionado
+            adicionarEquipeSessao({ funcionario_id: data.id });
+            // Seleciona o novo funcionário no último item adicionado
+            const items = document.querySelectorAll('#sessao-equipe-list .equipe-item');
+            if (items.length) {
+                const lastSelect = items[items.length - 1].querySelector('.equipe-funcionario');
+                if (lastSelect) {
+                    const opt = document.createElement('option');
+                    opt.value = data.id; opt.textContent = nome; opt.selected = true;
+                    lastSelect.appendChild(opt);
+                    // Remove duplicata se já veio do rebuild
+                    Array.from(lastSelect.options).forEach(o => {
+                        if (String(o.value) === String(data.id) && !o.selected) o.remove();
+                    });
+                }
+            }
+
+            if (typeof showToast === 'function') showToast(`✅ Funcionário "${nome}" cadastrado!`, 'success');
+            fechar();
+        } catch (err) {
+            erroEl.textContent = 'Erro de conexão.';
+            erroEl.style.display = 'block';
+            btn.disabled = false; btn.textContent = 'Salvar';
+        }
+    };
+
+    // Enter no último campo salva
+    document.getElementById('_rf-celular').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('_rf-salvar').click();
+    });
+}
+window._abrirModalRapidoFuncionario = _abrirModalRapidoFuncionario;
     const inicio = document.getElementById('sessao-hora-inicio')?.value;
     const fim    = document.getElementById('sessao-hora-fim')?.value;
     const horas  = document.getElementById('sessao-horas');
