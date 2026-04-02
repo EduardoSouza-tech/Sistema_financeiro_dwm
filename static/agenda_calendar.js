@@ -596,7 +596,6 @@ function openEmailSettings() {
                             <li>Ao habilitar API e serviços, busque por <strong>Google Calendar API</strong>.</li>
                             <li>Ao habilitar a Google Calendar API, clique em <strong>"Criar credenciais"</strong> para gerar os arquivos necessários.</li>
                             <li>Preencha as informações conforme solicitado.</li>
-                            <li><strong>IMPORTANTE:</strong> não esqueça de permitir que estas credenciais acessem: <a href="https://app.conectaGestor.com.br/google-agenda/token" target="_blank" rel="noopener noreferrer" style="color: #1565C0;">app.conectaGestor.com.br/google-agenda/token</a></li>
                             <li>Clique em baixar as credenciais geradas. Após baixar, clique em <strong>"Concluir"</strong>.</li>
                             <li>Envie o arquivo baixado através do formulário abaixo.</li>
                         </ol>
