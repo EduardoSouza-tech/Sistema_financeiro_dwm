@@ -2973,7 +2973,7 @@ async function openModalSessao(sessaoEdit = null) {
         console.log('  - Exemplo funcionário:', window.funcionarios[0]);
     }
     
-    // Opções de clientes
+    // Opções de clientes — com onchange para endereço + contratos
     const opcoesClientes = window.clientes && window.clientes.length > 0
         ? window.clientes.map(c => {
             const selected = isEdit && sessaoEdit.cliente_id === c.id ? 'selected' : '';
@@ -3010,7 +3010,12 @@ async function openModalSessao(sessaoEdit = null) {
             </label>`;
         }).join('')
         : '<p>Nenhum kit cadastrado</p>';
-    
+
+    // Parsear horario existente (edição) nos dois campos de hora
+    const _horasEdit = _parseHorarioParaHoras(isEdit ? sessaoEdit.horario : '');
+    const _horaInicio = _horasEdit.inicio;
+    const _horaFim    = _horasEdit.fim;
+
     const modal = createModal(titulo, `
         <form id="form-sessao" onsubmit="salvarSessao(event)" style="max-height: 85vh; overflow-y: auto;">
             <input type="hidden" id="sessao-id" value="${isEdit ? sessaoEdit.id : ''}">
@@ -3020,7 +3025,7 @@ async function openModalSessao(sessaoEdit = null) {
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div class="form-group">
                     <label>*Cliente:</label>
-                    <select id="sessao-cliente" required onchange="_filtrarContratosSessao(this.value)">
+                    <select id="sessao-cliente" required onchange="_aoClienteSelecionadoSessao(this.value)">
                         <option value="">Selecione...</option>
                         ${opcoesClientes}
                     </select>
@@ -3035,21 +3040,28 @@ async function openModalSessao(sessaoEdit = null) {
                 </div>
             </div>
             
-            <!-- Linha 2: Data, Horário, Quantidade de Horas -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+            <!-- Linha 2: Data, Hora Início, Hora Fim, Quantidade de Horas -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
                 <div class="form-group">
                     <label>*Data:</label>
                     <input type="date" id="sessao-data" required value="${isEdit && sessaoEdit.data ? sessaoEdit.data.split('T')[0] : ''}">
                 </div>
                 
                 <div class="form-group">
-                    <label>*Horário:</label>
-                    <input type="text" id="sessao-horario" required value="${isEdit ? sessaoEdit.horario || '' : ''}" placeholder="14h às 18h">
+                    <label>*Hora Início:</label>
+                    <input type="time" id="sessao-hora-inicio" required value="${_horaInicio}" onchange="_calcularHorasSessao()">
+                </div>
+                
+                <div class="form-group">
+                    <label>*Hora Fim:</label>
+                    <input type="time" id="sessao-hora-fim" required value="${_horaFim}" onchange="_calcularHorasSessao()">
                 </div>
                 
                 <div class="form-group">
                     <label>Quantidade de Horas:</label>
-                    <input type="number" id="sessao-horas" step="0.5" min="0" value="${isEdit ? sessaoEdit.quantidade_horas || '' : ''}" placeholder="4">
+                    <input type="number" id="sessao-horas" step="0.5" min="0" readonly
+                           value="${isEdit ? sessaoEdit.quantidade_horas || '' : ''}"
+                           placeholder="Auto" style="background:#f5f5f5; cursor:not-allowed;">
                 </div>
             </div>
             
@@ -3454,7 +3466,11 @@ async function salvarSessao(event) {
         cliente_id: parseInt(document.getElementById('sessao-cliente').value),
         contrato_id: parseInt(document.getElementById('sessao-contrato').value),
         data: document.getElementById('sessao-data').value,
-        horario: document.getElementById('sessao-horario').value,
+        horario: (() => {
+            const ini = document.getElementById('sessao-hora-inicio')?.value || '';
+            const fim = document.getElementById('sessao-hora-fim')?.value || '';
+            return ini && fim ? `${ini} AS ${fim}` : (ini || fim);
+        })(),
         quantidade_horas: parseFloat(document.getElementById('sessao-horas').value) || null,
         endereco: document.getElementById('sessao-endereco').value,
         tipo_foto: document.getElementById('sessao-tipo-foto').checked,
@@ -3650,6 +3666,48 @@ async function executarFinalizarSessao(sessaoId) {
  * Filtra o select de contratos pelo cliente selecionado no modal de sessão.
  * Chamado via onchange do #sessao-cliente.
  */
+function _parseHorarioParaHoras(horario) {
+    if (!horario) return { inicio: '', fim: '' };
+    const norm = String(horario).toUpperCase().replace(/H/g, '').trim();
+    const partes = norm.split(/\s*(?:AS|ÀS|À|-)\s*/);
+    function toTime(s) {
+        s = (s || '').trim();
+        if (!s) return '';
+        if (s.includes(':')) {
+            const [h, m] = s.split(':');
+            return `${String(parseInt(h)).padStart(2,'0')}:${(m||'00').padStart(2,'0')}`;
+        }
+        if (/^\d+$/.test(s)) return `${String(parseInt(s)).padStart(2,'0')}:00`;
+        return '';
+    }
+    return { inicio: toTime(partes[0]), fim: toTime(partes[1] || '') };
+}
+window._parseHorarioParaHoras = _parseHorarioParaHoras;
+
+function _calcularHorasSessao() {
+    const inicio = document.getElementById('sessao-hora-inicio')?.value;
+    const fim    = document.getElementById('sessao-hora-fim')?.value;
+    const horas  = document.getElementById('sessao-horas');
+    if (!inicio || !fim || !horas) return;
+    const [hi, mi] = inicio.split(':').map(Number);
+    const [hf, mf] = fim.split(':').map(Number);
+    let diff = (hf * 60 + mf) - (hi * 60 + mi);
+    if (diff < 0) diff += 24 * 60;
+    const total = diff / 60;
+    horas.value = Number.isInteger(total) ? total : total.toFixed(1);
+}
+window._calcularHorasSessao = _calcularHorasSessao;
+
+function _montarEnderecoCliente(c) {
+    const partes = [];
+    if (c.logradouro) partes.push(c.logradouro);
+    if (c.numero) partes.push(`nº ${c.numero}`);
+    if (c.bairro) partes.push(c.bairro);
+    if (c.cidade) partes.push(c.cidade);
+    if (c.estado) partes.push(c.estado);
+    return partes.join(', ');
+}
+
 function _filtrarContratosSessao(clienteId) {
     const select = document.getElementById('sessao-contrato');
     if (!select) return;
@@ -3668,17 +3726,31 @@ function _filtrarContratosSessao(clienteId) {
 
     if (filtrados.length === 0) {
         select.innerHTML += '<option value="" disabled>Nenhum contrato para este cliente</option>';
-        return;
+    } else {
+        filtrados.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.nome || c.numero || `Contrato #${c.id}`;
+            select.appendChild(opt);
+        });
     }
-
-    filtrados.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = c.nome || c.numero || `Contrato #${c.id}`;
-        select.appendChild(opt);
-    });
 }
 window._filtrarContratosSessao = _filtrarContratosSessao;
+
+function _aoClienteSelecionadoSessao(clienteId) {
+    _filtrarContratosSessao(clienteId);
+
+    // Auto-fill address from selected client
+    const enderecoField = document.getElementById('sessao-endereco');
+    if (enderecoField && clienteId && window.clientes) {
+        const cliente = window.clientes.find(c => String(c.id) === String(clienteId));
+        if (cliente) {
+            const endereco = cliente.endereco || _montarEnderecoCliente(cliente);
+            if (endereco) enderecoField.value = endereco;
+        }
+    }
+}
+window._aoClienteSelecionadoSessao = _aoClienteSelecionadoSessao;
 
 window.openModalSessao = openModalSessao;
 window.salvarSessao = salvarSessao;
