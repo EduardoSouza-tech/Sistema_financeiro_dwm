@@ -2409,13 +2409,23 @@ async function openModalContrato(contratoEdit = null) {
         }, 200);
     }
     
-    // Calcular valor total inicial e ajustar campos por tipo
-    if (!isEdit) {
-        setTimeout(() => {
-            alterarTipoContrato(); // Ajustar labels primeiro
-            atualizarCalculoContrato(); // Depois calcular
-        }, 100);
-    }
+    // Garantir listeners de cálculo em tempo real e ajustar tipo/valor inicial
+    setTimeout(() => {
+        // Adicionar listeners programáticos (fallback dos atributos oninput)
+        ['contrato-valor-mensal', 'contrato-meses', 'contrato-horas-pacote'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', atualizarCalculoContrato);
+                el.addEventListener('change', atualizarCalculoContrato);
+            }
+        });
+        // Também re-ouvir mudança no tipo do contrato
+        const tipoSelect = document.getElementById('contrato-tipo');
+        if (tipoSelect) tipoSelect.addEventListener('change', alterarTipoContrato);
+        // Ajustar layout por tipo e calcular valor inicial
+        alterarTipoContrato();
+        atualizarCalculoContrato();
+    }, 300);
 }
 
 // Helper para converter valor formatado pt-BR para número
