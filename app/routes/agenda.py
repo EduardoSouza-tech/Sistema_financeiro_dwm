@@ -308,7 +308,8 @@ def google_calendar_sync():
             return jsonify({'error': 'Google Calendar não configurado'}), 500
         
         # Verificar se está autorizado
-        if not google_calendar_helper.is_authorized():
+        empresa_id = session.get('empresa_id', 1)
+        if not google_calendar_helper.is_authorized(empresa_id):
             return jsonify({'error': 'Não autorizado. Configure Google Calendar primeiro.'}), 401
         
         settings = load_email_settings()
@@ -316,7 +317,6 @@ def google_calendar_sync():
             return jsonify({'error': 'Google Calendar não habilitado'}), 400
         
         # Obter sessões do banco
-        empresa_id = session.get('empresa_id', 1)
         try:
             import database_postgresql as db
             sessoes = db.listar_sessoes(empresa_id=empresa_id)
@@ -350,7 +350,7 @@ def google_calendar_sync():
                 
                 if google_event_id:
                     # Atualizar evento existente
-                    result = google_calendar_helper.update_calendar_event(google_event_id, session_data)
+                    result = google_calendar_helper.update_calendar_event(google_event_id, session_data, empresa_id=empresa_id)
                     if 'error' not in result:
                         events_updated += 1
                     else:
@@ -359,7 +359,7 @@ def google_calendar_sync():
                         errors.append(f"Sessão {sessao.get('id')}: {result['error']}")
                 else:
                     # Criar novo evento
-                    result = google_calendar_helper.create_calendar_event(session_data)
+                    result = google_calendar_helper.create_calendar_event(session_data, empresa_id=empresa_id)
                     if 'error' not in result:
                         events_created += 1
                         # Salvar google_event_id no banco
@@ -392,11 +392,12 @@ def create_google_calendar_event():
         if not GOOGLE_CALENDAR_AVAILABLE:
             return jsonify({'error': 'Google Calendar não configurado'}), 500
         
-        if not google_calendar_helper.is_authorized():
+        empresa_id = session.get('empresa_id', 1)
+        if not google_calendar_helper.is_authorized(empresa_id):
             return jsonify({'error': 'Não autorizado'}), 401
         
         session_data = request.json
-        result = google_calendar_helper.create_calendar_event(session_data)
+        result = google_calendar_helper.create_calendar_event(session_data, empresa_id=empresa_id)
         
         if 'error' in result:
             return jsonify(result), 400
@@ -413,11 +414,12 @@ def update_google_calendar_event(event_id):
         if not GOOGLE_CALENDAR_AVAILABLE:
             return jsonify({'error': 'Google Calendar não configurado'}), 500
         
-        if not google_calendar_helper.is_authorized():
+        empresa_id = session.get('empresa_id', 1)
+        if not google_calendar_helper.is_authorized(empresa_id):
             return jsonify({'error': 'Não autorizado'}), 401
         
         session_data = request.json
-        result = google_calendar_helper.update_calendar_event(event_id, session_data)
+        result = google_calendar_helper.update_calendar_event(event_id, session_data, empresa_id=empresa_id)
         
         if 'error' in result:
             return jsonify(result), 400
@@ -434,10 +436,11 @@ def delete_google_calendar_event(event_id):
         if not GOOGLE_CALENDAR_AVAILABLE:
             return jsonify({'error': 'Google Calendar não configurado'}), 500
         
-        if not google_calendar_helper.is_authorized():
+        empresa_id = session.get('empresa_id', 1)
+        if not google_calendar_helper.is_authorized(empresa_id):
             return jsonify({'error': 'Não autorizado'}), 401
         
-        result = google_calendar_helper.delete_calendar_event(event_id)
+        result = google_calendar_helper.delete_calendar_event(event_id, empresa_id=empresa_id)
         
         if 'error' in result:
             return jsonify(result), 400
@@ -454,7 +457,8 @@ def google_calendar_status():
         if not GOOGLE_CALENDAR_AVAILABLE:
             return jsonify({'authorized': False, 'available': False})
         
-        is_auth = google_calendar_helper.is_authorized()
+        empresa_id = session.get('empresa_id', 1)
+        is_auth = google_calendar_helper.is_authorized(empresa_id)
         settings = load_email_settings()
         
         return jsonify({

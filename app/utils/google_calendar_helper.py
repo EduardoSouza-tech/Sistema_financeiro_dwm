@@ -211,12 +211,12 @@ def get_credentials(empresa_id: int = 1):
         print(f"❌ Erro ao carregar credenciais: {e}")
         return None
 
-def get_calendar_service():
+def get_calendar_service(empresa_id: int = 1):
     """
     Obter serviço do Google Calendar
     Returns: Resource object ou None
     """
-    credentials = get_credentials()
+    credentials = get_credentials(empresa_id)
     if not credentials:
         return None
     
@@ -227,7 +227,29 @@ def get_calendar_service():
         print(f"❌ Erro ao criar serviço do Calendar: {e}")
         return None
 
-def create_calendar_event(session_data):
+def _get_calendar_id(empresa_id: int = 1) -> str:
+    """
+    Retorna o calendar_id configurado para a empresa, ou 'primary' como fallback.
+    """
+    try:
+        import database_postgresql as _db
+        with _db.get_db_connection(allow_global=True) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT valor FROM config_sistema WHERE chave = 'agenda_email_settings'"
+            )
+            row = cur.fetchone()
+            if row and row['valor']:
+                import json as _json
+                settings = _json.loads(row['valor']) if isinstance(row['valor'], str) else row['valor']
+                cal_id = settings.get('google_calendar_id', '').strip()
+                if cal_id:
+                    return cal_id
+    except Exception:
+        pass
+    return 'primary'
+
+def create_calendar_event(session_data, empresa_id: int = 1):
     """
     Criar evento no Google Calendar
     Args:
@@ -240,9 +262,10 @@ def create_calendar_event(session_data):
                 'description': 'Descrição',
                 'location': 'Endereço'
             }
+        empresa_id: ID da empresa (multi-tenant)
     Returns: dict com event_id ou None
     """
-    service = get_calendar_service()
+    service = get_calendar_service(empresa_id)
     if not service:
         return {'error': 'Não autorizado. Configure Google Calendar primeiro.'}
     
@@ -275,7 +298,8 @@ def create_calendar_event(session_data):
             },
         }
         
-        event_result = service.events().insert(calendarId='primary', body=event).execute()
+        calendar_id = _get_calendar_id(empresa_id)
+        event_result = service.events().insert(calendarId=calendar_id, body=event).execute()
         
         return {
             'success': True,
@@ -293,21 +317,23 @@ def create_calendar_event(session_data):
             return {'error': 'Token do Google Calendar expirou. Reconecte nas configurações.', 'token_expired': True}
         return {'error': err_str}
 
-def update_calendar_event(event_id, session_data):
+def update_calendar_event(event_id, session_data, empresa_id: int = 1):
     """
     Atualizar evento existente no Google Calendar
     Args:
         event_id: ID do evento no Google Calendar
         session_data: dict com dados atualizados da sessão
+        empresa_id: ID da empresa (multi-tenant)
     Returns: dict com sucesso ou erro
     """
-    service = get_calendar_service()
+    service = get_calendar_service(empresa_id)
     if not service:
         return {'error': 'Não autorizado'}
     
     try:
+        calendar_id = _get_calendar_id(empresa_id)
         # Buscar evento atual
-        event = service.events().get(calendarId='primary', eventId=event_id).execute()
+        event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
         
         # Atualizar campos
         if 'title' in session_data:
@@ -336,7 +362,7 @@ def update_calendar_event(event_id, session_data):
             }
         
         updated_event = service.events().update(
-            calendarId='primary', 
+            calendarId=calendar_id, 
             eventId=event_id, 
             body=event
         ).execute()
@@ -357,19 +383,21 @@ def update_calendar_event(event_id, session_data):
             return {'error': 'Token do Google Calendar expirou. Reconecte nas configurações.', 'token_expired': True}
         return {'error': err_str}
 
-def delete_calendar_event(event_id):
+def delete_calendar_event(event_id, empresa_id: int = 1):
     """
     Deletar evento do Google Calendar
     Args:
         event_id: ID do evento
+        empresa_id: ID da empresa (multi-tenant)
     Returns: dict com sucesso ou erro
     """
-    service = get_calendar_service()
+    service = get_calendar_service(empresa_id)
     if not service:
         return {'error': 'Não autorizado'}
     
     try:
-        service.events().delete(calendarId='primary', eventId=event_id).execute()
+        calendar_id = _get_calendar_id(empresa_id)
+        service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
         return {'success': True, 'message': 'Evento removido com sucesso'}
     
     except HttpError as error:
@@ -379,16 +407,17 @@ def delete_calendar_event(event_id):
         print(f"❌ Erro ao deletar evento: {e}")
         return {'error': str(e)}
 
-def list_calendar_events(start_date=None, end_date=None, max_results=100):
+def list_calendar_events(start_date=None, end_date=None, max_results=100, empresa_id: int = 1):
     """
     Listar eventos do Google Calendar
     Args:
         start_date: Data de início (formato: YYYY-MM-DD)
         end_date: Data de fim (formato: YYYY-MM-DD)
         max_results: Número máximo de resultados
+        empresa_id: ID da empresa (multi-tenant)
     Returns: list de eventos ou dict com erro
     """
-    service = get_calendar_service()
+    service = get_calendar_service(empresa_id)
     if not service:
         return {'error': 'Não autorizado'}
     
@@ -402,8 +431,9 @@ def list_calendar_events(start_date=None, end_date=None, max_results=100):
         if end_date:
             end_date = f"{end_date}T23:59:59Z"
         
+        calendar_id = _get_calendar_id(empresa_id)
         params = {
-            'calendarId': 'primary',
+            'calendarId': calendar_id,
             'timeMin': start_date,
             'maxResults': max_results,
             'singleEvents': True,
@@ -429,9 +459,11 @@ def list_calendar_events(start_date=None, end_date=None, max_results=100):
         print(f"❌ Erro ao listar eventos: {e}")
         return {'error': str(e)}
 
-def is_authorized():
+def is_authorized(empresa_id: int = 1):
     """
     Verificar se o usuário está autorizado
+    Args:
+        empresa_id: ID da empresa (multi-tenant)
     Returns: bool
     """
-    return get_credentials() is not None
+    return get_credentials(empresa_id) is not None

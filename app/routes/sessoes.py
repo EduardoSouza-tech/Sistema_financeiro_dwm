@@ -97,9 +97,9 @@ def _sync_sessao_google(sessao_id: int, dados: dict, empresa_id: int, google_eve
 
     try:
         if google_event_id:
-            result = _gcal.update_calendar_event(google_event_id, session_data)
+            result = _gcal.update_calendar_event(google_event_id, session_data, empresa_id=empresa_id)
         else:
-            result = _gcal.create_calendar_event(session_data)
+            result = _gcal.create_calendar_event(session_data, empresa_id=empresa_id)
 
         if result.get('token_expired'):
             print(f"⚠️ [Google Calendar] Token expirado para empresa {empresa_id}")

@@ -594,10 +594,9 @@ function openEmailSettings() {
                             <li>Acesse o link: <a href="https://developers.google.com/workspace/guides/create-project" target="_blank" rel="noopener noreferrer" style="color: #1565C0;">developers.google.com/workspace/guides/create-project</a></li>
                             <li>Crie um projeto. Após isso, habilite <strong>API e serviços</strong> deste projeto.</li>
                             <li>Ao habilitar API e serviços, busque por <strong>Google Calendar API</strong>.</li>
-                            <li>Ao habilitar a Google Calendar API, clique em <strong>"Criar credenciais"</strong> para gerar os arquivos necessários.</li>
-                            <li>Preencha as informações conforme solicitado.</li>
-                            <li>Clique em baixar as credenciais geradas. Após baixar, clique em <strong>"Concluir"</strong>.</li>
-                            <li>Envie o arquivo baixado através do formulário abaixo.</li>
+                            <li>Ao habilitar a Google Calendar API, clique em <strong>"Criar credenciais"</strong> do tipo <strong>OAuth 2.0</strong>.</li>
+                            <li>Preencha as informações conforme solicitado e conclua.</li>
+                            <li>Habilite o checkbox abaixo e clique em <strong>"🔐 Autorizar Google Calendar"</strong> para conectar sua conta.</li>
                         </ol>
                     </div>
                     
