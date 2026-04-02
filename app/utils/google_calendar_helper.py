@@ -258,7 +258,8 @@ def _get_calendar_id(empresa_id: int = 1) -> str:
                 settings = _json.loads(row['valor']) if isinstance(row['valor'], str) else row['valor']
                 cal_id = settings.get('google_calendar_id', '').strip()
                 if cal_id:
-                    return cal_id
+                    # Google Calendar IDs são case-sensitive e devem estar em minúsculas
+                    return cal_id.lower()
     except Exception:
         pass
     return 'primary'
@@ -313,8 +314,16 @@ def create_calendar_event(session_data, empresa_id: int = 1):
         }
         
         calendar_id = _get_calendar_id(empresa_id)
-        event_result = service.events().insert(calendarId=calendar_id, body=event).execute()
-        
+        try:
+            event_result = service.events().insert(calendarId=calendar_id, body=event).execute()
+        except HttpError as insert_err:
+            # Se o calendar_id configurado não existe, tentar com 'primary'
+            if insert_err.resp.status == 404 and calendar_id != 'primary':
+                print(f"⚠️ Calendar '{calendar_id}' não encontrado (404), usando 'primary'")
+                event_result = service.events().insert(calendarId='primary', body=event).execute()
+            else:
+                raise
+
         return {
             'success': True,
             'event_id': event_result['id'],
@@ -346,8 +355,16 @@ def update_calendar_event(event_id, session_data, empresa_id: int = 1):
     
     try:
         calendar_id = _get_calendar_id(empresa_id)
-        # Buscar evento atual
-        event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+        # Buscar evento atual — se calendar_id não existe, tentar 'primary'
+        try:
+            event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+        except HttpError as get_err:
+            if get_err.resp.status == 404 and calendar_id != 'primary':
+                print(f"⚠️ Calendar '{calendar_id}' não encontrado (404), usando 'primary'")
+                calendar_id = 'primary'
+                event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+            else:
+                raise
         
         # Atualizar campos
         if 'title' in session_data:
