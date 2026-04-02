@@ -2260,7 +2260,7 @@ async function openModalContrato(contratoEdit = null) {
                 
                 <div class="form-group">
                     <label>Valor Total:</label>
-                    <div id="contrato-valor-total" style="background: #f0f0f0; font-weight: bold; color: #27ae60; font-size: 16px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; min-height: 38px; display: flex; align-items: center;">${valorTotalFormatado}</div>
+                    <div id="contrato-valor-total" style="background: #e8f8f0; color: #1a7a45; font-weight: bold; font-size: 16px; padding: 8px 12px; border: 2px solid #27ae60; border-radius: 4px; min-height: 38px; display: flex; align-items: center;">${valorTotalFormatado}</div>
                 </div>
             </div>
             
