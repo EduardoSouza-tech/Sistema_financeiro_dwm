@@ -8830,18 +8830,24 @@ def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
     with get_db_connection(empresa_id=empresa_id) as conn:
         cursor = conn.cursor()
         
-        # 1. RESUMO GERAL
+        # 1. RESUMO GERAL — horas_utilizadas calculadas das sessões reais
         cursor.execute("""
             SELECT 
-                COUNT(*) as total_contratos,
-                COUNT(*) FILTER (WHERE status != 'cancelado' AND status != 'encerrado') as contratos_ativos,
-                COUNT(*) FILTER (WHERE controle_horas_ativo = true) as contratos_com_controle_horas,
-                COALESCE(SUM(horas_totais), 0) as total_horas_contratadas,
-                COALESCE(SUM(horas_utilizadas), 0) as total_horas_utilizadas,
-                COALESCE(SUM(horas_extras), 0) as total_horas_extras
-            FROM contratos
-            WHERE empresa_id = %s
-        """, (empresa_id,))
+                COUNT(DISTINCT c.id) as total_contratos,
+                COUNT(DISTINCT c.id) FILTER (WHERE c.status != 'cancelado' AND c.status != 'encerrado') as contratos_ativos,
+                COUNT(DISTINCT c.id) FILTER (WHERE c.controle_horas_ativo = true) as contratos_com_controle_horas,
+                COALESCE(SUM(c.horas_totais), 0) as total_horas_contratadas,
+                COALESCE((
+                    SELECT SUM(s.duracao) / 60.0
+                    FROM sessoes s
+                    WHERE s.empresa_id = %s
+                      AND s.contrato_id IS NOT NULL
+                      AND s.status != 'cancelada'
+                ), 0) as total_horas_utilizadas,
+                0 as total_horas_extras
+            FROM contratos c
+            WHERE c.empresa_id = %s
+        """, (empresa_id, empresa_id))
         
         resumo_row = cursor.fetchone()
         
@@ -8850,12 +8856,13 @@ def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
         contratos_com_controle = resumo_row['contratos_com_controle_horas'] or 0
         total_horas_contratadas = float(resumo_row['total_horas_contratadas'] or 0)
         total_horas_utilizadas = float(resumo_row['total_horas_utilizadas'] or 0)
-        total_horas_extras = float(resumo_row['total_horas_extras'] or 0)
-        total_horas_restantes = total_horas_contratadas - total_horas_utilizadas
+        total_horas_extras = max(total_horas_utilizadas - total_horas_contratadas, 0)
+        total_horas_restantes = max(total_horas_contratadas - total_horas_utilizadas, 0)
         
-        # Contar total de sessões
+        # Contar sessões vinculadas a contratos (não canceladas)
         cursor.execute("""
-            SELECT COUNT(*) as total_sessoes FROM sessoes WHERE empresa_id = %s
+            SELECT COUNT(*) as total_sessoes FROM sessoes
+            WHERE empresa_id = %s AND contrato_id IS NOT NULL AND status != 'cancelada'
         """, (empresa_id,))
         total_sessoes = cursor.fetchone()['total_sessoes'] or 0
         
@@ -8870,7 +8877,7 @@ def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
             'total_horas_extras': total_horas_extras
         }
         
-        # 2. DETALHAMENTO POR CONTRATO
+        # 2. DETALHAMENTO POR CONTRATO — horas_utilizadas calculadas das sessões reais
         cursor.execute("""
             SELECT 
                 c.id,
@@ -8882,8 +8889,12 @@ def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
                 c.status,
                 c.observacoes,
                 c.horas_totais,
-                c.horas_utilizadas,
-                c.horas_extras,
+                COALESCE((
+                    SELECT SUM(s.duracao) / 60.0
+                    FROM sessoes s
+                    WHERE s.contrato_id = c.id
+                      AND s.status != 'cancelada'
+                ), 0) AS horas_utilizadas,
                 c.controle_horas_ativo,
                 cl.nome as cliente_nome,
                 cl.id as cliente_id
@@ -8907,8 +8918,8 @@ def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
             
             horas_totais = float(row['horas_totais'] or 0)
             horas_utilizadas = float(row['horas_utilizadas'] or 0)
-            horas_extras = float(row['horas_extras'] or 0)
-            horas_restantes = horas_totais - horas_utilizadas
+            horas_extras = max(horas_utilizadas - horas_totais, 0)
+            horas_restantes = max(horas_totais - horas_utilizadas, 0)
             
             # Calcular percentual utilizado
             percentual_utilizado = (horas_utilizadas / horas_totais * 100) if horas_totais > 0 else 0
