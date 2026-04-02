@@ -2257,18 +2257,13 @@ async function openModalContrato(contratoEdit = null) {
                     <label>*Qtd. Meses:</label>
                     <input type="number" id="contrato-meses" min="1" step="1" required value="${isEdit ? contratoEdit.quantidade_meses || '1' : '1'}" oninput="atualizarCalculoContrato()">
                 </div>
-                
+            </div>
+            
+            <!-- Linha 4: Valor Total, Pagamento, Parcelas -->
+            <div id="contrato-linha4" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                 <div class="form-group">
                     <label>Valor Total:</label>
                     <div id="contrato-valor-total" style="background: #e8f8f0; color: #1a7a45; font-weight: bold; font-size: 16px; padding: 8px 12px; border: 2px solid #27ae60; border-radius: 4px; min-height: 38px; display: flex; align-items: center;">${valorTotalFormatado}</div>
-                </div>
-            </div>
-            
-            <!-- Linha 4: Horas, Pagamento, Parcelas -->
-            <div id="contrato-linha4" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-                <div id="grupo-contrato-horas-mensal" class="form-group">
-                    <label>Horas Mensais:</label>
-                    <input type="number" id="contrato-horas" min="0" value="${isEdit ? contratoEdit.horas_mensais || '' : ''}" placeholder="8">
                 </div>
                 
                 <div class="form-group">
@@ -2284,6 +2279,14 @@ async function openModalContrato(contratoEdit = null) {
                 <div class="form-group">
                     <label>*Qtd. Parcelas:</label>
                     <input type="number" id="contrato-parcelas" min="1" required value="${isEdit ? contratoEdit.quantidade_parcelas || '1' : '1'}">
+                </div>
+            </div>
+            
+            <!-- Linha 4b: Horas Mensais (somente Mensal/Único) -->
+            <div id="contrato-linha4b" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                <div id="grupo-contrato-horas-mensal" class="form-group">
+                    <label>Horas Mensais:</label>
+                    <input type="number" id="contrato-horas" min="0" value="${isEdit ? contratoEdit.horas_mensais || '' : ''}" placeholder="8">
                 </div>
             </div>
             
@@ -4977,6 +4980,7 @@ function alterarTipoContrato() {
     const grupoHorasPacote  = document.getElementById('grupo-contrato-horas-pacote');
     const grupoMeses        = document.getElementById('grupo-contrato-meses');
     const grupoHorasMensal  = document.getElementById('grupo-contrato-horas-mensal');
+    const linha4b           = document.getElementById('contrato-linha4b');
     const campoValorMensal  = document.getElementById('contrato-valor-mensal');
     const campoMeses        = document.getElementById('contrato-meses');
     const labelMeses        = grupoMeses?.querySelector('label');
@@ -4989,6 +4993,7 @@ function alterarTipoContrato() {
         if (labelValorMensal) labelValorMensal.textContent = '*Valor por Pacote:';
         if (grupoHorasPacote) grupoHorasPacote.style.display = '';
         if (grupoHorasMensal) grupoHorasMensal.style.display = 'none';
+        if (linha4b) linha4b.style.display = 'none';
         if (grupoMeses) grupoMeses.style.order = '';
         if (labelMeses) labelMeses.textContent = '*Qtd. Pacotes:';
         if (campoMeses) campoMeses.placeholder = '10';
@@ -5001,6 +5006,7 @@ function alterarTipoContrato() {
         if (labelValorMensal) labelValorMensal.textContent = '*Valor Mensal:';
         if (grupoHorasPacote) grupoHorasPacote.style.display = 'none';
         if (grupoHorasMensal) grupoHorasMensal.style.display = '';
+        if (linha4b) linha4b.style.display = '';
         if (grupoMeses) grupoMeses.style.order = '';
         if (labelMeses) labelMeses.textContent = '*Qtd. Meses:';
         if (campoMeses) campoMeses.placeholder = '12';
