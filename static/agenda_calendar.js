@@ -468,15 +468,34 @@ async function syncGoogleCalendar() {
         try { data = await response.json(); } catch(e) {}
 
         if (response.ok && data.success) {
-            const criados   = data.events_created  ?? 0;
-            const atualizados = data.events_updated ?? 0;
-            const detalhes = criados + atualizados === 0
-                ? 'Nenhuma alteração necessária — tudo já está sincronizado.'
-                : `${criados} evento(s) criado(s), ${atualizados} atualizado(s).`;
-            showNotification(`✅ Sincronização concluída! ${detalhes}`, 'success');
+            const criados     = data.events_created  ?? 0;
+            const atualizados = data.events_updated  ?? 0;
+            const erros       = data.errors          ?? [];
+
             if (data.google_oauth_expired) {
                 showGoogleTokenExpiredWarning();
             }
+
+            // Houve erros: mostrar detalhes em vez de fingir sucesso
+            if (erros.length > 0 && criados + atualizados === 0) {
+                const primeiroErro = erros[0] || '';
+                if (primeiroErro.includes('accessNotConfigured') || primeiroErro.includes('has not been used')) {
+                    showNotification(
+                        '❌ Google Calendar API não habilitada no Google Cloud Console. ' +
+                        'Acesse console.cloud.google.com → APIs → "Google Calendar API" e habilite-a.',
+                        'error'
+                    );
+                } else {
+                    showNotification(`❌ Sincronização falhou: ${primeiroErro}`, 'error');
+                }
+            } else {
+                const detalhes = criados + atualizados === 0
+                    ? 'Nenhuma alteração necessária — tudo já está sincronizado.'
+                    : `${criados} evento(s) criado(s), ${atualizados} atualizado(s).`;
+                const sufixoErros = erros.length > 0 ? ` (${erros.length} erro(s) parciais)` : '';
+                showNotification(`✅ Sincronização concluída! ${detalhes}${sufixoErros}`, 'success');
+            }
+
             if (calendar) loadCalendarEvents();
         } else if (response.status === 401) {
             showNotification('⚠️ Google Calendar não autorizado. Clique em "🔐 Autorizar Google Calendar" primeiro.', 'warning');
