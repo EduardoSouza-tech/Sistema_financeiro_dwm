@@ -5005,6 +5005,8 @@ def deletar_contrato(contrato_id: int) -> bool:
     empresa_id = _get_empresa_id_from_session()
     with get_db_connection(empresa_id=empresa_id) as conn:
         cursor = conn.cursor()
+        # Remover referências em compensacoes_horas antes de deletar o contrato
+        cursor.execute("DELETE FROM compensacoes_horas WHERE contrato_destino_id = %s", (contrato_id,))
         cursor.execute("DELETE FROM contratos WHERE id = %s", (contrato_id,))
         sucesso = cursor.rowcount > 0
     
