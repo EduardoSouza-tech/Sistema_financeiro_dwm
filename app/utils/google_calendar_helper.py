@@ -498,3 +498,94 @@ def is_authorized(empresa_id: int = 1):
     Returns: bool
     """
     return get_credentials(empresa_id) is not None
+
+
+def deduplicate_events(empresa_id: int = 1) -> dict:
+    """
+    Remove eventos duplicados do Google Calendar.
+    Estratégia: busca todas as sessões do DB, para cada sessão busca eventos
+    no Google Calendar no mesmo dia com título idêntico e elimina os extras,
+    mantendo o evento cujo ID está salvo em google_event_id (ou o mais recente).
+    Returns: dict com contagem de removidos e erros
+    """
+    service = get_calendar_service(empresa_id)
+    if not service:
+        return {'error': 'Não autorizado'}
+
+    try:
+        import database_postgresql as _db
+        sessoes = _db.listar_sessoes(empresa_id=empresa_id)
+    except Exception as e:
+        return {'error': f'Erro ao buscar sessões: {e}'}
+
+    removed = 0
+    errors = []
+    calendar_id = _get_calendar_id(empresa_id)
+
+    for sessao in sessoes:
+        if sessao.get('status') == 'cancelada':
+            continue
+
+        data_str = str(sessao.get('data', ''))[:10]
+        if not data_str:
+            continue
+
+        titulo_esperado = f"{sessao.get('cliente_nome', 'Cliente')} - Sessão"
+        google_event_id_salvo = sessao.get('google_event_id')
+
+        try:
+            # Buscar todos os eventos deste dia no Google Calendar
+            time_min = f"{data_str}T00:00:00Z"
+            time_max = f"{data_str}T23:59:59Z"
+
+            result = service.events().list(
+                calendarId=calendar_id,
+                timeMin=time_min,
+                timeMax=time_max,
+                singleEvents=True,
+                maxResults=50
+            ).execute()
+            eventos_do_dia = result.get('items', [])
+
+            # Filtrar apenas os que têm o mesmo título (criados por este sistema)
+            duplicados = [e for e in eventos_do_dia if e.get('summary', '') == titulo_esperado]
+
+            if len(duplicados) <= 1:
+                continue  # Sem duplicata, pular
+
+            # Decidir qual manter: o que está salvo no DB, ou o primeiro encontrado
+            id_a_manter = google_event_id_salvo
+            if not id_a_manter or not any(e['id'] == id_a_manter for e in duplicados):
+                id_a_manter = duplicados[0]['id']
+
+            # Deletar os outros
+            for evento in duplicados:
+                if evento['id'] == id_a_manter:
+                    continue
+                try:
+                    service.events().delete(calendarId=calendar_id, eventId=evento['id']).execute()
+                    removed += 1
+                    print(f"🗑️ [Dedup] Removido evento duplicado {evento['id']} (sessão {sessao.get('id')})")
+                except HttpError as del_err:
+                    if del_err.resp.status == 410:  # Already deleted
+                        removed += 1
+                    else:
+                        errors.append(f"Sessão {sessao.get('id')}: erro ao remover {evento['id']}: {del_err}")
+
+            # Garantir que o google_event_id no DB aponta para o evento mantido
+            if google_event_id_salvo != id_a_manter:
+                try:
+                    _db.salvar_google_event_id(sessao.get('id'), id_a_manter, empresa_id=empresa_id)
+                except Exception:
+                    pass
+
+        except HttpError as e:
+            errors.append(f"Sessão {sessao.get('id')}: {e}")
+        except Exception as e:
+            errors.append(f"Sessão {sessao.get('id')}: {e}")
+
+    return {
+        'success': True,
+        'removed': removed,
+        'errors': errors[:5] if errors else []
+    }

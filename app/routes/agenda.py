@@ -454,6 +454,27 @@ def delete_google_calendar_event(event_id):
         print(f"❌ Erro ao deletar evento: {e}")
         return jsonify({'error': str(e)}), 500
 
+@agenda_bp.route('/google-calendar/dedup', methods=['POST'])
+def google_calendar_dedup():
+    """Remove eventos duplicados do Google Calendar"""
+    try:
+        if not GOOGLE_CALENDAR_AVAILABLE:
+            return jsonify({'error': 'Google Calendar não configurado'}), 500
+
+        empresa_id = session.get('empresa_id', 1)
+        if not google_calendar_helper.is_authorized(empresa_id):
+            return jsonify({'error': 'Não autorizado'}), 401
+
+        result = google_calendar_helper.deduplicate_events(empresa_id=empresa_id)
+
+        if 'error' in result:
+            return jsonify(result), 400
+
+        return jsonify(result)
+    except Exception as e:
+        print(f"❌ Erro ao deduplicar: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @agenda_bp.route('/google-calendar/status', methods=['GET'])
 def google_calendar_status():
     """Verificar status da autorização do Google Calendar"""

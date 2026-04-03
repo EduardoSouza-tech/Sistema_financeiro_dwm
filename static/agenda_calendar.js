@@ -511,6 +511,48 @@ async function syncGoogleCalendar() {
 }
 
 /**
+ * Remover eventos duplicados do Google Calendar
+ */
+async function dedupGoogleCalendar() {
+    if (!confirm('Isso irá remover eventos duplicados no Google Calendar (mantém apenas 1 por sessão). Continuar?')) return;
+
+    showNotification('🧹 Procurando e removendo duplicatas...', 'info');
+    try {
+        const response = await fetch('/api/google-calendar/dedup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': getCsrfToken()
+            }
+        });
+
+        let data = {};
+        try { data = await response.json(); } catch(e) {}
+
+        if (response.ok && data.success) {
+            const removidos = data.removed ?? 0;
+            const erros = data.errors ?? [];
+            if (removidos === 0) {
+                showNotification('✅ Nenhuma duplicata encontrada — calendário já está limpo!', 'success');
+            } else {
+                const sufixo = erros.length > 0 ? ` (${erros.length} erro(s))` : '';
+                showNotification(`✅ ${removidos} evento(s) duplicado(s) removido(s)!${sufixo}`, 'success');
+            }
+            if (calendar) loadCalendarEvents();
+        } else {
+            const errMsg = data.error || 'Falha ao limpar duplicatas';
+            if (response.status === 401) {
+                showNotification('⚠️ Google Calendar não autorizado. Clique em "Autorizar Google Calendar" primeiro.', 'warning');
+            } else {
+                showNotification(`❌ ${errMsg}`, 'error');
+            }
+        }
+    } catch (error) {
+        showNotification(`❌ Erro ao limpar duplicatas: ${error.message}`, 'error');
+    }
+}
+
+/**
  * Abrir configurações de e-mail
  */
 function openEmailSettings() {
@@ -1285,6 +1327,7 @@ function refreshAgendaFotografia() {
 window.initAgendaCalendar = initAgendaCalendar;
 window.toggleCalendarView = toggleCalendarView;
 window.syncGoogleCalendar = syncGoogleCalendar;
+window.dedupGoogleCalendar = dedupGoogleCalendar;
 window.openEmailSettings = openEmailSettings;
 window.addNotificationEmail = addNotificationEmail;
 window.removeNotificationEmail = removeNotificationEmail;
