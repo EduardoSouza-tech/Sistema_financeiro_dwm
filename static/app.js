@@ -5310,7 +5310,7 @@ async function loadSessoes() {
                 <td>${sessao.data ? new Date(sessao.data).toLocaleDateString('pt-BR') : '-'}</td>
                 <td>${escapeHtml(sessao.horario || '-')}</td>
                 <td>${escapeHtml(sessao.cliente_nome || '-')}</td>
-                <td>${escapeHtml(sessao.contrato_nome || '-')}</td>
+                <td>${escapeHtml(sessao.contrato_numero || sessao.contrato_nome || '-')}</td>
                 <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(sessao.endereco || '')}">${escapeHtml(sessao.endereco || '-')}</td>
                 <td>${tiposCaptacao}</td>
                 <td>${sessao.prazo_entrega ? new Date(sessao.prazo_entrega).toLocaleDateString('pt-BR') : '-'}</td>
