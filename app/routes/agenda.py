@@ -369,7 +369,7 @@ def google_calendar_sync():
                         # Salvar google_event_id no banco
                         if result.get('event_id'):
                             import database_postgresql as _db
-                            _db.salvar_google_event_id(sessao.get('id'), result['event_id'])
+                            _db.salvar_google_event_id(sessao.get('id'), result['event_id'], empresa_id=empresa_id)
                     else:
                         if result.get('token_expired'):
                             token_expired = True

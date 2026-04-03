@@ -5108,6 +5108,7 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
                 s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
                 s.created_at, s.updated_at, s.empresa_id, s.status,
                 s.numero_nf, s.horas_trabalhadas, s.finalizada_em,
+                s.google_event_id,
                 c.nome AS cliente_nome,
                 ct.numero AS contrato_numero, ct.descricao AS contrato_nome
             FROM sessoes s
@@ -5159,6 +5160,7 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
                 'numero_nf': row.get('numero_nf'),
                 'horas_trabalhadas': float(row['horas_trabalhadas']) if row.get('horas_trabalhadas') else None,
                 'finalizada_em': row['finalizada_em'].isoformat() if row.get('finalizada_em') else None,
+                'google_event_id': row.get('google_event_id'),
             }
             
             sessoes.append(sessao)
@@ -5290,24 +5292,21 @@ def atualizar_sessao(sessao_id: int, dados: Dict, empresa_id: int = None) -> boo
     return sucesso
 
 
-def salvar_google_event_id(sessao_id: int, google_event_id: str) -> bool:
+def salvar_google_event_id(sessao_id: int, google_event_id: str, empresa_id: int = None) -> bool:
     """Salva o google_event_id de uma sessão após sincronização com Google Calendar"""
-    db_mgr = DatabaseManager()
-    conn = db_mgr.get_connection()
-    cursor = conn.cursor()
     try:
-        cursor.execute(
-            "UPDATE sessoes SET google_event_id = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
-            (google_event_id, sessao_id)
-        )
-        conn.commit()
-        return cursor.rowcount > 0
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE sessoes SET google_event_id = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s AND empresa_id = %s",
+                (google_event_id, sessao_id, empresa_id)
+            )
+            updated = cursor.rowcount > 0
+            cursor.close()
+        return updated
     except Exception as e:
         print(f"⚠️ [salvar_google_event_id] Erro: {e}")
         return False
-    finally:
-        cursor.close()
-        return_to_pool(conn)
 
 
 def finalizar_sessao(empresa_id: int, sessao_id: int, usuario_id: int, horas_trabalhadas: float = None, numero_nf: str = None) -> Dict:
