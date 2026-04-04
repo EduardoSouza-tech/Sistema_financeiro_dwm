@@ -2845,6 +2845,7 @@ async function openModalSessao(sessaoEdit = null) {
     const cargas = [];
     if (!window.clientes        || window.clientes.length === 0)         cargas.push(loadClientes());
     if (!window.contratos       || window.contratos.length === 0)         cargas.push(loadContratos());
+    if (!window.fornecedores    || window.fornecedores.length === 0)      cargas.push(loadFornecedores());
     if (!window.funcionarios    || window.funcionarios.length === 0) {
         const fn = typeof loadFuncionariosRH === 'function' ? loadFuncionariosRH
                  : typeof loadFuncionarios    === 'function' ? loadFuncionarios : null;
@@ -3115,24 +3116,72 @@ async function openModalSessao(sessaoEdit = null) {
     }
 }
 
+function _parsePessoaId(rawVal) {
+    // rawVal format: "func_123", "cli_456", "forn_789" or legacy plain integer
+    if (!rawVal) return { tipo: null, id: null };
+    const str = String(rawVal);
+    if (str.startsWith('func_')) return { tipo: 'func', id: parseInt(str.slice(5)) };
+    if (str.startsWith('cli_'))  return { tipo: 'cli',  id: parseInt(str.slice(4)) };
+    if (str.startsWith('forn_')) return { tipo: 'forn', id: parseInt(str.slice(5)) };
+    // Legacy: plain integer = funcionário
+    const n = parseInt(str);
+    return isNaN(n) ? { tipo: null, id: null } : { tipo: 'func', id: n };
+}
+
+function _buildPessoasOptions(selecionadoId = null) {
+    let html = '';
+    // selecionadoId can be "func_123", "cli_456", "forn_789", or a legacy plain integer
+    const sid = selecionadoId ? String(selecionadoId) : null;
+
+    if (window.funcionarios && window.funcionarios.length > 0) {
+        html += '<optgroup label="👷 Funcionários">';
+        window.funcionarios.forEach(f => {
+            const optVal = `func_${f.id}`;
+            const sel = sid && (sid === optVal || sid === String(f.id)) ? 'selected' : '';
+            html += `<option value="${optVal}" ${sel}>${f.nome}</option>`;
+        });
+        html += '</optgroup>';
+    }
+    if (window.clientes && window.clientes.length > 0) {
+        html += '<optgroup label="👤 Clientes">';
+        window.clientes.forEach(c => {
+            const nome = c.razao_social || c.nome || c.nome_fantasia || '-';
+            const optVal = `cli_${c.id}`;
+            const sel = sid && sid === optVal ? 'selected' : '';
+            html += `<option value="${optVal}" ${sel}>${nome}</option>`;
+        });
+        html += '</optgroup>';
+    }
+    if (window.fornecedores && window.fornecedores.length > 0) {
+        html += '<optgroup label="🏢 Fornecedores">';
+        window.fornecedores.forEach(f => {
+            const nome = f.razao_social || f.nome || f.nome_fantasia || '-';
+            const optVal = `forn_${f.id}`;
+            const sel = sid && sid === optVal ? 'selected' : '';
+            html += `<option value="${optVal}" ${sel}>${nome}</option>`;
+        });
+        html += '</optgroup>';
+    }
+    if (!html) html = '<option value="">Nenhum cadastro encontrado</option>';
+    return html;
+}
+
 function adicionarEquipeSessao(dadosIniciais = null) {
     const container = document.getElementById('sessao-equipe-list');
     if (!container) return;
-    
-    const opcoesFuncionarios = window.funcionarios && window.funcionarios.length > 0
-        ? window.funcionarios.map(f => {
-            const selected = dadosIniciais && dadosIniciais.funcionario_id === f.id ? 'selected' : '';
-            return `<option value="${f.id}" ${selected}>${f.nome}</option>`;
-        }).join('')
-        : '<option value="">Nenhum funcionário</option>';
-    
+
+    // Determinar valor selecionado (suporte a formato legado funcionario_id)
+    const selecionadoId = dadosIniciais
+        ? (dadosIniciais.pessoa_id || dadosIniciais.funcionario_id || null)
+        : null;
+
     const div = document.createElement('div');
     div.className = 'equipe-item';
     div.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
     div.innerHTML = `
         <select class="equipe-funcionario" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             <option value="">Selecione...</option>
-            ${opcoesFuncionarios}
+            ${_buildPessoasOptions(selecionadoId)}
         </select>
         <input type="text" class="equipe-funcao" placeholder="Fotógrafo" value="${dadosIniciais ? dadosIniciais.funcao || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
         <input type="number" class="equipe-pagamento" step="0.01" min="0" placeholder="1000.00" value="${dadosIniciais ? dadosIniciais.pagamento || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
@@ -3144,14 +3193,13 @@ function adicionarEquipeSessao(dadosIniciais = null) {
 function adicionarResponsavelSessao(dadosIniciais = null) {
     const container = document.getElementById('sessao-responsaveis-list');
     if (!container) return;
-    
-    const opcoesFuncionarios = window.funcionarios && window.funcionarios.length > 0
-        ? window.funcionarios.map(f => {
-            const selected = dadosIniciais && dadosIniciais.funcionario_id === f.id ? 'selected' : '';
-            return `<option value="${f.id}" ${selected}>${f.nome}</option>`;
-        }).join('')
-        : '<option value="">Nenhum funcionário</option>';
-    
+
+    // Determinar valor selecionado (suporte a formato legado funcionario_id)
+    const selecionadoId = dadosIniciais
+        ? (dadosIniciais.pessoa_id || dadosIniciais.funcionario_id || null)
+        : null;
+    const opcoesPessoas = _buildPessoasOptions(selecionadoId);
+
     // Opções de funções (para datalist)
     const datalistId = 'funcoes-list-' + Date.now();
     const opcoesFuncoes = window.funcoesResponsaveis && window.funcoesResponsaveis.length > 0
@@ -3164,7 +3212,7 @@ function adicionarResponsavelSessao(dadosIniciais = null) {
     div.innerHTML = `
         <select class="responsavel-funcionario" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             <option value="">Selecione...</option>
-            ${opcoesFuncionarios}
+            ${opcoesPessoas}
         </select>
         
         <div style="position: relative; display: flex; gap: 5px;">
@@ -3301,22 +3349,24 @@ async function salvarSessao(event) {
     // Coletar equipe
     const equipe = [];
     document.querySelectorAll('.equipe-item').forEach(item => {
-        const funcionario_id = item.querySelector('.equipe-funcionario').value;
+        const rawVal = item.querySelector('.equipe-funcionario').value;
         const funcao = item.querySelector('.equipe-funcao').value;
         const pagamentoStr = String(item.querySelector('.equipe-pagamento').value).replace(/\./g, '').replace(/,/g, '.');
         const pagamento = parseFloat(pagamentoStr) || 0;
-        if (funcionario_id) {
-            equipe.push({ funcionario_id: parseInt(funcionario_id), funcao, pagamento });
+        if (rawVal) {
+            const pessoa = _parsePessoaId(rawVal);
+            equipe.push({ pessoa_id: rawVal, funcionario_id: pessoa.tipo === 'func' ? pessoa.id : null, tipo_pessoa: pessoa.tipo, id_pessoa: pessoa.id, funcao, pagamento });
         }
     });
-    
+
     // Coletar responsáveis
     const responsaveis = [];
     document.querySelectorAll('.responsavel-item').forEach(item => {
-        const funcionario_id = item.querySelector('.responsavel-funcionario').value;
+        const rawVal = item.querySelector('.responsavel-funcionario').value;
         const funcao = item.querySelector('.responsavel-funcao').value;
-        if (funcionario_id) {
-            responsaveis.push({ funcionario_id: parseInt(funcionario_id), funcao });
+        if (rawVal) {
+            const pessoa = _parsePessoaId(rawVal);
+            responsaveis.push({ pessoa_id: rawVal, funcionario_id: pessoa.tipo === 'func' ? pessoa.id : null, tipo_pessoa: pessoa.tipo, id_pessoa: pessoa.id, funcao });
         }
     });
     
