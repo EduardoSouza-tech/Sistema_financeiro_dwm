@@ -7762,6 +7762,322 @@ def deletar_funcionario(funcionario_id):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/funcionarios/<int:funcionario_id>/pdf', methods=['GET'])
+@require_permission('folha_pagamento_view')
+def exportar_funcionario_pdf(funcionario_id):
+    """Gera ficha PDF completa de um funcionário específico"""
+    try:
+        usuario = get_usuario_logado()
+        if not usuario:
+            return jsonify({'error': 'Usuário não autenticado'}), 401
+
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não identificada'}), 403
+
+        from reportlab.lib import colors  # type: ignore
+        from reportlab.lib.pagesizes import A4  # type: ignore
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable  # type: ignore
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle  # type: ignore
+        from reportlab.lib.units import cm  # type: ignore
+        from io import BytesIO
+        import unicodedata
+
+        conn = db.get_connection()
+        cursor = conn.cursor()
+
+        # Buscar dados completos do funcionário (garante isolamento por empresa_id)
+        cursor.execute("""
+            SELECT id, empresa_id, nome, cpf, email, celular, ativo,
+                   data_admissao, data_demissao, observacoes,
+                   nacionalidade, estado_civil, data_nascimento, idade, profissao,
+                   rua_av, numero_residencia, complemento, bairro, cidade, estado, cep,
+                   chave_pix, pis_pasep, data_criacao
+            FROM funcionarios
+            WHERE id = %s AND empresa_id = %s
+        """, (funcionario_id, empresa_id))
+        row = cursor.fetchone()
+
+        # Buscar razão social da empresa
+        cursor.execute("SELECT razao_social FROM empresas WHERE id = %s", (empresa_id,))
+        emp_row = cursor.fetchone()
+        cursor.close()
+
+        if not row:
+            return jsonify({'error': 'Funcionário não encontrado'}), 404
+
+        # Normalizar dados (dict ou tupla)
+        if isinstance(row, dict):
+            f = row
+        else:
+            cols = ['id', 'empresa_id', 'nome', 'cpf', 'email', 'celular', 'ativo',
+                    'data_admissao', 'data_demissao', 'observacoes',
+                    'nacionalidade', 'estado_civil', 'data_nascimento', 'idade', 'profissao',
+                    'rua_av', 'numero_residencia', 'complemento', 'bairro', 'cidade', 'estado', 'cep',
+                    'chave_pix', 'pis_pasep', 'data_criacao']
+            f = dict(zip(cols, row))
+
+        empresa_nome = ''
+        if emp_row:
+            empresa_nome = emp_row['razao_social'] if isinstance(emp_row, dict) else emp_row[0]
+        empresa_nome = empresa_nome or 'Empresa'
+
+        # Helpers
+        def val(key, default='-'):
+            v = f.get(key)
+            return str(v).strip() if v not in (None, '', 'None') else default
+
+        def fmt_date(key):
+            v = f.get(key)
+            if not v:
+                return '-'
+            try:
+                if hasattr(v, 'strftime'):
+                    return v.strftime('%d/%m/%Y')
+                from datetime import date, datetime
+                if isinstance(v, str):
+                    d = datetime.fromisoformat(v)
+                    return d.strftime('%d/%m/%Y')
+            except Exception:
+                pass
+            return str(v)
+
+        nome_funcionario = val('nome', 'Funcionario')
+        status_label = 'Ativo' if f.get('ativo') else 'Inativo'
+
+        # Montar endereço
+        partes_end = []
+        if f.get('rua_av'):
+            partes_end.append(val('rua_av'))
+        if f.get('numero_residencia'):
+            partes_end.append(f"nº {val('numero_residencia')}")
+        if f.get('complemento'):
+            partes_end.append(val('complemento'))
+        if f.get('bairro'):
+            partes_end.append(val('bairro'))
+        endereco_linha1 = ', '.join(partes_end) if partes_end else '-'
+
+        partes_end2 = []
+        if f.get('cidade'):
+            partes_end2.append(val('cidade'))
+        if f.get('estado'):
+            partes_end2.append(val('estado'))
+        if f.get('cep'):
+            partes_end2.append(f"CEP: {val('cep')}")
+        endereco_linha2 = ' - '.join(partes_end2) if partes_end2 else ''
+
+        # ===== PDF =====
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=2*cm, leftMargin=2*cm,
+            topMargin=1.5*cm, bottomMargin=2*cm
+        )
+
+        styles = getSampleStyleSheet()
+        COR_PRINCIPAL = colors.HexColor('#2c3e50')
+        COR_SECTION   = colors.HexColor('#34495e')
+        COR_LINHA_PAR = colors.HexColor('#f0f3f4')
+        COR_BRANCO    = colors.white
+
+        style_titulo = ParagraphStyle('Titulo', parent=styles['Normal'],
+            fontSize=18, fontName='Helvetica-Bold',
+            textColor=COR_BRANCO, alignment=1, spaceAfter=2)
+        style_subtitulo = ParagraphStyle('SubTitulo', parent=styles['Normal'],
+            fontSize=11, fontName='Helvetica',
+            textColor=COR_BRANCO, alignment=1, spaceAfter=0)
+        style_section = ParagraphStyle('Section', parent=styles['Normal'],
+            fontSize=10, fontName='Helvetica-Bold',
+            textColor=COR_BRANCO, leftIndent=4)
+        style_label = ParagraphStyle('Label', parent=styles['Normal'],
+            fontSize=9, fontName='Helvetica-Bold',
+            textColor=colors.HexColor('#555555'), leftIndent=2)
+        style_value = ParagraphStyle('Value', parent=styles['Normal'],
+            fontSize=9, fontName='Helvetica',
+            textColor=colors.black, leftIndent=2)
+        style_obs = ParagraphStyle('Obs', parent=styles['Normal'],
+            fontSize=9, fontName='Helvetica',
+            textColor=colors.black, leftIndent=4, leading=13)
+        style_assin = ParagraphStyle('Assin', parent=styles['Normal'],
+            fontSize=9, fontName='Helvetica',
+            textColor=colors.HexColor('#333333'), alignment=1)
+        style_assin_bold = ParagraphStyle('AssinBold', parent=styles['Normal'],
+            fontSize=9, fontName='Helvetica-Bold',
+            textColor=colors.HexColor('#333333'), alignment=1)
+        style_data_pdf = ParagraphStyle('DataPdf', parent=styles['Normal'],
+            fontSize=8, fontName='Helvetica',
+            textColor=colors.HexColor('#888888'), alignment=2)
+
+        PAGE_WIDTH = A4[0] - 4*cm  # largura útil
+
+        def section_header(title):
+            tbl = Table([[Paragraph(title, style_section)]], colWidths=[PAGE_WIDTH])
+            tbl.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), COR_SECTION),
+                ('TOPPADDING',    (0, 0), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ('LEFTPADDING',   (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING',  (0, 0), (-1, -1), 8),
+            ]))
+            return tbl
+
+        def data_row(pairs, bg=COR_BRANCO):
+            """pairs = list of (label, value) — renders 2 columns per line"""
+            cells = []
+            for label, value in pairs:
+                cells.append([Paragraph(label, style_label), Paragraph(value, style_value)])
+            half = PAGE_WIDTH / len(pairs)
+            col_widths = [half * 0.35, half * 0.65] * len(pairs)
+            flat = [item for pair in cells for item in pair]
+            tbl = Table([flat], colWidths=col_widths)
+            tbl.setStyle(TableStyle([
+                ('BACKGROUND',    (0, 0), (-1, -1), bg),
+                ('TOPPADDING',    (0, 0), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
+                ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+                ('LINEBELOW',     (0, 0), (-1, -1), 0.3, colors.HexColor('#dce0e0')),
+            ]))
+            return tbl
+
+        elements = []
+
+        # ── CABEÇALHO ──────────────────────────────────────────────────────────
+        header_tbl = Table([
+            [Paragraph('FICHA DO FUNCIONÁRIO', style_titulo)],
+            [Paragraph(empresa_nome.upper(), style_subtitulo)],
+        ], colWidths=[PAGE_WIDTH])
+        header_tbl.setStyle(TableStyle([
+            ('BACKGROUND',    (0, 0), (-1, -1), COR_PRINCIPAL),
+            ('TOPPADDING',    (0, 0), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 12),
+        ]))
+        elements.append(header_tbl)
+        elements.append(Spacer(1, 0.4*cm))
+
+        # Data de emissão (direita)
+        from datetime import datetime as _dt
+        data_emissao = _dt.now().strftime('%d/%m/%Y às %H:%M')
+        elements.append(Paragraph(f'Emitido em: {data_emissao}', style_data_pdf))
+        elements.append(Spacer(1, 0.3*cm))
+
+        # ── DADOS PESSOAIS ─────────────────────────────────────────────────────
+        elements.append(section_header('  DADOS PESSOAIS'))
+        elements.append(data_row([('Nome Completo:', nome_funcionario), ('CPF:', val('cpf'))]))
+        elements.append(data_row([('Data de Nascimento:', fmt_date('data_nascimento')), ('Idade:', val('idade'))], COR_LINHA_PAR))
+        elements.append(data_row([('Estado Civil:', val('estado_civil')), ('Nacionalidade:', val('nacionalidade'))]))
+        elements.append(data_row([('Profissão:', val('profissao')), ('Status:', status_label)], COR_LINHA_PAR))
+        elements.append(Spacer(1, 0.4*cm))
+
+        # ── CONTATO ───────────────────────────────────────────────────────────
+        elements.append(section_header('  CONTATO'))
+        elements.append(data_row([('E-mail:', val('email')), ('Celular:', val('celular'))]))
+        elements.append(Spacer(1, 0.4*cm))
+
+        # ── ENDEREÇO ──────────────────────────────────────────────────────────
+        elements.append(section_header('  ENDEREÇO'))
+        elements.append(data_row([('Rua/Av.:', val('rua_av')), ('Número:', val('numero_residencia'))]))
+        elements.append(data_row([('Complemento:', val('complemento')), ('Bairro:', val('bairro'))], COR_LINHA_PAR))
+        elements.append(data_row([('Cidade:', val('cidade')), ('Estado:', val('estado'))]))
+        elements.append(data_row([('CEP:', val('cep')), ('', '')], COR_LINHA_PAR))
+        elements.append(Spacer(1, 0.4*cm))
+
+        # ── VÍNCULO EMPREGATÍCIO ───────────────────────────────────────────────
+        elements.append(section_header('  VÍNCULO EMPREGATÍCIO'))
+        elements.append(data_row([('Data de Admissão:', fmt_date('data_admissao')), ('Data de Demissão:', fmt_date('data_demissao'))]))
+        elements.append(data_row([('Situação:', status_label), ('', '')], COR_LINHA_PAR))
+        elements.append(Spacer(1, 0.4*cm))
+
+        # ── DADOS FINANCEIROS ─────────────────────────────────────────────────
+        elements.append(section_header('  DADOS FINANCEIROS'))
+        elements.append(data_row([('Chave PIX:', val('chave_pix')), ('PIS/PASEP:', val('pis_pasep'))]))
+        elements.append(Spacer(1, 0.4*cm))
+
+        # ── OBSERVAÇÕES ───────────────────────────────────────────────────────
+        obs_texto = val('observacoes', '')
+        if obs_texto and obs_texto != '-':
+            elements.append(section_header('  OBSERVAÇÕES'))
+            obs_tbl = Table([[Paragraph(obs_texto, style_obs)]], colWidths=[PAGE_WIDTH])
+            obs_tbl.setStyle(TableStyle([
+                ('BACKGROUND',    (0, 0), (-1, -1), COR_BRANCO),
+                ('TOPPADDING',    (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ('LEFTPADDING',   (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING',  (0, 0), (-1, -1), 8),
+                ('LINEBELOW',     (0, 0), (-1, -1), 0.3, colors.HexColor('#dce0e0')),
+            ]))
+            elements.append(obs_tbl)
+            elements.append(Spacer(1, 0.4*cm))
+
+        # ── ASSINATURAS ───────────────────────────────────────────────────────
+        elements.append(Spacer(1, 1.5*cm))
+        elements.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#cccccc')))
+        elements.append(Spacer(1, 0.4*cm))
+
+        linha_data = Table([[
+            Paragraph(f'Local e Data: _____________________________, ______ / ______ / __________', style_assin),
+        ]], colWidths=[PAGE_WIDTH])
+        linha_data.setStyle(TableStyle([
+            ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
+            ('TOPPADDING',    (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(linha_data)
+        elements.append(Spacer(1, 1.2*cm))
+
+        col_assin = PAGE_WIDTH / 2 - 0.5*cm
+        assin_tbl = Table([
+            [
+                Paragraph('________________________________________', style_assin),
+                Paragraph('________________________________________', style_assin),
+            ],
+            [
+                Paragraph('Direção', style_assin_bold),
+                Paragraph(nome_funcionario, style_assin_bold),
+            ],
+            [
+                Paragraph(empresa_nome, style_assin),
+                Paragraph('Funcionário', style_assin),
+            ],
+        ], colWidths=[col_assin, col_assin], hAlign='CENTER')
+        assin_tbl.setStyle(TableStyle([
+            ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
+            ('TOPPADDING',    (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+        ]))
+        elements.append(assin_tbl)
+
+        doc.build(elements)
+        buffer.seek(0)
+
+        # Nome de arquivo seguro
+        import re as _re
+        nome_arquivo = _re.sub(r'[^\w\s-]', '', nome_funcionario).strip()
+        nome_arquivo = _re.sub(r'\s+', '_', nome_arquivo)
+        nome_arquivo = nome_arquivo or f'funcionario_{funcionario_id}'
+
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'{nome_arquivo}.pdf'
+        )
+
+    except Exception as e:
+        logger.error(f"Erro ao gerar PDF do funcionário {funcionario_id}: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
 # === ROTAS DE EVENTOS ===
 
 @app.route('/api/eventos', methods=['GET'])

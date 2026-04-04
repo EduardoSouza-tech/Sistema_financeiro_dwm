@@ -4755,6 +4755,7 @@ async function carregarFuncionariosRH() {
                 </td>
                 <td style="padding: 12px 15px; text-align: center;">
                     <button onclick="editarFuncionario(${func.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
+                    <button onclick="gerarPDFFuncionario(${func.id}, '${(func.nome || '').replace(/'/g, "\\'")}') " style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Exportar PDF">📄</button>
                     <button onclick="toggleAtivoFuncionario(${func.id}, ${func.ativo})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="${func.ativo ? 'Inativar' : 'Ativar'}">
                         ${func.ativo ? '🔴' : '🟢'}
                     </button>
@@ -4911,6 +4912,48 @@ async function toggleAtivoFuncionario(id, ativoAtual) {
 window.editarFuncionario = editarFuncionario;
 window.deletarFuncionario = deletarFuncionario;
 window.toggleAtivoFuncionario = toggleAtivoFuncionario;
+
+/**
+ * Gera e faz download do PDF da ficha do funcionário
+ */
+async function gerarPDFFuncionario(id, nome) {
+    try {
+        if (!id) {
+            showToast('Erro: ID do funcionário não informado', 'error');
+            return;
+        }
+        const nomeLabel = nome || `Funcionário #${id}`;
+        showToast(`Gerando PDF de ${nomeLabel}...`, 'info');
+
+        const response = await fetch(`/api/funcionarios/${id}/pdf`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/pdf' }
+        });
+
+        if (!response.ok) {
+            let msg = 'Erro ao gerar PDF';
+            try { const err = await response.json(); msg = err.error || msg; } catch (_) {}
+            showToast(msg, 'error');
+            return;
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${nomeLabel.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_') || 'funcionario'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast(`PDF gerado com sucesso!`, 'success');
+    } catch (error) {
+        console.error('❌ Erro ao gerar PDF do funcionário:', error);
+        showToast('Erro ao gerar PDF: ' + error.message, 'error');
+    }
+}
+window.gerarPDFFuncionario = gerarPDFFuncionario;
+
 // loadFuncionariosRH é um alias para loadFuncionarios (usada em modals.js)
 window.loadFuncionariosRH = async function() { return loadFuncionarios(); };
 
