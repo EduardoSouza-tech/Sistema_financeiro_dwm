@@ -2628,7 +2628,7 @@
                                 <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 150px;">Chave PIX</th>
                                 <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 120px;">PIS/PASEP</th>
                                 <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; width: 80px;">Status</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; width: 120px;">Ações</th>
+                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; width: 160px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="tbody-funcionarios">
@@ -9934,6 +9934,7 @@
                         <td style="text-align: center; padding: 8px;"><span class="badge badge-${ativoStatus ? 'success' : 'danger'}" style="padding: 4px 8px; border-radius: 12px; font-size: 11px; background: ${ativoStatus ? '#27ae60' : '#e74c3c'}; color: white;">${ativoStatus ? 'ATIVO' : 'INATIVO'}</span></td>
                         <td style="text-align: center; padding: 8px;">
                             <button onclick='editarFuncionarioRH(${func.id})' class="btn btn-sm btn-primary" title="Editar">✏️</button>
+                            <button onclick="gerarPDFFuncionario(${func.id}, '${(func.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}') "class="btn btn-sm" style="background: #e74c3c; color: white;" title="Exportar PDF">📄</button>
                             <button onclick="toggleAtivoFuncionarioRH(${func.id}, ${ativoStatus})" class="btn btn-sm btn-${ativoStatus ? 'warning' : 'success'}" title="${ativoStatus ? 'Inativar' : 'Ativar'}">
                                 ${ativoStatus ? '🚫' : '✅'}
                             </button>
