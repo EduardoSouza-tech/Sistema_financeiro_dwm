@@ -6295,7 +6295,7 @@ def listar_sessoes_OLD_DEPRECATED() -> List[Dict]:
 # Função atualizar_sessao já definida na linha 3057 (versão correta)
 # Removida duplicata antiga que causava erro de data_sessao NULL
 
-def deletar_sessao(sessao_id: int) -> bool:
+def deletar_sessao(sessao_id: int, empresa_id: int = None) -> bool:
     """Deleta uma sessi?o"""
     db = DatabaseManager()
     conn = db.get_connection()

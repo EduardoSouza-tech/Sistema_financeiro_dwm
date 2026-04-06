@@ -3063,6 +3063,9 @@ async function openModalSessao(sessaoEdit = null) {
         </form>
     `);
     
+    // Impedir fechar ao clicar fora do modal de sessão (evita perda de dados)
+    modal.onclick = null;
+
     // Verificar e forçar ID após criar modal (CRÍTICO para evitar duplicação)
     // Salvar referência ao modal atual para evitar race condition se um novo modal for criado antes do timeout
     const thisModalElement = document.getElementById('dynamic-modal');
@@ -3142,20 +3145,10 @@ function _buildPessoasOptions(selecionadoId = null) {
         });
         html += '</optgroup>';
     }
-    if (window.clientes && window.clientes.length > 0) {
-        html += '<optgroup label="👤 Clientes">';
-        window.clientes.forEach(c => {
-            const nome = c.razao_social || c.nome || c.nome_fantasia || '-';
-            const optVal = `cli_${c.id}`;
-            const sel = sid && sid === optVal ? 'selected' : '';
-            html += `<option value="${optVal}" ${sel}>${nome}</option>`;
-        });
-        html += '</optgroup>';
-    }
     if (window.fornecedores && window.fornecedores.length > 0) {
         html += '<optgroup label="🏢 Fornecedores">';
         window.fornecedores.forEach(f => {
-            const nome = f.razao_social || f.nome || f.nome_fantasia || '-';
+            const nome = f.nome_fantasia || f.razao_social || f.nome || '-';
             const optVal = `forn_${f.id}`;
             const sel = sid && sid === optVal ? 'selected' : '';
             html += `<option value="${optVal}" ${sel}>${nome}</option>`;
