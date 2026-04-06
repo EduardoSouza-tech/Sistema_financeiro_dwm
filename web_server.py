@@ -7945,8 +7945,9 @@ def exportar_funcionario_pdf(funcionario_id):
         elements = []
 
         # ── CABEÇALHO ──────────────────────────────────────────────────────────
+        titulo_ficha = 'FICHA DO COOPERADO' if int(empresa_id) == 20 else 'FICHA DO FUNCIONÁRIO'
         header_tbl = Table([
-            [Paragraph('FICHA DO FUNCIONÁRIO', style_titulo)],
+            [Paragraph(titulo_ficha, style_titulo)],
             [Paragraph(empresa_nome.upper(), style_subtitulo)],
         ], colWidths=[PAGE_WIDTH])
         header_tbl.setStyle(TableStyle([
