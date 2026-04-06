@@ -11443,6 +11443,9 @@
 
         function exportarAssinaturaExcel() {
             // ✅ IMPORTANTE: Excel DEVE TER coluna "Valor (R$)" - Apenas PDF não tem!
+            window.loadXLSX(function() { _exportarAssinaturaExcelImpl(); });
+        }
+        function _exportarAssinaturaExcelImpl() {
             // Obter dados
             const eventoNome = document.getElementById('assinatura-evento-nome').textContent;
             const eventoData = document.getElementById('assinatura-evento-data').textContent;
