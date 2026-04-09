@@ -12039,41 +12039,7 @@
 
         function fecharModalNovaFuncao() {
             document.getElementById('modal-nova-funcao').style.display = 'none';
-            document.getElementById('form-nova-funcao').reset();
-        }
-
-        async function salvarNovaFuncao(event) {
-            event.preventDefault();
-
-            const nome = document.getElementById('nova-funcao-nome').value;
-            const descricao = document.getElementById('nova-funcao-descricao').value;
-
-            try {
-                const response = await fetch('/api/funcoes-evento', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        nome: nome,
-                        descricao: descricao
-                    })
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    showToast('✅ Função cadastrada com sucesso!', 'success');
-                    fecharModalNovaFuncao();
-                    await carregarFuncoesDisponiveis(); // Recarregar lista de funções
-                } else {
-                    showToast(`❌ ${result.error || 'Erro ao cadastrar função'}`, 'error');
-                }
-            } catch (error) {
-                console.error('Erro ao salvar função:', error);
-                showToast('❌ Erro ao salvar função', 'error');
-            }
+            document.getElementById('form-nova-funcao-modal-antigo').reset();
         }
 
         // ==========================================
@@ -12130,8 +12096,11 @@
         async function salvarNovaFuncao(event) {
             event.preventDefault();
 
-            const nome = document.getElementById('nova-funcao-nome').value;
-            const descricao = document.getElementById('nova-funcao-descricao').value;
+            // Suporta dois modais: modal-funcoes (IDs sem sufixo) e modal-nova-funcao (IDs -modal-antigo)
+            const nome = document.getElementById('nova-funcao-nome')?.value ||
+                         document.getElementById('nova-funcao-nome-modal-antigo')?.value || '';
+            const descricao = document.getElementById('nova-funcao-descricao')?.value ||
+                              document.getElementById('nova-funcao-descricao-modal-antigo')?.value || '';
 
             try {
                 const response = await fetch('/api/funcoes-evento', {
@@ -12150,8 +12119,13 @@
 
                 if (response.ok) {
                     showToast('✅ Função cadastrada com sucesso!', 'success');
-                    document.getElementById('form-nova-funcao').reset();
-                    await carregarFuncoes();
+                    const formPrincipal = document.getElementById('form-nova-funcao');
+                    const formAntigo = document.getElementById('form-nova-funcao-modal-antigo');
+                    if (formPrincipal) formPrincipal.reset();
+                    if (formAntigo) formAntigo.reset();
+                    fecharModalNovaFuncao();
+                    if (typeof carregarFuncoes === 'function') await carregarFuncoes();
+                    if (typeof carregarFuncoesDisponiveis === 'function') await carregarFuncoesDisponiveis();
                 } else {
                     showToast(`❌ ${result.error || 'Erro ao cadastrar função'}`, 'error');
                 }
