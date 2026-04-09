@@ -272,54 +272,74 @@ def sessoes():
                 if not data_sessao_str:
                     titulo = f"Sessão - Cliente {cliente_id}"
             
-            # 🔧 Mapear equipe: Frontend envia IDs, backend espera nomes
+            # 🔧 Mapear equipe: Frontend envia {pessoa_id, tipo_pessoa, id_pessoa, funcao, pagamento}
             equipe_original = data.get('equipe', [])
             equipe_mapeada = []
-            
+
             print(f"🔍 Estrutura da equipe recebida: {equipe_original}")
-            
-            # Converter IDs de funcionários em objetos com nome
+
+            # Converter itens da equipe preservando tipo_pessoa e id_pessoa (necessário para e-mails)
             if equipe_original:
                 for item in equipe_original:
                     try:
-                        if isinstance(item, dict) and 'funcionario_id' in item:
-                            # Dict com funcionario_id - buscar nome diretamente no banco
-                            funcionario_id = int(item['funcionario_id'])
-                            
-                            # Query direta para buscar funcionário - USAR CONTEXT MANAGER
+                        if not isinstance(item, dict):
+                            # Formato legado: apenas ID numérico (funcionário)
+                            func_id = int(item)
                             with db.get_db_connection(empresa_id=empresa_id) as conn:
                                 cursor = conn.cursor()
-                                cursor.execute("SELECT nome FROM funcionarios WHERE id = %s AND empresa_id = %s", (funcionario_id, empresa_id))
-                                funcionario = cursor.fetchone()
+                                cursor.execute("SELECT nome FROM funcionarios WHERE id = %s AND empresa_id = %s", (func_id, empresa_id))
+                                row = cursor.fetchone()
                                 cursor.close()
-                            
-                            if funcionario:
-                                nome_funcionario = funcionario['nome'] if isinstance(funcionario, dict) else funcionario[0]
-                                equipe_mapeada.append({
-                                    'nome': nome_funcionario,
-                                    'funcao': item.get('funcao', 'Membro da Equipe'),
-                                    'pagamento': item.get('pagamento')
-                                })
-                        elif isinstance(item, dict) and 'nome' in item:
-                            # Dict já tem nome - usar diretamente
+                            if row:
+                                equipe_mapeada.append({'nome': row['nome'] if isinstance(row, dict) else row[0], 'funcao': 'Membro da Equipe', 'tipo_pessoa': 'func', 'id_pessoa': func_id, 'pessoa_id': f'func_{func_id}'})
+                            continue
+
+                        tipo_pessoa = item.get('tipo_pessoa')
+                        id_pessoa = item.get('id_pessoa')
+                        funcao = item.get('funcao', 'Membro da Equipe')
+                        pagamento = item.get('pagamento')
+
+                        if tipo_pessoa == 'forn' and id_pessoa:
+                            # Fornecedor: buscar nome fantasia/razao_social/nome
+                            forn_id = int(id_pessoa)
+                            with db.get_db_connection(empresa_id=empresa_id) as conn:
+                                cursor = conn.cursor()
+                                cursor.execute(
+                                    "SELECT COALESCE(NULLIF(nome_fantasia,''), NULLIF(razao_social,''), nome) AS nome FROM fornecedores WHERE id = %s AND empresa_id = %s",
+                                    (forn_id, empresa_id)
+                                )
+                                row = cursor.fetchone()
+                                cursor.close()
+                            nome = (row['nome'] if isinstance(row, dict) else row[0]) if row else f'Fornecedor {forn_id}'
+                            equipe_mapeada.append({'nome': nome, 'funcao': funcao, 'pagamento': pagamento, 'tipo_pessoa': 'forn', 'id_pessoa': forn_id, 'pessoa_id': f'forn_{forn_id}'})
+
+                        elif tipo_pessoa == 'func' and id_pessoa:
+                            # Funcionário: buscar nome
+                            func_id = int(id_pessoa)
+                            with db.get_db_connection(empresa_id=empresa_id) as conn:
+                                cursor = conn.cursor()
+                                cursor.execute("SELECT nome FROM funcionarios WHERE id = %s AND empresa_id = %s", (func_id, empresa_id))
+                                row = cursor.fetchone()
+                                cursor.close()
+                            nome = (row['nome'] if isinstance(row, dict) else row[0]) if row else f'Funcionário {func_id}'
+                            equipe_mapeada.append({'nome': nome, 'funcao': funcao, 'pagamento': pagamento, 'tipo_pessoa': 'func', 'id_pessoa': func_id, 'pessoa_id': f'func_{func_id}'})
+
+                        elif item.get('nome'):
+                            # Já tem nome: preservar o item inteiro (compatibilidade com dados antigos)
                             equipe_mapeada.append(item)
-                        elif isinstance(item, (int, str)):
-                            # Apenas ID - buscar funcionário
-                            funcionario_id = int(item)
-                            
-                            # Query usando context manager - NUNCA vaza conexão
+
+                        elif item.get('funcionario_id'):
+                            # Formato legado com funcionario_id
+                            func_id = int(item['funcionario_id'])
                             with db.get_db_connection(empresa_id=empresa_id) as conn:
                                 cursor = conn.cursor()
-                                cursor.execute("SELECT nome FROM funcionarios WHERE id = %s AND empresa_id = %s", (funcionario_id, empresa_id))
-                                funcionario = cursor.fetchone()
+                                cursor.execute("SELECT nome FROM funcionarios WHERE id = %s AND empresa_id = %s", (func_id, empresa_id))
+                                row = cursor.fetchone()
                                 cursor.close()
-                            
-                            if funcionario:
-                                nome_funcionario = funcionario['nome'] if isinstance(funcionario, dict) else funcionario[0]
-                                equipe_mapeada.append({
-                                    'nome': nome_funcionario,
-                                    'funcao': 'Membro da Equipe'
-                                })
+                            if row:
+                                nome = row['nome'] if isinstance(row, dict) else row[0]
+                                equipe_mapeada.append({'nome': nome, 'funcao': funcao, 'pagamento': pagamento, 'tipo_pessoa': 'func', 'id_pessoa': func_id, 'pessoa_id': f'func_{func_id}'})
+
                     except Exception as e:
                         print(f"⚠️ Erro ao processar item da equipe: {e}")
                         continue
