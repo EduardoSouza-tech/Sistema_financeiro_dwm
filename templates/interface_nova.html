@@ -6208,6 +6208,9 @@
                     <button class="tab-button" onclick="showContratoTab('controle-horas')" id="tab-controle-horas" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
                         ⏱️ Controle de Horas
                     </button>
+                    <button class="tab-button" onclick="showContratoTab('relatorios')" id="tab-relatorios" style="padding: 10px 20px; border: none; background: #bdc3c7; color: #555; cursor: pointer; border-radius: 5px 5px 0 0;">
+                        📊 Relatórios
+                    </button>
                 </div>
 
                 <!-- Tab Resumo -->
@@ -6361,6 +6364,98 @@
                         <div style="font-size: 48px; margin-bottom: 20px;">⏱️</div>
                         <h3 style="color: #34495e; margin-bottom: 10px;">Nenhum Contrato com Controle de Horas</h3>
                         <p style="margin: 0; font-size: 14px;">Configure contratos com controle de horas ativo para visualizar este relatório.</p>
+                    </div>
+                </div>
+
+                <!-- ===== Tab Relatórios ===== -->
+                <div id="tab-content-relatorios" style="display: none;">
+                    <h3 style="color: #2c3e50; margin: 0 0 20px 0;">📊 Relatório de Equipe &amp; Pagamentos</h3>
+
+                    <!-- Filtros de período -->
+                    <div style="background: #f8f9fa; border-radius: 10px; padding: 20px; margin-bottom: 24px; display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;">
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #7f8c8d; margin-bottom: 4px; font-weight: 600;">PERÍODO RÁPIDO</label>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                <button onclick="relEquipePeriodoRapido('semana')"  class="btn-periodo-rapido" style="padding: 7px 14px; font-size: 13px; background: #ecf0f1; border: 1px solid #bdc3c7; border-radius: 5px; cursor: pointer;">Esta Semana</button>
+                                <button onclick="relEquipePeriodoRapido('mes')"     class="btn-periodo-rapido" style="padding: 7px 14px; font-size: 13px; background: #ecf0f1; border: 1px solid #bdc3c7; border-radius: 5px; cursor: pointer;">Este Mês</button>
+                                <button onclick="relEquipePeriodoRapido('trimestre')" class="btn-periodo-rapido" style="padding: 7px 14px; font-size: 13px; background: #ecf0f1; border: 1px solid #bdc3c7; border-radius: 5px; cursor: pointer;">Trimestre</button>
+                                <button onclick="relEquipePeriodoRapido('ano')"     class="btn-periodo-rapido" style="padding: 7px 14px; font-size: 13px; background: #ecf0f1; border: 1px solid #bdc3c7; border-radius: 5px; cursor: pointer;">Este Ano</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #7f8c8d; margin-bottom: 4px; font-weight: 600;">DE</label>
+                            <input type="date" id="rel-equipe-data-inicio" style="padding: 8px 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #7f8c8d; margin-bottom: 4px; font-weight: 600;">ATÉ</label>
+                            <input type="date" id="rel-equipe-data-fim" style="padding: 8px 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #7f8c8d; margin-bottom: 4px; font-weight: 600;">VER</label>
+                            <select id="rel-equipe-tipo" style="padding: 8px 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; min-width: 160px;">
+                                <option value="todos">Equipe + Responsáveis</option>
+                                <option value="equipe">Só Equipe (com pagamento)</option>
+                                <option value="responsavel">Só Responsáveis</option>
+                            </select>
+                        </div>
+                        <button onclick="carregarRelatorioEquipe()" style="padding: 9px 20px; background: #9b59b6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; align-self: flex-end;">
+                            🔍 Gerar Relatório
+                        </button>
+                    </div>
+
+                    <!-- Cards de totais -->
+                    <div id="rel-equipe-totais" style="display: none; margin-bottom: 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 16px;">
+                        <div style="background: linear-gradient(135deg,#9b59b6,#8e44ad); color:white; border-radius:10px; padding:20px;">
+                            <div style="font-size:13px; opacity:.85; margin-bottom:6px;">Total de Sessões no Período</div>
+                            <div id="rel-tot-sessoes" style="font-size:28px; font-weight:700;">—</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg,#e74c3c,#c0392b); color:white; border-radius:10px; padding:20px;">
+                            <div style="font-size:13px; opacity:.85; margin-bottom:6px;">Total a Pagar à Equipe</div>
+                            <div id="rel-tot-pagamento" style="font-size:28px; font-weight:700;">—</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg,#27ae60,#2ecc71); color:white; border-radius:10px; padding:20px;">
+                            <div style="font-size:13px; opacity:.85; margin-bottom:6px;">Membros Envolvidos</div>
+                            <div id="rel-tot-membros" style="font-size:28px; font-weight:700;">—</div>
+                        </div>
+                    </div>
+
+                    <!-- Área de resultado -->
+                    <div id="rel-equipe-resultado" style="display: none;">
+                        <!-- Tabela geral de membros -->
+                        <div style="background: white; border: 1px solid #e0e0e0; border-radius: 10px; margin-bottom: 24px; overflow: hidden;">
+                            <div style="padding: 14px 18px; background: #f8f9fa; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                <h4 style="margin: 0; color: #2c3e50; font-size: 15px;">👥 Consolidado por Membro</h4>
+                                <button onclick="relEquipeExportarExcel()" style="padding: 7px 14px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600;">📥 Exportar Excel</button>
+                            </div>
+                            <div style="overflow-x: auto;">
+                                <table id="rel-equipe-tabela" style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                                    <thead>
+                                        <tr style="background: #f8f9fa; color: #555;">
+                                            <th style="padding: 12px 14px; text-align: left; border-bottom: 2px solid #e0e0e0; white-space: nowrap;">Membro</th>
+                                            <th style="padding: 12px 14px; text-align: left; border-bottom: 2px solid #e0e0e0;">Função</th>
+                                            <th style="padding: 12px 14px; text-align: center; border-bottom: 2px solid #e0e0e0;">Tipo</th>
+                                            <th style="padding: 12px 14px; text-align: center; border-bottom: 2px solid #e0e0e0;">Sessões</th>
+                                            <th style="padding: 12px 14px; text-align: right; border-bottom: 2px solid #e0e0e0;">Total a Pagar</th>
+                                            <th style="padding: 12px 14px; text-align: center; border-bottom: 2px solid #e0e0e0;">Detalhes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rel-equipe-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty state -->
+                    <div id="rel-equipe-empty" style="text-align: center; padding: 60px 20px; color: #7f8c8d; display: none;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">👥</div>
+                        <h3 style="color: #34495e; margin-bottom: 8px;">Nenhuma sessão encontrada no período</h3>
+                        <p style="font-size: 14px; margin: 0;">Selecione um período e clique em "Gerar Relatório".</p>
+                    </div>
+
+                    <!-- Loading -->
+                    <div id="rel-equipe-loading" style="text-align: center; padding: 60px 20px; display: none;">
+                        <div style="font-size: 36px; margin-bottom: 12px; animation: spin 1s linear infinite; display: inline-block;">⏳</div>
+                        <p style="color: #7f8c8d; font-size: 14px;">Carregando relatório...</p>
                     </div>
                 </div>
             </div>

@@ -1636,11 +1636,261 @@ function exportarSessoesExcel() {
     window.location.href = '/api/sessoes/exportar/excel';
 }
 
+// ===== RELATÓRIO DE EQUIPE =====
+
+let _relEquipeData = null;
+
+function relEquipePeriodoRapido(tipo) {
+    const hoje = new Date();
+    let inicio, fim;
+
+    switch (tipo) {
+        case 'semana': {
+            const diaSemana = hoje.getDay(); // 0=dom, 1=seg...
+            const diffSeg = (diaSemana === 0) ? -6 : 1 - diaSemana;
+            const seg = new Date(hoje);
+            seg.setDate(hoje.getDate() + diffSeg);
+            const dom = new Date(seg);
+            dom.setDate(seg.getDate() + 6);
+            inicio = seg;
+            fim = dom;
+            break;
+        }
+        case 'mes':
+            inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+            break;
+        case 'trimestre': {
+            const trim = Math.floor(hoje.getMonth() / 3);
+            inicio = new Date(hoje.getFullYear(), trim * 3, 1);
+            fim = new Date(hoje.getFullYear(), trim * 3 + 3, 0);
+            break;
+        }
+        case 'ano':
+            inicio = new Date(hoje.getFullYear(), 0, 1);
+            fim = new Date(hoje.getFullYear(), 11, 31);
+            break;
+        default:
+            return;
+    }
+
+    const fmt = d => d.toISOString().split('T')[0];
+    const inputInicio = document.getElementById('rel-equipe-data-inicio');
+    const inputFim = document.getElementById('rel-equipe-data-fim');
+    if (inputInicio) inputInicio.value = fmt(inicio);
+    if (inputFim) inputFim.value = fmt(fim);
+
+    carregarRelatorioEquipe();
+}
+
+async function carregarRelatorioEquipe() {
+    const dataInicio = document.getElementById('rel-equipe-data-inicio')?.value;
+    const dataFim = document.getElementById('rel-equipe-data-fim')?.value;
+    const tipoFiltro = document.getElementById('rel-equipe-tipo')?.value || 'todos';
+
+    if (!dataInicio || !dataFim) {
+        showToast('Selecione o período para gerar o relatório', 'warning');
+        return;
+    }
+
+    const loading = document.getElementById('rel-equipe-loading');
+    const resultado = document.getElementById('rel-equipe-resultado');
+    const empty = document.getElementById('rel-equipe-empty');
+
+    if (loading) loading.style.display = 'flex';
+    if (resultado) resultado.style.display = 'none';
+    if (empty) empty.style.display = 'none';
+
+    try {
+        const params = new URLSearchParams({ data_inicio: dataInicio, data_fim: dataFim });
+        const resp = await fetch(`/api/sessoes/relatorio-equipe?${params}`);
+        const data = await resp.json();
+
+        if (!data.success) {
+            showToast(data.error || 'Erro ao gerar relatório', 'error');
+            if (loading) loading.style.display = 'none';
+            if (empty) empty.style.display = 'flex';
+            return;
+        }
+
+        // Aplicar filtro de tipo
+        let membros = data.membros || [];
+        if (tipoFiltro === 'equipe') {
+            membros = membros.filter(m => m.papel === 'equipe');
+        } else if (tipoFiltro === 'responsavel') {
+            membros = membros.filter(m => m.papel === 'responsavel');
+        }
+
+        _relEquipeData = { ...data, membros };
+
+        // Cards de totais
+        const elSessoes = document.getElementById('rel-tot-sessoes');
+        const elMembros = document.getElementById('rel-tot-membros');
+        const elPagamento = document.getElementById('rel-tot-pagamento');
+        if (elSessoes) elSessoes.textContent = data.total_sessoes || 0;
+        if (elMembros) elMembros.textContent = membros.length;
+        if (elPagamento) {
+            const total = membros.reduce((s, m) => s + (parseFloat(m.valor_total_pagar) || 0), 0);
+            elPagamento.textContent = formatarMoeda(total);
+        }
+
+        // Renderizar tabela
+        _renderRelEquipeTbody(membros);
+
+        if (loading) loading.style.display = 'none';
+        if (membros.length === 0) {
+            if (empty) empty.style.display = 'flex';
+        } else {
+            if (resultado) resultado.style.display = 'block';
+        }
+
+    } catch (err) {
+        console.error('Erro relatório equipe:', err);
+        showToast('Erro ao carregar relatório', 'error');
+        if (loading) loading.style.display = 'none';
+        if (empty) empty.style.display = 'flex';
+    }
+}
+
+function _renderRelEquipeTbody(membros) {
+    const tbody = document.getElementById('rel-equipe-tbody');
+    if (!tbody) return;
+
+    if (membros.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px;">Nenhum membro encontrado no período</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = membros.map((m, idx) => {
+        const papelBadge = m.papel === 'equipe'
+            ? '<span style="background:#27ae60;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;">Equipe</span>'
+            : '<span style="background:#8e44ad;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;">Responsável</span>';
+
+        const subRows = (m.sessoes || []).map(s => `
+            <tr id="rel-detail-${idx}-row" style="display:none;background:#f9f9f9;font-size:12px;">
+                <td style="padding:6px 10px;">${s.data ? formatarData(s.data) : ''}</td>
+                <td style="padding:6px 10px;">${s.cliente || '—'}</td>
+                <td style="padding:6px 10px;">${formatarMoeda(s.valor_pagar)}</td>
+                <td style="padding:6px 10px;">${s.data_pagamento_cliente ? formatarData(s.data_pagamento_cliente) : '—'}</td>
+                <td style="padding:6px 10px;font-weight:bold;color:#27ae60;">${s.data_pagamento_equipe ? formatarData(s.data_pagamento_equipe) : '—'}</td>
+                <td style="padding:6px 10px;">
+                    <span style="font-size:10px;background:${s.status_pagamento_cliente==='pago'?'#27ae60':'#e67e22'};color:#fff;padding:2px 6px;border-radius:8px;">
+                        ${s.status_pagamento_cliente === 'pago' ? 'Pago' : 'Pendente'}
+                    </span>
+                </td>
+            </tr>`).join('');
+
+        const hasDetails = (m.sessoes || []).length > 0;
+
+        return `
+        <tr style="border-bottom:1px solid #eee;">
+            <td style="padding:10px;">${m.nome || '—'}</td>
+            <td style="padding:10px;">${m.funcao || '—'}</td>
+            <td style="padding:10px;">${papelBadge}</td>
+            <td style="padding:10px;text-align:center;">${m.total_sessoes || 0}</td>
+            <td style="padding:10px;font-weight:bold;">${formatarMoeda(m.valor_total_pagar)}</td>
+            <td style="padding:10px;text-align:center;">
+                ${hasDetails ? `<button onclick="relEquipeToggleDetalhe(${idx})" style="background:#9b59b6;color:#fff;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;" id="rel-btn-${idx}">▼ Detalhar</button>` : '—'}
+            </td>
+        </tr>
+        ${hasDetails ? `
+        <tr id="rel-detail-${idx}" style="display:none;">
+            <td colspan="6" style="padding:0;">
+                <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f0e6ff;">
+                            <th style="padding:6px 10px;text-align:left;">Data</th>
+                            <th style="padding:6px 10px;text-align:left;">Cliente</th>
+                            <th style="padding:6px 10px;text-align:left;">Valor</th>
+                            <th style="padding:6px 10px;text-align:left;">Pgto Cliente</th>
+                            <th style="padding:6px 10px;text-align:left;">Pgto Equipe</th>
+                            <th style="padding:6px 10px;text-align:left;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${(m.sessoes || []).map(s => `
+                        <tr style="border-top:1px solid #eee;">
+                            <td style="padding:6px 10px;">${s.data ? formatarData(s.data) : ''}</td>
+                            <td style="padding:6px 10px;">${s.cliente || '—'}</td>
+                            <td style="padding:6px 10px;">${formatarMoeda(s.valor_pagar)}</td>
+                            <td style="padding:6px 10px;">${s.data_pagamento_cliente ? formatarData(s.data_pagamento_cliente) : '—'}</td>
+                            <td style="padding:6px 10px;font-weight:bold;color:#27ae60;">${s.data_pagamento_equipe ? formatarData(s.data_pagamento_equipe) : '—'}</td>
+                            <td style="padding:6px 10px;">
+                                <span style="font-size:10px;background:${s.status_pagamento_cliente==='pago'?'#27ae60':'#e67e22'};color:#fff;padding:2px 6px;border-radius:8px;">
+                                    ${s.status_pagamento_cliente === 'pago' ? 'Pago' : 'Pendente'}
+                                </span>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </td>
+        </tr>` : ''}`;
+    }).join('');
+}
+
+function relEquipeToggleDetalhe(idx) {
+    const row = document.getElementById(`rel-detail-${idx}`);
+    const btn = document.getElementById(`rel-btn-${idx}`);
+    if (!row) return;
+    const visible = row.style.display !== 'none';
+    row.style.display = visible ? 'none' : 'table-row';
+    if (btn) btn.textContent = visible ? '▼ Detalhar' : '▲ Ocultar';
+}
+
+function relEquipeExportarExcel() {
+    if (!_relEquipeData || !_relEquipeData.membros || _relEquipeData.membros.length === 0) {
+        showToast('Gere o relatório antes de exportar', 'warning');
+        return;
+    }
+
+    const linhas = [['Membro', 'Função', 'Papel', 'Data Sessão', 'Cliente', 'Valor a Pagar', 'Data Pgto Cliente', 'Data Pgto Equipe', 'Status']];
+
+    _relEquipeData.membros.forEach(m => {
+        if (m.sessoes && m.sessoes.length > 0) {
+            m.sessoes.forEach(s => {
+                linhas.push([
+                    m.nome || '',
+                    m.funcao || '',
+                    m.papel === 'equipe' ? 'Equipe' : 'Responsável',
+                    s.data ? formatarData(s.data) : '',
+                    s.cliente || '',
+                    s.valor_pagar || 0,
+                    s.data_pagamento_cliente ? formatarData(s.data_pagamento_cliente) : '',
+                    s.data_pagamento_equipe ? formatarData(s.data_pagamento_equipe) : '',
+                    s.status_pagamento_cliente === 'pago' ? 'Pago' : 'Pendente'
+                ]);
+            });
+        } else {
+            linhas.push([m.nome || '', m.funcao || '', m.papel === 'equipe' ? 'Equipe' : 'Responsável',
+                '', '', m.valor_total_pagar || 0, '', '', '']);
+        }
+    });
+
+    const csv = linhas.map(row =>
+        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';')
+    ).join('\r\n');
+
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `relatorio_equipe_${_relEquipeData.data_inicio}_${_relEquipeData.data_fim}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 // Exportar funções de exportação
 window.exportarContratosPDF = exportarContratosPDF;
 window.exportarContratosExcel = exportarContratosExcel;
 window.exportarSessoesPDF = exportarSessoesPDF;
 window.exportarSessoesExcel = exportarSessoesExcel;
+window.carregarRelatorioEquipe = carregarRelatorioEquipe;
+window.relEquipePeriodoRapido = relEquipePeriodoRapido;
+window.relEquipeExportarExcel = relEquipeExportarExcel;
+window.relEquipeToggleDetalhe = relEquipeToggleDetalhe;
 
 console.log('✅ Funções de Contratos e Sessões exportadas para window');
 console.log('📋 Funções disponíveis:', {

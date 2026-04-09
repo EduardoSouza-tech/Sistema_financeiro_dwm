@@ -1476,3 +1476,233 @@ def exportar_sessoes_excel():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# RELATÓRIO DE EQUIPE
+# ============================================================================
+
+@sessoes_bp.route('/relatorio-equipe', methods=['GET'])
+@require_permission('sessoes_view')
+def relatorio_equipe_sessoes():
+    """
+    Relatório de produção e pagamento da equipe em um período.
+
+    Query params:
+        data_inicio  – YYYY-MM-DD  (obrigatório)
+        data_fim     – YYYY-MM-DD  (obrigatório)
+
+    Retorna por membro:
+        - nome, funcao, tipo (func/forn)
+        - total_sessoes       – número de sessões em que participou
+        - valor_total_pagar   – soma de pagamento combinado
+        - sessoes             – lista de sessões com data, cliente, valor, status,
+                                 data_pagamento_cliente, data_pagamento_equipe (+1 dia)
+        - status_pagamento    – 'pago' | 'aguardando' | 'pendente' (conforme lançamentos)
+    """
+    try:
+        import json
+        from datetime import datetime, timedelta
+        from database_postgresql import get_db_connection
+
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não selecionada'}), 403
+
+        data_inicio = request.args.get('data_inicio')
+        data_fim    = request.args.get('data_fim')
+
+        if not data_inicio or not data_fim:
+            return jsonify({'error': 'Parâmetros data_inicio e data_fim são obrigatórios'}), 400
+
+        # Validar datas
+        try:
+            dt_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+            dt_fim    = datetime.strptime(data_fim,    '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+
+        if dt_inicio > dt_fim:
+            return jsonify({'error': 'data_inicio deve ser anterior a data_fim'}), 400
+
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cur = conn.cursor()
+
+            # 1. Buscar sessões no período com dados do cliente e lançamento associado
+            cur.execute("""
+                SELECT
+                    s.id,
+                    s.data,
+                    s.dados_json,
+                    s.valor,
+                    s.status,
+                    c.nome AS cliente_nome,
+                    -- lançamento de receita associado (via campo associacao = 'sessao_<id>')
+                    l.data_vencimento  AS lc_vencimento,
+                    l.data_pagamento   AS lc_data_pago,
+                    l.status           AS lc_status
+                FROM sessoes s
+                LEFT JOIN clientes c  ON c.id = s.cliente_id
+                LEFT JOIN lancamentos l
+                       ON l.empresa_id = s.empresa_id
+                      AND l.tipo       = 'receita'
+                      AND l.associacao = CONCAT('sessao_', s.id::text)
+                WHERE s.empresa_id = %s
+                  AND s.data BETWEEN %s AND %s
+                ORDER BY s.data
+            """, (empresa_id, dt_inicio, dt_fim))
+            sessoes_rows = cur.fetchall()
+
+            # 2. Cache de nomes: funcionários e fornecedores por id
+            cur.execute("SELECT id, nome FROM funcionarios WHERE empresa_id = %s", (empresa_id,))
+            func_map = {r['id']: r['nome'] for r in cur.fetchall()}
+
+            cur.execute("""
+                SELECT id,
+                       COALESCE(NULLIF(nome_fantasia,''), NULLIF(razao_social,''), nome) AS nome
+                FROM fornecedores WHERE empresa_id = %s
+            """, (empresa_id,))
+            forn_map = {r['id']: r['nome'] for r in cur.fetchall()}
+
+        # 3. Agregar por membro
+        membros: dict = {}  # chave: pessoa_id único
+
+        def _resolve_nome(item, func_map, forn_map):
+            tipo = item.get('tipo_pessoa') or ('forn' if str(item.get('pessoa_id', '')).startswith('forn_') else 'func')
+            pid  = item.get('id_pessoa') or item.get('funcionario_id')
+            nome = item.get('nome', '')
+
+            if tipo == 'forn' and pid and pid in forn_map:
+                return forn_map[pid], tipo
+            if tipo == 'func' and pid and pid in func_map:
+                return func_map[pid], tipo
+            return nome or f'ID {pid}', tipo
+
+        for row in sessoes_rows:
+            sessao_id = row['id']
+            dados_json = row['dados_json'] or {}
+            if isinstance(dados_json, str):
+                try:
+                    dados_json = json.loads(dados_json)
+                except Exception:
+                    dados_json = {}
+
+            data_sessao       = row['data'].isoformat() if row['data'] else None
+            cliente_nome      = row['cliente_nome'] or '-'
+            valor_sessao      = float(row['valor']) if row['valor'] else 0.0
+            status_sessao     = row['status'] or 'rascunho'
+
+            # Data de pagamento do cliente: usa lançamento se disponível, senão data da sessão
+            if row['lc_vencimento']:
+                data_pgto_cliente = row['lc_vencimento'].isoformat()
+            else:
+                data_pgto_cliente = data_sessao  # fallback
+
+            # Data de pagamento da equipe = +1 dia após o cliente pagar
+            if data_pgto_cliente:
+                try:
+                    dt_pgto_c = datetime.strptime(data_pgto_cliente, '%Y-%m-%d').date()
+                    data_pgto_equipe = (dt_pgto_c + timedelta(days=1)).isoformat()
+                except Exception:
+                    data_pgto_equipe = None
+            else:
+                data_pgto_equipe = None
+
+            # Status do lançamento (pago / pendente / aguardando)
+            lc_status = row['lc_status']
+            if lc_status in ('pago', 'recebido'):
+                status_pgto_cliente = 'pago'
+            elif row['lc_vencimento'] and datetime.now().date() > row['lc_vencimento']:
+                status_pgto_cliente = 'vencido'
+            else:
+                status_pgto_cliente = 'pendente'
+
+            sessao_info = {
+                'sessao_id':             sessao_id,
+                'data':                  data_sessao,
+                'cliente':               cliente_nome,
+                'valor_sessao':          valor_sessao,
+                'status_sessao':         status_sessao,
+                'data_pagamento_cliente': data_pgto_cliente,
+                'data_pagamento_equipe':  data_pgto_equipe,
+                'status_pagamento_cliente': status_pgto_cliente,
+            }
+
+            equipe = dados_json.get('equipe', [])
+            responsaveis = dados_json.get('responsaveis', [])
+
+            # Processar membros da equipe (têm pagamento combinado)
+            for item in equipe:
+                if not isinstance(item, dict):
+                    continue
+                nome, tipo = _resolve_nome(item, func_map, forn_map)
+                funcao    = item.get('funcao', '')
+                pagamento = 0.0
+                try:
+                    pagamento = float(item.get('pagamento') or 0)
+                except (TypeError, ValueError):
+                    pagamento = 0.0
+
+                pessoa_id = item.get('pessoa_id') or f"{tipo}_{item.get('id_pessoa') or item.get('funcionario_id') or nome}"
+                chave = f"{pessoa_id}_{funcao}"
+
+                if chave not in membros:
+                    membros[chave] = {
+                        'pessoa_id':           pessoa_id,
+                        'nome':                nome,
+                        'funcao':              funcao,
+                        'tipo':                tipo,
+                        'papel':               'equipe',
+                        'total_sessoes':       0,
+                        'valor_total_pagar':   0.0,
+                        'sessoes':             [],
+                    }
+                membros[chave]['total_sessoes']     += 1
+                membros[chave]['valor_total_pagar'] += pagamento
+                membros[chave]['sessoes'].append({
+                    **sessao_info,
+                    'valor_pagar': pagamento,
+                })
+
+            # Processar responsáveis (sem pagamento combinado)
+            for item in responsaveis:
+                if not isinstance(item, dict):
+                    continue
+                nome, tipo = _resolve_nome(item, func_map, forn_map)
+                funcao = item.get('funcao', '')
+
+                pessoa_id = item.get('pessoa_id') or f"{tipo}_{item.get('id_pessoa') or item.get('funcionario_id') or nome}"
+                chave = f"resp_{pessoa_id}_{funcao}"
+
+                if chave not in membros:
+                    membros[chave] = {
+                        'pessoa_id':           pessoa_id,
+                        'nome':                nome,
+                        'funcao':              funcao,
+                        'tipo':                tipo,
+                        'papel':               'responsavel',
+                        'total_sessoes':       0,
+                        'valor_total_pagar':   0.0,
+                        'sessoes':             [],
+                    }
+                membros[chave]['total_sessoes'] += 1
+                membros[chave]['sessoes'].append({
+                    **sessao_info,
+                    'valor_pagar': 0.0,
+                })
+
+        resultado = sorted(membros.values(), key=lambda x: (-x['valor_total_pagar'], x['nome']))
+
+        return jsonify({
+            'success':       True,
+            'data_inicio':   data_inicio,
+            'data_fim':      data_fim,
+            'total_sessoes': len(sessoes_rows),
+            'membros':       resultado,
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
