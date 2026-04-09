@@ -1162,6 +1162,21 @@ class DatabaseManager:
         except Exception as e:
             print(f"⚠️  Aviso na migração de clientes/fornecedores: {e}")
 
+        # Migração: Dados bancários e chave PIX em fornecedores
+        try:
+            cursor.execute("""
+                ALTER TABLE fornecedores
+                  ADD COLUMN IF NOT EXISTS banco_nome       VARCHAR(100),
+                  ADD COLUMN IF NOT EXISTS banco_agencia    VARCHAR(20),
+                  ADD COLUMN IF NOT EXISTS banco_conta      VARCHAR(30),
+                  ADD COLUMN IF NOT EXISTS banco_tipo_conta VARCHAR(20),
+                  ADD COLUMN IF NOT EXISTS pix_tipo_chave   VARCHAR(20),
+                  ADD COLUMN IF NOT EXISTS pix_chave        VARCHAR(100);
+            """)
+            print("✓ Migração: Colunas de dados bancários/PIX em fornecedores verificadas")
+        except Exception as e:
+            print(f"⚠️  Aviso na migração de dados bancários/PIX: {e}")
+
         # Migração: Atualizar CHECK constraint de status em sessoes para incluir 'concluida'
         try:
             cursor.execute("""
@@ -2995,6 +3010,13 @@ class DatabaseManager:
             ie = fornecedor_data.get('ie')
             im = fornecedor_data.get('im')
             tipo_documento = fornecedor_data.get('tipo_documento', 'cnpj')
+            # 🏦 Dados bancários / PIX
+            banco_nome       = fornecedor_data.get('banco_nome')
+            banco_agencia    = fornecedor_data.get('banco_agencia')
+            banco_conta      = fornecedor_data.get('banco_conta')
+            banco_tipo_conta = fornecedor_data.get('banco_tipo_conta')
+            pix_tipo_chave   = fornecedor_data.get('pix_tipo_chave')
+            pix_chave        = fornecedor_data.get('pix_chave')
         else:
             nome = fornecedor_data
             empresa_id = None
@@ -3003,6 +3025,8 @@ class DatabaseManager:
             ie = None
             im = None
             tipo_documento = 'cnpj'
+            banco_nome = banco_agencia = banco_conta = banco_tipo_conta = None
+            pix_tipo_chave = pix_chave = None
         
         # Montar endereço completo no campo TEXT se tiver campos estruturados
         if cep or logradouro or numero:
@@ -3045,12 +3069,17 @@ class DatabaseManager:
             cursor.execute("""
                 INSERT INTO fornecedores (nome, cpf_cnpj, email, telefone, endereco, empresa_id,
                                           razao_social, nome_fantasia, cidade, estado, cep, logradouro,
-                                          numero, complemento, bairro, ie, im, tipo_documento)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                          numero, complemento, bairro, ie, im, tipo_documento,
+                                          banco_nome, banco_agencia, banco_conta, banco_tipo_conta,
+                                          pix_tipo_chave, pix_chave)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (nome, cpf_cnpj, email, telefone, endereco, empresa_id,
                   razao_social, nome_fantasia, cidade, estado, cep, logradouro,
-                  numero, complemento, bairro, ie, im, tipo_documento))
+                  numero, complemento, bairro, ie, im, tipo_documento,
+                  banco_nome, banco_agencia, banco_conta, banco_tipo_conta,
+                  pix_tipo_chave, pix_chave))
             
             fornecedor_id = cursor.fetchone()['id']
             conn.commit()
@@ -3160,7 +3189,9 @@ class DatabaseManager:
             SET nome = %s, cpf_cnpj = %s, email = %s, telefone = %s, endereco = %s,
                 razao_social = %s, nome_fantasia = %s, cidade = %s, estado = %s,
                 cep = %s, logradouro = %s, numero = %s, complemento = %s, bairro = %s,
-                ie = %s, im = %s, tipo_documento = %s
+                ie = %s, im = %s, tipo_documento = %s,
+                banco_nome = %s, banco_agencia = %s, banco_conta = %s, banco_tipo_conta = %s,
+                pix_tipo_chave = %s, pix_chave = %s
             WHERE UPPER(TRIM(nome)) = %s
         """, (
             dados.get('nome'),
@@ -3180,6 +3211,12 @@ class DatabaseManager:
             dados.get('ie'),
             dados.get('im'),
             dados.get('tipo_documento', 'cnpj'),
+            dados.get('banco_nome') or None,
+            dados.get('banco_agencia') or None,
+            dados.get('banco_conta') or None,
+            dados.get('banco_tipo_conta') or None,
+            dados.get('pix_tipo_chave') or None,
+            dados.get('pix_chave') or None,
             nome_normalizado
         ))
         

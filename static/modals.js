@@ -1445,6 +1445,13 @@ function openModalFornecedor(fornecedorEdit = null) {
     const estado = isEdit ? (fornecedorEdit.estado || fornecedorEdit.uf || '') : '';
     const telefone = isEdit ? (fornecedorEdit.telefone || fornecedorEdit.contato || '') : '';
     const email = isEdit ? (fornecedorEdit.email || '') : '';
+    // 🏦 Dados bancários / PIX
+    const bancoNome      = isEdit ? (fornecedorEdit.banco_nome       || '') : '';
+    const bancoAgencia   = isEdit ? (fornecedorEdit.banco_agencia    || '') : '';
+    const bancoConta     = isEdit ? (fornecedorEdit.banco_conta      || '') : '';
+    const bancoTipoConta = isEdit ? (fornecedorEdit.banco_tipo_conta || '') : '';
+    const pixTipoChave   = isEdit ? (fornecedorEdit.pix_tipo_chave   || '') : '';
+    const pixChave       = isEdit ? (fornecedorEdit.pix_chave        || '') : '';;
     
     const modal = createModal(titulo, `
         <form id="form-fornecedor" onsubmit="salvarFornecedor(event)">
@@ -1575,6 +1582,64 @@ function openModalFornecedor(fornecedorEdit = null) {
                     <input type="email" id="fornecedor-email" value="${escapeHtml(email)}">
                 </div>
             </div>
+
+            <hr style="margin: 20px 0; border: none; border-top: 2px solid #ecf0f1;">
+            <h3 style="color: #2c3e50; margin-bottom: 15px;">🏦 Dados Bancários / PIX</h3>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Banco:</label>
+                    <input type="text" id="fornecedor-banco-nome" value="${escapeHtml(bancoNome)}" placeholder="Ex: Itau, Bradesco, Nubank...">
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Conta:</label>
+                    <select id="fornecedor-banco-tipo-conta">
+                        <option value="">Selecione...</option>
+                        <option value="corrente" ${bancoTipoConta === 'corrente'  ? 'selected' : ''}>Corrente</option>
+                        <option value="poupanca" ${bancoTipoConta === 'poupanca'  ? 'selected' : ''}>Poupança</option>
+                        <option value="pagamento" ${bancoTipoConta === 'pagamento' ? 'selected' : ''}>Conta Pagamento</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Agência:</label>
+                    <input type="text" id="fornecedor-banco-agencia" value="${escapeHtml(bancoAgencia)}" placeholder="0000">
+                </div>
+                <div class="form-group">
+                    <label>Conta:</label>
+                    <input type="text" id="fornecedor-banco-conta" value="${escapeHtml(bancoConta)}" placeholder="00000-0">
+                </div>
+            </div>
+
+            <hr style="margin: 15px 0; border: none; border-top: 1px solid #ecf0f1;">
+            <h4 style="color: #2c3e50; margin-bottom: 12px;">📱 Chave PIX</h4>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Tipo de Chave:</label>
+                    <select id="fornecedor-pix-tipo" onchange="onFornecedorPixTipoChange()">
+                        <option value="">Não informado</option>
+                        <option value="cpf"       ${pixTipoChave === 'cpf'       ? 'selected' : ''}>CPF</option>
+                        <option value="cnpj"      ${pixTipoChave === 'cnpj'      ? 'selected' : ''}>CNPJ</option>
+                        <option value="email"     ${pixTipoChave === 'email'     ? 'selected' : ''}>E-mail</option>
+                        <option value="telefone"  ${pixTipoChave === 'telefone'  ? 'selected' : ''}>Telefone</option>
+                        <option value="aleatoria" ${pixTipoChave === 'aleatoria' ? 'selected' : ''}>Chave Aleatória</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Chave PIX:</label>
+                    <input type="text" id="fornecedor-pix-chave" value="${escapeHtml(pixChave)}" placeholder="Informe a chave">
+                </div>
+            </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>E-mail:</label>
+                    <input type="email" id="fornecedor-email" value="${escapeHtml(email)}">
+                </div>
+            </div>
             
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
@@ -1588,6 +1653,20 @@ function openModalFornecedor(fornecedorEdit = null) {
     if (isEdit) {
         console.log('✅ Modal de edição de fornecedor criado com todos os dados pré-preenchidos');
     }
+}
+
+function onFornecedorPixTipoChange() {
+    const tipo = document.getElementById('fornecedor-pix-tipo').value;
+    const input = document.getElementById('fornecedor-pix-chave');
+    const placeholders = {
+        cpf:       '000.000.000-00',
+        cnpj:      '00.000.000/0000-00',
+        email:     'email@exemplo.com',
+        telefone:  '+55 (00) 00000-0000',
+        aleatoria: 'Chave aleatória UUID',
+        '':        'Informe a chave',
+    };
+    input.placeholder = placeholders[tipo] || 'Informe a chave';
 }
 
 async function buscarCepFornecedor() {
@@ -1647,7 +1726,14 @@ async function salvarFornecedor(event) {
         email: document.getElementById('fornecedor-email').value.toLowerCase().trim(),
         endereco: `${document.getElementById('fornecedor-rua').value.trim()}, ${document.getElementById('fornecedor-numero').value.trim()}`,
         documento: cnpjLimpo,
-        empresa_id: window.currentEmpresaId
+        empresa_id: window.currentEmpresaId,
+        // 🏦 Dados bancários / PIX
+        banco_nome:       document.getElementById('fornecedor-banco-nome').value.trim(),
+        banco_agencia:    document.getElementById('fornecedor-banco-agencia').value.trim(),
+        banco_conta:      document.getElementById('fornecedor-banco-conta').value.trim(),
+        banco_tipo_conta: document.getElementById('fornecedor-banco-tipo-conta').value,
+        pix_tipo_chave:   document.getElementById('fornecedor-pix-tipo').value,
+        pix_chave:        document.getElementById('fornecedor-pix-chave').value.trim(),
     };
     
     console.log('=== Salvando Fornecedor ===');
