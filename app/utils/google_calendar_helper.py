@@ -258,8 +258,7 @@ def _get_calendar_id(empresa_id: int = 1) -> str:
                 settings = _json.loads(row['valor']) if isinstance(row['valor'], str) else row['valor']
                 cal_id = settings.get('google_calendar_id', '').strip()
                 if cal_id:
-                    # Google Calendar IDs são case-sensitive e devem estar em minúsculas
-                    return cal_id.lower()
+                    return cal_id
     except Exception:
         pass
     return 'primary'

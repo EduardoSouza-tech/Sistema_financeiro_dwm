@@ -89,6 +89,7 @@ def _save_to_db(settings):
             """, (value,))
     except Exception as e:
         print(f"⚠️ Não foi possível salvar config no banco: {e}")
+        raise
 
 # ---------------------------------------------------------------------------
 
