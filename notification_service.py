@@ -17,6 +17,16 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from typing import List, Dict
+
+
+def _fmt_date(value) -> str:
+    """Converte data de yyyy-mm-dd para dd/mm/yyyy. Retorna o valor original se falhar."""
+    if not value:
+        return 'Não informada'
+    try:
+        return datetime.strptime(str(value)[:10], '%Y-%m-%d').strftime('%d/%m/%Y')
+    except Exception:
+        return str(value)
 import database_postgresql as db
 from app.utils import google_calendar_helper
 
@@ -273,13 +283,14 @@ def send_upcoming_session_reminders(empresa_id: int, days_ahead: int = 3, force:
         if not forn_emails:
             continue
 
+        data_fmt = _fmt_date(sessao.get('data'))
         assunto_forn = (
             f"\U0001f4c5 Lembrete de Sessão — "
             f"{sessao.get('cliente_nome', 'Cliente')} em "
-            f"{sessao.get('data', '')}"
+            f"{data_fmt}"
         )
         html_forn = create_notification_html(
-            f"\U0001f4c5 Lembrete: Sessão em {sessao.get('data', '')}",
+            f"\U0001f4c5 Lembrete: Sessão em {data_fmt}",
             [sessao],
             'sessoes_proximas'
         )
@@ -511,15 +522,6 @@ def create_notification_html(title: str, items: List[Dict], notification_type: s
     }
     color = colors.get(notification_type, '#3498db')
     
-    def _fmt_date(value):
-        """Converte aaaa-mm-dd para dd/mm/aaaa; retorna o valor original se falhar."""
-        if not value:
-            return 'Não informada'
-        try:
-            return datetime.strptime(str(value)[:10], '%Y-%m-%d').strftime('%d/%m/%Y')
-        except Exception:
-            return value
-
     # Criar HTML dos itens
     items_html = ""
     for item in items:
@@ -819,13 +821,14 @@ def send_notification_batch(empresa_id: int):
             )
             if not forn_emails:
                 continue
+            data_fmt = _fmt_date(sessao.get('data'))
             assunto_forn = (
                 f"\U0001f4c5 Lembrete de Sessão — "
                 f"{sessao.get('cliente_nome', 'Cliente')} em "
-                f"{sessao.get('data', '')}"
+                f"{data_fmt}"
             )
             html_forn = create_notification_html(
-                f"\U0001f4c5 Lembrete: Sessão em {sessao.get('data', '')}",
+                f"\U0001f4c5 Lembrete: Sessão em {data_fmt}",
                 [sessao],
                 'sessoes_proximas'
             )
