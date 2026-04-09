@@ -354,14 +354,24 @@ def update_calendar_event(event_id, session_data, empresa_id: int = 1):
     
     try:
         calendar_id = _get_calendar_id(empresa_id)
-        # Buscar evento atual — se calendar_id não existe, tentar 'primary'
+        # Buscar evento atual; se não encontrado no calendário configurado, tenta 'primary'
         try:
             event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
         except HttpError as get_err:
-            if get_err.resp.status == 404 and calendar_id != 'primary':
-                print(f"⚠️ Calendar '{calendar_id}' não encontrado (404), usando 'primary'")
-                calendar_id = 'primary'
-                event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+            if get_err.resp.status == 404:
+                if calendar_id != 'primary':
+                    print(f"⚠️ Evento '{event_id}' não encontrado em '{calendar_id}', tentando 'primary'")
+                    try:
+                        calendar_id = 'primary'
+                        event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+                    except HttpError as get_err2:
+                        if get_err2.resp.status == 404:
+                            print(f"⚠️ Evento '{event_id}' não encontrado em nenhum calendário (orphan)")
+                            return {'error': f'Evento não encontrado: {event_id}', 'not_found': True}
+                        raise
+                else:
+                    print(f"⚠️ Evento '{event_id}' não encontrado em 'primary' (orphan)")
+                    return {'error': f'Evento não encontrado: {event_id}', 'not_found': True}
             else:
                 raise
         

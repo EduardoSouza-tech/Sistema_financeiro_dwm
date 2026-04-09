@@ -358,6 +358,20 @@ def google_calendar_sync():
                     result = google_calendar_helper.update_calendar_event(google_event_id, session_data, empresa_id=empresa_id)
                     if 'error' not in result:
                         events_updated += 1
+                    elif result.get('not_found'):
+                        # Evento órfão (criado com bug antigo ou deletado no Google)
+                        # Criar novo e atualizar o ID no banco
+                        print(f"⚠️ Evento '{google_event_id}' órfão — recriando para sessão {sessao.get('id')}")
+                        result = google_calendar_helper.create_calendar_event(session_data, empresa_id=empresa_id)
+                        if 'error' not in result:
+                            events_created += 1
+                            if result.get('event_id'):
+                                import database_postgresql as _db
+                                _db.salvar_google_event_id(sessao.get('id'), result['event_id'], empresa_id=empresa_id)
+                        else:
+                            if result.get('token_expired'):
+                                token_expired = True
+                            errors.append(f"Sessão {sessao.get('id')}: {result['error']}")
                     else:
                         if result.get('token_expired'):
                             token_expired = True
