@@ -1760,31 +1760,23 @@ async function carregarRelatorioEquipe() {
 
 function _renderRelEquipeTbody(membros) {
     const tbody = document.getElementById('rel-equipe-tbody');
+    const cardsContainer = document.getElementById('rel-equipe-cards-mobile');
+    const tabelaDesktop = document.querySelector('.rel-tabela-desktop');
+    const isMobile = window.innerWidth < 640;
+
     if (!tbody) return;
 
     if (membros.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px;">Nenhum membro encontrado no período</td></tr>';
+        if (cardsContainer) cardsContainer.innerHTML = '';
         return;
     }
 
+    // ── Desktop: tabela padrão ──────────────────────────────────────
     tbody.innerHTML = membros.map((m, idx) => {
         const papelBadge = m.papel === 'equipe'
             ? '<span style="background:#27ae60;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;">Equipe</span>'
             : '<span style="background:#8e44ad;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;">Responsável</span>';
-
-        const subRows = (m.sessoes || []).map(s => `
-            <tr id="rel-detail-${idx}-row" style="display:none;background:#f9f9f9;font-size:12px;">
-                <td style="padding:6px 10px;">${s.data ? formatarData(s.data) : ''}</td>
-                <td style="padding:6px 10px;">${s.cliente || '—'}</td>
-                <td style="padding:6px 10px;">${formatarMoeda(s.valor_pagar)}</td>
-                <td style="padding:6px 10px;">${s.data_pagamento_cliente ? formatarData(s.data_pagamento_cliente) : '—'}</td>
-                <td style="padding:6px 10px;font-weight:bold;color:#27ae60;">${s.data_pagamento_equipe ? formatarData(s.data_pagamento_equipe) : '—'}</td>
-                <td style="padding:6px 10px;">
-                    <span style="font-size:10px;background:${s.status_pagamento_cliente==='pago'?'#27ae60':'#e67e22'};color:#fff;padding:2px 6px;border-radius:8px;">
-                        ${s.status_pagamento_cliente === 'pago' ? 'Pago' : 'Pendente'}
-                    </span>
-                </td>
-            </tr>`).join('');
 
         const hasDetails = (m.sessoes || []).length > 0;
 
@@ -1794,7 +1786,7 @@ function _renderRelEquipeTbody(membros) {
             <td style="padding:10px;">${m.funcao || '—'}</td>
             <td style="padding:10px;">${papelBadge}</td>
             <td style="padding:10px;text-align:center;">${m.total_sessoes || 0}</td>
-            <td style="padding:10px;font-weight:bold;">${formatarMoeda(m.valor_total_pagar)}</td>
+            <td style="padding:10px;font-weight:bold;text-align:right;">${formatarMoeda(m.valor_total_pagar)}</td>
             <td style="padding:10px;text-align:center;">
                 ${hasDetails ? `<button onclick="relEquipeToggleDetalhe(${idx})" style="background:#9b59b6;color:#fff;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;" id="rel-btn-${idx}">▼ Detalhar</button>` : '—'}
             </td>
@@ -1809,7 +1801,7 @@ function _renderRelEquipeTbody(membros) {
                             <th style="padding:6px 10px;text-align:left;">Cliente</th>
                             <th style="padding:6px 10px;text-align:left;">Valor</th>
                             <th style="padding:6px 10px;text-align:left;">Pgto Cliente</th>
-                            <th style="padding:6px 10px;text-align:left;">Pgto Equipe</th>
+                            <th style="padding:6px 10px;text-align:left;color:#27ae60;">Pgto Equipe</th>
                             <th style="padding:6px 10px;text-align:left;">Status</th>
                         </tr>
                     </thead>
@@ -1832,6 +1824,82 @@ function _renderRelEquipeTbody(membros) {
             </td>
         </tr>` : ''}`;
     }).join('');
+
+    // ── Mobile: cards ──────────────────────────────────────────────
+    if (cardsContainer) {
+        cardsContainer.innerHTML = membros.map((m, idx) => {
+            const papelColor = m.papel === 'equipe' ? '#27ae60' : '#8e44ad';
+            const papelLabel = m.papel === 'equipe' ? 'Equipe' : 'Responsável';
+            const hasDetails = (m.sessoes || []).length > 0;
+
+            const sessoesHtml = (m.sessoes || []).map(s => `
+                <div style="background:#f9f9f9;border-radius:6px;padding:10px;margin-top:8px;border-left:3px solid ${s.status_pagamento_cliente==='pago'?'#27ae60':'#e67e22'};">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
+                        <div>
+                            <div style="font-weight:700;font-size:13px;">${s.cliente || '—'}</div>
+                            <div style="font-size:12px;color:#7f8c8d;">${s.data ? formatarData(s.data) : ''}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-weight:700;font-size:14px;color:#2c3e50;">${formatarMoeda(s.valor_pagar)}</div>
+                            <span style="font-size:10px;background:${s.status_pagamento_cliente==='pago'?'#27ae60':'#e67e22'};color:#fff;padding:2px 7px;border-radius:8px;">
+                                ${s.status_pagamento_cliente === 'pago' ? 'Pago' : 'Pendente'}
+                            </span>
+                        </div>
+                    </div>
+                    <div style="margin-top:6px;font-size:11px;color:#555;display:flex;gap:12px;flex-wrap:wrap;">
+                        <span>📅 Pgto cliente: <strong>${s.data_pagamento_cliente ? formatarData(s.data_pagamento_cliente) : '—'}</strong></span>
+                        <span style="color:#27ae60;">💵 Pgto equipe: <strong>${s.data_pagamento_equipe ? formatarData(s.data_pagamento_equipe) : '—'}</strong></span>
+                    </div>
+                </div>`).join('');
+
+            return `
+            <div style="background:white;border:1px solid #e0e0e0;border-radius:10px;padding:14px;margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:700;font-size:15px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${m.nome || '—'}</div>
+                        <div style="font-size:12px;color:#7f8c8d;">${m.funcao || '—'}</div>
+                    </div>
+                    <span style="background:${papelColor};color:#fff;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap;">${papelLabel}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+                    <div style="background:#f8f9fa;border-radius:8px;padding:10px;text-align:center;">
+                        <div style="font-size:11px;color:#7f8c8d;margin-bottom:2px;">Sessões</div>
+                        <div style="font-size:22px;font-weight:700;color:#2c3e50;">${m.total_sessoes || 0}</div>
+                    </div>
+                    <div style="background:#f0fff4;border-radius:8px;padding:10px;text-align:center;">
+                        <div style="font-size:11px;color:#7f8c8d;margin-bottom:2px;">Total a Pagar</div>
+                        <div style="font-size:16px;font-weight:700;color:#27ae60;word-break:break-word;">${formatarMoeda(m.valor_total_pagar)}</div>
+                    </div>
+                </div>
+                ${hasDetails ? `
+                <button onclick="relEquipeToggleMobile(${idx}, this)" style="width:100%;margin-top:10px;padding:9px;background:#9b59b6;color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:13px;font-weight:700;">
+                    ▼ Ver Sessões
+                </button>
+                <div id="rel-mobile-detail-${idx}" style="display:none;margin-top:6px;">
+                    ${sessoesHtml}
+                </div>` : ''}
+            </div>`;
+        }).join('');
+    }
+
+    // Mostrar layout correto conforme tela
+    _relEquipeAjustarLayout();
+}
+
+function _relEquipeAjustarLayout() {
+    const isMobile = window.innerWidth < 640;
+    const tabelaDesktop = document.querySelector('.rel-tabela-desktop');
+    const cardsContainer = document.getElementById('rel-equipe-cards-mobile');
+    if (tabelaDesktop) tabelaDesktop.style.display = isMobile ? 'none' : 'block';
+    if (cardsContainer) cardsContainer.style.display = isMobile ? 'block' : 'none';
+}
+
+function relEquipeToggleMobile(idx, btn) {
+    const detail = document.getElementById(`rel-mobile-detail-${idx}`);
+    if (!detail) return;
+    const visible = detail.style.display !== 'none';
+    detail.style.display = visible ? 'none' : 'block';
+    btn.textContent = visible ? '▼ Ver Sessões' : '▲ Ocultar Sessões';
 }
 
 function relEquipeToggleDetalhe(idx) {
@@ -1897,6 +1965,14 @@ window.carregarRelatorioEquipe = carregarRelatorioEquipe;
 window.relEquipePeriodoRapido = relEquipePeriodoRapido;
 window.relEquipeExportarExcel = relEquipeExportarExcel;
 window.relEquipeToggleDetalhe = relEquipeToggleDetalhe;
+window.relEquipeToggleMobile = relEquipeToggleMobile;
+
+// Ajustar layout ao redimensionar janela
+window.addEventListener('resize', function () {
+    if (_relEquipeData && _relEquipeData.membros) {
+        _relEquipeAjustarLayout();
+    }
+});
 
 console.log('✅ Funções de Contratos e Sessões exportadas para window');
 console.log('📋 Funções disponíveis:', {
