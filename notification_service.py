@@ -142,6 +142,47 @@ def get_notifications_log(empresa_id: int, limit: int = 50) -> List[Dict]:
         return []
 
 
+def _get_fornecedor_emails_from_equipe(equipe: list, empresa_id: int) -> List[str]:
+    """
+    Extrai e-mails dos fornecedores listados na equipe de uma sessão.
+    Itens com tipo_pessoa='forn' ou pessoa_id iniciando com 'forn_' são fornecedores.
+    Apenas e-mails válidos (não-vazios) são retornados.
+    """
+    if not equipe:
+        return []
+    forn_ids = []
+    for item in equipe:
+        if not isinstance(item, dict):
+            continue
+        tipo = item.get('tipo_pessoa', '')
+        pessoa_id = str(item.get('pessoa_id', ''))
+        id_pessoa = item.get('id_pessoa')
+        if tipo == 'forn' or pessoa_id.startswith('forn_'):
+            try:
+                fid = int(id_pessoa) if id_pessoa is not None else int(pessoa_id.replace('forn_', ''))
+                forn_ids.append(fid)
+            except (ValueError, TypeError):
+                pass
+    if not forn_ids:
+        return []
+    emails = []
+    try:
+        from database_postgresql import get_db_connection
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT email FROM fornecedores WHERE id = ANY(%s) AND empresa_id = %s AND email IS NOT NULL AND email <> ''",
+                (forn_ids, empresa_id)
+            )
+            for row in cur.fetchall():
+                email = (row['email'] or '').strip()
+                if email and email not in emails:
+                    emails.append(email)
+    except Exception as e:
+        print(f"⚠️ Erro ao buscar e-mails de fornecedores da equipe: {e}")
+    return emails
+
+
 def send_upcoming_session_reminders(empresa_id: int, days_ahead: int = 3, force: bool = False) -> Dict:
     """
     Envia lembretes para sessões próximas.
@@ -216,6 +257,35 @@ def send_upcoming_session_reminders(empresa_id: int, days_ahead: int = 3, force:
     else:
         result['error'] = len(to_notify)
         result['error_msg'] = erro_detalhe
+
+    # ---- Enviar para fornecedores da equipe de cada sessão ----
+    for sessao in to_notify:
+        forn_emails = _get_fornecedor_emails_from_equipe(
+            sessao.get('equipe', []), empresa_id
+        )
+        if not forn_emails:
+            continue
+        assunto_forn = (
+            f"\U0001f4c5 Lembrete de Sessão — "
+            f"{sessao.get('cliente_nome', 'Cliente')} em "
+            f"{sessao.get('data', '')}"
+        )
+        html_forn = create_notification_html(
+            f"\U0001f4c5 Lembrete: Sessão em {sessao.get('data', '')}",
+            [sessao],
+            'sessoes_proximas'
+        )
+        ok_forn = send_email_notification(forn_emails, assunto_forn, html_forn)
+        status_forn = 'enviado' if ok_forn else 'erro'
+        erro_forn = None if ok_forn else 'Falha ao enviar via Resend/SMTP'
+        log_notification_sent(
+            empresa_id, 'lembrete_sessao_fornecedor', sessao.get('id'),
+            sessao.get('data'), forn_emails, assunto_forn, status_forn, erro_forn,
+        )
+        if ok_forn:
+            result['sent'] += len(forn_emails)
+        print(f"  {'✅' if ok_forn else '❌'} Fornecedores notificados para sessão "
+              f"{sessao.get('id')}: {forn_emails}")
 
     return result
 
