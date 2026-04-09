@@ -116,10 +116,13 @@ function cancelarContrato() {
     document.getElementById('form-contrato').reset();
 }
 
-document.getElementById('form-contrato').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    await salvarContrato();
-});
+const _formContrato = document.getElementById('form-contrato');
+if (_formContrato) {
+    _formContrato.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await salvarContrato();
+    });
+}
 
 async function salvarContrato() {
     const id = document.getElementById('contrato-id').value;
@@ -399,10 +402,13 @@ function cancelarSessao() {
     document.getElementById('form-sessao').reset();
 }
 
-document.getElementById('form-sessao').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    await salvarSessao();
-});
+const _formSessao = document.getElementById('form-sessao');
+if (_formSessao) {
+    _formSessao.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await salvarSessao();
+    });
+}
 
 async function salvarSessao() {
     const id = document.getElementById('sessao-id').value;
@@ -1638,7 +1644,7 @@ function exportarSessoesExcel() {
 
 // ===== RELATÓRIO DE EQUIPE =====
 
-let _relEquipeData = null;
+var _relEquipeData = null;
 
 function relEquipePeriodoRapido(tipo) {
     const hoje = new Date();
