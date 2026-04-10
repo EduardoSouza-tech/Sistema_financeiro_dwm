@@ -518,7 +518,7 @@ async function salvarSessao() {
     }
 }
 
-async function editarSessao(id) {
+async function _editarSessaoFormLegado(id) {
     try {
         console.log(`✏️ Editando sessão ID ${id}...`);
         const response = await fetch(`/api/sessoes/${id}`);
@@ -575,7 +575,7 @@ async function editarSessao(id) {
     }
 }
 
-async function excluirSessao(id) {
+async function _excluirSessaoFormLegado(id) {
     if (!confirm('Tem certeza que deseja excluir esta sessão?')) return;
     
     try {
