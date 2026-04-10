@@ -2451,6 +2451,29 @@ async function openModalContrato(contratoEdit = null) {
                     <button type="button" onclick="adicionarComissaoContrato()" class="btn btn-sm" style="margin-top: 10px; background: #3498db; color: white;">➕ Adicionar Comissão</button>
                 </div>
             </div>
+
+            <!-- Parcelas -->
+            <div class="form-group" style="margin-top: 10px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <label style="margin:0;">💳 Parcelas</label>
+                    <button type="button" onclick="gerarParcelasContrato()" class="btn btn-sm" style="background:#8e44ad; color:white; padding:5px 12px; font-size:12px;">⚡ Gerar Automaticamente</button>
+                </div>
+                <div id="contrato-parcelas-container" style="border:1px solid #ddd; border-radius:8px; background:#fafafa; overflow:hidden;">
+                    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                        <thead>
+                            <tr style="background:#f0f0f0;">
+                                <th style="padding:8px 10px; text-align:left; font-weight:600; width:60px;">#</th>
+                                <th style="padding:8px 10px; text-align:left; font-weight:600;">Valor (R$)</th>
+                                <th style="padding:8px 10px; text-align:left; font-weight:600;">Vencimento</th>
+                                <th style="padding:8px 10px; text-align:left; font-weight:600;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contrato-parcelas-tbody">
+                            <tr><td colspan="4" style="padding:20px; text-align:center; color:#999;">Clique em "⚡ Gerar Automaticamente" ou salve o contrato para gerenciar parcelas.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
             
             <div style="display: flex; gap: 10px; margin-top: 20px; position: sticky; bottom: 0; background: white; padding: 15px 0; border-top: 2px solid #eee;">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
@@ -2522,6 +2545,10 @@ async function openModalContrato(contratoEdit = null) {
         // Ajustar layout por tipo e calcular valor inicial
         alterarTipoContrato();
         atualizarCalculoContrato();
+        // Carregar parcelas do banco se estiver editando
+        if (isEdit && contratoEdit && contratoEdit.id) {
+            carregarParcelasContrato(contratoEdit.id);
+        }
     }, 300);
 }
 
@@ -2672,6 +2699,24 @@ async function salvarContrato(event) {
         }
         
         if (result.success || response.ok) {
+            const savedId = isEdit ? id : result.id;
+
+            // Salvar parcelas se houver linhas no formulário
+            if (savedId) {
+                const parcelasParaSalvar = _coletarParcelasDoForm();
+                if (parcelasParaSalvar.length > 0) {
+                    try {
+                        await fetch(`/api/contratos/${savedId}/parcelas`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ parcelas: parcelasParaSalvar })
+                        });
+                    } catch (e) {
+                        console.error('Erro ao salvar parcelas:', e);
+                    }
+                }
+            }
+
             showToast(isEdit ? '✅ Contrato atualizado com sucesso!' : '✅ Contrato criado com sucesso!', 'success');
             closeModal();
             if (typeof loadContratos === 'function') loadContratos();
@@ -5188,6 +5233,103 @@ function toggleContratoSemNF() {
     }
 }
 window.toggleContratoSemNF = toggleContratoSemNF;
+
+// ==================== PARCELAS DE CONTRATO ====================
+
+function gerarParcelasContrato() {
+    const qtdEl = document.getElementById('contrato-parcelas');
+    const qtd = Math.max(1, parseInt(qtdEl?.value) || 1);
+
+    const valorTotalEl = document.getElementById('contrato-valor-total');
+    const valorTotal = parseValorBR(valorTotalEl?.textContent || '0');
+
+    const dataBaseEl = document.getElementById('contrato-dia-pagamento');
+    const dataBase = dataBaseEl?.value || ''; // YYYY-MM-DD
+
+    const valorParcela = Math.round((valorTotal / qtd) * 100) / 100;
+    const ajuste = Math.round((valorTotal - valorParcela * qtd) * 100) / 100;
+
+    const parcelas = [];
+    for (let i = 1; i <= qtd; i++) {
+        let dataVenc = '';
+        if (dataBase) {
+            // Add (i-1) months to the base date, keeping the day
+            const d = new Date(dataBase + 'T12:00:00');
+            d.setMonth(d.getMonth() + (i - 1));
+            dataVenc = d.toISOString().split('T')[0];
+        }
+        parcelas.push({
+            numero: i,
+            valor: i === 1 ? Math.round((valorParcela + ajuste) * 100) / 100 : valorParcela,
+            data_vencimento: dataVenc,
+            status: 'Pendente'
+        });
+    }
+
+    renderizarParcelasContrato(parcelas);
+}
+
+async function carregarParcelasContrato(contratoId) {
+    if (!contratoId) return;
+    try {
+        const r = await fetch(`/api/contratos/${contratoId}/parcelas`);
+        const result = await r.json();
+        if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+            renderizarParcelasContrato(result.data);
+        }
+    } catch (e) {
+        console.error('Erro ao carregar parcelas:', e);
+    }
+}
+
+function renderizarParcelasContrato(parcelas) {
+    const tbody = document.getElementById('contrato-parcelas-tbody');
+    if (!tbody) return;
+
+    const statusOpts = ['Pendente', 'Pago', 'Atrasado', 'Cancelado'];
+    const statusColors = { Pendente: '#f39c12', Pago: '#27ae60', Atrasado: '#e74c3c', Cancelado: '#95a5a6' };
+
+    tbody.innerHTML = parcelas.map((p, idx) => {
+        const valorFmt = (p.valor || 0).toFixed(2).replace('.', ',');
+        const optsHtml = statusOpts.map(s =>
+            `<option value="${s}" ${p.status === s ? 'selected' : ''}>${s}</option>`
+        ).join('');
+        const cor = statusColors[p.status] || '#f39c12';
+        return `<tr data-parcela-idx="${idx}">
+            <td style="text-align:center; font-weight:bold; color:#555;">${p.numero || idx + 1}</td>
+            <td><input type="text" class="parcela-valor" value="${valorFmt}" style="width:100%; border:1px solid #ddd; border-radius:4px; padding:4px 6px; text-align:right;" oninput="this.value=this.value.replace(/[^0-9,]/g,'')"></td>
+            <td><input type="date" class="parcela-data" value="${p.data_vencimento || ''}" style="width:100%; border:1px solid #ddd; border-radius:4px; padding:4px 6px;"></td>
+            <td><select class="parcela-status" style="width:100%; border:1px solid ${cor}; border-radius:4px; padding:4px 6px; color:${cor}; font-weight:bold;">${optsHtml}</select></td>
+        </tr>`;
+    }).join('');
+
+    // Update status select color on change
+    tbody.querySelectorAll('.parcela-status').forEach(sel => {
+        sel.addEventListener('change', function() {
+            const c = statusColors[this.value] || '#aaa';
+            this.style.borderColor = c;
+            this.style.color = c;
+        });
+    });
+}
+
+function _coletarParcelasDoForm() {
+    const tbody = document.getElementById('contrato-parcelas-tbody');
+    if (!tbody) return [];
+    const rows = tbody.querySelectorAll('tr[data-parcela-idx]');
+    if (!rows.length) return [];
+    return Array.from(rows).map((tr, idx) => {
+        const valorRaw = tr.querySelector('.parcela-valor')?.value || '0';
+        const valor = parseFloat(valorRaw.replace(',', '.')) || 0;
+        const dataVenc = tr.querySelector('.parcela-data')?.value || null;
+        const status = tr.querySelector('.parcela-status')?.value || 'Pendente';
+        return { numero: idx + 1, valor, data_vencimento: dataVenc || null, status };
+    });
+}
+
+window.gerarParcelasContrato = gerarParcelasContrato;
+window.carregarParcelasContrato = carregarParcelasContrato;
+window.renderizarParcelasContrato = renderizarParcelasContrato;
 
 // ==================== COMISSÕES CALCULADAS (PARTE 8) ====================
 

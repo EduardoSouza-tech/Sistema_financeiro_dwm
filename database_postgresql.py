@@ -1452,6 +1452,22 @@ class DatabaseManager:
             )
         """)
         
+        # Tabela de parcelas de contratos
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS contrato_parcelas (
+                id SERIAL PRIMARY KEY,
+                contrato_id INTEGER NOT NULL REFERENCES contratos(id) ON DELETE CASCADE,
+                empresa_id INTEGER NOT NULL,
+                numero INTEGER NOT NULL,
+                valor DECIMAL(15,2) NOT NULL DEFAULT 0,
+                data_vencimento DATE,
+                status VARCHAR(50) DEFAULT 'Pendente',
+                observacoes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         # Tabela de agenda
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS agenda (
@@ -5050,6 +5066,83 @@ def deletar_contrato(contrato_id: int) -> bool:
         sucesso = cursor.rowcount > 0
     
     return sucesso
+
+
+# ==================== FUNÇÕES CRUD - PARCELAS ====================
+
+def salvar_parcelas_contrato(empresa_id: int, contrato_id: int, parcelas: list) -> bool:
+    """
+    Substitui todas as parcelas de um contrato (upsert completo).
+    parcelas = [{'numero': 1, 'valor': 500.00, 'data_vencimento': '2025-02-19', 'status': 'Pendente', 'observacoes': ''}, ...]
+    """
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        # Apagar as parcelas antigas
+        cursor.execute("DELETE FROM contrato_parcelas WHERE contrato_id = %s AND empresa_id = %s",
+                       (contrato_id, empresa_id))
+        # Inserir as novas
+        for p in parcelas:
+            data_venc = p.get('data_vencimento') or None
+            cursor.execute("""
+                INSERT INTO contrato_parcelas (contrato_id, empresa_id, numero, valor, data_vencimento, status, observacoes)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (
+                contrato_id,
+                empresa_id,
+                int(p.get('numero', 1)),
+                float(p.get('valor', 0)),
+                data_venc,
+                p.get('status', 'Pendente'),
+                p.get('observacoes', '')
+            ))
+    return True
+
+
+def listar_parcelas_contrato(empresa_id: int, contrato_id: int) -> list:
+    """Retorna as parcelas de um contrato, ordenadas por numero."""
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, contrato_id, numero, valor, data_vencimento, status, observacoes
+            FROM contrato_parcelas
+            WHERE contrato_id = %s AND empresa_id = %s
+            ORDER BY numero
+        """, (contrato_id, empresa_id))
+        rows = cursor.fetchall()
+    resultado = []
+    for row in rows:
+        d = dict(row)
+        if d.get('data_vencimento'):
+            d['data_vencimento'] = str(d['data_vencimento'])
+        d['valor'] = float(d['valor'])
+        resultado.append(d)
+    return resultado
+
+
+def atualizar_parcela(empresa_id: int, parcela_id: int, dados: dict) -> bool:
+    """Atualiza uma parcela individual (valor, data, status)."""
+    if not empresa_id:
+        raise ValueError("empresa_id é obrigatório")
+    with get_db_connection(empresa_id=empresa_id) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE contrato_parcelas
+            SET valor = %s, data_vencimento = %s, status = %s, observacoes = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND empresa_id = %s
+        """, (
+            float(dados.get('valor', 0)),
+            dados.get('data_vencimento') or None,
+            dados.get('status', 'Pendente'),
+            dados.get('observacoes', ''),
+            parcela_id,
+            empresa_id
+        ))
+        return cursor.rowcount > 0
 
 
 # ==================== FUNÇÕES CRUD - SESSÕES ====================

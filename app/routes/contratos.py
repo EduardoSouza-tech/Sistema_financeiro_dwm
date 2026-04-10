@@ -478,3 +478,61 @@ def listar_compensacoes_horas():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== PARCELAS ====================
+
+@contratos_bp.route('/<int:contrato_id>/parcelas', methods=['GET', 'POST'])
+def parcelas_contrato(contrato_id):
+    """GET: listar parcelas. POST: salvar parcelas (substitui tudo)."""
+    usuario = get_usuario_logado()
+    if not usuario:
+        return jsonify({'error': 'Não autenticado'}), 401
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'error': 'Empresa não selecionada'}), 403
+
+    if request.method == 'GET':
+        try:
+            parcelas = db.listar_parcelas_contrato(empresa_id=empresa_id, contrato_id=contrato_id)
+            return jsonify({'success': True, 'data': parcelas})
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    else:  # POST
+        if usuario.get('tipo') != 'admin':
+            permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, db)
+            if 'contratos_edit' not in permissoes:
+                return jsonify({'error': 'Sem permissão'}), 403
+        try:
+            parcelas = request.json.get('parcelas', [])
+            db.salvar_parcelas_contrato(empresa_id=empresa_id, contrato_id=contrato_id, parcelas=parcelas)
+            return jsonify({'success': True, 'message': f'{len(parcelas)} parcela(s) salva(s)'})
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@contratos_bp.route('/<int:contrato_id>/parcelas/<int:parcela_id>', methods=['PUT'])
+def atualizar_parcela_contrato(contrato_id, parcela_id):
+    """Atualiza uma parcela individual."""
+    usuario = get_usuario_logado()
+    if not usuario:
+        return jsonify({'error': 'Não autenticado'}), 401
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'error': 'Empresa não selecionada'}), 403
+    if usuario.get('tipo') != 'admin':
+        permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, db)
+        if 'contratos_edit' not in permissoes:
+            return jsonify({'error': 'Sem permissão'}), 403
+    try:
+        dados = request.json
+        sucesso = db.atualizar_parcela(empresa_id=empresa_id, parcela_id=parcela_id, dados=dados)
+        if sucesso:
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': 'Parcela não encontrada'}), 404
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
