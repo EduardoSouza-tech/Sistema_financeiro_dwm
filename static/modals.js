@@ -1633,13 +1633,6 @@ function openModalFornecedor(fornecedorEdit = null) {
                     <input type="text" id="fornecedor-pix-chave" value="${escapeHtml(pixChave)}" placeholder="Informe a chave">
                 </div>
             </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>E-mail:</label>
-                    <input type="email" id="fornecedor-email" value="${escapeHtml(email)}">
-                </div>
-            </div>
             
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
