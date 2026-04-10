@@ -2283,7 +2283,13 @@ async function openModalContrato(contratoEdit = null) {
             return `<option value="${c.id}" ${selected}>${c.razao_social || c.nome}</option>`;
         }).join('')
         : '<option value="">Nenhum cliente cadastrado</option>';
-    
+
+    // Preparar valores para campos de data (backward compat: só aceita string YYYY-MM-DD)
+    const _toDateInput = (val) => (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) ? val : '';
+    const diaPagamentoValue = isEdit ? _toDateInput(contratoEdit.dia_pagamento) : '';
+    const diaNFValue        = isEdit ? _toDateInput(contratoEdit.dia_emissao_nf) : '';
+    const semNF             = isEdit ? (contratoEdit.sem_nf === true) : false;
+
     const modal = createModal(titulo, `
         <form id="form-contrato" onsubmit="salvarContrato(event)" style="max-height: 80vh; overflow-y: auto;">
             <input type="hidden" id="contrato-id" value="${isEdit ? contratoEdit.id : ''}">
@@ -2377,13 +2383,19 @@ async function openModalContrato(contratoEdit = null) {
                 </div>
                 
                 <div class="form-group">
-                    <label>Dia Pagamento:</label>
-                    <input type="number" id="contrato-dia-pagamento" min="1" max="31" placeholder="10" value="${isEdit && contratoEdit.dia_pagamento ? contratoEdit.dia_pagamento : ''}">
+                    <label>Data Pagamento:</label>
+                    <input type="date" id="contrato-dia-pagamento" value="${diaPagamentoValue}">
                 </div>
                 
                 <div class="form-group">
-                    <label>Dia Emissão NF:</label>
-                    <input type="number" id="contrato-dia-nf" min="1" max="31" placeholder="3" value="${isEdit && contratoEdit.dia_emissao_nf ? contratoEdit.dia_emissao_nf : ''}">
+                    <label style="display:flex; align-items:center; gap:8px;">
+                        Data Emissão NF:
+                        <span style="font-weight:normal; font-size:12px; display:flex; align-items:center; gap:4px;">
+                            <input type="checkbox" id="contrato-sem-nf" onchange="toggleContratoSemNF()" ${semNF ? 'checked' : ''}>
+                            Sem NF
+                        </span>
+                    </label>
+                    <input type="date" id="contrato-dia-nf" value="${diaNFValue}" ${semNF ? 'disabled style="opacity:0.45"' : ''}>
                 </div>
                 
                 <div class="form-group">
@@ -2630,8 +2642,11 @@ async function salvarContrato(event) {
         forma_pagamento: document.getElementById('contrato-pagamento').value,
         quantidade_parcelas: parseInt(document.getElementById('contrato-parcelas').value),
         data_contrato: document.getElementById('contrato-data').value,
-        dia_pagamento: parseInt(document.getElementById('contrato-dia-pagamento').value) || null,
-        dia_emissao_nf: parseInt(document.getElementById('contrato-dia-nf').value) || null,
+        sem_nf: document.getElementById('contrato-sem-nf')?.checked || false,
+        dia_pagamento: document.getElementById('contrato-dia-pagamento').value || null,
+        dia_emissao_nf: document.getElementById('contrato-sem-nf')?.checked
+            ? null
+            : (document.getElementById('contrato-dia-nf').value || null),
         imposto: parseFloat(document.getElementById('contrato-imposto').value) || null,
         comissoes: comissoes
     };
@@ -5155,6 +5170,21 @@ function alterarTipoContrato() {
 }
 
 window.alterarTipoContrato = alterarTipoContrato;
+
+function toggleContratoSemNF() {
+    const cb  = document.getElementById('contrato-sem-nf');
+    const inp = document.getElementById('contrato-dia-nf');
+    if (!cb || !inp) return;
+    if (cb.checked) {
+        inp.disabled = true;
+        inp.style.opacity = '0.45';
+        inp.value = '';
+    } else {
+        inp.disabled = false;
+        inp.style.opacity = '';
+    }
+}
+window.toggleContratoSemNF = toggleContratoSemNF;
 
 // ==================== COMISSÕES CALCULADAS (PARTE 8) ====================
 

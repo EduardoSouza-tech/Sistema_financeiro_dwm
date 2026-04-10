@@ -4833,6 +4833,7 @@ def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
         'quantidade_parcelas': dados.get('quantidade_parcelas'),
         'dia_pagamento': dados.get('dia_pagamento'),
         'dia_emissao_nf': dados.get('dia_emissao_nf'),
+        'sem_nf': dados.get('sem_nf', False),
         'imposto': dados.get('imposto'),
         'comissoes': dados.get('comissoes', [])
     }
@@ -5005,6 +5006,7 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
         'quantidade_parcelas': dados.get('quantidade_parcelas'),
         'dia_pagamento': dados.get('dia_pagamento'),
         'dia_emissao_nf': dados.get('dia_emissao_nf'),
+        'sem_nf': dados.get('sem_nf', False),
         'imposto': dados.get('imposto'),
         'comissoes': dados.get('comissoes', [])
     }
