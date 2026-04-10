@@ -2388,14 +2388,14 @@ async function openModalContrato(contratoEdit = null) {
                 </div>
                 
                 <div class="form-group">
-                    <label style="display:flex; align-items:center; gap:8px;">
-                        Data Emissão NF:
-                        <span style="font-weight:normal; font-size:12px; display:flex; align-items:center; gap:4px;">
-                            <input type="checkbox" id="contrato-sem-nf" onchange="toggleContratoSemNF()" ${semNF ? 'checked' : ''}>
+                    <label>Data Emissão NF:</label>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <input type="date" id="contrato-dia-nf" value="${diaNFValue}" ${semNF ? 'disabled' : ''} style="flex:1; ${semNF ? 'opacity:0.45;' : ''}">
+                        <label style="display:flex; align-items:center; gap:4px; font-size:12px; font-weight:normal; white-space:nowrap; cursor:pointer; color:#555;">
+                            <input type="checkbox" id="contrato-sem-nf" onchange="toggleContratoSemNF()" ${semNF ? 'checked' : ''} style="width:14px; height:14px; cursor:pointer;">
                             Sem NF
-                        </span>
-                    </label>
-                    <input type="date" id="contrato-dia-nf" value="${diaNFValue}" ${semNF ? 'disabled style="opacity:0.45"' : ''}>
+                        </label>
+                    </div>
                 </div>
                 
                 <div class="form-group">
