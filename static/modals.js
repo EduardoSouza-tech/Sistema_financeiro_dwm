@@ -2247,6 +2247,7 @@ async function openModalContrato(contratoEdit = null) {
     const cargas = [];
     if (!window.clientes     || window.clientes.length === 0)    cargas.push(loadClientes());
     if (!window.funcionarios || window.funcionarios.length === 0) cargas.push(loadFuncionarios());
+    if (!window.fornecedores || window.fornecedores.length === 0) cargas.push(loadFornecedores());
     if (cargas.length > 0) await Promise.all(cargas);
 
     const isEdit = contratoEdit !== null;
@@ -2601,21 +2602,45 @@ function atualizarCalculoContrato() {
 function adicionarComissaoContrato(dadosIniciais = null) {
     const container = document.getElementById('contrato-comissoes-list');
     if (!container) return;
-    
-    const opcoesFuncionarios = window.funcionarios && window.funcionarios.length > 0
-        ? window.funcionarios.map(f => {
-            const selected = dadosIniciais && dadosIniciais.funcionario_id === f.id ? 'selected' : '';
-            return `<option value="${f.id}" ${selected}>${f.nome}</option>`;
-        }).join('')
-        : '<option value="">Nenhum funcionário</option>';
-    
+
+    // Determina o valor selecionado atual (suporte a funcionario_id legado ou fornecedor_id)
+    let valorSelecionado = '';
+    if (dadosIniciais) {
+        if (dadosIniciais.funcionario_id) valorSelecionado = `func_${dadosIniciais.funcionario_id}`;
+        else if (dadosIniciais.fornecedor_id) valorSelecionado = `forn_${dadosIniciais.fornecedor_id}`;
+    }
+
+    // Funcionários ativos
+    const funcsAtivos = (window.funcionarios || []).filter(f => f.ativo !== false);
+    const optsFuncionarios = funcsAtivos.length > 0
+        ? funcsAtivos.map(f => {
+            const val = `func_${f.id}`;
+            const sel = valorSelecionado === val ? 'selected' : '';
+            return `<option value="${val}" ${sel}>👤 ${f.nome}</option>`;
+          }).join('')
+        : '';
+
+    // Fornecedores
+    const optsFornecedores = (window.fornecedores || []).length > 0
+        ? (window.fornecedores).map(forn => {
+            const val = `forn_${forn.id}`;
+            const sel = valorSelecionado === val ? 'selected' : '';
+            return `<option value="${val}" ${sel}>🏢 ${forn.nome}</option>`;
+          }).join('')
+        : '';
+
+    const opcoesHtml = (optsFuncionarios || optsFornecedores)
+        ? `<optgroup label="👤 Funcionários">${optsFuncionarios || '<option disabled>Nenhum ativo</option>'}</optgroup>
+           <optgroup label="🏢 Fornecedores">${optsFornecedores || '<option disabled>Nenhum cadastrado</option>'}</optgroup>`
+        : '<option value="">Nenhum cadastrado</option>';
+
     const div = document.createElement('div');
     div.className = 'comissao-item';
     div.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
     div.innerHTML = `
         <select class="comissao-funcionario" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             <option value="">Selecione...</option>
-            ${opcoesFuncionarios}
+            ${opcoesHtml}
         </select>
         <input type="number" class="comissao-percentual" step="0.01" min="0" max="100" placeholder="4.25" value="${dadosIniciais ? dadosIniciais.percentual || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
         <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm btn-danger" style="padding: 8px 12px;">🗑️</button>
@@ -2637,13 +2662,16 @@ async function salvarContrato(event) {
     // Coletar comissões
     const comissoes = [];
     document.querySelectorAll('.comissao-item').forEach(item => {
-        const funcionario_id = item.querySelector('.comissao-funcionario').value;
+        const rawVal   = item.querySelector('.comissao-funcionario').value;
         const percentual = item.querySelector('.comissao-percentual').value;
-        if (funcionario_id && percentual) {
-            comissoes.push({
-                funcionario_id: parseInt(funcionario_id),
-                percentual: parseFloat(percentual)
-            });
+        if (!rawVal || !percentual) return;
+        const sepIdx = rawVal.indexOf('_');
+        const tipo   = sepIdx > -1 ? rawVal.substring(0, sepIdx) : 'func';
+        const pessoaId = sepIdx > -1 ? parseInt(rawVal.substring(sepIdx + 1)) : parseInt(rawVal);
+        if (tipo === 'forn') {
+            comissoes.push({ fornecedor_id: pessoaId, percentual: parseFloat(percentual) });
+        } else {
+            comissoes.push({ funcionario_id: pessoaId, percentual: parseFloat(percentual) });
         }
     });
     
