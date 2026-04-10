@@ -1584,8 +1584,8 @@ window.removerComissao = removerComissao;
 
 window.novaSessao = novaSessao;
 window.cancelarSessao = cancelarSessao;
-window.editarSessao = editarSessao;
-window.excluirSessao = excluirSessao;
+// editarSessao e excluirSessao são gerenciadas pelo app.js (usam openModalSessao)
+// NÃO sobrescrever aqui para não quebrar o modal de sessões
 window.adicionarEquipe = adicionarEquipe;
 window.removerEquipe = removerEquipe;
 window.aplicarTemplateEquipe = aplicarTemplateEquipe;
