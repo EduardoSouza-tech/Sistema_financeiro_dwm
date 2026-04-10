@@ -5107,7 +5107,7 @@ function alterarTipoContrato() {
     const labelMeses        = grupoMeses?.querySelector('label');
 
     if (tipo === 'Pacote') {
-        // === MODO PACOTE: Valor por Pacote | Qtd.Pacotes | Valor Total ===
+        // === MODO PACOTE: Valor por Pacote | Qtd.Pacotes | Horas por Pacote ===
         const labelValorMensal = grupoValorMensal?.querySelector('label');
         if (grupoValorMensal) grupoValorMensal.style.display = '';
         if (campoValorMensal) { campoValorMensal.required = true; campoValorMensal.placeholder = '1000.00'; }
@@ -5115,22 +5115,40 @@ function alterarTipoContrato() {
         if (grupoHorasPacote) grupoHorasPacote.style.display = '';
         if (grupoHorasMensal) grupoHorasMensal.style.display = 'none';
         if (linha4b) linha4b.style.display = 'none';
-        if (grupoMeses) grupoMeses.style.order = '';
+        if (grupoMeses) grupoMeses.style.display = '';
         if (labelMeses) labelMeses.textContent = '*Qtd. Pacotes:';
-        if (campoMeses) campoMeses.placeholder = '10';
+        if (campoMeses) { campoMeses.placeholder = '10'; campoMeses.required = true; }
+
+    } else if (tipo === 'Único') {
+        // === MODO ÚNICO: Valor (único, sem recorrência) | Qtd.Meses oculto fixo em 1 ===
+        const labelValorMensal = grupoValorMensal?.querySelector('label');
+        const labelHorasMensal = grupoHorasMensal?.querySelector('label');
+        if (grupoValorMensal) grupoValorMensal.style.display = '';
+        if (campoValorMensal) { campoValorMensal.required = true; campoValorMensal.placeholder = '1.700,00'; }
+        if (labelValorMensal) labelValorMensal.textContent = '*Valor:';
+        if (grupoHorasPacote) grupoHorasPacote.style.display = 'none';
+        // Ocultar "Qtd. Meses" e forçar valor 1 (Único = 1 mês)
+        if (grupoMeses) grupoMeses.style.display = 'none';
+        if (campoMeses) { campoMeses.value = '1'; campoMeses.required = false; }
+        // Mostrar campo de horas com label "Horas"
+        if (grupoHorasMensal) grupoHorasMensal.style.display = '';
+        if (labelHorasMensal) labelHorasMensal.textContent = 'Horas:';
+        if (linha4b) linha4b.style.display = '';
 
     } else {
-        // === MODO MENSAL/ÚNICO: Valor Mensal | Qtd.Meses | Valor Total ===
+        // === MODO MENSAL: Valor Mensal | Qtd.Meses | Horas Mensais ===
         const labelValorMensal = grupoValorMensal?.querySelector('label');
+        const labelHorasMensal = grupoHorasMensal?.querySelector('label');
         if (grupoValorMensal) grupoValorMensal.style.display = '';
-        if (campoValorMensal) { campoValorMensal.required = true; campoValorMensal.placeholder = '3500.00'; }
+        if (campoValorMensal) { campoValorMensal.required = true; campoValorMensal.placeholder = '3.500,00'; }
         if (labelValorMensal) labelValorMensal.textContent = '*Valor Mensal:';
         if (grupoHorasPacote) grupoHorasPacote.style.display = 'none';
-        if (grupoHorasMensal) grupoHorasMensal.style.display = '';
-        if (linha4b) linha4b.style.display = '';
-        if (grupoMeses) grupoMeses.style.order = '';
+        if (grupoMeses) grupoMeses.style.display = '';
+        if (campoMeses) { campoMeses.placeholder = '12'; campoMeses.required = true; }
         if (labelMeses) labelMeses.textContent = '*Qtd. Meses:';
-        if (campoMeses) campoMeses.placeholder = '12';
+        if (grupoHorasMensal) grupoHorasMensal.style.display = '';
+        if (labelHorasMensal) labelHorasMensal.textContent = 'Horas Mensais:';
+        if (linha4b) linha4b.style.display = '';
     }
 
     atualizarCalculoContrato();
