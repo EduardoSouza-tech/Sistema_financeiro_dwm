@@ -2376,7 +2376,7 @@ async function openModalContrato(contratoEdit = null) {
             </div>
             
             <!-- Linha 5: Datas -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                 <div class="form-group">
                     <label>*Data Contrato:</label>
                     <input type="date" id="contrato-data" required value="${dataContratoFormatada}">
@@ -2397,7 +2397,10 @@ async function openModalContrato(contratoEdit = null) {
                         </label>
                     </div>
                 </div>
-                
+            </div>
+
+            <!-- Linha 5b: Imposto -->
+            <div style="display: grid; grid-template-columns: 150px 1fr; gap: 15px;">
                 <div class="form-group">
                     <label>Imposto (%):</label>
                     <input type="number" id="contrato-imposto" step="0.01" min="0" max="100" placeholder="10.00" value="${isEdit && contratoEdit.imposto !== null && contratoEdit.imposto !== undefined ? contratoEdit.imposto : (isEdit && contratoEdit.imposto_percentual !== null && contratoEdit.imposto_percentual !== undefined ? contratoEdit.imposto_percentual : '')}">
