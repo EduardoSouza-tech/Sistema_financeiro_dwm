@@ -2291,7 +2291,8 @@ async function openModalContrato(contratoEdit = null) {
     const semNF             = isEdit ? (contratoEdit.sem_nf === true) : false;
 
     const modal = createModal(titulo, `
-        <form id="form-contrato" onsubmit="salvarContrato(event)" style="max-height: 80vh; overflow-y: auto;">
+        <form id="form-contrato" onsubmit="salvarContrato(event)" style="display: flex; flex-direction: column; max-height: 80vh;">
+        <div style="flex: 1; overflow-y: auto; padding: 20px;">
             <input type="hidden" id="contrato-id" value="${isEdit ? contratoEdit.id : ''}">
             <input type="hidden" id="contrato-numero" value="${isEdit && contratoEdit.numero ? contratoEdit.numero : ''}">
             
@@ -2475,10 +2476,11 @@ async function openModalContrato(contratoEdit = null) {
                 </div>
             </div>
             
-            <div style="display: flex; gap: 10px; margin-top: 20px; position: sticky; bottom: 0; background: white; padding: 15px 0; border-top: 2px solid #eee;">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-                <button type="submit" class="btn btn-primary">Salvar Contrato</button>
-            </div>
+        </div>
+        <div style="flex-shrink: 0; display: flex; gap: 10px; padding: 15px 20px; border-top: 2px solid #eee; background: white;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar Contrato</button>
+        </div>
         </form>
     `);
     
@@ -2656,6 +2658,7 @@ async function salvarContrato(event) {
     
     // Capturar descrição
     const descricao = document.getElementById('contrato-descricao')?.value || '';
+    const numero = document.getElementById('contrato-numero')?.value || null;
 
     const data = {
         numero: numero,
