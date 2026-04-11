@@ -318,13 +318,13 @@ def google_calendar_sync():
             return jsonify({'error': 'Não autorizado. Configure Google Calendar primeiro.'}), 401
         
         from notification_service import build_attendees_from_equipe
+        import database_postgresql as db
         settings = load_email_settings()
         if not settings.get('google_calendar_enabled'):
             return jsonify({'error': 'Google Calendar não habilitado'}), 400
         
         # Obter sessões do banco
         try:
-            import database_postgresql as db
             sessoes = db.listar_sessoes(empresa_id=empresa_id)
         except Exception as e:
             print(f"❌ Erro ao buscar sessões: {e}")
@@ -342,6 +342,20 @@ def google_calendar_sync():
                 continue
             
             try:
+                sessao_id = sessao.get('id')
+
+                # Buscar todos os attendees da equipe
+                todos_attendees = build_attendees_from_equipe(
+                    sessao.get('equipe', []), empresa_id
+                )
+
+                # Filtrar apenas os que AINDA NÃO receberam convite (controle no nosso banco)
+                ja_convidados = db.get_emails_ja_convidados_gcal(empresa_id, sessao_id)
+                novos_attendees = [
+                    a for a in todos_attendees
+                    if (a.get('email') or '').lower() not in ja_convidados
+                ]
+
                 session_data = {
                     'title': f"{sessao.get('cliente_nome', 'Cliente')} - Sessão",
                     'date': str(sessao.get('data', ''))[:10],
@@ -349,50 +363,66 @@ def google_calendar_sync():
                     'duration': int(float(sessao.get('quantidade_horas', 1)) * 60),
                     'description': sessao.get('descricao', ''),
                     'location': sessao.get('endereco', ''),
-                    'attendees': build_attendees_from_equipe(
-                        sessao.get('equipe', []), empresa_id
-                    ),
+                    # Passar TODOS (para manter no evento), mas sendUpdates só para novos
+                    'attendees': todos_attendees,
                 }
                 
                 # Verificar se já existe evento no Google (através de google_event_id salvo)
                 google_event_id = sessao.get('google_event_id')
+                # sendUpdates='all' apenas se há novos; 'none' se já todos foram convidados
+                send_upd = 'all' if novos_attendees else 'none'
                 
                 if google_event_id:
                     # Atualizar evento existente
-                    result = google_calendar_helper.update_calendar_event(google_event_id, session_data, empresa_id=empresa_id)
+                    result = google_calendar_helper.update_calendar_event(
+                        google_event_id, session_data,
+                        empresa_id=empresa_id, send_updates=send_upd
+                    )
                     if 'error' not in result:
                         events_updated += 1
+                        if novos_attendees and result.get('event_id') or result.get('success'):
+                            eid = result.get('event_id') or google_event_id
+                            db.registrar_gcal_convites(
+                                empresa_id, sessao_id,
+                                [a['email'] for a in novos_attendees], eid
+                            )
                     elif result.get('not_found'):
-                        # Evento órfão (criado com bug antigo ou deletado no Google)
-                        # Criar novo e atualizar o ID no banco
-                        print(f"⚠️ Evento '{google_event_id}' órfão — recriando para sessão {sessao.get('id')}")
+                        # Evento órfão — recriar
+                        print(f"⚠️ Evento '{google_event_id}' órfão — recriando para sessão {sessao_id}")
                         result = google_calendar_helper.create_calendar_event(session_data, empresa_id=empresa_id)
                         if 'error' not in result:
                             events_created += 1
-                            if result.get('event_id'):
-                                import database_postgresql as _db
-                                _db.salvar_google_event_id(sessao.get('id'), result['event_id'], empresa_id=empresa_id)
+                            eid = result.get('event_id')
+                            if eid:
+                                db.salvar_google_event_id(sessao_id, eid, empresa_id=empresa_id)
+                                db.registrar_gcal_convites(
+                                    empresa_id, sessao_id,
+                                    [a['email'] for a in todos_attendees], eid
+                                )
                         else:
                             if result.get('token_expired'):
                                 token_expired = True
-                            errors.append(f"Sessão {sessao.get('id')}: {result['error']}")
+                            errors.append(f"Sessão {sessao_id}: {result['error']}")
                     else:
                         if result.get('token_expired'):
                             token_expired = True
-                        errors.append(f"Sessão {sessao.get('id')}: {result['error']}")
+                        errors.append(f"Sessão {sessao_id}: {result['error']}")
                 else:
-                    # Criar novo evento
+                    # Criar novo evento — envia convite para todos
                     result = google_calendar_helper.create_calendar_event(session_data, empresa_id=empresa_id)
                     if 'error' not in result:
                         events_created += 1
-                        # Salvar google_event_id no banco
-                        if result.get('event_id'):
-                            import database_postgresql as _db
-                            _db.salvar_google_event_id(sessao.get('id'), result['event_id'], empresa_id=empresa_id)
+                        eid = result.get('event_id')
+                        if eid:
+                            db.salvar_google_event_id(sessao_id, eid, empresa_id=empresa_id)
+                            db.registrar_gcal_convites(
+                                empresa_id, sessao_id,
+                                [a['email'] for a in todos_attendees], eid
+                            )
                     else:
                         if result.get('token_expired'):
                             token_expired = True
-                        errors.append(f"Sessão {sessao.get('id')}: {result['error']}")
+                        errors.append(f"Sessão {sessao_id}: {result['error']}")
             except Exception as e:
                 errors.append(f"Sessão {sessao.get('id')}: {str(e)}")
         
@@ -610,6 +640,28 @@ def notifications_log():
     except Exception as e:
         print(f"❌ Erro ao buscar log: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@agenda_bp.route('/google-calendar/invites-log', methods=['GET'])
+@agenda_bp.route('/google-calendar/invites-log/<int:sessao_id>', methods=['GET'])
+def gcal_invites_log(sessao_id: int = None):
+    """Retorna o histórico de convites Google Calendar enviados pela empresa."""
+    import database_postgresql as db
+
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+
+    limit = int(request.args.get('limit', 200))
+    try:
+        if sessao_id:
+            logs = db.listar_gcal_convites_sessao(empresa_id, sessao_id)
+        else:
+            logs = db.listar_gcal_convites_todos(empresa_id, limit=limit)
+        return jsonify({'success': True, 'logs': logs, 'total': len(logs)})
+    except Exception as e:
+        print(f"❌ Erro ao buscar log de convites GCal: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @agenda_bp.route('/notifications/test', methods=['POST'])
 def test_notifications():

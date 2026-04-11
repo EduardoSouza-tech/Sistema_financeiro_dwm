@@ -93,9 +93,22 @@ def _sync_sessao_google(sessao_id: int, dados: dict, empresa_id: int, google_eve
     try:
         from notification_service import build_attendees_from_equipe as _build_att
         _emp_for_att = session.get('empresa_id') if session else None
-        attendees = _build_att(equipe, _emp_for_att or empresa_id)
+        _eid = _emp_for_att or empresa_id
+        todos_attendees = _build_att(equipe, _eid)
     except Exception:
-        attendees = []
+        todos_attendees = []
+        _eid = empresa_id
+
+    # Filtrar apenas quem AINDA NÃO recebeu convite (controle rígido no nosso banco)
+    try:
+        ja_convidados = db.get_emails_ja_convidados_gcal(_eid, sessao_id)
+    except Exception:
+        ja_convidados = set()
+    novos_attendees = [
+        a for a in todos_attendees
+        if (a.get('email') or '').lower() not in ja_convidados
+    ]
+    send_upd = 'all' if novos_attendees else 'none'
 
     session_data = {
         'title': f"{cliente_nome} - Sessão",
@@ -104,12 +117,15 @@ def _sync_sessao_google(sessao_id: int, dados: dict, empresa_id: int, google_eve
         'duration': int(float(dados.get('quantidade_horas', 1)) * 60),
         'description': dados.get('descricao', ''),
         'location': dados.get('endereco', ''),
-        'attendees': attendees,
+        'attendees': todos_attendees,  # manter todos no evento GCal
     }
 
     try:
         if google_event_id:
-            result = _gcal.update_calendar_event(google_event_id, session_data, empresa_id=empresa_id)
+            result = _gcal.update_calendar_event(
+                google_event_id, session_data,
+                empresa_id=empresa_id, send_updates=send_upd
+            )
         else:
             result = _gcal.create_calendar_event(session_data, empresa_id=empresa_id)
 
@@ -118,9 +134,18 @@ def _sync_sessao_google(sessao_id: int, dados: dict, empresa_id: int, google_eve
             return {'token_expired': True}
 
         if result.get('success') and result.get('event_id'):
-            db.salvar_google_event_id(sessao_id, result['event_id'])
-            print(f"✅ [Google Calendar] Evento {'atualizado' if google_event_id else 'criado'}: {result['event_id']}")
-            return {'event_id': result['event_id']}
+            eid_result = result['event_id']
+            if not google_event_id:
+                db.salvar_google_event_id(sessao_id, eid_result)
+            # Registrar convites enviados agora (todos se criação, novos se atualização)
+            _to_log = todos_attendees if not google_event_id else novos_attendees
+            if _to_log:
+                db.registrar_gcal_convites(
+                    _eid, sessao_id,
+                    [a['email'] for a in _to_log], eid_result
+                )
+            print(f"✅ [Google Calendar] Evento {'atualizado' if google_event_id else 'criado'}: {eid_result}")
+            return {'event_id': eid_result}
 
         if 'error' in result:
             print(f"⚠️ [Google Calendar] Erro (não crítico): {result['error']}")

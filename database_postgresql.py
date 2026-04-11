@@ -7005,6 +7005,126 @@ def deletar_funcao_responsavel(empresa_id: int, funcao_id: int) -> bool:
         return sucesso
 
 
+# ==================== GCAL CONVITES LOG ====================
+
+def _ensure_gcal_convites_table():
+    """Cria a tabela gcal_convites_log se não existir (idempotente)."""
+    try:
+        with get_db_connection(allow_global=True) as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS gcal_convites_log (
+                    id          SERIAL PRIMARY KEY,
+                    empresa_id  INTEGER NOT NULL,
+                    sessao_id   INTEGER NOT NULL,
+                    email       VARCHAR(255) NOT NULL,
+                    event_id    VARCHAR(255),
+                    enviado_em  TIMESTAMP DEFAULT NOW(),
+                    CONSTRAINT uk_gcal_convite UNIQUE (empresa_id, sessao_id, email)
+                )
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_gcal_convites_sessao
+                ON gcal_convites_log(empresa_id, sessao_id)
+            """)
+    except Exception as e:
+        print(f"⚠️ Erro ao criar tabela gcal_convites_log: {e}")
+
+
+def get_emails_ja_convidados_gcal(empresa_id: int, sessao_id: int) -> set:
+    """
+    Retorna o conjunto de e-mails que já receberam convite Google Calendar
+    para esta sessão. Usado para evitar reenvio.
+    """
+    _ensure_gcal_convites_table()
+    try:
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT email FROM gcal_convites_log WHERE empresa_id = %s AND sessao_id = %s",
+                (empresa_id, sessao_id)
+            )
+            return {row['email'].lower() for row in cur.fetchall()}
+    except Exception as e:
+        print(f"⚠️ Erro ao buscar convites gcal: {e}")
+        return set()
+
+
+def registrar_gcal_convites(empresa_id: int, sessao_id: int,
+                             emails: list, event_id: str):
+    """
+    Registra os e-mails que receberam convite Google Calendar para esta sessão.
+    Ignora e-mails já registrados (ON CONFLICT DO NOTHING).
+    """
+    _ensure_gcal_convites_table()
+    if not emails:
+        return
+    try:
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cur = conn.cursor()
+            for email in emails:
+                email_lower = (email or '').strip().lower()
+                if not email_lower:
+                    continue
+                cur.execute("""
+                    INSERT INTO gcal_convites_log (empresa_id, sessao_id, email, event_id)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (empresa_id, sessao_id, email) DO NOTHING
+                """, (empresa_id, sessao_id, email_lower, event_id))
+        print(f"✅ [gcal_convites_log] {len(emails)} e-mail(s) registrado(s) — sessão {sessao_id}")
+    except Exception as e:
+        print(f"⚠️ Erro ao registrar convites gcal: {e}")
+
+
+def listar_gcal_convites_sessao(empresa_id: int, sessao_id: int) -> List[Dict]:
+    """
+    Lista todos os convites Google Calendar enviados para uma sessão específica.
+    """
+    _ensure_gcal_convites_table()
+    try:
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT email, event_id,
+                       TO_CHAR(enviado_em AT TIME ZONE 'America/Sao_Paulo',
+                               'DD/MM/YYYY HH24:MI') AS enviado_em_fmt
+                FROM gcal_convites_log
+                WHERE empresa_id = %s AND sessao_id = %s
+                ORDER BY enviado_em
+            """, (empresa_id, sessao_id))
+            return [dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        print(f"⚠️ Erro ao listar convites gcal: {e}")
+        return []
+
+
+def listar_gcal_convites_todos(empresa_id: int, limit: int = 200) -> List[Dict]:
+    """
+    Lista todos os convites Google Calendar da empresa (mais recentes primeiro).
+    """
+    _ensure_gcal_convites_table()
+    try:
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT g.sessao_id, g.email, g.event_id,
+                       TO_CHAR(g.enviado_em AT TIME ZONE 'America/Sao_Paulo',
+                               'DD/MM/YYYY HH24:MI') AS enviado_em_fmt,
+                       s.data AS sessao_data,
+                       c.nome AS cliente_nome
+                FROM gcal_convites_log g
+                LEFT JOIN sessoes s ON s.id = g.sessao_id AND s.empresa_id = g.empresa_id
+                LEFT JOIN clientes c ON c.id = s.cliente_id AND c.empresa_id = g.empresa_id
+                WHERE g.empresa_id = %s
+                ORDER BY g.enviado_em DESC
+                LIMIT %s
+            """, (empresa_id, limit))
+            return [dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        print(f"⚠️ Erro ao listar todos convites gcal: {e}")
+        return []
+
+
 # ==================== CUSTOS OPERACIONAIS ====================
 
 def adicionar_custo_operacional(empresa_id: int, dados: Dict) -> int:

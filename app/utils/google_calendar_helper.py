@@ -358,13 +358,15 @@ def create_calendar_event(session_data, empresa_id: int = 1):
             return {'error': 'Token do Google Calendar expirou. Reconecte nas configurações.', 'token_expired': True}
         return {'error': err_str}
 
-def update_calendar_event(event_id, session_data, empresa_id: int = 1):
+def update_calendar_event(event_id, session_data, empresa_id: int = 1,
+                          send_updates: str = None):
     """
-    Atualizar evento existente no Google Calendar
+    Atualizar evento existente no Google Calendar.
     Args:
         event_id: ID do evento no Google Calendar
         session_data: dict com dados atualizados da sessão
         empresa_id: ID da empresa (multi-tenant)
+        send_updates: 'all' | 'none' | None (auto: envia só se há novos attendees)
     Returns: dict com sucesso ou erro
     """
     service = get_calendar_service(empresa_id)
@@ -420,38 +422,40 @@ def update_calendar_event(event_id, session_data, empresa_id: int = 1):
                 'timeZone': 'America/Sao_Paulo',
             }
 
+        # Capturar e-mails existentes NO GOOGLE antes de alterar qualquer coisa
+        # (DEVE ser feito antes do bloco de attendees abaixo)
+        old_attendee_emails = {
+            (a.get('email') or '').lower()
+            for a in event.get('attendees', [])
+        }
+
         # Atualizar attendees (fornecedores + funcionários da equipe)
         raw_attendees = session_data.get('attendees', [])
+        new_attendees = []
         if raw_attendees is not None:
-            attendees = []
             for a in raw_attendees:
                 if isinstance(a, str):
                     if a:
-                        attendees.append({'email': a})
+                        new_attendees.append({'email': a})
                 elif isinstance(a, dict) and a.get('email'):
-                    attendees.append(a)
-            if attendees:
-                event['attendees'] = attendees
+                    new_attendees.append(a)
+            if new_attendees:
+                event['attendees'] = new_attendees
                 event['guestsCanSeeOtherGuests'] = False
             else:
-                # Remover attendees se lista ficou vazia
                 event.pop('attendees', None)
 
-        # Só disparar e-mails de convite se houver novos attendees
-        # (evita spam ao re-sincronizar eventos já enviados)
-        existing_emails = {
-            (a.get('email') or '').lower()
-            for a in event.get('attendees', [])
-            if a.get('responseStatus') != 'needsAction'  # já responderam = já receberam
-        }
-        # Considerar também quem já está no evento com qualquer status
-        existing_emails_all = {
-            (a.get('email') or '').lower()
-            for a in event.get('attendees', [])
-        }
-        new_emails = {(a.get('email') or '').lower() for a in (attendees if raw_attendees else [])}
-        truly_new = new_emails - existing_emails_all
-        send_updates = 'all' if truly_new else 'none'
+        # Determinar sendUpdates:
+        # - Se o caller passou explicitamente, usar.
+        # - Caso contrário, calcular: só 'all' se há e-mails novos vs o Google.
+        if send_updates is None:
+            new_emails = {(a.get('email') or '').lower() for a in new_attendees}
+            truly_new = new_emails - old_attendee_emails
+            send_updates = 'all' if truly_new else 'none'
+            if truly_new:
+                print(f"  📧 Novos convidados no Google (vs evento atual): {truly_new}")
+            else:
+                print(f"  📧 Nenhum novo convidado — sendUpdates=none")
 
         updated_event = service.events().update(
             calendarId=calendar_id,
@@ -459,7 +463,6 @@ def update_calendar_event(event_id, session_data, empresa_id: int = 1):
             body=event,
             sendUpdates=send_updates,
         ).execute()
-        print(f"  📧 sendUpdates={send_updates} | novos convidados: {truly_new or 'nenhum'}")
         
         return {
             'success': True,
