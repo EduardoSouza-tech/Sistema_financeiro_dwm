@@ -4056,7 +4056,8 @@ async function loadFuncoesResponsaveis() {
         }
         
         const result = await response.json();
-        const funcoes = result.success ? (result.data || []) : [];
+        // A API retorna um array direto (não { success, data })
+        const funcoes = Array.isArray(result) ? result : (result.data || result.funcoes || []);
         window.funcoesResponsaveis = funcoes;
         console.log('✅ Funções carregadas:', funcoes.length);
         return funcoes;
