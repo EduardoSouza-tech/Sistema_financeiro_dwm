@@ -317,6 +317,7 @@ def google_calendar_sync():
         if not google_calendar_helper.is_authorized(empresa_id):
             return jsonify({'error': 'Não autorizado. Configure Google Calendar primeiro.'}), 401
         
+        from notification_service import build_attendees_from_equipe
         settings = load_email_settings()
         if not settings.get('google_calendar_enabled'):
             return jsonify({'error': 'Google Calendar não habilitado'}), 400
@@ -347,7 +348,10 @@ def google_calendar_sync():
                     'time': _parse_horario_time(sessao.get('horario', '')),
                     'duration': int(float(sessao.get('quantidade_horas', 1)) * 60),
                     'description': sessao.get('descricao', ''),
-                    'location': sessao.get('endereco', '')
+                    'location': sessao.get('endereco', ''),
+                    'attendees': build_attendees_from_equipe(
+                        sessao.get('equipe', []), empresa_id
+                    ),
                 }
                 
                 # Verificar se já existe evento no Google (através de google_event_id salvo)

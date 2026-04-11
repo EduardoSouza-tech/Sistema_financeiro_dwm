@@ -291,6 +291,16 @@ def create_calendar_event(session_data, empresa_id: int = 1):
         duration = session_data.get('duration', 60)  # minutos
         end_datetime = start_datetime + timedelta(minutes=duration)
         
+        # Montar attendees (fornecedores + funcionários da equipe)
+        raw_attendees = session_data.get('attendees', [])
+        attendees = []
+        for a in raw_attendees:
+            if isinstance(a, str):
+                if a:
+                    attendees.append({'email': a})
+            elif isinstance(a, dict) and a.get('email'):
+                attendees.append(a)
+
         event = {
             'summary': session_data.get('title', 'Sessão de Fotografia'),
             'location': session_data.get('location', ''),
@@ -311,15 +321,24 @@ def create_calendar_event(session_data, empresa_id: int = 1):
                 ],
             },
         }
-        
+
+        if attendees:
+            event['attendees'] = attendees
+            event['guestsCanSeeOtherGuests'] = False
+
         calendar_id = _get_calendar_id(empresa_id)
+        send_updates = 'all' if attendees else 'none'
         try:
-            event_result = service.events().insert(calendarId=calendar_id, body=event).execute()
+            event_result = service.events().insert(
+                calendarId=calendar_id, body=event, sendUpdates=send_updates
+            ).execute()
         except HttpError as insert_err:
             # Se o calendar_id configurado não existe, tentar com 'primary'
             if insert_err.resp.status == 404 and calendar_id != 'primary':
                 print(f"⚠️ Calendar '{calendar_id}' não encontrado (404), usando 'primary'")
-                event_result = service.events().insert(calendarId='primary', body=event).execute()
+                event_result = service.events().insert(
+                    calendarId='primary', body=event, sendUpdates=send_updates
+                ).execute()
             else:
                 raise
 
@@ -400,11 +419,30 @@ def update_calendar_event(event_id, session_data, empresa_id: int = 1):
                 'dateTime': end_datetime.isoformat(),
                 'timeZone': 'America/Sao_Paulo',
             }
-        
+
+        # Atualizar attendees (fornecedores + funcionários da equipe)
+        raw_attendees = session_data.get('attendees', [])
+        if raw_attendees is not None:
+            attendees = []
+            for a in raw_attendees:
+                if isinstance(a, str):
+                    if a:
+                        attendees.append({'email': a})
+                elif isinstance(a, dict) and a.get('email'):
+                    attendees.append(a)
+            if attendees:
+                event['attendees'] = attendees
+                event['guestsCanSeeOtherGuests'] = False
+            else:
+                # Remover attendees se lista ficou vazia
+                event.pop('attendees', None)
+
+        send_updates = 'all' if raw_attendees else 'none'
         updated_event = service.events().update(
-            calendarId=calendar_id, 
-            eventId=event_id, 
-            body=event
+            calendarId=calendar_id,
+            eventId=event_id,
+            body=event,
+            sendUpdates=send_updates,
         ).execute()
         
         return {

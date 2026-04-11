@@ -207,6 +207,93 @@ def _get_equipe_emails(equipe: list, empresa_id: int) -> List[str]:
     return emails
 
 
+def build_attendees_from_equipe(equipe: list, empresa_id: int) -> List[Dict]:
+    """
+    Retorna lista de attendees para o Google Calendar a partir da equipe de uma sessão.
+    Formato: [{'email': '...', 'displayName': '...'}]
+    Inclui fornecedores e funcionários que possuam e-mail cadastrado.
+    """
+    if not equipe:
+        return []
+
+    attendees = []
+    seen_emails = set()
+
+    # --- Fornecedores ---
+    forn_ids = []
+    forn_nome_map = {}
+    for item in equipe:
+        if not isinstance(item, dict):
+            continue
+        tipo = item.get('tipo_pessoa', '')
+        pessoa_id = str(item.get('pessoa_id', ''))
+        id_pessoa = item.get('id_pessoa')
+        if tipo == 'forn' or pessoa_id.startswith('forn_'):
+            try:
+                fid = int(id_pessoa) if id_pessoa is not None else int(pessoa_id.replace('forn_', ''))
+                forn_ids.append(fid)
+                forn_nome_map[fid] = item.get('nome', '')
+            except (ValueError, TypeError):
+                pass
+
+    if forn_ids:
+        try:
+            from database_postgresql import get_db_connection
+            with get_db_connection(empresa_id=empresa_id) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT id, email, nome_fantasia, nome FROM fornecedores "
+                    "WHERE id = ANY(%s) AND empresa_id = %s AND email IS NOT NULL AND email <> ''",
+                    (forn_ids, empresa_id)
+                )
+                for row in cur.fetchall():
+                    email = (row['email'] or '').strip()
+                    if email and email not in seen_emails:
+                        seen_emails.add(email)
+                        display = (row['nome_fantasia'] or row['nome'] or forn_nome_map.get(row['id'], '')).strip()
+                        attendees.append({'email': email, 'displayName': display})
+        except Exception as e:
+            print(f"⚠️ Erro ao buscar attendees de fornecedores: {e}")
+
+    # --- Funcionários ---
+    func_ids = []
+    func_nome_map = {}
+    for item in equipe:
+        if not isinstance(item, dict):
+            continue
+        tipo = item.get('tipo_pessoa', '')
+        pessoa_id = str(item.get('pessoa_id', ''))
+        id_pessoa = item.get('id_pessoa')
+        if tipo == 'func' or pessoa_id.startswith('func_'):
+            try:
+                fid = int(id_pessoa) if id_pessoa is not None else int(pessoa_id.replace('func_', ''))
+                func_ids.append(fid)
+                func_nome_map[fid] = item.get('nome', '')
+            except (ValueError, TypeError):
+                pass
+
+    if func_ids:
+        try:
+            from database_postgresql import get_db_connection
+            with get_db_connection(empresa_id=empresa_id) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT id, email, nome FROM funcionarios "
+                    "WHERE id = ANY(%s) AND empresa_id = %s AND email IS NOT NULL AND email <> ''",
+                    (func_ids, empresa_id)
+                )
+                for row in cur.fetchall():
+                    email = (row['email'] or '').strip()
+                    if email and email not in seen_emails:
+                        seen_emails.add(email)
+                        display = (row['nome'] or func_nome_map.get(row['id'], '')).strip()
+                        attendees.append({'email': email, 'displayName': display})
+        except Exception as e:
+            print(f"⚠️ Erro ao buscar attendees de funcionários: {e}")
+
+    return attendees
+
+
 def _get_fornecedor_emails_from_equipe(equipe: list, empresa_id: int) -> List[str]:
     """
     Extrai e-mails dos fornecedores listados na equipe de uma sessão.

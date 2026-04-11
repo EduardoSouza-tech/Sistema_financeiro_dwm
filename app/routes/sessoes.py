@@ -84,8 +84,18 @@ def _sync_sessao_google(sessao_id: int, dados: dict, empresa_id: int, google_eve
         # Pegar google_event_id do banco se não foi passado
         if not google_event_id:
             google_event_id = sessao.get('google_event_id') if sessao else None
+        equipe = (sessao.get('equipe') or []) if sessao else []
     except Exception:
         cliente_nome = 'Cliente'
+        equipe = []
+
+    # Montar attendees (fornecedores + funcionários com e-mail)
+    try:
+        from notification_service import build_attendees_from_equipe as _build_att
+        _emp_for_att = session.get('empresa_id') if session else None
+        attendees = _build_att(equipe, _emp_for_att or empresa_id)
+    except Exception:
+        attendees = []
 
     session_data = {
         'title': f"{cliente_nome} - Sessão",
@@ -94,6 +104,7 @@ def _sync_sessao_google(sessao_id: int, dados: dict, empresa_id: int, google_eve
         'duration': int(float(dados.get('quantidade_horas', 1)) * 60),
         'description': dados.get('descricao', ''),
         'location': dados.get('endereco', ''),
+        'attendees': attendees,
     }
 
     try:
