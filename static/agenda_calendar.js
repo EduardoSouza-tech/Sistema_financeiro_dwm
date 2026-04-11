@@ -102,8 +102,8 @@ function initAgendaCalendar() {
             if (props.tipo_video) icon = '🎥';
             else if (props.tipo_mobile) icon = '📱';
             
-            // Usar número do contrato ou título da sessão
-            let displayText = props.contrato_numero || props.titulo || 'Sessão';
+            // Mostrar início do nome do cliente
+            let displayText = props.cliente_nome || props.cliente || props.titulo || 'Sessão';
             
             // Truncar se for muito longo (max 12 caracteres + ...)
             if (displayText.length > 12) {

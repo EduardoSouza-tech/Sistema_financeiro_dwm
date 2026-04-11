@@ -3093,7 +3093,7 @@ async function openModalSessao(sessaoEdit = null) {
                 
                 <div class="form-group">
                     <label>*Contrato:</label>
-                    <select id="sessao-contrato" required>
+                    <select id="sessao-contrato" required onchange="_aoContratoSelecionadoSessao(this.value)">
                         <option value="">Selecione...</option>
                         ${opcoesContratos}
                     </select>
@@ -3292,6 +3292,14 @@ async function openModalSessao(sessaoEdit = null) {
     }
 }
 
+function _formatarMoedaBRL(input) {
+    let v = input.value.replace(/\D/g, '');
+    if (!v) { input.value = ''; return; }
+    const num = parseInt(v, 10) / 100;
+    input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+window._formatarMoedaBRL = _formatarMoedaBRL;
+
 function _parsePessoaId(rawVal) {
     // rawVal format: "func_123", "cli_456", "forn_789" or legacy plain integer
     if (!rawVal) return { tipo: null, id: null };
@@ -3341,6 +3349,17 @@ function adicionarEquipeSessao(dadosIniciais = null) {
         ? (dadosIniciais.pessoa_id || dadosIniciais.funcionario_id || null)
         : null;
 
+    // Opções de funções
+    const funcaoAtual = dadosIniciais ? dadosIniciais.funcao || '' : '';
+    const opcoesFunc = (window.funcoesResponsaveis || []).map(f => {
+        const sel = f.nome === funcaoAtual ? 'selected' : '';
+        return `<option value="${f.nome}" ${sel}>${f.nome}</option>`;
+    }).join('');
+
+    // Valor de pagamento: formatar como BRL ao exibir
+    const pagamentoRaw = dadosIniciais ? (dadosIniciais.pagamento || '') : '';
+    const pagamentoBRL = pagamentoRaw ? parseFloat(pagamentoRaw).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+
     const div = document.createElement('div');
     div.className = 'equipe-item';
     div.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
@@ -3349,9 +3368,22 @@ function adicionarEquipeSessao(dadosIniciais = null) {
             <option value="">Selecione...</option>
             ${_buildPessoasOptions(selecionadoId)}
         </select>
-        <input type="text" class="equipe-funcao" placeholder="Fotógrafo" value="${dadosIniciais ? dadosIniciais.funcao || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-        <input type="number" class="equipe-pagamento" step="0.01" min="0" placeholder="1000.00" value="${dadosIniciais ? dadosIniciais.pagamento || '' : ''}" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-        <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm btn-danger" style="padding: 8px 12px;">🗑️</button>
+        <select class="equipe-funcao equipe-funcao-select" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <option value="">Função...</option>
+            ${opcoesFunc}
+            ${funcaoAtual && !(window.funcoesResponsaveis||[]).find(f=>f.nome===funcaoAtual) ? `<option value="${funcaoAtual}" selected>${funcaoAtual}</option>` : ''}
+        </select>
+        <div style="display:flex;gap:4px;align-items:center;">
+            <span style="font-size:12px;color:#666;white-space:nowrap;">R$</span>
+            <input type="text" class="equipe-pagamento" placeholder="0,00"
+                value="${pagamentoBRL}"
+                oninput="_formatarMoedaBRL(this)"
+                style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; text-align:right; width:100%;">
+        </div>
+        <div style="display:flex;gap:4px;">
+            <button type="button" onclick="openModalAdicionarFuncao()" class="btn btn-sm" style="padding:8px 10px;background:#10b981;color:white;" title="Nova Função">➕</button>
+            <button type="button" onclick="this.closest('.equipe-item').remove()" class="btn btn-sm btn-danger" style="padding: 8px 12px;">🗑️</button>
+        </div>
     `;
     container.appendChild(div);
 }
@@ -3366,11 +3398,12 @@ function adicionarResponsavelSessao(dadosIniciais = null) {
         : null;
     const opcoesPessoas = _buildPessoasOptions(selecionadoId);
 
-    // Opções de funções (para datalist)
-    const datalistId = 'funcoes-list-' + Date.now();
-    const opcoesFuncoes = window.funcoesResponsaveis && window.funcoesResponsaveis.length > 0
-        ? window.funcoesResponsaveis.map(f => `<option value="${f.nome}">`).join('')
-        : '';
+    // Opções de funções como <select>
+    const funcaoAtual = dadosIniciais ? dadosIniciais.funcao || '' : '';
+    const opcoesFunc = (window.funcoesResponsaveis || []).map(f => {
+        const sel = f.nome === funcaoAtual ? 'selected' : '';
+        return `<option value="${f.nome}" ${sel}>${f.nome}</option>`;
+    }).join('');
     
     const div = document.createElement('div');
     div.className = 'responsavel-item';
@@ -3381,18 +3414,11 @@ function adicionarResponsavelSessao(dadosIniciais = null) {
             ${opcoesPessoas}
         </select>
         
-        <div style="position: relative; display: flex; gap: 5px;">
-            <input 
-                type="text" 
-                class="responsavel-funcao responsavel-funcao-select" 
-                list="${datalistId}"
-                placeholder="Captação, Edição..." 
-                value="${dadosIniciais ? dadosIniciais.funcao || '' : ''}" 
-                style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-            <datalist id="${datalistId}">
-                ${opcoesFuncoes}
-            </datalist>
-        </div>
+        <select class="responsavel-funcao responsavel-funcao-select" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <option value="">Função...</option>
+            ${opcoesFunc}
+            ${funcaoAtual && !(window.funcoesResponsaveis||[]).find(f=>f.nome===funcaoAtual) ? `<option value="${funcaoAtual}" selected>${funcaoAtual}</option>` : ''}
+        </select>
         
         <button type="button" onclick="openModalAdicionarFuncao()" class="btn btn-sm" style="padding: 8px 12px; background: #10b981; color: white;" title="Adicionar Nova Função">
             ➕
@@ -3982,6 +4008,17 @@ function _aoClienteSelecionadoSessao(clienteId) {
 }
 window._aoClienteSelecionadoSessao = _aoClienteSelecionadoSessao;
 
+function _aoContratoSelecionadoSessao(contratoId) {
+    if (!contratoId || !window.contratos) return;
+    const contrato = window.contratos.find(c => String(c.id) === String(contratoId));
+    if (!contrato) return;
+    const descricaoField = document.getElementById('sessao-descricao');
+    if (descricaoField && contrato.descricao) {
+        descricaoField.value = contrato.descricao;
+    }
+}
+window._aoContratoSelecionadoSessao = _aoContratoSelecionadoSessao;
+
 window.openModalSessao = openModalSessao;
 window.salvarSessao = salvarSessao;
 window.concluirSessaoModal = concluirSessaoModal;
@@ -4111,24 +4148,29 @@ async function salvarFuncaoRapida(event) {
  * Atualiza todos os selects de funções na página
  */
 function atualizarSelectsFuncoes() {
-    // Atualizar selects de responsáveis em sessões
-    document.querySelectorAll('.responsavel-funcao-select').forEach(select => {
+    const seletores = [
+        ...document.querySelectorAll('.responsavel-funcao-select'),
+        ...document.querySelectorAll('.equipe-funcao-select')
+    ];
+    seletores.forEach(select => {
         const valorAtual = select.value;
-        
-        // Limpar e recriar opções
-        select.innerHTML = '<option value="">Digite ou selecione...</option>';
-        
+        select.innerHTML = '<option value="">Função...</option>';
         window.funcoesResponsaveis.forEach(funcao => {
             const option = document.createElement('option');
             option.value = funcao.nome;
             option.textContent = funcao.nome;
-            if (funcao.nome === valorAtual) {
-                option.selected = true;
-            }
+            if (funcao.nome === valorAtual) option.selected = true;
             select.appendChild(option);
         });
+        // Re-add custom value if not in list
+        if (valorAtual && !window.funcoesResponsaveis.find(f => f.nome === valorAtual)) {
+            const opt = document.createElement('option');
+            opt.value = valorAtual;
+            opt.textContent = valorAtual;
+            opt.selected = true;
+            select.appendChild(opt);
+        }
     });
-    
     console.log('🔄 Selects de funções atualizados');
 }
 
