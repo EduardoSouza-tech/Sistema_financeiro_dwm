@@ -2625,7 +2625,7 @@ function adicionarComissaoContrato(dadosIniciais = null) {
         ? (window.fornecedores).map(forn => {
             const val = `forn_${forn.id}`;
             const sel = valorSelecionado === val ? 'selected' : '';
-            return `<option value="${val}" ${sel}>🏢 ${forn.nome}</option>`;
+            return `<option value="${val}" ${sel}>🏢 ${forn.nome_fantasia || forn.nome}</option>`;
           }).join('')
         : '';
 
@@ -3321,7 +3321,7 @@ function _buildPessoasOptions(selecionadoId = null) {
     if (window.fornecedores && window.fornecedores.length > 0) {
         html += '<optgroup label="🏢 Fornecedores">';
         window.fornecedores.forEach(f => {
-            const nome = f.nome_fantasia || f.razao_social || f.nome || '-';
+            const nome = f.nome_fantasia || f.nome || '-';
             const optVal = `forn_${f.id}`;
             const sel = sid && sid === optVal ? 'selected' : '';
             html += `<option value="${optVal}" ${sel}>${nome}</option>`;
@@ -3458,12 +3458,16 @@ function adicionarCustoAdicional(dadosIniciais = null) {
             value="${dadosIniciais ? dadosIniciais.valor || '' : ''}" 
             style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
         
-        <input 
-            type="text" 
-            class="custo-tipo" 
-            placeholder="Transporte" 
-            value="${dadosIniciais ? dadosIniciais.tipo || '' : ''}" 
-            style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <select class="custo-tipo" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <option value="">Categoria...</option>
+            <option value="Transporte" ${dadosIniciais && dadosIniciais.tipo === 'Transporte' ? 'selected' : ''}>Transporte</option>
+            <option value="Alimentação" ${dadosIniciais && dadosIniciais.tipo === 'Alimentação' ? 'selected' : ''}>Alimentação</option>
+            <option value="Hospedagem" ${dadosIniciais && dadosIniciais.tipo === 'Hospedagem' ? 'selected' : ''}>Hospedagem</option>
+            <option value="Equipamento" ${dadosIniciais && dadosIniciais.tipo === 'Equipamento' ? 'selected' : ''}>Equipamento</option>
+            <option value="Estacionamento" ${dadosIniciais && dadosIniciais.tipo === 'Estacionamento' ? 'selected' : ''}>Estacionamento</option>
+            <option value="Comunicação" ${dadosIniciais && dadosIniciais.tipo === 'Comunicação' ? 'selected' : ''}>Comunicação</option>
+            <option value="Outros" ${dadosIniciais && dadosIniciais.tipo === 'Outros' ? 'selected' : ''}>Outros</option>
+        </select>
         
         <button type="button" onclick="openModalAdicionarCusto()" class="btn btn-sm" style="padding: 8px 12px; background: #10b981; color: white;" title="Adicionar Novo Custo">
             ➕
@@ -4827,72 +4831,68 @@ async function salvarTagRapida(event, tagId = null) {
  */
 function renderizarSeletorTags(tagsSelecionadas = []) {
     const tags = window.tagsDisponiveis || [];
-    console.log('🔵 [DEBUG TAG] renderizarSeletorTags() chamada');
-    console.log('🔵 [DEBUG TAG] Tags disponíveis:', tags.length);
-    console.log('🔵 [DEBUG TAG] window.tagsDisponiveis:', window.tagsDisponiveis);
-    console.log('🔵 [DEBUG TAG] Tags selecionadas:', tagsSelecionadas);
-    
-    if (tags.length === 0) {
-        return `
-            <div id="tags-selector" style="padding: 20px; text-align: center; color: #6b7280; background: #f9fafb; border-radius: 8px;">
-                <p>Nenhuma tag cadastrada</p>
-                <button type="button" onclick="openModalAdicionarTag()" class="btn btn-sm" style="margin-top: 10px; background: #10b981; color: white;">
-                    ➕ Criar Primeira Tag
-                </button>
-            </div>
-        `;
+
+    function renderLista(filtro) {
+        const filtradas = filtro
+            ? tags.filter(t => t.nome.toLowerCase().includes(filtro.toLowerCase()))
+            : tags;
+        if (filtradas.length === 0) {
+            return `<div style="padding:12px; text-align:center; color:#9ca3af; font-size:13px;">Nenhuma tag encontrada</div>`;
+        }
+        return filtradas.map(tag => {
+            const selecionada = tagsSelecionadas.includes(tag.id) || tagsSelecionadas.includes(tag.nome);
+            return `<div style="display:flex; align-items:center; gap:8px; padding:6px 8px; margin-bottom:4px; background:white; border-radius:6px; border:1px solid ${selecionada ? '#10b981' : '#e5e7eb'}">
+                <input type="checkbox" class="tag-checkbox" value="${tag.id}" ${selecionada ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
+                <span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:12px;background:${tag.cor};color:white;font-size:12px;font-weight:500;flex-grow:1;">${tag.icone} ${tag.nome}</span>
+                <button type="button" onclick="event.stopPropagation();editarTag(${tag.id})" style="padding:4px 8px;background:#3b82f6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;flex-shrink:0;">✏️</button>
+                <button type="button" onclick="event.stopPropagation();deletarTag(${tag.id},'${tag.nome.replace(/'/g, "\\'")}')" style="padding:4px 8px;background:#ef4444;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;flex-shrink:0;">🗑️</button>
+            </div>`;
+        }).join('');
     }
-    
-    return `
-        <div id="tags-selector" style="background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; max-height: 300px; overflow-y: auto;">
-            <!-- Botão Nova Tag no topo -->
-            <div style="padding: 10px; border-bottom: 1px solid #e5e7eb; background: white;">
-                <button type="button" onclick="openModalAdicionarTag()" 
-                        class="btn btn-sm" 
-                        style="width: 100%; padding: 8px; background: #10b981; color: white; border-radius: 6px; font-size: 13px; border: none; cursor: pointer; font-weight: 500;"
-                        title="Adicionar Nova Tag">
-                    ➕ Nova Tag
-                </button>
-            </div>
-            
-            <!-- Lista de tags -->
-            <div style="padding: 8px;">
-                ${tags.map(tag => {
-                    const selecionada = tagsSelecionadas.includes(tag.id) || tagsSelecionadas.includes(tag.nome);
-                    return `
-                        <div style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin-bottom: 4px; background: white; border-radius: 6px; border: 1px solid ${selecionada ? '#10b981' : '#e5e7eb'}; transition: all 0.2s;">
-                            <!-- Checkbox para seleção -->
-                            <input 
-                                type="checkbox" 
-                                class="tag-checkbox" 
-                                value="${tag.id}" 
-                                ${selecionada ? 'checked' : ''}
-                                style="width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;">
-                            
-                            <!-- Badge da tag -->
-                            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 12px; background: ${tag.cor}; color: white; font-size: 12px; font-weight: 500; flex-grow: 1;">
-                                ${tag.icone} ${tag.nome}
-                            </span>
-                            
-                            <!-- Botões de ação -->
-                            <button type="button" 
-                                    onclick="event.stopPropagation(); editarTag(${tag.id})" 
-                                    style="padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; flex-shrink: 0;"
-                                    title="Editar tag">
-                                ✏️
-                            </button>
-                            <button type="button" 
-                                    onclick="event.stopPropagation(); deletarTag(${tag.id}, '${tag.nome.replace(/'/g, "\\'")}')" 
-                                    style="padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; flex-shrink: 0;"
-                                    title="Excluir tag">
-                                🗑️
-                            </button>
-                        </div>
-                    `;
-                }).join('')}
-            </div>
+
+    const listaInicial = renderLista('');
+
+    if (tags.length === 0) {
+        return `<div id="tags-selector" style="padding:20px;text-align:center;color:#6b7280;background:#f9fafb;border-radius:8px;">
+            <p>Nenhuma tag cadastrada</p>
+            <button type="button" onclick="openModalAdicionarTag()" class="btn btn-sm" style="margin-top:10px;background:#10b981;color:white;">➕ Criar Primeira Tag</button>
+        </div>`;
+    }
+
+    return `<div id="tags-selector" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+        <div style="padding:10px;border-bottom:1px solid #e5e7eb;background:white;display:flex;gap:8px;align-items:center;">
+            <input type="text" id="tags-busca" placeholder="🔍 Buscar tag..." oninput="_filtrarTagsSelector(this.value)"
+                style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;" autocomplete="off">
+            <button type="button" onclick="openModalAdicionarTag()" class="btn btn-sm"
+                style="background:#10b981;color:white;padding:7px 12px;font-size:12px;white-space:nowrap;border-radius:6px;border:none;cursor:pointer;font-weight:500;">
+                ➕ Nova Tag
+            </button>
         </div>
-    `;
+        <div id="tags-lista-filtrada" style="padding:8px;max-height:260px;overflow-y:auto;">
+            ${listaInicial}
+        </div>
+    </div>`;
+}
+
+function _filtrarTagsSelector(filtro) {
+    const tags = window.tagsDisponiveis || [];
+    const checados = new Set(Array.from(document.querySelectorAll('.tag-checkbox:checked')).map(cb => parseInt(cb.value)));
+    const filtradas = filtro ? tags.filter(t => t.nome.toLowerCase().includes(filtro.toLowerCase())) : tags;
+    const container = document.getElementById('tags-lista-filtrada');
+    if (!container) return;
+    if (filtradas.length === 0) {
+        container.innerHTML = `<div style="padding:12px;text-align:center;color:#9ca3af;font-size:13px;">Nenhuma tag encontrada — clique em ➕ Nova Tag para criar.</div>`;
+        return;
+    }
+    container.innerHTML = filtradas.map(tag => {
+        const selecionada = checados.has(tag.id);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;background:white;border-radius:6px;border:1px solid ${selecionada ? '#10b981' : '#e5e7eb'}">
+            <input type="checkbox" class="tag-checkbox" value="${tag.id}" ${selecionada ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
+            <span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:12px;background:${tag.cor};color:white;font-size:12px;font-weight:500;flex-grow:1;">${tag.icone} ${tag.nome}</span>
+            <button type="button" onclick="event.stopPropagation();editarTag(${tag.id})" style="padding:4px 8px;background:#3b82f6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;flex-shrink:0;">✏️</button>
+            <button type="button" onclick="event.stopPropagation();deletarTag(${tag.id},'${tag.nome.replace(/'/g, "\\'")}')" style="padding:4px 8px;background:#ef4444;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;flex-shrink:0;">🗑️</button>
+        </div>`;
+    }).join('');
 }
 
 /**
@@ -4972,6 +4972,7 @@ window.loadTags = loadTags;
 window.openModalAdicionarTag = openModalAdicionarTag;
 window.salvarTagRapida = salvarTagRapida;
 window.renderizarSeletorTags = renderizarSeletorTags;
+window._filtrarTagsSelector = _filtrarTagsSelector;
 window.sincronizarCorTag = sincronizarCorTag;
 window.atualizarPreviewTag = atualizarPreviewTag;
 window.configurarEventosTags = configurarEventosTags;
