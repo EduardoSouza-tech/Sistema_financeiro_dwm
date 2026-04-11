@@ -152,6 +152,61 @@ def get_notifications_log(empresa_id: int, limit: int = 50) -> List[Dict]:
         return []
 
 
+def _get_funcionario_emails_from_equipe(equipe: list, empresa_id: int) -> List[str]:
+    """
+    Extrai e-mails dos funcionários listados na equipe de uma sessão.
+    Itens com tipo_pessoa='func' ou pessoa_id iniciando com 'func_' são funcionários.
+    Apenas e-mails válidos (não-vazios) são retornados.
+    """
+    if not equipe:
+        return []
+    func_ids = []
+    for item in equipe:
+        if not isinstance(item, dict):
+            continue
+        tipo = item.get('tipo_pessoa', '')
+        pessoa_id = str(item.get('pessoa_id', ''))
+        id_pessoa = item.get('id_pessoa')
+        if tipo == 'func' or pessoa_id.startswith('func_'):
+            try:
+                fid = int(id_pessoa) if id_pessoa is not None else int(pessoa_id.replace('func_', ''))
+                func_ids.append(fid)
+            except (ValueError, TypeError):
+                pass
+    if not func_ids:
+        return []
+    emails = []
+    try:
+        from database_postgresql import get_db_connection
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT email FROM funcionarios WHERE id = ANY(%s) AND empresa_id = %s AND email IS NOT NULL AND email <> ''",
+                (func_ids, empresa_id)
+            )
+            for row in cur.fetchall():
+                email = (row['email'] or '').strip()
+                if email and email not in emails:
+                    emails.append(email)
+    except Exception as e:
+        print(f"⚠️ Erro ao buscar e-mails de funcionários da equipe: {e}")
+    return emails
+
+
+def _get_equipe_emails(equipe: list, empresa_id: int) -> List[str]:
+    """
+    Retorna todos os e-mails da equipe de uma sessão (fornecedores + funcionários).
+    """
+    emails = []
+    for e in _get_fornecedor_emails_from_equipe(equipe, empresa_id):
+        if e not in emails:
+            emails.append(e)
+    for e in _get_funcionario_emails_from_equipe(equipe, empresa_id):
+        if e not in emails:
+            emails.append(e)
+    return emails
+
+
 def _get_fornecedor_emails_from_equipe(equipe: list, empresa_id: int) -> List[str]:
     """
     Extrai e-mails dos fornecedores listados na equipe de uma sessão.
@@ -195,14 +250,13 @@ def _get_fornecedor_emails_from_equipe(equipe: list, empresa_id: int) -> List[st
 
 def send_upcoming_session_reminders(empresa_id: int, days_ahead: int = 3, force: bool = False) -> Dict:
     """
-    Envia lembretes para sessões próximas.
+    Envia lembretes para sessões próximas SOMENTE para fornecedores e funcionários
+    cadastrados na equipe de cada sessão. Clientes NÃO recebem estes e-mails.
     force=True pula a deduplicação diária (uso manual).
     force=False (padrão) respeita o limite de 1 e-mail por sessão por dia (uso automático).
     Retorna resumo: {'sent': N, 'skipped': N, 'error': N, 'sessions': [...]}
     """
     _ensure_log_table()
-    settings = load_email_settings()
-    recipients = settings.get('notification_emails', [])
 
     result = {'sent': 0, 'skipped': 0, 'error': 0, 'sessions': [], 'total_upcoming': 0}
 
@@ -217,7 +271,7 @@ def send_upcoming_session_reminders(empresa_id: int, days_ahead: int = 3, force:
     to_notify = []
     for sessao in upcoming:
         sessao_id = sessao.get('id')
-        if not force and sessao_id and was_notified_today(empresa_id, 'lembrete_sessao', sessao_id):
+        if not force and sessao_id and was_notified_today(empresa_id, 'lembrete_sessao_equipe', sessao_id):
             result['skipped'] += 1
             result['sessions'].append({
                 'id': sessao_id,
@@ -232,79 +286,51 @@ def send_upcoming_session_reminders(empresa_id: int, days_ahead: int = 3, force:
     if not to_notify:
         return result
 
-    # --- Envio em lote para notification_emails (se configurados) ---
-    if recipients:
-        assunto = f"\U0001f4c5 Lembrete \u2014 {len(to_notify)} Sessões nos Próximos {days_ahead} Dias"
-        html = create_notification_html(
-            f"\U0001f4c5 Lembrete: {len(to_notify)} Sessões nos Próximos {days_ahead} Dias",
-            to_notify,
-            'sessoes_proximas'
-        )
-        ok = send_email_notification(recipients, assunto, html)
-        status_log = 'enviado' if ok else 'erro'
-        erro_detalhe = None if ok else 'Falha ao enviar via Resend/SMTP'
-
-        for sessao in to_notify:
-            sessao_id  = sessao.get('id')
-            sessao_dt  = sessao.get('data')
-            log_notification_sent(
-                empresa_id, 'lembrete_sessao', sessao_id,
-                sessao_dt, recipients, assunto, status_log, erro_detalhe,
-            )
-            result['sessions'].append({
-                'id':      sessao_id,
-                'acao':    status_log,
-                'data':    sessao_dt,
-                'cliente': sessao.get('cliente_nome'),
-            })
-
-        if ok:
-            result['sent'] = len(to_notify)
-        else:
-            result['error'] = len(to_notify)
-            result['error_msg'] = erro_detalhe
-    else:
-        result['error_msg'] = 'Nenhum e-mail destinatário configurado'
-
-    # --- Envio individual para fornecedores da equipe de cada sessão ---
-    # Roda sempre, independente de notification_emails estar configurado ou não.
-    # Cada sessão gera um e-mail separado apenas para os fornecedores daquela sessão.
+    # --- Envio individual para fornecedores + funcionários da equipe de cada sessão ---
     for sessao in to_notify:
         sessao_id = sessao.get('id')
 
-        # Deduplicação: não reenviar para fornecedores desta sessão se já foi feito hoje
-        if not force and sessao_id and was_notified_today(empresa_id, 'lembrete_sessao_fornecedor', sessao_id):
-            print(f"  ⏭️ Fornecedores da sessão {sessao_id} já notificados hoje")
-            continue
-
-        forn_emails = _get_fornecedor_emails_from_equipe(
-            sessao.get('equipe', []), empresa_id
-        )
-        if not forn_emails:
+        equipe_emails = _get_equipe_emails(sessao.get('equipe', []), empresa_id)
+        if not equipe_emails:
+            result['sessions'].append({
+                'id':      sessao_id,
+                'acao':    'pulado',
+                'motivo':  'nenhum e-mail de equipe encontrado',
+                'data':    sessao.get('data'),
+                'cliente': sessao.get('cliente_nome'),
+            })
             continue
 
         data_fmt = _fmt_date(sessao.get('data'))
-        assunto_forn = (
+        assunto = (
             f"\U0001f4c5 Lembrete de Sessão — "
             f"{sessao.get('cliente_nome', 'Cliente')} em "
             f"{data_fmt}"
         )
-        html_forn = create_notification_html(
+        html = create_notification_html(
             f"\U0001f4c5 Lembrete: Sessão em {data_fmt}",
             [sessao],
             'sessoes_proximas'
         )
-        ok_forn = send_email_notification(forn_emails, assunto_forn, html_forn)
-        status_forn = 'enviado' if ok_forn else 'erro'
-        erro_forn = None if ok_forn else 'Falha ao enviar via Resend/SMTP'
+        ok = send_email_notification(equipe_emails, assunto, html)
+        status = 'enviado' if ok else 'erro'
+        erro = None if ok else 'Falha ao enviar via Resend/SMTP'
         log_notification_sent(
-            empresa_id, 'lembrete_sessao_fornecedor', sessao_id,
-            sessao.get('data'), forn_emails, assunto_forn, status_forn, erro_forn,
+            empresa_id, 'lembrete_sessao_equipe', sessao_id,
+            sessao.get('data'), equipe_emails, assunto, status, erro,
         )
-        if ok_forn:
-            result['sent'] += len(forn_emails)
-        print(f"  {'✅' if ok_forn else '❌'} Fornecedores notificados para sessão "
-              f"{sessao_id}: {forn_emails}")
+        result['sessions'].append({
+            'id':      sessao_id,
+            'acao':    status,
+            'data':    sessao.get('data'),
+            'cliente': sessao.get('cliente_nome'),
+        })
+        if ok:
+            result['sent'] += len(equipe_emails)
+        else:
+            result['error'] += 1
+        print(f"  {'✅' if ok else '❌'} Equipe notificada para sessão "
+              f"{sessao_id}: {equipe_emails}")
 
     return result
 
@@ -802,45 +828,37 @@ def send_notification_batch(empresa_id: int):
             )
         print(f"  {'✅' if ok else '❌'} {tipo}: {len(novos)} enviado(s)")
 
-    # Sessões próximas (3 dias)
+    # Sessões próximas (3 dias) — notifica SOMENTE equipe (fornecedores + funcionários)
     upcoming_sessions = check_upcoming_sessions(empresa_id, days_ahead=3)
     if upcoming_sessions:
-        _send_and_log(
-            upcoming_sessions, 'lembrete_sessao',
-            "⚠️ {N} Sessões nos Próximos 3 Dias",
-            "⚠️ Sessões Próximas - Prepare-se!", 'sessoes_proximas',
-        )
-        # Notificar fornecedores da equipe de cada sessão próxima (individualmente)
         for sessao in upcoming_sessions:
             sessao_id = sessao.get('id')
-            if was_notified_today(empresa_id, 'lembrete_sessao_fornecedor', sessao_id):
-                print(f"  ⏭️ Fornecedores da sessão {sessao_id} já notificados hoje")
+            if was_notified_today(empresa_id, 'lembrete_sessao_equipe', sessao_id):
+                print(f"  ⏭️ Equipe da sessão {sessao_id} já notificada hoje")
                 continue
-            forn_emails = _get_fornecedor_emails_from_equipe(
-                sessao.get('equipe', []), empresa_id
-            )
-            if not forn_emails:
+            equipe_emails = _get_equipe_emails(sessao.get('equipe', []), empresa_id)
+            if not equipe_emails:
                 continue
             data_fmt = _fmt_date(sessao.get('data'))
-            assunto_forn = (
+            assunto = (
                 f"\U0001f4c5 Lembrete de Sessão — "
                 f"{sessao.get('cliente_nome', 'Cliente')} em "
                 f"{data_fmt}"
             )
-            html_forn = create_notification_html(
+            html = create_notification_html(
                 f"\U0001f4c5 Lembrete: Sessão em {data_fmt}",
                 [sessao],
                 'sessoes_proximas'
             )
-            ok_forn = send_email_notification(forn_emails, assunto_forn, html_forn)
-            status_forn = 'enviado' if ok_forn else 'erro'
-            erro_forn = None if ok_forn else 'Falha ao enviar via Resend/SMTP'
+            ok = send_email_notification(equipe_emails, assunto, html)
+            status = 'enviado' if ok else 'erro'
+            erro = None if ok else 'Falha ao enviar via Resend/SMTP'
             log_notification_sent(
-                empresa_id, 'lembrete_sessao_fornecedor', sessao_id,
-                sessao.get('data'), forn_emails, assunto_forn, status_forn, erro_forn,
+                empresa_id, 'lembrete_sessao_equipe', sessao_id,
+                sessao.get('data'), equipe_emails, assunto, status, erro,
             )
-            print(f"  {'✅' if ok_forn else '❌'} Fornecedores notificados para sessão "
-                  f"{sessao_id}: {forn_emails}")
+            print(f"  {'✅' if ok else '❌'} Equipe notificada para sessão "
+                  f"{sessao_id}: {equipe_emails}")
 
     # Sessões atrasadas
     overdue_sessions = check_overdue_sessions(empresa_id)
