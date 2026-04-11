@@ -437,13 +437,29 @@ def update_calendar_event(event_id, session_data, empresa_id: int = 1):
                 # Remover attendees se lista ficou vazia
                 event.pop('attendees', None)
 
-        send_updates = 'all' if raw_attendees else 'none'
+        # Só disparar e-mails de convite se houver novos attendees
+        # (evita spam ao re-sincronizar eventos já enviados)
+        existing_emails = {
+            (a.get('email') or '').lower()
+            for a in event.get('attendees', [])
+            if a.get('responseStatus') != 'needsAction'  # já responderam = já receberam
+        }
+        # Considerar também quem já está no evento com qualquer status
+        existing_emails_all = {
+            (a.get('email') or '').lower()
+            for a in event.get('attendees', [])
+        }
+        new_emails = {(a.get('email') or '').lower() for a in (attendees if raw_attendees else [])}
+        truly_new = new_emails - existing_emails_all
+        send_updates = 'all' if truly_new else 'none'
+
         updated_event = service.events().update(
             calendarId=calendar_id,
             eventId=event_id,
             body=event,
             sendUpdates=send_updates,
         ).execute()
+        print(f"  📧 sendUpdates={send_updates} | novos convidados: {truly_new or 'nenhum'}")
         
         return {
             'success': True,
