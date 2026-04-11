@@ -1639,6 +1639,7 @@
                 <button class="submenu-button" onclick="showSection('clientes')" data-permission="clientes_view">👤 Clientes</button>
                 <button class="submenu-button" onclick="showSection('fornecedores')" data-permission="fornecedores_view">🏭 Fornecedores</button>
                 <button class="submenu-button" onclick="showSection('tags-trabalho')" data-permission="operacional_view">🏷️ Tags</button>
+                <button class="submenu-button" onclick="showSection('funcoes')" data-permission="operacional_view">🎤 Funções</button>
             </div>
             
             <!-- Menu Operacional com Submenu -->
@@ -6085,6 +6086,28 @@
                 </div>
             </div>
 
+            <!-- Gerenciamento de Funções de Equipe/Responsáveis -->
+            <div id="funcoes-section" class="content-card hidden">
+                <h2 style="color: #000000 !important; font-weight: 700;">🎤 Funções de Equipe</h2>
+                <p style="color:#666; margin-bottom:15px;">Funções usadas nos campos Equipe e Responsáveis das sessões.</p>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="openModalAdicionarFuncao()">➕ Nova Função</button>
+                </div>
+                <div class="table-scroll-container">
+                    <table id="table-funcoes">
+                        <thead>
+                            <tr>
+                                <th style="width: 70%;">Nome</th>
+                                <th style="width: 30%;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-funcoes-section">
+                            <tr><td colspan="2" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Gerenciamento de Usuários (Admin) -->
             <div id="usuarios-section" class="content-card hidden">
                 <h2 style="color: #000000 !important; font-weight: 700;">🔐 Gerenciamento de Usuários</h2>
@@ -8536,6 +8559,8 @@
             } else if (sectionId === 'tags-trabalho') {
                 console.log('  ➡️ loadTagsTable:', typeof loadTagsTable);
                 if (typeof loadTagsTable === 'function') loadTagsTable();
+            } else if (sectionId === 'funcoes') {
+                if (typeof loadFuncoesTable === 'function') loadFuncoesTable();
             } else if (sectionId === 'templates-equipe') {
                 console.log('  ➡️ loadTemplates:', typeof loadTemplates);
                 if (typeof loadTemplates === 'function') loadTemplates();

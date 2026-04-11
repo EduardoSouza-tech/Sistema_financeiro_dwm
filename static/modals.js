@@ -4134,6 +4134,8 @@ async function salvarFuncaoRapida(event) {
             atualizarSelectsFuncoes();
             
             closeModal();
+            // Atualizar tabela de gestão se estiver aberta
+            if (document.getElementById('tbody-funcoes-section')) loadFuncoesTable();
         } else {
             showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
             console.error('❌ Erro ao criar função:', result);
@@ -4178,6 +4180,102 @@ window.loadFuncoesResponsaveis = loadFuncoesResponsaveis;
 window.openModalAdicionarFuncao = openModalAdicionarFuncao;
 window.salvarFuncaoRapida = salvarFuncaoRapida;
 window.atualizarSelectsFuncoes = atualizarSelectsFuncoes;
+
+async function loadFuncoesTable() {
+    const tbody = document.getElementById('tbody-funcoes-section');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;padding:20px;color:#999;">Carregando...</td></tr>';
+    try {
+        await loadFuncoesResponsaveis(); // recarrega window.funcoesResponsaveis
+        const funcoes = window.funcoesResponsaveis || [];
+        if (funcoes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;padding:20px;color:#999;">Nenhuma função cadastrada. Clique em "➕ Nova Função" para criar.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = '';
+        funcoes.forEach(f => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="padding:12px 15px; font-weight:500;">${f.nome}</td>
+                <td style="padding:12px 15px;">
+                    <div style="display:flex;gap:8px;">
+                        <button onclick="editarFuncao(${f.id}, '${f.nome.replace(/'/g,"\\'")}' )"
+                            style="padding:5px 12px;background:#3b82f6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">✏️ Editar</button>
+                        <button onclick="deletarFuncao(${f.id}, '${f.nome.replace(/'/g,"\\'")}' )"
+                            style="padding:5px 12px;background:#ef4444;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">🗑️ Excluir</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error('Erro ao carregar funções:', e);
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;padding:20px;color:#e74c3c;">Erro ao carregar funções.</td></tr>';
+    }
+}
+
+function editarFuncao(id, nomeAtual) {
+    const modal = createModal('✏️ Editar Função', `
+        <form id="form-editar-funcao" onsubmit="salvarEdicaoFuncao(event, ${id})" style="padding:10px 0;">
+            <div class="form-group">
+                <label>Nome da Função:</label>
+                <input type="text" id="editar-funcao-nome" required value="${nomeAtual}"
+                    style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;font-size:14px;" placeholder="Ex: Fotógrafo, Editor, Assistente...">
+            </div>
+            <div style="display:flex;gap:10px;margin-top:15px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">💾 Salvar</button>
+            </div>
+        </form>
+    `);
+}
+window.editarFuncao = editarFuncao;
+
+async function salvarEdicaoFuncao(event, id) {
+    event.preventDefault();
+    const nome = document.getElementById('editar-funcao-nome').value.trim();
+    if (!nome) return;
+    try {
+        const r = await fetch(`/api/funcoes-responsaveis/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome })
+        });
+        const result = await r.json();
+        if (result.success) {
+            showToast('✅ Função atualizada!', 'success');
+            closeModal();
+            await loadFuncoesTable();
+            await loadFuncoesResponsaveis();
+            atualizarSelectsFuncoes();
+        } else {
+            showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (e) {
+        showToast('❌ Erro ao salvar: ' + e.message, 'error');
+    }
+}
+window.salvarEdicaoFuncao = salvarEdicaoFuncao;
+
+async function deletarFuncao(id, nome) {
+    if (!confirm(`Excluir a função "${nome}"?\nEssa ação não pode ser desfeita.`)) return;
+    try {
+        const r = await fetch(`/api/funcoes-responsaveis/${id}`, { method: 'DELETE' });
+        const result = await r.json();
+        if (result.success) {
+            showToast('✅ Função excluída!', 'success');
+            await loadFuncoesTable();
+            await loadFuncoesResponsaveis();
+            atualizarSelectsFuncoes();
+        } else {
+            showToast('❌ Erro: ' + (result.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (e) {
+        showToast('❌ Erro ao excluir: ' + e.message, 'error');
+    }
+}
+window.deletarFuncao = deletarFuncao;
+window.loadFuncoesTable = loadFuncoesTable;
 
 // ========================================
 // CUSTOS OPERACIONAIS
