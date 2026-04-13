@@ -4950,7 +4950,7 @@ def listar_contratos(empresa_id: int) -> List[Dict]:
     with get_db_connection(empresa_id=empresa_id) as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT c.*, cl.nome as cliente_nome
+            SELECT c.*, COALESCE(cl.razao_social, cl.nome) as cliente_nome
             FROM contratos c
             LEFT JOIN clientes cl ON c.cliente_id = cl.id
             ORDER BY c.created_at DESC
@@ -5241,7 +5241,7 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
                 s.created_at, s.updated_at, s.empresa_id, s.status,
                 s.numero_nf, s.horas_trabalhadas, s.finalizada_em,
                 s.google_event_id,
-                c.nome AS cliente_nome,
+                COALESCE(c.razao_social, c.nome) AS cliente_nome,
                 ct.numero AS contrato_numero, ct.descricao AS contrato_nome
             FROM sessoes s
             LEFT JOIN clientes c ON s.cliente_id = c.id
@@ -5318,7 +5318,7 @@ def buscar_sessao(sessao_id: int, empresa_id: int = None) -> Dict:
                 s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
                 s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
                 s.status,
-                c.nome AS cliente_nome,
+                COALESCE(c.razao_social, c.nome) AS cliente_nome,
                 ct.numero AS contrato_numero, ct.descricao AS contrato_nome
             FROM sessoes s
             LEFT JOIN clientes c ON s.cliente_id = c.id
@@ -6376,7 +6376,7 @@ def listar_sessoes_OLD_DEPRECATED() -> List[Dict]:
             s.id, s.titulo, s.data, s.data_sessao, s.duracao, s.contrato_id, s.cliente_id,
             s.valor, s.observacoes, s.endereco, s.descricao, s.prazo_entrega, s.dados_json,
             s.created_at, s.updated_at,
-            c.nome as cliente_nome, 
+            COALESCE(c.razao_social, c.nome) as cliente_nome, 
             ct.numero as contrato_numero, ct.descricao as contrato_nome
         FROM sessoes s
         LEFT JOIN clientes c ON s.cliente_id = c.id
@@ -6503,7 +6503,7 @@ def listar_comissoes() -> List[Dict]:
             com.*,
             ct.numero as contrato_numero,
             ct.valor as contrato_valor,
-            cl.nome as cliente_nome,
+            COALESCE(cl.razao_social, cl.nome) as cliente_nome,
             s.data as sessao_data,
             s.valor_total as sessao_valor,
             -- 💰 PARTE 8: Exibir valor calculado e formatação
@@ -6646,7 +6646,7 @@ def listar_sessao_equipe(sessao_id: int = None) -> List[Dict]:
             SELECT se.*, 
                    s.titulo as sessao_titulo,
                    s.data_sessao,
-                   c.nome as cliente_nome
+                   COALESCE(c.razao_social, c.nome) as cliente_nome
             FROM sessao_equipe se
             LEFT JOIN sessoes s ON se.sessao_id = s.id
             LEFT JOIN contratos ct ON s.contrato_id = ct.id
@@ -6659,7 +6659,7 @@ def listar_sessao_equipe(sessao_id: int = None) -> List[Dict]:
             SELECT se.*, 
                    s.titulo as sessao_titulo,
                    s.data_sessao,
-                   c.nome as cliente_nome
+                   COALESCE(c.razao_social, c.nome) as cliente_nome
             FROM sessao_equipe se
             LEFT JOIN sessoes s ON se.sessao_id = s.id
             LEFT JOIN contratos ct ON s.contrato_id = ct.id
@@ -7111,7 +7111,7 @@ def listar_gcal_convites_todos(empresa_id: int, limit: int = 200) -> List[Dict]:
                        TO_CHAR(g.enviado_em AT TIME ZONE 'America/Sao_Paulo',
                                'DD/MM/YYYY HH24:MI') AS enviado_em_fmt,
                        s.data AS sessao_data,
-                       c.nome AS cliente_nome
+                       COALESCE(c.razao_social, c.nome) AS cliente_nome
                 FROM gcal_convites_log g
                 LEFT JOIN sessoes s ON s.id = g.sessao_id AND s.empresa_id = g.empresa_id
                 LEFT JOIN clientes c ON c.id = s.cliente_id AND c.empresa_id = g.empresa_id
