@@ -98,9 +98,6 @@ function initAgendaCalendar() {
             const props = arg.event.extendedProps;
             
             // Ícone baseado no tipo
-            let icon = '📷';
-            if (props.tipo_video) icon = '🎥';
-            else if (props.tipo_mobile) icon = '📱';
             
             // Mostrar nome fantasia (ou razão social como fallback)
             let displayText = props.cliente_nome_fantasia || props.cliente_nome || props.cliente || props.titulo || 'Sessão';
@@ -111,7 +108,7 @@ function initAgendaCalendar() {
             }
             
             return {
-                html: `<div class="fc-event-main-frame"><div class="fc-event-title-container"><div class="fc-event-title">${icon} ${displayText}</div></div></div>`
+                html: `<div class="fc-event-main-frame"><div class="fc-event-title-container"><div class="fc-event-title">${displayText}</div></div></div>`
             };
         }
     });
@@ -180,16 +177,6 @@ async function loadCalendarEvents() {
             // Criar título mais informativo
             const nomeExibicao = sessao.cliente_nome_fantasia || sessao.cliente_nome || 'Cliente';
             let title = nomeExibicao;
-            if (tipos && tipos !== 'N/A') {
-                const tiposArray = tipos.split(', ');
-                const icones = {
-                    'Foto': '📸',
-                    'Vídeo': '🎥',
-                    'Mobile': '📱'
-                };
-                const iconesStr = tiposArray.map(t => icones[t] || '').join('');
-                title = `${iconesStr} ${title}`;
-            }
             
             // Preparar tooltip detalhado
             const detailedTooltip = `
