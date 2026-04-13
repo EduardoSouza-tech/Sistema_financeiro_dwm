@@ -5242,6 +5242,7 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
                 s.numero_nf, s.horas_trabalhadas, s.finalizada_em,
                 s.google_event_id,
                 COALESCE(c.razao_social, c.nome) AS cliente_nome,
+                c.nome_fantasia AS cliente_nome_fantasia,
                 ct.numero AS contrato_numero, ct.descricao AS contrato_nome
             FROM sessoes s
             LEFT JOIN clientes c ON s.cliente_id = c.id
@@ -5269,6 +5270,7 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
                 'empresa_id': row['empresa_id'],  # 🔒 Incluir empresa_id para filtros
                 'cliente_id': row['cliente_id'],
                 'cliente_nome': row['cliente_nome'] or '-',
+                'cliente_nome_fantasia': row.get('cliente_nome_fantasia') or None,
                 'contrato_id': row['contrato_id'],
                 'contrato_numero': row['contrato_numero'],
                 'contrato_nome': row['contrato_nome'],

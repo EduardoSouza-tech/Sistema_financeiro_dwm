@@ -102,8 +102,8 @@ function initAgendaCalendar() {
             if (props.tipo_video) icon = '🎥';
             else if (props.tipo_mobile) icon = '📱';
             
-            // Mostrar início do nome do cliente
-            let displayText = props.cliente_nome || props.cliente || props.titulo || 'Sessão';
+            // Mostrar nome fantasia (ou razão social como fallback)
+            let displayText = props.cliente_nome_fantasia || props.cliente_nome || props.cliente || props.titulo || 'Sessão';
             
             // Truncar se for muito longo (max 12 caracteres + ...)
             if (displayText.length > 12) {
@@ -178,7 +178,8 @@ async function loadCalendarEvents() {
             const tipos = getTiposCaptacao(sessao);
             
             // Criar título mais informativo
-            let title = `${sessao.cliente_nome || 'Cliente'}`;
+            const nomeExibicao = sessao.cliente_nome_fantasia || sessao.cliente_nome || 'Cliente';
+            let title = nomeExibicao;
             if (tipos && tipos !== 'N/A') {
                 const tiposArray = tipos.split(', ');
                 const icones = {
@@ -194,7 +195,7 @@ async function loadCalendarEvents() {
             const detailedTooltip = `
 🎯 SESSÃO DE FOTOGRAFIA
 
-👤 Cliente: ${sessao.cliente_nome || 'Não informado'}
+👤 Cliente: ${sessao.cliente_nome_fantasia ? sessao.cliente_nome_fantasia + ' (' + sessao.cliente_nome + ')' : (sessao.cliente_nome || 'Não informado')}
 📍 Local: ${sessao.endereco || 'Não informado'}
 🎬 Tipo: ${tipos}
 📅 Sessão: ${sessao.data ? new Date(sessao.data).toLocaleDateString('pt-BR') : 'N/A'}
@@ -242,6 +243,7 @@ async function loadCalendarEvents() {
                     contrato_numero: sessao.contrato_numero,
                     titulo: sessao.titulo,
                     cliente_nome: sessao.cliente_nome,
+                    cliente_nome_fantasia: sessao.cliente_nome_fantasia,
                     horario: sessao.horario,
                     duracao: sessao.quantidade_horas ? `${sessao.quantidade_horas}h` : null,
                     endereco: sessao.endereco,
@@ -394,7 +396,7 @@ async function loadAgendaListView() {
             tr.innerHTML = `
                 <td>${sessao.data ? new Date(sessao.data).toLocaleDateString('pt-BR') : '-'}</td>
                 <td>${sessao.horario || '-'}</td>
-                <td>${escapeHtml(sessao.cliente_nome || '-')}</td>
+                <td>${escapeHtml(sessao.cliente_nome_fantasia || sessao.cliente_nome || '-')}</td>
                 <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(sessao.endereco || '')}">${escapeHtml(sessao.endereco || '-')}</td>
                 <td>${getTiposCaptacao(sessao)}</td>
                 <td>${sessao.prazo_entrega ? new Date(sessao.prazo_entrega).toLocaleDateString('pt-BR') : '-'}</td>
