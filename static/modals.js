@@ -3012,7 +3012,14 @@ async function reabrirSessaoModal(sessaoId) {
 }
 
 async function openModalSessao(sessaoEdit = null) {
-    const isEdit = sessaoEdit !== null;
+    // _duplicando: dados pré-preenchidos mas cria como nova sessão
+    const isDuplicando = sessaoEdit !== null && sessaoEdit._duplicando === true;
+    const isEdit = sessaoEdit !== null && !isDuplicando;
+
+    if (isDuplicando) {
+        sessaoEdit = Object.assign({}, sessaoEdit);
+        delete sessaoEdit._duplicando;
+    }
 
     // Disparar todas as cargas em paralelo (apenas as que ainda não estão em cache)
     const cargas = [];
@@ -3031,12 +3038,12 @@ async function openModalSessao(sessaoEdit = null) {
 
     if (cargas.length > 0) await Promise.all(cargas);
 
-    const titulo = isEdit ? 'Editar Sessão' : 'Nova Sessão';
+    const titulo = isEdit ? 'Editar Sessão' : isDuplicando ? 'Duplicar Sessão' : 'Nova Sessão';
     
     // Opções de clientes — com onchange para endereço + contratos
     const opcoesClientes = window.clientes && window.clientes.length > 0
         ? window.clientes.map(c => {
-            const selected = isEdit && sessaoEdit.cliente_id === c.id ? 'selected' : '';
+            const selected = (isEdit || isDuplicando) && sessaoEdit.cliente_id === c.id ? 'selected' : '';
             const nomePrincipal = c.razao_social || c.nome;
             const nomeFantasia = c.nome_fantasia ? ` (${c.nome_fantasia})` : '';
             return `<option value="${c.id}" ${selected}>${nomePrincipal}${nomeFantasia}</option>`;
@@ -3044,13 +3051,13 @@ async function openModalSessao(sessaoEdit = null) {
         : '<option value="">Nenhum cliente cadastrado</option>';
     
     // Opções de contratos — filtradas pelo cliente selecionado (edit) ou vazias (criação)
-    const clienteIdInicial = isEdit ? sessaoEdit.cliente_id : null;
+    const clienteIdInicial = (isEdit || isDuplicando) ? sessaoEdit.cliente_id : null;
     const contratosFiltrados = clienteIdInicial && window.contratos
         ? window.contratos.filter(c => c.cliente_id === clienteIdInicial || c.cliente_id === String(clienteIdInicial))
         : [];
     const opcoesContratos = contratosFiltrados.length > 0
         ? contratosFiltrados.map(c => {
-            const selected = isEdit && sessaoEdit.contrato_id === c.id ? 'selected' : '';
+            const selected = (isEdit || isDuplicando) && sessaoEdit.contrato_id === c.id ? 'selected' : '';
             return `<option value="${c.id}" ${selected}>${c.nome || c.numero}</option>`;
         }).join('')
         : (clienteIdInicial
@@ -3066,7 +3073,7 @@ async function openModalSessao(sessaoEdit = null) {
     // Checkboxes de kits
     const kitsDisponiveis = window.kits && window.kits.length > 0
         ? window.kits.map(k => {
-            const checked = isEdit && sessaoEdit.equipamentos && sessaoEdit.equipamentos.includes(k.id) ? 'checked' : '';
+            const checked = (isEdit || isDuplicando) && sessaoEdit.equipamentos && sessaoEdit.equipamentos.includes(k.id) ? 'checked' : '';
             return `<label style="display: inline-block; margin-right: 15px; margin-bottom: 10px;">
                 <input type="checkbox" class="kit-checkbox" value="${k.id}" ${checked}> ${k.nome}
             </label>`;
@@ -3074,14 +3081,14 @@ async function openModalSessao(sessaoEdit = null) {
         : '<p>Nenhum kit cadastrado</p>';
 
     // Parsear horario existente (edição) nos dois campos de hora
-    const _horasEdit = _parseHorarioParaHoras(isEdit ? sessaoEdit.horario : '');
+    const _horasEdit = _parseHorarioParaHoras((isEdit || isDuplicando) ? sessaoEdit.horario : '');
     const _horaInicio = _horasEdit.inicio;
     const _horaFim    = _horasEdit.fim;
 
     const modal = createModal(titulo, `
         <form id="form-sessao" onsubmit="salvarSessao(event)" style="max-height: 85vh; overflow-y: auto;">
             <input type="hidden" id="sessao-id" value="${isEdit ? sessaoEdit.id : ''}">
-            <input type="hidden" id="sessao-status" value="${isEdit ? (sessaoEdit.status || 'rascunho') : 'rascunho'}">
+            <input type="hidden" id="sessao-status" value="${(isEdit || isDuplicando) ? (isDuplicando ? 'rascunho' : (sessaoEdit.status || 'rascunho')) : 'rascunho'}">
             
             <!-- Linha 1: Cliente e Contrato -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -3106,7 +3113,7 @@ async function openModalSessao(sessaoEdit = null) {
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
                 <div class="form-group">
                     <label>*Data:</label>
-                    <input type="date" id="sessao-data" required value="${isEdit && sessaoEdit.data ? sessaoEdit.data.split('T')[0] : ''}">
+                    <input type="date" id="sessao-data" required value="${(isEdit || isDuplicando) && sessaoEdit.data ? sessaoEdit.data.split('T')[0] : ''}">
                 </div>
                 
                 <div class="form-group">
@@ -3122,7 +3129,7 @@ async function openModalSessao(sessaoEdit = null) {
                 <div class="form-group">
                     <label>Quantidade de Horas:</label>
                     <input type="number" id="sessao-horas" step="0.5" min="0" readonly
-                           value="${isEdit ? sessaoEdit.quantidade_horas || '' : ''}"
+                           value="${(isEdit || isDuplicando) ? sessaoEdit.quantidade_horas || '' : ''}"
                            placeholder="Auto" style="background:#f5f5f5; cursor:not-allowed;">
                 </div>
             </div>
@@ -3130,37 +3137,37 @@ async function openModalSessao(sessaoEdit = null) {
             <!-- Linha 3: Endereço -->
             <div class="form-group">
                 <label>*Endereço:</label>
-                <input type="text" id="sessao-endereco" required value="${isEdit ? sessaoEdit.endereco || '' : ''}" placeholder="R. Mourato Coelho, 1300 - Vl Madalena / São Paulo">
+                <input type="text" id="sessao-endereco" required value="${(isEdit || isDuplicando) ? sessaoEdit.endereco || '' : ''}" placeholder="R. Mourato Coelho, 1300 - Vl Madalena / São Paulo">
             </div>
             
             <!-- Linha 4: Tipo de Captação -->
             <div class="form-group">
                 <label>*Tipo de Captação:</label>
                 <div style="display: flex; gap: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-                    <label><input type="checkbox" id="sessao-tipo-foto" ${isEdit && sessaoEdit.tipo_foto ? 'checked' : ''}> Foto</label>
-                    <label><input type="checkbox" id="sessao-tipo-video" ${isEdit && sessaoEdit.tipo_video ? 'checked' : ''}> Vídeo</label>
-                    <label><input type="checkbox" id="sessao-tipo-mobile" ${isEdit && sessaoEdit.tipo_mobile ? 'checked' : ''}> Mobile</label>
+                    <label><input type="checkbox" id="sessao-tipo-foto" ${(isEdit || isDuplicando) && sessaoEdit.tipo_foto ? 'checked' : ''}> Foto</label>
+                    <label><input type="checkbox" id="sessao-tipo-video" ${(isEdit || isDuplicando) && sessaoEdit.tipo_video ? 'checked' : ''}> Vídeo</label>
+                    <label><input type="checkbox" id="sessao-tipo-mobile" ${(isEdit || isDuplicando) && sessaoEdit.tipo_mobile ? 'checked' : ''}> Mobile</label>
                 </div>
             </div>
             
             <!-- Linha 5: Descrição -->
             <div class="form-group">
                 <label>*Descrição da Sessão:</label>
-                <textarea id="sessao-descricao" rows="3" required placeholder="Fotos dos coquetéis de carnaval com a linha nova de sabores da Monin.">${isEdit ? sessaoEdit.descricao || '' : ''}</textarea>
+                <textarea id="sessao-descricao" rows="3" required placeholder="Fotos dos coquetéis de carnaval com a linha nova de sabores da Monin.">${(isEdit || isDuplicando) ? sessaoEdit.descricao || '' : ''}</textarea>
             </div>
             
             <!-- Linha 6: Tags -->
             <div class="form-group">
                 <label>Tags:</label>
                 <div id="sessao-tags-container">
-                    ${renderizarSeletorTags(isEdit && sessaoEdit.tags ? sessaoEdit.tags : [])}
+                    ${renderizarSeletorTags((isEdit || isDuplicando) && sessaoEdit.tags ? sessaoEdit.tags : [])}
                 </div>
             </div>
             
             <!-- Linha 7: Prazo de Entrega -->
             <div class="form-group">
                 <label>*Prazo de Entrega:</label>
-                <input type="date" id="sessao-prazo" required value="${isEdit && sessaoEdit.prazo_entrega ? sessaoEdit.prazo_entrega.split('T')[0] : ''}">
+                <input type="date" id="sessao-prazo" required value="${(isEdit || isDuplicando) && sessaoEdit.prazo_entrega ? sessaoEdit.prazo_entrega.split('T')[0] : ''}">
             </div>
             
             <!-- Seção: Equipe -->
@@ -3213,7 +3220,7 @@ async function openModalSessao(sessaoEdit = null) {
             <!-- Seção: Observações -->
             <div class="form-group">
                 <label>Observações Adicionais:</label>
-                <textarea id="sessao-observacoes" rows="3" placeholder="Observações gerais sobre a sessão...">${isEdit ? sessaoEdit.observacoes || '' : ''}</textarea>
+                <textarea id="sessao-observacoes" rows="3" placeholder="Observações gerais sobre a sessão...">${(isEdit || isDuplicando) ? sessaoEdit.observacoes || '' : ''}</textarea>
             </div>
             
             <!-- Área de Botões Reorganizada -->
@@ -3259,8 +3266,8 @@ async function openModalSessao(sessaoEdit = null) {
         }
     }, 50);
     
-    // Preencher listas dinâmicas se estiver editando
-    if (isEdit) {
+    // Preencher listas dinâmicas se estiver editando ou duplicando
+    if (isEdit || isDuplicando) {
         setTimeout(() => {
             if (sessaoEdit.equipe) {
                 sessaoEdit.equipe.forEach(e => {

@@ -5366,6 +5366,7 @@ async function loadSessoes() {
                 </td>
                 <td style="text-align: center;">
                     <button onclick="editarSessao(${sessao.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
+                    <button onclick="duplicarSessao(${sessao.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Duplicar sess\u00e3o">⧉</button>
                     <button onclick="excluirSessao(${sessao.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
                 </td>
             `;
@@ -5702,6 +5703,45 @@ async function editarSessao(id) {
     } catch (error) {
         console.error('❌ Erro ao buscar sessão:', error);
         showToast('❌ Erro ao carregar sessão: ' + error.message, 'error');
+    }
+}
+
+async function duplicarSessao(id) {
+    console.log('\u29c9 Duplicar sess\u00e3o:', id);
+
+    try {
+        const response = await fetch(`/api/sessoes/${id}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            showToast(`\u274c Erro ao carregar sess\u00e3o (${response.status})`, 'error');
+            return;
+        }
+
+        const result = await response.json();
+        if (!(result.success && result.data)) {
+            showToast('\u274c Erro ao carregar dados da sess\u00e3o', 'error');
+            return;
+        }
+
+        // Clonar dados e limpar campos que n\u00e3o devem ser copiados
+        const copia = Object.assign({}, result.data);
+        delete copia.id;
+        delete copia.google_event_id;
+        delete copia.numero_nf;
+        delete copia.horas_trabalhadas;
+        delete copia.finalizada_em;
+        delete copia.created_at;
+        delete copia.updated_at;
+        copia.status = 'rascunho';  // nova sess\u00e3o come\u00e7a como rascunho
+        copia._duplicando = true;   // sinaliza que \u00e9 duplica (n\u00e3o editar\u00e1)
+
+        window.openModalSessao(copia);
+    } catch (error) {
+        console.error('\u274c Erro ao duplicar sess\u00e3o:', error);
+        showToast('\u274c Erro ao duplicar sess\u00e3o: ' + error.message, 'error');
     }
 }
 
@@ -6357,6 +6397,7 @@ window.editarContrato = editarContrato;
 window.excluirContrato = excluirContrato;
 window.verHistoricoContrato = verHistoricoContrato;
 window.editarSessao = editarSessao;
+window.duplicarSessao = duplicarSessao;
 window.excluirSessao = excluirSessao;
 window.showContratoTab = showContratoTab;
 

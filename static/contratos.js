@@ -1139,6 +1139,7 @@ function renderListaSessoes(sessoes) {
                     </td>
                     <td style="padding: 12px; text-align: center;">
                         <button class="btn-icon" onclick="editarSessao(${sessao.id})" title="Editar">✏️</button>
+                        <button class="btn-icon" onclick="duplicarSessao(${sessao.id})" title="Duplicar sessão" style="font-size:16px;background:none;border:none;cursor:pointer;">⧉</button>
                         <button class="btn-icon" onclick="excluirSessao(${sessao.id})" title="Excluir">🗑️</button>
                     </td>
                 </tr>
@@ -1176,6 +1177,7 @@ function renderCardsSessoes(sessoes) {
             ${sessao.descricao ? `<p style="margin: 5px 0;">${sessao.descricao}</p>` : ''}
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button class="btn btn-sm" onclick="editarSessao(${sessao.id})" style="background: white; color: #333;">✏️ Editar</button>
+                <button class="btn btn-sm" onclick="duplicarSessao(${sessao.id})" style="background: rgba(255,255,255,0.2); color: white;" title="Duplicar sessão">⧉ Duplicar</button>
                 <button class="btn btn-sm" onclick="excluirSessao(${sessao.id})" style="background: #e74c3c; color: white;">🗑️ Excluir</button>
                 <button class="btn btn-sm" onclick="atualizarStatusSessao(${sessao.id})" style="background: rgba(255,255,255,0.2); color: white;">🔄 Status</button>
             </div>
