@@ -1535,14 +1535,22 @@ async function carregarClientesDropdown(selectId) {
         const response = await fetch('/api/clientes');
         if (!response.ok) throw new Error('Erro ao carregar clientes');
         
-        const clientes = await response.json();
+        let clientes = await response.json();
+        // Suporte ao formato { success, data } retornado pela API
+        if (clientes && typeof clientes === 'object' && 'data' in clientes) {
+            clientes = clientes.data;
+        }
+        if (!Array.isArray(clientes)) clientes = [];
+        
         const select = document.getElementById(selectId);
         select.innerHTML = '<option value="">Selecione...</option>';
         
         clientes.forEach(c => {
             const option = document.createElement('option');
             option.value = c.id;
-            option.textContent = c.nome || c.razao_social || 'Sem nome';
+            const nomePrincipal = c.razao_social || c.nome || 'Sem nome';
+            const nomeFantasia = c.nome_fantasia ? ` (${c.nome_fantasia})` : '';
+            option.textContent = nomePrincipal + nomeFantasia;
             select.appendChild(option);
         });
     } catch (error) {

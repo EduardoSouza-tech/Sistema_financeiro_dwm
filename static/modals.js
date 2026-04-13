@@ -3037,7 +3037,9 @@ async function openModalSessao(sessaoEdit = null) {
     const opcoesClientes = window.clientes && window.clientes.length > 0
         ? window.clientes.map(c => {
             const selected = isEdit && sessaoEdit.cliente_id === c.id ? 'selected' : '';
-            return `<option value="${c.id}" ${selected}>${c.razao_social || c.nome}</option>`;
+            const nomePrincipal = c.razao_social || c.nome;
+            const nomeFantasia = c.nome_fantasia ? ` (${c.nome_fantasia})` : '';
+            return `<option value="${c.id}" ${selected}>${nomePrincipal}${nomeFantasia}</option>`;
         }).join('')
         : '<option value="">Nenhum cliente cadastrado</option>';
     
