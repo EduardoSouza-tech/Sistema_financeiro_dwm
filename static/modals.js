@@ -3133,6 +3133,23 @@ async function openModalSessao(sessaoEdit = null) {
                            placeholder="Auto" style="background:#f5f5f5; cursor:not-allowed;">
                 </div>
             </div>
+
+            <!-- Linha 2b: Subtração de Horas -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: -5px;">
+                <div class="form-group">
+                    <label>Subtração de Horas: <span style="font-size:11px;color:#888;font-weight:normal;">(ex: intervalo almoço)</span></label>
+                    <input type="number" id="sessao-horas-subtrair" step="0.5" min="0"
+                           value="${(isEdit || isDuplicando) ? sessaoEdit.horas_subtrair || '' : ''}"
+                           placeholder="0" oninput="_calcularHorasSessao()"
+                           style="border: 1px solid #ddd; border-radius: 4px; padding: 8px;">
+                </div>
+                <div class="form-group">
+                    <label>Total Líquido de Horas:</label>
+                    <input type="number" id="sessao-horas-liquidas" step="0.5" min="0" readonly
+                           value=""
+                           placeholder="Auto" style="background:#f0f4ff; cursor:not-allowed; font-weight:600; color:#2c3e50;">
+                </div>
+            </div>
             
             <!-- Linha 3: Endereço -->
             <div class="form-group">
@@ -3264,6 +3281,8 @@ async function openModalSessao(sessaoEdit = null) {
                 sessaoIdField.value = sessaoEdit.id;
             }
         }
+        // Recalcular horas líquidas ao abrir modal (edição/duplicação)
+        if (typeof _calcularHorasSessao === 'function') _calcularHorasSessao();
     }, 50);
     
     // Preencher listas dinâmicas se estiver editando ou duplicando
@@ -3614,7 +3633,8 @@ async function salvarSessao(event) {
             const fim = document.getElementById('sessao-hora-fim')?.value || '';
             return ini && fim ? `${ini} AS ${fim}` : (ini || fim);
         })(),
-        quantidade_horas: parseFloat(document.getElementById('sessao-horas').value) || null,
+        quantidade_horas: parseFloat(document.getElementById('sessao-horas-liquidas')?.value) || parseFloat(document.getElementById('sessao-horas').value) || null,
+        horas_subtrair: parseFloat(document.getElementById('sessao-horas-subtrair')?.value) || null,
         endereco: document.getElementById('sessao-endereco').value,
         tipo_foto: document.getElementById('sessao-tipo-foto').checked,
         tipo_video: document.getElementById('sessao-tipo-video').checked,
@@ -3953,6 +3973,7 @@ function _calcularHorasSessao() {
     const inicio = document.getElementById('sessao-hora-inicio')?.value;
     const fim    = document.getElementById('sessao-hora-fim')?.value;
     const horas  = document.getElementById('sessao-horas');
+    const horasLiquidas = document.getElementById('sessao-horas-liquidas');
     if (!inicio || !fim || !horas) return;
     const [hi, mi] = inicio.split(':').map(Number);
     const [hf, mf] = fim.split(':').map(Number);
@@ -3960,6 +3981,12 @@ function _calcularHorasSessao() {
     if (diff < 0) diff += 24 * 60;
     const total = diff / 60;
     horas.value = Number.isInteger(total) ? total : total.toFixed(1);
+    // Calcular líquido subtraindo pausa
+    const subtrair = parseFloat(document.getElementById('sessao-horas-subtrair')?.value) || 0;
+    const liquido = Math.max(0, total - subtrair);
+    if (horasLiquidas) {
+        horasLiquidas.value = Number.isInteger(liquido) ? liquido : liquido.toFixed(1);
+    }
 }
 window._calcularHorasSessao = _calcularHorasSessao;
 
