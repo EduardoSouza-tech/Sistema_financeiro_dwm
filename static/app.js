@@ -5707,24 +5707,6 @@ window._toggleHistoricoMes = async function(contratoId, mes, campo, valor) {
         showToast('Erro de conexão', 'error');
     }
 };
-            fetch(`/api/contratos/${contratoId}`).then(r => r.json()),
-            apiGet('/sessoes')
-        ]);
-        const contrato = resContrato.contrato || resContrato;
-        const sessoes = (Array.isArray(todasSessoes) ? todasSessoes : [])
-            .filter(s => s.contrato_id === contratoId)
-            .sort((a, b) => new Date(a.data) - new Date(b.data));
-
-        const fmt = v => parseFloat(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        const fmtData = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
-
-async function excluirContrato(id) {
-    if (!confirm('⚠️ Tem certeza que deseja excluir este contrato?\n\nEsta ação não pode ser desfeita!')) {
-        return;
-    }
-    
-    console.log('🗑️ Excluir contrato:', id);
-
 async function excluirContrato(id) {
     if (!confirm('⚠️ Tem certeza que deseja excluir este contrato?\n\nEsta ação não pode ser desfeita!')) {
         return;
