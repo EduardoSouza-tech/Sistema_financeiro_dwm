@@ -5513,8 +5513,9 @@ async function verHistoricoContrato(contratoId) {
 
                 // Status NF
                 let nfStatus, nfColor, nfBg;
-                if (pulado || semNF)       { nfStatus = '—';              nfColor = '#94a3b8'; nfBg = '#f8fafc'; }
+                if (pulado)                { nfStatus = '—';              nfColor = '#94a3b8'; nfBg = '#f8fafc'; }
                 else if (nfEmitida)        { nfStatus = '✅ Emitida';      nfColor = '#15803d'; nfBg = '#dcfce7'; }
+                else if (semNF && !isCurrent) { nfStatus = '—';       nfColor = '#94a3b8'; nfBg = '#f8fafc'; }
                 else if (isPast)           { nfStatus = '❌ Atrasada';     nfColor = '#dc2626'; nfBg = '#fee2e2'; }
                 else if (isCurrent)        { nfStatus = '⏳ Pendente';     nfColor = '#d97706'; nfBg = '#fef3c7'; }
                 else                       { nfStatus = '🔵 Futuro';       nfColor = '#2563eb'; nfBg = '#eff6ff'; }
@@ -5670,7 +5671,7 @@ async function verHistoricoContrato(contratoId) {
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
                 <span style="font-size:14px;font-weight:700;color:#1e293b;">Histórico Mensal</span>
                 <span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">${meses.length} meses</span>
-                ${semNF ? '<span style="background:#fef9c3;color:#854d0e;font-size:11px;padding:2px 8px;border-radius:10px;">Sem NF</span>' : ''}
+                ${semNF && !meses.some(m => m.nfEmitida) ? '<span style="background:#fef9c3;color:#854d0e;font-size:11px;padding:2px 8px;border-radius:10px;">Sem NF</span>' : ''}
             </div>
 
             ${mesesHtml}
