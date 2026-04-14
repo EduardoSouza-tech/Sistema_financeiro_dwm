@@ -6310,7 +6310,20 @@
                         <button class="btn" onclick="exportarContratosExcel()" style="background: #27ae60; color: white;">📊 Exportar Excel</button>
                     </div>
                     <div class="table-scroll-container">
-                        <table id="table-contratos">
+                        <table id="table-contratos" style="table-layout:fixed;width:100%;">
+                            <colgroup>
+                                <col style="width:130px;">
+                                <col style="width:auto;">
+                                <col style="width:90px;">
+                                <col style="width:160px;">
+                                <col style="width:110px;">
+                                <col style="width:60px;">
+                                <col style="width:110px;">
+                                <col style="width:100px;">
+                                <col style="width:90px;">
+                                <col style="width:110px;">
+                                <col style="width:90px;">
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th>Número</th>
@@ -6324,6 +6337,37 @@
                                     <th>Forma Pgto</th>
                                     <th>Status</th>
                                     <th>Ações</th>
+                                </tr>
+                                <tr style="background:#f1f5f9;">
+                                    <th style="padding:4px 6px;"><input type="text" id="filtro-contrato-numero" placeholder="Número" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarContratosTabela()"></th>
+                                    <th style="padding:4px 6px;"><input type="text" id="filtro-contrato-cliente" placeholder="Cliente" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarContratosTabela()"></th>
+                                    <th style="padding:4px 6px;">
+                                        <select id="filtro-contrato-tipo" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" onchange="filtrarContratosTabela()">
+                                            <option value="">Todos</option>
+                                            <option value="Único">Único</option>
+                                            <option value="Pacote">Pacote</option>
+                                            <option value="Mensal">Mensal</option>
+                                        </select>
+                                    </th>
+                                    <th style="padding:4px 6px;"><input type="text" id="filtro-contrato-nome" placeholder="Nome" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarContratosTabela()"></th>
+                                    <th style="padding:4px 6px;"></th>
+                                    <th style="padding:4px 6px;"></th>
+                                    <th style="padding:4px 6px;"></th>
+                                    <th style="padding:4px 6px;"></th>
+                                    <th style="padding:4px 6px;"><input type="text" id="filtro-contrato-pgto" placeholder="Pgto" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarContratosTabela()"></th>
+                                    <th style="padding:4px 6px;">
+                                        <select id="filtro-contrato-status" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" onchange="filtrarContratosTabela()">
+                                            <option value="">Todos</option>
+                                            <option value="Aberto">Aberto</option>
+                                            <option value="Editado">Editado</option>
+                                            <option value="Entregue">Entregue</option>
+                                            <option value="ativo">Ativo</option>
+                                            <option value="inativo">Inativo</option>
+                                        </select>
+                                    </th>
+                                    <th style="padding:4px 6px;text-align:center;">
+                                        <button onclick="limparFiltrosContratosTabela()" title="Limpar filtros" style="background:#e2e8f0;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;color:#475569;">✕ Limpar</button>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-contratos">
