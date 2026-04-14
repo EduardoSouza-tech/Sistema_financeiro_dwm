@@ -5171,20 +5171,31 @@ async function loadContratos() {
 }
 
 function filtrarContratosTabela() {
-    const fNumero  = (document.getElementById('filtro-contrato-numero')?.value  || '').toLowerCase().trim();
-    const fCliente = (document.getElementById('filtro-contrato-cliente')?.value || '').toLowerCase().trim();
-    const fTipo    = (document.getElementById('filtro-contrato-tipo')?.value    || '');
-    const fNome    = (document.getElementById('filtro-contrato-nome')?.value    || '').toLowerCase().trim();
-    const fPgto    = (document.getElementById('filtro-contrato-pgto')?.value    || '').toLowerCase().trim();
-    const fStatus  = (document.getElementById('filtro-contrato-status')?.value  || '');
+    const fNumero       = (document.getElementById('filtro-contrato-numero')?.value       || '').toLowerCase().trim();
+    const fCliente      = (document.getElementById('filtro-contrato-cliente')?.value      || '').toLowerCase().trim();
+    const fTipo         = (document.getElementById('filtro-contrato-tipo')?.value         || '');
+    const fNome         = (document.getElementById('filtro-contrato-nome')?.value         || '').toLowerCase().trim();
+    const fValorMensal  = document.getElementById('filtro-contrato-valor-mensal')?.value;
+    const fMeses        = document.getElementById('filtro-contrato-meses')?.value;
+    const fValorTotal   = document.getElementById('filtro-contrato-valor-total')?.value;
+    const fData         = (document.getElementById('filtro-contrato-data')?.value         || '').trim();
+    const fPgto         = (document.getElementById('filtro-contrato-pgto')?.value         || '').toLowerCase().trim();
+    const fStatus       = (document.getElementById('filtro-contrato-status')?.value       || '');
 
     const filtrados = (window._todosContratosCache || []).filter(c => {
-        if (fNumero  && !(c.numero       || '').toLowerCase().includes(fNumero))  return false;
-        if (fCliente && !(c.cliente_nome || '').toLowerCase().includes(fCliente)) return false;
-        if (fTipo    && (c.tipo          || '') !== fTipo)                         return false;
-        if (fNome    && !((c.nome || '') + ' ' + (c.descricao || '')).toLowerCase().includes(fNome)) return false;
-        if (fPgto    && !(c.forma_pagamento || '').toLowerCase().includes(fPgto)) return false;
-        if (fStatus  && (c.status        || '') !== fStatus)                       return false;
+        if (fNumero      && !(c.numero       || '').toLowerCase().includes(fNumero))  return false;
+        if (fCliente     && !(c.cliente_nome || '').toLowerCase().includes(fCliente)) return false;
+        if (fTipo        && (c.tipo          || '') !== fTipo)                         return false;
+        if (fNome        && !((c.nome || '') + ' ' + (c.descricao || '')).toLowerCase().includes(fNome)) return false;
+        if (fValorMensal && parseFloat(c.valor_mensal || 0) < parseFloat(fValorMensal))  return false;
+        if (fMeses       && parseInt(c.quantidade_meses || 0) !== parseInt(fMeses))       return false;
+        if (fValorTotal  && parseFloat(c.valor_total || c.valor || 0) < parseFloat(fValorTotal)) return false;
+        if (fData) {
+            const di = (c.data_inicio || c.data_contrato || '').substring(0, 10);
+            if (di !== fData) return false;
+        }
+        if (fPgto        && !(c.forma_pagamento || '').toLowerCase().includes(fPgto)) return false;
+        if (fStatus      && (c.status        || '') !== fStatus)                       return false;
         return true;
     });
     renderContratos(filtrados);
@@ -5192,7 +5203,8 @@ function filtrarContratosTabela() {
 
 function limparFiltrosContratosTabela() {
     ['filtro-contrato-numero','filtro-contrato-cliente','filtro-contrato-tipo',
-     'filtro-contrato-nome','filtro-contrato-pgto','filtro-contrato-status']
+     'filtro-contrato-nome','filtro-contrato-valor-mensal','filtro-contrato-meses',
+     'filtro-contrato-valor-total','filtro-contrato-data','filtro-contrato-pgto','filtro-contrato-status']
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     renderContratos(window._todosContratosCache || []);
 }
