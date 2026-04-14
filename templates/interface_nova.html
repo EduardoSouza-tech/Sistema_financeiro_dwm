@@ -6355,22 +6355,22 @@
                                     <th>Ações</th>
                                 </tr>
                                 <tr id="sessoes-filtros-row" style="background:#f1f5f9;">
-                                    <th style="padding:4px 6px;"><input type="date" id="filtro-sessao-data" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoes()"></th>
-                                    <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-horario" placeholder="Horário" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoes()"></th>
-                                    <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-cliente" placeholder="Cliente" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoes()"></th>
-                                    <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-contrato" placeholder="Contrato" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoes()"></th>
-                                    <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-local" placeholder="Local" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoes()"></th>
+                                    <th style="padding:4px 6px;"><input type="date" id="filtro-sessao-data" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
+                                    <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-horario" placeholder="Horário" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
+                                    <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-cliente" placeholder="Cliente" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
+                                    <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-contrato" placeholder="Contrato" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
+                                    <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-local" placeholder="Local" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
                                     <th style="padding:4px 6px;">
-                                        <select id="filtro-sessao-tipo" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" onchange="filtrarSessoes()">
+                                        <select id="filtro-sessao-tipo" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" onchange="filtrarSessoesTabela()">
                                             <option value="">Todos</option>
                                             <option value="Foto">Foto</option>
                                             <option value="Vídeo">Vídeo</option>
                                             <option value="Mobile">Mobile</option>
                                         </select>
                                     </th>
-                                    <th style="padding:4px 6px;"><input type="date" id="filtro-sessao-prazo" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoes()"></th>
+                                    <th style="padding:4px 6px;"><input type="date" id="filtro-sessao-prazo" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
                                     <th style="padding:4px 6px;">
-                                        <select id="filtro-sessao-status" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" onchange="filtrarSessoes()">
+                                        <select id="filtro-sessao-status" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" onchange="filtrarSessoesTabela()">
                                             <option value="">Todos</option>
                                             <option value="rascunho">Rascunho</option>
                                             <option value="agendada">Agendada</option>
@@ -6382,7 +6382,7 @@
                                         </select>
                                     </th>
                                     <th style="padding:4px 6px;text-align:center;">
-                                        <button onclick="limparFiltrosSessoes()" title="Limpar filtros" style="background:#e2e8f0;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;color:#475569;">✕ Limpar</button>
+                                        <button onclick="limparFiltrosSessoesTabela()" title="Limpar filtros" style="background:#e2e8f0;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;color:#475569;">✕ Limpar</button>
                                     </th>
                                 </tr>
                             </thead>

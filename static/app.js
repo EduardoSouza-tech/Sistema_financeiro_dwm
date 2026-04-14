@@ -5304,7 +5304,7 @@ async function loadSessoes() {
     }
 }
 
-function filtrarSessoes() {
+function filtrarSessoesTabela() {
     const fData    = (document.getElementById('filtro-sessao-data')?.value    || '').trim();
     const fHorario = (document.getElementById('filtro-sessao-horario')?.value || '').toLowerCase().trim();
     const fCliente = (document.getElementById('filtro-sessao-cliente')?.value || '').toLowerCase().trim();
@@ -5335,12 +5335,14 @@ function filtrarSessoes() {
     renderSessoes(filtradas);
 }
 
-function limparFiltrosSessoes() {
+function limparFiltrosSessoesTabela() {
     ['filtro-sessao-data','filtro-sessao-horario','filtro-sessao-cliente','filtro-sessao-contrato',
      'filtro-sessao-local','filtro-sessao-tipo','filtro-sessao-prazo','filtro-sessao-status']
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     renderSessoes(_todasSessoesCache);
 }
+window.filtrarSessoesTabela = filtrarSessoesTabela;
+window.limparFiltrosSessoesTabela = limparFiltrosSessoesTabela;
 
 function renderSessoes(sessoes) {
     const tbody = document.getElementById('tbody-sessoes');
@@ -6544,8 +6546,7 @@ window.loadExtratos = loadExtratos;
 // loadFuncionariosRH já exposto acima como alias de loadFuncionarios
 window.loadKits = loadKits;
 window.loadSessoes = loadSessoes;
-window.filtrarSessoes = filtrarSessoes;
-window.limparFiltrosSessoes = limparFiltrosSessoes;
+// filtrarSessoesTabela e limparFiltrosSessoesTabela já expostos acima
 window.loadComissoes = loadComissoes;
 
 // Funções de Exportação
