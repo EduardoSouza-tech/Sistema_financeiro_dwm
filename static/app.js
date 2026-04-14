@@ -5556,7 +5556,7 @@ async function verHistoricoContrato(contratoId) {
                             </div>
                         </div>`).join('');
 
-                const btnNF  = !m.pulado && !semNF
+                const btnNF  = !m.pulado && (!semNF || m.isCurrent)
                     ? `<button onclick="window._toggleHistoricoMes(${contratoId},'${m.mesKey}','nf_emitida',${!m.nfEmitida})"
                          style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid ${m.nfEmitida ? '#bbf7d0' : '#e2e8f0'};background:${m.nfEmitida ? '#dcfce7' : '#f8fafc'};cursor:pointer;color:${m.nfEmitida ? '#15803d' : '#64748b'};">
                          ${m.nfEmitida ? '✅ NF Emitida' : '○ Marcar NF'}</button>` : '';
