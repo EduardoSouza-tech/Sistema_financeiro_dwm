@@ -5477,7 +5477,9 @@ async function verHistoricoContrato(contratoId) {
 
         const historico = contrato.historico_mensal || {};
         const qtdMeses  = parseInt(contrato.quantidade_meses || 0);
-        const dataInicio = contrato.data_inicio ? new Date(contrato.data_inicio + 'T12:00:00') : null;
+        const _diRaw = contrato.data_inicio;
+        const _diDate = _diRaw ? new Date(_diRaw) : null;
+        const dataInicio = _diDate && !isNaN(_diDate) ? _diDate : null;
         const horasMensais = parseFloat(contrato.horas_mensais || 0) ||
                              (qtdMeses > 0 ? parseFloat(contrato.horas_totais || 0) / qtdMeses : 0);
         const valorMensal = parseFloat(contrato.valor_mensal || 0);
@@ -5490,7 +5492,7 @@ async function verHistoricoContrato(contratoId) {
         const meses = [];
         if (dataInicio && qtdMeses > 0) {
             for (let i = 0; i < qtdMeses; i++) {
-                const d = new Date(dataInicio.getFullYear(), dataInicio.getMonth() + i, 1);
+                const d = new Date(dataInicio.getUTCFullYear(), dataInicio.getUTCMonth() + i, 1);
                 const mesKey   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
                 const mesLabel = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
                 const mesInicio = d;
