@@ -3142,16 +3142,14 @@ async function openModalSessao(sessaoEdit = null) {
 
             <!-- Linha 2b: Subtração de Horas -->
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-top: -5px;">
-                <div></div>
-                <div></div>
-                <div class="form-group">
+                <div class="form-group" style="grid-column: 3;">
                     <label>Subtração de Horas:</label>
                     <input type="number" id="sessao-horas-subtrair" step="0.5" min="0"
                            value="${(isEdit || isDuplicando) ? sessaoEdit.horas_subtrair || '' : ''}"
                            placeholder="0 (ex: almoço)" oninput="_calcularHorasSessao()">
                 </div>
-                <div class="form-group">
-                    <label>Total Líquido de Horas:</label>
+                <div class="form-group" style="grid-column: 4;">
+                    <label>Horas Líquidas:</label>
                     <input type="number" id="sessao-horas-liquidas" step="0.5" min="0" readonly
                            value=""
                            placeholder="Auto" style="background:#f5f5f5; cursor:not-allowed;">
