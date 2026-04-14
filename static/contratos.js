@@ -1550,9 +1550,9 @@ async function carregarClientesDropdown(selectId) {
         clientes.forEach(c => {
             const option = document.createElement('option');
             option.value = c.id;
-            const nomePrincipal = c.razao_social || c.nome || 'Sem nome';
-            const nomeFantasia = c.nome_fantasia ? ` (${c.nome_fantasia})` : '';
-            option.textContent = nomePrincipal + nomeFantasia;
+            const nomePrincipal = c.nome_fantasia || c.razao_social || c.nome || 'Sem nome';
+            const nomeSecundario = c.nome_fantasia && c.razao_social ? ` (${c.razao_social})` : '';
+            option.textContent = nomePrincipal + nomeSecundario;
             select.appendChild(option);
         });
     } catch (error) {

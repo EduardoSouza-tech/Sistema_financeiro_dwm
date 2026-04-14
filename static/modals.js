@@ -33,7 +33,11 @@ async function openModalReceita() {
     
     // Gerar opções de clientes DEPOIS de carregar
     const opcoesClientes = window.clientes && window.clientes.length > 0
-        ? window.clientes.map(c => `<option value="${c.razao_social || c.nome}">${c.razao_social || c.nome}</option>`).join('')
+        ? window.clientes.map(c => {
+            const label = c.nome_fantasia || c.razao_social || c.nome;
+            const sec = c.nome_fantasia && c.razao_social ? ` (${c.razao_social})` : '';
+            return `<option value="${c.razao_social || c.nome}">${label}${sec}</option>`;
+        }).join('')
         : '<option value="">Nenhum cliente cadastrado</option>';
     
     console.log('HTML de opcoesClientes gerado:', opcoesClientes.substring(0, 100) + '...');
@@ -2281,7 +2285,9 @@ async function openModalContrato(contratoEdit = null) {
     const opcoesClientes = window.clientes && window.clientes.length > 0
         ? window.clientes.map(c => {
             const selected = isEdit && contratoEdit.cliente_id === c.id ? 'selected' : '';
-            return `<option value="${c.id}" ${selected}>${c.razao_social || c.nome}</option>`;
+            const labelC = c.nome_fantasia || c.razao_social || c.nome;
+            const secC = c.nome_fantasia && c.razao_social ? ` (${c.razao_social})` : '';
+            return `<option value="${c.id}" ${selected}>${labelC}${secC}</option>`;
         }).join('')
         : '<option value="">Nenhum cliente cadastrado</option>';
 
@@ -3044,9 +3050,9 @@ async function openModalSessao(sessaoEdit = null) {
     const opcoesClientes = window.clientes && window.clientes.length > 0
         ? window.clientes.map(c => {
             const selected = (isEdit || isDuplicando) && sessaoEdit.cliente_id === c.id ? 'selected' : '';
-            const nomePrincipal = c.razao_social || c.nome;
-            const nomeFantasia = c.nome_fantasia ? ` (${c.nome_fantasia})` : '';
-            return `<option value="${c.id}" ${selected}>${nomePrincipal}${nomeFantasia}</option>`;
+            const nomePrincipal = c.nome_fantasia || c.razao_social || c.nome;
+            const nomeSecundario = c.nome_fantasia && c.razao_social ? ` (${c.razao_social})` : '';
+            return `<option value="${c.id}" ${selected}>${nomePrincipal}${nomeSecundario}</option>`;
         }).join('')
         : '<option value="">Nenhum cliente cadastrado</option>';
     
