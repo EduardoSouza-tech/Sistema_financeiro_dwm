@@ -5276,6 +5276,8 @@ window.alterarStatusContrato = alterarStatusContrato;
 /**
  * Carrega lista de sessões
  */
+let _todasSessoesCache = [];
+
 async function loadSessoes() {
     const context = 'loadSessoes';
     
@@ -5288,29 +5290,79 @@ async function loadSessoes() {
         console.log('🔍 [DEBUG] Tipo:', typeof sessoes, 'É array?', Array.isArray(sessoes));
         console.log('🔍 [DEBUG] Sessões length:', sessoes?.length);
         
+        _todasSessoesCache = Array.isArray(sessoes) ? sessoes : [];
+        renderSessoes(_todasSessoesCache);
+        
+        console.log('✅ Sessões carregadas:', _todasSessoesCache.length);
+        
+    } catch (error) {
+        logError(context, error);
         const tbody = document.getElementById('tbody-sessoes');
-        console.log('🔍 [DEBUG] tbody encontrado?', !!tbody);
-        
-        if (!tbody) {
-            console.error('❌ tbody-sessoes não encontrado');
-            return;
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #e74c3c;">Erro ao carregar sessões</td></tr>';
         }
-        
-        tbody.innerHTML = '';
-        
-        if (!sessoes || sessoes.length === 0) {
-            console.log('📋 [DEBUG] Nenhuma sessão encontrada, mostrando mensagem');
-            const mensagem = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: #666;">Nenhuma sessão cadastrada</td></tr>';
-            tbody.innerHTML = mensagem;
-            console.log('📋 [DEBUG] tbody.innerHTML atualizado:', tbody.innerHTML);
-            console.log('📋 [DEBUG] tbody visível?', tbody.offsetParent !== null);
-            console.log('📋 [DEBUG] Tabela visível?', document.getElementById('table-sessoes')?.style.display);
-            return;
+    }
+}
+
+function filtrarSessoes() {
+    const fData    = (document.getElementById('filtro-sessao-data')?.value    || '').trim();
+    const fHorario = (document.getElementById('filtro-sessao-horario')?.value || '').toLowerCase().trim();
+    const fCliente = (document.getElementById('filtro-sessao-cliente')?.value || '').toLowerCase().trim();
+    const fContrato= (document.getElementById('filtro-sessao-contrato')?.value|| '').toLowerCase().trim();
+    const fLocal   = (document.getElementById('filtro-sessao-local')?.value   || '').toLowerCase().trim();
+    const fTipo    = (document.getElementById('filtro-sessao-tipo')?.value    || '');
+    const fPrazo   = (document.getElementById('filtro-sessao-prazo')?.value   || '').trim();
+    const fStatus  = (document.getElementById('filtro-sessao-status')?.value  || '');
+
+    const filtradas = _todasSessoesCache.filter(s => {
+        if (fData    && (s.data || '').substring(0, 10) !== fData) return false;
+        if (fHorario && !(s.horario || '').toLowerCase().includes(fHorario)) return false;
+        if (fCliente && !(s.cliente_nome || '').toLowerCase().includes(fCliente)) return false;
+        if (fContrato&& !((s.contrato_numero || '') + ' ' + (s.contrato_nome || '')).toLowerCase().includes(fContrato)) return false;
+        if (fLocal   && !(s.endereco || '').toLowerCase().includes(fLocal)) return false;
+        if (fTipo) {
+            const tipos = [];
+            if (s.tipo_foto)   tipos.push('Foto');
+            if (s.tipo_video)  tipos.push('Vídeo');
+            if (s.tipo_mobile) tipos.push('Mobile');
+            if (!tipos.includes(fTipo)) return false;
         }
-        
-        console.log('📋 [DEBUG] Renderizando', sessoes.length, 'sessões');
-        
-        sessoes.forEach(sessao => {
+        if (fPrazo   && (s.prazo_entrega || '').substring(0, 10) !== fPrazo) return false;
+        if (fStatus  && s.status !== fStatus) return false;
+        return true;
+    });
+
+    renderSessoes(filtradas);
+}
+
+function limparFiltrosSessoes() {
+    ['filtro-sessao-data','filtro-sessao-horario','filtro-sessao-cliente','filtro-sessao-contrato',
+     'filtro-sessao-local','filtro-sessao-tipo','filtro-sessao-prazo','filtro-sessao-status']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    renderSessoes(_todasSessoesCache);
+}
+
+function renderSessoes(sessoes) {
+    const tbody = document.getElementById('tbody-sessoes');
+    console.log('🔍 [DEBUG] tbody encontrado?', !!tbody);
+    
+    if (!tbody) {
+        console.error('❌ tbody-sessoes não encontrado');
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    
+    if (!sessoes || sessoes.length === 0) {
+        console.log('📋 [DEBUG] Nenhuma sessão encontrada, mostrando mensagem');
+        const mensagem = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: #666;">Nenhuma sessão cadastrada</td></tr>';
+        tbody.innerHTML = mensagem;
+        return;
+    }
+    
+    console.log('📋 [DEBUG] Renderizando', sessoes.length, 'sessões');
+    
+    sessoes.forEach(sessao => {
             // Tipos de captação
             const tipos = [];
             if (sessao.tipo_foto) tipos.push('Foto');
@@ -5372,16 +5424,6 @@ async function loadSessoes() {
             `;
             tbody.appendChild(tr);
         });
-        
-        console.log('✅ Sessões carregadas:', sessoes.length);
-        
-    } catch (error) {
-        logError(context, error);
-        const tbody = document.getElementById('tbody-sessoes');
-        if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #e74c3c;">Erro ao carregar sessões</td></tr>';
-        }
-    }
 }
 
 /**
@@ -6502,6 +6544,8 @@ window.loadExtratos = loadExtratos;
 // loadFuncionariosRH já exposto acima como alias de loadFuncionarios
 window.loadKits = loadKits;
 window.loadSessoes = loadSessoes;
+window.filtrarSessoes = filtrarSessoes;
+window.limparFiltrosSessoes = limparFiltrosSessoes;
 window.loadComissoes = loadComissoes;
 
 // Funções de Exportação
