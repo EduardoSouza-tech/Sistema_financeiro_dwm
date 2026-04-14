@@ -110,6 +110,16 @@ def _sync_sessao_google(sessao_id: int, dados: dict, empresa_id: int, google_eve
     ]
     send_upd = 'all' if novos_attendees else 'none'
 
+    # Não sincronizar sessões com data no passado
+    from datetime import date as _date
+    try:
+        sessao_date = _date.fromisoformat(str(dados.get('data', ''))[:10])
+        if sessao_date < _date.today():
+            print(f"⏭️ [Google Calendar] Sessão {sessao_id} ignorada — data no passado ({sessao_date})")
+            return {'skipped': True}
+    except (ValueError, TypeError):
+        pass  # data inválida → continua
+
     session_data = {
         'title': f"{cliente_nome} - Sessão",
         'date': str(dados.get('data', ''))[:10],

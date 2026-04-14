@@ -335,11 +335,22 @@ def google_calendar_sync():
         errors = []
         token_expired = False
         
+        from datetime import date as _date
+        hoje = _date.today()
+
         # Sincronizar cada sessão com Google Calendar
         for sessao in sessoes:
             # Pular sessões canceladas
             if sessao.get('status') == 'cancelada':
                 continue
+
+            # Pular sessões com data no passado (hoje exclusive)
+            try:
+                sessao_date = _date.fromisoformat(str(sessao.get('data', ''))[:10])
+                if sessao_date < hoje:
+                    continue
+            except (ValueError, TypeError):
+                pass  # data inválida → deixa passar para não bloquear
             
             try:
                 sessao_id = sessao.get('id')
