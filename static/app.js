@@ -5466,8 +5466,247 @@ async function editarContrato(id) {
 
 async function verHistoricoContrato(contratoId) {
     try {
-        // Buscar contrato e sessões em paralelo
         const [resContrato, todasSessoes] = await Promise.all([
+            fetch(`/api/contratos/${contratoId}`).then(r => r.json()),
+            apiGet('/sessoes')
+        ]);
+        const contrato = resContrato.contrato || resContrato;
+        const sessoes = (Array.isArray(todasSessoes) ? todasSessoes : [])
+            .filter(s => s.contrato_id === contratoId)
+            .sort((a, b) => new Date(a.data) - new Date(b.data));
+
+        const historico = contrato.historico_mensal || {};
+        const qtdMeses  = parseInt(contrato.quantidade_meses || 0);
+        const dataInicio = contrato.data_inicio ? new Date(contrato.data_inicio + 'T12:00:00') : null;
+        const horasMensais = parseFloat(contrato.horas_mensais || 0) ||
+                             (qtdMeses > 0 ? parseFloat(contrato.horas_totais || 0) / qtdMeses : 0);
+        const valorMensal = parseFloat(contrato.valor_mensal || 0);
+        const semNF = contrato.sem_nf === true;
+
+        const fmt     = v => parseFloat(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const hoje    = new Date(); hoje.setHours(0, 0, 0, 0);
+
+        // ── Gerar lista de meses do contrato ────────────────────────────────
+        const meses = [];
+        if (dataInicio && qtdMeses > 0) {
+            for (let i = 0; i < qtdMeses; i++) {
+                const d = new Date(dataInicio.getFullYear(), dataInicio.getMonth() + i, 1);
+                const mesKey   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                const mesLabel = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                const mesInicio = d;
+                const mesFim    = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+                const isPast    = mesFim < hoje;
+                const isCurrent = mesInicio <= hoje && mesFim >= hoje;
+
+                const estado = historico[mesKey] || {};
+                const pulado   = estado.pulado    === true;
+                const nfEmitida = estado.nf_emitida === true;
+                const pago      = estado.pago       === true;
+
+                // Sessions deste mês (não canceladas)
+                const sessMes = sessoes.filter(s => (s.data || '').substring(0, 7) === mesKey && s.status !== 'cancelada');
+                const horasUsadas   = sessMes.reduce((a, s) => a + parseFloat(s.quantidade_horas || 0), 0);
+                const horasExtras   = horasMensais > 0 ? Math.max(0, horasUsadas - horasMensais) : 0;
+                const horasSobrando = horasMensais > 0 ? Math.max(0, horasMensais - horasUsadas) : 0;
+
+                // Status NF
+                let nfStatus, nfColor, nfBg;
+                if (pulado || semNF)       { nfStatus = '—';              nfColor = '#94a3b8'; nfBg = '#f8fafc'; }
+                else if (nfEmitida)        { nfStatus = '✅ Emitida';      nfColor = '#15803d'; nfBg = '#dcfce7'; }
+                else if (isPast)           { nfStatus = '❌ Atrasada';     nfColor = '#dc2626'; nfBg = '#fee2e2'; }
+                else if (isCurrent)        { nfStatus = '⏳ Pendente';     nfColor = '#d97706'; nfBg = '#fef3c7'; }
+                else                       { nfStatus = '🔵 Futuro';       nfColor = '#2563eb'; nfBg = '#eff6ff'; }
+
+                // Status Pagamento
+                let pagStatus, pagColor, pagBg;
+                if (pulado)                { pagStatus = '—';              pagColor = '#94a3b8'; pagBg = '#f8fafc'; }
+                else if (pago)             { pagStatus = '✅ Pago';         pagColor = '#15803d'; pagBg = '#dcfce7'; }
+                else if (isPast)           { pagStatus = '❌ Atrasado';     pagColor = '#dc2626'; pagBg = '#fee2e2'; }
+                else if (isCurrent)        { pagStatus = '⏳ Aguardando';   pagColor = '#d97706'; pagBg = '#fef3c7'; }
+                else                       { pagStatus = '🔵 Futuro';       pagColor = '#2563eb'; pagBg = '#eff6ff'; }
+
+                meses.push({ mesKey, mesLabel, isPast, isCurrent, pulado, nfEmitida, pago,
+                             sessMes, horasUsadas, horasExtras, horasSobrando,
+                             nfStatus, nfColor, nfBg, pagStatus, pagColor, pagBg });
+            }
+        }
+
+        const mesesAtivos   = meses.filter(m => !m.pulado).length;
+        const mesesPulados  = meses.filter(m => m.pulado).length;
+        const horasTotalUsadas = meses.filter(m => !m.pulado).reduce((a, m) => a + m.horasUsadas, 0);
+
+        // ── Gerar HTML dos meses ────────────────────────────────────────────
+        const mesesHtml = meses.length === 0
+            ? `<div style="text-align:center;padding:40px;color:#94a3b8;font-size:14px;">Sem dados de meses. Verifique a data de início e quantidade de meses do contrato.</div>`
+            : meses.map(m => {
+                const bgCard     = m.pulado ? '#f8fafc' : m.isCurrent ? '#fffbeb' : 'white';
+                const borderCard = m.pulado ? '#e2e8f0' : m.isCurrent ? '#fbbf24' : '#e2e8f0';
+
+                const sessoesHtml = m.sessMes.length === 0
+                    ? `<span style="color:#94a3b8;font-size:12px;">Nenhuma sessão neste mês</span>`
+                    : m.sessMes.map(s => `
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">
+                            <span style="color:#475569;">${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')} — ${escapeHtml(s.descricao || s.horario || 'Sessão')}</span>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                ${s.numero_nf ? `<span style="background:#eff6ff;color:#1d4ed8;padding:2px 6px;border-radius:4px;font-size:10px;">NF ${escapeHtml(s.numero_nf)}</span>` : ''}
+                                <span style="font-weight:700;color:#0369a1;">${parseFloat(s.quantidade_horas || 0).toFixed(1)}h</span>
+                                <button onclick="editarSessao(${s.id})" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 2px;" title="Editar">✏️</button>
+                            </div>
+                        </div>`).join('');
+
+                const btnNF  = !pulado && !semNF
+                    ? `<button onclick="window._toggleHistoricoMes(${contratoId},'${m.mesKey}','nf_emitida',${!m.nfEmitida})"
+                         style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid ${m.nfEmitida ? '#bbf7d0' : '#e2e8f0'};background:${m.nfEmitida ? '#dcfce7' : '#f8fafc'};cursor:pointer;color:${m.nfEmitida ? '#15803d' : '#64748b'};">
+                         ${m.nfEmitida ? '✅ NF Emitida' : '○ Marcar NF'}</button>` : '';
+                const btnPag = !m.pulado
+                    ? `<button onclick="window._toggleHistoricoMes(${contratoId},'${m.mesKey}','pago',${!m.pago})"
+                         style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid ${m.pago ? '#bbf7d0' : '#e2e8f0'};background:${m.pago ? '#dcfce7' : '#f8fafc'};cursor:pointer;color:${m.pago ? '#15803d' : '#64748b'};">
+                         ${m.pago ? '✅ Pago' : '○ Marcar Pago'}</button>` : '';
+                const btnPular = `<button onclick="window._toggleHistoricoMes(${contratoId},'${m.mesKey}','pulado',${!m.pulado})"
+                    style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid ${m.pulado ? '#fca5a5' : '#e2e8f0'};background:${m.pulado ? '#fee2e2' : '#f8fafc'};cursor:pointer;color:${m.pulado ? '#dc2626' : '#64748b'};">
+                    ${m.pulado ? '↩ Reativar Mês' : '⏭ Pular Mês'}</button>`;
+
+                return `
+                <div style="border:1px solid ${borderCard};border-radius:12px;padding:16px 18px;background:${bgCard};margin-bottom:10px;${m.pulado ? 'opacity:.7;' : ''}">
+                    <!-- Cabeçalho do mês -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:${m.pulado ? 0 : '14px'};">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="font-size:14px;font-weight:700;color:#1e293b;text-transform:capitalize;">${m.mesLabel}</span>
+                            ${m.isCurrent ? '<span style="background:#fbbf24;color:#78350f;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">MÊS ATUAL</span>' : ''}
+                            ${m.pulado ? '<span style="background:#e2e8f0;color:#64748b;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">MÊS PULADO</span>' : ''}
+                        </div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            ${btnNF}${btnPag}${btnPular}
+                        </div>
+                    </div>
+
+                    ${m.pulado ? '' : `
+                    <!-- Indicadores -->
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px;">
+                        ${horasMensais > 0 ? `
+                        <div style="background:#f1f5f9;border-radius:8px;padding:9px;text-align:center;">
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Horas Prev.</div>
+                            <div style="font-size:17px;font-weight:800;color:#334155;">${horasMensais.toFixed(1)}h</div>
+                        </div>
+                        <div style="background:#f1f5f9;border-radius:8px;padding:9px;text-align:center;">
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Utilizadas</div>
+                            <div style="font-size:17px;font-weight:800;color:#0369a1;">${m.horasUsadas.toFixed(1)}h</div>
+                        </div>
+                        ${m.horasExtras > 0 ? `<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:9px;text-align:center;">
+                            <div style="font-size:10px;color:#991b1b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Horas Extras</div>
+                            <div style="font-size:17px;font-weight:800;color:#dc2626;">+${m.horasExtras.toFixed(1)}h</div>
+                        </div>` : ''}
+                        ${m.horasSobrando > 0 ? `<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:9px;text-align:center;">
+                            <div style="font-size:10px;color:#065f46;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Sobram</div>
+                            <div style="font-size:17px;font-weight:800;color:#059669;">${m.horasSobrando.toFixed(1)}h</div>
+                        </div>` : ''}
+                        ` : ''}
+                        <div style="background:${m.nfBg};border-radius:8px;padding:9px;text-align:center;">
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">NF</div>
+                            <div style="font-size:12px;font-weight:700;color:${m.nfColor};">${m.nfStatus}</div>
+                        </div>
+                        <div style="background:${m.pagBg};border-radius:8px;padding:9px;text-align:center;">
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Pagamento</div>
+                            <div style="font-size:12px;font-weight:700;color:${m.pagColor};">${m.pagStatus}</div>
+                        </div>
+                    </div>
+
+                    <!-- Sessões do mês (colapsável) -->
+                    <details>
+                        <summary style="cursor:pointer;font-size:12px;color:#64748b;font-weight:600;user-select:none;list-style:none;display:flex;align-items:center;gap:4px;">
+                            <span>▶</span> ${m.sessMes.length} sessão(ões) neste mês
+                        </summary>
+                        <div style="margin-top:8px;padding:8px;background:#f8fafc;border-radius:6px;">${sessoesHtml}</div>
+                    </details>
+                    `}
+                </div>`;
+            }).join('');
+
+        // ── Resumo geral do contrato ─────────────────────────────────────────
+        const html = `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:860px;">
+
+            <!-- Card do contrato -->
+            <div style="background:white;padding:20px 22px;border-radius:12px;margin-bottom:16px;box-shadow:0 4px 16px rgba(0,0,0,.07);border:1px solid #e2e8f0;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+                    <div style="flex:1;min-width:200px;">
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:4px;">${escapeHtml(contrato.numero || '')}</div>
+                        <div style="font-size:18px;font-weight:700;color:#1e293b;">${escapeHtml(contrato.cliente_nome || contrato.nome || 'Contrato')}</div>
+                        <div style="font-size:12px;color:#475569;margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;">
+                            ${contrato.tipo ? `<span style="background:#f1f5f9;color:#334155;padding:2px 8px;border-radius:10px;border:1px solid #e2e8f0;">${escapeHtml(contrato.tipo)}</span>` : ''}
+                            ${contrato.forma_pagamento ? `<span style="background:#f1f5f9;color:#334155;padding:2px 8px;border-radius:10px;border:1px solid #e2e8f0;">${escapeHtml(contrato.forma_pagamento)}</span>` : ''}
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Valor Total</div>
+                        <div style="font-size:24px;font-weight:800;color:#059669;">${fmt(contrato.valor || contrato.valor_total || 0)}</div>
+                        <div style="font-size:12px;color:#64748b;margin-top:3px;">${fmt(valorMensal)}/mês · ${qtdMeses} meses</div>
+                    </div>
+                </div>
+                <!-- Resumo meses -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid #e2e8f0;">
+                    <div style="text-align:center;">
+                        <div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:3px;">Meses Totais</div>
+                        <div style="font-size:20px;font-weight:800;color:#334155;">${qtdMeses}</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:3px;">Meses Ativos</div>
+                        <div style="font-size:20px;font-weight:800;color:#0369a1;">${mesesAtivos}</div>
+                    </div>
+                    ${mesesPulados > 0 ? `<div style="text-align:center;">
+                        <div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:3px;">Meses Pulados</div>
+                        <div style="font-size:20px;font-weight:800;color:#dc2626;">${mesesPulados}</div>
+                    </div>` : ''}
+                    ${horasMensais > 0 ? `<div style="text-align:center;">
+                        <div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:3px;">Horas Usadas</div>
+                        <div style="font-size:20px;font-weight:800;color:#d97706;">${horasTotalUsadas.toFixed(1)}h</div>
+                    </div>` : ''}
+                </div>
+            </div>
+
+            <!-- Título meses -->
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                <span style="font-size:14px;font-weight:700;color:#1e293b;">Histórico Mensal</span>
+                <span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">${meses.length} meses</span>
+                ${semNF ? '<span style="background:#fef9c3;color:#854d0e;font-size:11px;padding:2px 8px;border-radius:10px;">Sem NF</span>' : ''}
+            </div>
+
+            ${mesesHtml}
+        </div>`;
+
+        const modalContent = `<div class="modal-body" style="padding:20px;max-height:80vh;overflow-y:auto;">${html}</div>`;
+        if (typeof createModal === 'function') {
+            createModal(`📋 Histórico — ${contrato.numero || 'Contrato'}`, modalContent);
+        } else {
+            document.getElementById('modal-title').textContent = `📋 Histórico — ${contrato.numero || 'Contrato'}`;
+            document.getElementById('modal-body').innerHTML = html;
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar histórico do contrato:', error);
+        showToast('❌ Erro ao carregar histórico: ' + error.message, 'error');
+    }
+}
+
+// Toggle de estado de mês (NF, pagamento, pular)
+window._toggleHistoricoMes = async function(contratoId, mes, campo, valor) {
+    try {
+        const r = await fetch(`/api/contratos/${contratoId}/historico-mes`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mes, campo, valor })
+        });
+        const res = await r.json();
+        if (res.success) {
+            verHistoricoContrato(contratoId);
+        } else {
+            showToast('Erro: ' + (res.error || 'falha ao atualizar'), 'error');
+        }
+    } catch (e) {
+        showToast('Erro de conexão', 'error');
+    }
+};
             fetch(`/api/contratos/${contratoId}`).then(r => r.json()),
             apiGet('/sessoes')
         ]);
@@ -5479,172 +5718,12 @@ async function verHistoricoContrato(contratoId) {
         const fmt = v => parseFloat(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         const fmtData = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
 
-        const statusCor = {
-            agendada:     '#3498db',
-            em_andamento: '#f39c12',
-            finalizada:   '#27ae60',
-            concluida:    '#2ecc71',
-            cancelada:    '#e74c3c',
-            reaberta:     '#9b59b6',
-            rascunho:     '#95a5a6',
-        };
-        const statusLabel = {
-            agendada: 'Agendada', em_andamento: 'Em Andamento', finalizada: 'Finalizada',
-            concluida: 'Concluída', cancelada: 'Cancelada', reaberta: 'Reaberta', rascunho: 'Rascunho',
-        };
-
-        // ── Calcular horas em TEMPO REAL a partir das sessões ──────────────────
-        const horasTotais = parseFloat(contrato.horas_totais || 0);
-        const sessoesAtivas = sessoes.filter(s => s.status !== 'cancelada');
-        const horasSessoes = sessoesAtivas.reduce((acc, s) => acc + parseFloat(s.quantidade_horas || 0), 0);
-        // Se há sessões → usa soma real das sessões; se não há → usa valor armazenado no contrato
-        const horasUtilizadas = sessoesAtivas.length > 0 ? horasSessoes : parseFloat(contrato.horas_utilizadas || 0);
-        const horasRestantes  = Math.max(horasTotais - horasUtilizadas, 0);
-        const horasExtras     = Math.max(horasUtilizadas - horasTotais, 0);
-        const percentual      = horasTotais > 0 ? (horasUtilizadas / horasTotais) * 100 : 0;
-        const barColor        = percentual > 100 ? '#e74c3c' : percentual > 80 ? '#f39c12' : '#27ae60';
-        const fonteHoras      = sessoesAtivas.length > 0 ? 'sessões' : 'contrato';
-
-        const sessoesHtml = sessoes.length === 0
-            ? `<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:32px;font-size:14px;">Nenhuma sessão vinculada a este contrato</td></tr>`
-            : sessoes.map((s, i) => {
-                const cor     = statusCor[s.status] || '#95a5a6';
-                const label   = statusLabel[s.status] || s.status;
-                const horas   = parseFloat(s.quantidade_horas || 0);
-                const isCancelada = s.status === 'cancelada';
-                const custoEquipe    = (s.equipe || []).reduce((acc, m) => acc + parseFloat(m.pagamento || m.valor || 0), 0);
-                const custoEquip     = (s.equipamentos_alugados || []).reduce((acc, e) => acc + parseFloat(e.valor || 0), 0);
-                const custoAdicional = (s.custos_adicionais || []).reduce((acc, c) => acc + parseFloat(c.valor || 0), 0);
-                const custoTotal     = custoEquipe + custoEquip + custoAdicional;
-                const rowBg = i % 2 === 0 ? '#fff' : '#f8fafc';
-                return `
-                <tr style="background:${rowBg};border-bottom:1px solid #e2e8f0;${isCancelada ? 'opacity:.55;' : ''}" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='${rowBg}'">
-                    <td style="padding:10px;font-size:13px;color:#1e293b;font-weight:500;">${fmtData(s.data)}</td>
-                    <td style="padding:10px;font-size:13px;color:#374151;">${escapeHtml(s.descricao || s.contrato_nome || '-')}</td>
-                    <td style="padding:10px;font-size:13px;color:#374151;">${s.horario || '-'}</td>
-                    <td style="padding:10px;font-size:13px;font-weight:700;color:${isCancelada ? '#94a3b8' : '#0369a1'};text-align:center;">
-                        ${isCancelada ? '<s>' + horas.toFixed(1) + 'h</s>' : horas.toFixed(1) + 'h'}
-                    </td>
-                    <td style="padding:10px;text-align:center;">
-                        <span style="background:${cor};color:white;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${label}</span>
-                    </td>
-                    <td style="padding:10px;font-size:12px;color:#64748b;">
-                        ${s.numero_nf
-                            ? `<span style="background:#eff6ff;color:#1d4ed8;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">NF ${escapeHtml(s.numero_nf)}</span>`
-                            : '<span style="color:#cbd5e1;">—</span>'}
-                    </td>
-                    <td style="padding:10px;font-size:13px;font-weight:600;color:${custoTotal > 0 ? '#dc2626' : '#94a3b8'};">${custoTotal > 0 ? fmt(custoTotal) : '—'}</td>
-                    <td style="padding:10px;text-align:center;">
-                        <button onclick="editarSessao(${s.id})" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;padding:4px 8px;font-size:13px;" title="Editar" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#f1f5f9'">✏️</button>
-                    </td>
-                </tr>`;
-            }).join('') + `
-                <tr style="background:#f0fdf4;border-top:2px solid #27ae60;">
-                    <td colspan="3" style="padding:10px;font-size:13px;font-weight:700;color:#14532d;">TOTAL UTILIZADO</td>
-                    <td style="padding:10px;font-size:14px;font-weight:800;color:#14532d;text-align:center;">${horasUtilizadas.toFixed(1)}h</td>
-                    <td colspan="4" style="padding:10px;font-size:12px;color:#166534;">
-                        ${horasTotais > 0 ? `de ${horasTotais.toFixed(1)}h contratadas &nbsp;·&nbsp; ${horasRestantes.toFixed(1)}h restantes` : 'Contrato sem controle de horas'}
-                    </td>
-                </tr>`;
-
-        const html = `
-        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:900px;">
-
-            <!-- Card do contrato -->
-            <div style="background:white;padding:22px 24px;border-radius:14px;margin-bottom:20px;box-shadow:0 4px 20px rgba(0,0,0,.08);border:1px solid #e2e8f0;">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
-                    <div style="flex:1;min-width:200px;">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:6px;">${escapeHtml(contrato.numero || '')}</div>
-                        <div style="font-size:18px;font-weight:700;color:#1e293b;">${escapeHtml(contrato.cliente_nome || contrato.nome || 'Contrato')}</div>
-                        <div style="font-size:12px;color:#475569;margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
-                            ${contrato.tipo ? `<span style="background:#f1f5f9;color:#334155;padding:2px 8px;border-radius:10px;border:1px solid #e2e8f0;">${escapeHtml(contrato.tipo)}</span>` : ''}
-                            ${contrato.forma_pagamento ? `<span style="background:#f1f5f9;color:#334155;padding:2px 8px;border-radius:10px;border:1px solid #e2e8f0;">${escapeHtml(contrato.forma_pagamento)}</span>` : ''}
-                        </div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Valor Total</div>
-                        <div style="font-size:26px;font-weight:800;color:#059669;">${fmt(contrato.valor || contrato.valor_total || 0)}</div>
-                        <div style="font-size:12px;color:#64748b;margin-top:4px;">${fmt(contrato.valor_mensal || 0)}/mês &nbsp;·&nbsp; ${contrato.quantidade_meses || 0} meses</div>
-                    </div>
-                </div>
-
-                <!-- Controle de horas calculado em tempo real -->
-                ${horasTotais > 0 ? `
-                <div style="margin-top:20px;padding-top:18px;border-top:1px solid #e2e8f0;">
-                    <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;font-weight:600;">⏱ Controle de Horas ${fonteHoras === 'sessões' ? '<span style="background:#dcfce7;color:#166534;font-size:10px;padding:1px 6px;border-radius:8px;vertical-align:middle;">tempo real</span>' : '<span style="background:#fef9c3;color:#854d0e;font-size:10px;padding:1px 6px;border-radius:8px;vertical-align:middle;">lançamento manual</span>'}</div>
-                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;">
-                        <div style="background:#eff6ff;border:1px solid #bfdbfe;padding:12px 8px;border-radius:10px;text-align:center;">
-                            <div style="font-size:10px;color:#1e40af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Contratadas</div>
-                            <div style="font-size:22px;font-weight:800;color:#1e40af;">${horasTotais.toFixed(1)}h</div>
-                        </div>
-                        <div style="background:#fefce8;border:1px solid #fde68a;padding:12px 8px;border-radius:10px;text-align:center;">
-                            <div style="font-size:10px;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Utilizadas</div>
-                            <div style="font-size:22px;font-weight:800;color:#d97706;">${horasUtilizadas.toFixed(1)}h</div>
-                            <div style="font-size:10px;color:#92400e;margin-top:2px;">${sessoesAtivas.length > 0 ? sessoesAtivas.length + ' sessão(ões)' : 'lançado no contrato'}</div>
-                        </div>
-                        <div style="background:${horasRestantes > 0 ? '#f0fdf4' : '#fef3c7'};border:1px solid ${horasRestantes > 0 ? '#bbf7d0' : '#fde68a'};padding:12px 8px;border-radius:10px;text-align:center;">
-                            <div style="font-size:10px;color:${horasRestantes > 0 ? '#14532d' : '#92400e'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Restantes</div>
-                            <div style="font-size:22px;font-weight:800;color:${horasRestantes > 0 ? '#059669' : '#d97706'};">${horasRestantes.toFixed(1)}h</div>
-                        </div>
-                        <div style="background:${horasExtras > 0 ? '#fef2f2' : '#f8fafc'};border:1px solid ${horasExtras > 0 ? '#fecaca' : '#e2e8f0'};padding:12px 8px;border-radius:10px;text-align:center;">
-                            <div style="font-size:10px;color:${horasExtras > 0 ? '#991b1b' : '#64748b'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Extras</div>
-                            <div style="font-size:22px;font-weight:800;color:${horasExtras > 0 ? '#dc2626' : '#94a3b8'};">${horasExtras.toFixed(1)}h</div>
-                        </div>
-                    </div>
-                    <div style="background:#e2e8f0;height:10px;border-radius:6px;overflow:hidden;">
-                        <div style="background:${barColor};height:100%;width:${Math.min(percentual, 100)}%;border-radius:6px;transition:width .4s ease;"></div>
-                    </div>
-                    <div style="font-size:11px;color:#64748b;text-align:right;margin-top:5px;">${percentual.toFixed(1)}% utilizado</div>
-                </div>` : ''}
-            </div>
-
-            <!-- Título -->
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-                <span style="background:#1565c0;color:white;width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;">📋</span>
-                <span style="font-size:15px;font-weight:700;color:#1e293b;">Sessões vinculadas</span>
-                <span style="background:#e0f2fe;color:#0369a1;font-size:12px;font-weight:600;padding:2px 10px;border-radius:12px;">${sessoes.length}</span>
-                ${sessoes.filter(s=>s.status==='cancelada').length > 0 ? `<span style="background:#fee2e2;color:#991b1b;font-size:11px;padding:2px 8px;border-radius:12px;">${sessoes.filter(s=>s.status==='cancelada').length} cancelada(s) — não contam nas horas</span>` : ''}
-            </div>
-
-            <!-- Tabela -->
-            <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.06);">
-                <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                    <thead>
-                        <tr style="background:#f1f5f9;">
-                            <th style="padding:11px 10px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">DATA</th>
-                            <th style="padding:11px 10px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">DESCRIÇÃO</th>
-                            <th style="padding:11px 10px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">HORÁRIO</th>
-                            <th style="padding:11px 10px;text-align:center;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">HORAS</th>
-                            <th style="padding:11px 10px;text-align:center;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">STATUS</th>
-                            <th style="padding:11px 10px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">NF</th>
-                            <th style="padding:11px 10px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">CUSTOS</th>
-                            <th style="padding:11px 10px;text-align:center;font-weight:700;font-size:11px;letter-spacing:.5px;color:#334155;border-bottom:2px solid #cbd5e1;">AÇÕES</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${sessoesHtml}
-                    </tbody>
-                </table>
-            </div>
-        </div>`;
-
-        const modalContent = `<div class="modal-body" style="padding:20px;max-height:80vh;overflow-y:auto;">${html}</div>`;
-        if (typeof createModal === 'function') {
-            createModal(`📋 Histórico — ${contrato.numero || 'Contrato'}`, modalContent);
-        } else {
-            const modal = document.getElementById('modal');
-            if (modal) {
-                document.getElementById('modal-title').textContent = `📋 Histórico — ${contrato.numero || 'Contrato'}`;
-                document.getElementById('modal-body').innerHTML = html;
-                modal.style.display = 'flex';
-            }
-        }
-
-    } catch (error) {
-        console.error('❌ Erro ao carregar histórico do contrato:', error);
-        showToast('❌ Erro ao carregar histórico: ' + error.message, 'error');
+async function excluirContrato(id) {
+    if (!confirm('⚠️ Tem certeza que deseja excluir este contrato?\n\nEsta ação não pode ser desfeita!')) {
+        return;
     }
-}
+    
+    console.log('🗑️ Excluir contrato:', id);
 
 async function excluirContrato(id) {
     if (!confirm('⚠️ Tem certeza que deseja excluir este contrato?\n\nEsta ação não pode ser desfeita!')) {

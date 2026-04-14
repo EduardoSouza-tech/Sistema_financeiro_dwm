@@ -5012,6 +5012,22 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
     import json
     
     # Preparar observações com todos os dados adicionais
+    empresa_id = dados.get('empresa_id') or _get_empresa_id_from_session()
+
+    # Preservar historico_mensal existente para não perder ao salvar edição do contrato
+    historico_mensal_existente = dados.get('historico_mensal')
+    if historico_mensal_existente is None:
+        try:
+            with get_db_connection(empresa_id=empresa_id) as conn_r:
+                cur_r = conn_r.cursor()
+                cur_r.execute("SELECT observacoes FROM contratos WHERE id = %s", (contrato_id,))
+                row_r = cur_r.fetchone()
+                if row_r and row_r['observacoes']:
+                    obs_atual = json.loads(row_r['observacoes'])
+                    historico_mensal_existente = obs_atual.get('historico_mensal', {})
+        except Exception:
+            historico_mensal_existente = {}
+
     observacoes_dict = {
         'tipo': dados.get('tipo'),
         'nome': dados.get('nome'),
@@ -5024,13 +5040,13 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
         'dia_emissao_nf': dados.get('dia_emissao_nf'),
         'sem_nf': dados.get('sem_nf', False),
         'imposto': dados.get('imposto'),
-        'comissoes': dados.get('comissoes', [])
+        'comissoes': dados.get('comissoes', []),
+        'historico_mensal': historico_mensal_existente or {},
     }
     observacoes_json = json.dumps(observacoes_dict)
-    
+
     # 🔒 Usar context manager para garantir devolução ao pool em qualquer caso
     # autocommit=True no get_db_connection, não precisa de conn.commit()
-    empresa_id = dados.get('empresa_id') or _get_empresa_id_from_session()
     with get_db_connection(empresa_id=empresa_id) as conn:
         cursor = conn.cursor()
         cursor.execute("""

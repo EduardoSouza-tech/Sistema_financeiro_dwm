@@ -231,6 +231,66 @@ def contrato_detalhes(contrato_id):
 
 
 # ============================================================================
+# HISTÓRICO MENSAL
+# ============================================================================
+
+@contratos_bp.route('/<int:contrato_id>/historico-mes', methods=['PATCH'])
+def atualizar_historico_mes(contrato_id):
+    """Atualiza o estado de um mês no histórico do contrato (NF, pagamento, pular).
+    Body: { "mes": "2025-04", "campo": "nf_emitida"|"pago"|"pulado", "valor": true|false }
+    """
+    usuario = get_usuario_logado()
+    if not usuario:
+        return jsonify({'error': 'Não autenticado'}), 401
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'error': 'Empresa não selecionada'}), 403
+
+    data = request.json or {}
+    mes = data.get('mes', '').strip()          # ex: "2025-04"
+    campo = data.get('campo', '').strip()       # "nf_emitida" | "pago" | "pulado"
+    valor = data.get('valor')                   # true | false
+
+    import re
+    if not re.match(r'^\d{4}-\d{2}$', mes) or campo not in ('nf_emitida', 'pago', 'pulado'):
+        return jsonify({'error': 'Parâmetros inválidos'}), 400
+
+    try:
+        import json
+        from database_postgresql import get_db_connection
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT observacoes FROM contratos WHERE id = %s", (contrato_id,))
+            row = cursor.fetchone()
+            if not row:
+                return jsonify({'error': 'Contrato não encontrado'}), 404
+
+            try:
+                obs = json.loads(row['observacoes']) if row['observacoes'] else {}
+            except Exception:
+                obs = {}
+
+            if 'historico_mensal' not in obs:
+                obs['historico_mensal'] = {}
+            if mes not in obs['historico_mensal']:
+                obs['historico_mensal'][mes] = {}
+            obs['historico_mensal'][mes][campo] = bool(valor)
+
+            cursor.execute(
+                "UPDATE contratos SET observacoes = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                (json.dumps(obs), contrato_id)
+            )
+            sucesso = cursor.rowcount > 0
+
+        if sucesso:
+            return jsonify({'success': True, 'mes': mes, 'campo': campo, 'valor': bool(valor)})
+        return jsonify({'error': 'Contrato não encontrado'}), 404
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
 # EXPORTAÇÕES
 # ============================================================================
 
