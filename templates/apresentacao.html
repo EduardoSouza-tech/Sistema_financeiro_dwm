@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Financeiro DWM — Conheça o Sistema</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --grad-start: #667eea;
+            --grad-end:   #764ba2;
+            --glass-bg:   rgba(255,255,255,0.10);
+            --glass-border: rgba(255,255,255,0.25);
+            --white:      #ffffff;
+            --white80:    rgba(255,255,255,0.80);
+            --white60:    rgba(255,255,255,0.60);
+            --white15:    rgba(255,255,255,0.15);
+            --white08:    rgba(255,255,255,0.08);
+            --shadow:     0 8px 32px rgba(31,38,135,0.37);
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--grad-start) 0%, var(--grad-end) 100%);
+            min-height: 100vh;
+            color: var(--white);
+            overflow-x: hidden;
+        }
+
+        /* ── Partículas de fundo ───────────────────────────── */
+        .bg-particles {
+            position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+        }
+        .bg-particles span {
+            position: absolute;
+            display: block;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.06);
+            animation: float linear infinite;
+        }
+        @keyframes float {
+            0%   { transform: translateY(110vh) scale(0); opacity: 0; }
+            10%  { opacity: 1; }
+            90%  { opacity: 1; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+        }
+
+        /* ── Navbar ───────────────────────────────────────── */
+        nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: rgba(102,126,234,0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 14px 40px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .nav-brand {
+            font-size: 18px; font-weight: 700; letter-spacing: .3px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .nav-brand .logo-icon {
+            width: 36px; height: 36px;
+            background: var(--white15);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .nav-links { display: flex; gap: 6px; align-items: center; }
+        .nav-links a {
+            color: var(--white80);
+            text-decoration: none;
+            font-size: 14px;
+            padding: 7px 16px;
+            border-radius: 8px;
+            transition: all .2s;
+        }
+        .nav-links a:hover { background: var(--white15); color: var(--white); }
+        .btn-nav-login {
+            background: rgba(255,255,255,0.20) !important;
+            border: 1px solid var(--glass-border) !important;
+            color: var(--white) !important;
+            font-weight: 600 !important;
+            padding: 8px 22px !important;
+            border-radius: 10px !important;
+            transition: all .25s !important;
+        }
+        .btn-nav-login:hover {
+            background: rgba(255,255,255,0.35) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(255,255,255,0.2) !important;
+        }
+
+        /* ── Seções base ──────────────────────────────────── */
+        section { position: relative; z-index: 1; }
+
+        /* ── Hero ─────────────────────────────────────────── */
+        .hero {
+            min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center;
+            padding: 120px 24px 80px;
+        }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: var(--white15);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            padding: 6px 18px;
+            font-size: 13px; font-weight: 600;
+            margin-bottom: 28px;
+            animation: fadeDown .7s ease;
+        }
+        .hero h1 {
+            font-size: clamp(36px, 6vw, 72px);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 20px;
+            animation: fadeDown .8s ease .1s both;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        }
+        .hero h1 span { color: #f6d860; }
+        .hero p {
+            font-size: clamp(16px, 2vw, 20px);
+            color: var(--white80);
+            max-width: 640px;
+            line-height: 1.7;
+            margin-bottom: 44px;
+            animation: fadeDown .8s ease .2s both;
+        }
+        .hero-ctas {
+            display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+            animation: fadeDown .8s ease .3s both;
+        }
+        .btn-primary-hero {
+            background: white;
+            color: var(--grad-start);
+            padding: 16px 38px;
+            border-radius: 12px;
+            font-size: 16px; font-weight: 700;
+            border: none; cursor: pointer;
+            text-decoration: none;
+            display: inline-flex; align-items: center; gap: 8px;
+            transition: all .25s;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.2);
+        }
+        .btn-primary-hero:hover { transform: translateY(-3px); box-shadow: 0 14px 36px rgba(0,0,0,0.25); }
+        .btn-secondary-hero {
+            background: var(--white15);
+            color: white;
+            padding: 16px 38px;
+            border-radius: 12px;
+            font-size: 16px; font-weight: 600;
+            border: 1px solid var(--glass-border); cursor: pointer;
+            text-decoration: none;
+            display: inline-flex; align-items: center; gap: 8px;
+            transition: all .25s;
+        }
+        .btn-secondary-hero:hover { background: rgba(255,255,255,0.25); transform: translateY(-3px); }
+        .hero-stats {
+            display: flex; gap: 40px; margin-top: 64px; flex-wrap: wrap; justify-content: center;
+            animation: fadeDown .8s ease .4s both;
+        }
+        .stat-item { text-align: center; }
+        .stat-item .num { font-size: 36px; font-weight: 800; }
+        .stat-item .label { font-size: 13px; color: var(--white60); margin-top: 4px; }
+
+        @keyframes fadeDown {
+            from { opacity: 0; transform: translateY(-18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Seção genérica ───────────────────────────────── */
+        .section-inner {
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 100px 24px;
+        }
+        .section-label {
+            text-align: center;
+            font-size: 12px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 2px;
+            color: #f6d860;
+            margin-bottom: 14px;
+        }
+        .section-title {
+            text-align: center;
+            font-size: clamp(26px, 4vw, 44px);
+            font-weight: 800;
+            margin-bottom: 16px;
+            line-height: 1.2;
+        }
+        .section-sub {
+            text-align: center;
+            font-size: 16px;
+            color: var(--white80);
+            max-width: 600px;
+            margin: 0 auto 60px;
+            line-height: 1.7;
+        }
+
+        /* ── Cards de features ────────────────────────────── */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .feature-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            padding: 32px 28px;
+            transition: all .25s;
+            backdrop-filter: blur(8px);
+        }
+        .feature-card:hover {
+            transform: translateY(-6px);
+            background: rgba(255,255,255,0.15);
+            box-shadow: var(--shadow);
+        }
+        .feature-icon {
+            font-size: 38px; margin-bottom: 18px;
+            width: 64px; height: 64px;
+            background: var(--white08);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .feature-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+        .feature-card p  { font-size: 14px; color: var(--white80); line-height: 1.65; }
+
+        /* ── Módulos ──────────────────────────────────────── */
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        .module-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 22px 20px;
+            display: flex; align-items: center; gap: 14px;
+            transition: all .2s;
+        }
+        .module-card:hover { background: rgba(255,255,255,0.16); transform: translateY(-3px); }
+        .module-card .icon { font-size: 28px; flex-shrink: 0; }
+        .module-card .info h4 { font-size: 14px; font-weight: 700; }
+        .module-card .info p  { font-size: 12px; color: var(--white60); margin-top: 3px; }
+
+        /* ── Depoimentos ──────────────────────────────────── */
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .testimonial-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 28px 24px;
+            backdrop-filter: blur(6px);
+        }
+        .testimonial-card p {
+            font-size: 15px; color: var(--white80);
+            line-height: 1.7; font-style: italic;
+            margin-bottom: 20px;
+        }
+        .testi-author { display: flex; align-items: center; gap: 12px; }
+        .testi-avatar {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: var(--white15);
+            border: 2px solid var(--glass-border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        .testi-name { font-weight: 700; font-size: 14px; }
+        .testi-role { font-size: 12px; color: var(--white60); margin-top: 2px; }
+
+        /* ── Divisor ──────────────────────────────────────── */
+        .divider {
+            width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
+            margin: 0 24px;
+            max-width: 1160px;
+            margin: 0 auto;
+        }
+
+        /* ── CTA Final ────────────────────────────────────── */
+        .cta-section {
+            text-align: center;
+            padding: 100px 24px 120px;
+        }
+        .cta-section h2 { font-size: clamp(28px, 4vw, 48px); font-weight: 800; margin-bottom: 18px; }
+        .cta-section p  { font-size: 18px; color: var(--white80); margin-bottom: 44px; }
+
+        /* ── Footer ───────────────────────────────────────── */
+        footer {
+            background: rgba(0,0,0,0.25);
+            border-top: 1px solid var(--glass-border);
+            text-align: center;
+            padding: 28px 24px;
+            font-size: 13px; color: var(--white60);
+        }
+
+        /* ── Responsivo ───────────────────────────────────── */
+        @media (max-width: 768px) {
+            nav { padding: 12px 20px; }
+            .nav-links a:not(.btn-nav-login) { display: none; }
+            .hero-stats { gap: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Partículas -->
+<div class="bg-particles" id="particles"></div>
+
+<!-- Navbar -->
+<nav>
+    <div class="nav-brand">
+        <div class="logo-icon">💼</div>
+        Sistema Financeiro DWM
+    </div>
+    <div class="nav-links">
+        <a href="#funcionalidades">Funcionalidades</a>
+        <a href="#modulos">Módulos</a>
+        <a href="#depoimentos">Clientes</a>
+        <a href="/login" class="btn-nav-login">Acessar Sistema →</a>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero" id="inicio">
+    <div class="hero-badge">✨ Sistema completo de gestão financeira</div>
+    <h1>Controle total das<br><span>suas finanças</span></h1>
+    <p>Emissão de NFS-e, controle de contratos, sessões, conciliação bancária, DRE e muito mais — tudo em um único lugar, na nuvem.</p>
+    <div class="hero-ctas">
+        <a href="/login" class="btn-primary-hero">🚀 Acessar Sistema</a>
+        <a href="#funcionalidades" class="btn-secondary-hero">Saiba mais ↓</a>
+    </div>
+    <div class="hero-stats">
+        <div class="stat-item">
+            <div class="num">100%</div>
+            <div class="label">Na nuvem</div>
+        </div>
+        <div class="stat-item">
+            <div class="num">15+</div>
+            <div class="label">Módulos integrados</div>
+        </div>
+        <div class="stat-item">
+            <div class="num">NFS-e</div>
+            <div class="label">Emissão fiscal automática</div>
+        </div>
+        <div class="stat-item">
+            <div class="num">Multi</div>
+            <div class="label">Empresa e usuários</div>
+        </div>
+    </div>
+</section>
+
+<!-- Funcionalidades -->
+<section id="funcionalidades">
+    <div class="section-inner">
+        <p class="section-label">Funcionalidades</p>
+        <h2 class="section-title">Tudo que sua empresa precisa</h2>
+        <p class="section-sub">Do lançamento financeiro à emissão de nota fiscal, gerenciamos cada detalhe do seu negócio.</p>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">💰</div>
+                <h3>Financeiro Completo</h3>
+                <p>Contas a receber e a pagar, extrato bancário com conciliação automática via arquivo OFX, saldo em tempo real.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📋</div>
+                <h3>Contratos & Sessões</h3>
+                <p>Gerencie contratos por mês, pacote ou único. Histórico mensal com controle de NF emitida, pagamento e horas utilizadas.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📄</div>
+                <h3>Emissão de NFS-e</h3>
+                <p>Emita notas fiscais de serviço diretamente pelo sistema. Integração com prefeituras e download de XMLs em lote.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>DRE & Dashboard</h3>
+                <p>Demonstrativo de Resultado do Exercício, dashboard gerencial com gráficos e indicadores de desempenho.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🏦</div>
+                <h3>Conciliação Bancária</h3>
+                <p>Importe extratos OFX, reconcilie transações automaticamente e exporte os dados para seu contador.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">👥</div>
+                <h3>Recursos Humanos</h3>
+                <p>Folha de pagamento, controle de equipe, funções, comissões por contrato e cálculo automático de custos.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📅</div>
+                <h3>Agenda Integrada</h3>
+                <p>Agenda fotográfica sincronizada com Google Calendar. Notificações automáticas para eventos futuros.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3>Multiusuário & Permissões</h3>
+                <p>Gerencie múltiplas empresas com um único login. Controle granular de permissões por módulo e usuário.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📧</div>
+                <h3>Notificações por E-mail</h3>
+                <p>Alertas automáticos de sessões, cobranças e eventos. Histórico completo de todos os e-mails enviados.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Módulos -->
+<section id="modulos">
+    <div class="section-inner">
+        <p class="section-label">Módulos</p>
+        <h2 class="section-title">Plataforma completa e integrada</h2>
+        <p class="section-sub">Cada módulo conversa com os demais, eliminando retrabalho e inconsistências.</p>
+
+        <div class="modules-grid">
+            <div class="module-card">
+                <div class="icon">💵</div>
+                <div class="info"><h4>Contas a Receber</h4><p>Receitas e cobranças</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">💳</div>
+                <div class="info"><h4>Contas a Pagar</h4><p>Despesas e fornecedores</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">🏦</div>
+                <div class="info"><h4>Extrato Bancário</h4><p>Importação OFX</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">📋</div>
+                <div class="info"><h4>Contratos</h4><p>Gestão de contratos</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">📷</div>
+                <div class="info"><h4>Sessões</h4><p>Agenda e execução</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">📄</div>
+                <div class="info"><h4>NFS-e</h4><p>Notas fiscais de serviço</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">📑</div>
+                <div class="info"><h4>NF-e</h4><p>Notas fiscais eletrônicas</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">📊</div>
+                <div class="info"><h4>DRE</h4><p>Demonstrativo de resultado</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">📈</div>
+                <div class="info"><h4>Fluxo de Caixa</h4><p>Projeção financeira</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">🔍</div>
+                <div class="info"><h4>Auditoria</h4><p>Rastreabilidade total</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">👤</div>
+                <div class="info"><h4>Clientes</h4><p>Cadastro e histórico</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">🏭</div>
+                <div class="info"><h4>Fornecedores</h4><p>Gestão de parceiros</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">👥</div>
+                <div class="info"><h4>Folha de Pagamento</h4><p>RH integrado</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">📅</div>
+                <div class="info"><h4>Agenda</h4><p>Google Calendar sync</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">🎒</div>
+                <div class="info"><h4>Kits & Equipamentos</h4><p>Controle de estoque</p></div>
+            </div>
+            <div class="module-card">
+                <div class="icon">📤</div>
+                <div class="info"><h4>Remessa de Pagamento</h4><p>Arquivos CNAB</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Depoimentos -->
+<section id="depoimentos">
+    <div class="section-inner">
+        <p class="section-label">Clientes</p>
+        <h2 class="section-title">Quem usa, aprova</h2>
+        <p class="section-sub">Empresas de diferentes segmentos confiam no Sistema Financeiro DWM para gerenciar suas finanças.</p>
+
+        <div class="testimonials-grid">
+            <div class="testimonial-card">
+                <p>"Antes usávamos planilhas separadas para cada coisa. Hoje tudo está centralizado, desde a emissão da nota até o fechamento do contrato."</p>
+                <div class="testi-author">
+                    <div class="testi-avatar">📸</div>
+                    <div>
+                        <div class="testi-name">Estúdio de Fotografia</div>
+                        <div class="testi-role">São Paulo — SP</div>
+                    </div>
+                </div>
+            </div>
+            <div class="testimonial-card">
+                <p>"A conciliação bancária automática nos economizou horas por mês. O suporte é rápido e o sistema está sempre evoluindo."</p>
+                <div class="testi-author">
+                    <div class="testi-avatar">🍽️</div>
+                    <div>
+                        <div class="testi-name">Setor de Alimentação</div>
+                        <div class="testi-role">São Paulo — SP</div>
+                    </div>
+                </div>
+            </div>
+            <div class="testimonial-card">
+                <p>"O controle de horas por contrato e o histórico mensal com NF e pagamento tornaram a gestão muito mais profissional."</p>
+                <div class="testi-author">
+                    <div class="testi-avatar">🎯</div>
+                    <div>
+                        <div class="testi-name">Agência de Marketing</div>
+                        <div class="testi-role">São Paulo — SP</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Final -->
+<section class="cta-section" id="contato">
+    <h2>Pronto para começar?</h2>
+    <p>Acesse agora e tenha controle total das suas finanças.</p>
+    <a href="/login" class="btn-primary-hero" style="font-size:18px;padding:18px 50px;">
+        🚀 Acessar o Sistema
+    </a>
+</section>
+
+<!-- Footer -->
+<footer>
+    <p>© 2026 Sistema Financeiro DWM — Todos os direitos reservados</p>
+    <p style="margin-top:8px;"><a href="/login" style="color:rgba(255,255,255,0.6);text-decoration:none;">Acessar o sistema →</a></p>
+</footer>
+
+<script>
+    // Gerar partículas de fundo
+    const container = document.getElementById('particles');
+    for (let i = 0; i < 18; i++) {
+        const s = document.createElement('span');
+        const size = Math.random() * 80 + 20;
+        s.style.cssText = `
+            width:${size}px; height:${size}px;
+            left:${Math.random()*100}%;
+            animation-duration:${Math.random()*20+15}s;
+            animation-delay:${Math.random()*15}s;
+        `;
+        container.appendChild(s);
+    }
+
+    // Scroll suave para links internos com offset do navbar
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+        a.addEventListener('click', e => {
+            const target = document.querySelector(a.getAttribute('href'));
+            if (target) {
+                e.preventDefault();
+                const top = target.getBoundingClientRect().top + window.scrollY - 72;
+                window.scrollTo({ top, behavior: 'smooth' });
+            }
+        });
+    });
+
+    // Animação de entrada ao scrollar
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.feature-card, .module-card, .testimonial-card').forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(24px)';
+        el.style.transition = 'opacity .5s ease, transform .5s ease';
+        observer.observe(el);
+    });
+</script>
+</body>
+</html>

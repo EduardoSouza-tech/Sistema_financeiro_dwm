@@ -10143,9 +10143,14 @@ def atualizar_associacao_lancamento(lancamento_id):
 
 # === ROTA PRINCIPAL ===
 
+@app.route('/apresentacao')
+def apresentacao_page():
+    """P\u00e1gina de apresenta\u00e7\u00e3o do sistema"""
+    return render_template('apresentacao.html')
+
 @app.route('/login')
 def login_page():
-    """P�gina de login"""
+    """P\u00e1gina de login"""
     return render_template('login.html')
 
 @app.route('/api/csrf-token', methods=['GET'])
