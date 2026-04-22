@@ -2102,6 +2102,7 @@ class DatabaseManager:
             ('eventos_create', 'Criar Eventos Operacionais', 'Criar novos eventos operacionais', 'operacional'),
             ('eventos_edit', 'Editar Eventos Operacionais', 'Editar eventos operacionais existentes', 'operacional'),
             ('eventos_delete', 'Excluir Eventos Operacionais', 'Excluir eventos operacionais', 'operacional'),
+            ('ocultar_margem', 'Ocultar Margem e Lucro %', 'Ocultar as colunas Margem e Lucro em % nos Eventos Operacionais', 'operacional'),
             ('estoque_view', 'Ver Estoque', 'Visualizar estoque e produtos', 'operacional'),
             ('estoque_create', 'Criar Produtos', 'Criar novos produtos no estoque', 'operacional'),
             ('estoque_edit', 'Editar Estoque', 'Editar produtos e movimentações de estoque', 'operacional'),
@@ -2157,6 +2158,20 @@ class DatabaseManager:
             print("   Username: admin")
             print("   Senha: admin123")
         
+        # ================================================================
+        # MIGRAÇÃO: Permissão ocultar_margem
+        # ================================================================
+        try:
+            cursor.execute("""
+                INSERT INTO permissoes (codigo, nome, descricao, categoria, ativo)
+                VALUES ('ocultar_margem', 'Ocultar Margem e Lucro %',
+                        'Ocultar as colunas Margem e Lucro em % nos Eventos Operacionais',
+                        'operacional', TRUE)
+                ON CONFLICT (codigo) DO NOTHING
+            """)
+        except Exception:
+            pass
+
         # ================================================================
         # MIGRAi?i?O: Multi-Tenancy - Adicionar proprietario_id
         # ================================================================

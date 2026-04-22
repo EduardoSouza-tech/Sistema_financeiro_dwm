@@ -3103,8 +3103,8 @@
                                 <th style="width: 120px;">NF Associada</th>
                                 <th style="width: 130px;">Valor Líquido NF</th>
                                 <th style="width: 130px;">Custo do Evento</th>
-                                <th style="width: 120px;">Margem</th>
-                                <th style="width: 100px;">Lucro em %</th>
+                                <th id="th-eventos-margem" style="width: 120px;">Margem</th>
+                                <th id="th-eventos-lucro" style="width: 100px;">Lucro em %</th>
                                 <th style="width: 130px;">Tipo de Evento</th>
                                 <th style="width: 110px;">Status</th>
                                 <th style="width: 150px;">Ações</th>
@@ -7962,6 +7962,11 @@
                     // 🆕 Filtrar menu baseado nas permissões do usuário
                     filterMenuByPermissions(data.usuario);
 
+                    // Ocultar Margem e Lucro % nos Eventos Operacionais
+                    const _permEvento = data.usuario.permissoes || [];
+                    window.ocultarMargem = data.usuario.tipo !== 'admin' && _permEvento.includes('ocultar_margem');
+                    aplicarOcultarMargem();
+
                     // Carregar dashboard e contas bancárias APÓS autenticação confirmada
                     if (typeof carregarDashboard === 'function') {
                         carregarDashboard();
@@ -7996,6 +8001,15 @@
                     overlay.style.display = 'none';
                 }, 500);
             }
+        }
+
+        // Ocultar/exibir colunas Margem e Lucro % nos Eventos Operacionais
+        function aplicarOcultarMargem() {
+            const ocultar = window.ocultarMargem === true;
+            const thMargem = document.getElementById('th-eventos-margem');
+            const thLucro  = document.getElementById('th-eventos-lucro');
+            if (thMargem) thMargem.style.display = ocultar ? 'none' : '';
+            if (thLucro)  thLucro.style.display  = ocultar ? 'none' : '';
         }
         
         // 🆕 Filtrar menu baseado nas permissões do usuário
@@ -10641,15 +10655,15 @@
                                 <td>${evt.nf_associada || '-'}</td>
                                 <td>${evt.valor_liquido_nf ? formatarMoeda(evt.valor_liquido_nf) : '-'}</td>
                                 <td>${evt.custo_evento ? formatarMoeda(evt.custo_evento) : '-'}</td>
-                                <td>${evt.margem ? formatarMoeda(evt.margem) : '-'}</td>
-                                <td>${(() => {
+                                ${window.ocultarMargem ? '' : `<td>${evt.margem ? formatarMoeda(evt.margem) : '-'}</td>`}
+                                ${window.ocultarMargem ? '' : `<td>${(() => {
                                     if (evt.valor_liquido_nf && evt.custo_evento && evt.valor_liquido_nf > 0) {
                                         const lucroPercent = ((evt.valor_liquido_nf - evt.custo_evento) / evt.valor_liquido_nf) * 100;
                                         const cor = lucroPercent >= 0 ? '#27ae60' : '#e74c3c';
-                                        return `<span style="color: ${cor}; font-weight: bold;">${lucroPercent.toFixed(2)}%</span>`;
+                                        return '<span style="color: ' + cor + '; font-weight: bold;">' + lucroPercent.toFixed(2) + '%</span>';
                                     }
                                     return '-';
-                                })()}</td>
+                                })()}</td>`}
                                 <td>${evt.tipo_evento || '-'}</td>
                                 <td>${statusBadge[evt.status] || evt.status}</td>
                                 <td>
