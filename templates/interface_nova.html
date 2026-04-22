@@ -3111,7 +3111,7 @@
                             </tr>
                         </thead>
                         <tbody id="tbody-eventos">
-                            <tr><td colspan="10" class="loading">Carregando...</td></tr>
+                            <tr><td colspan="10" id="td-loading-eventos" class="loading">Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -8010,6 +8010,9 @@
             const thLucro  = document.getElementById('th-eventos-lucro');
             if (thMargem) thMargem.style.display = ocultar ? 'none' : '';
             if (thLucro)  thLucro.style.display  = ocultar ? 'none' : '';
+            // Atualizar colspan da linha de carregamento inicial
+            const tdLoading = document.getElementById('td-loading-eventos');
+            if (tdLoading) tdLoading.colSpan = ocultar ? 8 : 10;
         }
         
         // 🆕 Filtrar menu baseado nas permissões do usuário
@@ -10624,7 +10627,8 @@
                 if (!response.ok) {
                     const errData = await response.json().catch(() => ({}));
                     console.error('❌ [EVENTOS] Erro do servidor:', response.status, errData.error || errData);
-                    document.getElementById('tbody-eventos').innerHTML = `<tr><td colspan="10" style="text-align: center; color: #e74c3c; padding: 30px;">Erro ${response.status}: ${errData.error || 'Erro ao carregar eventos'}</td></tr>`;
+                    const _cols1 = window.ocultarMargem ? 8 : 10;
+                    document.getElementById('tbody-eventos').innerHTML = `<tr><td colspan="${_cols1}" style="text-align: center; color: #e74c3c; padding: 30px;">Erro ${response.status}: ${errData.error || 'Erro ao carregar eventos'}</td></tr>`;
                     return;
                 }
                 
@@ -10681,11 +10685,13 @@
                         `;
                     }).join('');
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 30px; color: #999;">Nenhum evento encontrado</td></tr>';
+                    const _cols2 = window.ocultarMargem ? 8 : 10;
+                    tbody.innerHTML = `<tr><td colspan="${_cols2}" style="text-align: center; padding: 30px; color: #999;">Nenhum evento encontrado</td></tr>`;
                 }
             } catch (error) {
                 console.error('Erro ao carregar eventos:', error);
-                document.getElementById('tbody-eventos').innerHTML = '<tr><td colspan="10" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>';
+                const _cols3 = window.ocultarMargem ? 8 : 10;
+                document.getElementById('tbody-eventos').innerHTML = `<tr><td colspan="${_cols3}" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>`;
             }
         }
 
