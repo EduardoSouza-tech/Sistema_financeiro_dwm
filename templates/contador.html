@@ -805,7 +805,7 @@ async function carregarLancamentos(tipo) {
         const r = await fetch(`/api/lancamentos?${params}`, { credentials: 'include' });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const d = await r.json();
-        const lista = d.lancamentos || d || [];
+        const lista = d.data || d.lancamentos || [];
 
         let total = 0, qtdPend = 0, qtdPago = 0;
         const itensFiltrados = Array.isArray(lista) ? lista : [];
@@ -1009,41 +1009,65 @@ async function carregarDRE() {
 
         if (!d.success) throw new Error(d.error || 'Erro ao gerar DRE');
 
-        // Cards de resumo
-        const grupos = d.grupos || d.dre || [];
-        let recBruta = 0, lucroOp = 0, lucroLiq = 0;
-        grupos.forEach(g => {
-            const n = g.nome || g.codigo || '';
-            const v = parseFloat(g.total || g.valor || 0);
-            if (n.toLowerCase().includes('receita') && !n.toLowerCase().includes('dedu')) recBruta += v;
-            if (n.toLowerCase().includes('lucro') && n.toLowerCase().includes('oper')) lucroOp = v;
-            if (n.toLowerCase().includes('lucro') && n.toLowerCase().includes('liquid')) lucroLiq = v;
-        });
+        const dre = d.dre || {};
+        const ind = d.indicadores || {};
+        const recBruta  = dre.receita_bruta?.total  || 0;
+        const lucroOp   = dre.resultado_operacional?.total || 0;
+        const lucroLiq  = dre.lucro_liquido?.total   || 0;
+
         document.getElementById('dre-cards').innerHTML = [
-            { label: 'Receita Bruta', val: fmt(recBruta), cor: 'verde' },
-            { label: 'Lucro Operacional', val: fmt(lucroOp), cor: lucroOp>=0?'verde':'vermelho' },
-            { label: 'Lucro Líquido', val: fmt(lucroLiq || d.lucro_liquido || d.resultado_liquido || 0), cor: (lucroLiq||d.lucro_liquido||0)>=0?'verde':'vermelho' }
+            { label: 'Receita Bruta',       val: fmt(recBruta),  cor: 'verde' },
+            { label: 'Resultado Operacional', val: fmt(lucroOp), cor: lucroOp  >= 0 ? 'verde' : 'vermelho' },
+            { label: 'Lucro Líquido',        val: fmt(lucroLiq), cor: lucroLiq >= 0 ? 'verde' : 'vermelho' }
         ].map(c => `<div class="summary-card"><div class="label">${c.label}</div><div class="value ${c.cor}">${c.val}</div></div>`).join('');
 
-        // Tabela DRE
-        let rows = '';
-        (d.grupos || d.linhas || d.itens || []).forEach(g => {
-            const totalG = parseFloat(g.total || g.valor || 0);
-            rows += `<tr class="dre-grupo"><td colspan="3">📂 ${g.nome || g.descricao || '—'}</td></tr>`;
-            (g.itens || g.subcategorias || []).forEach(it => {
-                const v = parseFloat(it.valor || it.total || 0);
-                rows += `<tr class="dre-item"><td>${it.nome || it.descricao || '—'}</td>
-                    <td style="text-align:right">${fmt(v)}</td>
-                    <td style="text-align:right">${it.av ? it.av.toFixed(1)+'%' : '—'}</td></tr>`;
-            });
-            rows += `<tr class="dre-total"><td>TOTAL ${(g.nome||'').toUpperCase()}</td>
-                <td style="text-align:right">${fmt(totalG)}</td>
-                <td style="text-align:right">${g.av ? g.av.toFixed(1)+'%' : '—'}</td></tr>`;
-        });
-        if (!rows) {
-            // fallback se a API retornar formato diferente
-            rows = `<tr><td class="empty" colspan="3">DRE gerado — sem detalhamento disponível</td></tr>`;
+        // Renderizar DRE estruturada
+        function linhasGrupo(label, grupo, sinal) {
+            if (!grupo) return '';
+            const total = grupo.total || 0;
+            const pct   = grupo.percentual || 0;
+            const itens = (grupo.itens || []).map(it =>
+                `<tr class="dre-item"><td style="padding-left:24px">${it.descricao || it.codigo || '—'}</td>
+                 <td style="text-align:right">${sinal < 0 ? '-' : ''}${fmt(it.valor || 0)}</td>
+                 <td style="text-align:right">${pct.toFixed ? '' : ''}</td></tr>`
+            ).join('');
+            return itens + `<tr class="dre-total"><td><strong>${label}</strong></td>
+                <td style="text-align:right"><strong>${sinal < 0 ? '-' : ''}${fmt(Math.abs(total))}</strong></td>
+                <td style="text-align:right">${pct.toFixed ? pct.toFixed(1) + '%' : '—'}</td></tr>`;
         }
+
+        const rows =
+            `<tr class="dre-grupo"><td colspan="3">RECEITA BRUTA</td></tr>` +
+            linhasGrupo('(=) Receita Bruta', dre.receita_bruta, 1) +
+            `<tr class="dre-grupo"><td colspan="3">(-) DEDUÇÕES</td></tr>` +
+            linhasGrupo('(-) Deduções da Receita', dre.deducoes, -1) +
+            `<tr class="dre-total" style="background:rgba(109,255,158,0.08)"><td><strong>(=) RECEITA LÍQUIDA</strong></td>
+             <td style="text-align:right"><strong>${fmt(dre.receita_liquida?.total || 0)}</strong></td>
+             <td style="text-align:right">${(dre.receita_liquida?.percentual||0).toFixed(1)}%</td></tr>` +
+            `<tr class="dre-grupo"><td colspan="3">(-) CUSTOS</td></tr>` +
+            linhasGrupo('(-) Custos', dre.custos, -1) +
+            `<tr class="dre-total" style="background:rgba(109,255,158,0.08)"><td><strong>(=) LUCRO BRUTO</strong></td>
+             <td style="text-align:right"><strong>${fmt(dre.lucro_bruto?.total || 0)}</strong></td>
+             <td style="text-align:right">${(dre.lucro_bruto?.percentual||0).toFixed(1)}%</td></tr>` +
+            `<tr class="dre-grupo"><td colspan="3">(-) DESPESAS OPERACIONAIS</td></tr>` +
+            linhasGrupo('(-) Despesas Operacionais', dre.despesas_operacionais, -1) +
+            `<tr class="dre-total" style="background:rgba(109,255,158,0.08)"><td><strong>(=) RESULTADO OPERACIONAL</strong></td>
+             <td style="text-align:right"><strong>${fmt(dre.resultado_operacional?.total || 0)}</strong></td>
+             <td style="text-align:right">${(dre.resultado_operacional?.percentual||0).toFixed(1)}%</td></tr>` +
+            (dre.resultado_financeiro ? (
+                `<tr class="dre-grupo"><td colspan="3">(+/-) RESULTADO FINANCEIRO</td></tr>` +
+                `<tr class="dre-item"><td style="padding-left:24px">Receitas Financeiras</td>
+                 <td style="text-align:right">${fmt(dre.resultado_financeiro.receitas_financeiras?.total || 0)}</td><td></td></tr>` +
+                `<tr class="dre-item"><td style="padding-left:24px">Despesas Financeiras</td>
+                 <td style="text-align:right">-${fmt(dre.resultado_financeiro.despesas_financeiras?.total || 0)}</td><td></td></tr>` +
+                `<tr class="dre-total"><td><strong>Resultado Financeiro</strong></td>
+                 <td style="text-align:right"><strong>${fmt(dre.resultado_financeiro.total || 0)}</strong></td>
+                 <td style="text-align:right">${(dre.resultado_financeiro.percentual||0).toFixed(1)}%</td></tr>`
+            ) : '') +
+            `<tr class="dre-total" style="font-size:15px;background:rgba(246,216,96,0.15)"><td><strong>(=) LUCRO LÍQUIDO</strong></td>
+             <td style="text-align:right"><strong>${fmt(dre.lucro_liquido?.total || 0)}</strong></td>
+             <td style="text-align:right">${(dre.lucro_liquido?.percentual||0).toFixed(1)}%</td></tr>`;
+
         setTbody('dre', rows);
 
     } catch(e) {
