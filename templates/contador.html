@@ -704,17 +704,32 @@ function abrirModulo(id, el) {
 // ═══════════════════════════════════════════════════════════
 // ─── Helpers empresa ───────────────────────────────────────
 function preencherEmpresas(empresas, empresaAtual) {
+    console.log('[Contador] preencherEmpresas:', { empresas, empresaAtual });
     const sel = document.getElementById('selectEmpresa');
     const wrap = document.getElementById('empresaSelectorWrap');
-    if (!empresas || !empresas.length) { wrap.style.display = 'none'; return; }
+    if (!empresas || !empresas.length) {
+        console.warn('[Contador] Nenhuma empresa disponível — seletor oculto');
+        wrap.style.display = 'none';
+        return;
+    }
     sel.innerHTML = empresas.map(e =>
         `<option value="${e.id}" ${(empresaAtual && e.id === empresaAtual.id) ? 'selected' : ''}>${e.razao_social || 'Empresa ' + e.id}</option>`
     ).join('');
     wrap.style.display = 'block';
-    atualizarBadgeEmpresa(empresaAtual || empresas[0]);
-    // Garantir que a sessão do servidor também está com a empresa selecionada
-    const empId = sel.value;
-    if (empId) window._contadorEmpresaId = parseInt(empId);
+    const empAtual = empresaAtual || empresas[0];
+    atualizarBadgeEmpresa(empAtual);
+    const empId = parseInt(sel.value || empAtual.id);
+    window._contadorEmpresaId = empId;
+    console.log('[Contador] Empresa selecionada ID:', empId, '— forçando switch na sessão');
+    // Forçar a sessão do servidor com a empresa selecionada (crítico para queries RLS)
+    fetch('/api/auth/switch-empresa', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresa_id: empId })
+    }).then(r => r.json()).then(d => {
+        console.log('[Contador] switch-empresa resultado:', d);
+    }).catch(e => console.error('[Contador] switch-empresa erro:', e));
 }
 
 function atualizarBadgeEmpresa(emp) {
@@ -729,6 +744,7 @@ function atualizarBadgeEmpresa(emp) {
 
 async function trocarEmpresa(empresaId) {
     if (!empresaId) return;
+    console.log('[Contador] trocarEmpresa:', empresaId);
     try {
         const r = await fetch('/api/auth/switch-empresa', {
             method: 'POST',
@@ -737,6 +753,7 @@ async function trocarEmpresa(empresaId) {
             body: JSON.stringify({ empresa_id: parseInt(empresaId) })
         });
         const d = await r.json();
+        console.log('[Contador] switch-empresa resultado:', d);
         if (d.success) {
             window._contadorEmpresaId = parseInt(empresaId);
             const emp = d.empresa || { razao_social: document.getElementById('selectEmpresa').options[document.getElementById('selectEmpresa').selectedIndex]?.text };
@@ -750,22 +767,29 @@ async function trocarEmpresa(empresaId) {
             alert('Erro ao trocar empresa: ' + (d.error || 'Erro desconhecido'));
         }
     } catch(e) {
+        console.error('[Contador] trocarEmpresa erro:', e);
         alert('Erro de conexão ao trocar empresa.');
     }
 }
 
 // ─── Auth ───────────────────────────────────────────────────
 async function verificarAuth() {
+    console.log('[Contador] verificarAuth iniciado');
     try {
         const r = await fetch('/api/auth/verify', { credentials: 'include' });
         const d = await r.json();
+        console.log('[Contador] /api/auth/verify resposta:', d);
         if (d.success && d.authenticated && d.usuario) {
             document.getElementById('sidebarNome').textContent = d.usuario.nome_completo || d.usuario.username || '—';
             preencherEmpresas(d.empresas_disponiveis, d.empresa_atual);
             document.getElementById('authOverlay').style.display = 'none';
-            carregarLancamentos('pagar');
+            // Aguardar switch-empresa antes de carregar dados
+            setTimeout(() => carregarLancamentos('pagar'), 500);
+        } else {
+            console.warn('[Contador] Não autenticado ou dados ausentes:', d);
         }
     } catch(e) {
+        console.error('[Contador] Erro em verificarAuth:', e);
         // overlay permanece
     }
 }
@@ -786,9 +810,10 @@ async function fazerLogin() {
         const d = await r.json();
         if (d.success) {
             document.getElementById('sidebarNome').textContent = d.usuario?.nome_completo || d.usuario?.username || user;
+            console.log('[Contador] login OK — empresas:', d.empresas_disponiveis, 'atual:', d.empresa_atual);
             preencherEmpresas(d.empresas_disponiveis, d.empresa_atual);
             document.getElementById('authOverlay').style.display = 'none';
-            carregarLancamentos('pagar');
+            setTimeout(() => carregarLancamentos('pagar'), 500);
         } else {
             errEl.textContent = d.error || 'Usuário ou senha incorretos.';
         }
@@ -930,17 +955,22 @@ async function carregarNotas(tipo) {
     const di = document.getElementById(diId)?.value || primeiroDia();
     const df = document.getElementById(dfId)?.value || ultimoDia();
 
+    console.log(`[Contador] carregarNotas tipo=${tipo} di=${di} df=${df}`);
     loading(prefId, true);
     setTbody(prefId, '');
     try {
+        const body = { tipo, data_inicio: di, data_fim: df, limit: 500 };
+        console.log('[Contador] POST /api/notas-fiscais/listar body:', body);
         const r = await fetch('/api/notas-fiscais/listar', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tipo, data_inicio: di, data_fim: df, limit: 500 })
+            body: JSON.stringify(body)
         });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const d = await r.json();
+        console.log('[Contador] /api/notas-fiscais/listar resposta:', d);
+        if (d._debug) console.table(d._debug);
         const lista = d.notas || [];
         _cache[tipo.toLowerCase()] = { lista, di, df };
 
