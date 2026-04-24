@@ -654,8 +654,8 @@ function setTbody(id, html) {
     if (el) el.innerHTML = html;
 }
 function primeiroDia() {
-    const d = new Date(); d.setDate(1);
-    return d.toISOString().slice(0,10);
+    const d = new Date();
+    return d.getFullYear() + '-01-01';
 }
 function ultimoDia() {
     const d = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0);
@@ -1119,7 +1119,7 @@ async function exportarDREExcel() {
 // Init
 // ═══════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-    // Preencher datas padrão (mês atual)
+    // Preencher datas padrão: início do ano até hoje
     const di = primeiroDia(), df = ultimoDia();
     ['pagar','receber','extrato','nfse','nfe','cte'].forEach(id => {
         const eli = document.getElementById(id + '-di');
