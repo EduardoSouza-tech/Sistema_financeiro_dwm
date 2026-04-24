@@ -10148,6 +10148,11 @@ def apresentacao_page():
     """P\u00e1gina de apresenta\u00e7\u00e3o do sistema"""
     return render_template('apresentacao.html')
 
+@app.route('/contador')
+def contador_page():
+    """Portal do Contador \u2014 relat\u00f3rios financeiros/fiscais"""
+    return render_template('contador.html')
+
 @app.route('/login')
 def login_page():
     """P\u00e1gina de login"""

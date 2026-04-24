@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal do Contador — Sistema Financeiro DWM</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --grad-start: #667eea;
+            --grad-end:   #764ba2;
+            --sidebar-w: 260px;
+            --glass-bg:  rgba(255,255,255,0.10);
+            --glass-bdr: rgba(255,255,255,0.25);
+            --white:     #ffffff;
+            --white80:   rgba(255,255,255,0.80);
+            --white60:   rgba(255,255,255,0.60);
+            --white15:   rgba(255,255,255,0.15);
+            --white08:   rgba(255,255,255,0.08);
+            --shadow:    0 8px 32px rgba(31,38,135,0.37);
+        }
+
+        html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body {
+            background: linear-gradient(135deg, var(--grad-start) 0%, var(--grad-end) 100%);
+            min-height: 100vh;
+            color: var(--white);
+            display: flex;
+        }
+
+        /* ── Sidebar ─────────────────────────────────────── */
+        .sidebar {
+            width: var(--sidebar-w);
+            min-height: 100vh;
+            background: rgba(0,0,0,0.25);
+            border-right: 1px solid var(--glass-bdr);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            z-index: 50;
+            overflow-y: auto;
+        }
+        .sidebar-brand {
+            padding: 24px 20px;
+            border-bottom: 1px solid var(--glass-bdr);
+        }
+        .sidebar-brand .title {
+            font-size: 15px; font-weight: 700;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .sidebar-brand .subtitle {
+            font-size: 11px; color: var(--white60);
+            margin-top: 6px; padding-left: 4px;
+        }
+        .sidebar-user {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--glass-bdr);
+            font-size: 13px;
+        }
+        .sidebar-user .name { font-weight: 600; margin-bottom: 2px; }
+        .sidebar-user .role { font-size: 11px; color: var(--white60); }
+
+        .sidebar-nav { padding: 12px 0; flex: 1; }
+        .nav-section-label {
+            font-size: 10px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--white60);
+            padding: 10px 20px 4px;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--white80);
+            transition: all .15s;
+            border-left: 3px solid transparent;
+        }
+        .nav-item:hover  { background: var(--white08); color: var(--white); }
+        .nav-item.active {
+            background: var(--white15);
+            border-left-color: #f6d860;
+            color: var(--white); font-weight: 600;
+        }
+        .nav-item .icon { font-size: 18px; flex-shrink: 0; }
+
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--glass-bdr);
+        }
+        .btn-sair {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(231,76,60,0.2);
+            border: 1px solid rgba(231,76,60,0.4);
+            color: #ff8a80;
+            padding: 9px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px; font-weight: 600;
+            width: 100%;
+            justify-content: center;
+            transition: all .2s;
+            text-decoration: none;
+        }
+        .btn-sair:hover { background: rgba(231,76,60,0.35); }
+
+        /* ── Conteúdo principal ───────────────────────────── */
+        .main {
+            margin-left: var(--sidebar-w);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .topbar {
+            padding: 18px 32px;
+            background: rgba(0,0,0,0.15);
+            border-bottom: 1px solid var(--glass-bdr);
+            display: flex; align-items: center; gap: 14px;
+        }
+        .topbar h1 { font-size: 22px; font-weight: 700; }
+        .topbar p  { font-size: 13px; color: var(--white60); margin-top: 3px; }
+
+        .content { padding: 28px 32px; flex: 1; }
+
+        /* ── Módulos (painéis) ────────────────────────────── */
+        .modulo { display: none; }
+        .modulo.active { display: block; }
+
+        /* ── Filtros ──────────────────────────────────────── */
+        .filtros-bar {
+            display: flex; flex-wrap: wrap; gap: 12px;
+            align-items: flex-end;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-bdr);
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+        }
+        .filtro-group { display: flex; flex-direction: column; gap: 5px; }
+        .filtro-group label { font-size: 11px; color: var(--white60); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+        .filtro-group input,
+        .filtro-group select {
+            background: var(--white08);
+            border: 1px solid var(--glass-bdr);
+            border-radius: 8px;
+            color: white;
+            padding: 8px 12px;
+            font-size: 13px;
+            min-width: 140px;
+        }
+        .filtro-group input:focus,
+        .filtro-group select:focus { outline: none; border-color: rgba(255,255,255,0.5); }
+        .filtro-group input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+        .filtro-group select option { background: #4a4e9e; color: white; }
+
+        .btn-filtrar {
+            background: var(--white15);
+            border: 1px solid var(--glass-bdr);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px; font-weight: 600;
+            transition: all .2s;
+            align-self: flex-end;
+        }
+        .btn-filtrar:hover { background: rgba(255,255,255,0.25); }
+        .btn-export {
+            background: rgba(39,174,96,0.2);
+            border: 1px solid rgba(39,174,96,0.4);
+            color: #6dff9e;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px; font-weight: 600;
+            transition: all .2s;
+            align-self: flex-end;
+        }
+        .btn-export:hover { background: rgba(39,174,96,0.35); }
+
+        /* ── Cards de resumo ──────────────────────────────── */
+        .cards-row {
+            display: flex; gap: 16px; flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .summary-card {
+            flex: 1; min-width: 160px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-bdr);
+            border-radius: 12px;
+            padding: 18px 20px;
+        }
+        .summary-card .label { font-size: 11px; color: var(--white60); font-weight: 600; text-transform: uppercase; }
+        .summary-card .value { font-size: 22px; font-weight: 800; margin-top: 6px; }
+        .summary-card .value.verde  { color: #6dff9e; }
+        .summary-card .value.vermelho { color: #ff8a80; }
+        .summary-card .value.amarelo  { color: #f6d860; }
+
+        /* ── Tabela ───────────────────────────────────────── */
+        .table-wrap {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-bdr);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead th {
+            background: rgba(0,0,0,0.2);
+            padding: 12px 14px;
+            text-align: left;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: var(--white80);
+            border-bottom: 1px solid var(--glass-bdr);
+        }
+        tbody tr { border-bottom: 1px solid rgba(255,255,255,0.05); transition: background .1s; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: var(--white08); }
+        tbody td { padding: 10px 14px; color: var(--white80); vertical-align: middle; }
+        tbody td.empty { text-align: center; padding: 40px; color: var(--white60); }
+
+        /* ── Badges ───────────────────────────────────────── */
+        .badge {
+            display: inline-block; padding: 3px 10px;
+            border-radius: 20px; font-size: 11px; font-weight: 700;
+        }
+        .badge-pago    { background: rgba(39,174,96,0.25);  color: #6dff9e; border: 1px solid rgba(39,174,96,0.4); }
+        .badge-pendente{ background: rgba(243,156,18,0.25); color: #f6d860; border: 1px solid rgba(243,156,18,0.4); }
+        .badge-vencido { background: rgba(231,76,60,0.25);  color: #ff8a80; border: 1px solid rgba(231,76,60,0.4); }
+        .badge-nfse    { background: rgba(52,152,219,0.25); color: #74cfff; border: 1px solid rgba(52,152,219,0.4); }
+        .badge-nfe     { background: rgba(155,89,182,0.25); color: #d199ff; border: 1px solid rgba(155,89,182,0.4); }
+        .badge-cte     { background: rgba(230,126,34,0.25); color: #ffb074; border: 1px solid rgba(230,126,34,0.4); }
+
+        /* ── Loading/Spinner ──────────────────────────────── */
+        .spinner-wrap { text-align: center; padding: 50px; }
+        .spinner {
+            width: 36px; height: 36px;
+            border: 3px solid var(--glass-bdr);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── DRE específico ───────────────────────────────── */
+        .dre-grupo {
+            background: rgba(0,0,0,0.15);
+            border-bottom: 1px solid var(--glass-bdr);
+        }
+        .dre-grupo td { font-weight: 700; color: white; padding: 12px 14px; font-size: 13px; }
+        .dre-item td  { padding: 8px 14px 8px 28px; }
+        .dre-total td { font-weight: 800; background: rgba(0,0,0,0.2); color: #f6d860; font-size: 14px; }
+
+        /* ── Auth overlay ─────────────────────────────────── */
+        #authOverlay {
+            position: fixed; inset: 0; z-index: 999;
+            background: linear-gradient(135deg, var(--grad-start) 0%, var(--grad-end) 100%);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .auth-box {
+            background: rgba(255,255,255,0.12);
+            border: 1px solid var(--glass-bdr);
+            border-radius: 20px;
+            padding: 40px 36px;
+            max-width: 420px; width: 90%;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+        .auth-box h2 { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+        .auth-box p  { font-size: 14px; color: var(--white80); margin-bottom: 28px; }
+        .auth-box input {
+            width: 100%;
+            background: var(--white08);
+            border: 1px solid var(--glass-bdr);
+            border-radius: 10px;
+            color: white;
+            padding: 12px 16px;
+            font-size: 15px;
+            margin-bottom: 14px;
+        }
+        .auth-box input::placeholder { color: var(--white60); }
+        .auth-box input:focus { outline: none; border-color: rgba(255,255,255,0.5); }
+        .btn-login-cont {
+            width: 100%;
+            background: rgba(255,255,255,0.20);
+            border: 1px solid var(--glass-bdr);
+            color: white;
+            padding: 13px;
+            border-radius: 10px;
+            font-size: 15px; font-weight: 700;
+            cursor: pointer;
+            transition: all .2s;
+            margin-bottom: 10px;
+        }
+        .btn-login-cont:hover { background: rgba(255,255,255,0.32); }
+        .auth-error { color: #ff8a80; font-size: 13px; margin-top: 8px; min-height: 18px; }
+
+        /* ── Responsivo ───────────────────────────────────── */
+        @media (max-width: 768px) {
+            .sidebar { width: 200px; }
+            .main    { margin-left: 200px; }
+            .content { padding: 16px; }
+            .topbar  { padding: 14px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Auth Overlay -->
+<div id="authOverlay">
+    <div class="auth-box">
+        <div style="font-size:48px;margin-bottom:16px;">🧾</div>
+        <h2>Portal do Contador</h2>
+        <p>Entre com suas credenciais para acessar os relatórios</p>
+        <input type="text" id="authUser" placeholder="Usuário" autocomplete="username">
+        <input type="password" id="authPass" placeholder="Senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLogin()">
+        <button class="btn-login-cont" onclick="fazerLogin()">🔐 Entrar</button>
+        <div id="authError" class="auth-error"></div>
+        <div style="margin-top:16px;">
+            <a href="/login" style="font-size:12px;color:var(--white60);text-decoration:none;">← Voltar ao login</a>
+        </div>
+    </div>
+</div>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+    <div class="sidebar-brand">
+        <div class="title">🧾 Portal do Contador</div>
+        <div class="subtitle">Sistema Financeiro DWM</div>
+    </div>
+    <div class="sidebar-user">
+        <div class="name" id="sidebarNome">—</div>
+        <div class="role">Contador / Visualização</div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section-label">Financeiro</div>
+        <div class="nav-item active" onclick="abrirModulo('pagar', this)">
+            <span class="icon">💳</span> Contas a Pagar
+        </div>
+        <div class="nav-item" onclick="abrirModulo('receber', this)">
+            <span class="icon">💵</span> Contas a Receber
+        </div>
+        <div class="nav-item" onclick="abrirModulo('extrato', this)">
+            <span class="icon">🏦</span> Extratos Bancários
+        </div>
+        <div class="nav-section-label">Fiscal</div>
+        <div class="nav-item" onclick="abrirModulo('nfse', this)">
+            <span class="icon">📄</span> NFS-e
+        </div>
+        <div class="nav-item" onclick="abrirModulo('nfe', this)">
+            <span class="icon">📑</span> NF-e
+        </div>
+        <div class="nav-item" onclick="abrirModulo('cte', this)">
+            <span class="icon">🚚</span> CT-e
+        </div>
+        <div class="nav-section-label">Relatórios</div>
+        <div class="nav-item" onclick="abrirModulo('dre', this)">
+            <span class="icon">📊</span> DRE
+        </div>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="#" class="btn-sair" onclick="fazerLogout()">🚪 Sair</a>
+    </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+    <div class="topbar">
+        <div>
+            <h1 id="topoTitulo">💳 Contas a Pagar</h1>
+            <p id="topoDesc">Visualização de contas a pagar do período</p>
+        </div>
+    </div>
+
+    <div class="content">
+
+        <!-- ─── Contas a Pagar ─────────────────────────── -->
+        <div id="mod-pagar" class="modulo active">
+            <div class="filtros-bar">
+                <div class="filtro-group">
+                    <label>Data Início</label>
+                    <input type="date" id="pagar-di" oninput="carregarLancamentos('pagar')">
+                </div>
+                <div class="filtro-group">
+                    <label>Data Fim</label>
+                    <input type="date" id="pagar-df" oninput="carregarLancamentos('pagar')">
+                </div>
+                <div class="filtro-group">
+                    <label>Status</label>
+                    <select id="pagar-status" onchange="carregarLancamentos('pagar')">
+                        <option value="">Todos</option>
+                        <option value="pendente">Pendente</option>
+                        <option value="pago">Pago</option>
+                        <option value="vencido">Vencido</option>
+                    </select>
+                </div>
+                <button class="btn-filtrar" onclick="carregarLancamentos('pagar')">🔍 Filtrar</button>
+                <button class="btn-export" onclick="exportarExcel('pagar')">📥 Excel</button>
+            </div>
+            <div class="cards-row" id="cards-pagar"></div>
+            <div class="table-wrap">
+                <div id="loading-pagar" class="spinner-wrap" style="display:none;"><div class="spinner"></div><p>Carregando...</p></div>
+                <table id="tbl-pagar"><thead><tr>
+                    <th>Data</th><th>Descrição</th><th>Categoria</th>
+                    <th>Fornecedor</th><th>Valor</th><th>Vencimento</th><th>Status</th>
+                </tr></thead><tbody id="tbody-pagar"><tr><td class="empty" colspan="7">Selecione um período e clique em Filtrar</td></tr></tbody></table>
+            </div>
+        </div>
+
+        <!-- ─── Contas a Receber ───────────────────────── -->
+        <div id="mod-receber" class="modulo">
+            <div class="filtros-bar">
+                <div class="filtro-group">
+                    <label>Data Início</label>
+                    <input type="date" id="receber-di" oninput="carregarLancamentos('receber')">
+                </div>
+                <div class="filtro-group">
+                    <label>Data Fim</label>
+                    <input type="date" id="receber-df" oninput="carregarLancamentos('receber')">
+                </div>
+                <div class="filtro-group">
+                    <label>Status</label>
+                    <select id="receber-status" onchange="carregarLancamentos('receber')">
+                        <option value="">Todos</option>
+                        <option value="pendente">Pendente</option>
+                        <option value="recebido">Recebido</option>
+                    </select>
+                </div>
+                <button class="btn-filtrar" onclick="carregarLancamentos('receber')">🔍 Filtrar</button>
+                <button class="btn-export" onclick="exportarExcel('receber')">📥 Excel</button>
+            </div>
+            <div class="cards-row" id="cards-receber"></div>
+            <div class="table-wrap">
+                <div id="loading-receber" class="spinner-wrap" style="display:none;"><div class="spinner"></div><p>Carregando...</p></div>
+                <table id="tbl-receber"><thead><tr>
+                    <th>Data</th><th>Descrição</th><th>Categoria</th>
+                    <th>Cliente</th><th>Valor</th><th>Vencimento</th><th>Status</th>
+                </tr></thead><tbody id="tbody-receber"><tr><td class="empty" colspan="7">Selecione um período e clique em Filtrar</td></tr></tbody></table>
+            </div>
+        </div>
+
+        <!-- ─── Extratos Bancários ─────────────────────── -->
+        <div id="mod-extrato" class="modulo">
+            <div class="filtros-bar">
+                <div class="filtro-group">
+                    <label>Data Início</label>
+                    <input type="date" id="extrato-di">
+                </div>
+                <div class="filtro-group">
+                    <label>Data Fim</label>
+                    <input type="date" id="extrato-df">
+                </div>
+                <div class="filtro-group">
+                    <label>Conciliado</label>
+                    <select id="extrato-conciliado">
+                        <option value="">Todos</option>
+                        <option value="true">Sim</option>
+                        <option value="false">Não</option>
+                    </select>
+                </div>
+                <button class="btn-filtrar" onclick="carregarExtratos()">🔍 Filtrar</button>
+            </div>
+            <div class="cards-row" id="cards-extrato"></div>
+            <div class="table-wrap">
+                <div id="loading-extrato" class="spinner-wrap" style="display:none;"><div class="spinner"></div><p>Carregando...</p></div>
+                <table><thead><tr>
+                    <th>Data</th><th>Descrição</th><th>Tipo</th>
+                    <th>Valor</th><th>Saldo</th><th>Conciliado</th>
+                </tr></thead><tbody id="tbody-extrato"><tr><td class="empty" colspan="6">Selecione um período e clique em Filtrar</td></tr></tbody></table>
+            </div>
+        </div>
+
+        <!-- ─── NFS-e ──────────────────────────────────── -->
+        <div id="mod-nfse" class="modulo">
+            <div class="filtros-bar">
+                <div class="filtro-group">
+                    <label>Data Início</label>
+                    <input type="date" id="nfse-di">
+                </div>
+                <div class="filtro-group">
+                    <label>Data Fim</label>
+                    <input type="date" id="nfse-df">
+                </div>
+                <button class="btn-filtrar" onclick="carregarNotas('NFSE')">🔍 Filtrar</button>
+                <button class="btn-export" onclick="exportarExcelNfse()">📥 Excel</button>
+            </div>
+            <div class="cards-row" id="cards-nfse"></div>
+            <div class="table-wrap">
+                <div id="loading-nfse" class="spinner-wrap" style="display:none;"><div class="spinner"></div><p>Carregando...</p></div>
+                <table><thead><tr>
+                    <th>Número</th><th>Data Emissão</th><th>Prestador</th>
+                    <th>Tomador</th><th>Serviço</th><th>Valor</th><th>Situação</th>
+                </tr></thead><tbody id="tbody-nfse"><tr><td class="empty" colspan="7">Selecione um período e clique em Filtrar</td></tr></tbody></table>
+            </div>
+        </div>
+
+        <!-- ─── NF-e ───────────────────────────────────── -->
+        <div id="mod-nfe" class="modulo">
+            <div class="filtros-bar">
+                <div class="filtro-group">
+                    <label>Data Início</label>
+                    <input type="date" id="nfe-di">
+                </div>
+                <div class="filtro-group">
+                    <label>Data Fim</label>
+                    <input type="date" id="nfe-df">
+                </div>
+                <button class="btn-filtrar" onclick="carregarNotas('NFE')">🔍 Filtrar</button>
+            </div>
+            <div class="table-wrap">
+                <div id="loading-nfe" class="spinner-wrap" style="display:none;"><div class="spinner"></div><p>Carregando...</p></div>
+                <table><thead><tr>
+                    <th>Chave / Número</th><th>Data Emissão</th><th>Emitente</th>
+                    <th>Destinatário</th><th>Valor Total</th><th>Tipo</th><th>Status</th>
+                </tr></thead><tbody id="tbody-nfe"><tr><td class="empty" colspan="7">Selecione um período e clique em Filtrar</td></tr></tbody></table>
+            </div>
+        </div>
+
+        <!-- ─── CT-e ───────────────────────────────────── -->
+        <div id="mod-cte" class="modulo">
+            <div class="filtros-bar">
+                <div class="filtro-group">
+                    <label>Data Início</label>
+                    <input type="date" id="cte-di">
+                </div>
+                <div class="filtro-group">
+                    <label>Data Fim</label>
+                    <input type="date" id="cte-df">
+                </div>
+                <button class="btn-filtrar" onclick="carregarNotas('CTE')">🔍 Filtrar</button>
+            </div>
+            <div class="table-wrap">
+                <div id="loading-cte" class="spinner-wrap" style="display:none;"><div class="spinner"></div><p>Carregando...</p></div>
+                <table><thead><tr>
+                    <th>Chave / Número</th><th>Data Emissão</th><th>Emitente</th>
+                    <th>Remetente</th><th>Destinatário</th><th>Valor</th><th>Status</th>
+                </tr></thead><tbody id="tbody-cte"><tr><td class="empty" colspan="7">Selecione um período e clique em Filtrar</td></tr></tbody></table>
+            </div>
+        </div>
+
+        <!-- ─── DRE ────────────────────────────────────── -->
+        <div id="mod-dre" class="modulo">
+            <div class="filtros-bar">
+                <div class="filtro-group">
+                    <label>Data Início</label>
+                    <input type="date" id="dre-di">
+                </div>
+                <div class="filtro-group">
+                    <label>Data Fim</label>
+                    <input type="date" id="dre-df">
+                </div>
+                <button class="btn-filtrar" onclick="carregarDRE()">📊 Gerar DRE</button>
+                <button class="btn-export" onclick="exportarDREPDF()">📥 PDF</button>
+                <button class="btn-export" onclick="exportarDREExcel()">📥 Excel</button>
+            </div>
+            <div id="dre-cards" class="cards-row"></div>
+            <div class="table-wrap">
+                <div id="loading-dre" class="spinner-wrap" style="display:none;"><div class="spinner"></div><p>Gerando DRE...</p></div>
+                <table><thead><tr>
+                    <th>Conta</th><th style="text-align:right">Valor (R$)</th><th style="text-align:right">AV %</th>
+                </tr></thead><tbody id="tbody-dre"><tr><td class="empty" colspan="3">Selecione o período e clique em Gerar DRE</td></tr></tbody></table>
+            </div>
+        </div>
+
+    </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// Utilidades
+// ═══════════════════════════════════════════════════════════
+const moduloInfo = {
+    pagar:   { titulo: '💳 Contas a Pagar',      desc: 'Visualização de contas a pagar do período' },
+    receber: { titulo: '💵 Contas a Receber',     desc: 'Visualização de contas a receber do período' },
+    extrato: { titulo: '🏦 Extratos Bancários',   desc: 'Movimentações bancárias do período' },
+    nfse:    { titulo: '📄 NFS-e',               desc: 'Notas Fiscais de Serviço Eletrônicas' },
+    nfe:     { titulo: '📑 NF-e',                desc: 'Notas Fiscais Eletrônicas' },
+    cte:     { titulo: '🚚 CT-e',                desc: 'Conhecimentos de Transporte Eletrônico' },
+    dre:     { titulo: '📊 DRE',                 desc: 'Demonstrativo do Resultado do Exercício' }
+};
+
+function fmt(v) {
+    if (v == null || v === '') return '—';
+    const n = parseFloat(v);
+    if (isNaN(n)) return v;
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
+}
+function fmtDate(s) {
+    if (!s) return '—';
+    const d = new Date(s);
+    if (isNaN(d)) return s;
+    return d.toLocaleDateString('pt-BR');
+}
+function loading(id, show) {
+    const el = document.getElementById('loading-' + id);
+    if (el) el.style.display = show ? 'block' : 'none';
+}
+function setTbody(id, html) {
+    const el = document.getElementById('tbody-' + id);
+    if (el) el.innerHTML = html;
+}
+function primeiroDia() {
+    const d = new Date(); d.setDate(1);
+    return d.toISOString().slice(0,10);
+}
+function ultimoDia() {
+    const d = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0);
+    return d.toISOString().slice(0,10);
+}
+function cardsRow(id, cards) {
+    const el = document.getElementById('cards-' + id);
+    if (!el) return;
+    el.innerHTML = cards.map(c => `
+        <div class="summary-card">
+            <div class="label">${c.label}</div>
+            <div class="value ${c.cor||''}">${c.val}</div>
+        </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// Navegação entre módulos
+// ═══════════════════════════════════════════════════════════
+function abrirModulo(id, el) {
+    document.querySelectorAll('.modulo').forEach(m => m.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('mod-' + id).classList.add('active');
+    el.classList.add('active');
+    const info = moduloInfo[id] || {};
+    document.getElementById('topoTitulo').textContent = info.titulo || id;
+    document.getElementById('topoDesc').textContent    = info.desc   || '';
+}
+
+// ═══════════════════════════════════════════════════════════
+// Autenticação
+// ═══════════════════════════════════════════════════════════
+async function verificarAuth() {
+    try {
+        const r = await fetch('/api/auth/verify', { credentials: 'include' });
+        const d = await r.json();
+        if (d.success && d.authenticated && d.usuario) {
+            document.getElementById('sidebarNome').textContent = d.usuario.nome_completo || d.usuario.username || '—';
+            document.getElementById('authOverlay').style.display = 'none';
+            carregarLancamentos('pagar'); // carregar módulo inicial
+        }
+        // se não autenticado, o overlay permanece visível
+    } catch(e) {
+        // overlay permanece
+    }
+}
+
+async function fazerLogin() {
+    const user = document.getElementById('authUser').value.trim();
+    const pass = document.getElementById('authPass').value;
+    const errEl = document.getElementById('authError');
+    errEl.textContent = '';
+    if (!user || !pass) { errEl.textContent = 'Preencha usuário e senha.'; return; }
+    try {
+        const r = await fetch('/api/auth/login', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, password: pass })
+        });
+        const d = await r.json();
+        if (d.success) {
+            document.getElementById('sidebarNome').textContent = d.usuario?.nome_completo || d.usuario?.username || user;
+            document.getElementById('authOverlay').style.display = 'none';
+            carregarLancamentos('pagar');
+        } else {
+            errEl.textContent = d.error || 'Usuário ou senha incorretos.';
+        }
+    } catch(e) {
+        errEl.textContent = 'Erro de conexão. Tente novamente.';
+    }
+}
+
+async function fazerLogout() {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(()=>{});
+    window.location.href = '/login';
+}
+
+// ═══════════════════════════════════════════════════════════
+// Lançamentos (Pagar / Receber)
+// ═══════════════════════════════════════════════════════════
+async function carregarLancamentos(tipo) {
+    const id   = tipo; // 'pagar' or 'receber'
+    const di   = document.getElementById(id + '-di').value   || primeiroDia();
+    const df   = document.getElementById(id + '-df').value   || ultimoDia();
+    const st   = document.getElementById(id + '-status')?.value || '';
+    const tipoApi = tipo === 'pagar' ? 'pagar' : 'receber';
+
+    loading(id, true);
+    setTbody(id, '');
+    try {
+        const params = new URLSearchParams({ tipo: tipoApi, data_inicio: di, data_fim: df });
+        if (st) params.append('status', st);
+        const r = await fetch(`/api/lancamentos?${params}`, { credentials: 'include' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+        const lista = d.lancamentos || d || [];
+
+        let total = 0, qtdPend = 0, qtdPago = 0;
+        const itensFiltrados = Array.isArray(lista) ? lista : [];
+        itensFiltrados.forEach(l => {
+            total += parseFloat(l.valor || 0);
+            if ((l.status||'').toLowerCase().includes('pend') || (l.status||'').toLowerCase().includes('aber')) qtdPend++;
+            else qtdPago++;
+        });
+
+        cardsRow(id, [
+            { label: 'Total', val: fmt(total), cor: tipo==='pagar' ? 'vermelho' : 'verde' },
+            { label: 'Lançamentos', val: itensFiltrados.length, cor: '' },
+            { label: tipo==='pagar' ? 'A Pagar' : 'A Receber', val: qtdPend, cor: 'amarelo' },
+            { label: tipo==='pagar' ? 'Pagos' : 'Recebidos', val: qtdPago, cor: 'verde' }
+        ]);
+
+        if (!itensFiltrados.length) {
+            setTbody(id, `<tr><td class="empty" colspan="7">Nenhum lançamento encontrado</td></tr>`);
+        } else {
+            const colPessoa = tipo === 'pagar' ? 'fornecedor_nome' : 'cliente_nome';
+            setTbody(id, itensFiltrados.map(l => {
+                const st = (l.status||'').toLowerCase();
+                const badgeCls = st.includes('pag') || st.includes('receb') || st.includes('liquid') ? 'badge-pago'
+                               : st.includes('venc') ? 'badge-vencido' : 'badge-pendente';
+                const stLabel  = l.status || '—';
+                return `<tr>
+                    <td>${fmtDate(l.data_lancamento || l.data)}</td>
+                    <td>${l.descricao || '—'}</td>
+                    <td>${l.categoria || l.subcategoria || '—'}</td>
+                    <td>${l[colPessoa] || l.pessoa || '—'}</td>
+                    <td style="font-weight:700">${fmt(l.valor)}</td>
+                    <td>${fmtDate(l.data_vencimento)}</td>
+                    <td><span class="badge ${badgeCls}">${stLabel}</span></td>
+                </tr>`;
+            }).join(''));
+        }
+    } catch(e) {
+        setTbody(id, `<tr><td class="empty" colspan="7" style="color:#ff8a80;">Erro ao carregar dados: ${e.message}</td></tr>`);
+    } finally {
+        loading(id, false);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Extratos
+// ═══════════════════════════════════════════════════════════
+async function carregarExtratos() {
+    const di = document.getElementById('extrato-di').value || primeiroDia();
+    const df = document.getElementById('extrato-df').value || ultimoDia();
+    const con = document.getElementById('extrato-conciliado').value;
+
+    loading('extrato', true);
+    setTbody('extrato', '');
+    try {
+        const params = new URLSearchParams({ data_inicio: di, data_fim: df });
+        if (con) params.append('conciliado', con);
+        const r = await fetch(`/api/extratos?${params}`, { credentials: 'include' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+        const lista = d.transacoes || d || [];
+
+        let totalCred = 0, totalDeb = 0;
+        lista.forEach(t => {
+            const v = parseFloat(t.valor || 0);
+            if (v >= 0) totalCred += v; else totalDeb += Math.abs(v);
+        });
+        cardsRow('extrato', [
+            { label: 'Lançamentos', val: lista.length },
+            { label: 'Entradas', val: fmt(totalCred), cor: 'verde' },
+            { label: 'Saídas', val: fmt(totalDeb), cor: 'vermelho' },
+            { label: 'Saldo Período', val: fmt(totalCred - totalDeb), cor: totalCred>=totalDeb?'verde':'vermelho' }
+        ]);
+
+        if (!lista.length) {
+            setTbody('extrato', `<tr><td class="empty" colspan="6">Nenhuma transação encontrada</td></tr>`);
+        } else {
+            setTbody('extrato', lista.map(t => {
+                const v = parseFloat(t.valor || 0);
+                const cor = v >= 0 ? '#6dff9e' : '#ff8a80';
+                const badge = t.conciliado ? '<span class="badge badge-pago">Sim</span>' : '<span class="badge badge-pendente">Não</span>';
+                return `<tr>
+                    <td>${fmtDate(t.data)}</td>
+                    <td>${t.descricao || t.historico || '—'}</td>
+                    <td>${t.tipo || '—'}</td>
+                    <td style="font-weight:700;color:${cor}">${fmt(t.valor)}</td>
+                    <td>${fmt(t.saldo)}</td>
+                    <td>${badge}</td>
+                </tr>`;
+            }).join(''));
+        }
+    } catch(e) {
+        setTbody('extrato', `<tr><td class="empty" colspan="6" style="color:#ff8a80;">Erro: ${e.message}</td></tr>`);
+    } finally {
+        loading('extrato', false);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// NFS-e / NF-e / CT-e
+// ═══════════════════════════════════════════════════════════
+async function carregarNotas(tipo) {
+    const prefId = tipo.toLowerCase().replace('-','');
+    const diId   = prefId + '-di';
+    const dfId   = prefId + '-df';
+    const di = document.getElementById(diId)?.value || primeiroDia();
+    const df = document.getElementById(dfId)?.value || ultimoDia();
+
+    loading(prefId, true);
+    setTbody(prefId, '');
+    try {
+        const r = await fetch('/api/notas-fiscais/listar', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tipo, data_inicio: di, data_fim: df, limit: 500 })
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+        const lista = d.notas || [];
+
+        if (tipo === 'NFSE') {
+            let totalVal = 0;
+            lista.forEach(n => totalVal += parseFloat(n.valor_servicos || n.valor_total || 0));
+            cardsRow('nfse', [
+                { label: 'Notas', val: lista.length },
+                { label: 'Total Serviços', val: fmt(totalVal), cor: 'verde' }
+            ]);
+        }
+
+        if (!lista.length) {
+            const cols = tipo === 'NFSE' ? 7 : tipo === 'CTE' ? 7 : 7;
+            setTbody(prefId, `<tr><td class="empty" colspan="${cols}">Nenhuma nota encontrada</td></tr>`);
+        } else if (tipo === 'NFSE') {
+            setTbody('nfse', lista.map(n => {
+                const badge = '<span class="badge badge-nfse">NFS-e</span>';
+                return `<tr>
+                    <td>${n.numero || n.numero_nf || '—'}</td>
+                    <td>${fmtDate(n.data_emissao)}</td>
+                    <td>${n.prestador_razao_social || n.prestador || '—'}</td>
+                    <td>${n.tomador_razao_social || n.tomador || '—'}</td>
+                    <td>${n.discriminacao_servicos || n.servico || '—'}</td>
+                    <td style="font-weight:700">${fmt(n.valor_servicos || n.valor_total)}</td>
+                    <td>${badge}</td>
+                </tr>`;
+            }).join(''));
+        } else if (tipo === 'NFE') {
+            setTbody('nfe', lista.map(n => {
+                const badge = '<span class="badge badge-nfe">NF-e</span>';
+                return `<tr>
+                    <td style="font-size:11px">${(n.chave_acesso || n.numero || '—').substring(0,30)}</td>
+                    <td>${fmtDate(n.data_emissao)}</td>
+                    <td>${n.emitente_razao_social || n.emitente || '—'}</td>
+                    <td>${n.destinatario_razao_social || n.destinatario || '—'}</td>
+                    <td style="font-weight:700">${fmt(n.valor_total)}</td>
+                    <td>${badge}</td>
+                    <td>${n.situacao || '—'}</td>
+                </tr>`;
+            }).join(''));
+        } else {
+            // CT-e
+            setTbody('cte', lista.map(n => {
+                const badge = '<span class="badge badge-cte">CT-e</span>';
+                return `<tr>
+                    <td style="font-size:11px">${(n.chave_acesso || n.numero || '—').substring(0,30)}</td>
+                    <td>${fmtDate(n.data_emissao)}</td>
+                    <td>${n.emitente_razao_social || n.emitente || '—'}</td>
+                    <td>${n.remetente_razao_social || n.remetente || '—'}</td>
+                    <td>${n.destinatario_razao_social || n.destinatario || '—'}</td>
+                    <td style="font-weight:700">${fmt(n.valor_total)}</td>
+                    <td>${badge}</td>
+                </tr>`;
+            }).join(''));
+        }
+    } catch(e) {
+        setTbody(prefId, `<tr><td class="empty" colspan="7" style="color:#ff8a80;">Erro: ${e.message}</td></tr>`);
+    } finally {
+        loading(prefId, false);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRE
+// ═══════════════════════════════════════════════════════════
+async function carregarDRE() {
+    const di = document.getElementById('dre-di').value;
+    const df = document.getElementById('dre-df').value;
+    if (!di || !df) { alert('Informe o período para gerar o DRE.'); return; }
+
+    loading('dre', true);
+    setTbody('dre', '');
+    document.getElementById('dre-cards').innerHTML = '';
+    try {
+        const r = await fetch('/api/relatorios/dre', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data_inicio: di, data_fim: df })
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+
+        if (!d.success) throw new Error(d.error || 'Erro ao gerar DRE');
+
+        // Cards de resumo
+        const grupos = d.grupos || d.dre || [];
+        let recBruta = 0, lucroOp = 0, lucroLiq = 0;
+        grupos.forEach(g => {
+            const n = g.nome || g.codigo || '';
+            const v = parseFloat(g.total || g.valor || 0);
+            if (n.toLowerCase().includes('receita') && !n.toLowerCase().includes('dedu')) recBruta += v;
+            if (n.toLowerCase().includes('lucro') && n.toLowerCase().includes('oper')) lucroOp = v;
+            if (n.toLowerCase().includes('lucro') && n.toLowerCase().includes('liquid')) lucroLiq = v;
+        });
+        document.getElementById('dre-cards').innerHTML = [
+            { label: 'Receita Bruta', val: fmt(recBruta), cor: 'verde' },
+            { label: 'Lucro Operacional', val: fmt(lucroOp), cor: lucroOp>=0?'verde':'vermelho' },
+            { label: 'Lucro Líquido', val: fmt(lucroLiq || d.lucro_liquido || d.resultado_liquido || 0), cor: (lucroLiq||d.lucro_liquido||0)>=0?'verde':'vermelho' }
+        ].map(c => `<div class="summary-card"><div class="label">${c.label}</div><div class="value ${c.cor}">${c.val}</div></div>`).join('');
+
+        // Tabela DRE
+        let rows = '';
+        (d.grupos || d.linhas || d.itens || []).forEach(g => {
+            const totalG = parseFloat(g.total || g.valor || 0);
+            rows += `<tr class="dre-grupo"><td colspan="3">📂 ${g.nome || g.descricao || '—'}</td></tr>`;
+            (g.itens || g.subcategorias || []).forEach(it => {
+                const v = parseFloat(it.valor || it.total || 0);
+                rows += `<tr class="dre-item"><td>${it.nome || it.descricao || '—'}</td>
+                    <td style="text-align:right">${fmt(v)}</td>
+                    <td style="text-align:right">${it.av ? it.av.toFixed(1)+'%' : '—'}</td></tr>`;
+            });
+            rows += `<tr class="dre-total"><td>TOTAL ${(g.nome||'').toUpperCase()}</td>
+                <td style="text-align:right">${fmt(totalG)}</td>
+                <td style="text-align:right">${g.av ? g.av.toFixed(1)+'%' : '—'}</td></tr>`;
+        });
+        if (!rows) {
+            // fallback se a API retornar formato diferente
+            rows = `<tr><td class="empty" colspan="3">DRE gerado — sem detalhamento disponível</td></tr>`;
+        }
+        setTbody('dre', rows);
+
+    } catch(e) {
+        setTbody('dre', `<tr><td class="empty" colspan="3" style="color:#ff8a80;">Erro: ${e.message}</td></tr>`);
+    } finally {
+        loading('dre', false);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Exports
+// ═══════════════════════════════════════════════════════════
+async function exportarExcel(tipo) {
+    const di = document.getElementById(tipo + '-di').value || primeiroDia();
+    const df = document.getElementById(tipo + '-df').value || ultimoDia();
+    const st = document.getElementById(tipo + '-status')?.value || '';
+    const tipoApi = tipo === 'pagar' ? 'pagar' : 'receber';
+    const params = new URLSearchParams({ tipo: tipoApi, data_inicio: di, data_fim: df, format: 'excel' });
+    if (st) params.append('status', st);
+    window.open(`/api/lancamentos/export?${params}`, '_blank');
+}
+async function exportarExcelNfse() {
+    const di = document.getElementById('nfse-di').value || primeiroDia();
+    const df = document.getElementById('nfse-df').value || ultimoDia();
+    const r = await fetch('/api/nfse/export/excel', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data_inicio: di, data_fim: df })
+    });
+    if (r.ok) {
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url;
+        a.download = `nfse_${di}_${df}.xlsx`; a.click();
+    } else {
+        alert('Erro ao exportar NFS-e');
+    }
+}
+async function exportarDREPDF() {
+    const di = document.getElementById('dre-di').value;
+    const df = document.getElementById('dre-df').value;
+    if (!di || !df) { alert('Informe o período.'); return; }
+    const r = await fetch('/api/relatorios/dre/pdf', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data_inicio: di, data_fim: df })
+    });
+    if (r.ok) {
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url;
+        a.download = `DRE_${di}_${df}.pdf`; a.click();
+    } else { alert('Erro ao exportar PDF'); }
+}
+async function exportarDREExcel() {
+    const di = document.getElementById('dre-di').value;
+    const df = document.getElementById('dre-df').value;
+    if (!di || !df) { alert('Informe o período.'); return; }
+    const r = await fetch('/api/relatorios/dre/excel', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data_inicio: di, data_fim: df })
+    });
+    if (r.ok) {
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url;
+        a.download = `DRE_${di}_${df}.xlsx`; a.click();
+    } else { alert('Erro ao exportar Excel'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    // Preencher datas padrão (mês atual)
+    const di = primeiroDia(), df = ultimoDia();
+    ['pagar','receber','extrato','nfse','nfe','cte'].forEach(id => {
+        const eli = document.getElementById(id + '-di');
+        const elf = document.getElementById(id + '-df');
+        if (eli) eli.value = di;
+        if (elf) elf.value = df;
+    });
+    // DRE: primeiro dia do ano até hoje
+    document.getElementById('dre-di').value = new Date().getFullYear() + '-01-01';
+    document.getElementById('dre-df').value = df;
+
+    verificarAuth();
+});
+</script>
+</body>
+</html>
