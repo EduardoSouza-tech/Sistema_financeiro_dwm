@@ -19852,8 +19852,13 @@ def listar_notas_fiscais():
             except Exception as e_nfse:
                 logger.warning(f"Aviso NFS-e em listar_notas_fiscais: {e_nfse}")
 
-        # ── NF-e / CT-e: busca em notas_fiscais (se a tabela existir) ────────
+        # ── NF-e / CT-e: busca em notas_fiscais E documentos_fiscais_log ────
         if tipo in ('NFE', 'CTE', ''):
+            from datetime import datetime as _dt, date as _date
+            from decimal import Decimal
+            seen_chaves = set()
+
+            # 1) notas_fiscais (NF-e importadas manualmente via XML)
             try:
                 from database_postgresql import execute_query
                 filtros = ["empresa_id = %s"]
@@ -19868,10 +19873,11 @@ def listar_notas_fiscais():
                     filtros.append("data_emissao <= %s")
                     params.append(data_fim)
                 where = " AND ".join(filtros)
-                rows = execute_query(
+                rows_nf = execute_query(
                     f"""SELECT id, tipo, numero, serie, chave_acesso,
                                data_emissao, direcao, valor_total,
-                               participante_nome, situacao
+                               participante_nome, situacao,
+                               NULL AS nome_emitente, NULL AS nome_destinatario
                           FROM notas_fiscais
                          WHERE {where}
                          ORDER BY data_emissao DESC, numero DESC
@@ -19880,18 +19886,73 @@ def listar_notas_fiscais():
                     fetch_all=True,
                     allow_global=True
                 ) or []
-                from datetime import datetime as _dt, date as _date
-                from decimal import Decimal
-                for r in rows:
+                for r in rows_nf:
                     row = dict(r)
                     for k, v in row.items():
                         if isinstance(v, (_dt, _date)):
                             row[k] = v.isoformat()
                         elif isinstance(v, Decimal):
                             row[k] = float(v)
+                    chave = row.get('chave_acesso') or ''
+                    if chave:
+                        seen_chaves.add(chave)
                     notas.append(row)
-            except Exception as e_nfe:
-                logger.warning(f"Aviso NF-e em listar_notas_fiscais: {e_nfe}")
+            except Exception as e_nf:
+                logger.warning(f"Aviso notas_fiscais em listar_notas_fiscais: {e_nf}")
+
+            # 2) documentos_fiscais_log (NF-e baixadas via NSU/SEFAZ)
+            try:
+                from database_postgresql import execute_query
+                tipo_doc_filter = ''
+                params_dfl = [empresa_id]
+                if tipo == 'NFE':
+                    tipo_doc_filter = " AND tipo_documento = 'NFe'"
+                elif tipo == 'CTE':
+                    tipo_doc_filter = " AND tipo_documento = 'CTe'"
+                else:
+                    tipo_doc_filter = " AND tipo_documento IN ('NFe', 'CTe')"
+                date_filter_dfl = ''
+                if data_inicio:
+                    date_filter_dfl += " AND data_emissao >= %s"
+                    params_dfl.append(data_inicio)
+                if data_fim:
+                    date_filter_dfl += " AND data_emissao <= %s"
+                    params_dfl.append(data_fim)
+                rows_dfl = execute_query(
+                    f"""SELECT id,
+                               UPPER(tipo_documento)                   AS tipo,
+                               numero_documento                        AS numero,
+                               serie,
+                               chave                                   AS chave_acesso,
+                               data_emissao,
+                               NULL                                    AS direcao,
+                               valor_total,
+                               COALESCE(nome_emitente, nome_destinatario, '') AS participante_nome,
+                               CASE WHEN COALESCE(cancelado, FALSE) THEN 'cancelada'
+                                    ELSE 'autorizada' END              AS situacao,
+                               nome_emitente,
+                               nome_destinatario
+                          FROM documentos_fiscais_log
+                         WHERE empresa_id = %s{tipo_doc_filter}{date_filter_dfl}
+                         ORDER BY data_emissao DESC, numero_documento DESC
+                         LIMIT %s""",
+                    tuple(params_dfl + [limit]),
+                    fetch_all=True,
+                    allow_global=True
+                ) or []
+                for r in rows_dfl:
+                    row = dict(r)
+                    chave = row.get('chave_acesso') or ''
+                    if chave and chave in seen_chaves:
+                        continue  # já existe em notas_fiscais, pular
+                    for k, v in row.items():
+                        if isinstance(v, (_dt, _date)):
+                            row[k] = v.isoformat()
+                        elif isinstance(v, Decimal):
+                            row[k] = float(v)
+                    notas.append(row)
+            except Exception as e_dfl:
+                logger.warning(f"Aviso documentos_fiscais_log em listar_notas_fiscais: {e_dfl}")
 
         return jsonify({
             'success': True,

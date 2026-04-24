@@ -975,8 +975,8 @@ async function carregarNotas(tipo) {
                 return `<tr>
                     <td style="font-size:11px">${(n.chave_acesso || n.numero || '—').substring(0,30)}</td>
                     <td>${fmtDate(n.data_emissao)}</td>
-                    <td>${n.emitente_razao_social || n.emitente || '—'}</td>
-                    <td>${n.destinatario_razao_social || n.destinatario || '—'}</td>
+                    <td>${n.nome_emitente || n.emitente_razao_social || n.participante_nome || '—'}</td>
+                    <td>${n.nome_destinatario || n.destinatario_razao_social || n.participante_nome || '—'}</td>
                     <td style="font-weight:700">${fmt(n.valor_total)}</td>
                     <td>${badge}</td>
                     <td>${n.situacao || '—'}</td>
@@ -990,9 +990,9 @@ async function carregarNotas(tipo) {
                 return `<tr>
                     <td style="font-size:11px">${(n.chave_acesso || n.numero || '—').substring(0,30)}</td>
                     <td>${fmtDate(n.data_emissao)}</td>
-                    <td>${n.emitente_razao_social || n.emitente || '—'}</td>
-                    <td>${n.remetente_razao_social || n.remetente || '—'}</td>
-                    <td>${n.destinatario_razao_social || n.destinatario || '—'}</td>
+                    <td>${n.nome_emitente || n.emitente_razao_social || n.participante_nome || '—'}</td>
+                    <td>${n.remetente_razao_social || n.remetente || n.participante_nome || '—'}</td>
+                    <td>${n.nome_destinatario || n.destinatario_razao_social || n.participante_nome || '—'}</td>
                     <td style="font-weight:700">${fmt(n.valor_total)}</td>
                     <td>${badge}</td>
                     <td class="acoes-cell">${n.id ? `<button class="btn-acao" onclick="baixarXmlNfe(${n.id},'${n.numero||n.id}')" title="XML">📎</button>` : '—'}</td>

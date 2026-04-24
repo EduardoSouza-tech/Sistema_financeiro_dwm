@@ -938,6 +938,25 @@ def obter_estatisticas_empresa(empresa_id: int) -> Dict[str, any]:
                 'valor_total_nfes': float(row['valor_total_nfes']) if row['valor_total_nfes'] else 0.0
             }
 
+            # Também conta NF-e/CT-e importadas manualmente (notas_fiscais)
+            try:
+                cursor.execute("""
+                    SELECT
+                        COUNT(CASE WHEN tipo = 'NFE' THEN 1 END) AS nfes_manuais,
+                        COUNT(CASE WHEN tipo = 'CTE' THEN 1 END) AS ctes_manuais,
+                        COALESCE(SUM(CASE WHEN tipo = 'NFE' THEN valor_total ELSE 0 END), 0) AS valor_nfes_manuais
+                    FROM notas_fiscais
+                    WHERE empresa_id = %s
+                """, (empresa_id,))
+                row_nf = cursor.fetchone()
+                if row_nf:
+                    stats['total_nfes']      += row_nf['nfes_manuais'] or 0
+                    stats['total_ctes']      += row_nf['ctes_manuais'] or 0
+                    stats['valor_total_nfes'] += float(row_nf['valor_nfes_manuais']) if row_nf['valor_nfes_manuais'] else 0.0
+                    stats['total_documentos'] += (row_nf['nfes_manuais'] or 0) + (row_nf['ctes_manuais'] or 0)
+            except Exception:
+                pass  # notas_fiscais pode não existir neste ambiente
+
             # Certificados ativos
             cursor.execute("""
                 SELECT COUNT(*) AS total_certs
