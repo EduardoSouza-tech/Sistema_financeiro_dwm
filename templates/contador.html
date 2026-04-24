@@ -808,6 +808,7 @@ async function carregarLancamentos(tipo) {
         const d = await r.json();
         if (!d.success && d.error) throw new Error(d.error);
         const lista = Array.isArray(d.data) ? d.data : (Array.isArray(d.lancamentos) ? d.lancamentos : []);
+        _cache[tipo] = { lista, di, df };
 
         let total = 0, qtdPend = 0, qtdPago = 0;
         lista.forEach(l => {
@@ -865,7 +866,8 @@ async function carregarExtratos() {
         const r = await fetch(`/api/extratos?${params}`, { credentials: 'include' });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const d = await r.json();
-        const lista = d.transacoes || d || [];
+        const lista = Array.isArray(d.transacoes) ? d.transacoes : (Array.isArray(d) ? d : []);
+        _cache['extrato'] = { lista, di, df };
 
         let totalCred = 0, totalDeb = 0;
         lista.forEach(t => {
@@ -925,6 +927,7 @@ async function carregarNotas(tipo) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const d = await r.json();
         const lista = d.notas || [];
+        _cache[tipo.toLowerCase()] = { lista, di, df };
 
         if (tipo === 'NFSE') {
             let totalVal = 0;
@@ -1080,63 +1083,114 @@ async function carregarDRE() {
 // ═══════════════════════════════════════════════════════════
 // Exports
 // ═══════════════════════════════════════════════════════════
-async function exportarExcel(tipo) {
-    const di = document.getElementById(tipo + '-di').value || primeiroDia();
-    const df = document.getElementById(tipo + '-df').value || ultimoDia();
-    const st = document.getElementById(tipo + '-status')?.value || '';
-    const tipoApi = tipo === 'pagar' ? 'pagar' : 'receber';
-    const params = new URLSearchParams({ tipo: tipoApi, data_inicio: di, data_fim: df, format: 'excel' });
-    if (st) params.append('status', st);
-    window.open(`/api/lancamentos/export?${params}`, '_blank');
+// ── Cache de dados carregados ───────────────────────────────
+const _cache = {};
+
+// ── Utilitário CSV client-side ──────────────────────────────
+function baixarCSV(nomeArquivo, cabecalhos, linhas) {
+    const BOM = '\uFEFF';
+    const escapar = v => {
+        const s = v === null || v === undefined ? '' : String(v);
+        return s.includes(',') || s.includes('"') || s.includes('\n')
+            ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const conteudo = BOM +
+        cabecalhos.map(escapar).join(',') + '\n' +
+        linhas.map(row => row.map(escapar).join(',')).join('\n');
+    const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = nomeArquivo; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-async function exportarExcelNfse() {
-    const di = document.getElementById('nfse-di').value || primeiroDia();
-    const df = document.getElementById('nfse-df').value || ultimoDia();
-    const r = await fetch('/api/nfse/export/excel', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data_inicio: di, data_fim: df })
-    });
-    if (r.ok) {
-        const blob = await r.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url;
-        a.download = `nfse_${di}_${df}.xlsx`; a.click();
-    } else {
-        alert('Erro ao exportar NFS-e');
-    }
+
+// ── Exportações ─────────────────────────────────────────────
+function exportarExcel(tipo) {
+    const c = _cache[tipo];
+    if (!c || !c.lista.length) { alert('Carregue os dados primeiro antes de exportar.'); return; }
+    const cab = ['Data Vencimento','Descrição','Categoria','Pessoa','Valor (R$)','Data Pagamento','Status'];
+    const lin = c.lista.map(l => [
+        l.data_vencimento || '',
+        l.descricao || '',
+        l.categoria || l.subcategoria || '',
+        l.pessoa || '',
+        l.valor || 0,
+        l.data_pagamento || '',
+        l.status || ''
+    ]);
+    const label = tipo === 'pagar' ? 'Contas_a_Pagar' : 'Contas_a_Receber';
+    baixarCSV(`${label}_${c.di}_${c.df}.csv`, cab, lin);
 }
+
+function exportarExcelNfse() {
+    const c = _cache['nfse'];
+    if (!c || !c.lista.length) { alert('Carregue os dados primeiro antes de exportar.'); return; }
+    const cab = ['Número','Data Emissão','CNPJ Prestador','Tomador','Discriminação','Valor (R$)'];
+    const lin = c.lista.map(n => [
+        n.numero_nfse || n.numero || '',
+        n.data_emissao || n.data_competencia || '',
+        n.cnpj_prestador || '',
+        n.razao_social_tomador || n.tomador_razao_social || '',
+        n.discriminacao || n.descricao_servico || '',
+        n.valor_servico || n.valor_servicos || n.valor_total || 0
+    ]);
+    baixarCSV(`NFS-e_${c.di}_${c.df}.csv`, cab, lin);
+}
+
 async function exportarDREPDF() {
     const di = document.getElementById('dre-di').value;
     const df = document.getElementById('dre-df').value;
     if (!di || !df) { alert('Informe o período.'); return; }
-    const r = await fetch('/api/relatorios/dre/pdf', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data_inicio: di, data_fim: df })
-    });
-    if (r.ok) {
-        const blob = await r.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url;
-        a.download = `DRE_${di}_${df}.pdf`; a.click();
-    } else { alert('Erro ao exportar PDF'); }
+    try {
+        const r = await fetch('/api/relatorios/dre/pdf', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data_inicio: di, data_fim: df })
+        });
+        if (r.ok) {
+            const blob = await r.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url;
+            a.download = `DRE_${di}_${df}.pdf`; a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } else { exportarDRECSV(); }
+    } catch(e) { exportarDRECSV(); }
 }
+
 async function exportarDREExcel() {
     const di = document.getElementById('dre-di').value;
     const df = document.getElementById('dre-df').value;
     if (!di || !df) { alert('Informe o período.'); return; }
-    const r = await fetch('/api/relatorios/dre/excel', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data_inicio: di, data_fim: df })
+    try {
+        const r = await fetch('/api/relatorios/dre/excel', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data_inicio: di, data_fim: df })
+        });
+        if (r.ok) {
+            const blob = await r.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url;
+            a.download = `DRE_${di}_${df}.xlsx`; a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } else { exportarDRECSV(); }
+    } catch(e) { exportarDRECSV(); }
+}
+
+function exportarDRECSV() {
+    // Fallback: exporta o que está na tabela DRE
+    const tbody = document.querySelector('#mod-dre table tbody');
+    if (!tbody) { alert('Gere o DRE primeiro.'); return; }
+    const di = document.getElementById('dre-di').value;
+    const df = document.getElementById('dre-df').value;
+    const cab = ['Conta','Valor (R$)','AV%'];
+    const lin = [];
+    tbody.querySelectorAll('tr').forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length >= 2) lin.push([...tds].map(td => td.innerText.trim()));
     });
-    if (r.ok) {
-        const blob = await r.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url;
-        a.download = `DRE_${di}_${df}.xlsx`; a.click();
-    } else { alert('Erro ao exportar Excel'); }
+    if (!lin.length) { alert('Nenhum dado para exportar.'); return; }
+    baixarCSV(`DRE_${di}_${df}.csv`, cab, lin);
 }
 
 // ═══════════════════════════════════════════════════════════
