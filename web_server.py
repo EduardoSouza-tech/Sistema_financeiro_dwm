@@ -19853,6 +19853,7 @@ def listar_notas_fiscais():
                 logger.warning(f"Aviso NFS-e em listar_notas_fiscais: {e_nfse}")
 
         # ── NF-e / CT-e: busca em notas_fiscais E documentos_fiscais_log ────
+        _debug_info = {'empresa_id': empresa_id, 'tipo': tipo, 'data_inicio': data_inicio, 'data_fim': data_fim}
         if tipo in ('NFE', 'CTE', ''):
             from datetime import datetime as _dt, date as _date
             from decimal import Decimal
@@ -19886,6 +19887,7 @@ def listar_notas_fiscais():
                     fetch_all=True,
                     allow_global=True
                 ) or []
+                _debug_info['notas_fiscais_count'] = len(rows_nf)
                 for r in rows_nf:
                     row = dict(r)
                     for k, v in row.items():
@@ -19898,6 +19900,7 @@ def listar_notas_fiscais():
                         seen_chaves.add(chave)
                     notas.append(row)
             except Exception as e_nf:
+                _debug_info['notas_fiscais_error'] = str(e_nf)
                 logger.warning(f"Aviso notas_fiscais em listar_notas_fiscais: {e_nf}")
 
             # 2) documentos_fiscais_log (NF-e baixadas via NSU/SEFAZ)
@@ -19936,10 +19939,13 @@ def listar_notas_fiscais():
                     params_dfl.append(data_fim)
                 sql_dfl += " ORDER BY COALESCE(data_emissao, data_busca) DESC, numero_documento DESC LIMIT %s"
                 params_dfl.append(limit)
+                _debug_info['dfl_sql'] = sql_dfl.strip()
+                _debug_info['dfl_params'] = [str(p) for p in params_dfl]
                 with _gdb(empresa_id=empresa_id) as conn_dfl:
                     cur_dfl = conn_dfl.cursor(cursor_factory=_pg_extras.RealDictCursor)
                     cur_dfl.execute(sql_dfl, tuple(params_dfl))
                     rows_dfl = cur_dfl.fetchall() or []
+                _debug_info['dfl_count'] = len(rows_dfl)
                 for r in rows_dfl:
                     row = dict(r)
                     chave = row.get('chave_acesso') or ''
@@ -19952,12 +19958,16 @@ def listar_notas_fiscais():
                             row[k] = float(v)
                     notas.append(row)
             except Exception as e_dfl:
+                _debug_info['dfl_error'] = str(e_dfl)
+                import traceback as _tb
+                _debug_info['dfl_traceback'] = _tb.format_exc()
                 logger.error(f"Erro documentos_fiscais_log em listar_notas_fiscais: {e_dfl}", exc_info=True)
 
         return jsonify({
             'success': True,
             'notas': notas,
-            'quantidade': len(notas)
+            'quantidade': len(notas),
+            '_debug': _debug_info
         })
 
     except Exception as e:
