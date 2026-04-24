@@ -64,6 +64,44 @@
         .sidebar-user .name { font-weight: 600; margin-bottom: 2px; }
         .sidebar-user .role { font-size: 11px; color: var(--white60); }
 
+        /* ── Seletor de empresa ─── */
+        .empresa-selector {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--glass-bdr);
+        }
+        .empresa-selector label {
+            font-size: 10px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--white60);
+            display: block; margin-bottom: 6px;
+        }
+        .empresa-selector select {
+            width: 100%;
+            background: var(--white08);
+            border: 1px solid var(--glass-bdr);
+            border-radius: 8px;
+            color: white;
+            padding: 8px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: border-color .2s;
+        }
+        .empresa-selector select:focus { outline: none; border-color: rgba(255,255,255,0.5); }
+        .empresa-selector select option { background: #4a4e9e; color: white; }
+        .empresa-tag {
+            display: inline-block; margin-top: 6px;
+            font-size: 11px; color: var(--white60);
+        }
+        #empresaBadge {
+            display: none;
+            background: rgba(246,216,96,0.15);
+            border: 1px solid rgba(246,216,96,0.3);
+            color: #f6d860;
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 11px; font-weight: 600;
+            margin-top: 6px;
+        }
+
         .sidebar-nav { padding: 12px 0; flex: 1; }
         .nav-section-label {
             font-size: 10px; font-weight: 700; text-transform: uppercase;
@@ -339,6 +377,15 @@
         <div class="name" id="sidebarNome">—</div>
         <div class="role">Contador / Visualização</div>
     </div>
+
+    <div class="empresa-selector" id="empresaSelectorWrap" style="display:none">
+        <label>🏢 Empresa</label>
+        <select id="selectEmpresa" onchange="trocarEmpresa(this.value)">
+            <option value="">— selecione —</option>
+        </select>
+        <div id="empresaBadge"></div>
+    </div>
+
     <nav class="sidebar-nav">
         <div class="nav-section-label">Financeiro</div>
         <div class="nav-item active" onclick="abrirModulo('pagar', this)">
@@ -640,16 +687,69 @@ function abrirModulo(id, el) {
 // ═══════════════════════════════════════════════════════════
 // Autenticação
 // ═══════════════════════════════════════════════════════════
+// ─── Helpers empresa ───────────────────────────────────────
+function preencherEmpresas(empresas, empresaAtual) {
+    const sel = document.getElementById('selectEmpresa');
+    const wrap = document.getElementById('empresaSelectorWrap');
+    if (!empresas || !empresas.length) { wrap.style.display = 'none'; return; }
+    sel.innerHTML = empresas.map(e =>
+        `<option value="${e.id}" ${(empresaAtual && e.id === empresaAtual.id) ? 'selected' : ''}>${e.razao_social || 'Empresa ' + e.id}</option>`
+    ).join('');
+    wrap.style.display = 'block';
+    atualizarBadgeEmpresa(empresaAtual || empresas[0]);
+    // Garantir que a sessão do servidor também está com a empresa selecionada
+    const empId = sel.value;
+    if (empId) window._contadorEmpresaId = parseInt(empId);
+}
+
+function atualizarBadgeEmpresa(emp) {
+    const badge = document.getElementById('empresaBadge');
+    if (!emp) { badge.style.display = 'none'; return; }
+    badge.textContent = emp.razao_social || '';
+    badge.style.display = 'inline-block';
+    // Atualiza topbar
+    const topDesc = document.getElementById('topoDesc');
+    if (topDesc) topDesc.textContent += ` · ${emp.razao_social || ''}`;
+}
+
+async function trocarEmpresa(empresaId) {
+    if (!empresaId) return;
+    try {
+        const r = await fetch('/api/auth/switch-empresa', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ empresa_id: parseInt(empresaId) })
+        });
+        const d = await r.json();
+        if (d.success) {
+            window._contadorEmpresaId = parseInt(empresaId);
+            const emp = d.empresa || { razao_social: document.getElementById('selectEmpresa').options[document.getElementById('selectEmpresa').selectedIndex]?.text };
+            const badge = document.getElementById('empresaBadge');
+            badge.textContent = emp.razao_social || '';
+            badge.style.display = 'inline-block';
+            // Recarregar módulo ativo
+            const navAtivo = document.querySelector('.nav-item.active');
+            if (navAtivo) navAtivo.click();
+        } else {
+            alert('Erro ao trocar empresa: ' + (d.error || 'Erro desconhecido'));
+        }
+    } catch(e) {
+        alert('Erro de conexão ao trocar empresa.');
+    }
+}
+
+// ─── Auth ───────────────────────────────────────────────────
 async function verificarAuth() {
     try {
         const r = await fetch('/api/auth/verify', { credentials: 'include' });
         const d = await r.json();
         if (d.success && d.authenticated && d.usuario) {
             document.getElementById('sidebarNome').textContent = d.usuario.nome_completo || d.usuario.username || '—';
+            preencherEmpresas(d.empresas_disponiveis, d.empresa_atual);
             document.getElementById('authOverlay').style.display = 'none';
-            carregarLancamentos('pagar'); // carregar módulo inicial
+            carregarLancamentos('pagar');
         }
-        // se não autenticado, o overlay permanece visível
     } catch(e) {
         // overlay permanece
     }
@@ -671,6 +771,7 @@ async function fazerLogin() {
         const d = await r.json();
         if (d.success) {
             document.getElementById('sidebarNome').textContent = d.usuario?.nome_completo || d.usuario?.username || user;
+            preencherEmpresas(d.empresas_disponiveis, d.empresa_atual);
             document.getElementById('authOverlay').style.display = 'none';
             carregarLancamentos('pagar');
         } else {
