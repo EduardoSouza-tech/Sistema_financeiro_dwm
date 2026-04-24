@@ -19765,35 +19765,106 @@ def listar_notas_fiscais():
     Lista notas fiscais da empresa
     
     Body: {
-        "tipo": "NFE" ou "NFSE" (opcional),
+        "tipo": "NFE" | "NFSE" | "CTE" (opcional),
         "data_inicio": "2026-01-01" (opcional),
         "data_fim": "2026-01-31" (opcional),
-        "limit": 100 (opcional)
+        "limit": 500 (opcional)
     }
     """
     try:
         usuario = get_usuario_logado()
         empresa_id = session.get('empresa_id')
         if not empresa_id:
-            return jsonify({'success': False, 'error': 'Empresa n�o identificada'}), 403
-        
-        data = request.get_json()
-        tipo = data.get('tipo')
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+
+        data = request.get_json() or {}
+        tipo = (data.get('tipo') or '').upper()
         data_inicio = data.get('data_inicio')
-        data_fim = data.get('data_fim')
-        limit = data.get('limit', 100)
-        
-        from nfe_import_functions import listar_notas_fiscais
-        notas = listar_notas_fiscais(empresa_id, tipo, data_inicio, data_fim, limit)
-        
+        data_fim    = data.get('data_fim')
+        limit       = int(data.get('limit', 500))
+
+        notas = []
+
+        # ── NFS-e: busca em nfse_baixadas ────────────────────────────────────
+        if tipo in ('NFSE', ''):
+            try:
+                from nfse_functions import consultar_nfse_periodo
+                from database_postgresql import get_nfse_db_params
+                from datetime import datetime as _dt, date as _date
+
+                di = _dt.strptime(data_inicio, '%Y-%m-%d').date() if data_inicio else _date(2020, 1, 1)
+                df = _dt.strptime(data_fim, '%Y-%m-%d').date()    if data_fim    else _date.today()
+
+                db_params = get_nfse_db_params()
+                nfses = consultar_nfse_periodo(
+                    db_params=db_params,
+                    empresa_id=empresa_id,
+                    data_inicial=di,
+                    data_final=df,
+                    limit=limit
+                )
+                # Serializar datas/decimais
+                from decimal import Decimal
+                for n in nfses:
+                    for k, v in n.items():
+                        if isinstance(v, (_dt, _date)):
+                            n[k] = v.isoformat()
+                        elif isinstance(v, Decimal):
+                            n[k] = float(v)
+                    n['_tipo'] = 'NFSE'
+                notas.extend(nfses)
+            except Exception as e_nfse:
+                logger.warning(f"Aviso NFS-e em listar_notas_fiscais: {e_nfse}")
+
+        # ── NF-e / CT-e: busca em notas_fiscais (se a tabela existir) ────────
+        if tipo in ('NFE', 'CTE', ''):
+            try:
+                from database_postgresql import execute_query
+                filtros = ["empresa_id = %s"]
+                params  = [empresa_id]
+                if tipo in ('NFE', 'CTE'):
+                    filtros.append("tipo = %s")
+                    params.append(tipo)
+                if data_inicio:
+                    filtros.append("data_emissao >= %s")
+                    params.append(data_inicio)
+                if data_fim:
+                    filtros.append("data_emissao <= %s")
+                    params.append(data_fim)
+                where = " AND ".join(filtros)
+                rows = execute_query(
+                    f"""SELECT id, tipo, numero, serie, chave_acesso,
+                               data_emissao, direcao, valor_total,
+                               participante_nome, situacao
+                          FROM notas_fiscais
+                         WHERE {where}
+                         ORDER BY data_emissao DESC, numero DESC
+                         LIMIT %s""",
+                    tuple(params + [limit]),
+                    fetch_all=True,
+                    allow_global=True
+                ) or []
+                from datetime import datetime as _dt, date as _date
+                from decimal import Decimal
+                for r in rows:
+                    row = dict(r)
+                    for k, v in row.items():
+                        if isinstance(v, (_dt, _date)):
+                            row[k] = v.isoformat()
+                        elif isinstance(v, Decimal):
+                            row[k] = float(v)
+                    notas.append(row)
+            except Exception as e_nfe:
+                logger.warning(f"Aviso NF-e em listar_notas_fiscais: {e_nfe}")
+
         return jsonify({
             'success': True,
             'notas': notas,
             'quantidade': len(notas)
         })
-        
+
     except Exception as e:
-        logger.error(f"Erro ao listar notas fiscais: {e}")
+        logger.error(f"Erro ao listar notas fiscais: {e}", exc_info=True)
         return jsonify({
             'success': False,
             'error': f'Erro no servidor: {str(e)}'

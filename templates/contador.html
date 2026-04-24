@@ -928,7 +928,7 @@ async function carregarNotas(tipo) {
 
         if (tipo === 'NFSE') {
             let totalVal = 0;
-            lista.forEach(n => totalVal += parseFloat(n.valor_servicos || n.valor_total || 0));
+            lista.forEach(n => totalVal += parseFloat(n.valor_servico || n.valor_servicos || n.valor_total || 0));
             cardsRow('nfse', [
                 { label: 'Notas', val: lista.length },
                 { label: 'Total Serviços', val: fmt(totalVal), cor: 'verde' }
@@ -942,12 +942,12 @@ async function carregarNotas(tipo) {
             setTbody('nfse', lista.map(n => {
                 const badge = '<span class="badge badge-nfse">NFS-e</span>';
                 return `<tr>
-                    <td>${n.numero || n.numero_nf || '—'}</td>
-                    <td>${fmtDate(n.data_emissao)}</td>
-                    <td>${n.prestador_razao_social || n.prestador || '—'}</td>
-                    <td>${n.tomador_razao_social || n.tomador || '—'}</td>
-                    <td>${n.discriminacao_servicos || n.servico || '—'}</td>
-                    <td style="font-weight:700">${fmt(n.valor_servicos || n.valor_total)}</td>
+                    <td>${n.numero_nfse || n.numero || '—'}</td>
+                    <td>${fmtDate(n.data_emissao || n.data_competencia)}</td>
+                    <td>${n.cnpj_prestador || '—'}</td>
+                    <td>${n.razao_social_tomador || n.tomador_razao_social || '—'}</td>
+                    <td>${n.discriminacao || n.descricao_servico || n.discriminacao_servicos || '—'}</td>
+                    <td style="font-weight:700">${fmt(n.valor_servico || n.valor_servicos || n.valor_total)}</td>
                     <td>${badge}</td>
                 </tr>`;
             }).join(''));
