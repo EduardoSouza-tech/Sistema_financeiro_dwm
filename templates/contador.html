@@ -791,59 +791,59 @@ async function fazerLogout() {
 // Lançamentos (Pagar / Receber)
 // ═══════════════════════════════════════════════════════════
 async function carregarLancamentos(tipo) {
-    const id   = tipo; // 'pagar' or 'receber'
-    const di   = document.getElementById(id + '-di').value   || primeiroDia();
-    const df   = document.getElementById(id + '-df').value   || ultimoDia();
-    const st   = document.getElementById(id + '-status')?.value || '';
-    const tipoApi = tipo === 'pagar' ? 'pagar' : 'receber';
+    const id      = tipo; // 'pagar' or 'receber'
+    const di      = document.getElementById(id + '-di').value  || primeiroDia();
+    const df      = document.getElementById(id + '-df').value  || ultimoDia();
+    const st      = document.getElementById(id + '-status')?.value || '';
+    // A API filtra por tipo 'despesa' (pagar) ou 'receita' (receber)
+    const tipoApi = tipo === 'pagar' ? 'despesa' : 'receita';
 
     loading(id, true);
     setTbody(id, '');
     try {
-        const params = new URLSearchParams({ tipo: tipoApi, data_inicio: di, data_fim: df });
+        const params = new URLSearchParams({ tipo: tipoApi, data_inicio: di, data_fim: df, per_page: 500 });
         if (st) params.append('status', st);
         const r = await fetch(`/api/lancamentos?${params}`, { credentials: 'include' });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
+        if (!r.ok) throw new Error('HTTP ' + r.status + ' — ' + (await r.text()).substring(0,120));
         const d = await r.json();
-        const lista = d.data || d.lancamentos || [];
+        if (!d.success && d.error) throw new Error(d.error);
+        const lista = Array.isArray(d.data) ? d.data : (Array.isArray(d.lancamentos) ? d.lancamentos : []);
 
         let total = 0, qtdPend = 0, qtdPago = 0;
-        const itensFiltrados = Array.isArray(lista) ? lista : [];
-        itensFiltrados.forEach(l => {
+        lista.forEach(l => {
             total += parseFloat(l.valor || 0);
-            if ((l.status||'').toLowerCase().includes('pend') || (l.status||'').toLowerCase().includes('aber')) qtdPend++;
+            const s = (l.status || '').toLowerCase();
+            if (s.includes('pend') || s.includes('aber') || s.includes('aberto')) qtdPend++;
             else qtdPago++;
         });
 
         cardsRow(id, [
-            { label: 'Total', val: fmt(total), cor: tipo==='pagar' ? 'vermelho' : 'verde' },
-            { label: 'Lançamentos', val: itensFiltrados.length, cor: '' },
-            { label: tipo==='pagar' ? 'A Pagar' : 'A Receber', val: qtdPend, cor: 'amarelo' },
-            { label: tipo==='pagar' ? 'Pagos' : 'Recebidos', val: qtdPago, cor: 'verde' }
+            { label: 'Total', val: fmt(total), cor: tipo === 'pagar' ? 'vermelho' : 'verde' },
+            { label: 'Lançamentos', val: lista.length },
+            { label: tipo === 'pagar' ? 'A Pagar' : 'A Receber', val: qtdPend, cor: 'amarelo' },
+            { label: tipo === 'pagar' ? 'Pagos' : 'Recebidos', val: qtdPago, cor: 'verde' }
         ]);
 
-        if (!itensFiltrados.length) {
-            setTbody(id, `<tr><td class="empty" colspan="7">Nenhum lançamento encontrado</td></tr>`);
+        if (!lista.length) {
+            setTbody(id, `<tr><td class="empty" colspan="7">Nenhum lançamento encontrado no período</td></tr>`);
         } else {
-            const colPessoa = tipo === 'pagar' ? 'fornecedor_nome' : 'cliente_nome';
-            setTbody(id, itensFiltrados.map(l => {
-                const st = (l.status||'').toLowerCase();
-                const badgeCls = st.includes('pag') || st.includes('receb') || st.includes('liquid') ? 'badge-pago'
-                               : st.includes('venc') ? 'badge-vencido' : 'badge-pendente';
-                const stLabel  = l.status || '—';
+            setTbody(id, lista.map(l => {
+                const s = (l.status || '').toLowerCase();
+                const badgeCls = s.includes('pag') || s.includes('receb') || s.includes('liquid') ? 'badge-pago'
+                               : s.includes('venc') ? 'badge-vencido' : 'badge-pendente';
                 return `<tr>
-                    <td>${fmtDate(l.data_lancamento || l.data)}</td>
+                    <td>${fmtDate(l.data_vencimento || l.data_pagamento)}</td>
                     <td>${l.descricao || '—'}</td>
                     <td>${l.categoria || l.subcategoria || '—'}</td>
-                    <td>${l[colPessoa] || l.pessoa || '—'}</td>
+                    <td>${l.pessoa || '—'}</td>
                     <td style="font-weight:700">${fmt(l.valor)}</td>
-                    <td>${fmtDate(l.data_vencimento)}</td>
-                    <td><span class="badge ${badgeCls}">${stLabel}</span></td>
+                    <td>${fmtDate(l.data_pagamento) || '—'}</td>
+                    <td><span class="badge ${badgeCls}">${l.status || '—'}</span></td>
                 </tr>`;
             }).join(''));
         }
     } catch(e) {
-        setTbody(id, `<tr><td class="empty" colspan="7" style="color:#ff8a80;">Erro ao carregar dados: ${e.message}</td></tr>`);
+        setTbody(id, `<tr><td class="empty" colspan="7" style="color:#ff8a80;">Erro: ${e.message}</td></tr>`);
     } finally {
         loading(id, false);
     }
