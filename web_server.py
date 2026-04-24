@@ -16650,6 +16650,42 @@ def gerar_pdf_nfse_route(nfse_id):
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@app.route('/api/nfse/<int:nfse_id>/xml', methods=['GET'])
+@require_auth
+def baixar_xml_nfse(nfse_id):
+    """Download do XML individual de uma NFS-e (portal do contador)"""
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(
+                "SELECT numero_nfse, xml_content FROM nfse_baixadas WHERE id = %s AND empresa_id = %s",
+                (nfse_id, empresa_id)
+            )
+            row = cur.fetchone()
+            cur.close()
+
+        if not row:
+            return jsonify({'success': False, 'error': 'NFS-e não encontrada'}), 404
+        if not row['xml_content']:
+            return jsonify({'success': False, 'error': 'XML não disponível para esta NFS-e'}), 404
+
+        from flask import Response
+        numero = row['numero_nfse'] or nfse_id
+        return Response(
+            row['xml_content'],
+            mimetype='application/xml',
+            headers={'Content-Disposition': f'attachment; filename="NFS-e-{numero}.xml"'}
+        )
+    except Exception as e:
+        logger.error(f"Erro ao baixar XML NFS-e {nfse_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ============================================================================
 # ROTAS CONTABILIDADE - PLANO DE CONTAS
 # ============================================================================
@@ -19955,6 +19991,42 @@ def calcular_totais_notas():
             'success': False,
             'error': f'Erro no servidor: {str(e)}'
         }), 500
+
+
+@app.route('/api/notas-fiscais/<int:nota_id>/xml', methods=['GET'])
+@require_auth
+def baixar_xml_nota_fiscal(nota_id):
+    """Download do XML individual de uma NF-e ou CT-e (portal do contador)"""
+    try:
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não identificada'}), 403
+
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(
+                "SELECT numero, tipo, xml_content FROM notas_fiscais WHERE id = %s AND empresa_id = %s",
+                (nota_id, empresa_id)
+            )
+            row = cur.fetchone()
+            cur.close()
+
+        if not row:
+            return jsonify({'success': False, 'error': 'Nota fiscal não encontrada'}), 404
+        if not row['xml_content']:
+            return jsonify({'success': False, 'error': 'XML não disponível para esta nota'}), 404
+
+        from flask import Response
+        tipo_str = (row['tipo'] or 'NF').upper()
+        numero = row['numero'] or nota_id
+        return Response(
+            row['xml_content'],
+            mimetype='application/xml',
+            headers={'Content-Disposition': f'attachment; filename="{tipo_str}-{numero}.xml"'}
+        )
+    except Exception as e:
+        logger.error(f"Erro ao baixar XML nota fiscal {nota_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ===== CR�DITOS TRIBUT�RIOS =====

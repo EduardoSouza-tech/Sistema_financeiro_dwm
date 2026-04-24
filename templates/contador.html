@@ -220,6 +220,21 @@
         }
         .btn-export:hover { background: rgba(39,174,96,0.35); }
 
+        /* ── Botões de ação por linha ─────────────────────── */
+        .acoes-cell { white-space: nowrap; }
+        .btn-acao {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #c9d1d9;
+            padding: 3px 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            margin: 0 2px;
+            transition: background .15s;
+        }
+        .btn-acao:hover { background: rgba(255,255,255,0.14); }
+
         /* ── Cards de resumo ──────────────────────────────── */
         .cards-row {
             display: flex; gap: 16px; flex-wrap: wrap;
@@ -543,8 +558,8 @@
                 <div id="loading-nfse" class="spinner-wrap" style="display:none;"><div class="spinner"></div><p>Carregando...</p></div>
                 <table><thead><tr>
                     <th>Número</th><th>Data Emissão</th><th>Prestador</th>
-                    <th>Tomador</th><th>Serviço</th><th>Valor</th><th>Situação</th>
-                </tr></thead><tbody id="tbody-nfse"><tr><td class="empty" colspan="7">Selecione um período e clique em Filtrar</td></tr></tbody></table>
+                    <th>Tomador</th><th>Serviço</th><th>Valor</th><th>Situação</th><th>Ações</th>
+                </tr></thead><tbody id="tbody-nfse"><tr><td class="empty" colspan="8">Selecione um período e clique em Filtrar</td></tr></tbody></table>
             </div>
         </div>
 
@@ -565,8 +580,8 @@
                 <div id="loading-nfe" class="spinner-wrap" style="display:none;"><div class="spinner"></div><p>Carregando...</p></div>
                 <table><thead><tr>
                     <th>Chave / Número</th><th>Data Emissão</th><th>Emitente</th>
-                    <th>Destinatário</th><th>Valor Total</th><th>Tipo</th><th>Status</th>
-                </tr></thead><tbody id="tbody-nfe"><tr><td class="empty" colspan="7">Selecione um período e clique em Filtrar</td></tr></tbody></table>
+                    <th>Destinatário</th><th>Valor Total</th><th>Tipo</th><th>Status</th><th>Ações</th>
+                </tr></thead><tbody id="tbody-nfe"><tr><td class="empty" colspan="8">Selecione um período e clique em Filtrar</td></tr></tbody></table>
             </div>
         </div>
 
@@ -587,8 +602,8 @@
                 <div id="loading-cte" class="spinner-wrap" style="display:none;"><div class="spinner"></div><p>Carregando...</p></div>
                 <table><thead><tr>
                     <th>Chave / Número</th><th>Data Emissão</th><th>Emitente</th>
-                    <th>Remetente</th><th>Destinatário</th><th>Valor</th><th>Status</th>
-                </tr></thead><tbody id="tbody-cte"><tr><td class="empty" colspan="7">Selecione um período e clique em Filtrar</td></tr></tbody></table>
+                    <th>Remetente</th><th>Destinatário</th><th>Valor</th><th>Status</th><th>Ações</th>
+                </tr></thead><tbody id="tbody-cte"><tr><td class="empty" colspan="8">Selecione um período e clique em Filtrar</td></tr></tbody></table>
             </div>
         </div>
 
@@ -939,8 +954,7 @@ async function carregarNotas(tipo) {
         }
 
         if (!lista.length) {
-            const cols = tipo === 'NFSE' ? 7 : tipo === 'CTE' ? 7 : 7;
-            setTbody(prefId, `<tr><td class="empty" colspan="${cols}">Nenhuma nota encontrada</td></tr>`);
+            setTbody(prefId, `<tr><td class="empty" colspan="8">Nenhuma nota encontrada</td></tr>`);
         } else if (tipo === 'NFSE') {
             setTbody('nfse', lista.map(n => {
                 const badge = '<span class="badge badge-nfse">NFS-e</span>';
@@ -952,6 +966,7 @@ async function carregarNotas(tipo) {
                     <td>${n.discriminacao || n.descricao_servico || n.discriminacao_servicos || '—'}</td>
                     <td style="font-weight:700">${fmt(n.valor_servico || n.valor_servicos || n.valor_total)}</td>
                     <td>${badge}</td>
+                    <td class="acoes-cell">${n.id ? `<button class="btn-acao" onclick="baixarPdfNfse(${n.id},'${n.numero_nfse||n.numero||n.id}')" title="PDF">📄</button><button class="btn-acao" onclick="baixarXmlNfse(${n.id},'${n.numero_nfse||n.numero||n.id}')" title="XML">📎</button>` : '—'}</td>
                 </tr>`;
             }).join(''));
         } else if (tipo === 'NFE') {
@@ -965,6 +980,7 @@ async function carregarNotas(tipo) {
                     <td style="font-weight:700">${fmt(n.valor_total)}</td>
                     <td>${badge}</td>
                     <td>${n.situacao || '—'}</td>
+                    <td class="acoes-cell">${n.id ? `<button class="btn-acao" onclick="baixarXmlNfe(${n.id},'${n.numero||n.id}')" title="XML">📎</button>` : '—'}</td>
                 </tr>`;
             }).join(''));
         } else {
@@ -979,6 +995,7 @@ async function carregarNotas(tipo) {
                     <td>${n.destinatario_razao_social || n.destinatario || '—'}</td>
                     <td style="font-weight:700">${fmt(n.valor_total)}</td>
                     <td>${badge}</td>
+                    <td class="acoes-cell">${n.id ? `<button class="btn-acao" onclick="baixarXmlNfe(${n.id},'${n.numero||n.id}')" title="XML">📎</button>` : '—'}</td>
                 </tr>`;
             }).join(''));
         }
@@ -1085,6 +1102,27 @@ async function carregarDRE() {
 // ═══════════════════════════════════════════════════════════
 // ── Cache de dados carregados ───────────────────────────────
 const _cache = {};
+
+// ═══════════════════════════════════════════════════════════
+// Ações por linha — PDF e XML de documentos fiscais
+// ═══════════════════════════════════════════════════════════
+function baixarPdfNfse(id, numero) {
+    window.open(`/api/nfse/${id}/pdf`, '_blank');
+}
+
+function baixarXmlNfse(id, numero) {
+    const a = document.createElement('a');
+    a.href = `/api/nfse/${id}/xml`;
+    a.download = `NFS-e-${numero}.xml`;
+    a.click();
+}
+
+function baixarXmlNfe(id, numero) {
+    const a = document.createElement('a');
+    a.href = `/api/notas-fiscais/${id}/xml`;
+    a.download = `NF-${numero}.xml`;
+    a.click();
+}
 
 // ── Utilitário CSV client-side ──────────────────────────────
 function baixarCSV(nomeArquivo, cabecalhos, linhas) {
