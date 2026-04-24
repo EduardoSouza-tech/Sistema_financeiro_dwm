@@ -19902,44 +19902,44 @@ def listar_notas_fiscais():
 
             # 2) documentos_fiscais_log (NF-e baixadas via NSU/SEFAZ)
             try:
-                from database_postgresql import execute_query
-                tipo_doc_filter = ''
+                import psycopg2.extras as _pg_extras
+                from database_postgresql import get_db_connection as _gdb
+                sql_dfl = """
+                    SELECT id,
+                           UPPER(tipo_documento)                               AS tipo,
+                           numero_documento                                    AS numero,
+                           serie,
+                           chave                                               AS chave_acesso,
+                           data_emissao,
+                           NULL::TEXT                                          AS direcao,
+                           valor_total,
+                           COALESCE(nome_emitente, nome_destinatario, '')      AS participante_nome,
+                           CASE WHEN COALESCE(cancelado, FALSE) THEN 'cancelada'
+                                ELSE 'autorizada' END                         AS situacao,
+                           nome_emitente,
+                           nome_destinatario
+                      FROM documentos_fiscais_log
+                     WHERE empresa_id = %s
+                """
                 params_dfl = [empresa_id]
                 if tipo == 'NFE':
-                    tipo_doc_filter = " AND tipo_documento = 'NFe'"
+                    sql_dfl += " AND tipo_documento = 'NFe'"
                 elif tipo == 'CTE':
-                    tipo_doc_filter = " AND tipo_documento = 'CTe'"
+                    sql_dfl += " AND tipo_documento = 'CTe'"
                 else:
-                    tipo_doc_filter = " AND tipo_documento IN ('NFe', 'CTe')"
-                date_filter_dfl = ''
+                    sql_dfl += " AND tipo_documento IN ('NFe', 'CTe')"
                 if data_inicio:
-                    date_filter_dfl += " AND data_emissao >= %s"
+                    sql_dfl += " AND COALESCE(data_emissao, data_busca) >= %s"
                     params_dfl.append(data_inicio)
                 if data_fim:
-                    date_filter_dfl += " AND data_emissao <= %s"
+                    sql_dfl += " AND COALESCE(data_emissao, data_busca) <= %s::date + interval '1 day'"
                     params_dfl.append(data_fim)
-                rows_dfl = execute_query(
-                    f"""SELECT id,
-                               UPPER(tipo_documento)                   AS tipo,
-                               numero_documento                        AS numero,
-                               serie,
-                               chave                                   AS chave_acesso,
-                               data_emissao,
-                               NULL                                    AS direcao,
-                               valor_total,
-                               COALESCE(nome_emitente, nome_destinatario, '') AS participante_nome,
-                               CASE WHEN COALESCE(cancelado, FALSE) THEN 'cancelada'
-                                    ELSE 'autorizada' END              AS situacao,
-                               nome_emitente,
-                               nome_destinatario
-                          FROM documentos_fiscais_log
-                         WHERE empresa_id = %s{tipo_doc_filter}{date_filter_dfl}
-                         ORDER BY data_emissao DESC, numero_documento DESC
-                         LIMIT %s""",
-                    tuple(params_dfl + [limit]),
-                    fetch_all=True,
-                    allow_global=True
-                ) or []
+                sql_dfl += " ORDER BY COALESCE(data_emissao, data_busca) DESC, numero_documento DESC LIMIT %s"
+                params_dfl.append(limit)
+                with _gdb(empresa_id=empresa_id) as conn_dfl:
+                    cur_dfl = conn_dfl.cursor(cursor_factory=_pg_extras.RealDictCursor)
+                    cur_dfl.execute(sql_dfl, tuple(params_dfl))
+                    rows_dfl = cur_dfl.fetchall() or []
                 for r in rows_dfl:
                     row = dict(r)
                     chave = row.get('chave_acesso') or ''
@@ -19952,7 +19952,7 @@ def listar_notas_fiscais():
                             row[k] = float(v)
                     notas.append(row)
             except Exception as e_dfl:
-                logger.warning(f"Aviso documentos_fiscais_log em listar_notas_fiscais: {e_dfl}")
+                logger.error(f"Erro documentos_fiscais_log em listar_notas_fiscais: {e_dfl}", exc_info=True)
 
         return jsonify({
             'success': True,
