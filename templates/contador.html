@@ -1010,7 +1010,9 @@ async function carregarNotas(tipo) {
                     <td style="font-weight:700">${fmt(n.valor_total)}</td>
                     <td>${badge}</td>
                     <td>${n.situacao || '—'}</td>
-                    <td class="acoes-cell">${n.id ? `<button class="btn-acao" onclick="baixarXmlNfe(${n.id},'${n.numero||n.id}')" title="XML">📎</button>` : '—'}</td>
+                    <td class="acoes-cell">${n.id ? `
+                        <button class="btn-acao" onclick="baixarXmlNfe(${n.id},'${n.numero||n.id}')" title="Baixar XML">📎 XML</button>
+                        <a class="btn-acao" href="/api/relatorios/documento/${n.id}/pdf" target="_blank" title="Visualizar DANFE em PDF">📄 DANFE</a>` : '—'}</td>
                 </tr>`;
             }).join(''));
         } else {
@@ -1025,7 +1027,9 @@ async function carregarNotas(tipo) {
                     <td>${n.nome_destinatario || n.destinatario_razao_social || n.participante_nome || '—'}</td>
                     <td style="font-weight:700">${fmt(n.valor_total)}</td>
                     <td>${badge}</td>
-                    <td class="acoes-cell">${n.id ? `<button class="btn-acao" onclick="baixarXmlNfe(${n.id},'${n.numero||n.id}')" title="XML">📎</button>` : '—'}</td>
+                    <td class="acoes-cell">${n.id ? `
+                        <button class="btn-acao" onclick="baixarXmlNfe(${n.id},'${n.numero||n.id}')" title="Baixar XML">📎 XML</button>
+                        <a class="btn-acao" href="/api/relatorios/documento/${n.id}/pdf" target="_blank" title="Visualizar DACTE em PDF">📄 DACTE</a>` : '—'}</td>
                 </tr>`;
             }).join(''));
         }
