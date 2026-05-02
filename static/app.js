@@ -5555,12 +5555,16 @@ function renderKanban(sessoes) {
     // Auto-arquivamento: concluída há 15+ dias → trata como arquivada visualmente
     // E dispara silenciosamente a atualização no servidor (uma vez por sessão)
     activeSessoes.forEach(s => {
+        // ✅ Fix: sempre limpar a flag antes de recalcular (evita estado residual
+        // após mover o card para outra coluna por drag)
+        s._autoArquivada = false;
+
         if (s.status === 'concluida') {
             const refDate = s.finalizada_em || s.updated_at || null;
             if (refDate) {
                 const diff = hoje - new Date(refDate);
                 if (diff >= QUINZE_DIAS_MS) {
-                    s._autoArquivada = true; // flag só para renderização
+                    s._autoArquivada = true;
                     // Dispara update no servidor se ainda não fez
                     const lsKey = `arquivada_sent_${s.id}`;
                     if (!sessionStorage.getItem(lsKey)) {
@@ -5569,7 +5573,17 @@ function renderKanban(sessoes) {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ status: 'arquivada', force: true })
-                        }).catch(() => sessionStorage.removeItem(lsKey));
+                        })
+                        .then(r => {
+                            // ✅ Fix: HTTP 4xx/5xx também devem limpar a flag para retry
+                            if (!r.ok) sessionStorage.removeItem(lsKey);
+                            else {
+                                // Atualiza o status no cache local para evitar re-disparo
+                                const cached = (_todasSessoesCache || []).find(c => c.id === s.id);
+                                if (cached) cached.status = 'arquivada';
+                            }
+                        })
+                        .catch(() => sessionStorage.removeItem(lsKey));
                     }
                 }
             }
