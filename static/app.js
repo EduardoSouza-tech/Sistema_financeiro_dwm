@@ -5377,19 +5377,19 @@ function filtrarSessoesTabela() {
         return true;
     });
 
-    renderSessoes(filtradas);
+    renderSessoesTabela(filtradas);
 }
 
 function limparFiltrosSessoesTabela() {
     ['filtro-sessao-data','filtro-sessao-horario','filtro-sessao-cliente','filtro-sessao-contrato',
      'filtro-sessao-local','filtro-sessao-tipo','filtro-sessao-prazo','filtro-sessao-status']
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    renderSessoes(_todasSessoesCache);
+    renderSessoesTabela(_todasSessoesCache);
 }
 window.filtrarSessoesTabela = filtrarSessoesTabela;
 window.limparFiltrosSessoesTabela = limparFiltrosSessoesTabela;
 
-function renderSessoes(sessoes) {
+function renderSessoesTabela(sessoes) {
     const tbody = document.getElementById('tbody-sessoes');
     console.log('🔍 [DEBUG] tbody encontrado?', !!tbody);
     
@@ -5481,6 +5481,298 @@ function renderSessoes(sessoes) {
             `;
             tbody.appendChild(tr);
         });
+}
+
+// ─── DISPATCHER: tabela ou kanban ─────────────────────────────────────────────
+function renderSessoes(sessoes) {
+    if (_sessaoViewMode === 'kanban') {
+        renderKanban(sessoes);
+    } else {
+        renderSessoesTabela(sessoes);
+    }
+}
+
+// ─── KANBAN SESSÕES ───────────────────────────────────────────────────────────
+const KANBAN_LS_KEY = 'sessoes_kanban_cols_v1';
+const DEFAULT_KANBAN_COLS = [
+    { id: 'rascunho',    label: 'Rascunho',      cor: '#94a3b8', final: false },
+    { id: 'agendada',    label: 'Agendada',       cor: '#3b82f6', final: false },
+    { id: 'em_andamento',label: 'Em Andamento',   cor: '#f59e0b', final: false },
+    { id: 'finalizada',  label: 'Finalizada',     cor: '#10b981', final: false },
+    { id: 'concluida',   label: 'Concluída',      cor: '#059669', final: true  },
+    { id: 'reaberta',    label: 'Reaberta',       cor: '#8b5cf6', final: false },
+];
+
+let _sessaoViewMode = 'kanban';
+let _kanbanDragSessaoId = null;
+let _kanbanEditColId = null;
+let _kanbanSelectedColor = '#3b82f6';
+
+const KANBAN_COLORS = [
+    '#3b82f6','#10b981','#059669','#f59e0b','#ef4444',
+    '#8b5cf6','#ec4899','#06b6d4','#94a3b8','#1e293b'
+];
+
+function getKanbanCols() {
+    try {
+        const stored = localStorage.getItem(KANBAN_LS_KEY);
+        if (stored) return JSON.parse(stored);
+    } catch(e) {}
+    return DEFAULT_KANBAN_COLS.map((c, i) => ({ ...c, ordem: i }));
+}
+
+function saveKanbanCols(cols) {
+    localStorage.setItem(KANBAN_LS_KEY, JSON.stringify(cols));
+}
+
+function setViewSessoes(mode) {
+    _sessaoViewMode = mode;
+    const kanbanView = document.getElementById('sessoes-kanban-board');
+    const tabelaView = document.getElementById('sessoes-tabela-view');
+    const alertLegend = document.getElementById('sessoes-alert-legend');
+    const btnK = document.getElementById('btn-view-kanban');
+    const btnT = document.getElementById('btn-view-tabela');
+    if (kanbanView) kanbanView.style.display = mode === 'kanban' ? '' : 'none';
+    if (tabelaView) tabelaView.style.display = mode === 'tabela' ? '' : 'none';
+    if (alertLegend) alertLegend.style.display = mode === 'kanban' ? '' : 'none';
+    if (btnK) { btnK.classList.toggle('active', mode === 'kanban'); }
+    if (btnT) { btnT.classList.toggle('active', mode === 'tabela'); }
+    if (mode === 'kanban') renderKanban(_todasSessoesCache);
+}
+
+function renderKanban(sessoes) {
+    const board = document.getElementById('sessoes-kanban-board');
+    if (!board) return;
+    const cols = getKanbanCols();
+    const hoje = new Date();
+    // Sessões "canceladas" não aparecem no board principal
+    const activeSessoes = (sessoes || []).filter(s => s.status !== 'cancelada');
+    board.innerHTML = cols.map(col => {
+        const items = activeSessoes.filter(s => (s.status || 'rascunho') === col.id);
+        const cardsHtml = items.length === 0
+            ? '<div class="kanban-empty">Sem sessões</div>'
+            : items.map(s => renderKanbanCard(s, col, hoje)).join('');
+        return `<div class="kanban-col" data-col-id="${escapeHtml(col.id)}"
+                    ondragover="event.preventDefault();this.classList.add('kanban-col-drag-over')"
+                    ondragleave="this.classList.remove('kanban-col-drag-over')"
+                    ondrop="onKanbanDrop(event,'${escapeHtml(col.id)}')">
+                <div class="kanban-col-header" style="background:${col.cor}">
+                    <span>${escapeHtml(col.label)}</span>
+                    <span class="kanban-col-count">${items.length}</span>
+                </div>
+                <div class="kanban-col-body">${cardsHtml}</div>
+            </div>`;
+    }).join('');
+}
+
+function _fmtDataKanban(v) {
+    if (!v) return null;
+    const p = String(v).substring(0, 10).split('-');
+    return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : v;
+}
+
+function renderKanbanCard(s, col, hoje) {
+    let alertClass = '', alertDot = '🟢';
+    if (!col.final && s.prazo_entrega) {
+        const prazo = new Date(String(s.prazo_entrega).substring(0, 10) + 'T12:00:00');
+        const diff = Math.ceil((prazo - hoje) / (1000 * 60 * 60 * 24));
+        if (diff < 0)      { alertClass = 'kanban-card-atrasado'; alertDot = '🔴'; }
+        else if (diff <= 1){ alertClass = 'kanban-card-urgente';  alertDot = '🟠'; }
+        else if (diff <= 3){ alertClass = 'kanban-card-atencao';  alertDot = '🟡'; }
+    } else if (col.final) {
+        alertDot = '';
+    }
+    const tipos = [];
+    if (s.tipo_foto)   tipos.push('Foto');
+    if (s.tipo_video)  tipos.push('Vídeo');
+    if (s.tipo_mobile) tipos.push('Mobile');
+    const titulo = s.titulo || (s.cliente_nome ? `Ensaio ${s.cliente_nome}` : `Sessão #${s.id}`);
+    const dataFmt   = _fmtDataKanban(s.data);
+    const prazoFmt  = _fmtDataKanban(s.prazo_entrega);
+    const clienteHtml = s.cliente_nome ? `<div class="kanban-card-cliente">${escapeHtml(s.cliente_nome)}</div>` : '';
+    const tiposHtml   = tipos.length   ? `<div class="kanban-card-tipos">${tipos.join(', ')}</div>` : '';
+    const datasHtml   = (dataFmt || prazoFmt) ? `
+        <div class="kanban-card-datas">
+            ${dataFmt  ? `<span title="Data da sess\u00e3o">\ud83d\udcc5 ${dataFmt}</span>` : ''}
+            ${prazoFmt ? `<span title="Prazo de entrega">\ud83d\udce6 ${prazoFmt}</span>` : ''}
+        </div>` : '';
+    return `<div class="kanban-card ${alertClass}"
+                draggable="true"
+                ondragstart="onKanbanDragStart(event,${s.id})"
+                ondragend="this.classList.remove('kanban-card-dragging')"
+                onclick="editarSessao(${s.id})">
+            <div class="kanban-card-title">${escapeHtml(titulo)} ${alertDot}</div>
+            ${clienteHtml}${tiposHtml}${datasHtml}
+        </div>`;
+}
+
+function onKanbanDragStart(event, sessaoId) {
+    _kanbanDragSessaoId = sessaoId;
+    event.target.classList.add('kanban-card-dragging');
+    event.dataTransfer.effectAllowed = 'move';
+}
+
+async function onKanbanDrop(event, colId) {
+    event.preventDefault();
+    document.querySelectorAll('.kanban-col').forEach(el => el.classList.remove('kanban-col-drag-over'));
+    const sessaoId = _kanbanDragSessaoId;
+    _kanbanDragSessaoId = null;
+    if (sessaoId === null) return;
+    const sessao = _todasSessoesCache.find(s => s.id === sessaoId);
+    if (!sessao || sessao.status === colId) return;
+    sessao.status = colId;          // optimistic
+    renderKanban(_todasSessoesCache);
+    try {
+        const r = await fetch(`/api/sessoes/${sessaoId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: colId })
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    } catch(e) {
+        console.error('Erro ao mover sessão:', e);
+        await loadSessoes();
+    }
+}
+
+// ─── GERENCIAR COLUNAS ────────────────────────────────────────────────────────
+function fecharModalKanban(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+}
+
+function abrirGerenciarColunas() {
+    _renderListaColunas();
+    document.getElementById('modal-gerenciar-colunas').style.display = 'flex';
+}
+
+function _renderListaColunas() {
+    const cols = getKanbanCols();
+    const lista = document.getElementById('lista-colunas-kanban');
+    if (!lista) return;
+    lista.innerHTML = cols.map((col, i) => `
+        <div class="kanban-col-item">
+            <span class="color-swatch" style="background:${col.cor}"></span>
+            <span class="kanban-col-item-label">${escapeHtml(col.label)}</span>
+            ${col.final ? '<span class="badge-final">Final</span>' : '<span class="badge-padrao">Padrão</span>'}
+            <button onclick="_moverColuna(${i},-1)" title="Subir" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:2px 7px;cursor:pointer;font-size:13px;" ${i===0?'disabled':''}>▲</button>
+            <button onclick="_moverColuna(${i},1)"  title="Descer" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:2px 7px;cursor:pointer;font-size:13px;" ${i===cols.length-1?'disabled':''}>▼</button>
+            <button onclick="_editarColuna('${col.id}')" title="Editar" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:2px 7px;cursor:pointer;font-size:14px;">✏️</button>
+            <button onclick="_deletarColuna('${col.id}')" title="Excluir" style="background:none;border:1px solid #fee2e2;color:#ef4444;border-radius:6px;padding:2px 7px;cursor:pointer;font-size:14px;">🗑️</button>
+        </div>`).join('');
+}
+
+function _moverColuna(idx, dir) {
+    const cols = getKanbanCols();
+    const dest = idx + dir;
+    if (dest < 0 || dest >= cols.length) return;
+    [cols[idx], cols[dest]] = [cols[dest], cols[idx]];
+    saveKanbanCols(cols);
+    _renderListaColunas();
+    renderKanban(_todasSessoesCache);
+}
+
+function _deletarColuna(colId) {
+    if (!confirm('Excluir esta coluna? As sessões com este status não serão exibidas no kanban.')) return;
+    let cols = getKanbanCols().filter(c => c.id !== colId);
+    saveKanbanCols(cols);
+    _renderListaColunas();
+    renderKanban(_todasSessoesCache);
+}
+
+function _editarColuna(colId) {
+    const cols = getKanbanCols();
+    const col = cols.find(c => c.id === colId);
+    if (!col) return;
+    _kanbanEditColId = colId;
+    document.getElementById('titulo-modal-nova-coluna').childNodes[0].textContent = 'Editar Coluna ';
+    document.getElementById('btn-salvar-coluna').textContent = 'Salvar Alterações';
+    document.getElementById('input-col-nome').value = col.label;
+    document.getElementById('chk-col-final').checked = col.final;
+    document.getElementById('input-col-editid').value = colId;
+    _kanbanSelectedColor = col.cor;
+    _renderColorPicker();
+    _atualizarPreviewColuna();
+    document.getElementById('modal-nova-coluna').style.display = 'flex';
+}
+
+function abrirNovaColuna() {
+    _kanbanEditColId = null;
+    document.getElementById('titulo-modal-nova-coluna').childNodes[0].textContent = 'Nova Coluna ';
+    document.getElementById('btn-salvar-coluna').textContent = 'Criar Coluna';
+    document.getElementById('input-col-nome').value = '';
+    document.getElementById('chk-col-final').checked = false;
+    document.getElementById('input-col-editid').value = '';
+    _kanbanSelectedColor = '#3b82f6';
+    _renderColorPicker();
+    _atualizarPreviewColuna();
+    document.getElementById('modal-nova-coluna').style.display = 'flex';
+}
+
+function _renderColorPicker() {
+    const picker = document.getElementById('col-color-picker');
+    if (!picker) return;
+    picker.innerHTML = KANBAN_COLORS.map(cor => `
+        <div class="col-color-opt ${cor === _kanbanSelectedColor ? 'selected' : ''}"
+             style="background:${cor}"
+             onclick="_selecionarCor('${cor}')"></div>`).join('');
+}
+
+function _selecionarCor(cor) {
+    _kanbanSelectedColor = cor;
+    _renderColorPicker();
+    _atualizarPreviewColuna();
+}
+
+function _atualizarPreviewColuna() {
+    const nome = (document.getElementById('input-col-nome')?.value || 'Nova Coluna').trim() || 'Nova Coluna';
+    const final = document.getElementById('chk-col-final')?.checked;
+    const dot = document.getElementById('prev-col-dot');
+    const lbl = document.getElementById('prev-col-label');
+    const badge = document.getElementById('prev-col-badge');
+    if (dot)   dot.style.background = _kanbanSelectedColor;
+    if (lbl)   lbl.textContent = nome;
+    if (badge) { badge.textContent = final ? 'Final' : 'Padrão'; badge.className = final ? 'badge-final' : 'badge-padrao'; }
+}
+
+function salvarColuna() {
+    const nome = (document.getElementById('input-col-nome')?.value || '').trim();
+    if (!nome) { alert('Informe o nome da coluna.'); return; }
+    const final = document.getElementById('chk-col-final')?.checked || false;
+    let cols = getKanbanCols();
+    if (_kanbanEditColId) {
+        cols = cols.map(c => c.id === _kanbanEditColId ? { ...c, label: nome, cor: _kanbanSelectedColor, final } : c);
+    } else {
+        const newId = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+        if (!newId) { alert('Nome inválido.'); return; }
+        if (cols.find(c => c.id === newId)) { alert('Já existe uma coluna com esse nome/id.'); return; }
+        cols.push({ id: newId, label: nome, cor: _kanbanSelectedColor, final, ordem: cols.length });
+    }
+    saveKanbanCols(cols);
+    fecharModalKanban('modal-nova-coluna');
+    _renderListaColunas();
+    renderKanban(_todasSessoesCache);
+}
+
+function abrirCardsExcluidos() {
+    const canceladas = (_todasSessoesCache || []).filter(s => s.status === 'cancelada');
+    const lista = document.getElementById('lista-cards-excluidos');
+    if (!lista) return;
+    if (canceladas.length === 0) {
+        lista.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:20px;">Nenhum card excluído/cancelado.</p>';
+    } else {
+        lista.innerHTML = canceladas.map(s => {
+            const d = _fmtDataKanban(s.data) || '-';
+            return `<div style="display:flex;align-items:center;justify-content:space-between;background:#f8fafc;border-radius:10px;padding:12px 16px;border:1px solid #e2e8f0;">
+                <div>
+                    <div style="font-weight:600;font-size:13px;color:#1e293b;">${escapeHtml(s.titulo || s.cliente_nome || `Sessão #${s.id}`)}</div>
+                    <div style="font-size:12px;color:#64748b;">${escapeHtml(s.cliente_nome || '')} · 📅 ${d}</div>
+                </div>
+                <button onclick="editarSessao(${s.id})" style="background:#3b82f6;color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;">Abrir</button>
+            </div>`;
+        }).join('');
+    }
+    document.getElementById('modal-cards-excluidos').style.display = 'flex';
 }
 
 /**
@@ -6602,6 +6894,20 @@ window.loadExtratos = loadExtratos;
 window.loadKits = loadKits;
 window.loadSessoes = loadSessoes;
 // filtrarSessoesTabela e limparFiltrosSessoesTabela já expostos acima
+window.setViewSessoes = setViewSessoes;
+window.renderKanban = renderKanban;
+window.onKanbanDragStart = onKanbanDragStart;
+window.onKanbanDrop = onKanbanDrop;
+window.abrirGerenciarColunas = abrirGerenciarColunas;
+window.abrirNovaColuna = abrirNovaColuna;
+window.salvarColuna = salvarColuna;
+window.fecharModalKanban = fecharModalKanban;
+window.abrirCardsExcluidos = abrirCardsExcluidos;
+window._moverColuna = _moverColuna;
+window._editarColuna = _editarColuna;
+window._deletarColuna = _deletarColuna;
+window._selecionarCor = _selecionarCor;
+window._atualizarPreviewColuna = _atualizarPreviewColuna;
 window.loadComissoes = loadComissoes;
 
 // Funções de Exportação

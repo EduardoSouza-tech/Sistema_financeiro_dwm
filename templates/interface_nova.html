@@ -6379,72 +6379,183 @@
 
                 <!-- Tab Sessões -->
                 <div id="tab-content-sessoes" style="display: none;">
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
-                        <button class="btn btn-primary" onclick="openModalSessao()">➕ Nova Sessão</button>
-                        <button class="btn" onclick="exportarSessoesExcel()" style="background: #27ae60; color: white;">📊 Exportar Excel</button>
-                        <button class="btn" onclick="exportarSessoesPDF()" style="background: #e74c3c; color: white;">📄 Exportar PDF</button>
+                    <!-- Estilos do Kanban -->
+                    <style>
+                    #sessoes-kanban-board{display:flex;gap:16px;overflow-x:auto;padding-bottom:12px;align-items:flex-start;min-height:420px;}
+                    .kanban-col{min-width:230px;max-width:260px;flex:0 0 245px;background:#f8fafc;border-radius:12px;display:flex;flex-direction:column;border:2px solid transparent;transition:border-color .15s;}
+                    .kanban-col.kanban-col-drag-over{border-color:#3b82f6;background:#eff6ff;}
+                    .kanban-col-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:10px 10px 0 0;color:white;font-weight:600;font-size:13px;}
+                    .kanban-col-count{background:rgba(255,255,255,.3);border-radius:12px;padding:2px 9px;font-size:12px;font-weight:700;}
+                    .kanban-col-body{padding:10px 8px;display:flex;flex-direction:column;gap:8px;min-height:90px;}
+                    .kanban-empty{text-align:center;color:#cbd5e1;font-size:12px;padding:24px 0;}
+                    .kanban-card{background:white;border-radius:10px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);cursor:grab;border-left:4px solid #e2e8f0;transition:box-shadow .15s,transform .1s;user-select:none;}
+                    .kanban-card:hover{box-shadow:0 3px 10px rgba(0,0,0,.13);transform:translateY(-1px);}
+                    .kanban-card.kanban-card-dragging{opacity:.45;cursor:grabbing;}
+                    .kanban-card.kanban-card-atrasado{border-left-color:#ef4444;}
+                    .kanban-card.kanban-card-urgente{border-left-color:#f97316;}
+                    .kanban-card.kanban-card-atencao{border-left-color:#eab308;}
+                    .kanban-card-title{font-weight:600;font-size:13px;color:#1e293b;margin-bottom:3px;}
+                    .kanban-card-cliente{font-size:12px;color:#64748b;margin-bottom:3px;}
+                    .kanban-card-tipos{font-size:11px;color:#94a3b8;margin-bottom:5px;}
+                    .kanban-card-datas{display:flex;flex-direction:column;gap:2px;font-size:11px;color:#64748b;}
+                    .sessoes-view-toggle{display:flex;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;}
+                    .sessoes-view-toggle button{padding:6px 14px;border:none;background:white;cursor:pointer;font-size:12px;color:#64748b;transition:background .15s;}
+                    .sessoes-view-toggle button.active{background:#3b82f6;color:white;}
+                    #sessoes-alert-legend{display:flex;gap:16px;flex-wrap:wrap;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:14px;font-size:12px;color:#475569;align-items:center;}
+                    .kanban-modal-box{background:white;border-radius:16px;padding:28px;width:440px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.18);}
+                    .kanban-modal-box h3{margin:0 0 20px 0;font-size:17px;color:#1e293b;display:flex;align-items:center;justify-content:space-between;}
+                    .kanban-col-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;background:#f8fafc;font-size:13px;}
+                    .kanban-col-item .color-swatch{width:16px;height:16px;border-radius:4px;flex-shrink:0;}
+                    .kanban-col-item-label{flex:1;font-weight:500;color:#334155;}
+                    .badge-final{font-size:10px;background:#dcfce7;color:#16a34a;padding:2px 7px;border-radius:10px;}
+                    .badge-padrao{font-size:10px;background:#f1f5f9;color:#64748b;padding:2px 7px;border-radius:10px;}
+                    .col-color-picker{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 16px 0;}
+                    .col-color-opt{width:28px;height:28px;border-radius:6px;border:2px solid transparent;cursor:pointer;transition:transform .1s;}
+                    .col-color-opt.selected,.col-color-opt:hover{border-color:#1e293b;transform:scale(1.15);}
+                    @media(max-width:700px){#sessoes-kanban-board{gap:10px;} .kanban-col{min-width:200px;flex:0 0 200px;}}
+                    </style>
+
+                    <!-- Barra Superior -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button class="btn btn-primary" onclick="openModalSessao()">➕ Nova Sessão</button>
+                            <button class="btn" onclick="exportarSessoesExcel()" style="background:#27ae60;color:white;">📊 Exportar Excel</button>
+                            <button class="btn" onclick="exportarSessoesPDF()" style="background:#e74c3c;color:white;">📄 Exportar PDF</button>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                            <button class="btn" onclick="abrirGerenciarColunas()" style="background:#6366f1;color:white;font-size:12px;padding:7px 13px;">⊞ Gerenciar Colunas</button>
+                            <button class="btn" onclick="abrirCardsExcluidos()" style="background:#64748b;color:white;font-size:12px;padding:7px 13px;">🗑️ Cards Excluídos</button>
+                            <div class="sessoes-view-toggle">
+                                <button id="btn-view-kanban" class="active" onclick="setViewSessoes('kanban')">⊞ Kanban</button>
+                                <button id="btn-view-tabela" onclick="setViewSessoes('tabela')">☰ Tabela</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="table-scroll-container">
-                        <table id="table-sessoes" style="table-layout:fixed;width:100%;">
-                            <colgroup>
-                                <col style="width:100px;">
-                                <col style="width:130px;">
-                                <col style="width:auto;">
-                                <col style="width:140px;">
-                                <col style="width:160px;">
-                                <col style="width:110px;">
-                                <col style="width:110px;">
-                                <col style="width:160px;">
-                                <col style="width:90px;">
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th>Data</th>
-                                    <th>Horário</th>
-                                    <th>Cliente</th>
-                                    <th>Contrato</th>
-                                    <th>Local</th>
-                                    <th>Tipo Captação</th>
-                                    <th>Prazo Entrega</th>
-                                    <th>Status</th>
-                                    <th>Ações</th>
-                                </tr>
-                                <tr id="sessoes-filtros-row" style="background:#f1f5f9;">
-                                    <th style="padding:4px 6px;"><input type="date" id="filtro-sessao-data" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
-                                    <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-horario" placeholder="Horário" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
-                                    <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-cliente" placeholder="Cliente" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
-                                    <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-contrato" placeholder="Contrato" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
-                                    <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-local" placeholder="Local" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
-                                    <th style="padding:4px 6px;">
-                                        <select id="filtro-sessao-tipo" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" onchange="filtrarSessoesTabela()">
-                                            <option value="">Todos</option>
-                                            <option value="Foto">Foto</option>
-                                            <option value="Vídeo">Vídeo</option>
-                                            <option value="Mobile">Mobile</option>
-                                        </select>
-                                    </th>
-                                    <th style="padding:4px 6px;"><input type="date" id="filtro-sessao-prazo" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
-                                    <th style="padding:4px 6px;">
-                                        <select id="filtro-sessao-status" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" onchange="filtrarSessoesTabela()">
-                                            <option value="">Todos</option>
-                                            <option value="rascunho">Rascunho</option>
-                                            <option value="agendada">Agendada</option>
-                                            <option value="em_andamento">Em Andamento</option>
-                                            <option value="finalizada">Finalizada</option>
-                                            <option value="concluida">Concluída</option>
-                                            <option value="cancelada">Cancelada</option>
-                                            <option value="reaberta">Reaberta</option>
-                                        </select>
-                                    </th>
-                                    <th style="padding:4px 6px;text-align:center;">
-                                        <button onclick="limparFiltrosSessoesTabela()" title="Limpar filtros" style="background:#e2e8f0;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;color:#475569;">✕ Limpar</button>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-sessoes">
-                                <tr><td colspan="9" class="loading">Carregando...</td></tr>
-                            </tbody>
-                        </table>
+
+                    <!-- Legenda de alertas (kanban only) -->
+                    <div id="sessoes-alert-legend">
+                        <strong style="color:#334155;">Alertas de Prazo:</strong>
+                        <span>🟢 Normal (mais de 3 dias)</span>
+                        <span>🟡 Atenção (2–3 dias)</span>
+                        <span>🟠 Urgente (1 dia ou menos)</span>
+                        <span>🔴 Atrasado</span>
+                    </div>
+
+                    <!-- Board Kanban -->
+                    <div id="sessoes-kanban-board">
+                        <div style="color:#94a3b8;padding:40px;text-align:center;width:100%;">Carregando...</div>
+                    </div>
+
+                    <!-- Visão Tabela (oculta por padrão) -->
+                    <div id="sessoes-tabela-view" style="display:none;">
+                        <div class="table-scroll-container">
+                            <table id="table-sessoes" style="table-layout:fixed;width:100%;">
+                                <colgroup>
+                                    <col style="width:100px;">
+                                    <col style="width:130px;">
+                                    <col style="width:auto;">
+                                    <col style="width:140px;">
+                                    <col style="width:160px;">
+                                    <col style="width:110px;">
+                                    <col style="width:110px;">
+                                    <col style="width:160px;">
+                                    <col style="width:90px;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Horário</th>
+                                        <th>Cliente</th>
+                                        <th>Contrato</th>
+                                        <th>Local</th>
+                                        <th>Tipo Captação</th>
+                                        <th>Prazo Entrega</th>
+                                        <th>Status</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                    <tr id="sessoes-filtros-row" style="background:#f1f5f9;">
+                                        <th style="padding:4px 6px;"><input type="date" id="filtro-sessao-data" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
+                                        <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-horario" placeholder="Horário" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
+                                        <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-cliente" placeholder="Cliente" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
+                                        <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-contrato" placeholder="Contrato" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
+                                        <th style="padding:4px 6px;"><input type="text" id="filtro-sessao-local" placeholder="Local" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
+                                        <th style="padding:4px 6px;">
+                                            <select id="filtro-sessao-tipo" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" onchange="filtrarSessoesTabela()">
+                                                <option value="">Todos</option>
+                                                <option value="Foto">Foto</option>
+                                                <option value="Vídeo">Vídeo</option>
+                                                <option value="Mobile">Mobile</option>
+                                            </select>
+                                        </th>
+                                        <th style="padding:4px 6px;"><input type="date" id="filtro-sessao-prazo" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" oninput="filtrarSessoesTabela()"></th>
+                                        <th style="padding:4px 6px;">
+                                            <select id="filtro-sessao-status" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" onchange="filtrarSessoesTabela()">
+                                                <option value="">Todos</option>
+                                                <option value="rascunho">Rascunho</option>
+                                                <option value="agendada">Agendada</option>
+                                                <option value="em_andamento">Em Andamento</option>
+                                                <option value="finalizada">Finalizada</option>
+                                                <option value="concluida">Concluída</option>
+                                                <option value="cancelada">Cancelada</option>
+                                                <option value="reaberta">Reaberta</option>
+                                            </select>
+                                        </th>
+                                        <th style="padding:4px 6px;text-align:center;">
+                                            <button onclick="limparFiltrosSessoesTabela()" title="Limpar filtros" style="background:#e2e8f0;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;color:#475569;">✕ Limpar</button>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-sessoes">
+                                    <tr><td colspan="9" class="loading">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- MODAL: Gerenciar Colunas -->
+                    <div id="modal-gerenciar-colunas" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;">
+                        <div class="kanban-modal-box">
+                            <h3>⊞ Gerenciar Colunas <button onclick="fecharModalKanban('modal-gerenciar-colunas')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;line-height:1;">×</button></h3>
+                            <button onclick="abrirNovaColuna()" style="width:100%;padding:11px;background:#3b82f6;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:16px;">+ Nova Coluna</button>
+                            <div id="lista-colunas-kanban"></div>
+                            <p style="font-size:11px;color:#94a3b8;margin-top:14px;">Dica: Marque colunas como "Final" para que tarefas nelas não gerem alertas de atraso. Use os botões de seta para reordenar.</p>
+                        </div>
+                    </div>
+
+                    <!-- MODAL: Nova / Editar Coluna -->
+                    <div id="modal-nova-coluna" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;align-items:center;justify-content:center;">
+                        <div class="kanban-modal-box">
+                            <h3 id="titulo-modal-nova-coluna">Nova Coluna <button onclick="fecharModalKanban('modal-nova-coluna')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;line-height:1;">×</button></h3>
+                            <label style="font-size:13px;font-weight:600;color:#374151;">Nome da Coluna</label>
+                            <input id="input-col-nome" type="text" placeholder="Ex: Em Andamento, Aprovação, Arquivado" oninput="_atualizarPreviewColuna()" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;margin:6px 0 16px 0;box-sizing:border-box;">
+                            <label style="font-size:13px;font-weight:600;color:#374151;">Cor</label>
+                            <div class="col-color-picker" id="col-color-picker"></div>
+                            <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;margin:4px 0 16px 0;cursor:pointer;">
+                                <input type="checkbox" id="chk-col-final" onchange="_atualizarPreviewColuna()" style="width:16px;height:16px;margin-top:2px;flex-shrink:0;">
+                                <span><b>Coluna Final</b> — Tarefas nesta coluna são consideradas finalizadas e não geram alertas de atraso</span>
+                            </label>
+                            <div style="background:#f8fafc;border-radius:8px;padding:12px 14px;margin-bottom:18px;">
+                                <div style="font-size:11px;color:#64748b;margin-bottom:8px;font-weight:600;">Preview</div>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <div id="prev-col-dot" style="width:14px;height:14px;border-radius:4px;background:#3b82f6;flex-shrink:0;"></div>
+                                    <span id="prev-col-label" style="font-size:13px;font-weight:600;color:#1e293b;">Nova Coluna</span>
+                                    <span id="prev-col-badge" class="badge-padrao">Padrão</span>
+                                </div>
+                            </div>
+                            <input type="hidden" id="input-col-editid">
+                            <div style="display:flex;gap:10px;">
+                                <button id="btn-salvar-coluna" onclick="salvarColuna()" style="flex:1;padding:11px;background:#3b82f6;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">Criar Coluna</button>
+                                <button onclick="fecharModalKanban('modal-nova-coluna')" style="flex:1;padding:11px;background:#f1f5f9;color:#374151;border:none;border-radius:10px;font-size:14px;cursor:pointer;">Cancelar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MODAL: Cards Excluídos -->
+                    <div id="modal-cards-excluidos" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;">
+                        <div class="kanban-modal-box" style="width:580px;">
+                            <h3>🗑️ Cards Cancelados <button onclick="fecharModalKanban('modal-cards-excluidos')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;line-height:1;">×</button></h3>
+                            <div id="lista-cards-excluidos" style="display:flex;flex-direction:column;gap:8px;"></div>
+                        </div>
                     </div>
                 </div>
 
