@@ -5434,7 +5434,10 @@ function renderSessoes(sessoes) {
             let statusPrazoClass = 'badge-success';
             let statusPrazoText = 'No Prazo';
             const hoje = new Date();
-            const prazo = sessao.prazo_entrega ? new Date(sessao.prazo_entrega) : null;
+            // Parse prazo sem shift de fuso: usa apenas YYYY-MM-DD + T12:00:00
+            const prazo = sessao.prazo_entrega
+                ? new Date(String(sessao.prazo_entrega).substring(0, 10) + 'T12:00:00')
+                : null;
             
             if (prazo) {
                 const diffDias = Math.ceil((prazo - hoje) / (1000 * 60 * 60 * 24));
@@ -5447,15 +5450,22 @@ function renderSessoes(sessoes) {
                 }
             }
             
+            // Helper: converte 'YYYY-MM-DD...' para 'DD/MM/YYYY' sem conversão de fuso
+            const fmtData = v => {
+                if (!v) return '-';
+                const p = String(v).substring(0, 10).split('-');
+                return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : v;
+            };
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${sessao.data ? new Date(sessao.data).toLocaleDateString('pt-BR') : '-'}</td>
+                <td>${fmtData(sessao.data)}</td>
                 <td>${escapeHtml(sessao.horario || '-')}</td>
                 <td>${escapeHtml(sessao.cliente_nome || '-')}</td>
                 <td>${escapeHtml(sessao.contrato_numero || sessao.contrato_nome || '-')}</td>
                 <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(sessao.endereco || '')}">${escapeHtml(sessao.endereco || '-')}</td>
                 <td>${tiposCaptacao}</td>
-                <td>${sessao.prazo_entrega ? new Date(sessao.prazo_entrega).toLocaleDateString('pt-BR') : '-'}</td>
+                <td>${fmtData(sessao.prazo_entrega)}</td>
                 <td>
                     <span onclick="editarSessao(${sessao.id})" title="Clique para abrir sessão" style="display: inline-block; background: ${badgeStatus.cor}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-bottom: 4px; cursor: pointer;">
                         ${badgeStatus.label}
