@@ -5493,7 +5493,7 @@ function renderSessoes(sessoes) {
 }
 
 // ─── KANBAN SESSÕES ───────────────────────────────────────────────────────────
-const KANBAN_LS_KEY = 'sessoes_kanban_cols_v1';
+const KANBAN_LS_KEY = 'sessoes_kanban_cols_v2';
 const DEFAULT_KANBAN_COLS = [
     { id: 'rascunho',    label: 'Rascunho',      cor: '#94a3b8', final: false },
     { id: 'agendada',    label: 'Agendada',       cor: '#3b82f6', final: false },
@@ -5501,6 +5501,7 @@ const DEFAULT_KANBAN_COLS = [
     { id: 'finalizada',  label: 'Finalizada',     cor: '#10b981', final: false },
     { id: 'concluida',   label: 'Concluída',      cor: '#059669', final: true  },
     { id: 'reaberta',    label: 'Reaberta',       cor: '#8b5cf6', final: false },
+    { id: 'arquivada',   label: 'Arquivadas',     cor: '#475569', final: true, archived: true },
 ];
 
 let _sessaoViewMode = 'kanban';
@@ -5546,26 +5547,83 @@ function renderKanban(sessoes) {
     if (!board) return;
     const cols = getKanbanCols();
     const hoje = new Date();
+    const QUINZE_DIAS_MS = 15 * 24 * 60 * 60 * 1000;
+
     // Sessões "canceladas" não aparecem no board principal
     const activeSessoes = (sessoes || []).filter(s => s.status !== 'cancelada');
+
+    // Auto-arquivamento: concluída há 15+ dias → trata como arquivada visualmente
+    // E dispara silenciosamente a atualização no servidor (uma vez por sessão)
+    activeSessoes.forEach(s => {
+        if (s.status === 'concluida') {
+            const refDate = s.finalizada_em || s.updated_at || null;
+            if (refDate) {
+                const diff = hoje - new Date(refDate);
+                if (diff >= QUINZE_DIAS_MS) {
+                    s._autoArquivada = true; // flag só para renderização
+                    // Dispara update no servidor se ainda não fez
+                    const lsKey = `arquivada_sent_${s.id}`;
+                    if (!sessionStorage.getItem(lsKey)) {
+                        sessionStorage.setItem(lsKey, '1');
+                        fetch(`/api/sessoes/${s.id}/status`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: 'arquivada', force: true })
+                        }).catch(() => sessionStorage.removeItem(lsKey));
+                    }
+                }
+            }
+        }
+    });
+
     board.innerHTML = cols.map(col => {
-        const items = activeSessoes.filter(s => (s.status || 'rascunho') === col.id);
-        const cardsHtml = items.length === 0
-            ? '<div class="kanban-empty">Sem sessões</div>'
-            : items.map(s => renderKanbanCard(s, col, hoje)).join('');
-        return `<div class="kanban-col" data-col-id="${escapeHtml(col.id)}"
+        let items;
+        if (col.archived) {
+            // Coluna arquivada: pega status 'arquivada' + concluídas auto-arquivadas
+            items = activeSessoes.filter(s => s.status === 'arquivada' || s._autoArquivada);
+        } else {
+            items = activeSessoes.filter(s => {
+                if (s._autoArquivada) return false;
+                return (s.status || 'rascunho') === col.id;
+            });
+        }
+
+        const isCollapsed = col.archived && localStorage.getItem(`kanban_col_collapsed_${col.id}`) !== '0';
+        const collapseIcon = isCollapsed ? '▶' : '▼';
+
+        const cardsHtml = isCollapsed ? '' :
+            items.length === 0
+                ? '<div class="kanban-empty">Sem sessões arquivadas</div>'
+                : items.map(s => renderKanbanCard(s, col, hoje)).join('');
+
+        const colClass = col.archived ? 'kanban-col kanban-col-arquivada' : 'kanban-col';
+
+        return `<div class="${colClass}" data-col-id="${escapeHtml(col.id)}"
                     ondragover="event.preventDefault();this.classList.add('kanban-col-drag-over')"
                     ondragleave="this.classList.remove('kanban-col-drag-over')"
                     ondrop="onKanbanDrop(event,'${escapeHtml(col.id)}')">
-                <div class="kanban-col-header" style="background:${col.cor}">
-                    <span>${escapeHtml(col.label)}</span>
-                    <span class="kanban-col-count">${items.length}</span>
+                <div class="kanban-col-header" style="background:${col.cor}; cursor:${col.archived ? 'pointer' : 'default'};"
+                     ${col.archived ? `onclick="toggleArquivadasCol()"` : ''}>
+                    <span>${col.archived ? '🗂️ ' : ''}${escapeHtml(col.label)}</span>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span class="kanban-col-count">${items.length}</span>
+                        ${col.archived ? `<span style="font-size:10px;opacity:.85;">${collapseIcon}</span>` : ''}
+                    </div>
                 </div>
-                <div class="kanban-col-body">${cardsHtml}</div>
+                <div class="kanban-col-body" ${isCollapsed ? 'style="display:none;"' : ''}>${cardsHtml}</div>
             </div>`;
     }).join('');
     // Ativa suporte a touch (iOS/iPad) após renderizar o DOM
     requestAnimationFrame(_attachKanbanTouchEvents);
+}
+
+function toggleArquivadasCol() {
+    const colId = 'arquivada';
+    const current = localStorage.getItem(`kanban_col_collapsed_${colId}`);
+    // default é colapsada (null = colapsada), '0' = expandida
+    const nowExpanded = current === '0';
+    localStorage.setItem(`kanban_col_collapsed_${colId}`, nowExpanded ? '1' : '0');
+    renderKanban(_todasSessoesCache);
 }
 
 function _fmtDataKanban(v) {
@@ -5575,6 +5633,21 @@ function _fmtDataKanban(v) {
 }
 
 function renderKanbanCard(s, col, hoje) {
+    // Modo compacto para sessões arquivadas
+    if (col.archived) {
+        const _nomeCliente = s.cliente_nome_fantasia || s.cliente_nome;
+        const titulo = s.titulo || (_nomeCliente ? `Ensaio ${_nomeCliente}` : `Sessão #${s.id}`);
+        const dataFmt = _fmtDataKanban(s.data);
+        return `<div class="kanban-card kanban-card-compact"
+                    draggable="true"
+                    ondragstart="onKanbanDragStart(event,${s.id})"
+                    ondragend="this.classList.remove('kanban-card-dragging')"
+                    onclick="editarSessao(${s.id})">
+                <span class="kanban-card-compact-title">${escapeHtml(titulo)}</span>
+                ${dataFmt ? `<span class="kanban-card-compact-data">📅 ${dataFmt}</span>` : ''}
+            </div>`;
+    }
+
     let alertClass = '', alertDot = '🟢';
     if (!col.final && s.prazo_entrega) {
         const prazo = new Date(String(s.prazo_entrega).substring(0, 10) + 'T12:00:00');
@@ -7014,6 +7087,7 @@ window.loadSessoes = loadSessoes;
 // filtrarSessoesTabela e limparFiltrosSessoesTabela já expostos acima
 window.setViewSessoes = setViewSessoes;
 window.renderKanban = renderKanban;
+window.toggleArquivadasCol = toggleArquivadasCol;
 window.onKanbanDragStart = onKanbanDragStart;
 window.onKanbanDrop = onKanbanDrop;
 window.abrirGerenciarColunas = abrirGerenciarColunas;

@@ -5652,7 +5652,7 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
         raise ValueError("empresa_id é obrigatório")
     
     # Status válidos
-    STATUS_VALIDOS = ['rascunho', 'agendada', 'em_andamento', 'finalizada', 'concluida', 'cancelada', 'reaberta']
+    STATUS_VALIDOS = ['rascunho', 'agendada', 'em_andamento', 'finalizada', 'concluida', 'cancelada', 'reaberta', 'arquivada']
     
     if novo_status not in STATUS_VALIDOS:
         raise ValueError(f"Status inválido: {novo_status}. Valores aceitos: {', '.join(STATUS_VALIDOS)}")
@@ -5690,7 +5690,8 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
         transicoes_invalidas = [
             (status_anterior == 'finalizada'  and novo_status not in ['reaberta', 'cancelada']),
             (status_anterior == 'cancelada'   and novo_status not in ['reaberta', 'agendada']),
-            (status_anterior == 'concluida'   and novo_status not in ['reaberta']),
+            (status_anterior == 'concluida'   and novo_status not in ['reaberta', 'arquivada']),
+            (status_anterior == 'arquivada'   and novo_status not in ['reaberta', 'concluida']),
         ]
         
         if not force and any(transicoes_invalidas):
