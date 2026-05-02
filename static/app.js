@@ -5362,7 +5362,7 @@ function filtrarSessoesTabela() {
     const filtradas = _todasSessoesCache.filter(s => {
         if (fData    && (s.data || '').substring(0, 10) !== fData) return false;
         if (fHorario && !(s.horario || '').toLowerCase().includes(fHorario)) return false;
-        if (fCliente && !(s.cliente_nome || '').toLowerCase().includes(fCliente)) return false;
+        if (fCliente && !((s.cliente_nome_fantasia || s.cliente_nome || '').toLowerCase().includes(fCliente))) return false; // busca em nome_fantasia E razao_social
         if (fContrato&& !((s.contrato_numero || '') + ' ' + (s.contrato_nome || '')).toLowerCase().includes(fContrato)) return false;
         if (fLocal   && !(s.endereco || '').toLowerCase().includes(fLocal)) return false;
         if (fTipo) {
@@ -5461,7 +5461,7 @@ function renderSessoesTabela(sessoes) {
             tr.innerHTML = `
                 <td>${fmtData(sessao.data)}</td>
                 <td>${escapeHtml(sessao.horario || '-')}</td>
-                <td>${escapeHtml(sessao.cliente_nome || '-')}</td>
+                <td>${escapeHtml(sessao.cliente_nome_fantasia || sessao.cliente_nome || '-')}</td><!-- REGRA: sempre preferir nome_fantasia sobre razao_social -->
                 <td>${escapeHtml(sessao.contrato_numero || sessao.contrato_nome || '-')}</td>
                 <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(sessao.endereco || '')}">${escapeHtml(sessao.endereco || '-')}</td>
                 <td>${tiposCaptacao}</td>
@@ -5587,10 +5587,12 @@ function renderKanbanCard(s, col, hoje) {
     if (s.tipo_foto)   tipos.push('Foto');
     if (s.tipo_video)  tipos.push('Vídeo');
     if (s.tipo_mobile) tipos.push('Mobile');
-    const titulo = s.titulo || (s.cliente_nome ? `Ensaio ${s.cliente_nome}` : `Sessão #${s.id}`);
+    // REGRA: exibir nome_fantasia quando disponível, razao_social como fallback
+    const _nomeCliente = s.cliente_nome_fantasia || s.cliente_nome;
+    const titulo = s.titulo || (_nomeCliente ? `Ensaio ${_nomeCliente}` : `Sessão #${s.id}`);
     const dataFmt   = _fmtDataKanban(s.data);
     const prazoFmt  = _fmtDataKanban(s.prazo_entrega);
-    const clienteHtml = s.cliente_nome ? `<div class="kanban-card-cliente">${escapeHtml(s.cliente_nome)}</div>` : '';
+    const clienteHtml = _nomeCliente ? `<div class="kanban-card-cliente">${escapeHtml(_nomeCliente)}</div>` : '';
     const tiposHtml   = tipos.length   ? `<div class="kanban-card-tipos">${tipos.join(', ')}</div>` : '';
     const datasHtml   = (dataFmt || prazoFmt) ? `
         <div class="kanban-card-datas">
@@ -5766,8 +5768,8 @@ function abrirCardsExcluidos() {
             const d = _fmtDataKanban(s.data) || '-';
             return `<div style="display:flex;align-items:center;justify-content:space-between;background:#f8fafc;border-radius:10px;padding:12px 16px;border:1px solid #e2e8f0;">
                 <div>
-                    <div style="font-weight:600;font-size:13px;color:#1e293b;">${escapeHtml(s.titulo || s.cliente_nome || `Sessão #${s.id}`)}</div>
-                    <div style="font-size:12px;color:#64748b;">${escapeHtml(s.cliente_nome || '')} · 📅 ${d}</div>
+                    <div style="font-weight:600;font-size:13px;color:#1e293b;">${escapeHtml(s.titulo || s.cliente_nome_fantasia || s.cliente_nome || `Sessão #${s.id}`)}</div>
+                    <div style="font-size:12px;color:#64748b;">${escapeHtml(s.cliente_nome_fantasia || s.cliente_nome || '')} · 📅 ${d}</div>
                 </div>
                 <button onclick="editarSessao(${s.id})" style="background:#3b82f6;color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;">Abrir</button>
             </div>`;

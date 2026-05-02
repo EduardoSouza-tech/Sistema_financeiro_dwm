@@ -1129,7 +1129,7 @@ function renderListaSessoes(sessoes) {
         <tbody>
             ${sessoes.map(sessao => `
                 <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px;">${sessao.cliente_nome || 'Cliente não encontrado'}</td>
+                    <td style="padding: 12px;">${sessao.cliente_nome_fantasia || sessao.cliente_nome || 'Cliente não encontrado'}</td><!-- REGRA: nome_fantasia > razao_social -->
                     <td style="padding: 12px;">${formatarData(sessao.data_sessao)}<br>${sessao.horario}</td>
                     <td style="padding: 12px;">${sessao.tipo_sessao}</td>
                     <td style="padding: 12px; text-align: center;">
@@ -1170,7 +1170,7 @@ function renderCardsSessoes(sessoes) {
         const card = document.createElement('div');
         card.style.cssText = `background: ${statusCor}; color: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);`;
         card.innerHTML = `
-            <h3 style="margin: 0 0 10px 0;">${sessao.cliente_nome || 'Cliente não encontrado'}</h3>
+            <h3 style="margin: 0 0 10px 0;">${sessao.cliente_nome_fantasia || sessao.cliente_nome || 'Cliente não encontrado'}</h3><!-- REGRA: nome_fantasia > razao_social -->
             <p style="margin: 5px 0;"><strong>Data:</strong> ${formatarData(sessao.data_sessao)} às ${sessao.horario}</p>
             <p style="margin: 5px 0;"><strong>Tipo:</strong> ${sessao.tipo_sessao}</p>
             <p style="margin: 5px 0;"><strong>Status:</strong> ${sessao.status}</p>
@@ -1322,7 +1322,7 @@ async function atualizarStatusSessao(id) {
             <div style="background: white; padding: 30px; border-radius: 10px; max-width: 450px; width: 90%;">
                 <h3 style="margin: 0 0 20px 0;">🔄 Atualizar Status da Sessão</h3>
                 <div style="margin-bottom: 20px;">
-                    <p style="margin: 0 0 10px 0; color: #666;"><strong>Cliente:</strong> ${sessao.cliente_nome}</p>
+                    <p style="margin: 0 0 10px 0; color: #666;"><strong>Cliente:</strong> ${sessao.cliente_nome_fantasia || sessao.cliente_nome}</p><!-- REGRA: nome_fantasia > razao_social -->
                     <p style="margin: 0 0 10px 0; color: #666;"><strong>Data:</strong> ${formatarData(sessao.data_sessao)}</p>
                     <p style="margin: 0 0 10px 0; color: #666;"><strong>Status Atual:</strong> <span style="background: ${getCorStatusSessao(sessao.status)}; color: white; padding: 3px 10px; border-radius: 12px; font-size: 12px;">${sessao.status}</span></p>
                 </div>
@@ -1489,7 +1489,7 @@ async function verDetalhesFornecedor(id) {
                                     <div style="padding: 15px; border-bottom: 1px solid #e0e0e0;">
                                         <div style="display: flex; justify-content: space-between; align-items: start;">
                                             <div>
-                                                <div style="font-weight: bold;">${s.cliente_nome}</div>
+                                                <div style="font-weight: bold;">${s.cliente_nome_fantasia || s.cliente_nome}</div><!-- REGRA: nome_fantasia > razao_social -->
                                                 <div style="font-size: 14px; color: #666;">${formatarData(s.data_sessao)} - ${s.tipo_sessao}</div>
                                                 <div style="font-size: 13px; color: #999;">Função: ${equipeMembro?.funcao || 'N/A'}</div>
                                             </div>
