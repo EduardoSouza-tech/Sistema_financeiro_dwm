@@ -5564,6 +5564,8 @@ function renderKanban(sessoes) {
                 <div class="kanban-col-body">${cardsHtml}</div>
             </div>`;
     }).join('');
+    // Ativa suporte a touch (iOS/iPad) após renderizar o DOM
+    requestAnimationFrame(_attachKanbanTouchEvents);
 }
 
 function _fmtDataKanban(v) {
@@ -5614,6 +5616,119 @@ function onKanbanDragStart(event, sessaoId) {
     event.target.classList.add('kanban-card-dragging');
     event.dataTransfer.effectAllowed = 'move';
 }
+
+// ─── SUPORTE A TOUCH (iOS/iPad) ───────────────────────────────────────────────
+let _touchDragGhost = null;
+let _touchDragOffsetX = 0;
+let _touchDragOffsetY = 0;
+
+function _initKanbanTouchCard(card, sessaoId) {
+    let _touchStartX = 0;
+    let _touchStartY = 0;
+    let _touchMoved = false;
+
+    card.addEventListener('touchstart', function(e) {
+        // Previne seleção de texto e scroll acidental
+        e.preventDefault();
+        const touch = e.touches[0];
+        _touchStartX = touch.clientX;
+        _touchStartY = touch.clientY;
+        _touchMoved = false;
+
+        const rect = card.getBoundingClientRect();
+        _touchDragOffsetX = touch.clientX - rect.left;
+        _touchDragOffsetY = touch.clientY - rect.top;
+
+        _kanbanDragSessaoId = sessaoId;
+        card.classList.add('kanban-card-dragging');
+
+        // Cria ghost visual que segue o dedo
+        _touchDragGhost = card.cloneNode(true);
+        Object.assign(_touchDragGhost.style, {
+            position: 'fixed',
+            zIndex: '9999',
+            width: rect.width + 'px',
+            opacity: '0.85',
+            pointerEvents: 'none',
+            transform: 'rotate(2deg) scale(1.03)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+            left: (touch.clientX - _touchDragOffsetX) + 'px',
+            top:  (touch.clientY - _touchDragOffsetY) + 'px',
+            transition: 'none',
+        });
+        document.body.appendChild(_touchDragGhost);
+    }, { passive: false });
+
+    card.addEventListener('touchmove', function(e) {
+        e.preventDefault();
+        if (!_touchDragGhost) return;
+        const touch = e.touches[0];
+        const dx = Math.abs(touch.clientX - _touchStartX);
+        const dy = Math.abs(touch.clientY - _touchStartY);
+        if (dx > 5 || dy > 5) _touchMoved = true;
+
+        _touchDragGhost.style.left = (touch.clientX - _touchDragOffsetX) + 'px';
+        _touchDragGhost.style.top  = (touch.clientY - _touchDragOffsetY) + 'px';
+
+        // Destaca coluna sob o dedo
+        document.querySelectorAll('.kanban-col').forEach(col => col.classList.remove('kanban-col-drag-over'));
+        const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+        const col = elUnder && elUnder.closest('.kanban-col');
+        if (col) col.classList.add('kanban-col-drag-over');
+    }, { passive: false });
+
+    card.addEventListener('touchend', function(e) {
+        if (_touchDragGhost) {
+            _touchDragGhost.remove();
+            _touchDragGhost = null;
+        }
+        card.classList.remove('kanban-card-dragging');
+        document.querySelectorAll('.kanban-col').forEach(col => col.classList.remove('kanban-col-drag-over'));
+
+        const touch = e.changedTouches[0];
+
+        if (!_touchMoved) {
+            // Toque simples = abre modal de edição
+            _kanbanDragSessaoId = null;
+            editarSessao(sessaoId);
+            return;
+        }
+
+        // Marca que foi drag para bloquar o click simulado pelo iOS
+        card._touchWasDrag = true;
+
+        const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+        const col = elUnder && elUnder.closest('.kanban-col');
+        if (col) {
+            const colId = col.dataset.colId;
+            if (colId) onKanbanDrop({ preventDefault: () => {} }, colId);
+        } else {
+            _kanbanDragSessaoId = null;
+        }
+    }, { passive: false });
+}
+
+function _attachKanbanTouchEvents() {
+    // Só aplica em dispositivos com touch
+    if (!('ontouchstart' in window)) return;
+    document.querySelectorAll('.kanban-card[draggable="true"]').forEach(card => {
+        const onDragAttr = card.getAttribute('ondragstart') || '';
+        const matchDrag = onDragAttr.match(/onKanbanDragStart\(event,(\d+)\)/);
+        const id = matchDrag ? parseInt(matchDrag[1]) : null;
+        if (id === null) return;
+
+        // Remove onclick inline e substitui por handler controlado
+        card.removeAttribute('onclick');
+        card.addEventListener('click', function(e) {
+            // Bloqueado se veio de um drag touch
+            if (card._touchWasDrag) { card._touchWasDrag = false; return; }
+            editarSessao(id);
+        });
+
+        _initKanbanTouchCard(card, id);
+    });
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function onKanbanDrop(event, colId) {
     event.preventDefault();
@@ -6906,6 +7021,7 @@ window.abrirNovaColuna = abrirNovaColuna;
 window.salvarColuna = salvarColuna;
 window.fecharModalKanban = fecharModalKanban;
 window.abrirCardsExcluidos = abrirCardsExcluidos;
+window._attachKanbanTouchEvents = _attachKanbanTouchEvents;
 window._moverColuna = _moverColuna;
 window._editarColuna = _editarColuna;
 window._deletarColuna = _deletarColuna;
