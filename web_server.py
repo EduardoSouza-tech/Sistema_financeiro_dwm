@@ -378,6 +378,15 @@ else:
     print("?? Rate Limiting desabilitado (flask-limiter n�o instalado)")
 
 # ============================================================================
+# BACKUP AUTOMÁTICO POR E-MAIL (06h / 12h / 19h — horário de Brasília)
+# ============================================================================
+try:
+    from backup_email import iniciar_scheduler as _iniciar_backup_scheduler
+    _backup_scheduler = _iniciar_backup_scheduler(app)
+except Exception as _e:
+    print(f"⚠️  Erro ao iniciar scheduler de backup: {_e}")
+
+# ============================================================================
 # MANIPULADORES DE ERRO GLOBAIS
 # ============================================================================
 
@@ -22244,6 +22253,13 @@ if __name__ == '__main__':
         print("? Tabelas de importa��o inicializadas")
     except Exception as e:
         print(f"?? Erro ao inicializar tabelas de importa��o: {e}")
+
+    # Iniciar scheduler de backup automático por e-mail (06h / 12h / 19h)
+    try:
+        from backup_email import iniciar_scheduler
+        iniciar_scheduler(app)
+    except Exception as e:
+        print(f"⚠️  Erro ao iniciar scheduler de backup: {e}")
     
     # Configurar logging para produ��o (WARNING/ERROR apenas)
     import logging
