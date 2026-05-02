@@ -5538,6 +5538,7 @@ function setViewSessoes(mode) {
     if (btnK) { btnK.classList.toggle('active', mode === 'kanban'); }
     if (btnT) { btnT.classList.toggle('active', mode === 'tabela'); }
     if (mode === 'kanban') renderKanban(_todasSessoesCache);
+    else renderSessoesTabela(_todasSessoesCache);
 }
 
 function renderKanban(sessoes) {
