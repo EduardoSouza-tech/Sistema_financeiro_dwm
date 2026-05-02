@@ -2573,67 +2573,79 @@
 
             <!-- Folha de Pagamento -->
             <div id="folha-pagamento-section" class="content-card hidden">
+                <!-- Header -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="color: #000000 !important; font-weight: 700;">👥 Folha de Pagamento - Funcionários</h2>
-                    <button onclick="abrirModalFuncionario()" class="btn btn-primary" style="padding: 10px 20px; background: #3498db;">
-                        ➕ Novo Funcionário
-                    </button>
+                    <h2 style="color: #000000 !important; font-weight: 700;">👥 Folha de Pagamento</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="abrirModalFuncionario()" class="btn btn-primary" style="padding: 10px 20px; background: #3498db;">
+                            ➕ Novo Funcionário
+                        </button>
+                        <button onclick="exportarFuncionariosExcel()" class="btn btn-success" style="padding: 10px 20px; background: #27ae60;">
+                            📊 Exportar Excel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI Cards -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;">
+                    <div style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); padding: 20px 24px; border-radius: 12px; color: white; display: flex; align-items: center; gap: 16px;">
+                        <svg style="width:40px;height:40px;opacity:.8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
+                        <div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.85;">Total</div>
+                            <div style="font-size:36px;font-weight:700;line-height:1;" id="total-funcionarios">0</div>
+                        </div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); padding: 20px 24px; border-radius: 12px; color: white; display: flex; align-items: center; gap: 16px;">
+                        <svg style="width:40px;height:40px;opacity:.8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        <div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.85;">Ativos</div>
+                            <div style="font-size:36px;font-weight:700;line-height:1;" id="total-ativos">0</div>
+                        </div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); padding: 20px 24px; border-radius: 12px; color: white; display: flex; align-items: center; gap: 16px;">
+                        <svg style="width:40px;height:40px;opacity:.8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6"/></svg>
+                        <div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.85;">Inativos</div>
+                            <div style="font-size:36px;font-weight:700;line-height:1;" id="total-inativos">0</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Filtros e Busca -->
-                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-                    <input type="text" id="busca-funcionario" placeholder="🔍 Buscar por nome, CPF, e-mail, celular, profissão, endereço, CEP, Chave PIX, PIS/PASEP..." 
-                           style="flex: 1; min-width: 300px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"
+                <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+                    <input type="text" id="busca-funcionario" placeholder="🔍 BUSCAR POR NOME, CPF, E-MAIL..."
+                           style="flex: 1; min-width: 280px; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px;"
                            onkeyup="filtrarFuncionariosRH()">
-                    
-                    <select id="filtro-status-funcionario" onchange="filtrarFuncionariosRH()" 
-                            style="padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-                        <option value="">📊 Todos</option>
+                    <select id="filtro-status-funcionario" onchange="filtrarFuncionariosRH()"
+                            style="padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; min-width: 160px;">
+                        <option value="">Todos os Status</option>
                         <option value="true">✅ Ativos</option>
                         <option value="false">❌ Inativos</option>
                     </select>
-
-                    <button onclick="abrirRelatorioCPFs()" class="btn" 
-                            style="padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                    <button onclick="abrirRelatorioCPFs()" class="btn"
+                            style="padding: 10px 18px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px;">
                         🔐 Validar CPFs
                     </button>
-
-                    <button onclick="exportarFuncionariosExcel()" class="btn btn-success" 
-                            style="padding: 10px 20px; background: #27ae60;">
-                        📥 Exportar Excel
-                    </button>
-                    
-                    <span style="margin-left: 15px; font-size: 14px; color: #666;">
-                        📊 Total: <strong id="total-funcionarios">0</strong> | 
-                        ✅ Ativos: <strong id="total-ativos" style="color: #27ae60;">0</strong> | 
-                        ❌ Inativos: <strong id="total-inativos" style="color: #e74c3c;">0</strong>
-                    </span>
                 </div>
 
-                <!-- Tabela de Funcionários -->
-                <div class="table-container" style="overflow-x: auto; width: 100%; border: 1px solid #ddd; border-radius: 4px;">
-                    <table style="width: 100%; border-collapse: collapse; min-width: 2000px; table-layout: fixed;">
+                <!-- Tabela de Funcionários (9 colunas) -->
+                <div class="table-container" style="overflow-x: auto; width: 100%; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <table style="width: 100%; border-collapse: collapse; min-width: 900px;">
                         <thead>
-                            <tr style="background-color: #f5f5f5 !important;">
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 200px; position: sticky; left: 0; background: #f5f5f5; z-index: 10;">Nome</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 120px;">CPF</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 100px;">Nacionalidade</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 100px;">Estado Civil</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 100px;">Data Nasc.</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; width: 60px;">Idade</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 150px;">Profissão</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 250px;">Endereço</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 100px;">CEP</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 200px;">E-mail</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 120px;">Celular</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 150px;">Chave PIX</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: left; width: 120px;">PIS/PASEP</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; width: 80px;">Status</th>
-                                <th style="color: #000000 !important; font-weight: 700; padding: 12px 8px; text-align: center; width: 160px;">Ações</th>
+                            <tr style="background-color: #f8fafc;">
+                                <th style="color: #374151; font-weight: 700; padding: 12px 14px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #e2e8f0;">Nome</th>
+                                <th style="color: #374151; font-weight: 700; padding: 12px 14px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #e2e8f0;">CPF</th>
+                                <th style="color: #374151; font-weight: 700; padding: 12px 14px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #e2e8f0;">Profiss&#227;o</th>
+                                <th style="color: #374151; font-weight: 700; padding: 12px 14px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #e2e8f0;">E-mail</th>
+                                <th style="color: #374151; font-weight: 700; padding: 12px 14px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #e2e8f0;">Celular</th>
+                                <th style="color: #374151; font-weight: 700; padding: 12px 14px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #e2e8f0;">Admiss&#227;o</th>
+                                <th style="color: #374151; font-weight: 700; padding: 12px 14px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #e2e8f0;">Chave PIX</th>
+                                <th style="color: #374151; font-weight: 700; padding: 12px 14px; text-align: center; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #e2e8f0;">Status</th>
+                                <th style="color: #374151; font-weight: 700; padding: 12px 14px; text-align: center; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #e2e8f0;">A&#231;&#245;es</th>
                             </tr>
                         </thead>
                         <tbody id="tbody-funcionarios">
-                            <tr><td colspan="15" class="loading" style="text-align: center; padding: 20px;">Carregando...</td></tr>
+                            <tr><td colspan="9" style="text-align: center; padding: 20px; color: #94a3b8;">Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -10232,59 +10244,56 @@
             } catch (error) {
                 console.error('❌ Erro ao carregar funcionários:', error);
                 showToast(error.message || 'Erro ao carregar funcionários', 'error');
-                document.getElementById('tbody-funcionarios').innerHTML = '<tr><td colspan="15" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>';
+                document.getElementById('tbody-funcionarios').innerHTML = '<tr><td colspan="9" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>';
             }
         }
 
         function renderFuncionarios(funcionarios) {
-            console.log('🎨 renderFuncionarios chamada com', funcionarios.length, 'funcionários');
             const tbody = document.getElementById('tbody-funcionarios');
 
             if (funcionarios && funcionarios.length > 0) {
-                console.log('📊 Primeiro funcionário:', funcionarios[0]);
                 tbody.innerHTML = funcionarios.map(func => {
                     const ativoStatus = func.ativo ? true : false;
-                    
-                    // Montar endereço completo
-                    const enderecoCompleto = [
-                        func.rua_av,
-                        func.numero_residencia,
-                        func.complemento,
-                        func.bairro,
-                        func.cidade,
-                        func.estado
-                    ].filter(Boolean).join(', ') || '-';
-                    
-                    // Formatar data de nascimento
-                    const dataNasc = func.data_nascimento ? new Date(func.data_nascimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
-                    
+
+                    // Formatar data de admissão
+                    const dataAdmissao = func.data_admissao
+                        ? new Date(func.data_admissao + 'T00:00:00').toLocaleDateString('pt-BR')
+                        : '-';
+
                     return `
-                    <tr>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px; position: sticky; left: 0; background: white; z-index: 9;">${func.nome || '-'}</td>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${formatarCPF(func.cpf)}</td>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.nacionalidade || '-'}</td>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.estado_civil || '-'}</td>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${dataNasc}</td>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px; text-align: center;">${func.idade || '-'}</td>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.profissao || '-'}</td>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px; font-size: 12px;">${enderecoCompleto}</td>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.cep || '-'}</td>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px; font-size: 12px;">${func.email || '-'}</td>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.celular || '-'}</td>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.chave_pix || '-'}</td>
-                        <td style="color: #000000 !important; font-weight: 500; padding: 8px;">${func.pis_pasep || '-'}</td>
-                        <td style="text-align: center; padding: 8px;"><span class="badge badge-${ativoStatus ? 'success' : 'danger'}" style="padding: 4px 8px; border-radius: 12px; font-size: 11px; background: ${ativoStatus ? '#27ae60' : '#e74c3c'}; color: white;">${ativoStatus ? 'ATIVO' : 'INATIVO'}</span></td>
-                        <td style="text-align: center; padding: 8px;">
-                            <button onclick='editarFuncionarioRH(${func.id})' class="btn btn-sm btn-primary" title="Editar">✏️</button>
-                            <button onclick="gerarPDFFuncionario(${func.id}, '${(func.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}') "class="btn btn-sm" style="background: #e74c3c; color: white;" title="Exportar PDF">📄</button>
-                            <button onclick="toggleAtivoFuncionarioRH(${func.id}, ${ativoStatus})" class="btn btn-sm btn-${ativoStatus ? 'warning' : 'success'}" title="${ativoStatus ? 'Inativar' : 'Ativar'}">
-                                ${ativoStatus ? '🚫' : '✅'}
+                    <tr style="border-bottom: 1px solid #f1f5f9;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                        <td style="padding: 12px 14px; font-weight: 600; color: #1e293b;">${func.nome || '-'}</td>
+                        <td style="padding: 12px 14px; color: #475569; font-family: monospace;">${formatarCPF(func.cpf)}</td>
+                        <td style="padding: 12px 14px; color: #475569;">${func.profissao || '-'}</td>
+                        <td style="padding: 12px 14px; color: #475569; font-size: 12px;">${func.email || '-'}</td>
+                        <td style="padding: 12px 14px; color: #475569;">${func.celular || '-'}</td>
+                        <td style="padding: 12px 14px; color: #475569;">${dataAdmissao}</td>
+                        <td style="padding: 12px 14px; color: #475569; font-family: monospace; font-size: 12px;">${func.chave_pix || '-'}</td>
+                        <td style="padding: 12px 14px; text-align: center;">
+                            <span style="display:inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: .5px;
+                                background: ${ativoStatus ? '#dcfce7' : '#fee2e2'}; color: ${ativoStatus ? '#15803d' : '#b91c1c'}; border: 1px solid ${ativoStatus ? '#86efac' : '#fca5a5'};">
+                                ${ativoStatus ? 'ATIVO' : 'INATIVO'}
+                            </span>
+                        </td>
+                        <td style="padding: 8px 14px; text-align: center; white-space: nowrap;">
+                            <button onclick='editarFuncionarioRH(${func.id})'
+                                style="background:#3b82f6;color:white;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;margin:2px;" title="Editar">
+                                ✏️ Editar
+                            </button>
+                            <button onclick="gerarPDFFuncionario(${func.id}, '${(func.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')"
+                                style="background:#e74c3c;color:white;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;margin:2px;" title="Exportar PDF">
+                                📄 PDF
+                            </button>
+                            <button onclick="toggleAtivoFuncionarioRH(${func.id}, ${ativoStatus})"
+                                style="background:${ativoStatus ? '#f59e0b' : '#10b981'};color:white;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;margin:2px;"
+                                title="${ativoStatus ? 'Inativar' : 'Ativar'}">
+                                ${ativoStatus ? '🚫 Inativar' : '✅ Ativar'}
                             </button>
                         </td>
                     </tr>`;
                 }).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="15" style="text-align: center; padding: 30px; color: #999;">Nenhum funcionário cadastrado</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #94a3b8; font-size: 15px;">Nenhum funcionário cadastrado</td></tr>';
             }
         }
 
