@@ -1,31 +1,25 @@
 """
 Módulo de backup automático por e-mail
 Roda 3x ao dia: 06:00, 12:00, 19:00 (horário de Brasília)
-Exporta tabelas críticas em JSON e envia como anexo
+Exporta tabelas críticas em JSON e envia como anexo via Resend
 """
 import os
 import json
 import io
 import zipfile
-import smtplib
+import base64
 import traceback
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
 
 import psycopg2
 import psycopg2.extras
 
 
 # ─── CONFIGURAÇÃO ────────────────────────────────────────────────────────────
-SMTP_HOST     = os.getenv('BACKUP_SMTP_HOST',  'smtp.gmail.com')
-SMTP_PORT     = int(os.getenv('BACKUP_SMTP_PORT', '587'))
-SMTP_USER     = os.getenv('BACKUP_SMTP_USER',  '')   # e-mail remetente
-SMTP_PASSWORD = os.getenv('BACKUP_SMTP_PASSWORD', '') # senha de app Gmail
-EMAIL_DESTINO = os.getenv('BACKUP_EMAIL_DESTINO', '') # quem recebe
-DATABASE_URL  = os.getenv('DATABASE_URL', '')
+RESEND_API_KEY  = os.getenv('RESEND_API_KEY', '')
+RESEND_FROM     = os.getenv('RESEND_FROM_EMAIL', 'notificacoes@dwmsystems.com.br')
+EMAIL_DESTINO   = os.getenv('BACKUP_EMAIL_DESTINO', 'waltermanoel17@gmail.com')
+DATABASE_URL    = os.getenv('DATABASE_URL', '')
 
 # Tabelas que serão incluídas no backup
 TABELAS_BACKUP = [
@@ -45,10 +39,10 @@ def _json_default(obj):
     return str(obj)
 
 
-def gerar_backup_zip() -> tuple[bytes, str]:
+def gerar_backup_zip():
     """
     Consulta as tabelas críticas e gera um .zip em memória com um JSON por tabela.
-    Retorna (bytes_do_zip, nome_do_arquivo).
+    Retorna (bytes_do_zip, nome_do_arquivo, info_resumo).
     """
     agora = datetime.now()
     nome_arquivo = f"backup_DWM_{agora.strftime('%Y%m%d_%H%M')}.zip"
@@ -70,7 +64,6 @@ def gerar_backup_zip() -> tuple[bytes, str]:
                 zf.writestr(f"{tabela}_ERRO.txt", str(e))
                 resumo[tabela] = f'ERRO: {e}'
 
-        # Arquivo de resumo
         info = {
             'gerado_em': agora.isoformat(),
             'tabelas': resumo,
@@ -86,20 +79,16 @@ def gerar_backup_zip() -> tuple[bytes, str]:
 
 
 def enviar_backup_email():
-    """Gera o backup e envia por e-mail. Chamado pelo scheduler."""
-    if not all([SMTP_USER, SMTP_PASSWORD, EMAIL_DESTINO, DATABASE_URL]):
-        print("⚠️  [BACKUP] Variáveis de ambiente não configuradas — backup ignorado")
+    """Gera o backup e envia por e-mail via Resend. Chamado pelo scheduler."""
+    if not RESEND_API_KEY or not DATABASE_URL:
+        print("⚠️  [BACKUP] RESEND_API_KEY ou DATABASE_URL não configurados — backup ignorado")
         return
 
     try:
+        import resend
+
         print(f"📦 [BACKUP] Iniciando backup — {datetime.now().strftime('%d/%m/%Y %H:%M')}")
         zip_bytes, nome_arquivo, info = gerar_backup_zip()
-
-        # Monta e-mail
-        msg = MIMEMultipart()
-        msg['From']    = SMTP_USER
-        msg['To']      = EMAIL_DESTINO
-        msg['Subject'] = f"🔒 Backup DWM — {datetime.now().strftime('%d/%m/%Y %H:%M')}"
 
         corpo = f"""
 <html><body style="font-family:Arial,sans-serif;color:#333;">
@@ -107,7 +96,7 @@ def enviar_backup_email():
 <p>Gerado em: <strong>{datetime.now().strftime('%d/%m/%Y às %H:%M')}</strong></p>
 <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
   <tr style="background:#f1f5f9;"><th>Tabela</th><th>Registros</th></tr>
-  {"".join(f'<tr><td>{t}</td><td style="text-align:center">{q}</td></tr>' for t,q in info["tabelas"].items())}
+  {"".join(f'<tr><td>{t}</td><td style="text-align:center">{q}</td></tr>' for t, q in info["tabelas"].items())}
   <tr style="background:#e0f2fe;font-weight:bold;"><td>TOTAL</td><td style="text-align:center">{info["total_registros"]}</td></tr>
 </table>
 <p style="color:#64748b;font-size:12px;margin-top:20px;">
@@ -116,22 +105,24 @@ Este backup é gerado automaticamente às 06:00, 12:00 e 19:00 (horário de Bras
 </p>
 </body></html>
 """
-        msg.attach(MIMEText(corpo, 'html'))
 
-        # Anexa o zip
-        parte = MIMEBase('application', 'zip')
-        parte.set_payload(zip_bytes)
-        encoders.encode_base64(parte)
-        parte.add_header('Content-Disposition', f'attachment; filename="{nome_arquivo}"')
-        msg.attach(parte)
+        resend.api_key = RESEND_API_KEY
 
-        # Envia via SMTP
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(SMTP_USER, EMAIL_DESTINO, msg.as_string())
+        params = {
+            "from": RESEND_FROM,
+            "to": [EMAIL_DESTINO],
+            "subject": f"🔒 Backup DWM — {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+            "html": corpo,
+            "attachments": [
+                {
+                    "filename": nome_arquivo,
+                    "content": list(zip_bytes),  # Resend espera lista de ints
+                }
+            ],
+        }
 
-        print(f"✅ [BACKUP] E-mail enviado para {EMAIL_DESTINO} — {info['total_registros']} registros")
+        response = resend.Emails.send(params)
+        print(f"✅ [BACKUP] E-mail enviado para {EMAIL_DESTINO} — {info['total_registros']} registros (id={response.get('id', '?')})")
 
     except Exception as e:
         print(f"❌ [BACKUP] Erro ao enviar backup: {e}")
