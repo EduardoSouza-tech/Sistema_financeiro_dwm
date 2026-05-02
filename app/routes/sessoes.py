@@ -398,8 +398,8 @@ def sessoes():
             
             dados_mapeados = {
                 'titulo': titulo,
-                'data_sessao': data.get('data'),  # Frontend: 'data' → Backend: 'data_sessao'
-                'duracao': int(data.get('quantidade_horas', 0)) * 60 if data.get('quantidade_horas') else None,  # Converter horas → minutos
+                'data': data.get('data'),  # coluna 'data' na tabela sessoes
+                'duracao': int(float(data.get('quantidade_horas', 0)) * 60) if data.get('quantidade_horas') else None,  # Converter horas → minutos
                 'contrato_id': data.get('contrato_id'),
                 'cliente_id': data.get('cliente_id'),
                 'valor': data.get('valor'),
@@ -424,7 +424,7 @@ def sessoes():
             
             print(f"📡 Dados mapeados para o banco:")
             print(f"   - titulo: {dados_mapeados.get('titulo')}")
-            print(f"   - data_sessao: {dados_mapeados.get('data_sessao')}")
+            print(f"   - data: {dados_mapeados.get('data')}")
             print(f"   - duracao: {dados_mapeados.get('duracao')} minutos")
             print(f"   - equipe mapeada: {equipe_mapeada}")
             print(f"📡 Chamando db.adicionar_sessao...")

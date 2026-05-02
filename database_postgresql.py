@@ -5202,6 +5202,7 @@ def adicionar_sessao(dados: Dict) -> int:
         dados_json = {
             'horario': dados.get('horario'),
             'quantidade_horas': dados.get('quantidade_horas'),
+            'horas_subtrair': dados.get('horas_subtrair'),
             'tipo_foto': dados.get('tipo_foto', False),
             'tipo_video': dados.get('tipo_video', False),
             'tipo_mobile': dados.get('tipo_mobile', False),
@@ -5212,23 +5213,30 @@ def adicionar_sessao(dados: Dict) -> int:
             'equipamentos_alugados': dados.get('equipamentos_alugados', []),
             'custos_adicionais': dados.get('custos_adicionais', [])
         }
+
+        # Resolver data: aceita tanto 'data' quanto 'data_sessao' (compatibilidade)
+        data_valor = dados.get('data') or dados.get('data_sessao')
+        status_valor = dados.get('status', 'rascunho')
+        duracao_valor = dados.get('duracao')
         
         cursor.execute("""
             INSERT INTO sessoes 
             (cliente_id, contrato_id, data, endereco, descricao, prazo_entrega, 
-             observacoes, dados_json, empresa_id, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+             observacoes, dados_json, empresa_id, status, duracao, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING id
         """, (
             dados.get('cliente_id'),
             dados.get('contrato_id'),
-            dados.get('data'),
+            data_valor,
             dados.get('endereco'),
             dados.get('descricao'),
             dados.get('prazo_entrega'),
             dados.get('observacoes'),
             json.dumps(dados_json),
-            empresa_id
+            empresa_id,
+            status_valor,
+            duracao_valor
         ))
         
         sessao_id = cursor.fetchone()['id']
@@ -5418,6 +5426,7 @@ def atualizar_sessao(sessao_id: int, dados: Dict, empresa_id: int = None) -> boo
     dados_json = {
         'horario': dados.get('horario'),
         'quantidade_horas': dados.get('quantidade_horas'),
+        'horas_subtrair': dados.get('horas_subtrair'),
         'tipo_foto': dados.get('tipo_foto', False),
         'tipo_video': dados.get('tipo_video', False),
         'tipo_mobile': dados.get('tipo_mobile', False),
@@ -5430,7 +5439,7 @@ def atualizar_sessao(sessao_id: int, dados: Dict, empresa_id: int = None) -> boo
     }
 
     status = dados.get('status', 'rascunho')
-    duracao = int(dados.get('quantidade_horas', 0) * 60) if dados.get('quantidade_horas') else None
+    duracao = int(float(dados.get('quantidade_horas', 0)) * 60) if dados.get('quantidade_horas') else None
 
     with get_db_connection(empresa_id=empresa_id) as conn:
         cursor = conn.cursor()
