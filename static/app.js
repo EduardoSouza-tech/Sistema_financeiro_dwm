@@ -5560,7 +5560,7 @@ function renderKanban(sessoes) {
         s._autoArquivada = false;
 
         if (s.status === 'concluida') {
-            const refDate = s.finalizada_em || s.updated_at || null;
+            const refDate = s.concluida_em || s.finalizada_em || s.updated_at || null;
             if (refDate) {
                 const diff = hoje - new Date(refDate);
                 if (diff >= QUINZE_DIAS_MS) {

@@ -1200,6 +1200,43 @@ class DatabaseManager:
         except Exception as e:
             print(f"⚠️  Aviso na migração de status de sessoes: {e}")
 
+        # Migração: Atualizar CHECK constraint para incluir 'arquivada'
+        try:
+            cursor.execute("""
+                DO $$
+                BEGIN
+                    ALTER TABLE sessoes DROP CONSTRAINT IF EXISTS sessoes_status_check_v2;
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.constraint_column_usage
+                        WHERE table_name = 'sessoes' AND column_name = 'status'
+                        AND constraint_name = 'sessoes_status_check_v3'
+                    ) THEN
+                        ALTER TABLE sessoes ADD CONSTRAINT sessoes_status_check_v3
+                            CHECK (status IN ('rascunho','agendada','em_andamento','finalizada','concluida','cancelada','reaberta','arquivada'));
+                    END IF;
+                END $$;
+            """)
+            print("✓ Migração: CHECK constraint de status v3 (arquivada) aplicada")
+        except Exception as e:
+            print(f"⚠️  Aviso na migração de status v3 (arquivada): {e}")
+
+        # Migração: adicionar coluna concluida_em em sessoes
+        try:
+            cursor.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name='sessoes' AND column_name='concluida_em'
+                    ) THEN
+                        ALTER TABLE sessoes ADD COLUMN concluida_em TIMESTAMP DEFAULT NULL;
+                    END IF;
+                END $$;
+            """)
+            print("✓ Migração: coluna concluida_em adicionada em sessoes")
+        except Exception as e:
+            print(f"⚠️  Aviso na migração concluida_em: {e}")
+
         # Migração: converter UNIQUE(cpf_cnpj) global → UNIQUE(cpf_cnpj, empresa_id) em clientes e fornecedores
         # A constraint global impede o mesmo CPF/CNPJ em múltiplas empresas (multi-tenant)
         try:
@@ -5280,7 +5317,7 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
                 s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
                 s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
                 s.created_at, s.updated_at, s.empresa_id, s.status,
-                s.numero_nf, s.horas_trabalhadas, s.finalizada_em,
+                s.numero_nf, s.horas_trabalhadas, s.finalizada_em, s.concluida_em,
                 s.google_event_id,
                 COALESCE(c.razao_social, c.nome) AS cliente_nome,
                 c.nome_fantasia AS cliente_nome_fantasia,
@@ -5336,6 +5373,7 @@ def listar_sessoes(empresa_id: int) -> List[Dict]:
                 'numero_nf': row.get('numero_nf'),
                 'horas_trabalhadas': float(row['horas_trabalhadas']) if row.get('horas_trabalhadas') else None,
                 'finalizada_em': row['finalizada_em'].isoformat() if row.get('finalizada_em') else None,
+                'concluida_em': row['concluida_em'].isoformat() if row.get('concluida_em') else None,
                 'google_event_id': row.get('google_event_id'),
             }
             
@@ -5708,9 +5746,10 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
         cursor.execute("""
             UPDATE sessoes
             SET status = %s,
-                updated_at = CURRENT_TIMESTAMP
+                updated_at = CURRENT_TIMESTAMP,
+                concluida_em = CASE WHEN %s = 'concluida' AND concluida_em IS NULL THEN CURRENT_TIMESTAMP ELSE concluida_em END
             WHERE id = %s
-        """, (novo_status, sessao_id))
+        """, (novo_status, novo_status, sessao_id))
 
         # -- Ao concluir: deduzir horas do contrato automaticamente ---------
         horas_info = {}
