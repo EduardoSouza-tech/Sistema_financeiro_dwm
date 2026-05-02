@@ -3249,20 +3249,10 @@ async function openModalSessao(sessaoEdit = null) {
             <div style="position: sticky; bottom: 0; background: white; padding: 15px 0; border-top: 2px solid #eee; margin-top: 20px;">
                 
                 <!-- Botões de Ação Principal -->
-                <div style="display: flex; gap: 10px; margin-bottom: ${isEdit ? '15px' : '0'};">
+                <div style="display: flex; gap: 10px; margin-bottom: 0;">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()" style="flex: 0 0 auto; min-width: 120px;">✖️ Cancelar</button>
                     <button type="submit" class="btn btn-primary" style="flex: 0 0 auto; min-width: 120px;">💾 Salvar Sessão</button>
                 </div>
-                
-                <!-- Controles de Status (apenas em modo edição) -->
-                ${isEdit ? `
-                <div style="border-top: 1px solid #e0e0e0; padding-top: 15px;">
-                    <label style="font-size: 12px; color: #666; font-weight: 600; display: block; margin-bottom: 10px; text-transform: uppercase;">⚡ Controles de Status</label>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                        ${renderBotoesStatusSessao(sessaoEdit)}
-                    </div>
-                </div>
-                ` : ''}
             </div>
         </form>
     `);

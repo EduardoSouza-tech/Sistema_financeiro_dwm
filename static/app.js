@@ -5619,8 +5619,13 @@ function renderKanban(sessoes) {
                 <div class="kanban-col-header" style="background:${col.cor}; cursor:${col.archived ? 'pointer' : 'default'};"
                      ${col.archived ? `onclick="toggleArquivadasCol()"` : ''}>
                     <span>${col.archived ? '🗂️ ' : ''}${escapeHtml(col.label)}</span>
-                    <div style="display:flex;align-items:center;gap:6px;">
+                    <div style="display:flex;align-items:center;gap:4px;">
                         <span class="kanban-col-count">${items.length}</span>
+                        <button onclick="event.stopPropagation();_editarColuna('${escapeHtml(col.id)}')"
+                            title="Renomear coluna"
+                            style="background:rgba(255,255,255,.2);border:none;border-radius:5px;padding:1px 5px;cursor:pointer;font-size:11px;color:white;line-height:1.4;">
+                            ✏️
+                        </button>
                         ${col.archived ? `<span style="font-size:10px;opacity:.85;">${collapseIcon}</span>` : ''}
                     </div>
                 </div>
