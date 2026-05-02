@@ -5561,30 +5561,27 @@ function renderKanban(sessoes) {
 
         if (s.status === 'concluida') {
             const refDate = s.concluida_em || s.finalizada_em || s.updated_at || null;
-            if (refDate) {
-                const diff = hoje - new Date(refDate);
-                if (diff >= QUINZE_DIAS_MS) {
-                    s._autoArquivada = true;
-                    // Dispara update no servidor se ainda não fez
-                    const lsKey = `arquivada_sent_${s.id}`;
-                    if (!sessionStorage.getItem(lsKey)) {
-                        sessionStorage.setItem(lsKey, '1');
-                        fetch(`/api/sessoes/${s.id}/status`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ status: 'arquivada', force: true })
-                        })
-                        .then(r => {
-                            // ✅ Fix: HTTP 4xx/5xx também devem limpar a flag para retry
-                            if (!r.ok) sessionStorage.removeItem(lsKey);
-                            else {
-                                // Atualiza o status no cache local para evitar re-disparo
-                                const cached = (_todasSessoesCache || []).find(c => c.id === s.id);
-                                if (cached) cached.status = 'arquivada';
-                            }
-                        })
-                        .catch(() => sessionStorage.removeItem(lsKey));
-                    }
+            // Se refDate for null (sessão antiga sem data conhecida), arquiva imediatamente
+            const diff = refDate ? (hoje - new Date(refDate)) : Infinity;
+            if (diff >= QUINZE_DIAS_MS) {
+                s._autoArquivada = true;
+                // Dispara update no servidor se ainda não fez
+                const lsKey = `arquivada_sent_${s.id}`;
+                if (!sessionStorage.getItem(lsKey)) {
+                    sessionStorage.setItem(lsKey, '1');
+                    fetch(`/api/sessoes/${s.id}/status`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'arquivada', force: true })
+                    })
+                    .then(r => {
+                        if (!r.ok) sessionStorage.removeItem(lsKey);
+                        else {
+                            const cached = (_todasSessoesCache || []).find(c => c.id === s.id);
+                            if (cached) cached.status = 'arquivada';
+                        }
+                    })
+                    .catch(() => sessionStorage.removeItem(lsKey));
                 }
             }
         }

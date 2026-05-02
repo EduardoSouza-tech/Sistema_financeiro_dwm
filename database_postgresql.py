@@ -1237,6 +1237,18 @@ class DatabaseManager:
         except Exception as e:
             print(f"⚠️  Aviso na migração concluida_em: {e}")
 
+        # Migração: backfill concluida_em para sessões já existentes com status='concluida'
+        # Usa COALESCE(finalizada_em, updated_at, created_at) como melhor estimativa
+        try:
+            cursor.execute("""
+                UPDATE sessoes
+                SET concluida_em = COALESCE(finalizada_em, updated_at, created_at)
+                WHERE status = 'concluida' AND concluida_em IS NULL;
+            """)
+            print("✓ Migração: backfill concluida_em para sessões concluídas existentes")
+        except Exception as e:
+            print(f"⚠️  Aviso na migração backfill concluida_em: {e}")
+
         # Migração: converter UNIQUE(cpf_cnpj) global → UNIQUE(cpf_cnpj, empresa_id) em clientes e fornecedores
         # A constraint global impede o mesmo CPF/CNPJ em múltiplas empresas (multi-tenant)
         try:
