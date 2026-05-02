@@ -3070,7 +3070,7 @@ async function loadControleHoras() {
             tabelaHTML += `
                 <tr style="background: ${bgColor}; border-bottom: 1px solid #ecf0f1;">
                     <td style="padding: 12px; font-size: 13px; font-weight: bold;">${contrato.numero}</td>
-                    <td style="padding: 12px; font-size: 13px;">${contrato.cliente_nome}</td>
+                    <td style="padding: 12px; font-size: 13px;">${contrato.cliente_nome_fantasia || contrato.cliente_nome}</td><!-- REGRA: nome_fantasia > razao_social -->
                     <td style="padding: 12px; text-align: center; font-size: 13px;">${parseFloat(contrato.horas_totais).toFixed(1)}h</td>
                     <td style="padding: 12px; text-align: center; font-size: 13px;">${parseFloat(contrato.horas_utilizadas).toFixed(1)}h</td>
                     <td style="padding: 12px; text-align: center; font-size: 13px; font-weight: bold; color: ${contrato.horas_restantes < 0 ? '#e74c3c' : '#27ae60'};">
@@ -3213,7 +3213,7 @@ async function abrirCompensacaoHoras(contratoId) {
                             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; color: white; margin-bottom: 20px;">
                                 <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">Contrato Selecionado</div>
                                 <div style="font-size: 18px; font-weight: bold;">${contratoAtual.numero}</div>
-                                <div style="font-size: 14px; margin-top: 5px;">${contratoAtual.cliente_nome}</div>
+                                <div style="font-size: 14px; margin-top: 5px;">${contratoAtual.cliente_nome_fantasia || contratoAtual.cliente_nome}</div><!-- REGRA: nome_fantasia > razao_social -->
                                 <div style="font-size: 13px; margin-top: 8px; opacity: 0.95;">
                                     💰 Saldo Disponível: <strong>${saldoAtual.toFixed(1)}h</strong>
                                 </div>
@@ -5248,7 +5248,7 @@ function renderContratos(contratos) {
             
             tr.innerHTML = `
                 <td>${escapeHtml(contrato.numero || '-')}</td>
-                <td>${escapeHtml(contrato.cliente_nome || '-')}</td>
+                <td>${escapeHtml(contrato.cliente_nome_fantasia || contrato.cliente_nome || '-')}</td><!-- REGRA: nome_fantasia > razao_social -->
                 <td><span class="badge" style="background: #3498db; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${escapeHtml(contrato.tipo || '-')}</span></td>
                 <td>${escapeHtml(contrato.nome || contrato.descricao || '-')}</td>
                 <td>${formatarMoeda(valorMensal)}</td>
@@ -6028,7 +6028,7 @@ async function verHistoricoContrato(contratoId) {
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
                     <div style="flex:1;min-width:200px;">
                         <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:4px;">${escapeHtml(contrato.numero || '')}</div>
-                        <div style="font-size:18px;font-weight:700;color:#1e293b;">${escapeHtml(contrato.cliente_nome || contrato.nome || 'Contrato')}</div>
+                        <div style="font-size:18px;font-weight:700;color:#1e293b;">${escapeHtml(contrato.cliente_nome_fantasia || contrato.cliente_nome || contrato.nome || 'Contrato')}</div><!-- REGRA: nome_fantasia > razao_social -->
                         <div style="font-size:12px;color:#475569;margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;">
                             ${contrato.tipo ? `<span style="background:#f1f5f9;color:#334155;padding:2px 8px;border-radius:10px;border:1px solid #e2e8f0;">${escapeHtml(contrato.tipo)}</span>` : ''}
                             ${contrato.forma_pagamento ? `<span style="background:#f1f5f9;color:#334155;padding:2px 8px;border-radius:10px;border:1px solid #e2e8f0;">${escapeHtml(contrato.forma_pagamento)}</span>` : ''}
@@ -6671,7 +6671,7 @@ function renderizarTabelaResumo(contratos) {
         
         tr.innerHTML = `
             <td style="padding: 12px 15px;">${contrato.numero || '-'}</td>
-            <td style="padding: 12px 15px;">${contrato.cliente_nome || '-'}</td>
+            <td style="padding: 12px 15px;">${contrato.cliente_nome_fantasia || contrato.cliente_nome || '-'}</td><!-- REGRA: nome_fantasia > razao_social -->
             <td style="padding: 12px 15px; text-align: right; font-weight: 600;">
                 R$ ${contrato.receitaBruta.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
             </td>

@@ -1024,7 +1024,7 @@ function renderListaContratos(contratos) {
         <tbody>
             ${contratos.map(contrato => `
                 <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px;">${contrato.cliente_nome || 'Cliente não encontrado'}</td>
+                    <td style="padding: 12px;">${contrato.cliente_nome_fantasia || contrato.cliente_nome || 'Cliente não encontrado'}</td><!-- REGRA: nome_fantasia > razao_social -->
                     <td style="padding: 12px;">${contrato.tipo_contrato}</td>
                     <td style="padding: 12px; text-align: right; font-weight: bold;">${formatarMoeda(contrato.valor_contrato)}</td>
                     <td style="padding: 12px; text-align: center;">
@@ -1067,7 +1067,7 @@ function renderCardsContratos(contratos) {
         const card = document.createElement('div');
         card.style.cssText = `background: ${statusCor}; color: white; padding: 20px; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15);`;
         card.innerHTML = `
-            <h3 style="margin: 0 0 10px 0;">${contrato.cliente_nome || 'Cliente não encontrado'}</h3>
+            <h3 style="margin: 0 0 10px 0;">${contrato.cliente_nome_fantasia || contrato.cliente_nome || 'Cliente não encontrado'}</h3><!-- REGRA: nome_fantasia > razao_social -->
             <p style="margin: 5px 0;"><strong>Tipo:</strong> ${contrato.tipo_contrato}</p>
             <p style="margin: 5px 0;"><strong>Valor:</strong> ${formatarMoeda(contrato.valor_contrato)}</p>
             <p style="margin: 5px 0;"><strong>Status:</strong> ${contrato.status_pagamento}</p>

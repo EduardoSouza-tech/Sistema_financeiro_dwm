@@ -4965,7 +4965,9 @@ def listar_contratos(empresa_id: int) -> List[Dict]:
     with get_db_connection(empresa_id=empresa_id) as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT c.*, COALESCE(cl.razao_social, cl.nome) as cliente_nome
+            SELECT c.*, 
+                   COALESCE(cl.razao_social, cl.nome) as cliente_nome,
+                   cl.nome_fantasia AS cliente_nome_fantasia
             FROM contratos c
             LEFT JOIN clientes cl ON c.cliente_id = cl.id
             ORDER BY c.created_at DESC
