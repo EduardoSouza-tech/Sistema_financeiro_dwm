@@ -5420,13 +5420,14 @@ function renderSessoesTabela(sessoes) {
             // Badge de Status da Sessão
             const statusSessao = sessao.status || 'rascunho';
             const badgesStatus = {
-                'rascunho': { cor: '#94a3b8', label: '📝 Rascunho' },
-                'agendada': { cor: '#3b82f6', label: '📅 Agendada' },
-                'em_andamento': { cor: '#f59e0b', label: '⏳ Em Andamento' },
-                'finalizada': { cor: '#10b981', label: '✅ Finalizada' },
-                'concluida': { cor: '#059669', label: '🏁 Concluída' },
-                'cancelada': { cor: '#ef4444', label: '❌ Cancelada' },
-                'reaberta': { cor: '#8b5cf6', label: '🔄 Reaberta' }
+                'rascunho':    { cor: '#94a3b8', label: '📝 Rascunho' },
+                'agendada':    { cor: '#3b82f6', label: '📅 Agendada' },
+                'em_andamento':{ cor: '#f59e0b', label: '⏳ Em Andamento' },
+                'finalizada':  { cor: '#10b981', label: '✅ Finalizada' },
+                'concluida':   { cor: '#059669', label: '🏁 Concluída' },
+                'cancelada':   { cor: '#ef4444', label: '❌ Cancelada' },
+                'reaberta':    { cor: '#8b5cf6', label: '🔄 Reaberta' },
+                'arquivada':   { cor: '#475569', label: '🗂️ Arquivada' },
             };
             const badgeStatus = badgesStatus[statusSessao] || badgesStatus['rascunho'];
             
