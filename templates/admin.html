@@ -430,6 +430,7 @@
                 <button class="tab" onclick="switchTab('access')">🔗 Acessos Multi-Empresa</button>
                 <button class="tab" onclick="switchTab('permissions')">🔐 Permissões</button>
                 <button class="tab" onclick="switchTab('logs')">📋 Logs de Acesso</button>
+                <button class="tab" onclick="switchTab('backup')">💾 Backup DB</button>
                 <button class="tab" onclick="switchTab('export')">📦 Exportar Dados</button>
                 <button class="tab" onclick="switchTab('debug')">🔧 Debug DB</button>
                 <button class="tab" onclick="switchTab('avisos')">📣 Avisos</button>
@@ -601,6 +602,42 @@
                 <p style="color: #666; margin-bottom: 20px;">Histórico de logins e acessos ao sistema</p>
                 <div class="empty-state">
                     <p>Em desenvolvimento - Logs de acesso serão exibidos aqui</p>
+                </div>
+            </div>
+
+            <!-- Tab: Exportar Dados -->
+            <!-- Tab: Backup DB -->
+            <div id="backupTab" class="tab-content">
+                <h2>💾 Backup do Banco de Dados</h2>
+                <p style="color:#666;margin-bottom:24px;">Gera um backup completo do banco, separado por empresa, em formato ZIP com arquivos JSON.</p>
+
+                <!-- Ações -->
+                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px;">
+                    <button id="btnBackupEmail" onclick="fazerBackup('email')" class="btn btn-primary" style="padding:12px 24px;font-size:15px;">
+                        📧 Enviar Backup por E-mail
+                    </button>
+                    <button id="btnBackupDownload" onclick="fazerBackup('download')" class="btn" style="padding:12px 24px;font-size:15px;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;">
+                        ⬇️ Baixar Backup Agora
+                    </button>
+                    <button id="btnBackupAmbos" onclick="fazerBackup('ambos')" class="btn" style="padding:12px 24px;font-size:15px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer;">
+                        🔒 E-mail + Download
+                    </button>
+                </div>
+
+                <!-- Informações -->
+                <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:16px;margin-bottom:20px;font-size:13px;color:#0369a1;">
+                    <strong>ℹ️ Como funciona:</strong><br>
+                    O backup inclui todas as tabelas separadas por empresa (clientes, lançamentos, contratos, sessões, funcionários, eventos, etc.) mais tabelas globais (empresas, usuários).
+                    Os backups automáticos são enviados às <strong>06h, 12h e 19h</strong> (horário de Brasília).
+                </div>
+
+                <!-- Status -->
+                <div id="backupStatus" style="display:none;margin-top:16px;padding:16px;border-radius:8px;"></div>
+
+                <!-- Loading -->
+                <div id="backupLoading" style="display:none;text-align:center;padding:30px;">
+                    <div class="spinner"></div>
+                    <p style="margin-top:12px;color:#666;">Gerando backup, aguarde...</p>
                 </div>
             </div>
 
@@ -2670,6 +2707,85 @@
         });
 
         // Exportar dados do cliente
+        async function fazerBackup(modo) {
+            const btns = ['btnBackupEmail', 'btnBackupDownload', 'btnBackupAmbos'];
+            btns.forEach(id => { const b = document.getElementById(id); if(b) b.disabled = true; });
+
+            const loading = document.getElementById('backupLoading');
+            const status  = document.getElementById('backupStatus');
+            loading.style.display = 'block';
+            status.style.display  = 'none';
+
+            try {
+                const response = await fetch('/api/admin/backup/manual', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ modo }),
+                });
+
+                loading.style.display = 'none';
+
+                if (modo === 'download' || modo === 'ambos') {
+                    if (response.ok) {
+                        // Download direto
+                        const blob  = await response.blob();
+                        const fname = (response.headers.get('Content-Disposition') || '')
+                                        .match(/filename="?([^"]+)"?/)?.[1] || 'backup_DWM.zip';
+                        const url   = URL.createObjectURL(blob);
+                        const a     = document.createElement('a');
+                        a.href = url; a.download = fname; a.click();
+                        URL.revokeObjectURL(url);
+                        const emailEnviado = response.headers.get('X-Email-Sent') === 'true';
+                        status.style.display = 'block';
+                        status.style.background = '#d1fae5';
+                        status.style.color = '#065f46';
+                        status.style.border = '1px solid #6ee7b7';
+                        status.innerHTML = `✅ Backup baixado com sucesso!${emailEnviado ? '<br>📧 E-mail também enviado.' : ''}`;
+                    } else {
+                        const err = await response.json().catch(() => ({error: 'Erro desconhecido'}));
+                        status.style.display = 'block';
+                        status.style.background = '#fee2e2';
+                        status.style.color = '#991b1b';
+                        status.style.border = '1px solid #fca5a5';
+                        status.innerHTML = `❌ Erro: ${err.error || 'Falha ao gerar backup'}`;
+                    }
+                } else {
+                    // Modo email — resposta JSON
+                    const data = await response.json();
+                    status.style.display = 'block';
+                    if (data.success) {
+                        status.style.background = '#d1fae5';
+                        status.style.color = '#065f46';
+                        status.style.border = '1px solid #6ee7b7';
+                        status.innerHTML = `
+                            ✅ Backup gerado com sucesso!<br>
+                            📁 Arquivo: <strong>${data.nome_arquivo}</strong><br>
+                            🏢 Empresas: <strong>${data.total_empresas}</strong> &nbsp;|&nbsp;
+                            📊 Registros: <strong>${data.total_registros}</strong><br>
+                            ${data.email_enviado
+                                ? `📧 E-mail enviado para <strong>${data.email_destino}</strong>`
+                                : `⚠️ E-mail não enviado${data.erro_email ? ': ' + data.erro_email : ''}`}
+                        `;
+                    } else {
+                        status.style.background = '#fee2e2';
+                        status.style.color = '#991b1b';
+                        status.style.border = '1px solid #fca5a5';
+                        status.innerHTML = `❌ Erro: ${data.error || 'Falha ao gerar backup'}`;
+                    }
+                }
+            } catch(err) {
+                loading.style.display = 'none';
+                status.style.display = 'block';
+                status.style.background = '#fee2e2';
+                status.style.color = '#991b1b';
+                status.style.border = '1px solid #fca5a5';
+                status.innerHTML = `❌ Erro de comunicação: ${err.message}`;
+            } finally {
+                btns.forEach(id => { const b = document.getElementById(id); if(b) b.disabled = false; });
+            }
+        }
+
         async function exportarDadosCliente() {
             const select = document.getElementById('clientSelect');
             const clienteId = select.value;

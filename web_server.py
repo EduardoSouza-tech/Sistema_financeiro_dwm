@@ -12661,6 +12661,106 @@ def exportar_dados_cliente_admin(cliente_id):
         }), 500
 
 
+@app.route('/api/admin/backup/manual', methods=['POST'])
+@require_admin
+def admin_backup_manual():
+    """
+    Dispara backup manual do banco, separado por empresa.
+    Body JSON (todos opcionais):
+      { "modo": "email" | "download" | "ambos" }
+    - "email"    → gera zip e envia por e-mail (padrão)
+    - "download" → gera zip e retorna como download direto
+    - "ambos"    → envia por e-mail E retorna download
+    """
+    try:
+        from backup_email import gerar_backup_zip_por_empresa, RESEND_API_KEY, RESEND_FROM, EMAIL_DESTINO, _json_default
+        import resend as resend_lib
+
+        dados = request.get_json(silent=True) or {}
+        modo = dados.get('modo', 'email')
+
+        DATABASE_URL_CHECK = os.getenv('DATABASE_URL', '')
+        if not DATABASE_URL_CHECK:
+            return jsonify({'success': False, 'error': 'DATABASE_URL não configurado'}), 500
+
+        print(f"📦 [BACKUP MANUAL] Iniciado por {request.usuario.get('username', '?')} — modo={modo}")
+        zip_bytes, nome_arquivo, info = gerar_backup_zip_por_empresa()
+        print(f"✅ [BACKUP MANUAL] Zip gerado: {nome_arquivo} ({len(zip_bytes)} bytes)")
+
+        enviado_email = False
+        erro_email = None
+
+        if modo in ('email', 'ambos'):
+            if not RESEND_API_KEY or not EMAIL_DESTINO:
+                erro_email = 'RESEND_API_KEY ou BACKUP_EMAIL_DESTINO não configurados'
+                print(f"⚠️  [BACKUP MANUAL] {erro_email}")
+            else:
+                try:
+                    corpo = f"""
+<html><body style="font-family:Arial,sans-serif;color:#333;">
+<h2 style="color:#3b82f6;">Backup Manual — Sistema DWM</h2>
+<p>Gerado em: <strong>{datetime.now().strftime('%d/%m/%Y às %H:%M')}</strong></p>
+<p><strong>Total de empresas:</strong> {info.get('total_empresas', '?')}</p>
+<p><strong>Total de registros:</strong> {info.get('total_registros', '?')}</p>
+<p style="color:#64748b;font-size:12px;margin-top:20px;">
+  Backup solicitado manualmente pelo administrador.<br>
+  Arquivo: <strong>{nome_arquivo}</strong>
+</p>
+</body></html>
+"""
+                    resend_lib.api_key = RESEND_API_KEY
+                    resend_lib.Emails.send({
+                        "from": RESEND_FROM,
+                        "to": [EMAIL_DESTINO],
+                        "subject": f"🔒 Backup Manual DWM — {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+                        "html": corpo,
+                        "attachments": [{"filename": nome_arquivo, "content": list(zip_bytes)}],
+                    })
+                    enviado_email = True
+                    print(f"✅ [BACKUP MANUAL] E-mail enviado para {EMAIL_DESTINO}")
+                except Exception as e_mail:
+                    erro_email = str(e_mail)
+                    print(f"❌ [BACKUP MANUAL] Erro ao enviar e-mail: {e_mail}")
+
+        # Registrar log
+        try:
+            auth_db.registrar_log_acesso(
+                usuario_id=request.usuario['id'],
+                acao='backup_manual',
+                descricao=f'Backup manual — {nome_arquivo} — {info.get("total_registros", "?")} registros',
+                ip_address=request.remote_addr,
+                sucesso=True
+            )
+        except Exception:
+            pass
+
+        if modo == 'download' or modo == 'ambos':
+            from flask import make_response
+            response = make_response(zip_bytes)
+            response.headers['Content-Type'] = 'application/zip'
+            response.headers['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
+            if enviado_email:
+                response.headers['X-Email-Sent'] = 'true'
+            return response
+
+        # Modo "email" — retorna JSON
+        return jsonify({
+            'success': True,
+            'nome_arquivo': nome_arquivo,
+            'total_empresas': info.get('total_empresas', 0),
+            'total_registros': info.get('total_registros', 0),
+            'email_enviado': enviado_email,
+            'email_destino': EMAIL_DESTINO if enviado_email else None,
+            'erro_email': erro_email,
+        })
+
+    except Exception as e:
+        print(f"❌ [BACKUP MANUAL] Erro: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/admin/listar-proprietarios', methods=['GET'])
 @require_admin
 def listar_proprietarios_disponiveis():
