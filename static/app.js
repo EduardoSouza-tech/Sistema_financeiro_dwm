@@ -5515,11 +5515,18 @@ const KANBAN_COLORS = [
 ];
 
 function getKanbanCols() {
+    let cols;
     try {
         const stored = localStorage.getItem(KANBAN_LS_KEY);
-        if (stored) return JSON.parse(stored);
-    } catch(e) {}
-    return DEFAULT_KANBAN_COLS.map((c, i) => ({ ...c, ordem: i }));
+        cols = stored ? JSON.parse(stored) : null;
+    } catch(e) { cols = null; }
+    if (!cols) cols = DEFAULT_KANBAN_COLS.map((c, i) => ({ ...c, ordem: i }));
+    // Garante que a coluna arquivada SEMPRE existe — sem ela sessões arquivadas somem
+    if (!cols.find(c => c.archived)) {
+        const defaultArq = DEFAULT_KANBAN_COLS.find(c => c.archived);
+        if (defaultArq) cols = [...cols, { ...defaultArq, ordem: cols.length }];
+    }
+    return cols;
 }
 
 function saveKanbanCols(cols) {
@@ -5587,10 +5594,12 @@ function renderKanban(sessoes) {
         }
     });
 
-    board.innerHTML = cols.map(col => {
+    // Coletar IDs de todas as sessões que serão exibidas em alguma coluna
+    const _sessoesExibidasIds = new Set();
+    const _colItemsMap = new Map();
+    cols.forEach(col => {
         let items;
         if (col.archived) {
-            // Coluna arquivada: pega status 'arquivada' + concluídas auto-arquivadas
             items = activeSessoes.filter(s => s.status === 'arquivada' || s._autoArquivada);
         } else {
             items = activeSessoes.filter(s => {
@@ -5598,13 +5607,35 @@ function renderKanban(sessoes) {
                 return (s.status || 'rascunho') === col.id;
             });
         }
+        items.forEach(s => _sessoesExibidasIds.add(s.id));
+        _colItemsMap.set(col.id, items);
+    });
+    // Sessões órfãs: status não corresponde a nenhuma coluna → adicionar à primeira coluna não-arquivada
+    const _orfas = activeSessoes.filter(s => !_sessoesExibidasIds.has(s.id));
+    if (_orfas.length > 0) {
+        const _firstCol = cols.find(c => !c.archived);
+        if (_firstCol) {
+            const _existente = _colItemsMap.get(_firstCol.id) || [];
+            _colItemsMap.set(_firstCol.id, [..._existente, ..._orfas]);
+        }
+    }
+
+    board.innerHTML = cols.map(col => {
+        const items = _colItemsMap.get(col.id) || [];
+
+        // Auto-expandir coluna arquivada se há sessões sendo arquivadas agora
+        const _temAutoArq = col.archived && items.some(s => s._autoArquivada);
+        if (_temAutoArq && localStorage.getItem(`kanban_col_collapsed_${col.id}`) !== '0') {
+            localStorage.setItem(`kanban_col_collapsed_${col.id}`, '0');
+        }
 
         const isCollapsed = col.archived && localStorage.getItem(`kanban_col_collapsed_${col.id}`) !== '0';
         const collapseIcon = isCollapsed ? '▶' : '▼';
 
+        const emptyMsg = col.archived ? 'Sem sessões arquivadas' : 'Sem sessões';
         const cardsHtml = isCollapsed ? '' :
             items.length === 0
-                ? '<div class="kanban-empty">Sem sessões arquivadas</div>'
+                ? `<div class="kanban-empty">${emptyMsg}</div>`
                 : items.map(s => renderKanbanCard(s, col, hoje)).join('');
 
         const colClass = col.archived ? 'kanban-col kanban-col-arquivada' : 'kanban-col';
