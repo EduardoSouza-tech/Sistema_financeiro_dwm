@@ -663,6 +663,7 @@ def atualizar_status_route(sessao_id):
         
         data = request.get_json()
         novo_status = data.get('status')
+        force = data.get('force', False)  # kanban envia force=True para mover livremente
         
         if not novo_status:
             return jsonify({'success': False, 'error': 'Campo "status" é obrigatório'}), 400
@@ -675,7 +676,8 @@ def atualizar_status_route(sessao_id):
             empresa_id=empresa_id,
             sessao_id=sessao_id,
             novo_status=novo_status,
-            usuario_id=usuario_id
+            usuario_id=usuario_id,
+            force=force
         )
         
         if resultado['success']:

@@ -5621,7 +5621,7 @@ def finalizar_sessao(empresa_id: int, sessao_id: int, usuario_id: int, horas_tra
         }
 
 
-def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, usuario_id: int = None) -> Dict:
+def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, usuario_id: int = None, force: bool = False) -> Dict:
     """
     Atualiza o status de uma sessão com validações de transição
     
@@ -5684,14 +5684,14 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
         
         status_anterior = sessao.get('status', 'rascunho')
         
-        # Validar transições (regras de negócio)
+        # Validar transições (regras de negócio) — ignoradas se force=True
         transicoes_invalidas = [
             (status_anterior == 'finalizada'  and novo_status not in ['reaberta', 'cancelada']),
             (status_anterior == 'cancelada'   and novo_status not in ['reaberta', 'agendada']),
             (status_anterior == 'concluida'   and novo_status not in ['reaberta']),
         ]
         
-        if any(transicoes_invalidas):
+        if not force and any(transicoes_invalidas):
             cursor.close()
             return_to_pool(conn)
             return {

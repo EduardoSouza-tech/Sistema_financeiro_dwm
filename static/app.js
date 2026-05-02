@@ -5627,7 +5627,7 @@ async function onKanbanDrop(event, colId) {
         const r = await fetch(`/api/sessoes/${sessaoId}/status`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: colId })
+            body: JSON.stringify({ status: colId, force: true })
         });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
     } catch(e) {
