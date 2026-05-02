@@ -5650,7 +5650,7 @@ function renderKanbanCard(s, col, hoje) {
     // Modo compacto para sessões arquivadas
     if (col.archived) {
         const _nomeCliente = s.cliente_nome_fantasia || s.cliente_nome;
-        const titulo = s.titulo || (_nomeCliente ? `Ensaio ${_nomeCliente}` : `Sessão #${s.id}`);
+        const titulo = s.titulo || _nomeCliente || `Sessão #${s.id}`;
         const dataFmt = _fmtDataKanban(s.data);
         return `<div class="kanban-card kanban-card-compact"
                     draggable="true"
@@ -5678,7 +5678,7 @@ function renderKanbanCard(s, col, hoje) {
     if (s.tipo_mobile) tipos.push('Mobile');
     // REGRA: exibir nome_fantasia quando disponível, razao_social como fallback
     const _nomeCliente = s.cliente_nome_fantasia || s.cliente_nome;
-    const titulo = s.titulo || (_nomeCliente ? `Ensaio ${_nomeCliente}` : `Sessão #${s.id}`);
+    const titulo = s.titulo || _nomeCliente || `Sessão #${s.id}`;
     const dataFmt   = _fmtDataKanban(s.data);
     const prazoFmt  = _fmtDataKanban(s.prazo_entrega);
     const clienteHtml = _nomeCliente ? `<div class="kanban-card-cliente">${escapeHtml(_nomeCliente)}</div>` : '';
