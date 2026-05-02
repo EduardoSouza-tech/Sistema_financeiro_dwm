@@ -5889,16 +5889,31 @@ function _renderListaColunas() {
     const cols = getKanbanCols();
     const lista = document.getElementById('lista-colunas-kanban');
     if (!lista) return;
-    lista.innerHTML = cols.map((col, i) => `
+    lista.innerHTML = cols.map((col, i) => {
+        const sessoesNaColuna = (_todasSessoesCache || []).filter(s => {
+            if (s.status === 'cancelada') return false;
+            if (col.archived) return s.status === 'arquivada' || s._autoArquivada;
+            return (s.status || 'rascunho') === col.id && !s._autoArquivada;
+        });
+        const temSessoes = sessoesNaColuna.length > 0;
+        const btnExcluirStyle = temSessoes
+            ? 'background:none;border:1px solid #e2e8f0;color:#cbd5e1;border-radius:6px;padding:2px 7px;cursor:not-allowed;font-size:14px;opacity:.45;'
+            : 'background:none;border:1px solid #fee2e2;color:#ef4444;border-radius:6px;padding:2px 7px;cursor:pointer;font-size:14px;';
+        const btnExcluirTitle = temSessoes
+            ? `Coluna com ${sessoesNaColuna.length} sessão(ões) — mova-as antes de excluir`
+            : 'Excluir coluna';
+        return `
         <div class="kanban-col-item">
             <span class="color-swatch" style="background:${col.cor}"></span>
             <span class="kanban-col-item-label">${escapeHtml(col.label)}</span>
+            ${temSessoes ? `<span style="font-size:10px;background:#f1f5f9;color:#64748b;border-radius:10px;padding:1px 7px;">${sessoesNaColuna.length}</span>` : ''}
             ${col.final ? '<span class="badge-final">Final</span>' : '<span class="badge-padrao">Padrão</span>'}
             <button onclick="_moverColuna(${i},-1)" title="Subir" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:2px 7px;cursor:pointer;font-size:13px;" ${i===0?'disabled':''}>▲</button>
             <button onclick="_moverColuna(${i},1)"  title="Descer" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:2px 7px;cursor:pointer;font-size:13px;" ${i===cols.length-1?'disabled':''}>▼</button>
             <button onclick="_editarColuna('${col.id}')" title="Editar" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:2px 7px;cursor:pointer;font-size:14px;">✏️</button>
-            <button onclick="_deletarColuna('${col.id}')" title="Excluir" style="background:none;border:1px solid #fee2e2;color:#ef4444;border-radius:6px;padding:2px 7px;cursor:pointer;font-size:14px;">🗑️</button>
-        </div>`).join('');
+            <button onclick="_deletarColuna('${col.id}')" title="${btnExcluirTitle}" style="${btnExcluirStyle}">🗑️</button>
+        </div>`;
+    }).join('');
 }
 
 function _moverColuna(idx, dir) {
@@ -5912,7 +5927,18 @@ function _moverColuna(idx, dir) {
 }
 
 function _deletarColuna(colId) {
-    if (!confirm('Excluir esta coluna? As sessões com este status não serão exibidas no kanban.')) return;
+    // Bloquear exclusão se houver sessões nessa coluna
+    const sessoesNaColuna = (_todasSessoesCache || []).filter(s => {
+        if (s.status === 'cancelada') return false;
+        const col = getKanbanCols().find(c => c.id === colId);
+        if (col && col.archived) return s.status === 'arquivada' || s._autoArquivada;
+        return (s.status || 'rascunho') === colId && !s._autoArquivada;
+    });
+    if (sessoesNaColuna.length > 0) {
+        alert(`Não é possível excluir esta coluna.\nEla contém ${sessoesNaColuna.length} sessão(ões).\nMova ou arquive as sessões antes de excluir a coluna.`);
+        return;
+    }
+    if (!confirm('Excluir esta coluna?')) return;
     let cols = getKanbanCols().filter(c => c.id !== colId);
     saveKanbanCols(cols);
     _renderListaColunas();
