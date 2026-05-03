@@ -3268,7 +3268,9 @@ async function openModalSessao(sessaoEdit = null) {
         const currentModal = document.getElementById('dynamic-modal');
         if (currentModal !== thisModalElement) return;
 
-        const sessaoIdField = document.getElementById('sessao-id');
+        // Usar seletor específico ao modal dinâmico para evitar conflito com
+        // id="sessao-id" estático em interface_nova.html (modal legado #modal-sessao)
+        const sessaoIdField = thisModalElement ? thisModalElement.querySelector('#sessao-id') : document.getElementById('sessao-id');
         
         // Se estiver editando, forçar o valor novamente (PREVINE DUPLICAÇÃO)
         if (isEdit && sessaoEdit) {
@@ -3560,7 +3562,9 @@ async function salvarSessao(event) {
     
     console.log('\n💾 ========== SALVAR SESSÃO ==========');
     
-    const id = document.getElementById('sessao-id').value;
+    // Usar seletor específico ao form para evitar conflito com elemento estático
+    // homônimo id="sessao-id" em interface_nova.html (modal legado #modal-sessao)
+    const id = (event.target.querySelector('#sessao-id') || document.getElementById('sessao-id')).value;
     const isEdit = id && id.trim() !== '';
     
     console.log('🎯 Modo:', isEdit ? 'EDIÇÃO' : 'CRIAÇÃO');
