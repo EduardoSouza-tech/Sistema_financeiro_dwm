@@ -6421,6 +6421,9 @@ def adicionar_sessao(dados: Dict) -> int:
         STATUS_VALIDOS = ['rascunho', 'agendada', 'em_andamento', 'finalizada', 'concluida', 'cancelada', 'reaberta']
         if status not in STATUS_VALIDOS:
             status = 'agendada'
+        # Aceitar tanto 'data' (chave enviada pela rota POST) quanto 'data_sessao' (legado)
+        data_valor = dados.get('data') or dados.get('data_sessao')
+
         cursor.execute("""
             INSERT INTO sessoes (
                 titulo, data, data_sessao, duracao, contrato_id, cliente_id, 
@@ -6430,8 +6433,8 @@ def adicionar_sessao(dados: Dict) -> int:
             RETURNING id
         """, (
             dados.get('titulo'),
-            dados.get('data_sessao'),  # Campo 'data' na tabela
-            dados.get('data_sessao'),  # Campo 'data_sessao' para compatibilidade
+            data_valor,  # Campo 'data' na tabela
+            data_valor,  # Campo 'data_sessao' para compatibilidade
             dados.get('duracao'),
             dados.get('contrato_id'),
             dados.get('cliente_id'),
@@ -6450,10 +6453,11 @@ def adicionar_sessao(dados: Dict) -> int:
         # Adicionar membros da equipe se fornecidos
         if 'equipe' in dados and dados['equipe']:
             for membro in dados['equipe']:
+                nome_membro = membro.get('nome') or membro.get('pessoa_id') or 'Membro'
                 cursor.execute("""
                     INSERT INTO sessao_equipe (sessao_id, membro_nome, funcao)
                     VALUES (%s, %s, %s)
-                """, (sessao_id, membro['nome'], membro.get('funcao')))
+                """, (sessao_id, nome_membro, membro.get('funcao')))
         
         conn.commit()
         cursor.close()
