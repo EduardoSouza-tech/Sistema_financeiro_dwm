@@ -1200,25 +1200,21 @@ class DatabaseManager:
         except Exception as e:
             print(f"⚠️  Aviso na migração de status de sessoes: {e}")
 
-        # Migração: Atualizar CHECK constraint para incluir 'arquivada'
+        # Migração: Remover CHECK constraint de status para suportar colunas Kanban customizadas
         try:
             cursor.execute("""
                 DO $$
                 BEGIN
+                    -- Remover todas as versões do constraint de status
+                    ALTER TABLE sessoes DROP CONSTRAINT IF EXISTS sessoes_status_check;
+                    ALTER TABLE sessoes DROP CONSTRAINT IF EXISTS sessoes_status_check1;
                     ALTER TABLE sessoes DROP CONSTRAINT IF EXISTS sessoes_status_check_v2;
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.constraint_column_usage
-                        WHERE table_name = 'sessoes' AND column_name = 'status'
-                        AND constraint_name = 'sessoes_status_check_v3'
-                    ) THEN
-                        ALTER TABLE sessoes ADD CONSTRAINT sessoes_status_check_v3
-                            CHECK (status IN ('rascunho','agendada','em_andamento','finalizada','concluida','cancelada','reaberta','arquivada'));
-                    END IF;
+                    ALTER TABLE sessoes DROP CONSTRAINT IF EXISTS sessoes_status_check_v3;
                 END $$;
             """)
-            print("✓ Migração: CHECK constraint de status v3 (arquivada) aplicada")
+            print("✓ Migração: CHECK constraint de status removido (suporte a colunas Kanban customizadas)")
         except Exception as e:
-            print(f"⚠️  Aviso na migração de status v3 (arquivada): {e}")
+            print(f"⚠️  Aviso ao remover CHECK constraint de status: {e}")
 
         # Migração: adicionar coluna concluida_em em sessoes
         try:
@@ -5701,10 +5697,15 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
     if not empresa_id:
         raise ValueError("empresa_id é obrigatório")
     
-    # Status válidos
+    # Status válidos para validação de workflow (não aplicado quando force=True)
     STATUS_VALIDOS = ['rascunho', 'agendada', 'em_andamento', 'finalizada', 'concluida', 'cancelada', 'reaberta', 'arquivada']
-    
-    if novo_status not in STATUS_VALIDOS:
+
+    if not force and not novo_status:
+        raise ValueError("Campo 'status' é obrigatório")
+
+    # Quando force=False, validar apenas os status de workflow conhecidos
+    # Quando force=True (Kanban com colunas customizadas), qualquer string é permitida
+    if not force and novo_status not in STATUS_VALIDOS:
         raise ValueError(f"Status inválido: {novo_status}. Valores aceitos: {', '.join(STATUS_VALIDOS)}")
     
     # 🔒 Usar get_db_connection com empresa_id
