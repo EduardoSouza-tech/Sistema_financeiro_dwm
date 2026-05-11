@@ -251,14 +251,14 @@ def iniciar_scheduler(app):
         scheduler = BackgroundScheduler(timezone='America/Sao_Paulo')
         scheduler.add_job(
             func=enviar_backup_email,
-            trigger=CronTrigger(hour='6,12,19', minute=0, timezone='America/Sao_Paulo'),
+            trigger=CronTrigger(hour=8, minute=0, timezone='America/Sao_Paulo'),
             id='backup_email',
-            name='Backup DB por e-mail (06h / 12h / 19h)',
+            name='Backup DB por e-mail (08h)',
             replace_existing=True,
             misfire_grace_time=300,  # tolera até 5min de atraso
         )
         scheduler.start()
-        print("✅ [BACKUP] Scheduler iniciado — backups às 06:00, 12:00 e 19:00 (Brasília)")
+        print("✅ [BACKUP] Scheduler iniciado — backup diário às 08:00 (Brasília)")
         return scheduler
     except ImportError:
         print("⚠️  [BACKUP] APScheduler não instalado — backups automáticos desativados")
