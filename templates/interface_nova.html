@@ -3102,14 +3102,14 @@
                     <table style="width:100%; border-collapse:collapse; font-size:13px;">
                         <thead>
                             <tr style="background:#2c3e50; color:white;">
-                                <th style="padding:10px 12px; text-align:left; white-space:nowrap;">Número</th>
-                                <th style="padding:10px 12px; text-align:left; white-space:nowrap;">Data Emissão</th>
-                                <th style="padding:10px 12px; text-align:left; white-space:nowrap;">CPF/CNPJ Tomador</th>
-                                <th style="padding:10px 12px; text-align:left; white-space:nowrap;">Tomador</th>
-                                <th style="padding:10px 12px; text-align:right; white-space:nowrap;">Valor Líquido</th>
-                                <th style="padding:10px 12px; text-align:left; max-width:220px;">Discriminação</th>
-                                <th style="padding:10px 12px; text-align:center; white-space:nowrap;">Situação</th>
-                                <th style="padding:10px 12px; text-align:center; white-space:nowrap;">Data PG.</th>
+                                <th onclick="sortarControleNFSe('numero_nfse')" style="padding:10px 12px; text-align:left; white-space:nowrap; cursor:pointer; user-select:none;">Número <span id="nfse-sort-numero_nfse" style="font-size:10px;">⇅</span></th>
+                                <th onclick="sortarControleNFSe('data_emissao')" style="padding:10px 12px; text-align:left; white-space:nowrap; cursor:pointer; user-select:none;">Data Emissão <span id="nfse-sort-data_emissao" style="font-size:10px;">▼</span></th>
+                                <th onclick="sortarControleNFSe('cnpj_tomador')" style="padding:10px 12px; text-align:left; white-space:nowrap; cursor:pointer; user-select:none;">CPF/CNPJ Tomador <span id="nfse-sort-cnpj_tomador" style="font-size:10px;">⇅</span></th>
+                                <th onclick="sortarControleNFSe('razao_social_tomador')" style="padding:10px 12px; text-align:left; white-space:nowrap; cursor:pointer; user-select:none;">Tomador <span id="nfse-sort-razao_social_tomador" style="font-size:10px;">⇅</span></th>
+                                <th onclick="sortarControleNFSe('valor_liquido')" style="padding:10px 12px; text-align:right; white-space:nowrap; cursor:pointer; user-select:none;">Valor Líquido <span id="nfse-sort-valor_liquido" style="font-size:10px;">⇅</span></th>
+                                <th onclick="sortarControleNFSe('discriminacao')" style="padding:10px 12px; text-align:left; max-width:220px; cursor:pointer; user-select:none;">Discriminação <span id="nfse-sort-discriminacao" style="font-size:10px;">⇅</span></th>
+                                <th onclick="sortarControleNFSe('situacao')" style="padding:10px 12px; text-align:center; white-space:nowrap; cursor:pointer; user-select:none;">Situação <span id="nfse-sort-situacao" style="font-size:10px;">⇅</span></th>
+                                <th onclick="sortarControleNFSe('data_pagamento')" style="padding:10px 12px; text-align:center; white-space:nowrap; cursor:pointer; user-select:none;">Data PG. <span id="nfse-sort-data_pagamento" style="font-size:10px;">⇅</span></th>
                                 <th style="padding:10px 12px; text-align:center; white-space:nowrap;">Ações</th>
                             </tr>
                         </thead>
@@ -9176,6 +9176,57 @@
         // ==================== CONTROLE DE NFS-e ====================
 
         let _nfseControleData = [];
+        let _nfseSort = { col: 'data_emissao', dir: 'desc' };
+        const _nfseSortCols = ['numero_nfse','data_emissao','cnpj_tomador','razao_social_tomador','valor_liquido','discriminacao','situacao','data_pagamento'];
+
+        function sortarControleNFSe(col) {
+            if (_nfseSort.col === col) {
+                _nfseSort.dir = _nfseSort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                _nfseSort.col = col;
+                _nfseSort.dir = 'asc';
+            }
+            _atualizarIndicadoresNFSe();
+            filtrarControleNFSe();
+        }
+
+        function _atualizarIndicadoresNFSe() {
+            _nfseSortCols.forEach(c => {
+                const el = document.getElementById('nfse-sort-' + c);
+                if (!el) return;
+                if (c === _nfseSort.col) {
+                    el.textContent = _nfseSort.dir === 'asc' ? ' ▲' : ' ▼';
+                    el.parentElement.style.background = '#1a252f';
+                } else {
+                    el.textContent = ' ⇅';
+                    el.parentElement.style.background = '';
+                }
+            });
+        }
+
+        function _ordenarLista(lista) {
+            const col = _nfseSort.col;
+            const dir = _nfseSort.dir;
+            return [...lista].sort((a, b) => {
+                let va = a[col];
+                let vb = b[col];
+                if (col === 'valor_liquido') {
+                    va = parseFloat(va) || 0;
+                    vb = parseFloat(vb) || 0;
+                    return dir === 'asc' ? va - vb : vb - va;
+                }
+                // datas: comparar como string ISO (YYYY-MM-DD)
+                if (col === 'data_emissao' || col === 'data_pagamento') {
+                    va = va ? va.split('T')[0] : '';
+                    vb = vb ? vb.split('T')[0] : '';
+                }
+                va = String(va || '').toLowerCase();
+                vb = String(vb || '').toLowerCase();
+                if (va < vb) return dir === 'asc' ? -1 : 1;
+                if (va > vb) return dir === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
 
         async function carregarControleNFSe() {
             const tbody = document.getElementById('tbody-controle-nfse');
@@ -9187,8 +9238,8 @@
                 const result = await resp.json();
                 if (!result.success) throw new Error(result.error || 'Erro ao carregar');
                 _nfseControleData = result.nfses || [];
-                document.getElementById('controle-nfse-contador').textContent = `${_nfseControleData.length} nota(s)`;
-                renderControleNFSe(_nfseControleData);
+                _atualizarIndicadoresNFSe();
+                filtrarControleNFSe();
             } catch (e) {
                 tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:20px;color:#e74c3c;">❌ ${e.message}</td></tr>`;
             }
@@ -9198,16 +9249,18 @@
             const sit  = document.getElementById('filtro-nfse-situacao').value.toUpperCase();
             const pg   = document.getElementById('filtro-nfse-pg').value.toUpperCase();
             const busca = document.getElementById('filtro-nfse-busca').value.toLowerCase();
-            const filtrado = _nfseControleData.filter(n => {
+            let filtrado = _nfseControleData.filter(n => {
                 if (sit  && (n.situacao || '').toUpperCase() !== sit) return false;
                 if (pg   && (n.situacao_recebimento || 'PENDENTE').toUpperCase() !== pg) return false;
                 if (busca && !(
                     String(n.numero_nfse || '').toLowerCase().includes(busca) ||
                     (n.razao_social_tomador || '').toLowerCase().includes(busca) ||
-                    (n.cnpj_tomador || '').toLowerCase().includes(busca)
+                    (n.cnpj_tomador || '').toLowerCase().includes(busca) ||
+                    (n.discriminacao || '').toLowerCase().includes(busca)
                 )) return false;
                 return true;
             });
+            filtrado = _ordenarLista(filtrado);
             document.getElementById('controle-nfse-contador').textContent = `${filtrado.length} / ${_nfseControleData.length} nota(s)`;
             renderControleNFSe(filtrado);
         }
