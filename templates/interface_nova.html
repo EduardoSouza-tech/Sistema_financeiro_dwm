@@ -1602,6 +1602,7 @@
                 <button class="submenu-button" onclick="showSection('contas-pagar')" data-permission="lancamentos_view">💳 Contas a Pagar</button>
                 <button class="submenu-button" onclick="showSection('remessa-pagamento')" data-permission="remessa_view">📤 Remessa Pagamentos</button>
                 <button class="submenu-button" onclick="showSection('extrato-bancario')" data-permission="lancamentos_view">🏦 Extrato Bancário</button>
+                <button class="submenu-button" onclick="showSection('controle-nfse')" data-permission="nfse_view">🧾 Controle de NFS-e</button>
             </div>
             
             <!-- Menu Contabilidade com Submenu -->
@@ -3057,6 +3058,154 @@
                                 Fechar
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controle de NFS-e -->
+            <div id="controle-nfse-section" class="content-card hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; flex-wrap: wrap; gap: 10px;">
+                    <h2 style="margin: 0; color: #2c3e50;">🧾 Controle de NFS-e</h2>
+                    <button onclick="carregarControleNFSe()" class="btn btn-primary" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                        🔄 Atualizar
+                    </button>
+                </div>
+
+                <!-- Filtro rápido -->
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 16px; display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                    <div>
+                        <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:4px;">Situação</label>
+                        <select id="filtro-nfse-situacao" onchange="filtrarControleNFSe()" style="padding:8px 12px; border:1px solid #ddd; border-radius:5px; min-width:140px;">
+                            <option value="">Todas</option>
+                            <option value="NORMAL">Normal</option>
+                            <option value="CANCELADA">Cancelada</option>
+                            <option value="SUBSTITUIDA">Substituída</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:4px;">Pagamento</label>
+                        <select id="filtro-nfse-pg" onchange="filtrarControleNFSe()" style="padding:8px 12px; border:1px solid #ddd; border-radius:5px; min-width:130px;">
+                            <option value="">Todos</option>
+                            <option value="PAGO">Pago</option>
+                            <option value="PENDENTE">Pendente</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:4px;">Buscar</label>
+                        <input type="text" id="filtro-nfse-busca" oninput="filtrarControleNFSe()" placeholder="Número, tomador..." style="padding:8px 12px; border:1px solid #ddd; border-radius:5px; min-width:200px;">
+                    </div>
+                    <div style="margin-left:auto; font-size:13px; color:#666; align-self:center;" id="controle-nfse-contador"></div>
+                </div>
+
+                <!-- Tabela -->
+                <div style="overflow-x: auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                        <thead>
+                            <tr style="background:#2c3e50; color:white;">
+                                <th style="padding:10px 12px; text-align:left; white-space:nowrap;">Número</th>
+                                <th style="padding:10px 12px; text-align:left; white-space:nowrap;">Data Emissão</th>
+                                <th style="padding:10px 12px; text-align:left; white-space:nowrap;">CPF/CNPJ Tomador</th>
+                                <th style="padding:10px 12px; text-align:left; white-space:nowrap;">Tomador</th>
+                                <th style="padding:10px 12px; text-align:right; white-space:nowrap;">Valor Líquido</th>
+                                <th style="padding:10px 12px; text-align:left; max-width:220px;">Discriminação</th>
+                                <th style="padding:10px 12px; text-align:center; white-space:nowrap;">Situação</th>
+                                <th style="padding:10px 12px; text-align:center; white-space:nowrap;">Data PG.</th>
+                                <th style="padding:10px 12px; text-align:center; white-space:nowrap;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-controle-nfse">
+                            <tr><td colspan="9" style="text-align:center; padding:30px; color:#999;">Clique em Atualizar para carregar as NFS-e</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal Editar NFS-e -->
+            <div id="modal-editar-nfse" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; overflow-y:auto;">
+                <div style="background:white; margin:40px auto; max-width:700px; width:94%; border-radius:10px; padding:30px; position:relative;">
+                    <button onclick="fecharModalEditarNFSe()" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:#666;">&times;</button>
+                    <h3 style="margin-top:0; color:#2c3e50;">✏️ Editar NFS-e <span id="editar-nfse-numero" style="color:#3498db;"></span></h3>
+                    <input type="hidden" id="editar-nfse-id">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Número NFS-e</label>
+                            <input type="text" id="enf-numero" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Data Emissão</label>
+                            <input type="date" id="enf-data-emissao" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">CPF/CNPJ Tomador</label>
+                            <input type="text" id="enf-cnpj-tomador" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Razão Social Tomador</label>
+                            <input type="text" id="enf-razao-tomador" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Valor Serviço (R$)</label>
+                            <input type="number" step="0.01" id="enf-valor-servico" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Valor Líquido (R$)</label>
+                            <input type="number" step="0.01" id="enf-valor-liquido" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Valor ISS (R$)</label>
+                            <input type="number" step="0.01" id="enf-valor-iss" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Alíquota ISS (%)</label>
+                            <input type="number" step="0.01" id="enf-aliquota-iss" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Valor Deduções (R$)</label>
+                            <input type="number" step="0.01" id="enf-valor-deducoes" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Código Serviço</label>
+                            <input type="text" id="enf-codigo-servico" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Situação NFS-e</label>
+                            <select id="enf-situacao" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                                <option value="NORMAL">Normal</option>
+                                <option value="CANCELADA">Cancelada</option>
+                                <option value="SUBSTITUIDA">Substituída</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Situação Recebimento</label>
+                            <select id="enf-situacao-recebimento" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                                <option value="PENDENTE">Pendente</option>
+                                <option value="PAGO">Pago</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Data Pagamento</label>
+                            <input type="date" id="enf-data-pagamento" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Município</label>
+                            <input type="text" id="enf-nome-municipio" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Número RPS</label>
+                            <input type="text" id="enf-numero-rps" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Protocolo</label>
+                            <input type="text" id="enf-protocolo" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                    </div>
+                    <div style="margin-top:14px;">
+                        <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Discriminação (Observação)</label>
+                        <textarea id="enf-discriminacao" rows="4" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box; resize:vertical;"></textarea>
+                    </div>
+                    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                        <button onclick="fecharModalEditarNFSe()" style="padding:10px 24px; background:#95a5a6; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Cancelar</button>
+                        <button onclick="salvarEdicaoNFSe()" style="padding:10px 24px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">💾 Salvar</button>
                     </div>
                 </div>
             </div>
@@ -8745,6 +8894,8 @@
                 console.log('  ➡️ loadExtratoTransacoes:', typeof loadExtratoTransacoes);
                 if (typeof carregarContasBancariasExtrato === 'function') carregarContasBancariasExtrato();
                 if (typeof loadExtratoTransacoes === 'function') loadExtratoTransacoes();
+            } else if (sectionId === 'controle-nfse') {
+                carregarControleNFSe();
             } else if (sectionId === 'folha-pagamento') {
                 console.log('  🎯 CHAMANDO FUNÇÃO LOCAL loadFuncionarios (NÃO window.loadFuncionarios)');
                 // Chama a função LOCAL definida neste arquivo, não a do app.js
@@ -9021,6 +9172,154 @@
                 }
             });
         }
+
+        // ==================== CONTROLE DE NFS-e ====================
+
+        let _nfseControleData = [];
+
+        async function carregarControleNFSe() {
+            const tbody = document.getElementById('tbody-controle-nfse');
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:#666;">⏳ Carregando...</td></tr>';
+            try {
+                const resp = await fetch('/api/nfse/controle', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const result = await resp.json();
+                if (!result.success) throw new Error(result.error || 'Erro ao carregar');
+                _nfseControleData = result.nfses || [];
+                document.getElementById('controle-nfse-contador').textContent = `${_nfseControleData.length} nota(s)`;
+                renderControleNFSe(_nfseControleData);
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:20px;color:#e74c3c;">❌ ${e.message}</td></tr>`;
+            }
+        }
+
+        function filtrarControleNFSe() {
+            const sit  = document.getElementById('filtro-nfse-situacao').value.toUpperCase();
+            const pg   = document.getElementById('filtro-nfse-pg').value.toUpperCase();
+            const busca = document.getElementById('filtro-nfse-busca').value.toLowerCase();
+            const filtrado = _nfseControleData.filter(n => {
+                if (sit  && (n.situacao || '').toUpperCase() !== sit) return false;
+                if (pg   && (n.situacao_recebimento || 'PENDENTE').toUpperCase() !== pg) return false;
+                if (busca && !(
+                    String(n.numero_nfse || '').toLowerCase().includes(busca) ||
+                    (n.razao_social_tomador || '').toLowerCase().includes(busca) ||
+                    (n.cnpj_tomador || '').toLowerCase().includes(busca)
+                )) return false;
+                return true;
+            });
+            document.getElementById('controle-nfse-contador').textContent = `${filtrado.length} / ${_nfseControleData.length} nota(s)`;
+            renderControleNFSe(filtrado);
+        }
+
+        function renderControleNFSe(lista) {
+            const tbody = document.getElementById('tbody-controle-nfse');
+            if (!lista.length) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#999;">Nenhuma NFS-e encontrada</td></tr>';
+                return;
+            }
+            tbody.innerHTML = lista.map((n, i) => {
+                const sit = (n.situacao || 'NORMAL').toUpperCase();
+                const sitColor = sit === 'NORMAL' ? '#27ae60' : sit === 'CANCELADA' ? '#e74c3c' : '#e67e22';
+                const pg = (n.situacao_recebimento || 'PENDENTE').toUpperCase();
+                const pgColor = pg === 'PAGO' ? '#27ae60' : '#e67e22';
+                const dataEmissao = n.data_emissao ? n.data_emissao.split('T')[0].split('-').reverse().join('/') : '—';
+                const dataPg = n.data_pagamento ? n.data_pagamento.split('T')[0].split('-').reverse().join('/') : '—';
+                const vliq = n.valor_liquido != null ? 'R$ ' + Number(n.valor_liquido).toLocaleString('pt-BR', {minimumFractionDigits:2}) : '—';
+                const obs = n.discriminacao ? (n.discriminacao.length > 60 ? n.discriminacao.substring(0, 60) + '...' : n.discriminacao) : '—';
+                const bgRow = i % 2 === 0 ? '#fff' : '#f9f9f9';
+                return `<tr style="background:${bgRow}; border-bottom:1px solid #eee;">
+                    <td style="padding:9px 12px; white-space:nowrap; font-weight:bold;">${n.numero_nfse || '—'}</td>
+                    <td style="padding:9px 12px; white-space:nowrap;">${dataEmissao}</td>
+                    <td style="padding:9px 12px; white-space:nowrap; font-family:monospace;">${n.cnpj_tomador || '—'}</td>
+                    <td style="padding:9px 12px;">${n.razao_social_tomador || '—'}</td>
+                    <td style="padding:9px 12px; text-align:right; white-space:nowrap; font-weight:bold;">${vliq}</td>
+                    <td style="padding:9px 12px; color:#555; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(n.discriminacao||'').replace(/"/g,'&quot;')}">${obs}</td>
+                    <td style="padding:9px 12px; text-align:center;">
+                        <span style="background:${sitColor}; color:white; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold;">${sit}</span>
+                    </td>
+                    <td style="padding:9px 12px; text-align:center;">
+                        <span style="background:${pgColor}; color:white; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold;">${dataPg !== '—' ? dataPg : pg}</span>
+                    </td>
+                    <td style="padding:9px 12px; text-align:center;">
+                        <button onclick="abrirModalEditarNFSe(${n.id})" style="padding:5px 12px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">✏️ Editar</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function abrirModalEditarNFSe(id) {
+            const n = _nfseControleData.find(x => x.id === id);
+            if (!n) return;
+            document.getElementById('editar-nfse-id').value = n.id;
+            document.getElementById('editar-nfse-numero').textContent = '#' + (n.numero_nfse || '');
+            document.getElementById('enf-numero').value = n.numero_nfse || '';
+            document.getElementById('enf-data-emissao').value = n.data_emissao ? n.data_emissao.split('T')[0] : '';
+            document.getElementById('enf-cnpj-tomador').value = n.cnpj_tomador || '';
+            document.getElementById('enf-razao-tomador').value = n.razao_social_tomador || '';
+            document.getElementById('enf-valor-servico').value = n.valor_servico != null ? n.valor_servico : '';
+            document.getElementById('enf-valor-liquido').value = n.valor_liquido != null ? n.valor_liquido : '';
+            document.getElementById('enf-valor-iss').value = n.valor_iss != null ? n.valor_iss : '';
+            document.getElementById('enf-aliquota-iss').value = n.aliquota_iss != null ? n.aliquota_iss : '';
+            document.getElementById('enf-valor-deducoes').value = n.valor_deducoes != null ? n.valor_deducoes : '';
+            document.getElementById('enf-codigo-servico').value = n.codigo_servico || '';
+            document.getElementById('enf-situacao').value = n.situacao || 'NORMAL';
+            document.getElementById('enf-situacao-recebimento').value = n.situacao_recebimento || 'PENDENTE';
+            document.getElementById('enf-data-pagamento').value = n.data_pagamento ? n.data_pagamento.split('T')[0] : '';
+            document.getElementById('enf-nome-municipio').value = n.nome_municipio || '';
+            document.getElementById('enf-numero-rps').value = n.numero_rps || '';
+            document.getElementById('enf-protocolo').value = n.protocolo || '';
+            document.getElementById('enf-discriminacao').value = n.discriminacao || '';
+            document.getElementById('modal-editar-nfse').style.display = 'block';
+        }
+
+        function fecharModalEditarNFSe() {
+            document.getElementById('modal-editar-nfse').style.display = 'none';
+        }
+
+        async function salvarEdicaoNFSe() {
+            const id = document.getElementById('editar-nfse-id').value;
+            if (!id) return;
+            const payload = {
+                numero_nfse: document.getElementById('enf-numero').value,
+                data_emissao: document.getElementById('enf-data-emissao').value || null,
+                cnpj_tomador: document.getElementById('enf-cnpj-tomador').value,
+                razao_social_tomador: document.getElementById('enf-razao-tomador').value,
+                valor_servico: document.getElementById('enf-valor-servico').value !== '' ? parseFloat(document.getElementById('enf-valor-servico').value) : null,
+                valor_liquido: document.getElementById('enf-valor-liquido').value !== '' ? parseFloat(document.getElementById('enf-valor-liquido').value) : null,
+                valor_iss: document.getElementById('enf-valor-iss').value !== '' ? parseFloat(document.getElementById('enf-valor-iss').value) : null,
+                aliquota_iss: document.getElementById('enf-aliquota-iss').value !== '' ? parseFloat(document.getElementById('enf-aliquota-iss').value) : null,
+                valor_deducoes: document.getElementById('enf-valor-deducoes').value !== '' ? parseFloat(document.getElementById('enf-valor-deducoes').value) : null,
+                codigo_servico: document.getElementById('enf-codigo-servico').value,
+                situacao: document.getElementById('enf-situacao').value,
+                situacao_recebimento: document.getElementById('enf-situacao-recebimento').value,
+                data_pagamento: document.getElementById('enf-data-pagamento').value || null,
+                nome_municipio: document.getElementById('enf-nome-municipio').value,
+                numero_rps: document.getElementById('enf-numero-rps').value,
+                protocolo: document.getElementById('enf-protocolo').value,
+                discriminacao: document.getElementById('enf-discriminacao').value,
+            };
+            try {
+                const resp = await fetch(`/api/nfse/${id}/editar`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                    body: JSON.stringify(payload)
+                });
+                const result = await resp.json();
+                if (!result.success) throw new Error(result.error || 'Erro ao salvar');
+                if (typeof showToast === 'function') showToast('✅ NFS-e atualizada com sucesso!', 'success');
+                fecharModalEditarNFSe();
+                carregarControleNFSe();
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('❌ ' + e.message, 'error');
+                else alert('Erro: ' + e.message);
+            }
+        }
+
+        // Fechar modal ao clicar fora
+        document.getElementById('modal-editar-nfse').addEventListener('click', function(e) {
+            if (e.target === this) fecharModalEditarNFSe();
+        });
 
         // ==================== FUNÇÕES DE EXTRATO BANCÁRIO ====================
         
