@@ -15423,7 +15423,7 @@ def listar_nfse_controle():
                            cnpj_prestador, numero_rps, serie_rps,
                            valor_iss, aliquota_iss, valor_deducoes,
                            codigo_servico, protocolo, codigo_verificacao,
-                           chave_acesso, created_at
+                           data_download
                     FROM nfse_baixadas
                     WHERE empresa_id = %s
                     ORDER BY data_emissao DESC
@@ -15487,7 +15487,7 @@ def editar_nfse(nfse_id):
             return jsonify({'success': False, 'error': 'Nenhum campo para atualizar'}), 400
 
         params.extend([nfse_id, empresa_id])
-        sql = f"UPDATE nfse_baixadas SET {', '.join(sets)}, atualizado_em = CURRENT_TIMESTAMP WHERE id = %s AND empresa_id = %s"
+        sql = f"UPDATE nfse_baixadas SET {', '.join(sets)} WHERE id = %s AND empresa_id = %s"
 
         db_params = get_nfse_db_params()
         with psycopg2.connect(**db_params) as conn:
