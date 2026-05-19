@@ -3094,6 +3094,17 @@
                         <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:4px;">Buscar</label>
                         <input type="text" id="filtro-nfse-busca" oninput="filtrarControleNFSe()" placeholder="Número, tomador..." style="padding:8px 12px; border:1px solid #ddd; border-radius:5px; min-width:200px;">
                     </div>
+                    <div>
+                        <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:4px;">Data Inicial</label>
+                        <input type="date" id="filtro-nfse-data-ini" onchange="filtrarControleNFSe()" style="padding:8px 10px; border:1px solid #ddd; border-radius:5px;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:4px;">Data Final</label>
+                        <input type="date" id="filtro-nfse-data-fim" onchange="filtrarControleNFSe()" style="padding:8px 10px; border:1px solid #ddd; border-radius:5px;">
+                    </div>
+                    <div style="align-self:flex-end;">
+                        <button onclick="limparFiltrosNFSe()" style="padding:8px 14px; background:#95a5a6; color:white; border:none; border-radius:5px; cursor:pointer; font-size:13px;">✕ Limpar</button>
+                    </div>
                     <div style="margin-left:auto; font-size:13px; color:#666; align-self:center;" id="controle-nfse-contador"></div>
                 </div>
 
@@ -9204,6 +9215,15 @@
             });
         }
 
+        function limparFiltrosNFSe() {
+            document.getElementById('filtro-nfse-situacao').value = '';
+            document.getElementById('filtro-nfse-pg').value = '';
+            document.getElementById('filtro-nfse-busca').value = '';
+            document.getElementById('filtro-nfse-data-ini').value = '';
+            document.getElementById('filtro-nfse-data-fim').value = '';
+            filtrarControleNFSe();
+        }
+
         function _ordenarLista(lista) {
             const col = _nfseSort.col;
             const dir = _nfseSort.dir;
@@ -9249,6 +9269,8 @@
             const sit  = document.getElementById('filtro-nfse-situacao').value.toUpperCase();
             const pg   = document.getElementById('filtro-nfse-pg').value.toUpperCase();
             const busca = document.getElementById('filtro-nfse-busca').value.toLowerCase();
+            const dataIni = document.getElementById('filtro-nfse-data-ini').value;   // YYYY-MM-DD
+            const dataFim = document.getElementById('filtro-nfse-data-fim').value;   // YYYY-MM-DD
             let filtrado = _nfseControleData.filter(n => {
                 if (sit  && (n.situacao || '').toUpperCase() !== sit) return false;
                 if (pg   && (n.situacao_recebimento || 'PENDENTE').toUpperCase() !== pg) return false;
@@ -9258,6 +9280,11 @@
                     (n.cnpj_tomador || '').toLowerCase().includes(busca) ||
                     (n.discriminacao || '').toLowerCase().includes(busca)
                 )) return false;
+                if (dataIni || dataFim) {
+                    const d = n.data_emissao ? n.data_emissao.split('T')[0] : '';
+                    if (dataIni && d < dataIni) return false;
+                    if (dataFim && d > dataFim) return false;
+                }
                 return true;
             });
             filtrado = _ordenarLista(filtrado);
