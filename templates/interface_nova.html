@@ -3100,16 +3100,15 @@
                             <span id="nfse-tomador-label" style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">Todos os tomadores</span>
                             <span style="font-size:10px; color:#888; margin-left:6px; flex-shrink:0;">&#9660;</span>
                         </div>
-                        <div id="nfse-tomador-dropdown" style="display:none; position:absolute; z-index:1001; top:calc(100% + 2px); left:0; min-width:100%; background:white; border:1px solid #ddd; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,0.15);">
-                            <div style="padding:8px; border-bottom:1px solid #eee;">
-                                <input type="text" id="nfse-tomador-search" placeholder="Buscar tomador..." oninput="_filtrarListaTomadoresNFSe()" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box; font-size:12px;">
+                        <div id="nfse-tomador-dropdown" style="display:none; position:absolute; z-index:1001; top:calc(100% + 2px); left:0; min-width:320px; background:white; border:1px solid #ddd; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,0.18);">
+                            <div style="padding:8px 10px; border-bottom:1px solid #eee; display:flex; gap:8px; align-items:center;">
+                                <input type="text" id="nfse-tomador-search" placeholder="🔍 Buscar tomador..." oninput="_filtrarListaTomadoresNFSe()" style="flex:1; padding:6px 8px; border:1px solid #ddd; border-radius:5px; font-size:12px; box-sizing:border-box;">
                             </div>
-                            <div style="padding:6px 10px; border-bottom:1px solid #eee; background:#f8f9fa;">
-                                <label style="cursor:pointer; font-size:12px; display:flex; align-items:center; gap:6px; font-weight:bold;">
-                                    <input type="checkbox" id="nfse-tomador-todos" onchange="_selecionarTodosTomadoresNFSe(this.checked)"> Selecionar todos
-                                </label>
+                            <div style="padding:6px 10px; border-bottom:1px solid #eee; background:#f8f9fa; display:flex; align-items:center; justify-content:space-between;">
+                                <span id="nfse-tomador-contador-sel" style="font-size:11px; color:#3498db; font-weight:bold;"></span>
+                                <button onclick="_limparSelecaoTomadoresNFSe()" style="padding:3px 10px; background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;">✕ Limpar seleção</button>
                             </div>
-                            <div id="nfse-tomador-lista" style="max-height:220px; overflow-y:auto;"></div>
+                            <div id="nfse-tomador-lista" style="max-height:250px; overflow-y:auto; padding:10px;"></div>
                         </div>
                     </div>
                     <div style="flex:1 1 130px; min-width:120px;">
@@ -9300,19 +9299,28 @@
             const container = document.getElementById('nfse-tomador-lista');
             if (!container) return;
             if (!lista.length) {
-                container.innerHTML = '<div style="padding:10px; text-align:center; color:#999; font-size:12px;">Nenhum tomador encontrado</div>';
+                container.innerHTML = '<div style="padding:12px; text-align:center; color:#999; font-size:12px;">Nenhum tomador encontrado</div>';
+                _atualizarContadorSelTomadoresNFSe();
                 return;
             }
-            container.innerHTML = lista.map(t => {
-                const checked = _nfseTomadoresSelecionados.has(t) ? 'checked' : '';
+            const pills = lista.map(t => {
+                const sel = _nfseTomadoresSelecionados.has(t);
                 const esc = t.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-                return `<label style="display:flex; align-items:center; gap:8px; padding:6px 10px; cursor:pointer; font-size:12px; border-bottom:1px solid #f5f5f5; white-space:nowrap;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">
-                    <input type="checkbox" value="${esc}" ${checked} onchange="_toggleTomadorNFSe(this)"> ${esc}
-                </label>`;
+                const short = t.length > 40 ? t.substring(0,40)+'…' : t;
+                const shortEsc = short.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+                const bg      = sel ? '#3498db' : '#eef1f5';
+                const color   = sel ? 'white'   : '#445';
+                const border  = sel ? '#2980b9'  : '#ccd1d9';
+                const fw      = sel ? '600'      : 'normal';
+                const icon    = sel ? '✓ '         : '';
+                return `<span data-tomador="${esc}" onclick="_toggleTomadorPillNFSe(this)"
+                    style="display:inline-flex;align-items:center;padding:5px 13px;border-radius:20px;
+                           font-size:12px;cursor:pointer;user-select:none;white-space:nowrap;
+                           background:${bg};color:${color};border:2px solid ${border};font-weight:${fw};"
+                    title="${esc}">${icon}${shortEsc}</span>`;
             }).join('');
-            // Atualiza checkbox "Todos"
-            const todos = document.getElementById('nfse-tomador-todos');
-            if (todos) todos.checked = _nfseTomadoresSelecionados.size === 0;
+            container.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:7px;">${pills}</div>`;
+            _atualizarContadorSelTomadoresNFSe();
         }
 
         function _filtrarListaTomadoresNFSe() {
@@ -9323,22 +9331,41 @@
             _renderListaTomadoresNFSe(lista);
         }
 
-        function _toggleTomadorNFSe(cb) {
-            if (cb.checked) _nfseTomadoresSelecionados.add(cb.value);
-            else _nfseTomadoresSelecionados.delete(cb.value);
-            const todos = document.getElementById('nfse-tomador-todos');
-            if (todos) todos.checked = _nfseTomadoresSelecionados.size === 0;
+        function _toggleTomadorPillNFSe(el) {
+            const tomador = el.dataset.tomador;
+            if (!tomador) return;
+            if (_nfseTomadoresSelecionados.has(tomador)) {
+                _nfseTomadoresSelecionados.delete(tomador);
+                el.style.background   = '#eef1f5';
+                el.style.color        = '#445';
+                el.style.borderColor  = '#ccd1d9';
+                el.style.fontWeight   = 'normal';
+                const short = tomador.length > 40 ? tomador.substring(0,40)+'…' : tomador;
+                el.textContent = short;
+            } else {
+                _nfseTomadoresSelecionados.add(tomador);
+                el.style.background   = '#3498db';
+                el.style.color        = 'white';
+                el.style.borderColor  = '#2980b9';
+                el.style.fontWeight   = '600';
+                const short = tomador.length > 40 ? tomador.substring(0,40)+'…' : tomador;
+                el.textContent = '✓ ' + short;
+            }
+            _atualizarContadorSelTomadoresNFSe();
             _atualizarLabelTomadorNFSe();
             _salvarFiltroTomadorNFSe();
             filtrarControleNFSe();
         }
 
-        function _selecionarTodosTomadoresNFSe(marcarTodos) {
-            if (marcarTodos) {
-                _nfseTomadoresSelecionados.clear();
-            } else {
-                _getTodosTomadoresUnicos().forEach(t => _nfseTomadoresSelecionados.add(t));
-            }
+        function _atualizarContadorSelTomadoresNFSe() {
+            const el = document.getElementById('nfse-tomador-contador-sel');
+            if (!el) return;
+            const n = _nfseTomadoresSelecionados.size;
+            el.textContent = n > 0 ? `${n} selecionado(s)` : 'Nenhum selecionado (exibe todos)';
+        }
+
+        function _limparSelecaoTomadoresNFSe() {
+            _nfseTomadoresSelecionados.clear();
             _filtrarListaTomadoresNFSe();
             _atualizarLabelTomadorNFSe();
             _salvarFiltroTomadorNFSe();
