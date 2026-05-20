@@ -3094,9 +3094,23 @@
                         <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:4px;">Buscar</label>
                         <input type="text" id="filtro-nfse-busca" oninput="filtrarControleNFSe()" placeholder="Número, discriminação..." style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
                     </div>
-                    <div style="flex:2 1 180px; min-width:150px;">
+                    <div style="flex:2 1 200px; min-width:170px; position:relative;">
                         <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:4px;">Tomador <span id="nfse-tomador-padrao-badge" style="font-size:11px; color:#27ae60; font-weight:normal;"></span></label>
-                        <input type="text" id="filtro-nfse-tomador" oninput="filtrarControleNFSe(); _salvarFiltroTomadorNFSe()" placeholder="Filtro padrão por tomador..." style="width:100%; padding:8px 10px; border:1.5px solid #3498db; border-radius:5px; box-sizing:border-box;">
+                        <div id="nfse-tomador-select-btn" onclick="toggleDropdownTomadorNFSe()" style="width:100%; padding:8px 10px; border:1.5px solid #3498db; border-radius:5px; box-sizing:border-box; background:white; cursor:pointer; display:flex; justify-content:space-between; align-items:center; user-select:none;">
+                            <span id="nfse-tomador-label" style="font-size:13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">Todos os tomadores</span>
+                            <span style="font-size:10px; color:#888; margin-left:6px; flex-shrink:0;">&#9660;</span>
+                        </div>
+                        <div id="nfse-tomador-dropdown" style="display:none; position:absolute; z-index:1001; top:calc(100% + 2px); left:0; min-width:100%; background:white; border:1px solid #ddd; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,0.15);">
+                            <div style="padding:8px; border-bottom:1px solid #eee;">
+                                <input type="text" id="nfse-tomador-search" placeholder="Buscar tomador..." oninput="_filtrarListaTomadoresNFSe()" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box; font-size:12px;">
+                            </div>
+                            <div style="padding:6px 10px; border-bottom:1px solid #eee; background:#f8f9fa;">
+                                <label style="cursor:pointer; font-size:12px; display:flex; align-items:center; gap:6px; font-weight:bold;">
+                                    <input type="checkbox" id="nfse-tomador-todos" onchange="_selecionarTodosTomadoresNFSe(this.checked)"> Selecionar todos
+                                </label>
+                            </div>
+                            <div id="nfse-tomador-lista" style="max-height:220px; overflow-y:auto;"></div>
+                        </div>
                     </div>
                     <div style="flex:1 1 130px; min-width:120px;">
                         <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:4px;">Data Inicial</label>
@@ -9192,6 +9206,7 @@
         // ==================== CONTROLE DE NFS-e ====================
 
         let _nfseControleData = [];
+        let _nfseTomadoresSelecionados = new Set();
         let _nfseSort = { col: 'data_emissao', dir: 'desc' };
         const _nfseSortCols = ['numero_nfse','data_emissao','cnpj_tomador','razao_social_tomador','valor_servico','valor_liquido','discriminacao','situacao','data_pagamento'];
 
@@ -9226,9 +9241,14 @@
             document.getElementById('filtro-nfse-busca').value = '';
             document.getElementById('filtro-nfse-data-ini').value = '';
             document.getElementById('filtro-nfse-data-fim').value = '';
-            // Restaura o filtro padrão de tomador (não apaga o padrão salvo)
-            const savedTomador = localStorage.getItem('nfse_filtro_tomador_padrao') || '';
-            document.getElementById('filtro-nfse-tomador').value = savedTomador;
+            // Restaura a seleção padrão salva (não apaga o padrão)
+            const saved = localStorage.getItem('nfse_filtro_tomador_padrao');
+            if (saved) {
+                try { _nfseTomadoresSelecionados = new Set(JSON.parse(saved)); } catch(e) { _nfseTomadoresSelecionados = new Set(); }
+            } else {
+                _nfseTomadoresSelecionados = new Set();
+            }
+            _atualizarLabelTomadorNFSe();
             filtrarControleNFSe();
         }
 
@@ -9256,24 +9276,110 @@
             });
         }
 
-        function _salvarFiltroTomadorNFSe() {
-            const v = document.getElementById('filtro-nfse-tomador').value;
-            localStorage.setItem('nfse_filtro_tomador_padrao', v);
-            const badge = document.getElementById('nfse-tomador-padrao-badge');
-            if (badge) badge.textContent = v ? '📌 padrão salvo' : '';
+        // ---- Dropdown multi-select de tomadores ----
+
+        function toggleDropdownTomadorNFSe() {
+            const dd = document.getElementById('nfse-tomador-dropdown');
+            if (!dd) return;
+            const aberto = dd.style.display !== 'none';
+            dd.style.display = aberto ? 'none' : 'block';
+            if (!aberto) {
+                const s = document.getElementById('nfse-tomador-search');
+                if (s) { s.value = ''; s.focus(); }
+                _filtrarListaTomadoresNFSe();
+            }
         }
+
+        function _getTodosTomadoresUnicos() {
+            return [...new Set(
+                _nfseControleData.map(n => n.razao_social_tomador || '').filter(Boolean)
+            )].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        }
+
+        function _renderListaTomadoresNFSe(lista) {
+            const container = document.getElementById('nfse-tomador-lista');
+            if (!container) return;
+            if (!lista.length) {
+                container.innerHTML = '<div style="padding:10px; text-align:center; color:#999; font-size:12px;">Nenhum tomador encontrado</div>';
+                return;
+            }
+            container.innerHTML = lista.map(t => {
+                const checked = _nfseTomadoresSelecionados.has(t) ? 'checked' : '';
+                const esc = t.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+                return `<label style="display:flex; align-items:center; gap:8px; padding:6px 10px; cursor:pointer; font-size:12px; border-bottom:1px solid #f5f5f5; white-space:nowrap;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">
+                    <input type="checkbox" value="${esc}" ${checked} onchange="_toggleTomadorNFSe(this)"> ${esc}
+                </label>`;
+            }).join('');
+            // Atualiza checkbox "Todos"
+            const todos = document.getElementById('nfse-tomador-todos');
+            if (todos) todos.checked = _nfseTomadoresSelecionados.size === 0;
+        }
+
+        function _filtrarListaTomadoresNFSe() {
+            const search = (document.getElementById('nfse-tomador-search') || {}).value || '';
+            const lista = _getTodosTomadoresUnicos().filter(t =>
+                !search || t.toLowerCase().includes(search.toLowerCase())
+            );
+            _renderListaTomadoresNFSe(lista);
+        }
+
+        function _toggleTomadorNFSe(cb) {
+            if (cb.checked) _nfseTomadoresSelecionados.add(cb.value);
+            else _nfseTomadoresSelecionados.delete(cb.value);
+            const todos = document.getElementById('nfse-tomador-todos');
+            if (todos) todos.checked = _nfseTomadoresSelecionados.size === 0;
+            _atualizarLabelTomadorNFSe();
+            _salvarFiltroTomadorNFSe();
+            filtrarControleNFSe();
+        }
+
+        function _selecionarTodosTomadoresNFSe(marcarTodos) {
+            if (marcarTodos) {
+                _nfseTomadoresSelecionados.clear();
+            } else {
+                _getTodosTomadoresUnicos().forEach(t => _nfseTomadoresSelecionados.add(t));
+            }
+            _filtrarListaTomadoresNFSe();
+            _atualizarLabelTomadorNFSe();
+            _salvarFiltroTomadorNFSe();
+            filtrarControleNFSe();
+        }
+
+        function _atualizarLabelTomadorNFSe() {
+            const lbl = document.getElementById('nfse-tomador-label');
+            if (!lbl) return;
+            const n = _nfseTomadoresSelecionados.size;
+            if (n === 0) lbl.textContent = 'Todos os tomadores';
+            else if (n === 1) lbl.textContent = [..._nfseTomadoresSelecionados][0];
+            else lbl.textContent = `${n} tomadores selecionados`;
+        }
+
+        function _salvarFiltroTomadorNFSe() {
+            const arr = [..._nfseTomadoresSelecionados];
+            localStorage.setItem('nfse_filtro_tomador_padrao', JSON.stringify(arr));
+            const badge = document.getElementById('nfse-tomador-padrao-badge');
+            if (badge) badge.textContent = arr.length > 0 ? '📌 padrão salvo' : '';
+        }
+
+        function _construirDropdownTomadores() {
+            // Restaura seleção salva
+            const saved = localStorage.getItem('nfse_filtro_tomador_padrao');
+            if (saved) {
+                try { _nfseTomadoresSelecionados = new Set(JSON.parse(saved)); } catch(e) { _nfseTomadoresSelecionados = new Set(); }
+            } else {
+                _nfseTomadoresSelecionados = new Set();
+            }
+            _filtrarListaTomadoresNFSe();
+            _atualizarLabelTomadorNFSe();
+            const badge = document.getElementById('nfse-tomador-padrao-badge');
+            if (badge) badge.textContent = _nfseTomadoresSelecionados.size > 0 ? '📌 padrão salvo' : '';
+        }
+
+        // ---- Fim dropdown tomadores ----
 
         async function carregarControleNFSe() {
             const tbody = document.getElementById('tbody-controle-nfse');
             tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#666;">⏳ Carregando...</td></tr>';
-            // Restaurar filtro padrão de tomador do localStorage
-            const savedTomador = localStorage.getItem('nfse_filtro_tomador_padrao') || '';
-            const elTomador = document.getElementById('filtro-nfse-tomador');
-            if (elTomador) {
-                elTomador.value = savedTomador;
-                const badge = document.getElementById('nfse-tomador-padrao-badge');
-                if (badge) badge.textContent = savedTomador ? '📌 padrão salvo' : '';
-            }
             try {
                 const resp = await fetch('/api/nfse/controle', {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -9281,6 +9387,7 @@
                 const result = await resp.json();
                 if (!result.success) throw new Error(result.error || 'Erro ao carregar');
                 _nfseControleData = result.nfses || [];
+                _construirDropdownTomadores();
                 _atualizarIndicadoresNFSe();
                 filtrarControleNFSe();
             } catch (e) {
@@ -9289,16 +9396,16 @@
         }
 
         function filtrarControleNFSe() {
-            const sit     = document.getElementById('filtro-nfse-situacao').value.toUpperCase();
-            const pg      = document.getElementById('filtro-nfse-pg').value.toUpperCase();
-            const busca   = document.getElementById('filtro-nfse-busca').value.toLowerCase();
-            const tomador = document.getElementById('filtro-nfse-tomador').value.toLowerCase();
-            const dataIni = document.getElementById('filtro-nfse-data-ini').value;   // YYYY-MM-DD
-            const dataFim = document.getElementById('filtro-nfse-data-fim').value;   // YYYY-MM-DD
+            const sit      = document.getElementById('filtro-nfse-situacao').value.toUpperCase();
+            const pg       = document.getElementById('filtro-nfse-pg').value.toUpperCase();
+            const busca    = document.getElementById('filtro-nfse-busca').value.toLowerCase();
+            const filtraTomador = _nfseTomadoresSelecionados.size > 0;
+            const dataIni  = document.getElementById('filtro-nfse-data-ini').value;   // YYYY-MM-DD
+            const dataFim  = document.getElementById('filtro-nfse-data-fim').value;   // YYYY-MM-DD
             let filtrado = _nfseControleData.filter(n => {
                 if (sit  && (n.situacao || '').toUpperCase() !== sit) return false;
                 if (pg   && (n.situacao_recebimento || 'PENDENTE').toUpperCase() !== pg) return false;
-                if (tomador && !(n.razao_social_tomador || '').toLowerCase().includes(tomador)) return false;
+                if (filtraTomador && !_nfseTomadoresSelecionados.has(n.razao_social_tomador || '')) return false;
                 if (busca && !(
                     String(n.numero_nfse || '').toLowerCase().includes(busca) ||
                     (n.cnpj_tomador || '').toLowerCase().includes(busca) ||
@@ -9425,6 +9532,15 @@
         // Fechar modal ao clicar fora
         document.getElementById('modal-editar-nfse').addEventListener('click', function(e) {
             if (e.target === this) fecharModalEditarNFSe();
+        });
+
+        // Fechar dropdown de tomadores ao clicar fora
+        document.addEventListener('click', function(e) {
+            const dd = document.getElementById('nfse-tomador-dropdown');
+            const btn = document.getElementById('nfse-tomador-select-btn');
+            if (dd && dd.style.display !== 'none' && btn && !btn.contains(e.target) && !dd.contains(e.target)) {
+                dd.style.display = 'none';
+            }
         });
 
         // ==================== FUNÇÕES DE EXTRATO BANCÁRIO ====================
