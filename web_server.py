@@ -15397,6 +15397,41 @@ def atualizar_recebimento_nfse(nfse_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ==================== CONTROLE DE NFS-e (tabela separada de nfse_baixadas) ====================
+_NFSE_CONTROLE_CREATE_SQL = """
+CREATE TABLE IF NOT EXISTS nfse_controle (
+    id SERIAL PRIMARY KEY,
+    empresa_id INTEGER NOT NULL,
+    numero_nfse VARCHAR(50),
+    cnpj_prestador VARCHAR(20),
+    cnpj_tomador VARCHAR(20),
+    razao_social_tomador VARCHAR(200),
+    data_emissao DATE,
+    valor_servico NUMERIC(15,2),
+    valor_deducoes NUMERIC(15,2),
+    valor_iss NUMERIC(15,2),
+    aliquota_iss NUMERIC(6,4),
+    valor_liquido NUMERIC(15,2),
+    codigo_servico VARCHAR(20),
+    discriminacao TEXT,
+    provedor VARCHAR(50) DEFAULT 'manual',
+    codigo_municipio VARCHAR(10),
+    nome_municipio VARCHAR(100),
+    uf VARCHAR(2),
+    situacao VARCHAR(20) DEFAULT 'NORMAL',
+    numero_rps VARCHAR(50),
+    serie_rps VARCHAR(20),
+    protocolo VARCHAR(100),
+    codigo_verificacao VARCHAR(100),
+    data_download DATE,
+    situacao_recebimento VARCHAR(20) DEFAULT 'PENDENTE',
+    data_pagamento DATE,
+    nfse_baixadas_id INTEGER,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+"""
+
+
 @app.route('/api/nfse/controle', methods=['GET'])
 @require_auth
 @require_permission('nfse_view')
@@ -15414,6 +15449,9 @@ def listar_nfse_controle():
 
         db_params = get_nfse_db_params()
         with psycopg2.connect(**db_params) as conn:
+            with conn.cursor() as cur:
+                cur.execute(_NFSE_CONTROLE_CREATE_SQL)
+            conn.commit()
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute("""
                     SELECT id, numero_nfse, data_emissao, cnpj_tomador,
@@ -15423,10 +15461,10 @@ def listar_nfse_controle():
                            cnpj_prestador, numero_rps, serie_rps,
                            valor_iss, aliquota_iss, valor_deducoes,
                            codigo_servico, protocolo, codigo_verificacao,
-                           data_download
-                    FROM nfse_baixadas
+                           data_download, nfse_baixadas_id, provedor
+                    FROM nfse_controle
                     WHERE empresa_id = %s
-                    ORDER BY data_emissao DESC
+                    ORDER BY data_emissao DESC NULLS LAST
                 """, (empresa_id,))
                 rows = cur.fetchall()
 
@@ -15487,7 +15525,7 @@ def editar_nfse(nfse_id):
             return jsonify({'success': False, 'error': 'Nenhum campo para atualizar'}), 400
 
         params.extend([nfse_id, empresa_id])
-        sql = f"UPDATE nfse_baixadas SET {', '.join(sets)} WHERE id = %s AND empresa_id = %s"
+        sql = f"UPDATE nfse_controle SET {', '.join(sets)} WHERE id = %s AND empresa_id = %s"
 
         db_params = get_nfse_db_params()
         with psycopg2.connect(**db_params) as conn:
@@ -15521,7 +15559,7 @@ def remover_nfse_controle(nfse_id):
         with psycopg2.connect(**db_params) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "DELETE FROM nfse_baixadas WHERE id = %s AND empresa_id = %s",
+                    "DELETE FROM nfse_controle WHERE id = %s AND empresa_id = %s",
                     (nfse_id, empresa_id)
                 )
                 if cur.rowcount == 0:
@@ -15556,9 +15594,12 @@ def criar_nfse_manual():
 
         db_params = get_nfse_db_params()
         with psycopg2.connect(**db_params) as conn:
+            with conn.cursor() as cur:
+                cur.execute(_NFSE_CONTROLE_CREATE_SQL)
+            conn.commit()
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute("""
-                    INSERT INTO nfse_baixadas (
+                    INSERT INTO nfse_controle (
                         empresa_id, numero_nfse, data_emissao, cnpj_tomador,
                         razao_social_tomador, valor_servico, valor_liquido,
                         discriminacao, situacao, situacao_recebimento,
@@ -15584,6 +15625,137 @@ def criar_nfse_manual():
         return jsonify({'success': True, 'id': row['id'], 'message': 'NFS-e criada com sucesso'})
     except Exception as e:
         logger.error(f"Erro ao criar NFS-e manual: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/nfse/baixadas', methods=['GET'])
+@require_auth
+@require_permission('nfse_view')
+def listar_nfse_baixadas():
+    """Lista NFS-e de nfse_baixadas — fonte para importação no Controle"""
+    try:
+        import psycopg2
+        import psycopg2.extras
+        from database_postgresql import get_nfse_db_params
+
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+
+        db_params = get_nfse_db_params()
+        with psycopg2.connect(**db_params) as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT id, numero_nfse, data_emissao, cnpj_tomador,
+                           razao_social_tomador, valor_liquido, valor_servico,
+                           discriminacao, situacao, situacao_recebimento,
+                           data_pagamento, codigo_municipio, nome_municipio,
+                           cnpj_prestador, provedor
+                    FROM nfse_baixadas
+                    WHERE empresa_id = %s
+                    ORDER BY data_emissao DESC
+                """, (empresa_id,))
+                rows = cur.fetchall()
+
+        result = []
+        for row in rows:
+            item = dict(row)
+            for k, v in item.items():
+                if isinstance(v, (date, datetime)):
+                    item[k] = v.isoformat()
+                elif isinstance(v, Decimal):
+                    item[k] = float(v)
+            result.append(item)
+
+        return jsonify({'success': True, 'nfses': result, 'total': len(result)})
+    except Exception as e:
+        logger.error(f"Erro ao listar nfse_baixadas: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/nfse/importar-controle', methods=['POST'])
+@require_auth
+@require_permission('nfse_view')
+def importar_nfse_para_controle():
+    """Copia NFS-e selecionadas de nfse_baixadas para nfse_controle"""
+    try:
+        import psycopg2
+        import psycopg2.extras
+        from database_postgresql import get_nfse_db_params
+
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+
+        data = request.get_json() or {}
+        ids = data.get('ids', [])
+        if not ids:
+            return jsonify({'success': False, 'error': 'Nenhum ID informado'}), 400
+
+        db_params = get_nfse_db_params()
+        importados = 0
+        ignorados = 0
+        with psycopg2.connect(**db_params) as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(_NFSE_CONTROLE_CREATE_SQL)
+                for nfse_id in ids:
+                    cur.execute(
+                        "SELECT id FROM nfse_controle WHERE empresa_id = %s AND nfse_baixadas_id = %s",
+                        (empresa_id, nfse_id)
+                    )
+                    if cur.fetchone():
+                        ignorados += 1
+                        continue
+                    cur.execute("""
+                        SELECT numero_nfse, cnpj_prestador, cnpj_tomador,
+                               razao_social_tomador, data_emissao, valor_servico,
+                               valor_deducoes, valor_iss, aliquota_iss, valor_liquido,
+                               codigo_servico, discriminacao, provedor, codigo_municipio,
+                               nome_municipio, uf, situacao, numero_rps, serie_rps,
+                               protocolo, codigo_verificacao, data_download,
+                               situacao_recebimento, data_pagamento
+                        FROM nfse_baixadas WHERE id = %s AND empresa_id = %s
+                    """, (nfse_id, empresa_id))
+                    orig = cur.fetchone()
+                    if not orig:
+                        continue
+                    orig = dict(orig)
+                    cur.execute("""
+                        INSERT INTO nfse_controle (
+                            empresa_id, numero_nfse, cnpj_prestador, cnpj_tomador,
+                            razao_social_tomador, data_emissao, valor_servico,
+                            valor_deducoes, valor_iss, aliquota_iss, valor_liquido,
+                            codigo_servico, discriminacao, provedor, codigo_municipio,
+                            nome_municipio, uf, situacao, numero_rps, serie_rps,
+                            protocolo, codigo_verificacao, data_download,
+                            situacao_recebimento, data_pagamento, nfse_baixadas_id
+                        ) VALUES (
+                            %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+                        )
+                    """, (
+                        empresa_id,
+                        orig['numero_nfse'], orig['cnpj_prestador'], orig['cnpj_tomador'],
+                        orig['razao_social_tomador'], orig['data_emissao'], orig['valor_servico'],
+                        orig['valor_deducoes'], orig['valor_iss'], orig['aliquota_iss'],
+                        orig['valor_liquido'], orig['codigo_servico'], orig['discriminacao'],
+                        orig['provedor'], orig['codigo_municipio'], orig['nome_municipio'],
+                        orig['uf'], orig['situacao'], orig['numero_rps'], orig['serie_rps'],
+                        orig['protocolo'], orig['codigo_verificacao'], orig['data_download'],
+                        orig['situacao_recebimento'], orig['data_pagamento'], nfse_id
+                    ))
+                    importados += 1
+            conn.commit()
+
+        return jsonify({
+            'success': True,
+            'importados': importados,
+            'ignorados': ignorados,
+            'message': f'{importados} NFS-e importada(s). {ignorados} já existiam no Controle.'
+        })
+    except Exception as e:
+        logger.error(f"Erro ao importar NFS-e para controle: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

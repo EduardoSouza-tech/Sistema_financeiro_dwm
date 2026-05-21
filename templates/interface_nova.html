@@ -9806,7 +9806,7 @@
             document.getElementById('btn-aplicar-importar-nfse').style.display = 'none';
             _nfseImportarTomadoresSelecionados.clear();
             try {
-                const resp = await fetch('/api/nfse/controle', {
+                const resp = await fetch('/api/nfse/baixadas', {
                     method: 'GET',
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 });
@@ -9890,26 +9890,48 @@
         async function _aplicarImportarNFSe() {
             const tomadores = [..._nfseImportarTomadoresSelecionados];
             if (!tomadores.length) return;
-            const dataIni = document.getElementById('importar-nfse-data-ini').value;
-            const dataFim = document.getElementById('importar-nfse-data-fim').value;
             fecharModalImportarNFSe();
 
-            // Aplicar datas no controle
-            document.getElementById('filtro-nfse-data-ini').value = dataIni;
-            document.getElementById('filtro-nfse-data-fim').value = dataFim;
+            // Filtrar IDs dos registros pelos tomadores selecionados
+            const idsParaImportar = _nfseImportarRegistros
+                .filter(n => {
+                    const nome = (n.razao_social_tomador || n.cnpj_tomador || '—').trim();
+                    return tomadores.includes(nome);
+                })
+                .map(n => n.id);
 
-            // Recarregar dados (reseta tomadores via _construirDropdownTomadores)
-            await carregarControleNFSe();
+            if (!idsParaImportar.length) {
+                if (typeof showToast === 'function') showToast('⚠️ Nenhum registro encontrado para importar.', 'warning');
+                return;
+            }
 
-            // Sobrescrever seleção de tomadores após o reload
-            _nfseTomadoresSelecionados = new Set(tomadores);
-            _filtrarListaTomadoresNFSe();
-            _atualizarLabelTomadorNFSe();
-            _atualizarContadorSelTomadoresNFSe();
-            filtrarControleNFSe();
+            try {
+                const resp = await fetch('/api/nfse/importar-controle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ ids: idsParaImportar })
+                });
+                const result = await resp.json();
+                if (!result.success) throw new Error(result.error || 'Erro ao importar');
 
-            if (typeof showToast === 'function')
-                showToast(`✅ ${tomadores.length} tomador(es) aplicado(s) no Controle de NFS-e.`, 'success');
+                // Recarregar controle e aplicar filtro pelos tomadores importados
+                await carregarControleNFSe();
+                _nfseTomadoresSelecionados = new Set(tomadores);
+                _filtrarListaTomadoresNFSe();
+                _atualizarLabelTomadorNFSe();
+                _atualizarContadorSelTomadoresNFSe();
+                filtrarControleNFSe();
+
+                const msg = result.ignorados > 0
+                    ? `✅ ${result.importados} importada(s). ${result.ignorados} já existiam no Controle.`
+                    : `✅ ${result.importados} NFS-e importada(s) para o Controle.`;
+                if (typeof showToast === 'function') showToast(msg, 'success');
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('❌ ' + e.message, 'error');
+            }
         }
 
         async function excluirNFSe(id) {
