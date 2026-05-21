@@ -3067,6 +3067,9 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="margin: 0; color: #2c3e50;">🧾 Controle de NFS-e</h2>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button id="btn-excluir-selecionados-nfse" onclick="excluirSelecionadosNFSe()" style="display:none; padding:10px 18px; background:#c0392b; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">
+                            🗑️ Excluir Selecionados (<span id="contador-sel-nfse">0</span>)
+                        </button>
                         <button onclick="abrirModalCriarNFSe()" style="padding:10px 18px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">
                             ➕ Nova NFS-e
                         </button>
@@ -3135,6 +3138,9 @@
                     <table style="width:100%; border-collapse:collapse; font-size:13px;">
                         <thead>
                             <tr style="background:#2c3e50; color:white;">
+                                <th style="padding:10px 12px; text-align:center; width:36px;">
+                                    <input type="checkbox" id="nfse-check-all" onchange="_toggleSelecionarTodosNFSe(this.checked)" title="Selecionar todos" style="width:16px; height:16px; cursor:pointer;">
+                                </th>
                                 <th onclick="sortarControleNFSe('numero_nfse')" style="padding:10px 12px; text-align:left; white-space:nowrap; cursor:pointer; user-select:none;">Número <span id="nfse-sort-numero_nfse" style="font-size:10px;">⇅</span></th>
                                 <th onclick="sortarControleNFSe('data_emissao')" style="padding:10px 12px; text-align:left; white-space:nowrap; cursor:pointer; user-select:none;">Data Emissão <span id="nfse-sort-data_emissao" style="font-size:10px;">▼</span></th>
                                 <th onclick="sortarControleNFSe('cnpj_tomador')" style="padding:10px 12px; text-align:left; white-space:nowrap; cursor:pointer; user-select:none;">CPF/CNPJ Tomador <span id="nfse-sort-cnpj_tomador" style="font-size:10px;">⇅</span></th>
@@ -3148,7 +3154,7 @@
                             </tr>
                         </thead>
                         <tbody id="tbody-controle-nfse">
-                            <tr><td colspan="10" style="text-align:center; padding:30px; color:#999;">Clique em Atualizar para carregar as NFS-e</td></tr>
+                            <tr><td colspan="11" style="text-align:center; padding:30px; color:#999;">Clique em Atualizar para carregar as NFS-e</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -9273,6 +9279,7 @@
         let _nfseControleData = [];
         let _nfseTomadoresSelecionados = new Set();
         let _nfseSort = { col: 'data_emissao', dir: 'desc' };
+        let _nfseSelecao = new Set();
         const _nfseSortCols = ['numero_nfse','data_emissao','cnpj_tomador','razao_social_tomador','valor_servico','valor_liquido','discriminacao','situacao','data_pagamento'];
 
         function sortarControleNFSe(col) {
@@ -9472,7 +9479,7 @@
 
         async function carregarControleNFSe() {
             const tbody = document.getElementById('tbody-controle-nfse');
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#666;">⏳ Carregando...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#666;">⏳ Carregando...</td></tr>';
             try {
                 const resp = await fetch('/api/nfse/controle', {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -9480,11 +9487,15 @@
                 const result = await resp.json();
                 if (!result.success) throw new Error(result.error || 'Erro ao carregar');
                 _nfseControleData = result.nfses || [];
+                _nfseSelecao.clear();
+                _atualizarBotaoExcluirSelecionados();
                 _construirDropdownTomadores();
                 _atualizarIndicadoresNFSe();
                 filtrarControleNFSe();
             } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:20px;color:#e74c3c;">❌ ${e.message}</td></tr>`;
+                _nfseSelecao.clear();
+                _atualizarBotaoExcluirSelecionados();
+                tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:20px;color:#e74c3c;">❌ ${e.message}</td></tr>`;
             }
         }
 
@@ -9519,7 +9530,7 @@
         function renderControleNFSe(lista) {
             const tbody = document.getElementById('tbody-controle-nfse');
             if (!lista.length) {
-                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:#999;">Nenhuma NFS-e encontrada</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:30px;color:#999;">Nenhuma NFS-e encontrada</td></tr>';
                 return;
             }
             tbody.innerHTML = lista.map((n, i) => {
@@ -9533,7 +9544,11 @@
                 const vliq   = n.valor_liquido != null ? 'R$ ' + Number(n.valor_liquido).toLocaleString('pt-BR', {minimumFractionDigits:2}) : '—';
                 const obs = n.discriminacao ? (n.discriminacao.length > 60 ? n.discriminacao.substring(0, 60) + '...' : n.discriminacao) : '—';
                 const bgRow = i % 2 === 0 ? '#fff' : '#f9f9f9';
-                return `<tr style="background:${bgRow}; border-bottom:1px solid #eee;">
+                const isChecked = _nfseSelecao.has(n.id);
+                return `<tr style="background:${bgRow}; border-bottom:1px solid #eee;" id="nfse-row-${n.id}">
+                    <td style="padding:9px 12px; text-align:center;">
+                        <input type="checkbox" class="nfse-row-check" data-id="${n.id}" onchange="_toggleSelecaoNFSe(${n.id}, this.checked)" ${isChecked ? 'checked' : ''} style="width:16px; height:16px; cursor:pointer;">
+                    </td>
                     <td style="padding:9px 12px; white-space:nowrap; font-weight:bold;">${n.numero_nfse || '—'}</td>
                     <td style="padding:9px 12px; white-space:nowrap;">${dataEmissao}</td>
                     <td style="padding:9px 12px; white-space:nowrap; font-family:monospace;">${n.cnpj_tomador || '—'}</td>
@@ -9553,6 +9568,74 @@
                     </td>
                 </tr>`;
             }).join('');
+            // sync select-all checkbox state
+            const chkAll = document.getElementById('nfse-check-all');
+            if (chkAll) {
+                const visIds = lista.map(x => x.id);
+                const allSel = visIds.length > 0 && visIds.every(id => _nfseSelecao.has(id));
+                const someSel = visIds.some(id => _nfseSelecao.has(id));
+                chkAll.checked = allSel;
+                chkAll.indeterminate = !allSel && someSel;
+            }
+        }
+
+        function _toggleSelecaoNFSe(id, checked) {
+            if (checked) _nfseSelecao.add(id);
+            else _nfseSelecao.delete(id);
+            _atualizarBotaoExcluirSelecionados();
+            const chkAll = document.getElementById('nfse-check-all');
+            if (chkAll) {
+                const checkboxes = document.querySelectorAll('.nfse-row-check');
+                const total = checkboxes.length;
+                const sel = [...checkboxes].filter(c => c.checked).length;
+                chkAll.checked = total > 0 && sel === total;
+                chkAll.indeterminate = sel > 0 && sel < total;
+            }
+        }
+
+        function _toggleSelecionarTodosNFSe(checked) {
+            const checkboxes = document.querySelectorAll('.nfse-row-check');
+            checkboxes.forEach(cb => {
+                cb.checked = checked;
+                const id = parseInt(cb.dataset.id);
+                if (checked) _nfseSelecao.add(id);
+                else _nfseSelecao.delete(id);
+            });
+            _atualizarBotaoExcluirSelecionados();
+        }
+
+        function _atualizarBotaoExcluirSelecionados() {
+            const btn = document.getElementById('btn-excluir-selecionados-nfse');
+            const contador = document.getElementById('contador-sel-nfse');
+            const n = _nfseSelecao.size;
+            if (btn) btn.style.display = n > 0 ? 'inline-block' : 'none';
+            if (contador) contador.textContent = n;
+        }
+
+        async function excluirSelecionadosNFSe() {
+            const ids = [..._nfseSelecao];
+            if (ids.length === 0) return;
+            if (!confirm(`Tem certeza que deseja excluir ${ids.length} NFS-e(s) do controle? Esta ação não pode ser desfeita.`)) return;
+            let erros = 0;
+            for (const id of ids) {
+                try {
+                    const resp = await fetch(`/api/nfse/${id}/remover`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    });
+                    const result = await resp.json();
+                    if (!result.success) erros++;
+                } catch { erros++; }
+            }
+            _nfseSelecao.clear();
+            _atualizarBotaoExcluirSelecionados();
+            carregarControleNFSe();
+            const ok = ids.length - erros;
+            if (erros === 0) {
+                if (typeof showToast === 'function') showToast(`✅ ${ok} NFS-e(s) excluída(s) do controle.`, 'success');
+            } else {
+                if (typeof showToast === 'function') showToast(`⚠️ ${ok} excluída(s), ${erros} com erro.`, 'warning');
+            }
         }
 
         function abrirModalEditarNFSe(id) {
