@@ -15432,6 +15432,16 @@ CREATE TABLE IF NOT EXISTS nfse_controle (
 """
 
 
+def _ensure_nfse_controle_table(conn):
+    """Cria a tabela nfse_controle e índices se não existirem, e faz commit."""
+    with conn.cursor() as cur:
+        cur.execute(_NFSE_CONTROLE_CREATE_SQL)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_nfse_ctrl_empresa ON nfse_controle(empresa_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_nfse_ctrl_baixadas ON nfse_controle(empresa_id, nfse_baixadas_id) WHERE nfse_baixadas_id IS NOT NULL")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_nfse_ctrl_emissao ON nfse_controle(empresa_id, data_emissao)")
+    conn.commit()
+
+
 @app.route('/api/nfse/controle', methods=['GET'])
 @require_auth
 @require_permission('nfse_view')
@@ -15449,9 +15459,7 @@ def listar_nfse_controle():
 
         db_params = get_nfse_db_params()
         with psycopg2.connect(**db_params) as conn:
-            with conn.cursor() as cur:
-                cur.execute(_NFSE_CONTROLE_CREATE_SQL)
-            conn.commit()
+            _ensure_nfse_controle_table(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute("""
                     SELECT id, numero_nfse, data_emissao, cnpj_tomador,
@@ -15545,7 +15553,7 @@ def editar_nfse(nfse_id):
 @require_auth
 @require_permission('nfse_view')
 def remover_nfse_controle(nfse_id):
-    """Remove uma NFS-e do Controle de NFS-e (apenas da tabela nfse_baixadas)"""
+    """Remove uma NFS-e do Controle de NFS-e (apenas da tabela nfse_controle)"""
     try:
         import psycopg2
         from database_postgresql import get_nfse_db_params
@@ -15594,9 +15602,7 @@ def criar_nfse_manual():
 
         db_params = get_nfse_db_params()
         with psycopg2.connect(**db_params) as conn:
-            with conn.cursor() as cur:
-                cur.execute(_NFSE_CONTROLE_CREATE_SQL)
-            conn.commit()
+            _ensure_nfse_controle_table(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute("""
                     INSERT INTO nfse_controle (
@@ -15698,8 +15704,8 @@ def importar_nfse_para_controle():
         importados = 0
         ignorados = 0
         with psycopg2.connect(**db_params) as conn:
+            _ensure_nfse_controle_table(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(_NFSE_CONTROLE_CREATE_SQL)
                 for nfse_id in ids:
                     cur.execute(
                         "SELECT id FROM nfse_controle WHERE empresa_id = %s AND nfse_baixadas_id = %s",

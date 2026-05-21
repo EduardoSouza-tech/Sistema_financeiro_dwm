@@ -9891,7 +9891,6 @@
         async function _aplicarImportarNFSe() {
             const tomadores = [..._nfseImportarTomadoresSelecionados];
             if (!tomadores.length) return;
-            fecharModalImportarNFSe();
 
             // Filtrar IDs dos registros pelos tomadores selecionados
             const idsParaImportar = _nfseImportarRegistros
@@ -9901,10 +9900,13 @@
                 })
                 .map(n => n.id);
 
+            // Verificar antes de fechar o modal
             if (!idsParaImportar.length) {
-                if (typeof showToast === 'function') showToast('⚠️ Nenhum registro encontrado para importar.', 'warning');
+                if (typeof showToast === 'function') showToast('⚠️ Nenhum registro encontrado para importar no período selecionado.', 'warning');
                 return;
             }
+
+            fecharModalImportarNFSe();
 
             try {
                 const resp = await fetch('/api/nfse/importar-controle', {
