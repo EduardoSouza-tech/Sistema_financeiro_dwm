@@ -3123,11 +3123,11 @@
                         </div>
                     </div>
                     <div style="flex:1 1 130px; min-width:120px;">
-                        <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:4px;">Data Inicial</label>
+                        <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:4px;">De (Emissão)</label>
                         <input type="date" id="filtro-nfse-data-ini" onchange="filtrarControleNFSe()" style="width:100%; padding:8px 8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
                     </div>
                     <div style="flex:1 1 130px; min-width:120px;">
-                        <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:4px;">Data Final</label>
+                        <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:4px;">Até (Emissão)</label>
                         <input type="date" id="filtro-nfse-data-fim" onchange="filtrarControleNFSe()" style="width:100%; padding:8px 8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
                     </div>
                     <div style="flex:0 0 auto; align-self:flex-end;">
@@ -9567,12 +9567,16 @@
                 if (busca && !(
                     String(n.numero_nfse || '').toLowerCase().includes(busca) ||
                     (n.cnpj_tomador || '').toLowerCase().includes(busca) ||
+                    (n.razao_social_tomador || '').toLowerCase().includes(busca) ||
                     (n.discriminacao || '').toLowerCase().includes(busca)
                 )) return false;
                 if (dataIni || dataFim) {
-                    const d = n.data_emissao ? n.data_emissao.split('T')[0] : '';
-                    if (dataIni && d < dataIni) return false;
-                    if (dataFim && d > dataFim) return false;
+                    // Registros sem data de emissão são mantidos independente do filtro
+                    const d = n.data_emissao ? n.data_emissao.split('T')[0] : null;
+                    if (d !== null) {
+                        if (dataIni && d < dataIni) return false;
+                        if (dataFim && d > dataFim) return false;
+                    }
                 }
                 return true;
             });
