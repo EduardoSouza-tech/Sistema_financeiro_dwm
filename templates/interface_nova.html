@@ -9775,7 +9775,8 @@
 
         function abrirModalImportarNFSe() {
             const hoje = new Date().toISOString().split('T')[0];
-            const primeiroDia = hoje.substring(0, 8) + '01';
+            const umAnoAtras = new Date(); umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
+            const primeiroDia = umAnoAtras.getFullYear() + '-01-01';
             document.getElementById('importar-nfse-data-ini').value = primeiroDia;
             document.getElementById('importar-nfse-data-fim').value = hoje;
             document.getElementById('importar-nfse-status').textContent = '';
