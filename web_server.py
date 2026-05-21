@@ -15503,6 +15503,90 @@ def editar_nfse(nfse_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/nfse/<int:nfse_id>/remover', methods=['DELETE'])
+@require_auth
+@require_permission('nfse_view')
+def remover_nfse_controle(nfse_id):
+    """Remove uma NFS-e do Controle de NFS-e (apenas da tabela nfse_baixadas)"""
+    try:
+        import psycopg2
+        from database_postgresql import get_nfse_db_params
+
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+
+        db_params = get_nfse_db_params()
+        with psycopg2.connect(**db_params) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM nfse_baixadas WHERE id = %s AND empresa_id = %s",
+                    (nfse_id, empresa_id)
+                )
+                if cur.rowcount == 0:
+                    return jsonify({'success': False, 'error': 'NFS-e não encontrada'}), 404
+            conn.commit()
+
+        return jsonify({'success': True, 'message': 'NFS-e removida do controle'})
+    except Exception as e:
+        logger.error(f"Erro ao remover NFS-e {nfse_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/nfse/criar', methods=['POST'])
+@require_auth
+@require_permission('nfse_view')
+def criar_nfse_manual():
+    """Cria uma NFS-e manualmente no Controle de NFS-e"""
+    try:
+        import psycopg2
+        import psycopg2.extras
+        from database_postgresql import get_nfse_db_params
+
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+
+        data = request.get_json() or {}
+
+        def nulo(v):
+            return v if v not in ('', None) else None
+
+        db_params = get_nfse_db_params()
+        with psycopg2.connect(**db_params) as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    INSERT INTO nfse_baixadas (
+                        empresa_id, numero_nfse, data_emissao, cnpj_tomador,
+                        razao_social_tomador, valor_servico, valor_liquido,
+                        discriminacao, situacao, situacao_recebimento,
+                        data_pagamento, provedor, data_download
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'manual', CURRENT_DATE)
+                    RETURNING id
+                """, (
+                    empresa_id,
+                    nulo(data.get('numero_nfse')),
+                    nulo(data.get('data_emissao')),
+                    nulo(data.get('cnpj_tomador')),
+                    nulo(data.get('razao_social_tomador')),
+                    nulo(data.get('valor_servico')),
+                    nulo(data.get('valor_liquido')),
+                    nulo(data.get('discriminacao')),
+                    data.get('situacao') or 'NORMAL',
+                    data.get('situacao_recebimento') or 'PENDENTE',
+                    nulo(data.get('data_pagamento')),
+                ))
+                row = cur.fetchone()
+            conn.commit()
+
+        return jsonify({'success': True, 'id': row['id'], 'message': 'NFS-e criada com sucesso'})
+    except Exception as e:
+        logger.error(f"Erro ao criar NFS-e manual: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/nfse/<int:nfse_id>', methods=['GET'])
 @require_auth
 @require_permission('nfse_view')
