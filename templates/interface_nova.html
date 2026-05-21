@@ -9806,17 +9806,17 @@
             document.getElementById('btn-aplicar-importar-nfse').style.display = 'none';
             _nfseImportarTomadoresSelecionados.clear();
             try {
-                const resp = await fetch('/api/nfse/consultar', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: JSON.stringify({ data_inicial: dataIni, data_final: dataFim })
+                const resp = await fetch('/api/nfse/controle', {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 });
                 const result = await resp.json();
                 if (!result.success) throw new Error(result.error || 'Erro ao buscar');
-                _nfseImportarRegistros = result.nfses || [];
+                // Filtrar por data_emissao no lado cliente
+                _nfseImportarRegistros = (result.nfses || []).filter(n => {
+                    const d = n.data_emissao ? n.data_emissao.split('T')[0] : '';
+                    return d >= dataIni && d <= dataFim;
+                });
 
                 // Extrair tomadores únicos
                 const tomMap = new Map();
