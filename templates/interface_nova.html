@@ -3070,6 +3070,9 @@
                         <button id="btn-excluir-selecionados-nfse" onclick="excluirSelecionadosNFSe()" style="display:none; padding:10px 18px; background:#c0392b; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">
                             🗑️ Excluir Selecionados (<span id="contador-sel-nfse">0</span>)
                         </button>
+                        <button onclick="abrirModalImportarNFSe()" style="padding:10px 18px; background:#8e44ad; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">
+                            📥 Importar
+                        </button>
                         <button onclick="abrirModalCriarNFSe()" style="padding:10px 18px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">
                             ➕ Nova NFS-e
                         </button>
@@ -3307,6 +3310,55 @@
                     <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                         <button onclick="fecharModalCriarNFSe()" style="padding:10px 24px; background:#95a5a6; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Cancelar</button>
                         <button onclick="salvarCriacaoNFSe()" style="padding:10px 24px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">💾 Salvar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Importar NFS-e de Relatórios Fiscais -->
+            <div id="modal-importar-nfse" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; overflow-y:auto;">
+                <div style="background:white; margin:40px auto; max-width:620px; width:94%; border-radius:10px; padding:30px; position:relative;">
+                    <button onclick="fecharModalImportarNFSe()" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:#666;">&times;</button>
+                    <h3 style="margin-top:0; color:#2c3e50;">📥 Importar de Relatórios Fiscais</h3>
+                    <p style="color:#666; font-size:13px; margin-bottom:18px;">Selecione o período e os tomadores desejados para aplicar como filtro no Controle de NFS-e.</p>
+
+                    <!-- Período -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Data Inicial</label>
+                            <input type="date" id="importar-nfse-data-ini" style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Data Final</label>
+                            <input type="date" id="importar-nfse-data-fim" style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                    </div>
+
+                    <!-- Botão buscar -->
+                    <button onclick="_buscarTomadoresImportar()" style="width:100%; padding:10px; background:#3498db; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; margin-bottom:12px;">
+                        🔍 Buscar Tomadores no Período
+                    </button>
+
+                    <!-- Status -->
+                    <div id="importar-nfse-status" style="font-size:13px; color:#666; min-height:18px; margin-bottom:12px; text-align:center;"></div>
+
+                    <!-- Lista de tomadores -->
+                    <div id="importar-nfse-tomadores-wrap" style="display:none;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <label style="font-size:13px; font-weight:bold;">Tomadores encontrados</label>
+                            <div style="display:flex; gap:8px;">
+                                <button onclick="_selecionarTodosTomadoresImportar(true)" style="padding:4px 12px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">Todos</button>
+                                <button onclick="_selecionarTodosTomadoresImportar(false)" style="padding:4px 12px; background:#95a5a6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">Nenhum</button>
+                            </div>
+                        </div>
+                        <input type="text" id="importar-nfse-busca-tomador" placeholder="🔍 Filtrar tomadores..." oninput="_filtrarListaImportar()" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box; margin-bottom:8px; font-size:13px;">
+                        <div id="importar-nfse-tomadores-lista" style="max-height:260px; overflow-y:auto; border:1px solid #eee; border-radius:6px; padding:6px;"></div>
+                        <div style="margin-top:8px; font-size:12px; color:#8e44ad; font-weight:bold;" id="importar-nfse-sel-count">0 tomador(es) selecionado(s)</div>
+                    </div>
+
+                    <!-- Rodapé -->
+                    <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+                        <button onclick="fecharModalImportarNFSe()" style="padding:10px 22px; background:#95a5a6; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Cancelar</button>
+                        <button id="btn-aplicar-importar-nfse" onclick="_aplicarImportarNFSe()" style="display:none; padding:10px 22px; background:#8e44ad; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">✅ Aplicar no Controle</button>
                     </div>
                 </div>
             </div>
@@ -9280,6 +9332,8 @@
         let _nfseTomadoresSelecionados = new Set();
         let _nfseSort = { col: 'data_emissao', dir: 'desc' };
         let _nfseSelecao = new Set();
+        let _nfseImportarTomadoresSelecionados = new Set();
+        let _nfseImportarRegistros = [];
         const _nfseSortCols = ['numero_nfse','data_emissao','cnpj_tomador','razao_social_tomador','valor_servico','valor_liquido','discriminacao','situacao','data_pagamento'];
 
         function sortarControleNFSe(col) {
@@ -9717,6 +9771,147 @@
             }
         }
 
+        // ==================== IMPORTAR NFS-E DE RELATÓRIOS FISCAIS ====================
+
+        function abrirModalImportarNFSe() {
+            const hoje = new Date().toISOString().split('T')[0];
+            const primeiroDia = hoje.substring(0, 8) + '01';
+            document.getElementById('importar-nfse-data-ini').value = primeiroDia;
+            document.getElementById('importar-nfse-data-fim').value = hoje;
+            document.getElementById('importar-nfse-status').textContent = '';
+            document.getElementById('importar-nfse-tomadores-wrap').style.display = 'none';
+            document.getElementById('btn-aplicar-importar-nfse').style.display = 'none';
+            document.getElementById('importar-nfse-tomadores-lista').innerHTML = '';
+            document.getElementById('importar-nfse-busca-tomador').value = '';
+            _nfseImportarRegistros = [];
+            _nfseImportarTomadoresSelecionados.clear();
+            document.getElementById('importar-nfse-sel-count').textContent = '0 tomador(es) selecionado(s)';
+            document.getElementById('modal-importar-nfse').style.display = 'block';
+        }
+
+        function fecharModalImportarNFSe() {
+            document.getElementById('modal-importar-nfse').style.display = 'none';
+        }
+
+        async function _buscarTomadoresImportar() {
+            const dataIni = document.getElementById('importar-nfse-data-ini').value;
+            const dataFim = document.getElementById('importar-nfse-data-fim').value;
+            if (!dataIni || !dataFim) {
+                if (typeof showToast === 'function') showToast('⚠️ Selecione o período completo.', 'warning');
+                return;
+            }
+            const status = document.getElementById('importar-nfse-status');
+            status.textContent = '⏳ Buscando tomadores...';
+            document.getElementById('importar-nfse-tomadores-wrap').style.display = 'none';
+            document.getElementById('btn-aplicar-importar-nfse').style.display = 'none';
+            _nfseImportarTomadoresSelecionados.clear();
+            try {
+                const resp = await fetch('/api/nfse/consultar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ data_inicial: dataIni, data_final: dataFim })
+                });
+                const result = await resp.json();
+                if (!result.success) throw new Error(result.error || 'Erro ao buscar');
+                _nfseImportarRegistros = result.nfses || [];
+
+                // Extrair tomadores únicos
+                const tomMap = new Map();
+                for (const n of _nfseImportarRegistros) {
+                    const nome = (n.razao_social_tomador || n.cnpj_tomador || '—').trim();
+                    if (!tomMap.has(nome)) tomMap.set(nome, { nome, cnpj: n.cnpj_tomador || '', count: 0 });
+                    tomMap.get(nome).count++;
+                }
+                const tomadores = [...tomMap.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+                status.textContent = `${tomadores.length} tomador(es) em ${_nfseImportarRegistros.length} nota(s).`;
+                _renderTomadoresImportar(tomadores);
+                document.getElementById('importar-nfse-tomadores-wrap').style.display = 'block';
+            } catch (e) {
+                status.textContent = '❌ ' + e.message;
+            }
+        }
+
+        function _renderTomadoresImportar(lista) {
+            const container = document.getElementById('importar-nfse-tomadores-lista');
+            if (!lista.length) {
+                container.innerHTML = '<p style="text-align:center; color:#999; font-size:13px; padding:16px;">Nenhum tomador encontrado.</p>';
+                return;
+            }
+            container.innerHTML = lista.map(t => {
+                const esc = t.nome.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+                return `<label style="display:flex; align-items:center; gap:10px; padding:7px 8px; border-radius:5px; cursor:pointer; border-bottom:1px solid #f5f5f5; font-size:13px;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='white'">
+                    <input type="checkbox" class="importar-nfse-check" data-nome="${esc}" onchange="_toggleTomadorImportar(this)" style="width:15px; height:15px; cursor:pointer; flex-shrink:0;">
+                    <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${esc}">${esc}</span>
+                    <span style="font-size:11px; color:#aaa; white-space:nowrap; flex-shrink:0;">${t.cnpj}</span>
+                    <span style="background:#8e44ad; color:white; padding:2px 8px; border-radius:10px; font-size:11px; flex-shrink:0;">${t.count}</span>
+                </label>`;
+            }).join('');
+            _atualizarContadorImportar();
+        }
+
+        function _toggleTomadorImportar(el) {
+            const nome = el.dataset.nome;
+            if (el.checked) _nfseImportarTomadoresSelecionados.add(nome);
+            else _nfseImportarTomadoresSelecionados.delete(nome);
+            _atualizarContadorImportar();
+        }
+
+        function _selecionarTodosTomadoresImportar(sel) {
+            document.querySelectorAll('.importar-nfse-check').forEach(cb => {
+                if (cb.offsetParent !== null) { // only visible
+                    cb.checked = sel;
+                    if (sel) _nfseImportarTomadoresSelecionados.add(cb.dataset.nome);
+                    else _nfseImportarTomadoresSelecionados.delete(cb.dataset.nome);
+                }
+            });
+            _atualizarContadorImportar();
+        }
+
+        function _atualizarContadorImportar() {
+            const n = _nfseImportarTomadoresSelecionados.size;
+            const el = document.getElementById('importar-nfse-sel-count');
+            if (el) el.textContent = `${n} tomador(es) selecionado(s)`;
+            const btn = document.getElementById('btn-aplicar-importar-nfse');
+            if (btn) btn.style.display = n > 0 ? 'inline-block' : 'none';
+        }
+
+        function _filtrarListaImportar() {
+            const busca = (document.getElementById('importar-nfse-busca-tomador').value || '').toLowerCase();
+            document.querySelectorAll('#importar-nfse-tomadores-lista label').forEach(lbl => {
+                const nome = (lbl.querySelector('.importar-nfse-check').dataset.nome || '').toLowerCase();
+                lbl.style.display = nome.includes(busca) ? '' : 'none';
+            });
+        }
+
+        async function _aplicarImportarNFSe() {
+            const tomadores = [..._nfseImportarTomadoresSelecionados];
+            if (!tomadores.length) return;
+            const dataIni = document.getElementById('importar-nfse-data-ini').value;
+            const dataFim = document.getElementById('importar-nfse-data-fim').value;
+            fecharModalImportarNFSe();
+
+            // Aplicar datas no controle
+            document.getElementById('filtro-nfse-data-ini').value = dataIni;
+            document.getElementById('filtro-nfse-data-fim').value = dataFim;
+
+            // Recarregar dados (reseta tomadores via _construirDropdownTomadores)
+            await carregarControleNFSe();
+
+            // Sobrescrever seleção de tomadores após o reload
+            _nfseTomadoresSelecionados = new Set(tomadores);
+            _filtrarListaTomadoresNFSe();
+            _atualizarLabelTomadorNFSe();
+            _atualizarContadorSelTomadoresNFSe();
+            filtrarControleNFSe();
+
+            if (typeof showToast === 'function')
+                showToast(`✅ ${tomadores.length} tomador(es) aplicado(s) no Controle de NFS-e.`, 'success');
+        }
+
         async function excluirNFSe(id) {
             if (!confirm('Tem certeza que deseja excluir esta NFS-e do controle? Esta ação não pode ser desfeita.')) return;
             try {
@@ -9779,6 +9974,9 @@
         });
         document.getElementById('modal-criar-nfse').addEventListener('click', function(e) {
             if (e.target === this) fecharModalCriarNFSe();
+        });
+        document.getElementById('modal-importar-nfse').addEventListener('click', function(e) {
+            if (e.target === this) fecharModalImportarNFSe();
         });
 
         // Fechar dropdown de tomadores ao clicar fora
