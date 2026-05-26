@@ -7358,11 +7358,10 @@
             </div>
             <div style="padding:24px;">
                 <div style="background:#fef9e7; border:1px solid #f39c12; border-radius:8px; padding:14px; margin-bottom:18px;">
-                    <p style="margin:0 0 8px 0; font-weight:700; color:#e67e22;">⚠️ Atenção: Operação Destrutiva</p>
-                    <p style="margin:0; font-size:13px; color:#7f6000; line-height:1.6;">Esta operação irá:<br>
-                        1. <strong>Excluir</strong> todos os lançamentos criados por conciliação no período<br>
-                        2. <strong>Remover</strong> os registros de conciliação<br>
-                        3. <strong>Recriar</strong> os lançamentos corretamente com base nos dados do Histórico
+                    <p style="margin:0 0 8px 0; font-weight:700; color:#e67e22;">⚠️ Operação de Recuperação e Recriação</p>
+                    <p style="margin:0; font-size:13px; color:#7f6000; line-height:1.6;">Esta operação faz duas coisas com base no Histórico:<br>
+                        <strong>♻️ Restaurar extrato deletado:</strong> Se o extrato do período foi excluído, as transações são recriadas automaticamente e religadas aos lançamentos existentes.<br>
+                        <strong>🔁 Regerar lançamentos:</strong> Se o extrato existe mas os lançamentos estão incorretos, eles são excluídos e recriados com o tipo correto.
                     </p>
                 </div>
                 <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:14px; margin-bottom:18px;">
@@ -7376,7 +7375,7 @@
                 </div>
                 <div id="regerar-progress" style="display:none; text-align:center; padding:20px 0;">
                     <div style="font-size:36px;">⏳</div>
-                    <p style="margin:10px 0 0 0; color:#555; font-weight:600;">Regenerando conciliações...</p>
+                    <p style="margin:10px 0 0 0; color:#555; font-weight:600;">Processando conciliações...</p>
                     <p style="margin:4px 0 0 0; color:#95a5a6; font-size:12px;">Por favor, aguarde. Não feche esta janela.</p>
                 </div>
             </div>

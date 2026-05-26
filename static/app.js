@@ -8592,13 +8592,16 @@ window.confirmarRegerarConciliacao = async function() {
         fecharRegerarConciliacao();
 
         if (response.ok && data.success) {
-            const tipo = data.erros > 0 ? 'warning' : 'success';
-            mostrarToast(data.message || `✅ Regenerados: ${data.criados} lançamentos.`, tipo);
+            const tipo = data.erros?.length > 0 ? 'warning' : 'success';
+            mostrarToast(data.message || `✅ Concluído: ${data.criados || 0} recriados, ${data.restaurados || 0} restaurados.`, tipo);
         } else {
             mostrarToast(data.erro || data.message || 'Erro ao regerar conciliações.', 'error');
         }
 
         await carregarHistoricoConciliacao();
+        // Recarregar extrato bancário (pode ter transações restauradas)
+        if (typeof carregarExtrato === 'function') await carregarExtrato();
+        else if (typeof loadExtrato === 'function') await loadExtrato();
         // Atualizar Contas a Receber e Contas a Pagar com os novos lançamentos
         if (typeof loadContasReceber === 'function') await loadContasReceber();
         if (typeof loadContasPagar   === 'function') await loadContasPagar();

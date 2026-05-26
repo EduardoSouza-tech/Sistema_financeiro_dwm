@@ -5288,16 +5288,123 @@ def regerar_conciliacao():
 
         import psycopg2.extras
         # Variáveis acessíveis após o bloco with
-        transacoes = []
-        criados    = 0
-        erros      = []
+        transacoes  = []
+        criados     = 0
+        restaurados = 0
+        erros       = []
 
         with database.get_db_connection(empresa_id=empresa_id) as conn:
             conn.autocommit = False
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             try:
-                # ── 1. Buscar transações conciliadas no período ─────────────────────────
+                # Garantir tabela historico existe
+                _garantir_tabela_historico_conciliacoes(conn)
+
+                # ── FASE 0: Restaurar transações deletadas a partir do histórico ─────────
+                # Busca no historico_conciliacoes registros 'conciliado' cujo fitid (ou
+                # combinação data+valor+descricao) não existe mais em transacoes_extrato.
+                cursor.execute("""
+                    SELECT DISTINCT ON (
+                        COALESCE(h.fitid,
+                            h.data_transacao::text || '|' || ABS(h.valor)::text || '|' || h.descricao_extrato)
+                    )
+                        h.fitid,
+                        h.data_transacao,
+                        h.descricao_extrato,
+                        h.valor,
+                        h.tipo_extrato,
+                        h.memo,
+                        h.lancamento_id,
+                        h.categoria,
+                        h.subcategoria,
+                        h.pessoa,
+                        h.descricao_lancamento,
+                        h.observacoes
+                    FROM historico_conciliacoes h
+                    WHERE h.empresa_id     = %s
+                      AND h.conta_bancaria = %s
+                      AND h.data_transacao >= %s
+                      AND h.data_transacao <= %s
+                      AND h.evento         = 'conciliado'
+                      AND NOT EXISTS (
+                          SELECT 1 FROM transacoes_extrato te
+                          WHERE te.empresa_id = h.empresa_id
+                            AND (
+                                (h.fitid IS NOT NULL AND te.fitid = h.fitid)
+                                OR (h.fitid IS NULL
+                                    AND te.data     = h.data_transacao
+                                    AND ABS(te.valor) = ABS(COALESCE(h.valor, 0))
+                                    AND te.descricao  = h.descricao_extrato)
+                            )
+                      )
+                    ORDER BY
+                        COALESCE(h.fitid,
+                            h.data_transacao::text || '|' || ABS(h.valor)::text || '|' || h.descricao_extrato),
+                        h.data_evento DESC
+                """, (empresa_id, conta, data_inicio, data_fim))
+
+                para_restaurar = list(cursor.fetchall())
+                ids_restaurados = []
+
+                for h in para_restaurar:
+                    try:
+                        tipo_raw  = (h['tipo_extrato'] or '').upper().strip()
+                        valor_abs = abs(float(h['valor'] or 0))
+                        if tipo_raw not in ('DÉBITO', 'DEBITO', 'CRÉDITO', 'CREDITO'):
+                            tipo_raw = 'CREDITO'
+
+                        # Inserir de volta em transacoes_extrato
+                        cursor.execute("""
+                            INSERT INTO transacoes_extrato
+                                (empresa_id, conta_bancaria, data, descricao, valor, tipo,
+                                 fitid, memo, conciliado, categoria, subcategoria, pessoa)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, FALSE, %s, %s, %s)
+                            RETURNING id
+                        """, (
+                            empresa_id, conta,
+                            h['data_transacao'],
+                            h['descricao_extrato'] or '',
+                            valor_abs, tipo_raw,
+                            h['fitid'], h['memo'],
+                            h['categoria'], h['subcategoria'], h['pessoa']
+                        ))
+                        nova_te_id = cursor.fetchone()['id']
+                        ids_restaurados.append(nova_te_id)
+
+                        # Tentar religar lançamento existente pelo lancamento_id do histórico
+                        lanc_id = h['lancamento_id']
+                        if lanc_id:
+                            cursor.execute(
+                                "SELECT id FROM lancamentos WHERE id = %s AND empresa_id = %s",
+                                (lanc_id, empresa_id)
+                            )
+                            if cursor.fetchone():
+                                cursor.execute("""
+                                    INSERT INTO conciliacoes
+                                        (empresa_id, transacao_extrato_id, lancamento_id)
+                                    VALUES (%s, %s, %s)
+                                    ON CONFLICT DO NOTHING
+                                """, (empresa_id, nova_te_id, lanc_id))
+                                cursor.execute(
+                                    "UPDATE transacoes_extrato SET conciliado = TRUE WHERE id = %s",
+                                    (nova_te_id,)
+                                )
+                                cursor.execute(
+                                    "UPDATE lancamentos SET status = 'pago' "
+                                    "WHERE id = %s AND empresa_id = %s",
+                                    (lanc_id, empresa_id)
+                                )
+                                _inserir_historico_conciliacao(
+                                    conn, empresa_id, 'conciliado', nova_te_id, lanc_id
+                                )
+                                restaurados += 1
+                                logger.info(f"♻️  Restaurada transação fitid={h['fitid']} → te.id={nova_te_id}, lanc_id={lanc_id}")
+                    except Exception as re_err:
+                        erros.append(f"Restaurar fitid={h.get('fitid')}: {re_err}")
+                        logger.error(f"❌ Erro ao restaurar transação: {re_err}")
+
+                # ── 1. Buscar transações conciliadas no período (excluindo restauradas) ─
                 cursor.execute("""
                     SELECT
                         te.id                AS transacao_id,
@@ -5334,6 +5441,7 @@ def regerar_conciliacao():
                       AND te.conta_bancaria = %s
                       AND te.data          >= %s
                       AND te.data          <= %s
+                      AND te.id            != ALL(%s)
                       AND (
                           -- Atualmente conciliada
                           te.conciliado = TRUE
@@ -5345,11 +5453,11 @@ def regerar_conciliacao():
                           )
                       )
                     ORDER BY te.data ASC, te.id ASC
-                """, (empresa_id, conta, data_inicio, data_fim))
+                """, (empresa_id, conta, data_inicio, data_fim, ids_restaurados or [0]))
 
                 transacoes = list(cursor.fetchall())
 
-                if not transacoes:
+                if not transacoes and not ids_restaurados:
                     cursor.close()
                     return jsonify({
                         'success': False,
@@ -5357,8 +5465,20 @@ def regerar_conciliacao():
                                   f'{data_inicio} a {data_fim} para a conta "{conta}"')
                     }), 404
 
-                # Garantir tabela historico existe
-                _garantir_tabela_historico_conciliacoes(conn)
+                # Se só houve restauração (sem transacoes para regerar), commit e retorna
+                if not transacoes:
+                    conn.commit()
+                    cursor.close()
+                    logger.info(f"♻️  Restauração concluída: {restaurados} transações restauradas")
+                    return jsonify({
+                        'success': True,
+                        'total':       restaurados,
+                        'criados':     0,
+                        'restaurados': restaurados,
+                        'erros':       erros,
+                        'message':     (f'♻️ {restaurados} transação(ões) restaurada(s) do extrato com sucesso'
+                                        + (f'. {len(erros)} erro(s).' if erros else '.'))
+                    }), 200
 
                 ids_transacoes  = [t['transacao_id'] for t in transacoes]
                 ids_lancamentos = [t['lancamento_id'] for t in transacoes if t['lancamento_id']]
@@ -5486,12 +5606,16 @@ def regerar_conciliacao():
                 raise inner_err
 
         return jsonify({
-            'success': criados > 0,
-            'total':   len(transacoes),
-            'criados': criados,
-            'erros':   erros,
-            'message': (f'{criados} lançamento(s) recriado(s) com sucesso'
-                        + (f'. {len(erros)} erro(s).' if erros else ''))
+            'success':     criados > 0 or restaurados > 0,
+            'total':       len(transacoes) + restaurados,
+            'criados':     criados,
+            'restaurados': restaurados,
+            'erros':       erros,
+            'message':     (
+                (f'♻️ {restaurados} transação(ões) restaurada(s) do extrato. ' if restaurados else '') +
+                (f'🔁 {criados} lançamento(s) recriado(s) com sucesso.' if criados else '') +
+                (f' {len(erros)} erro(s).' if erros else '')
+            ).strip() or 'Concluído sem alterações.'
         }), 200
 
     except Exception as e:
