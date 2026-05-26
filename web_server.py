@@ -4972,7 +4972,7 @@ def _garantir_tabela_historico_conciliacoes(conn):
         CREATE TABLE IF NOT EXISTS historico_conciliacoes (
             id                   BIGSERIAL PRIMARY KEY,
             empresa_id           INT NOT NULL,
-            evento               VARCHAR(20) NOT NULL,
+            evento               VARCHAR(30) NOT NULL,
             data_evento          TIMESTAMPTZ DEFAULT NOW(),
             transacao_extrato_id INT,
             lancamento_id        INT,
@@ -4987,8 +4987,19 @@ def _garantir_tabela_historico_conciliacoes(conn):
             pessoa               VARCHAR(255),
             observacoes          TEXT,
             memo                 TEXT,
-            fitid                VARCHAR(255)
+            fitid                VARCHAR(255),
+            usuario_nome         VARCHAR(255)
         )
+    """)
+    # Migração: adicionar coluna usuario_nome se ainda não existir
+    cur.execute("""
+        ALTER TABLE historico_conciliacoes
+        ADD COLUMN IF NOT EXISTS usuario_nome VARCHAR(255)
+    """)
+    # Migração: ampliar evento para 30 chars
+    cur.execute("""
+        ALTER TABLE historico_conciliacoes
+        ALTER COLUMN evento TYPE VARCHAR(30)
     """)
     cur.execute("""
         CREATE INDEX IF NOT EXISTS idx_hist_conc_empresa_data
@@ -5000,13 +5011,20 @@ def _garantir_tabela_historico_conciliacoes(conn):
 def _inserir_historico_conciliacao(conn, empresa_id, evento, transacao_id, lancamento_id=None):
     """Insere um evento no historico de conciliacoes, copiando dados do extrato/lancamento."""
     try:
+        # Obter nome do usuário logado a partir do contexto Flask
+        try:
+            _u = get_usuario_logado()
+            _usuario_nome = (_u.get('nome_completo') or _u.get('username')) if _u else None
+        except Exception:
+            _usuario_nome = None
         _garantir_tabela_historico_conciliacoes(conn)
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO historico_conciliacoes (
                 empresa_id, evento, transacao_extrato_id, lancamento_id,
                 data_transacao, conta_bancaria, descricao_extrato, valor, tipo_extrato,
-                descricao_lancamento, categoria, subcategoria, pessoa, observacoes, memo, fitid
+                descricao_lancamento, categoria, subcategoria, pessoa, observacoes, memo, fitid,
+                usuario_nome
             )
             SELECT
                 te.empresa_id, %s, te.id, %s,
@@ -5015,11 +5033,11 @@ def _inserir_historico_conciliacao(conn, empresa_id, evento, transacao_id, lanca
                 COALESCE(l.categoria, te.categoria),
                 COALESCE(l.subcategoria, te.subcategoria),
                 COALESCE(l.pessoa, te.pessoa),
-                l.observacoes, te.memo, te.fitid
+                l.observacoes, te.memo, te.fitid, %s
             FROM transacoes_extrato te
             LEFT JOIN lancamentos l ON l.id = %s AND l.empresa_id = te.empresa_id
             WHERE te.id = %s AND te.empresa_id = %s
-        """, (evento, lancamento_id, lancamento_id, transacao_id, empresa_id))
+        """, (evento, lancamento_id, _usuario_nome, lancamento_id, transacao_id, empresa_id))
         cur.close()
     except Exception as exc:
         logger.warning(f"_inserir_historico_conciliacao falhou: {exc}")
@@ -5042,6 +5060,10 @@ def historico_conciliacao():
     try:
         empresa_id = session.get('empresa_id')
         if not empresa_id:
+            _h_emp = request.headers.get('X-Empresa-ID')
+            if _h_emp and _h_emp.isdigit():
+                empresa_id = int(_h_emp)
+        if not empresa_id:
             return jsonify({'erro': 'Empresa nao selecionada'}), 403
 
         conta         = request.args.get('conta', '').strip()
@@ -5061,7 +5083,7 @@ def historico_conciliacao():
         if data_fim:
             filtros.append("h.data_transacao <= %s")
             params.append(data_fim)
-        if evento_filtro in ('conciliado', 'desconciliado'):
+        if evento_filtro in ('conciliado', 'desconciliado', 'extrato_deletado'):
             filtros.append("h.evento = %s")
             params.append(evento_filtro)
 
@@ -5122,7 +5144,8 @@ def historico_conciliacao():
                     h.subcategoria,
                     h.pessoa,
                     h.observacoes,
-                    h.evento
+                    h.evento,
+                    h.usuario_nome
                 FROM historico_conciliacoes h
                 WHERE h.empresa_id = %s
                 {where_extra}
@@ -5813,7 +5836,22 @@ def deletar_tudo_extrato_conta():
             """, (empresa_id, conta_bancaria))
             
             deletados = cursor.rowcount
-            
+
+            # Registrar exclusão no histórico de conciliação
+            try:
+                _u = get_usuario_logado()
+                _usuario_nome = (_u.get('nome_completo') or _u.get('username')) if _u else None
+                _garantir_tabela_historico_conciliacoes(conn)
+                cursor.execute("""
+                    INSERT INTO historico_conciliacoes
+                        (empresa_id, evento, data_evento, conta_bancaria, descricao_extrato, usuario_nome)
+                    VALUES (%s, 'extrato_deletado', NOW(), %s, %s, %s)
+                """, (empresa_id, conta_bancaria,
+                       f'Extrato deletado: {deletados} transacao(oes) ({total_conciliados} conciliadas)',
+                       _usuario_nome))
+            except Exception as _he:
+                logger.warning(f"Historico extrato_deletado (tudo) warning: {_he}")
+
             conn.commit()
             cursor.close()
             
@@ -5928,6 +5966,26 @@ def deletar_extrato_filtrado():
             
             cursor.execute(query, params)
             deletados = cursor.rowcount
+
+            # Registrar exclusão no histórico de conciliação
+            try:
+                _u = get_usuario_logado()
+                _usuario_nome = (_u.get('nome_completo') or _u.get('username')) if _u else None
+                _garantir_tabela_historico_conciliacoes(conn)
+                _descr_filtro = ' | '.join(filter(None, [
+                    f"conta: {filtros['conta_bancaria']}" if filtros.get('conta_bancaria') else None,
+                    f"de: {filtros['data_inicio']}" if filtros.get('data_inicio') else None,
+                    f"até: {filtros['data_fim']}" if filtros.get('data_fim') else None,
+                ]))
+                cursor.execute("""
+                    INSERT INTO historico_conciliacoes
+                        (empresa_id, evento, data_evento, conta_bancaria, descricao_extrato, usuario_nome)
+                    VALUES (%s, 'extrato_deletado', NOW(), %s, %s, %s)
+                """, (empresa_id, filtros.get('conta_bancaria'),
+                       f'Extrato deletado: {deletados} transação(oes) [{_descr_filtro}]',
+                       _usuario_nome))
+            except Exception as _he:
+                logger.warning(f"Historico extrato_deletado (filtrado) warning: {_he}")
             
             conn.commit()
             cursor.close()

@@ -7262,6 +7262,7 @@
                         <option value="">Todos os eventos</option>
                         <option value="conciliado">✅ Conciliado</option>
                         <option value="desconciliado">❌ Desconciliado</option>
+                        <option value="extrato_deletado">🗑️ Extrato Deletado</option>
                     </select>
                 </div>
                 <button onclick="carregarHistoricoConciliacao()" style="padding:8px 20px; background:#2980b9; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:600; font-size:13px;">🔍 Filtrar</button>
@@ -7284,11 +7285,12 @@
                             <th style="padding:10px 12px; text-align:left; min-width:180px;">📄 Desc. Lançamento</th>
                             <th style="padding:10px 12px; text-align:left; white-space:nowrap;">🕐 Data Evento</th>
                             <th style="padding:10px 12px; text-align:center; white-space:nowrap;">📌 Evento</th>
+                            <th style="padding:10px 12px; text-align:left; white-space:nowrap;">👤 Usuário</th>
                             <th style="padding:10px 12px; text-align:center; white-space:nowrap;">⚙️ Ações</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-historico-conciliacao">
-                        <tr><td colspan="12" style="padding:40px; text-align:center; color:#95a5a6;">Carregando...</td></tr>
+                        <tr><td colspan="13" style="padding:40px; text-align:center; color:#95a5a6;">Carregando...</td></tr>
                     </tbody>
                 </table>
             </div>

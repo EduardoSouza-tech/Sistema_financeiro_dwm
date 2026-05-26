@@ -8342,7 +8342,7 @@ window.fecharHistoricoConciliacao = function() {
 window.carregarHistoricoConciliacao = async function() {
     const tbody = document.getElementById('tbody-historico-conciliacao');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="12" style="padding:40px; text-align:center; color:#95a5a6;">⏳ Carregando histórico...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" style="padding:40px; text-align:center; color:#95a5a6;">⏳ Carregando histórico...</td></tr>';
 
     const conta     = document.getElementById('hist-filtro-conta')?.value || '';
     const inicio    = document.getElementById('hist-filtro-inicio')?.value || '';
@@ -8368,7 +8368,7 @@ window.carregarHistoricoConciliacao = async function() {
         if (badge) badge.textContent = `${dados.length} registro(s)`;
 
         if (!dados.length) {
-            tbody.innerHTML = '<tr><td colspan="12" style="padding:40px; text-align:center; color:#95a5a6;">Nenhuma conciliação encontrada para os filtros selecionados.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="13" style="padding:40px; text-align:center; color:#95a5a6;">Nenhuma conciliação encontrada para os filtros selecionados.</td></tr>';
             return;
         }
 
@@ -8393,22 +8393,26 @@ window.carregarHistoricoConciliacao = async function() {
             const dataConc  = item.data_conciliacao ? item.data_conciliacao.split('T')[0] : '-';
             const bg        = idx % 2 === 0 ? '#fff' : '#f8f9fa';
 
-            return `<tr style="background:${bg};">
+            const isDeletado = item.evento === 'extrato_deletado';
+            const eventoBadge = item.evento === 'desconciliado'
+                ? '<span style="background:#fee2e2; color:#c0392b; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700;">❌ Desconciliado</span>'
+                : isDeletado
+                ? '<span style="background:#fef3cd; color:#856404; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700;">🗑️ Deletado</span>'
+                : '<span style="background:#d5f5e3; color:#1e8449; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700;">✅ Conciliado</span>';
+
+            return `<tr style="background:${isDeletado ? '#fffbf0' : bg};">
                 <td style="padding:10px 12px; white-space:nowrap; color:#555;">${item.data_transacao || '-'}</td>
                 <td style="padding:10px 12px; font-size:12px; color:#555;">${escapeHtml(item.conta_bancaria || '')}</td>
                 <td style="padding:10px 12px; max-width:260px; word-break:break-word; line-height:1.4; font-size:12px;">${escapeHtml(item.descricao_extrato || '')}${item.memo && item.memo !== item.descricao_extrato ? `<br><span style="color:#95a5a6; font-size:11px;">${escapeHtml(item.memo)}</span>` : ''}</td>
-                <td style="padding:10px 12px; text-align:right; font-weight:700; color:${corValor}; white-space:nowrap; font-size:13px;">${valorFmt}</td>
-                <td style="padding:10px 12px; text-align:center;">${tipoBadge}</td>
-                <td style="padding:10px 12px; font-size:12px;">${escapeHtml(item.categoria || '<span style="color:#bdc3c7">—</span>')}</td>
+                <td style="padding:10px 12px; text-align:right; font-weight:700; color:${corValor}; white-space:nowrap; font-size:13px;">${isDeletado ? '<span style="color:#bdc3c7">—</span>' : valorFmt}</td>
+                <td style="padding:10px 12px; text-align:center;">${isDeletado ? '<span style="color:#bdc3c7">—</span>' : tipoBadge}</td>
+                <td style="padding:10px 12px; font-size:12px;">${escapeHtml(item.categoria || '')||'<span style="color:#bdc3c7">—</span>'}</td>
                 <td style="padding:10px 12px; font-size:12px;">${escapeHtml(item.subcategoria || '')||'<span style="color:#bdc3c7">—</span>'}</td>
                 <td style="padding:10px 12px; font-size:12px; font-weight:500;">${escapeHtml(item.pessoa || '')||'<span style="color:#bdc3c7">—</span>'}</td>
                 <td style="padding:10px 12px; font-size:12px; max-width:200px; word-break:break-word;">${escapeHtml(item.descricao_lancamento || '')||'<span style="color:#bdc3c7">—</span>'}</td>
                 <td style="padding:10px 12px; font-size:12px; white-space:nowrap; color:#7f8c8d;">${dataConc}</td>
-                <td style="padding:10px 12px; text-align:center;">
-                    ${item.evento === 'desconciliado'
-                        ? '<span style="background:#fee2e2; color:#c0392b; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700;">❌ Desconciliado</span>'
-                        : '<span style="background:#d5f5e3; color:#1e8449; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700;">✅ Conciliado</span>'}
-                </td>
+                <td style="padding:10px 12px; text-align:center;">${eventoBadge}</td>
+                <td style="padding:10px 12px; font-size:12px; white-space:nowrap; color:#555;">${escapeHtml(item.usuario_nome || '')||'<span style="color:#bdc3c7">—</span>'}</td>
                 <td style="padding:10px 12px; text-align:center;">
                     ${item.evento === 'conciliado' && item.conciliacao_id
                         ? `<button onclick="abrirEdicaoConciliacao(${item.conciliacao_id})"
@@ -8421,7 +8425,7 @@ window.carregarHistoricoConciliacao = async function() {
 
     } catch (e) {
         console.error('Erro ao carregar histórico:', e);
-        tbody.innerHTML = `<tr><td colspan="12" style="padding:30px; text-align:center; color:#e74c3c;">❌ Erro ao carregar histórico: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13" style="padding:30px; text-align:center; color:#e74c3c;">❌ Erro ao carregar histórico: ${e.message}</td></tr>`;
     }
 };
 
