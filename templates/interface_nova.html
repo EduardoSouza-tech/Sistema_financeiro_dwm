@@ -10197,6 +10197,11 @@
                 });
                 
                 if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    if (response.status === 403 && errData.empresa_required) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#e53e3e;">⚠️ Selecione uma empresa no menu superior para visualizar o extrato bancário.</td></tr>';
+                        return;
+                    }
                     throw new Error('Erro ao carregar transações');
                 }
                 

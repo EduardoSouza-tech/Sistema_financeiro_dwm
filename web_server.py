@@ -4849,10 +4849,17 @@ def listar_extratos():
     try:
         usuario = get_usuario_logado()
         
-        # Usar empresa_id da sess�o (empresa selecionada pelo usu�rio)
-        empresa_id = session.get('empresa_id') or usuario.get('cliente_id') or usuario.get('empresa_id') or 1
+        # Usar empresa_id da sessão — com suporte ao header X-Empresa-ID para admins
+        # (require_permission não seta session['empresa_id'] para admins — eles bypassam o check)
+        empresa_id = session.get('empresa_id')
+        if not empresa_id:
+            _h_emp = request.headers.get('X-Empresa-ID')
+            if _h_emp and _h_emp.isdigit():
+                empresa_id = int(_h_emp)
+        if not empresa_id:
+            return jsonify({'error': 'Empresa não selecionada. Selecione uma empresa para ver o extrato.', 'empresa_required': True}), 403
         
-        logger.info(f"?? /api/extratos: empresa_id={empresa_id}, usuario={usuario.get('nome', 'N/A')}")
+        logger.info(f"✅ /api/extratos: empresa_id={empresa_id}, usuario={usuario.get('nome', 'N/A')}")
         
         # Validar e sanitizar datas (rejeitar anos absurdos, ex: 0202 vindo de JS Date com ano truncado)
         def _sanitize_date(value):
