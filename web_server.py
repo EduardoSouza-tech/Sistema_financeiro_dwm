@@ -15738,6 +15738,260 @@ def editar_nfse(nfse_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/nfse/controle/exportar', methods=['GET'])
+@require_auth
+@require_permission('nfse_view')
+def exportar_nfse_controle():
+    """Exporta o Controle de NFS-e para Excel com filtros opcionais."""
+    try:
+        import psycopg2
+        import psycopg2.extras
+        import io
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        from database_postgresql import get_nfse_db_params
+
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+
+        # ── Parâmetros de filtro ────────────────────────────────────────────────
+        data_inicio       = request.args.get('data_inicio')
+        data_fim          = request.args.get('data_fim')
+        situacao          = request.args.get('situacao', '').strip()
+        situacao_pg       = request.args.get('situacao_recebimento', '').strip()
+        busca             = request.args.get('busca', '').strip()
+        tomadores_raw     = request.args.get('tomadores', '').strip()  # JSON array de CNPJs
+        tipo_data         = request.args.get('tipo_data', 'emissao')  # 'emissao' ou 'pagamento'
+
+        # ── Montar query com filtros ────────────────────────────────────────────
+        conditions = ["empresa_id = %s"]
+        params = [empresa_id]
+
+        data_col = "data_emissao" if tipo_data != 'pagamento' else "data_pagamento"
+        if data_inicio:
+            conditions.append(f"{data_col} >= %s")
+            params.append(data_inicio)
+        if data_fim:
+            conditions.append(f"{data_col} <= %s")
+            params.append(data_fim)
+        if situacao:
+            conditions.append("situacao = %s")
+            params.append(situacao)
+        if situacao_pg:
+            conditions.append("situacao_recebimento = %s")
+            params.append(situacao_pg)
+        if busca:
+            conditions.append("(numero_nfse ILIKE %s OR discriminacao ILIKE %s OR razao_social_tomador ILIKE %s)")
+            like = f"%{busca}%"
+            params += [like, like, like]
+        if tomadores_raw:
+            import json
+            try:
+                tomadores = json.loads(tomadores_raw)
+                if tomadores:
+                    placeholders = ','.join(['%s'] * len(tomadores))
+                    conditions.append(f"cnpj_tomador IN ({placeholders})")
+                    params += tomadores
+            except Exception:
+                pass
+
+        where_clause = " AND ".join(conditions)
+
+        db_params = get_nfse_db_params()
+        with psycopg2.connect(**db_params) as conn:
+            _ensure_nfse_controle_table(conn)
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(f"""
+                    SELECT
+                        numero_nfse, data_emissao, razao_social_tomador, cnpj_tomador,
+                        valor_servico, valor_deducoes, valor_iss, aliquota_iss,
+                        valor_liquido, discriminacao, situacao, situacao_recebimento,
+                        data_pagamento, nome_municipio, uf, codigo_servico,
+                        numero_rps, serie_rps, protocolo, codigo_verificacao, provedor,
+                        criado_em
+                    FROM nfse_controle
+                    WHERE {where_clause}
+                    ORDER BY data_emissao DESC NULLS LAST, numero_nfse DESC
+                """, params)
+                rows = cur.fetchall()
+
+        # ── Montar planilha Excel ───────────────────────────────────────────────
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Controle NFS-e"
+
+        # Estilos
+        header_fill   = PatternFill("solid", fgColor="2C3E50")
+        header_font   = Font(bold=True, color="FFFFFF", size=11)
+        header_align  = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        data_align_c  = Alignment(horizontal="center", vertical="center")
+        data_align_l  = Alignment(horizontal="left",   vertical="center")
+        data_align_r  = Alignment(horizontal="right",  vertical="center")
+        money_fmt     = '#,##0.00'
+        pct_fmt       = '0.00%'
+        date_fmt      = 'DD/MM/YYYY'
+        thin          = Side(style='thin', color='DDDDDD')
+        border        = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        paid_fill   = PatternFill("solid", fgColor="D5F5E3")   # verde claro para PAGO
+        cancel_fill = PatternFill("solid", fgColor="FADBD8")   # vermelho claro para CANCELADA
+
+        headers = [
+            ("Nº NFS-e",         12, 'c'),
+            ("Data Emissão",      13, 'c'),
+            ("Tomador",          35, 'l'),
+            ("CNPJ Tomador",     18, 'c'),
+            ("Vl. Serviço",      13, 'r'),
+            ("Deduções",         12, 'r'),
+            ("ISS",              11, 'r'),
+            ("Alíquota",         10, 'c'),
+            ("Vl. Líquido",      13, 'r'),
+            ("Situação",         12, 'c'),
+            ("Pagamento",        12, 'c'),
+            ("Data Pagto",       13, 'c'),
+            ("Município/UF",     22, 'l'),
+            ("Cód. Serviço",     12, 'c'),
+            ("Discriminação",    50, 'l'),
+            ("Nº RPS",           10, 'c'),
+            ("Protocolo",        20, 'c'),
+            ("Provedor",         12, 'c'),
+        ]
+
+        # Linha de título
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+        title_cell = ws.cell(row=1, column=1, value="🧾 Controle de NFS-e")
+        title_cell.font = Font(bold=True, size=13, color="FFFFFF")
+        title_cell.fill = PatternFill("solid", fgColor="1A252F")
+        title_cell.alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[1].height = 22
+
+        # Filtros usados (linha 2)
+        filtro_txt = "Filtros: "
+        if data_inicio or data_fim:
+            filtro_txt += f"Período {tipo_data}: {data_inicio or '—'} a {data_fim or '—'}  "
+        if situacao:
+            filtro_txt += f"Situação: {situacao}  "
+        if situacao_pg:
+            filtro_txt += f"Pagamento: {situacao_pg}  "
+        if busca:
+            filtro_txt += f'Busca: "{busca}"  '
+        filtro_txt = filtro_txt.strip() if filtro_txt.strip() != "Filtros:" else "Filtros: nenhum (todos os registros)"
+        ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(headers))
+        filter_cell = ws.cell(row=2, column=1, value=filtro_txt)
+        filter_cell.font = Font(italic=True, size=10, color="555555")
+        filter_cell.fill = PatternFill("solid", fgColor="F0F0F0")
+        filter_cell.alignment = Alignment(horizontal="left", vertical="center")
+        ws.row_dimensions[2].height = 16
+
+        # Cabeçalhos (linha 3)
+        for col_idx, (label, width, _align) in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col_idx, value=label)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+            cell.border = border
+            ws.column_dimensions[get_column_letter(col_idx)].width = width
+        ws.row_dimensions[3].height = 30
+
+        # Congelar até linha 3
+        ws.freeze_panes = "A4"
+
+        # Dados (a partir linha 4)
+        for r_idx, row in enumerate(rows, 4):
+            _sit  = (row.get('situacao') or '').upper()
+            _pg   = (row.get('situacao_recebimento') or '').upper()
+            _fill = None
+            if _sit == 'CANCELADA':
+                _fill = cancel_fill
+            elif _pg == 'PAGO':
+                _fill = paid_fill
+
+            def _write(col, val, fmt=None, align='c'):
+                c = ws.cell(row=r_idx, column=col, value=val)
+                c.border = border
+                if _fill:
+                    c.fill = _fill
+                if fmt:
+                    c.number_format = fmt
+                c.alignment = (data_align_c if align == 'c' else
+                               data_align_l if align == 'l' else data_align_r)
+
+            def _date(v):
+                if not v:
+                    return None
+                if isinstance(v, str):
+                    try:
+                        from datetime import date as _d
+                        return _d.fromisoformat(v[:10])
+                    except Exception:
+                        return v
+                return v
+
+            aliq = row.get('aliquota_iss')
+            mun_uf = (row.get('nome_municipio') or '')
+            if row.get('uf'):
+                mun_uf += f"/{row['uf']}"
+
+            _write(1,  row.get('numero_nfse'),            align='c')
+            _write(2,  _date(row.get('data_emissao')),    date_fmt, 'c')
+            _write(3,  row.get('razao_social_tomador'),   align='l')
+            _write(4,  row.get('cnpj_tomador'),           align='c')
+            _write(5,  row.get('valor_servico'),          money_fmt, 'r')
+            _write(6,  row.get('valor_deducoes'),         money_fmt, 'r')
+            _write(7,  row.get('valor_iss'),              money_fmt, 'r')
+            _write(8,  float(aliq)/100 if aliq else None, pct_fmt, 'c')
+            _write(9,  row.get('valor_liquido'),          money_fmt, 'r')
+            _write(10, row.get('situacao'),               align='c')
+            _write(11, row.get('situacao_recebimento'),   align='c')
+            _write(12, _date(row.get('data_pagamento')),  date_fmt, 'c')
+            _write(13, mun_uf,                            align='l')
+            _write(14, row.get('codigo_servico'),         align='c')
+            _write(15, row.get('discriminacao'),          align='l')
+            _write(16, row.get('numero_rps'),             align='c')
+            _write(17, row.get('protocolo'),              align='c')
+            _write(18, row.get('provedor'),               align='c')
+
+        # Linha de totais
+        total_row = r_idx + 2 if rows else 5
+        ws.cell(row=total_row, column=1, value=f"Total: {len(rows)} NFS-e").font = Font(bold=True)
+        ws.cell(row=total_row, column=5, value=sum(float(r.get('valor_servico') or 0) for r in rows)).number_format = money_fmt
+        ws.cell(row=total_row, column=7, value=sum(float(r.get('valor_iss') or 0) for r in rows)).number_format = money_fmt
+        ws.cell(row=total_row, column=9, value=sum(float(r.get('valor_liquido') or 0) for r in rows)).number_format = money_fmt
+        for c in [1, 5, 7, 9]:
+            ws.cell(row=total_row, column=c).font = Font(bold=True)
+            ws.cell(row=total_row, column=c).fill = PatternFill("solid", fgColor="EBF5FB")
+
+        # Auto-filter nas colunas de dados
+        ws.auto_filter.ref = f"A3:{get_column_letter(len(headers))}3"
+
+        # Salvar e retornar
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+
+        from flask import send_file
+        periodo_str = ""
+        if data_inicio or data_fim:
+            periodo_str = f"_{data_inicio or ''}_a_{data_fim or ''}"
+        filename = f"controle_nfse{periodo_str}.xlsx"
+
+        return send_file(
+            buf,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
+    except Exception as e:
+        logger.error(f"Erro ao exportar NFS-e: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/nfse/<int:nfse_id>/remover', methods=['DELETE'])
 @require_auth
 @require_permission('nfse_view')

@@ -3073,6 +3073,9 @@
                         <button onclick="abrirModalImportarNFSe()" style="padding:10px 18px; background:#8e44ad; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">
                             📥 Importar
                         </button>
+                        <button onclick="abrirModalExportarNFSe()" style="padding:10px 18px; background:#e67e22; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">
+                            📊 Exportar
+                        </button>
                         <button onclick="abrirModalCriarNFSe()" style="padding:10px 18px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">
                             ➕ Nova NFS-e
                         </button>
@@ -3249,6 +3252,73 @@
                     <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                         <button onclick="fecharModalEditarNFSe()" style="padding:10px 24px; background:#95a5a6; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Cancelar</button>
                         <button onclick="salvarEdicaoNFSe()" style="padding:10px 24px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">💾 Salvar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Exportar NFS-e -->
+            <div id="modal-exportar-nfse" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.55); z-index:2000; overflow-y:auto;">
+                <div style="background:white; margin:60px auto; max-width:520px; width:94%; border-radius:10px; padding:30px; position:relative;">
+                    <button onclick="fecharModalExportarNFSe()" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:#666;">&times;</button>
+                    <h3 style="margin-top:0; color:#2c3e50;">📊 Exportar NFS-e para Excel</h3>
+                    <p style="color:#666; font-size:13px; margin-top:-6px;">Defina os filtros abaixo. Deixe em branco para exportar todos.</p>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px;">
+                        <!-- Tipo de data -->
+                        <div style="grid-column:1/-1;">
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Filtrar período por</label>
+                            <select id="exp-nfse-tipo-data" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                                <option value="emissao">Data de Emissão</option>
+                                <option value="pagamento">Data de Pagamento</option>
+                            </select>
+                        </div>
+                        <!-- Período -->
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">De</label>
+                            <input type="date" id="exp-nfse-data-ini" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Até</label>
+                            <input type="date" id="exp-nfse-data-fim" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <!-- Situação -->
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Situação</label>
+                            <select id="exp-nfse-situacao" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                                <option value="">Todas</option>
+                                <option value="NORMAL">Normal</option>
+                                <option value="CANCELADA">Cancelada</option>
+                                <option value="SUBSTITUIDA">Substituída</option>
+                            </select>
+                        </div>
+                        <!-- Pagamento -->
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Pagamento</label>
+                            <select id="exp-nfse-pg" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                                <option value="">Todos</option>
+                                <option value="PAGO">Pago</option>
+                                <option value="PENDENTE">Pendente</option>
+                            </select>
+                        </div>
+                        <!-- Busca texto -->
+                        <div style="grid-column:1/-1;">
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Busca (número, tomador, discriminação)</label>
+                            <input type="text" id="exp-nfse-busca" placeholder="Deixe em branco para não filtrar" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                    </div>
+
+                    <!-- Botão de prévia (quantos registros) -->
+                    <div style="margin-top:14px; padding:10px; background:#f8f9fa; border-radius:6px; font-size:13px; color:#555;" id="exp-nfse-preview">
+                        Preencha os filtros e clique em <strong>Exportar</strong>.
+                    </div>
+
+                    <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+                        <button onclick="fecharModalExportarNFSe()" style="padding:10px 20px; background:#95a5a6; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">
+                            Cancelar
+                        </button>
+                        <button onclick="confirmarExportarNFSe()" id="btn-confirmar-exportar-nfse" style="padding:10px 24px; background:#e67e22; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">
+                            📊 Exportar Excel
+                        </button>
                     </div>
                 </div>
             </div>
@@ -9328,6 +9398,120 @@
         }
 
         // ==================== CONTROLE DE NFS-e ====================
+
+        // ─── Exportar NFS-e ────────────────────────────────────────────────────
+        function abrirModalExportarNFSe() {
+            // Pré-preencher com filtros ativos na tela
+            const ini = document.getElementById('filtro-nfse-data-ini')?.value || '';
+            const fim = document.getElementById('filtro-nfse-data-fim')?.value || '';
+            const sit = document.getElementById('filtro-nfse-situacao')?.value || '';
+            const pg  = document.getElementById('filtro-nfse-pg')?.value || '';
+            const bsc = document.getElementById('filtro-nfse-busca')?.value || '';
+            if (ini) document.getElementById('exp-nfse-data-ini').value = ini;
+            if (fim) document.getElementById('exp-nfse-data-fim').value = fim;
+            if (sit) document.getElementById('exp-nfse-situacao').value = sit;
+            if (pg)  document.getElementById('exp-nfse-pg').value = pg;
+            if (bsc) document.getElementById('exp-nfse-busca').value = bsc;
+            document.getElementById('modal-exportar-nfse').style.display = 'block';
+            _atualizarPreviewExportNFSe();
+        }
+
+        function fecharModalExportarNFSe() {
+            document.getElementById('modal-exportar-nfse').style.display = 'none';
+        }
+
+        function _atualizarPreviewExportNFSe() {
+            // Conta quantos registros seriam exportados (usando dados já carregados)
+            if (!_nfseControleData) return;
+            const sit = document.getElementById('exp-nfse-situacao').value;
+            const pg  = document.getElementById('exp-nfse-pg').value;
+            const bsc = (document.getElementById('exp-nfse-busca').value || '').toLowerCase();
+            const ini = document.getElementById('exp-nfse-data-ini').value;
+            const fim = document.getElementById('exp-nfse-data-fim').value;
+            const tipo = document.getElementById('exp-nfse-tipo-data').value;
+            const dataCampo = tipo === 'pagamento' ? 'data_pagamento' : 'data_emissao';
+
+            const count = _nfseControleData.filter(n => {
+                if (sit && n.situacao !== sit) return false;
+                if (pg  && n.situacao_recebimento !== pg) return false;
+                if (bsc && !((n.numero_nfse||'').toLowerCase().includes(bsc) ||
+                             (n.razao_social_tomador||'').toLowerCase().includes(bsc) ||
+                             (n.discriminacao||'').toLowerCase().includes(bsc))) return false;
+                if (ini && (n[dataCampo]||'') < ini) return false;
+                if (fim && (n[dataCampo]||'') > fim) return false;
+                return true;
+            }).length;
+            document.getElementById('exp-nfse-preview').innerHTML =
+                `📋 <strong>${count}</strong> NFS-e${count !== 1 ? 's' : ''} serão exportadas com esses filtros.`;
+        }
+
+        ['exp-nfse-tipo-data','exp-nfse-data-ini','exp-nfse-data-fim','exp-nfse-situacao','exp-nfse-pg','exp-nfse-busca'].forEach(id => {
+            document.addEventListener('DOMContentLoaded', () => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', _atualizarPreviewExportNFSe);
+                if (el) el.addEventListener('input',  _atualizarPreviewExportNFSe);
+            });
+        });
+
+        document.getElementById('modal-exportar-nfse')?.addEventListener('click', function(e) {
+            if (e.target === this) fecharModalExportarNFSe();
+        });
+
+        async function confirmarExportarNFSe() {
+            const btn = document.getElementById('btn-confirmar-exportar-nfse');
+            const ini  = document.getElementById('exp-nfse-data-ini').value;
+            const fim  = document.getElementById('exp-nfse-data-fim').value;
+            const sit  = document.getElementById('exp-nfse-situacao').value;
+            const pg   = document.getElementById('exp-nfse-pg').value;
+            const bsc  = document.getElementById('exp-nfse-busca').value.trim();
+            const tipo = document.getElementById('exp-nfse-tipo-data').value;
+
+            // Tomadores selecionados na tela principal
+            const tomadoresJson = _nfseTomadoresSelecionados.size
+                ? JSON.stringify([..._nfseTomadoresSelecionados])
+                : '';
+
+            const params = new URLSearchParams();
+            if (ini)           params.set('data_inicio', ini);
+            if (fim)           params.set('data_fim', fim);
+            if (sit)           params.set('situacao', sit);
+            if (pg)            params.set('situacao_recebimento', pg);
+            if (bsc)           params.set('busca', bsc);
+            if (tomadoresJson) params.set('tomadores', tomadoresJson);
+            params.set('tipo_data', tipo);
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Gerando...';
+            try {
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+                const resp = await fetch(`/api/nfse/controle/exportar?${params.toString()}`, {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ error: resp.statusText }));
+                    throw new Error(err.error || 'Erro ao exportar');
+                }
+                const blob = await resp.blob();
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                a.href     = url;
+                const cd   = resp.headers.get('Content-Disposition') || '';
+                const match = cd.match(/filename="?([^"]+)"?/);
+                a.download  = match ? match[1] : 'controle_nfse.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                fecharModalExportarNFSe();
+                mostrarToast('✅ Exportação concluída!', 'success');
+            } catch (e) {
+                mostrarToast('❌ ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📊 Exportar Excel';
+            }
+        }
+        // ───────────────────────────────────────────────────────────────────────
 
         let _nfseControleData = [];
         let _nfseTomadoresSelecionados = new Set();
