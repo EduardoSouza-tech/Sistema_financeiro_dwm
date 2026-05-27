@@ -3305,6 +3305,17 @@
                             <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Busca (número, tomador, discriminação)</label>
                             <input type="text" id="exp-nfse-busca" placeholder="Deixe em branco para não filtrar" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
                         </div>
+                        <!-- Tomadores selecionados -->
+                        <div style="grid-column:1/-1;">
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Tomadores</label>
+                            <div id="exp-nfse-tomadores-tags" style="min-height:36px; padding:6px 8px; border:1px solid #ddd; border-radius:5px; background:#f8f9fa; display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:12px;">
+                                <span id="exp-nfse-tomadores-placeholder" style="color:#999;">Nenhum tomador filtrado (todos serão exportados)</span>
+                            </div>
+                            <div style="margin-top:5px; display:flex; align-items:center; gap:10px;">
+                                <button type="button" onclick="_expNfseLimparTomadores()" id="exp-nfse-btn-limpar-tomadores" style="display:none; padding:3px 10px; background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;">✕ Limpar filtro de tomadores</button>
+                                <span style="font-size:11px; color:#888;">Trazido automaticamente dos filtros da tela. Clique no × para remover individualmente.</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Botão de prévia (quantos registros) -->
@@ -9400,6 +9411,9 @@
         // ==================== CONTROLE DE NFS-e ====================
 
         // ─── Exportar NFS-e ────────────────────────────────────────────────────
+        // Cópia local dos tomadores para o modal (permite editar sem afetar a tela)
+        let _expNfseTomadores = new Set();
+
         function abrirModalExportarNFSe() {
             // Pré-preencher com filtros ativos na tela
             const ini = document.getElementById('filtro-nfse-data-ini')?.value || '';
@@ -9412,12 +9426,51 @@
             if (sit) document.getElementById('exp-nfse-situacao').value = sit;
             if (pg)  document.getElementById('exp-nfse-pg').value = pg;
             if (bsc) document.getElementById('exp-nfse-busca').value = bsc;
+            // Copiar tomadores selecionados na tela principal
+            _expNfseTomadores = new Set(_nfseTomadoresSelecionados);
+            _expNfseRenderTomadores();
             document.getElementById('modal-exportar-nfse').style.display = 'block';
             _atualizarPreviewExportNFSe();
         }
 
         function fecharModalExportarNFSe() {
             document.getElementById('modal-exportar-nfse').style.display = 'none';
+        }
+
+        function _expNfseRenderTomadores() {
+            const tags = document.getElementById('exp-nfse-tomadores-tags');
+            const ph   = document.getElementById('exp-nfse-tomadores-placeholder');
+            const btnL = document.getElementById('exp-nfse-btn-limpar-tomadores');
+            // Remover tags existentes
+            [...tags.querySelectorAll('.exp-tom-tag')].forEach(el => el.remove());
+            if (_expNfseTomadores.size === 0) {
+                ph.style.display = '';
+                btnL.style.display = 'none';
+            } else {
+                ph.style.display = 'none';
+                btnL.style.display = '';
+                _expNfseTomadores.forEach(cnpj => {
+                    const nfse = (_nfseControleData || []).find(n => n.cnpj_tomador === cnpj);
+                    const nome = nfse ? (nfse.razao_social_tomador || cnpj) : cnpj;
+                    const tag  = document.createElement('span');
+                    tag.className = 'exp-tom-tag';
+                    tag.style.cssText = 'background:#d6eaf8; color:#1a5276; padding:3px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:5px; font-size:12px;';
+                    const safeCnpj = cnpj.replace(/'/g, "\\'");
+                    tag.innerHTML = `${nome} <button type="button" onclick="_expNfseRemoverTomador('${safeCnpj}')" style="background:none;border:none;cursor:pointer;color:#e74c3c;font-size:14px;padding:0;line-height:1; font-weight:bold;">×</button>`;
+                    tags.appendChild(tag);
+                });
+            }
+            _atualizarPreviewExportNFSe();
+        }
+
+        function _expNfseRemoverTomador(cnpj) {
+            _expNfseTomadores.delete(cnpj);
+            _expNfseRenderTomadores();
+        }
+
+        function _expNfseLimparTomadores() {
+            _expNfseTomadores.clear();
+            _expNfseRenderTomadores();
         }
 
         function _atualizarPreviewExportNFSe() {
@@ -9439,6 +9492,7 @@
                              (n.discriminacao||'').toLowerCase().includes(bsc))) return false;
                 if (ini && (n[dataCampo]||'') < ini) return false;
                 if (fim && (n[dataCampo]||'') > fim) return false;
+                if (_expNfseTomadores && _expNfseTomadores.size > 0 && !_expNfseTomadores.has(n.cnpj_tomador)) return false;
                 return true;
             }).length;
             document.getElementById('exp-nfse-preview').innerHTML =
@@ -9466,9 +9520,9 @@
             const bsc  = document.getElementById('exp-nfse-busca').value.trim();
             const tipo = document.getElementById('exp-nfse-tipo-data').value;
 
-            // Tomadores selecionados na tela principal
-            const tomadoresJson = _nfseTomadoresSelecionados.size
-                ? JSON.stringify([..._nfseTomadoresSelecionados])
+            // Tomadores selecionados no modal (podem ter sido ajustados pelo usuário)
+            const tomadoresJson = _expNfseTomadores.size
+                ? JSON.stringify([..._expNfseTomadores])
                 : '';
 
             const params = new URLSearchParams();
