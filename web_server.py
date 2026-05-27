@@ -15792,8 +15792,9 @@ def exportar_nfse_controle():
             try:
                 tomadores = json.loads(tomadores_raw)
                 if tomadores:
+                    # tomadores é lista de razao_social_tomador (nomes), não CNPJs
                     placeholders = ','.join(['%s'] * len(tomadores))
-                    conditions.append(f"cnpj_tomador IN ({placeholders})")
+                    conditions.append(f"razao_social_tomador IN ({placeholders})")
                     params += tomadores
             except Exception:
                 pass

@@ -9412,6 +9412,7 @@
 
         // ─── Exportar NFS-e ────────────────────────────────────────────────────
         // Cópia local dos tomadores para o modal (permite editar sem afetar a tela)
+        // NOTA: _nfseTomadoresSelecionados armazena razao_social_tomador (nomes), não CNPJs
         let _expNfseTomadores = new Set();
 
         function abrirModalExportarNFSe() {
@@ -9426,7 +9427,7 @@
             if (sit) document.getElementById('exp-nfse-situacao').value = sit;
             if (pg)  document.getElementById('exp-nfse-pg').value = pg;
             if (bsc) document.getElementById('exp-nfse-busca').value = bsc;
-            // Copiar tomadores selecionados na tela principal
+            // Copiar tomadores selecionados na tela principal (são razao_social_tomador)
             _expNfseTomadores = new Set(_nfseTomadoresSelecionados);
             _expNfseRenderTomadores();
             document.getElementById('modal-exportar-nfse').style.display = 'block';
@@ -9449,22 +9450,21 @@
             } else {
                 ph.style.display = 'none';
                 btnL.style.display = '';
-                _expNfseTomadores.forEach(cnpj => {
-                    const nfse = (_nfseControleData || []).find(n => n.cnpj_tomador === cnpj);
-                    const nome = nfse ? (nfse.razao_social_tomador || cnpj) : cnpj;
+                // O Set contém razao_social_tomador diretamente
+                _expNfseTomadores.forEach(nome => {
                     const tag  = document.createElement('span');
                     tag.className = 'exp-tom-tag';
                     tag.style.cssText = 'background:#d6eaf8; color:#1a5276; padding:3px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:5px; font-size:12px;';
-                    const safeCnpj = cnpj.replace(/'/g, "\\'");
-                    tag.innerHTML = `${nome} <button type="button" onclick="_expNfseRemoverTomador('${safeCnpj}')" style="background:none;border:none;cursor:pointer;color:#e74c3c;font-size:14px;padding:0;line-height:1; font-weight:bold;">×</button>`;
+                    const safeNome = nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    tag.innerHTML = `${nome} <button type="button" onclick="_expNfseRemoverTomador('${safeNome}')" style="background:none;border:none;cursor:pointer;color:#e74c3c;font-size:14px;padding:0;line-height:1;font-weight:bold;">×</button>`;
                     tags.appendChild(tag);
                 });
             }
             _atualizarPreviewExportNFSe();
         }
 
-        function _expNfseRemoverTomador(cnpj) {
-            _expNfseTomadores.delete(cnpj);
+        function _expNfseRemoverTomador(nome) {
+            _expNfseTomadores.delete(nome);
             _expNfseRenderTomadores();
         }
 
@@ -9474,42 +9474,49 @@
         }
 
         function _atualizarPreviewExportNFSe() {
-            // Conta quantos registros seriam exportados (usando dados já carregados)
-            if (!_nfseControleData) return;
-            const sit = document.getElementById('exp-nfse-situacao').value;
-            const pg  = document.getElementById('exp-nfse-pg').value;
-            const bsc = (document.getElementById('exp-nfse-busca').value || '').toLowerCase();
-            const ini = document.getElementById('exp-nfse-data-ini').value;
-            const fim = document.getElementById('exp-nfse-data-fim').value;
+            if (!_nfseControleData || !_nfseControleData.length) return;
+            const sit  = document.getElementById('exp-nfse-situacao').value;
+            const pg   = document.getElementById('exp-nfse-pg').value;
+            const bsc  = (document.getElementById('exp-nfse-busca').value || '').toLowerCase();
+            const ini  = document.getElementById('exp-nfse-data-ini').value;
+            const fim  = document.getElementById('exp-nfse-data-fim').value;
             const tipo = document.getElementById('exp-nfse-tipo-data').value;
             const dataCampo = tipo === 'pagamento' ? 'data_pagamento' : 'data_emissao';
 
             const count = _nfseControleData.filter(n => {
-                if (sit && n.situacao !== sit) return false;
-                if (pg  && n.situacao_recebimento !== pg) return false;
-                if (bsc && !((n.numero_nfse||'').toLowerCase().includes(bsc) ||
-                             (n.razao_social_tomador||'').toLowerCase().includes(bsc) ||
-                             (n.discriminacao||'').toLowerCase().includes(bsc))) return false;
-                if (ini && (n[dataCampo]||'') < ini) return false;
-                if (fim && (n[dataCampo]||'') > fim) return false;
-                if (_expNfseTomadores && _expNfseTomadores.size > 0 && !_expNfseTomadores.has(n.cnpj_tomador)) return false;
+                if (sit && (n.situacao || '').toUpperCase() !== sit.toUpperCase()) return false;
+                if (pg  && (n.situacao_recebimento || 'PENDENTE').toUpperCase() !== pg.toUpperCase()) return false;
+                if (bsc && !(
+                    (n.numero_nfse||'').toLowerCase().includes(bsc) ||
+                    (n.razao_social_tomador||'').toLowerCase().includes(bsc) ||
+                    (n.discriminacao||'').toLowerCase().includes(bsc)
+                )) return false;
+                // Extrair só a parte da data (YYYY-MM-DD) para comparação correta
+                const d = (n[dataCampo] || '').split('T')[0];
+                if (ini && d && d < ini) return false;
+                if (fim && d && d > fim) return false;
+                // Tomadores: o Set guarda razao_social_tomador
+                if (_expNfseTomadores.size > 0 && !_expNfseTomadores.has(n.razao_social_tomador || '')) return false;
                 return true;
             }).length;
             document.getElementById('exp-nfse-preview').innerHTML =
                 `📋 <strong>${count}</strong> NFS-e${count !== 1 ? 's' : ''} serão exportadas com esses filtros.`;
         }
 
-        ['exp-nfse-tipo-data','exp-nfse-data-ini','exp-nfse-data-fim','exp-nfse-situacao','exp-nfse-pg','exp-nfse-busca'].forEach(id => {
-            document.addEventListener('DOMContentLoaded', () => {
+        // Registrar listeners diretamente (DOMContentLoaded já disparou neste ponto)
+        (function _registrarListenersExportNFSe() {
+            ['exp-nfse-tipo-data','exp-nfse-data-ini','exp-nfse-data-fim','exp-nfse-situacao','exp-nfse-pg','exp-nfse-busca'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.addEventListener('change', _atualizarPreviewExportNFSe);
-                if (el) el.addEventListener('input',  _atualizarPreviewExportNFSe);
+                if (el) {
+                    el.addEventListener('change', _atualizarPreviewExportNFSe);
+                    el.addEventListener('input',  _atualizarPreviewExportNFSe);
+                }
             });
-        });
-
-        document.getElementById('modal-exportar-nfse')?.addEventListener('click', function(e) {
-            if (e.target === this) fecharModalExportarNFSe();
-        });
+            const modal = document.getElementById('modal-exportar-nfse');
+            if (modal) modal.addEventListener('click', function(e) {
+                if (e.target === this) fecharModalExportarNFSe();
+            });
+        })();
 
         async function confirmarExportarNFSe() {
             const btn = document.getElementById('btn-confirmar-exportar-nfse');
@@ -9520,7 +9527,7 @@
             const bsc  = document.getElementById('exp-nfse-busca').value.trim();
             const tipo = document.getElementById('exp-nfse-tipo-data').value;
 
-            // Tomadores selecionados no modal (podem ter sido ajustados pelo usuário)
+            // Tomadores selecionados no modal (são razao_social_tomador, não CNPJs)
             const tomadoresJson = _expNfseTomadores.size
                 ? JSON.stringify([..._expNfseTomadores])
                 : '';
@@ -9531,7 +9538,7 @@
             if (sit)           params.set('situacao', sit);
             if (pg)            params.set('situacao_recebimento', pg);
             if (bsc)           params.set('busca', bsc);
-            if (tomadoresJson) params.set('tomadores', tomadoresJson);
+            if (tomadoresJson) params.set('tomadores', tomadoresJson);  // lista de razao_social_tomador
             params.set('tipo_data', tipo);
 
             btn.disabled = true;
