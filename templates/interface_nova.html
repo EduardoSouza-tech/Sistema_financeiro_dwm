@@ -9455,8 +9455,16 @@
                     const tag  = document.createElement('span');
                     tag.className = 'exp-tom-tag';
                     tag.style.cssText = 'background:#d6eaf8; color:#1a5276; padding:3px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:5px; font-size:12px;';
-                    const safeNome = nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                    tag.innerHTML = `${nome} <button type="button" onclick="_expNfseRemoverTomador('${safeNome}')" style="background:none;border:none;cursor:pointer;color:#e74c3c;font-size:14px;padding:0;line-height:1;font-weight:bold;">×</button>`;
+                    // Usa data-attribute + addEventListener para evitar XSS com nomes que contêm aspas/caracteres especiais
+                    const esc = document.createTextNode(nome + ' ');
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.textContent = '×';
+                    btn.style.cssText = 'background:none;border:none;cursor:pointer;color:#e74c3c;font-size:14px;padding:0;line-height:1;font-weight:bold;';
+                    btn.dataset.tomador = nome;
+                    btn.addEventListener('click', function() { _expNfseRemoverTomador(this.dataset.tomador); });
+                    tag.appendChild(esc);
+                    tag.appendChild(btn);
                     tags.appendChild(tag);
                 });
             }
@@ -9782,7 +9790,7 @@
             tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#666;">⏳ Carregando...</td></tr>';
             try {
                 const resp = await fetch('/api/nfse/controle', {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || sessionStorage.getItem('token') || ''}` }
                 });
                 const result = await resp.json();
                 if (!result.success) throw new Error(result.error || 'Erro ao carregar');
@@ -9925,7 +9933,7 @@
                 try {
                     const resp = await fetch(`/api/nfse/${id}/remover`, {
                         method: 'DELETE',
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || sessionStorage.getItem('token') || ''}` }
                     });
                     const result = await resp.json();
                     if (!result.success) erros++;
@@ -9992,6 +10000,18 @@
         }
 
         async function salvarCriacaoNFSe() {
+            const razaoVal = document.getElementById('cnf-razao-tomador').value.trim();
+            const numVal   = document.getElementById('cnf-numero').value.trim();
+            if (!razaoVal && !numVal) {
+                if (typeof showToast === 'function') showToast('⚠️ Informe ao menos o Tomador ou o Número da NFS-e.', 'warning');
+                return;
+            }
+            const vlServico = document.getElementById('cnf-valor-servico').value;
+            const vlLiquido = document.getElementById('cnf-valor-liquido').value;
+            if ((vlServico !== '' && parseFloat(vlServico) < 0) || (vlLiquido !== '' && parseFloat(vlLiquido) < 0)) {
+                if (typeof showToast === 'function') showToast('⚠️ Valores não podem ser negativos.', 'warning');
+                return;
+            }
             const payload = {
                 numero_nfse:           document.getElementById('cnf-numero').value || null,
                 data_emissao:          document.getElementById('cnf-data-emissao').value || null,
@@ -10007,7 +10027,7 @@
             try {
                 const resp = await fetch('/api/nfse/criar', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || sessionStorage.getItem('token') || ''}` },
                     body: JSON.stringify(payload)
                 });
                 const result = await resp.json();
@@ -10025,8 +10045,8 @@
 
         function abrirModalImportarNFSe() {
             const hoje = new Date().toISOString().split('T')[0];
-            const umAnoAtras = new Date(); umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
-            const primeiroDia = umAnoAtras.getFullYear() + '-01-01';
+            const anoAtual = new Date().getFullYear();
+            const primeiroDia = anoAtual + '-01-01';  // 1º de janeiro do ano CORRENTE
             document.getElementById('importar-nfse-data-ini').value = primeiroDia;
             document.getElementById('importar-nfse-data-fim').value = hoje;
             document.getElementById('importar-nfse-status').textContent = '';
@@ -10057,17 +10077,14 @@
             document.getElementById('btn-aplicar-importar-nfse').style.display = 'none';
             _nfseImportarTomadoresSelecionados.clear();
             try {
-                const resp = await fetch('/api/nfse/baixadas', {
+                const resp = await fetch(`/api/nfse/baixadas?data_inicio=${encodeURIComponent(dataIni)}&data_fim=${encodeURIComponent(dataFim)}`, {
                     method: 'GET',
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || sessionStorage.getItem('token') || ''}` }
                 });
                 const result = await resp.json();
                 if (!result.success) throw new Error(result.error || 'Erro ao buscar');
-                // Filtrar por data_emissao no lado cliente
-                _nfseImportarRegistros = (result.nfses || []).filter(n => {
-                    const d = n.data_emissao ? n.data_emissao.split('T')[0] : '';
-                    return d >= dataIni && d <= dataFim;
-                });
+                // Filtro de data já aplicado no backend
+                _nfseImportarRegistros = result.nfses || [];
 
                 // Extrair tomadores únicos
                 const tomMap = new Map();
@@ -10163,7 +10180,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${localStorage.getItem('token') || sessionStorage.getItem('token') || ''}`
                     },
                     body: JSON.stringify({ ids: idsParaImportar })
                 });
@@ -10192,7 +10209,7 @@
             try {
                 const resp = await fetch(`/api/nfse/${id}/remover`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || sessionStorage.getItem('token') || ''}` }
                 });
                 const result = await resp.json();
                 if (!result.success) throw new Error(result.error || 'Erro ao excluir');
@@ -10207,6 +10224,20 @@
         async function salvarEdicaoNFSe() {
             const id = document.getElementById('editar-nfse-id').value;
             if (!id) return;
+            const razaoVal = document.getElementById('enf-razao-tomador').value.trim();
+            if (!razaoVal) {
+                if (typeof showToast === 'function') showToast('⚠️ O campo Tomador é obrigatório.', 'warning');
+                return;
+            }
+            const vlServico  = document.getElementById('enf-valor-servico').value;
+            const vlLiquido  = document.getElementById('enf-valor-liquido').value;
+            const vlIss      = document.getElementById('enf-valor-iss').value;
+            const aliqIss    = document.getElementById('enf-aliquota-iss').value;
+            const vlDeducoes = document.getElementById('enf-valor-deducoes').value;
+            if ([vlServico, vlLiquido, vlIss, aliqIss, vlDeducoes].some(v => v !== '' && parseFloat(v) < 0)) {
+                if (typeof showToast === 'function') showToast('⚠️ Valores numéricos não podem ser negativos.', 'warning');
+                return;
+            }
             const payload = {
                 numero_nfse: document.getElementById('enf-numero').value,
                 data_emissao: document.getElementById('enf-data-emissao').value || null,
@@ -10229,7 +10260,7 @@
             try {
                 const resp = await fetch(`/api/nfse/${id}/editar`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || sessionStorage.getItem('token') || ''}` },
                     body: JSON.stringify(payload)
                 });
                 const result = await resp.json();

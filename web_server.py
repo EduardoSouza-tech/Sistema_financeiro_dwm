@@ -15763,7 +15763,7 @@ def exportar_nfse_controle():
         situacao          = request.args.get('situacao', '').strip()
         situacao_pg       = request.args.get('situacao_recebimento', '').strip()
         busca             = request.args.get('busca', '').strip()
-        tomadores_raw     = request.args.get('tomadores', '').strip()  # JSON array de CNPJs
+        tomadores_raw     = request.args.get('tomadores', '').strip()  # JSON array de razao_social_tomador (nomes)
         tipo_data         = request.args.get('tipo_data', 'emissao')  # 'emissao' ou 'pagamento'
 
         # ── Montar query com filtros ────────────────────────────────────────────
@@ -15879,6 +15879,14 @@ def exportar_nfse_controle():
             filtro_txt += f"Pagamento: {situacao_pg}  "
         if busca:
             filtro_txt += f'Busca: "{busca}"  '
+        if tomadores_raw:
+            try:
+                import json as _json
+                _toms = _json.loads(tomadores_raw)
+                if _toms:
+                    filtro_txt += f"Tomadores: {', '.join(_toms[:5])}{'...' if len(_toms) > 5 else ''}  "
+            except Exception:
+                pass
         filtro_txt = filtro_txt.strip() if filtro_txt.strip() != "Filtros:" else "Filtros: nenhum (todos os registros)"
         ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(headers))
         filter_cell = ws.cell(row=2, column=1, value=filtro_txt)
@@ -16094,18 +16102,32 @@ def listar_nfse_baixadas():
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
 
         db_params = get_nfse_db_params()
+
+        # Filtros opcionais de data (evita trazer todos os registros desnecessariamente)
+        data_inicio = request.args.get('data_inicio', '').strip()
+        data_fim    = request.args.get('data_fim', '').strip()
+        conditions  = ["empresa_id = %s"]
+        params_sql  = [empresa_id]
+        if data_inicio:
+            conditions.append("data_emissao >= %s")
+            params_sql.append(data_inicio)
+        if data_fim:
+            conditions.append("data_emissao <= %s")
+            params_sql.append(data_fim)
+        where_sql = " AND ".join(conditions)
+
         with psycopg2.connect(**db_params) as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute("""
+                cur.execute(f"""
                     SELECT id, numero_nfse, data_emissao, cnpj_tomador,
                            razao_social_tomador, valor_liquido, valor_servico,
                            discriminacao, situacao, situacao_recebimento,
                            data_pagamento, codigo_municipio, nome_municipio,
                            cnpj_prestador, provedor
                     FROM nfse_baixadas
-                    WHERE empresa_id = %s
+                    WHERE {where_sql}
                     ORDER BY data_emissao DESC
-                """, (empresa_id,))
+                """, params_sql)
                 rows = cur.fetchall()
 
         result = []
@@ -16140,63 +16162,52 @@ def importar_nfse_para_controle():
             return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
 
         data = request.get_json() or {}
-        ids = data.get('ids', [])
-        if not ids:
+        ids_raw = data.get('ids', [])
+        if not ids_raw:
             return jsonify({'success': False, 'error': 'Nenhum ID informado'}), 400
 
+        # Validar que todos os IDs são inteiros (previne erros de tipo no banco)
+        try:
+            ids = [int(i) for i in ids_raw]
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'IDs inválidos: devem ser inteiros'}), 400
+
         db_params = get_nfse_db_params()
-        importados = 0
-        ignorados = 0
         with psycopg2.connect(**db_params) as conn:
             _ensure_nfse_controle_table(conn)
-            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                for nfse_id in ids:
-                    cur.execute(
-                        "SELECT id FROM nfse_controle WHERE empresa_id = %s AND nfse_baixadas_id = %s",
-                        (empresa_id, nfse_id)
+            with conn.cursor() as cur:
+                # Inserir em lote: uma única query INSERT ... SELECT evita N+1
+                cur.execute("""
+                    INSERT INTO nfse_controle (
+                        empresa_id, numero_nfse, cnpj_prestador, cnpj_tomador,
+                        razao_social_tomador, data_emissao, valor_servico,
+                        valor_deducoes, valor_iss, aliquota_iss, valor_liquido,
+                        codigo_servico, discriminacao, provedor, codigo_municipio,
+                        nome_municipio, uf, situacao, numero_rps, serie_rps,
+                        protocolo, codigo_verificacao, data_download,
+                        situacao_recebimento, data_pagamento, nfse_baixadas_id
                     )
-                    if cur.fetchone():
-                        ignorados += 1
-                        continue
-                    cur.execute("""
-                        SELECT numero_nfse, cnpj_prestador, cnpj_tomador,
-                               razao_social_tomador, data_emissao, valor_servico,
-                               valor_deducoes, valor_iss, aliquota_iss, valor_liquido,
-                               codigo_servico, discriminacao, provedor, codigo_municipio,
-                               nome_municipio, uf, situacao, numero_rps, serie_rps,
-                               protocolo, codigo_verificacao, data_download,
-                               situacao_recebimento, data_pagamento
-                        FROM nfse_baixadas WHERE id = %s AND empresa_id = %s
-                    """, (nfse_id, empresa_id))
-                    orig = cur.fetchone()
-                    if not orig:
-                        continue
-                    orig = dict(orig)
-                    cur.execute("""
-                        INSERT INTO nfse_controle (
-                            empresa_id, numero_nfse, cnpj_prestador, cnpj_tomador,
-                            razao_social_tomador, data_emissao, valor_servico,
-                            valor_deducoes, valor_iss, aliquota_iss, valor_liquido,
-                            codigo_servico, discriminacao, provedor, codigo_municipio,
-                            nome_municipio, uf, situacao, numero_rps, serie_rps,
-                            protocolo, codigo_verificacao, data_download,
-                            situacao_recebimento, data_pagamento, nfse_baixadas_id
-                        ) VALUES (
-                            %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
-                        )
-                    """, (
-                        empresa_id,
-                        orig['numero_nfse'], orig['cnpj_prestador'], orig['cnpj_tomador'],
-                        orig['razao_social_tomador'], orig['data_emissao'], orig['valor_servico'],
-                        orig['valor_deducoes'], orig['valor_iss'], orig['aliquota_iss'],
-                        orig['valor_liquido'], orig['codigo_servico'], orig['discriminacao'],
-                        orig['provedor'], orig['codigo_municipio'], orig['nome_municipio'],
-                        orig['uf'], orig['situacao'], orig['numero_rps'], orig['serie_rps'],
-                        orig['protocolo'], orig['codigo_verificacao'], orig['data_download'],
-                        orig['situacao_recebimento'], orig['data_pagamento'], nfse_id
-                    ))
-                    importados += 1
+                    SELECT
+                        %s, nb.numero_nfse, nb.cnpj_prestador, nb.cnpj_tomador,
+                        nb.razao_social_tomador, nb.data_emissao, nb.valor_servico,
+                        nb.valor_deducoes, nb.valor_iss, nb.aliquota_iss, nb.valor_liquido,
+                        nb.codigo_servico, nb.discriminacao, nb.provedor, nb.codigo_municipio,
+                        nb.nome_municipio, nb.uf, nb.situacao, nb.numero_rps, nb.serie_rps,
+                        nb.protocolo, nb.codigo_verificacao, nb.data_download,
+                        nb.situacao_recebimento, nb.data_pagamento, nb.id
+                    FROM nfse_baixadas nb
+                    WHERE nb.id = ANY(%s)
+                      AND nb.empresa_id = %s
+                      AND NOT EXISTS (
+                          SELECT 1 FROM nfse_controle nc
+                          WHERE nc.empresa_id = %s
+                            AND nc.nfse_baixadas_id = nb.id
+                      )
+                """, (empresa_id, ids, empresa_id, empresa_id))
+                importados = cur.rowcount
             conn.commit()
+
+        ignorados = len(ids) - importados
 
         return jsonify({
             'success': True,
