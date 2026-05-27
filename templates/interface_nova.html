@@ -9868,7 +9868,7 @@
                     </td>
                     <td style="padding:9px 12px; text-align:center; white-space:nowrap;">
                         <button onclick="abrirModalEditarNFSe(${n.id})" style="padding:5px 10px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; margin-right:4px;">✏️ Editar</button>
-                        <button onclick="excluirNFSe(${n.id})" style="padding:5px 10px; background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">🗑️ Excluir</button>
+                        <button onclick="excluirNFSeControle(${n.id})" style="padding:5px 10px; background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">🗑️ Excluir</button>
                     </td>
                 </tr>`;
             }).join('');
@@ -10187,7 +10187,7 @@
             }
         }
 
-        async function excluirNFSe(id) {
+        async function excluirNFSeControle(id) {
             if (!confirm('Tem certeza que deseja excluir esta NFS-e do controle? Esta ação não pode ser desfeita.')) return;
             try {
                 const resp = await fetch(`/api/nfse/${id}/remover`, {
