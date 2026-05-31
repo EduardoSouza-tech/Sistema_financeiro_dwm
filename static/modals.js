@@ -2254,8 +2254,9 @@ async function openModalContrato(contratoEdit = null) {
     if (!window.fornecedores || window.fornecedores.length === 0) cargas.push(loadFornecedores());
     if (cargas.length > 0) await Promise.all(cargas);
 
-    const isEdit = contratoEdit !== null;
-    const titulo = isEdit ? 'Editar Contrato' : 'Novo Contrato';
+    const isDuplicar = contratoEdit?._duplicando === true;
+    const isEdit = contratoEdit !== null && !isDuplicar;
+    const titulo = isDuplicar ? 'Duplicar Contrato' : (isEdit ? 'Editar Contrato' : 'Novo Contrato');
     
     // Converter data para formato yyyy-MM-dd se necessário
     let dataContratoFormatada = '';

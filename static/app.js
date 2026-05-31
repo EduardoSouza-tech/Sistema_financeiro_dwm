@@ -5171,30 +5171,22 @@ async function loadContratos() {
 }
 
 function filtrarContratosTabela() {
-    const fNumero       = (document.getElementById('filtro-contrato-numero')?.value       || '').toLowerCase().trim();
     const fCliente      = (document.getElementById('filtro-contrato-cliente')?.value      || '').toLowerCase().trim();
     const fTipo         = (document.getElementById('filtro-contrato-tipo')?.value         || '');
     const fNome         = (document.getElementById('filtro-contrato-nome')?.value         || '').toLowerCase().trim();
-    const fValorMensal  = document.getElementById('filtro-contrato-valor-mensal')?.value;
-    const fMeses        = document.getElementById('filtro-contrato-meses')?.value;
     const fValorTotal   = document.getElementById('filtro-contrato-valor-total')?.value;
     const fData         = (document.getElementById('filtro-contrato-data')?.value         || '').trim();
-    const fPgto         = (document.getElementById('filtro-contrato-pgto')?.value         || '').toLowerCase().trim();
     const fStatus       = (document.getElementById('filtro-contrato-status')?.value       || '');
 
     const filtrados = (window._todosContratosCache || []).filter(c => {
-        if (fNumero      && !(c.numero       || '').toLowerCase().includes(fNumero))  return false;
         if (fCliente     && !(c.cliente_nome || '').toLowerCase().includes(fCliente)) return false;
         if (fTipo        && (c.tipo          || '') !== fTipo)                         return false;
         if (fNome        && !((c.nome || '') + ' ' + (c.descricao || '')).toLowerCase().includes(fNome)) return false;
-        if (fValorMensal && parseFloat(c.valor_mensal || 0) < parseFloat(fValorMensal))  return false;
-        if (fMeses       && parseInt(c.quantidade_meses || 0) !== parseInt(fMeses))       return false;
         if (fValorTotal  && parseFloat(c.valor_total || c.valor || 0) < parseFloat(fValorTotal)) return false;
         if (fData) {
             const di = (c.data_inicio || c.data_contrato || '').substring(0, 10);
             if (di !== fData) return false;
         }
-        if (fPgto        && !(c.forma_pagamento || '').toLowerCase().includes(fPgto)) return false;
         if (fStatus      && _normalizarStatusContrato(c.status) !== fStatus)           return false;
         return true;
     });
@@ -5202,9 +5194,9 @@ function filtrarContratosTabela() {
 }
 
 function limparFiltrosContratosTabela() {
-    ['filtro-contrato-numero','filtro-contrato-cliente','filtro-contrato-tipo',
-     'filtro-contrato-nome','filtro-contrato-valor-mensal','filtro-contrato-meses',
-     'filtro-contrato-valor-total','filtro-contrato-data','filtro-contrato-pgto','filtro-contrato-status']
+    ['filtro-contrato-cliente','filtro-contrato-tipo',
+     'filtro-contrato-nome','filtro-contrato-valor-total',
+     'filtro-contrato-data','filtro-contrato-status']
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     renderContratos(window._todosContratosCache || []);
 }
@@ -5220,7 +5212,7 @@ function renderContratos(contratos) {
         tbody.innerHTML = '';
         
         if (!contratos || contratos.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="11" style="text-align: center;">Nenhum contrato cadastrado</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum contrato cadastrado</td></tr>';
             return;
         }
 
@@ -5243,7 +5235,6 @@ function renderContratos(contratos) {
             // FORÇAR conversão para número antes de formatar
             // valor vem como string "21000.00" do banco, precisa converter primeiro
             const valorTotal = parseFloat(contrato.valor_total || contrato.valor || 0);
-            const valorMensal = parseFloat(contrato.valor_mensal || 0);
             
             // Badge horas acumuladas (mensal com saldo)
             const horasAcum = parseFloat(contrato.horas_acumuladas_atual || 0);
@@ -5251,26 +5242,12 @@ function renderContratos(contratos) {
                 ? `<span title="${horasAcum.toFixed(1)}h acumuladas disponíveis" style="display:inline-block;background:#dbeafe;color:#1d4ed8;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:4px;">✦ ${horasAcum.toFixed(1)}h</span>`
                 : '';
             
-            console.log(`📊 Contrato ${contrato.numero}:`, {
-                valor_total_raw: contrato.valor_total,
-                valor_raw: contrato.valor,
-                valor_mensal_raw: contrato.valor_mensal,
-                valorTotal_parsed: valorTotal,
-                valorMensal_parsed: valorMensal,
-                tipo_valorTotal: typeof valorTotal,
-                tipo_valor: typeof contrato.valor
-            });
-            
             tr.innerHTML = `
-                <td>${escapeHtml(contrato.numero || '-')}</td>
                 <td>${escapeHtml(contrato.cliente_nome_fantasia || contrato.cliente_nome || '-')}${horasAcumBadge}</td><!-- REGRA: nome_fantasia > razao_social -->
                 <td><span class="badge" style="background: #3498db; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${escapeHtml(contrato.tipo || '-')}</span></td>
                 <td>${escapeHtml(contrato.nome || contrato.descricao || '-')}</td>
-                <td>${formatarMoeda(valorMensal)}</td>
-                <td style="text-align: center;">${contrato.quantidade_meses || '-'}</td>
                 <td style="font-weight: bold; color: #27ae60;">${formatarMoeda(valorTotal)}</td>
                 <td>${dataFormatada}</td>
-                <td><span style="font-size: 11px;">${escapeHtml(contrato.forma_pagamento || '-')}</span></td>
                 <td>
                     <select class="contrato-status-select" data-id="${contrato.id}" onchange="alterarStatusContrato(this)" style="border: none; background: transparent; cursor: pointer; font-size: 12px; font-weight: bold; padding: 3px 6px; border-radius: 4px; outline: none; min-width: 100px; width: auto;">
                         <option value="aberto"    ${ _normalizarStatusContrato(contrato.status) === 'aberto'    ? 'selected' : '' }>Aberto</option>
@@ -5283,6 +5260,7 @@ function renderContratos(contratos) {
                 <td style="white-space: nowrap; text-align: center;">
                     <button onclick="verHistoricoContrato(${contrato.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Histórico de Sessões">📋</button>
                     <button onclick="editarContrato(${contrato.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
+                    <button onclick="duplicarContrato(${contrato.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Duplicar contrato">⧉</button>
                     <button onclick="excluirContrato(${contrato.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Excluir">🗑️</button>
                 </td>
             `;
@@ -6146,6 +6124,40 @@ async function editarContrato(id) {
     } catch (error) {
         console.error('❌ Erro ao editar contrato:', error);
         showToast('❌ Erro ao carregar dados do contrato: ' + error.message, 'error');
+    }
+}
+
+async function duplicarContrato(id) {
+    console.log('⧉ Duplicar contrato:', id);
+    try {
+        const response = await fetch(`/api/contratos/${id}`);
+        if (!response.ok) throw new Error('Erro ao carregar contrato');
+
+        const result = await response.json();
+        const original = result.contrato || result;
+
+        // Clonar e limpar campos que não devem ser copiados
+        const copia = Object.assign({}, original);
+        copia.id = '';
+        copia.numero = '';
+        delete copia.created_at;
+        delete copia.updated_at;
+        delete copia.historico_mensal;
+        delete copia.horas_utilizadas;
+        delete copia.horas_restantes;
+        delete copia.horas_extras;
+        delete copia.percentual_utilizado;
+        copia.status = 'aberto';
+        copia._duplicando = true;
+
+        if (typeof window.openModalContrato === 'function') {
+            window.openModalContrato(copia);
+        } else {
+            showToast('❌ Erro: Função openModalContrato não encontrada', 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao duplicar contrato:', error);
+        showToast('❌ Erro ao duplicar contrato: ' + error.message, 'error');
     }
 }
 
@@ -7766,6 +7778,7 @@ window.excluirKit = excluirKit;
 
 // Funções de Contratos e Sessões
 window.editarContrato = editarContrato;
+window.duplicarContrato = duplicarContrato;
 window.excluirContrato = excluirContrato;
 window.verHistoricoContrato = verHistoricoContrato;
 window.editarSessao = editarSessao;
