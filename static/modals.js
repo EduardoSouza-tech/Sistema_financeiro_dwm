@@ -2256,11 +2256,13 @@ async function openModalContrato(contratoEdit = null) {
 
     const isDuplicar = contratoEdit?._duplicando === true;
     const isEdit = contratoEdit !== null && !isDuplicar;
+    // hasData: true para edição E para duplicata — indica que há dados para pré-preencher
+    const hasData = contratoEdit !== null;
     const titulo = isDuplicar ? 'Duplicar Contrato' : (isEdit ? 'Editar Contrato' : 'Novo Contrato');
     
     // Converter data para formato yyyy-MM-dd se necessário
     let dataContratoFormatada = '';
-    if (isEdit && (contratoEdit.data_inicio || contratoEdit.data_contrato)) {
+    if (hasData && (contratoEdit.data_inicio || contratoEdit.data_contrato)) {
         const dataRaw = contratoEdit.data_inicio || contratoEdit.data_contrato;
         try {
             const dataObj = new Date(dataRaw);
@@ -2272,7 +2274,7 @@ async function openModalContrato(contratoEdit = null) {
     
     // Calcular valor total para exibição
     let valorTotalFormatado = 'R$ 0,00';
-    if (isEdit) {
+    if (hasData) {
         const valor = parseFloat(contratoEdit.valor || contratoEdit.valor_total || 0) || 
                      (contratoEdit.valor_mensal * contratoEdit.quantidade_meses) || 0;
         valorTotalFormatado = 'R$ ' + valor.toLocaleString('pt-BR', {
@@ -2285,7 +2287,7 @@ async function openModalContrato(contratoEdit = null) {
     // Opções de clientes
     const opcoesClientes = window.clientes && window.clientes.length > 0
         ? window.clientes.map(c => {
-            const selected = isEdit && contratoEdit.cliente_id === c.id ? 'selected' : '';
+            const selected = hasData && contratoEdit.cliente_id === c.id ? 'selected' : '';
             const labelC = c.nome_fantasia || c.razao_social || c.nome;
             const secC = c.nome_fantasia && c.razao_social ? ` (${c.razao_social})` : '';
             return `<option value="${c.id}" ${selected}>${labelC}${secC}</option>`;
@@ -2294,9 +2296,9 @@ async function openModalContrato(contratoEdit = null) {
 
     // Preparar valores para campos de data (backward compat: só aceita string YYYY-MM-DD)
     const _toDateInput = (val) => (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) ? val : '';
-    const diaPagamentoValue = isEdit ? _toDateInput(contratoEdit.dia_pagamento) : '';
-    const diaNFValue        = isEdit ? _toDateInput(contratoEdit.dia_emissao_nf) : '';
-    const semNF             = isEdit ? (contratoEdit.sem_nf === true) : false;
+    const diaPagamentoValue = hasData ? _toDateInput(contratoEdit.dia_pagamento) : '';
+    const diaNFValue        = hasData ? _toDateInput(contratoEdit.dia_emissao_nf) : '';
+    const semNF             = hasData ? (contratoEdit.sem_nf === true) : false;
 
     const modal = createModal(titulo, `
         <form id="form-contrato" onsubmit="salvarContrato(event)" style="display: flex; flex-direction: column; max-height: 80vh;">
@@ -2317,9 +2319,9 @@ async function openModalContrato(contratoEdit = null) {
                 <div class="form-group">
                     <label>*Tipo:</label>
                     <select id="contrato-tipo" required onchange="alterarTipoContrato()">
-                        <option value="Mensal" ${isEdit && contratoEdit.tipo === 'Mensal' ? 'selected' : ''}>Mensal</option>
-                        <option value="Único" ${isEdit && contratoEdit.tipo === 'Único' ? 'selected' : ''}>Único</option>
-                        <option value="Pacote" ${isEdit && contratoEdit.tipo === 'Pacote' ? 'selected' : ''}>Pacote</option>
+                        <option value="Mensal" ${hasData && contratoEdit.tipo === 'Mensal' ? 'selected' : ''}>Mensal</option>
+                        <option value="Único" ${hasData && contratoEdit.tipo === 'Único' ? 'selected' : ''}>Único</option>
+                        <option value="Pacote" ${hasData && contratoEdit.tipo === 'Pacote' ? 'selected' : ''}>Pacote</option>
                     </select>
                 </div>
             </div>
@@ -2327,29 +2329,29 @@ async function openModalContrato(contratoEdit = null) {
             <!-- Linha 2: Nome e Descrição -->
             <div class="form-group">
                 <label>*Nome do Contrato:</label>
-                <input type="text" id="contrato-nome" required value="${isEdit ? contratoEdit.nome || '' : ''}" placeholder="Ex: Mensal 2026">
+                <input type="text" id="contrato-nome" required value="${hasData ? contratoEdit.nome || '' : ''}" placeholder="Ex: Mensal 2026">
             </div>
             
             <div class="form-group">
                 <label>Descrição:</label>
-                <textarea id="contrato-descricao" rows="3" placeholder="Ex: Contrato mensal de horas para captação de fotos e vídeos...">${isEdit ? contratoEdit.descricao || '' : ''}</textarea>
+                <textarea id="contrato-descricao" rows="3" placeholder="Ex: Contrato mensal de horas para captação de fotos e vídeos...">${hasData ? contratoEdit.descricao || '' : ''}</textarea>
             </div>
             
             <!-- Linha 3: Valores e Meses -->
             <div id="contrato-linha3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                 <div id="grupo-contrato-valor-mensal" class="form-group">
                     <label>*Valor Mensal:</label>
-                    <input type="text" inputmode="decimal" id="contrato-valor-mensal" required value="${isEdit ? contratoEdit.valor_mensal || '' : ''}" placeholder="3.500,00" oninput="atualizarCalculoContrato()">
+                    <input type="text" inputmode="decimal" id="contrato-valor-mensal" required value="${hasData ? contratoEdit.valor_mensal || '' : ''}" placeholder="3.500,00" oninput="atualizarCalculoContrato()">
                 </div>
 
                 <div id="grupo-contrato-horas-pacote" class="form-group" style="display:none">
                     <label>*Horas por Pacote:</label>
-                    <input type="number" id="contrato-horas-pacote" min="1" step="1" value="${isEdit && contratoEdit.tipo === 'Pacote' ? contratoEdit.horas_mensais || '' : ''}" placeholder="8" oninput="atualizarCalculoContrato()">
+                    <input type="number" id="contrato-horas-pacote" min="1" step="1" value="${hasData && contratoEdit.tipo === 'Pacote' ? contratoEdit.horas_mensais || '' : ''}" placeholder="8" oninput="atualizarCalculoContrato()">
                 </div>
 
                 <div id="grupo-contrato-meses" class="form-group">
                     <label>*Qtd. Meses:</label>
-                    <input type="number" id="contrato-meses" min="1" step="1" required value="${isEdit ? contratoEdit.quantidade_meses || '1' : '1'}" oninput="atualizarCalculoContrato()">
+                    <input type="number" id="contrato-meses" min="1" step="1" required value="${hasData ? contratoEdit.quantidade_meses || '1' : '1'}" oninput="atualizarCalculoContrato()">
                 </div>
             </div>
             
@@ -2363,16 +2365,16 @@ async function openModalContrato(contratoEdit = null) {
                 <div class="form-group">
                     <label>*Forma Pagamento:</label>
                     <select id="contrato-pagamento" required>
-                        <option value="PIX" ${isEdit && contratoEdit.forma_pagamento === 'PIX' ? 'selected' : ''}>PIX</option>
-                        <option value="Boleto" ${isEdit && contratoEdit.forma_pagamento === 'Boleto' ? 'selected' : ''}>Boleto</option>
-                        <option value="Transferência" ${isEdit && contratoEdit.forma_pagamento === 'Transferência' ? 'selected' : ''}>Transferência</option>
-                        <option value="Dinheiro" ${isEdit && contratoEdit.forma_pagamento === 'Dinheiro' ? 'selected' : ''}>Dinheiro</option>
+                        <option value="PIX" ${hasData && contratoEdit.forma_pagamento === 'PIX' ? 'selected' : ''}>PIX</option>
+                        <option value="Boleto" ${hasData && contratoEdit.forma_pagamento === 'Boleto' ? 'selected' : ''}>Boleto</option>
+                        <option value="Transferência" ${hasData && contratoEdit.forma_pagamento === 'Transferência' ? 'selected' : ''}>Transferência</option>
+                        <option value="Dinheiro" ${hasData && contratoEdit.forma_pagamento === 'Dinheiro' ? 'selected' : ''}>Dinheiro</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
                     <label>*Qtd. Parcelas:</label>
-                    <input type="number" id="contrato-parcelas" min="1" required value="${isEdit ? contratoEdit.quantidade_parcelas || '1' : '1'}">
+                    <input type="number" id="contrato-parcelas" min="1" required value="${hasData ? contratoEdit.quantidade_parcelas || '1' : '1'}">
                 </div>
             </div>
             
@@ -2380,7 +2382,7 @@ async function openModalContrato(contratoEdit = null) {
             <div id="contrato-linha4b" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                 <div id="grupo-contrato-horas-mensal" class="form-group">
                     <label>Horas Mensais:</label>
-                    <input type="number" id="contrato-horas" min="0" value="${isEdit ? contratoEdit.horas_mensais || '' : ''}" placeholder="8">
+                    <input type="number" id="contrato-horas" min="0" value="${hasData ? contratoEdit.horas_mensais || '' : ''}" placeholder="8">
                 </div>
             </div>
             
@@ -2412,7 +2414,7 @@ async function openModalContrato(contratoEdit = null) {
             <div style="display: grid; grid-template-columns: 150px 1fr; gap: 15px;">
                 <div class="form-group">
                     <label>Imposto (%):</label>
-                    <input type="number" id="contrato-imposto" step="0.01" min="0" max="100" placeholder="10.00" value="${isEdit && contratoEdit.imposto !== null && contratoEdit.imposto !== undefined ? contratoEdit.imposto : (isEdit && contratoEdit.imposto_percentual !== null && contratoEdit.imposto_percentual !== undefined ? contratoEdit.imposto_percentual : '')}">
+                    <input type="number" id="contrato-imposto" step="0.01" min="0" max="100" placeholder="10.00" value="${hasData && contratoEdit.imposto !== null && contratoEdit.imposto !== undefined ? contratoEdit.imposto : (hasData && contratoEdit.imposto_percentual !== null && contratoEdit.imposto_percentual !== undefined ? contratoEdit.imposto_percentual : '')}">
                 </div>
             </div>
             
@@ -2519,8 +2521,8 @@ async function openModalContrato(contratoEdit = null) {
         }
     }, 50);
     
-    // Preencher comissões existentes se estiver editando
-    if (isEdit && contratoEdit.comissoes) {
+    // Preencher comissões existentes se estiver editando ou duplicando
+    if (hasData && contratoEdit.comissoes) {
         setTimeout(() => {
             const container = document.getElementById('contrato-comissoes-list');
             if (container) {
