@@ -4974,7 +4974,7 @@ def adicionar_contrato(empresa_id: int, dados: Dict) -> int:
             dados.get('valor_total', dados.get('valor')),
             dados.get('data_contrato', dados.get('data_inicio')),
             dados.get('data_fim'),
-            dados.get('status', 'ativo'),
+            dados.get('status', 'aberto'),
             observacoes_json,
             empresa_id,
             horas_totais,
@@ -9215,7 +9215,7 @@ def gerar_relatorio_controle_horas(empresa_id: int) -> Dict:
         cursor.execute("""
             SELECT 
                 COUNT(DISTINCT c.id) as total_contratos,
-                COUNT(DISTINCT c.id) FILTER (WHERE c.status != 'cancelado' AND c.status != 'encerrado') as contratos_ativos,
+                COUNT(DISTINCT c.id) FILTER (WHERE c.status NOT IN ('cancelado', 'encerrado', 'inativo')) as contratos_ativos,
                 COUNT(DISTINCT c.id) FILTER (WHERE c.controle_horas_ativo = true) as contratos_com_controle_horas,
                 COALESCE(SUM(c.horas_totais), 0) as total_horas_contratadas,
                 COALESCE((
