@@ -571,7 +571,7 @@ def atualizar_status_contrato(contrato_id: int):
     """Atualiza apenas o status de um contrato"""
     data = request.json or {}
     novo_status = data.get('status', '').strip()
-    status_validos = {'Aberto', 'Editado', 'Entregue', 'ativo', 'inativo', 'cancelado'}
+    status_validos = {'aberto', 'pendente', 'encerrado', 'cancelado', 'inativo'}
     if novo_status not in status_validos:
         return jsonify({'success': False, 'error': f'Status inválido: {novo_status}'}), 400
 

@@ -5195,7 +5195,7 @@ function filtrarContratosTabela() {
             if (di !== fData) return false;
         }
         if (fPgto        && !(c.forma_pagamento || '').toLowerCase().includes(fPgto)) return false;
-        if (fStatus      && (c.status        || '') !== fStatus)                       return false;
+        if (fStatus      && _normalizarStatusContrato(c.status) !== fStatus)           return false;
         return true;
     });
     renderContratos(filtrados);
@@ -5272,12 +5272,12 @@ function renderContratos(contratos) {
                 <td>${dataFormatada}</td>
                 <td><span style="font-size: 11px;">${escapeHtml(contrato.forma_pagamento || '-')}</span></td>
                 <td>
-                    <select class="contrato-status-select" data-id="${contrato.id}" onchange="alterarStatusContrato(this)" style="border: none; background: transparent; cursor: pointer; font-size: 12px; font-weight: bold; padding: 3px 6px; border-radius: 4px; outline: none; min-width: 90px; width: auto;">
-                        <option value="Aberto"   ${ (contrato.status||'') === 'Aberto'   ? 'selected' : '' }>Aberto</option>
-                        <option value="Editado"  ${ (contrato.status||'') === 'Editado'  ? 'selected' : '' }>Editado</option>
-                        <option value="Entregue" ${ (contrato.status||'') === 'Entregue' ? 'selected' : '' }>Entregue</option>
-                        <option value="ativo"    ${ !['Aberto','Editado','Entregue','inativo'].includes(contrato.status||'') ? 'selected' : '' }>Ativo</option>
-                        <option value="inativo"  ${ (contrato.status||'') === 'inativo'  ? 'selected' : '' }>Inativo</option>
+                    <select class="contrato-status-select" data-id="${contrato.id}" onchange="alterarStatusContrato(this)" style="border: none; background: transparent; cursor: pointer; font-size: 12px; font-weight: bold; padding: 3px 6px; border-radius: 4px; outline: none; min-width: 100px; width: auto;">
+                        <option value="aberto"    ${ _normalizarStatusContrato(contrato.status) === 'aberto'    ? 'selected' : '' }>Aberto</option>
+                        <option value="pendente"  ${ _normalizarStatusContrato(contrato.status) === 'pendente'  ? 'selected' : '' }>Pendente</option>
+                        <option value="encerrado" ${ _normalizarStatusContrato(contrato.status) === 'encerrado' ? 'selected' : '' }>Encerrado</option>
+                        <option value="cancelado" ${ _normalizarStatusContrato(contrato.status) === 'cancelado' ? 'selected' : '' }>Cancelado</option>
+                        <option value="inativo"   ${ _normalizarStatusContrato(contrato.status) === 'inativo'   ? 'selected' : '' }>Inativo</option>
                     </select>
                 </td>
                 <td style="white-space: nowrap; text-align: center;">
@@ -5293,15 +5293,29 @@ function renderContratos(contratos) {
         document.querySelectorAll('.contrato-status-select').forEach(_colorirStatusSelect);
 }
 
+function _normalizarStatusContrato(status) {
+    // Migração transparente: status legados → novos valores
+    const mapa = {
+        'Aberto':   'aberto',
+        'Editado':  'pendente',
+        'Entregue': 'encerrado',
+        'ativo':    'aberto',
+        'cancelado':'cancelado',
+        'inativo':  'inativo',
+    };
+    const s = (status || '').trim();
+    return mapa[s] || s.toLowerCase() || 'aberto';
+}
+
 function _colorirStatusSelect(sel) {
     const cores = {
-        'Aberto':   { bg: '#fff3cd', color: '#856404', border: '#ffc107' },
-        'Editado':  { bg: '#cfe2ff', color: '#084298', border: '#3498db' },
-        'Entregue': { bg: '#d1e7dd', color: '#0a4438', border: '#27ae60' },
-        'ativo':    { bg: '#d1e7dd', color: '#0a4438', border: '#27ae60' },
-        'inativo':  { bg: '#f8d7da', color: '#842029', border: '#e74c3c' },
+        'aberto':    { bg: '#dcfce7', color: '#15803d', border: '#86efac' },  // verde claro
+        'pendente':  { bg: '#fef9c3', color: '#854d0e', border: '#fde047' },  // amarelo
+        'encerrado': { bg: '#e0f2fe', color: '#0369a1', border: '#7dd3fc' },  // azul claro
+        'cancelado': { bg: '#fee2e2', color: '#b91c1c', border: '#fca5a5' },  // vermelho
+        'inativo':   { bg: '#f1f5f9', color: '#64748b', border: '#cbd5e1' },  // cinza
     };
-    const c = cores[sel.value] || { bg: '#f0f0f0', color: '#333', border: '#ccc' };
+    const c = cores[sel.value] || { bg: '#f1f5f9', color: '#64748b', border: '#cbd5e1' };
     sel.style.background = c.bg;
     sel.style.color = c.color;
     sel.style.border = `1px solid ${c.border}`;
