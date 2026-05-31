@@ -286,30 +286,33 @@ async function loadCalendarEvents() {
 }
 
 /**
- * Determinar cor do status
+ * Determinar cor do status (fase-aware: captação usa data da sessão, edição usa prazo_entrega)
  */
 function getStatusColor(sessao) {
-    // Cinza para finalizados
-    if (sessao.status === 'finalizado' || sessao.concluido) {
-        return '#95a5a6';
+    const status = sessao.status || 'rascunho';
+    const hoje = new Date(); hoje.setHours(12, 0, 0, 0);
+
+    if (['cancelada', 'arquivada'].includes(status)) return '#95a5a6'; // Cinza
+    if (['concluida', 'entrega'].includes(status))   return '#27ae60'; // Verde
+
+    // Fase de Captação: compara com data da sessão
+    if (['rascunho', 'agendada', 'reagendada'].includes(status)) {
+        if (!sessao.data) return '#27ae60';
+        const ref = new Date(String(sessao.data).substring(0, 10) + 'T12:00:00');
+        const diff = Math.ceil((ref - hoje) / (1000 * 60 * 60 * 24));
+        if (diff <= 0) return '#e74c3c';  // Vermelho: hoje ou atrasada
+        if (diff === 1) return '#f97316'; // Laranja: amanhã
+        if (diff <= 3)  return '#f39c12'; // Amarelo: 2-3 dias
+        return '#27ae60';
     }
-    
-    // Verificar prazo
-    if (sessao.prazo_entrega) {
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-        const prazo = new Date(sessao.prazo_entrega);
-        prazo.setHours(0, 0, 0, 0);
-        const diffDias = Math.ceil((prazo - hoje) / (1000 * 60 * 60 * 24));
-        
-        if (diffDias < 0) {
-            return '#e74c3c'; // Vermelho - Atrasado
-        } else if (diffDias <= 3) {
-            return '#f39c12'; // Amarelo - Próximo ao prazo
-        }
-    }
-    
-    return '#27ae60'; // Verde - No prazo
+
+    // Fase de Edição/Alteração: compara com prazo_entrega
+    if (!sessao.prazo_entrega) return '#27ae60';
+    const ref = new Date(String(sessao.prazo_entrega).substring(0, 10) + 'T12:00:00');
+    const diff = Math.ceil((ref - hoje) / (1000 * 60 * 60 * 24));
+    if (diff <= 0) return '#e74c3c';  // Vermelho: atrasado
+    if (diff <= 3)  return '#f97316'; // Laranja: ≤3 dias
+    return '#27ae60';
 }
 
 /**
@@ -403,25 +406,33 @@ async function loadAgendaListView() {
 }
 
 /**
- * Obter texto do status
+ * Obter texto do status (fase-aware)
  */
 function getStatusText(sessao) {
-    if (sessao.status === 'finalizado' || sessao.concluido) {
-        return 'Finalizado';
+    const status = sessao.status || 'rascunho';
+    if (['cancelada', 'arquivada'].includes(status)) return status.charAt(0).toUpperCase() + status.slice(1);
+    if (['concluida', 'entrega'].includes(status))   return 'Concluída';
+
+    const hoje = new Date(); hoje.setHours(12, 0, 0, 0);
+
+    // Fase de Captação
+    if (['rascunho', 'agendada', 'reagendada'].includes(status)) {
+        if (!sessao.data) return 'Sem data';
+        const ref = new Date(String(sessao.data).substring(0, 10) + 'T12:00:00');
+        const diff = Math.ceil((ref - hoje) / (1000 * 60 * 60 * 24));
+        if (diff <= 0) return 'Sessão hoje/atrasada';
+        if (diff === 1) return 'Sessão amanhã';
+        if (diff <= 3)  return `Sessão em ${diff} dias`;
+        return 'No prazo';
     }
-    
-    if (sessao.prazo_entrega) {
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-        const prazo = new Date(sessao.prazo_entrega);
-        prazo.setHours(0, 0, 0, 0);
-        const diffDias = Math.ceil((prazo - hoje) / (1000 * 60 * 60 * 24));
-        
-        if (diffDias < 0) return 'Atrasado';
-        if (diffDias <= 3) return 'Urgente';
-    }
-    
-    return 'No Prazo';
+
+    // Fase de Edição/Alteração
+    if (!sessao.prazo_entrega) return 'Sem prazo de entrega';
+    const ref = new Date(String(sessao.prazo_entrega).substring(0, 10) + 'T12:00:00');
+    const diff = Math.ceil((ref - hoje) / (1000 * 60 * 60 * 24));
+    if (diff <= 0) return 'Entrega atrasada';
+    if (diff <= 3)  return `Entrega em ${diff} dias`;
+    return 'No prazo';
 }
 
 /**

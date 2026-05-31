@@ -5394,6 +5394,41 @@ function limparFiltrosSessoesTabela() {
 window.filtrarSessoesTabela = filtrarSessoesTabela;
 window.limparFiltrosSessoesTabela = limparFiltrosSessoesTabela;
 
+/**
+ * Calcula alerta de prazo baseado na fase da sessão:
+ *   Captação (rascunho/agendada/reagendada)  → referência: sessao.data
+ *   Edição   (realizada/backup/trat_cor/trat_final/alteracao) → referência: prazo_entrega
+ *   Entrega  (entrega/concluida)              → sem alerta (verde)
+ *   Cancelada/Arquivada                       → sem alerta
+ */
+function _calcPrazoAlerta(s, hoje) {
+    const status = s.status || 'rascunho';
+    if (['cancelada', 'arquivada', 'concluida', 'entrega'].includes(status)) return null;
+
+    // Fase de Captação: compara com data da sessão
+    if (['rascunho', 'agendada', 'reagendada'].includes(status)) {
+        if (!s.data) return null;
+        const ref = new Date(String(s.data).substring(0, 10) + 'T12:00:00');
+        const diff = Math.ceil((ref - hoje) / (1000 * 60 * 60 * 24));
+        if (diff <= 0) return { alertClass: 'kanban-card-atrasado', alertDot: '🔴', badgeCor: '#ef4444', badgeTexto: diff < 0 ? 'Vencida' : 'Hoje!' };
+        if (diff === 1) return { alertClass: 'kanban-card-urgente',  alertDot: '🟠', badgeCor: '#f97316', badgeTexto: 'Amanhã' };
+        if (diff <= 3)  return { alertClass: 'kanban-card-atencao',  alertDot: '🟡', badgeCor: '#f59e0b', badgeTexto: `${diff} dias` };
+        return null;
+    }
+
+    // Fase de Edição/Alteração: compara com prazo_entrega
+    if (['realizada', 'backup', 'tratamento_de_cor', 'tratamento_final', 'alteracao'].includes(status)) {
+        if (!s.prazo_entrega) return null;
+        const ref = new Date(String(s.prazo_entrega).substring(0, 10) + 'T12:00:00');
+        const diff = Math.ceil((ref - hoje) / (1000 * 60 * 60 * 24));
+        if (diff <= 0) return { alertClass: 'kanban-card-atrasado', alertDot: '🔴', badgeCor: '#ef4444', badgeTexto: diff < 0 ? 'Atrasado' : 'Hoje!' };
+        if (diff <= 3)  return { alertClass: 'kanban-card-urgente',  alertDot: '🟠', badgeCor: '#f97316', badgeTexto: `${diff} dias` };
+        return null;
+    }
+
+    return null;
+}
+
 function renderSessoesTabela(sessoes) {
     const tbody = document.getElementById('tbody-sessoes');
     console.log('🔍 [DEBUG] tbody encontrado?', !!tbody);
@@ -5425,36 +5460,31 @@ function renderSessoesTabela(sessoes) {
             // Badge de Status da Sessão
             const statusSessao = sessao.status || 'rascunho';
             const badgesStatus = {
-                'rascunho':    { cor: '#94a3b8', label: '📝 Rascunho' },
-                'agendada':    { cor: '#3b82f6', label: '📅 Agendada' },
-                'em_andamento':{ cor: '#f59e0b', label: '⏳ Em Andamento' },
-                'finalizada':  { cor: '#10b981', label: '✅ Finalizada' },
-                'concluida':   { cor: '#059669', label: '🏁 Concluída' },
-                'cancelada':   { cor: '#ef4444', label: '❌ Cancelada' },
-                'reaberta':    { cor: '#8b5cf6', label: '🔄 Reaberta' },
-                'arquivada':   { cor: '#475569', label: '🗂️ Arquivada' },
+                'rascunho':          { cor: '#94a3b8', label: '📝 Rascunho' },
+                'agendada':          { cor: '#3b82f6', label: '📅 Agendada' },
+                'reagendada':        { cor: '#f97316', label: '🔄 Reagendada' },
+                'realizada':         { cor: '#10b981', label: '✅ Realizada' },
+                'backup':            { cor: '#0ea5e9', label: '💾 Backup' },
+                'tratamento_de_cor': { cor: '#8b5cf6', label: '🎨 Trat. Cor' },
+                'tratamento_final':  { cor: '#7c3aed', label: '✨ Trat. Final' },
+                'entrega':           { cor: '#14b8a6', label: '📦 Entrega' },
+                'concluida':         { cor: '#059669', label: '🏁 Concluída' },
+                'alteracao':         { cor: '#f59e0b', label: '🔁 Alteração' },
+                'cancelada':         { cor: '#ef4444', label: '❌ Cancelada' },
+                'arquivada':         { cor: '#475569', label: '🗂️ Arquivada' },
+                // Legado (manter para dados existentes)
+                'em_andamento':      { cor: '#f59e0b', label: '⏳ Em Andamento' },
+                'finalizada':        { cor: '#10b981', label: '✅ Finalizada' },
+                'reaberta':          { cor: '#8b5cf6', label: '🔄 Reaberta' },
             };
             const badgeStatus = badgesStatus[statusSessao] || badgesStatus['rascunho'];
-            
-            // Status baseado no prazo
-            let statusPrazoClass = 'badge-success';
-            let statusPrazoText = 'No Prazo';
-            const hoje = new Date();
-            // Parse prazo sem shift de fuso: usa apenas YYYY-MM-DD + T12:00:00
-            const prazo = sessao.prazo_entrega
-                ? new Date(String(sessao.prazo_entrega).substring(0, 10) + 'T12:00:00')
-                : null;
-            
-            if (prazo) {
-                const diffDias = Math.ceil((prazo - hoje) / (1000 * 60 * 60 * 24));
-                if (diffDias < 0) {
-                    statusPrazoClass = 'badge-danger';
-                    statusPrazoText = 'Atrasado';
-                } else if (diffDias <= 3) {
-                    statusPrazoClass = 'badge-warning';
-                    statusPrazoText = 'Urgente';
-                }
-            }
+
+            // Alerta de prazo por fase
+            const _hojeTabela = new Date(); _hojeTabela.setHours(12, 0, 0, 0);
+            const _infoAlerta = _calcPrazoAlerta(sessao, _hojeTabela);
+            const badgePrazoHtml = _infoAlerta
+                ? `<br><span style="display:inline-block;background:${_infoAlerta.badgeCor};color:white;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;margin-top:2px;">${_infoAlerta.badgeTexto}</span>`
+                : '';
             
             // Helper: converte 'YYYY-MM-DD...' para 'DD/MM/YYYY' sem conversão de fuso
             const fmtData = v => {
@@ -5475,8 +5505,7 @@ function renderSessoesTabela(sessoes) {
                     <span onclick="editarSessao(${sessao.id})" title="Clique para abrir sessão" style="display: inline-block; background: ${badgeStatus.cor}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-bottom: 4px; cursor: pointer;">
                         ${badgeStatus.label}
                     </span>
-                    <br>
-                    <span class="badge ${statusPrazoClass}">${statusPrazoText}</span>
+                    ${badgePrazoHtml}
                 </td>
                 <td style="text-align: center;">
                     <button onclick="editarSessao(${sessao.id})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
@@ -5500,13 +5529,17 @@ function renderSessoes(sessoes) {
 // ─── KANBAN SESSÕES ───────────────────────────────────────────────────────────
 const KANBAN_LS_KEY = 'sessoes_kanban_cols_v2';
 const DEFAULT_KANBAN_COLS = [
-    { id: 'rascunho',    label: 'Rascunho',      cor: '#94a3b8', final: false },
-    { id: 'agendada',    label: 'Agendada',       cor: '#3b82f6', final: false },
-    { id: 'em_andamento',label: 'Em Andamento',   cor: '#f59e0b', final: false },
-    { id: 'finalizada',  label: 'Finalizada',     cor: '#10b981', final: false },
-    { id: 'concluida',   label: 'Concluída',      cor: '#059669', final: true  },
-    { id: 'reaberta',    label: 'Reaberta',       cor: '#8b5cf6', final: false },
-    { id: 'arquivada',   label: 'Arquivadas',     cor: '#475569', final: true, archived: true },
+    { id: 'rascunho',          label: 'Rascunho',      cor: '#94a3b8', final: false },
+    { id: 'agendada',          label: 'Agendada',       cor: '#3b82f6', final: false },
+    { id: 'reagendada',        label: 'Reagendada',     cor: '#f97316', final: false },
+    { id: 'realizada',         label: 'Realizada',      cor: '#10b981', final: false },
+    { id: 'backup',            label: 'Backup',         cor: '#0ea5e9', final: false },
+    { id: 'tratamento_de_cor', label: 'Trat. de Cor',   cor: '#8b5cf6', final: false },
+    { id: 'tratamento_final',  label: 'Trat. Final',    cor: '#7c3aed', final: false },
+    { id: 'entrega',           label: 'Entrega',        cor: '#14b8a6', final: false },
+    { id: 'concluida',         label: 'Concluída',      cor: '#059669', final: true  },
+    { id: 'alteracao',         label: 'Alteração',     cor: '#f59e0b', final: false },
+    { id: 'arquivada',         label: 'Arquivadas',     cor: '#475569', final: true, archived: true },
 ];
 
 let _sessaoViewMode = 'kanban';
@@ -5701,13 +5734,10 @@ function renderKanbanCard(s, col, hoje) {
     }
 
     let alertClass = '', alertDot = '🟢';
-    if (!col.final && s.prazo_entrega) {
-        const prazo = new Date(String(s.prazo_entrega).substring(0, 10) + 'T12:00:00');
-        const diff = Math.ceil((prazo - hoje) / (1000 * 60 * 60 * 24));
-        if (diff < 0)      { alertClass = 'kanban-card-atrasado'; alertDot = '🔴'; }
-        else if (diff <= 1){ alertClass = 'kanban-card-urgente';  alertDot = '🟠'; }
-        else if (diff <= 3){ alertClass = 'kanban-card-atencao';  alertDot = '🟡'; }
-    } else if (col.final) {
+    if (!col.final) {
+        const _alerta = _calcPrazoAlerta(s, hoje);
+        if (_alerta) { alertClass = _alerta.alertClass; alertDot = _alerta.alertDot; }
+    } else {
         alertDot = '';
     }
     const tipos = [];

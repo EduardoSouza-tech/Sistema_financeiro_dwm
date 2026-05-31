@@ -5710,7 +5710,13 @@ def atualizar_status_sessao(empresa_id: int, sessao_id: int, novo_status: str, u
         raise ValueError("empresa_id é obrigatório")
     
     # Status válidos para validação de workflow (não aplicado quando force=True)
-    STATUS_VALIDOS = ['rascunho', 'agendada', 'em_andamento', 'finalizada', 'concluida', 'cancelada', 'reaberta', 'arquivada']
+    STATUS_VALIDOS = [
+        'rascunho', 'agendada', 'reagendada', 'realizada',
+        'backup', 'tratamento_de_cor', 'tratamento_final', 'entrega',
+        'concluida', 'alteracao', 'cancelada', 'arquivada',
+        # Legado (dados existentes)
+        'em_andamento', 'finalizada', 'reaberta',
+    ]
 
     if not force and not novo_status:
         raise ValueError("Campo 'status' é obrigatório")

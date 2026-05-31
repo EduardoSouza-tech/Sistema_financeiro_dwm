@@ -6884,14 +6884,24 @@
                                         <th style="padding:4px 6px;">
                                             <select id="filtro-sessao-status" style="width:100%;padding:4px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;" onchange="filtrarSessoesTabela()">
                                                 <option value="">Todos</option>
-                                                <option value="rascunho">Rascunho</option>
-                                                <option value="agendada">Agendada</option>
-                                                <option value="em_andamento">Em Andamento</option>
-                                                <option value="finalizada">Finalizada</option>
-                                                <option value="concluida">Concluída</option>
-                                                <option value="cancelada">Cancelada</option>
-                                                <option value="reaberta">Reaberta</option>
-                                                <option value="arquivada">Arquivada</option>
+                                                <optgroup label="— Captação —">
+                                                    <option value="rascunho">Rascunho</option>
+                                                    <option value="agendada">Agendada</option>
+                                                    <option value="reagendada">Reagendada</option>
+                                                    <option value="realizada">Realizada</option>
+                                                    <option value="cancelada">Cancelada</option>
+                                                </optgroup>
+                                                <optgroup label="— Edição —">
+                                                    <option value="backup">Backup</option>
+                                                    <option value="tratamento_de_cor">Trat. de Cor</option>
+                                                    <option value="tratamento_final">Trat. Final</option>
+                                                </optgroup>
+                                                <optgroup label="— Entrega —">
+                                                    <option value="entrega">Entrega</option>
+                                                    <option value="concluida">Concluída</option>
+                                                    <option value="alteracao">Alteração</option>
+                                                    <option value="arquivada">Arquivada</option>
+                                                </optgroup>
                                             </select>
                                         </th>
                                         <th style="padding:4px 6px;text-align:center;">

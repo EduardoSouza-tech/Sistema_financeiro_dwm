@@ -2789,13 +2789,22 @@ function renderBotoesStatusSessao(sessao) {
     const sessaoId = sessao.id;
     
     const badges = {
-        'rascunho': { cor: '#94a3b8', label: '📝 Rascunho', icone: '📝' },
-        'agendada': { cor: '#3b82f6', label: '📅 Agendada', icone: '📅' },
-        'em_andamento': { cor: '#f59e0b', label: '⏳ Em Andamento', icone: '⏳' },
-        'finalizada': { cor: '#10b981', label: '✅ Finalizada', icone: '✅' },
-        'concluida': { cor: '#059669', label: '🏁 Concluída', icone: '🏁' },
-        'cancelada': { cor: '#ef4444', label: '❌ Cancelada', icone: '❌' },
-        'reaberta': { cor: '#8b5cf6', label: '🔄 Reaberta', icone: '🔄' }
+        'rascunho':          { cor: '#94a3b8', label: '📝 Rascunho',     icone: '📝' },
+        'agendada':          { cor: '#3b82f6', label: '📅 Agendada',      icone: '📅' },
+        'reagendada':        { cor: '#f97316', label: '🔄 Reagendada',    icone: '🔄' },
+        'realizada':         { cor: '#10b981', label: '✅ Realizada',     icone: '✅' },
+        'backup':            { cor: '#0ea5e9', label: '💾 Backup',        icone: '💾' },
+        'tratamento_de_cor': { cor: '#8b5cf6', label: '🎨 Trat. Cor',    icone: '🎨' },
+        'tratamento_final':  { cor: '#7c3aed', label: '✨ Trat. Final',   icone: '✨' },
+        'entrega':           { cor: '#14b8a6', label: '📦 Entrega',       icone: '📦' },
+        'concluida':         { cor: '#059669', label: '🏁 Concluída',     icone: '🏁' },
+        'alteracao':         { cor: '#f59e0b', label: '🔁 Alteração',     icone: '🔁' },
+        'cancelada':         { cor: '#ef4444', label: '❌ Cancelada',     icone: '❌' },
+        'arquivada':         { cor: '#475569', label: '🗂️ Arquivada',    icone: '🗂️' },
+        // Legado
+        'em_andamento':      { cor: '#f59e0b', label: '⏳ Em Andamento',  icone: '⏳' },
+        'finalizada':        { cor: '#10b981', label: '✅ Finalizada',    icone: '✅' },
+        'reaberta':          { cor: '#8b5cf6', label: '🔄 Reaberta',      icone: '🔄' },
     };
     
     const badge = badges[status] || badges['rascunho'];
