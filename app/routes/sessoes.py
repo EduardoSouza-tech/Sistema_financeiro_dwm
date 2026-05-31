@@ -432,7 +432,16 @@ def sessoes():
             sessao_id = db.adicionar_sessao(dados_mapeados)
             print(f"✅ Sessão criada com ID: {sessao_id}")
 
-            # � Sincronizar horas do contrato (se vinculado)
+            # 🏷️ Salvar tags em sessao_tags (tabela relacional)
+            tags_ids = data.get('tags_ids')
+            if tags_ids and isinstance(tags_ids, list):
+                try:
+                    db.adicionar_tags_sessao(empresa_id_post, sessao_id, tags_ids)
+                    print(f"🏷️ Tags salvas: {tags_ids}")
+                except Exception as _te:
+                    print(f"⚠️ Erro ao salvar tags: {_te}")
+
+            # 🔄 Sincronizar horas do contrato (se vinculado)
             _sincronizar_horas_contrato(dados_mapeados.get('contrato_id'), empresa_id_post)
 
             # �📅 Auto-sincronizar com Google Calendar

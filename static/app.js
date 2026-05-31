@@ -5983,7 +5983,8 @@ async function _registrarHistoricoStatus(sessaoId, novoStatus, descricao) {
         const r = await fetch(`/api/sessoes/${sessaoId}`);
         if (!r.ok) return;
         const data = await r.json();
-        const sessaoAtual = data.sessao || data;
+        // GET /api/sessoes/<id> retorna {success: true, data: sessao}
+        const sessaoAtual = data.data || data.sessao || data;
 
         const obsAtual = sessaoAtual.observacoes || '';
 

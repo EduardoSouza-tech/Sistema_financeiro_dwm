@@ -5415,18 +5415,24 @@ def buscar_sessao(sessao_id: int, empresa_id: int = None) -> Dict:
 
     with get_db_connection(empresa_id=empresa_id) as conn:
         cursor = conn.cursor()
-        cursor.execute("""
+        # 🔒 Filtrar por empresa_id para evitar vazamento de dados entre empresas
+        query_params = [sessao_id]
+        empresa_filter = ''
+        if empresa_id:
+            empresa_filter = ' AND s.empresa_id = %s'
+            query_params.append(empresa_id)
+        cursor.execute(f"""
             SELECT 
                 s.id, s.cliente_id, s.contrato_id, s.data, s.endereco,
                 s.descricao, s.prazo_entrega, s.observacoes, s.dados_json,
-                s.status,
+                s.status, s.empresa_id,
                 COALESCE(c.razao_social, c.nome) AS cliente_nome,
                 ct.numero AS contrato_numero, ct.descricao AS contrato_nome
             FROM sessoes s
             LEFT JOIN clientes c ON s.cliente_id = c.id
             LEFT JOIN contratos ct ON s.contrato_id = ct.id
-            WHERE s.id = %s
-        """, (sessao_id,))
+            WHERE s.id = %s{empresa_filter}
+        """, query_params)
 
         row = cursor.fetchone()
         cursor.close()
@@ -5503,28 +5509,60 @@ def atualizar_sessao(sessao_id: int, dados: Dict, empresa_id: int = None) -> boo
 
     with get_db_connection(empresa_id=empresa_id) as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE sessoes
-            SET cliente_id = %s, contrato_id = %s, data = %s, endereco = %s,
-                descricao = %s, prazo_entrega = %s, observacoes = %s, dados_json = %s,
-                status = %s, duracao = %s,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-        """, (
-            dados.get('cliente_id'),
-            dados.get('contrato_id'),
-            dados.get('data'),
-            dados.get('endereco'),
-            dados.get('descricao'),
-            dados.get('prazo_entrega'),
-            dados.get('observacoes'),
-            json.dumps(dados_json),
-            status,
-            duracao,
-            sessao_id
-        ))
+        # 🔒 Filtrar por empresa_id para evitar sobrescrita entre empresas
+        if empresa_id:
+            cursor.execute("""
+                UPDATE sessoes
+                SET cliente_id = %s, contrato_id = %s, data = %s, endereco = %s,
+                    descricao = %s, prazo_entrega = %s, observacoes = %s, dados_json = %s,
+                    status = %s, duracao = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s AND empresa_id = %s
+            """, (
+                dados.get('cliente_id'),
+                dados.get('contrato_id'),
+                dados.get('data'),
+                dados.get('endereco'),
+                dados.get('descricao'),
+                dados.get('prazo_entrega'),
+                dados.get('observacoes'),
+                json.dumps(dados_json),
+                status,
+                duracao,
+                sessao_id,
+                empresa_id
+            ))
+        else:
+            cursor.execute("""
+                UPDATE sessoes
+                SET cliente_id = %s, contrato_id = %s, data = %s, endereco = %s,
+                    descricao = %s, prazo_entrega = %s, observacoes = %s, dados_json = %s,
+                    status = %s, duracao = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (
+                dados.get('cliente_id'),
+                dados.get('contrato_id'),
+                dados.get('data'),
+                dados.get('endereco'),
+                dados.get('descricao'),
+                dados.get('prazo_entrega'),
+                dados.get('observacoes'),
+                json.dumps(dados_json),
+                status,
+                duracao,
+                sessao_id
+            ))
         sucesso = cursor.rowcount > 0
         cursor.close()
+
+    # 🏷️ Salvar tags em sessao_tags (tabela relacional) se tags_ids fornecido
+    if sucesso and dados.get('tags_ids') is not None:
+        try:
+            adicionar_tags_sessao(empresa_id, sessao_id, dados['tags_ids'])
+        except Exception as _e:
+            print(f'⚠️ [atualizar_sessao] Erro ao salvar tags: {_e}')
+
     return sucesso
 
 
