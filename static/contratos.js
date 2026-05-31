@@ -190,42 +190,16 @@ async function editarContrato(id) {
     try {
         const response = await fetch(`/api/contratos/${id}`);
         if (!response.ok) throw new Error('Erro ao carregar contrato');
-        
-        const contrato = await response.json();
-        
-        document.getElementById('form-contrato-container').classList.remove('hidden');
-        document.getElementById('contrato-id').value = contrato.id;
-        document.getElementById('contrato-cliente').value = contrato.cliente_id;
-        document.getElementById('contrato-tipo').value = contrato.tipo_contrato;
-        document.getElementById('contrato-descricao').value = contrato.descricao;
-        document.getElementById('contrato-valor').value = formatarMoeda(contrato.valor_contrato);
-        document.getElementById('contrato-imposto').value = formatarMoeda(contrato.valor_imposto || 0);
-        document.getElementById('contrato-vigencia-inicio').value = contrato.data_vigencia_inicio;
-        document.getElementById('contrato-vigencia-fim').value = contrato.data_vigencia_fim || '';
-        document.getElementById('contrato-forma-pagamento').value = contrato.forma_pagamento || '';
-        document.getElementById('contrato-parcelamento').value = contrato.parcelamento || 1;
-        document.getElementById('contrato-data-pagamento').value = contrato.data_pagamento || '';
-        document.getElementById('contrato-status-pagamento').value = contrato.status_pagamento;
-        document.getElementById('contrato-status-nf').value = contrato.status_nf;
-        document.getElementById('contrato-numero-nf').value = contrato.numero_nf || '';
-        document.getElementById('contrato-crm-id').value = contrato.crm_id || '';
-        document.getElementById('contrato-observacoes').value = contrato.observacoes || '';
-        
-        // Carregar comissões
-        if (contrato.comissoes && contrato.comissoes.length > 0) {
-            const container = document.getElementById('comissoes-container');
-            container.innerHTML = '';
-            
-            for (const comissao of contrato.comissoes) {
-                await adicionarComissao(comissao);
-            }
+
+        const result = await response.json();
+        const contrato = result.contrato || result;
+
+        if (typeof window.openModalContrato === 'function') {
+            window.openModalContrato(contrato);
+        } else {
+            showToast('❌ Erro: Função openModalContrato não encontrada', 'error');
         }
-        
-        await carregarClientesDropdown('contrato-cliente');
-        
-        // Scroll para o formulário
-        document.getElementById('form-contrato-container').scrollIntoView({ behavior: 'smooth' });
-        
+
     } catch (error) {
         console.error('Erro:', error);
         showToast('Erro ao carregar contrato', 'error');
