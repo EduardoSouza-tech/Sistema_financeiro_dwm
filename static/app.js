@@ -5673,15 +5673,25 @@ function renderKanban(sessoes) {
         }
     }
 
-    // Calcular contagem de sessões em colunas ocultas (para exibir no botão de toggle)
+    // Calcular contagem de sessões em colunas ocultas (usa sessoes completo, não activeSessoes)
+    // Necessário pois activeSessoes já filtra 'cancelada' quando hidden — causaria subcontagem
+    const _todasParaContagem = (sessoes || []);
     const _hiddenCols = cols.filter(c => c.hidden && !c.archived);
     const _hiddenCount = _hiddenCols.reduce((acc, col) => {
-        return acc + (_colItemsMap.get(col.id) || []).length;
+        return acc + _todasParaContagem.filter(s => (s.status || 'rascunho') === col.id).length;
     }, 0);
 
-    // Botão de toggle de colunas ocultas
-    const _toggleBtn = `
-        <div style="display:flex;align-items:center;justify-content:flex-end;padding:6px 0 10px 0;gap:8px;flex-shrink:0;min-width:max-content;">
+    // Botão de toggle — inserido ANTES do board (fora do flex container de colunas)
+    // Usar um container separado para não virar uma "coluna" no flex do board
+    const _boardParent = board.parentNode;
+    let _toggleContainer = document.getElementById('kanban-ocultas-toggle-bar');
+    if (!_toggleContainer) {
+        _toggleContainer = document.createElement('div');
+        _toggleContainer.id = 'kanban-ocultas-toggle-bar';
+        _boardParent.insertBefore(_toggleContainer, board);
+    }
+    _toggleContainer.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:flex-end;padding:4px 0 8px 0;gap:8px;">
             ${!_mostrarOcultas && _hiddenCount > 0 ? `<span style="font-size:11px;background:#f1f5f9;color:#64748b;border-radius:10px;padding:2px 8px;">${_hiddenCount} sessão(ões) ocultas</span>` : ''}
             <button onclick="toggleKanbanColsOcultas()"
                 title="${_mostrarOcultas ? 'Ocultar colunas especiais' : 'Mostrar colunas: Reagendada, Cancelada e similares'}"
@@ -5693,7 +5703,7 @@ function renderKanban(sessoes) {
     // Filtrar colunas: se _mostrarOcultas=false, esconder colunas com hidden:true
     const _colsVisiveis = cols.filter(col => _mostrarOcultas ? true : !col.hidden);
 
-    board.innerHTML = _toggleBtn + _colsVisiveis.map(col => {
+    board.innerHTML = _colsVisiveis.map(col => {
         const items = _colItemsMap.get(col.id) || [];
 
         // Auto-expandir coluna arquivada se há sessões sendo arquivadas agora
@@ -5961,25 +5971,30 @@ async function onKanbanDrop(event, colId) {
 /**
  * Registra uma entrada de histórico na sessão quando o status muda para uma
  * coluna com gera_historico: true (concluida, cancelada, arquivada, alteracao).
- * Atualiza o campo `observacoes` da sessão com um log de data + descrição.
+ * Faz GET para buscar dados completos, acumula no campo observacoes, e reenvia
+ * PUT com o objeto completo para não nulificar os outros campos da sessão.
  */
 async function _registrarHistoricoStatus(sessaoId, novoStatus, descricao) {
     try {
         const agora = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
         const entrada = `\n[${agora}] ${descricao}`;
 
-        // Buscar sessão atual para acumular no campo observações
+        // Buscar sessão atual (dados completos para reenviar no PUT)
         const r = await fetch(`/api/sessoes/${sessaoId}`);
         if (!r.ok) return;
         const data = await r.json();
         const sessaoAtual = data.sessao || data;
+
         const obsAtual = sessaoAtual.observacoes || '';
 
-        // Salvar observações atualizadas
+        // PUT com TODOS os dados da sessão + observacoes atualizado
+        // (atualizar_sessao faz UPDATE completo — enviar só observacoes nulificaria os demais campos)
+        const dadosCompletos = Object.assign({}, sessaoAtual, { observacoes: obsAtual + entrada });
+
         await fetch(`/api/sessoes/${sessaoId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ observacoes: obsAtual + entrada })
+            body: JSON.stringify(dadosCompletos)
         });
 
         console.log(`📋 Histórico registrado (${novoStatus}): ${entrada.trim()}`);

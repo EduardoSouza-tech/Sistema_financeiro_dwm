@@ -3527,7 +3527,10 @@ function _onStatusSelectChange(selectEl) {
     _atualizarBadgeStatusModal(novoStatus);
 
     // Se editando (tem id), salvar imediatamente no servidor
-    const sessaoId = document.getElementById('sessao-id') ? parseInt(document.getElementById('sessao-id').value) : null;
+    // Escopo ao dynamic-modal para evitar conflito com #sessao-id do modal legado #modal-sessao
+    const _dynModal = document.getElementById('dynamic-modal');
+    const _sessaoIdEl = _dynModal ? _dynModal.querySelector('#sessao-id') : document.getElementById('sessao-id');
+    const sessaoId = _sessaoIdEl ? parseInt(_sessaoIdEl.value) : null;
     if (sessaoId) {
         fetch(`/api/sessoes/${sessaoId}/status`, {
             method: 'PUT',
