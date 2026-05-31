@@ -6136,8 +6136,11 @@ async function verHistoricoContrato(contratoId) {
         const _diRaw = contrato.data_inicio;
         const _diDate = _diRaw ? new Date(_diRaw) : null;
         const dataInicio = _diDate && !isNaN(_diDate) ? _diDate : null;
-        const horasMensais = parseFloat(contrato.horas_mensais || 0) ||
-                             (qtdMeses > 0 ? parseFloat(contrato.horas_totais || 0) / qtdMeses : 0);
+        const isUnico   = (contrato.tipo || '').toLowerCase() === 'único';
+        // Único: horas mensais = 0 (sem controle por ciclo), usa apenas horas totais para análise
+        const horasMensais = isUnico ? 0
+            : parseFloat(contrato.horas_mensais || 0) || (qtdMeses > 0 ? parseFloat(contrato.horas_totais || 0) / qtdMeses : 0);
+        const horasTotaisContrato = parseFloat(contrato.horas_totais || 0);
         const valorMensal = parseFloat(contrato.valor_mensal || 0);
         const semNF = contrato.sem_nf === true;
 
@@ -6146,7 +6149,71 @@ async function verHistoricoContrato(contratoId) {
 
         // ── Gerar lista de meses do contrato ────────────────────────────────
         const meses = [];
-        if (dataInicio && qtdMeses > 0) {
+        // Contrato Único: gera sempre exatamente 1 entrada ("único") — sem ciclo mensal
+        const unicoKey = dataInicio
+            ? `${dataInicio.getUTCFullYear()}-${String(dataInicio.getUTCMonth() + 1).padStart(2, '0')}`
+            : 'unico';
+        if (isUnico) {
+            const refDate   = dataInicio || hoje;
+            const mesLabel  = dataInicio
+                ? 'Contrato — ' + dataInicio.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+                : 'Contrato Único';
+            const isPast    = dataInicio ? dataInicio < hoje : false;
+            const isCurrent = !isPast;
+            const estado    = historico[unicoKey] || {};
+            const pulado    = false; // Único nunca pula
+
+            // Status com backward-compat
+            const nfStatusManual  = estado.nf_status        || (estado.nf_emitida === true ? 'emitida' : null);
+            const pagStatusManual = estado.pagamento_status  || (estado.pago === true ? 'pago' : null);
+            const entStatusManual = estado.entrega_status    || null;
+            const dataPagamento   = estado.data_pagamento    || '';
+
+            // Paleta (mesmo mapeamento que o loop mensal abaixo)
+            const NF_DISPLAY = {
+                emitida:  { label: 'Emitida',          color: '#15803d', bg: '#dcfce7', border: '#86efac' },
+                no_prazo: { label: 'No prazo',          color: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+                atrasada: { label: 'Emissão atrasada',  color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+                na:       { label: 'N/A',               color: '#64748b', bg: '#f8fafc', border: '#e2e8f0' },
+            };
+            const PAG_DISPLAY = {
+                pago:     { label: 'Pago',              color: '#15803d', bg: '#dcfce7', border: '#86efac' },
+                parcial:  { label: 'Pag. parcial',      color: '#c2410c', bg: '#ffedd5', border: '#fdba74' },
+                atrasado: { label: 'Pag. atrasado',     color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+                nao_pago: { label: 'Não pago',          color: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+            };
+            const ENT_DISPLAY = {
+                entregue:      { label: 'Entregue',          color: '#15803d', bg: '#dcfce7', border: '#86efac' },
+                parcial:       { label: 'Entrega parcial',   color: '#c2410c', bg: '#ffedd5', border: '#fdba74' },
+                atrasada:      { label: 'Entrega atrasada',  color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+                nao_realizada: { label: 'Não realizada',     color: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+            };
+            const FUTURO_DISP = { label: 'Futuro',  color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' };
+
+            const nfEfetivo  = (nfStatusManual && NF_DISPLAY[nfStatusManual]) ? NF_DISPLAY[nfStatusManual]
+                             : (semNF ? { ...FUTURO_DISP, label: 'N/A', color: '#64748b', bg: '#f8fafc', border: '#e2e8f0' }
+                             : (isPast ? NF_DISPLAY.atrasada : NF_DISPLAY.no_prazo));
+            const pagEfetivo = (pagStatusManual && PAG_DISPLAY[pagStatusManual]) ? PAG_DISPLAY[pagStatusManual]
+                             : (isPast ? PAG_DISPLAY.atrasado : PAG_DISPLAY.nao_pago);
+            const horasUsadas = sessoes.filter(s => s.status !== 'cancelada').reduce((a, s) => a + parseFloat(s.quantidade_horas || 0), 0);
+            const sessFin     = sessoes.filter(s => s.status === 'finalizada' || s.status === 'concluida').length;
+            const entEfetivo  = (entStatusManual && ENT_DISPLAY[entStatusManual]) ? ENT_DISPLAY[entStatusManual]
+                             : (sessoes.length > 0 && sessFin === sessoes.length ? ENT_DISPLAY.entregue
+                             : (sessoes.length > 0 && sessFin > 0 ? ENT_DISPLAY.parcial
+                             : (isPast ? ENT_DISPLAY.nao_realizada : FUTURO_DISP)));
+
+            meses.push({
+                mesKey: unicoKey, mesLabel, isPast, isCurrent, pulado,
+                nfEmitida: nfStatusManual === 'emitida', pago: pagStatusManual === 'pago',
+                nfStatusManual, pagStatusManual, entStatusManual, dataPagamento,
+                sessMes: sessoes.filter(s => s.status !== 'cancelada'),
+                horasUsadas, horasExtras: 0, horasSobrando: 0,
+                nfStatus: nfEfetivo.label,   nfColor: nfEfetivo.color,   nfBg: nfEfetivo.bg,
+                pagStatus: pagEfetivo.label, pagColor: pagEfetivo.color, pagBg: pagEfetivo.bg,
+                entStatus: entEfetivo.label, entColor: entEfetivo.color, entBg: entEfetivo.bg,
+                NF_DISPLAY, PAG_DISPLAY, ENT_DISPLAY,
+            });
+        } else if (dataInicio && qtdMeses > 0) {
             for (let i = 0; i < qtdMeses; i++) {
                 const d = new Date(dataInicio.getUTCFullYear(), dataInicio.getUTCMonth() + i, 1);
                 const mesKey   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -6252,7 +6319,10 @@ async function verHistoricoContrato(contratoId) {
 
         const mesesAtivos   = meses.filter(m => !m.pulado).length;
         const mesesPulados  = meses.filter(m => m.pulado).length;
-        const horasTotalUsadas = meses.filter(m => !m.pulado).reduce((a, m) => a + m.horasUsadas, 0);
+        // Para Único: contar horas de TODAS as sessões (não apenas das que caem em meses gerados)
+        const horasTotalUsadas = isUnico
+            ? sessoes.filter(s => s.status !== 'cancelada').reduce((a, s) => a + parseFloat(s.quantidade_horas || 0), 0)
+            : meses.filter(m => !m.pulado).reduce((a, m) => a + m.horasUsadas, 0);
 
         // ── Gerar HTML dos meses ────────────────────────────────────────────
         const mesesHtml = meses.length === 0
@@ -6331,28 +6401,37 @@ async function verHistoricoContrato(contratoId) {
                             style="font-size:11px;padding:5px 8px;border-radius:8px;border:1.5px solid #86efac;background:#dcfce7;color:#15803d;cursor:pointer;font-weight:600;outline:none;">
                     </div>`
                     : '';
-                const btnPular = `<button onclick="window._toggleHistoricoMes(${contratoId},'${m.mesKey}','pulado',${!m.pulado})"
+                const btnPular = isUnico ? '' // Único não pula
+                    : `<button onclick="window._toggleHistoricoMes(${contratoId},'${m.mesKey}','pulado',${!m.pulado})"
                     style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid ${m.pulado ? '#fca5a5' : '#e2e8f0'};background:${m.pulado ? '#fee2e2' : '#f8fafc'};cursor:pointer;color:${m.pulado ? '#dc2626' : '#64748b'};">
                     ${m.pulado ? '↩ Reativar Mês' : '⏭ Pular Mês'}</button>`;
 
-                return `
-                <div style="border:1px solid ${borderCard};border-radius:12px;padding:16px 18px;background:${bgCard};margin-bottom:10px;${m.pulado ? 'opacity:.7;' : ''}">
-                    <!-- Cabeçalho do mês -->
-                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:${m.pulado ? 0 : '14px'};">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span style="font-size:14px;font-weight:700;color:#1e293b;text-transform:capitalize;">${m.mesLabel}</span>
-                            ${m.isCurrent ? '<span style="background:#fbbf24;color:#78350f;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">MÊS ATUAL</span>' : ''}
-                            ${m.pulado ? '<span style="background:#e2e8f0;color:#64748b;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">MÊS PULADO</span>' : ''}
+                // Indicadores de horas: para Único mostra apenas Total vs Usadas sem controle mensal
+                const indicadoresHoras = isUnico
+                    ? (horasTotaisContrato > 0 ? `
+                        <div style="background:#f1f5f9;border-radius:8px;padding:9px;text-align:center;">
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Horas Usadas</div>
+                            <div style="font-size:17px;font-weight:800;color:#0369a1;">${m.horasUsadas.toFixed(1)}h</div>
                         </div>
-                        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;">
-                            ${btnNF}${btnPag}${btnEntrega}${btnDataPag}${btnPular}
+                        <div style="background:#f1f5f9;border-radius:8px;padding:9px;text-align:center;">
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Total Contrato</div>
+                            <div style="font-size:17px;font-weight:800;color:#334155;">${horasTotaisContrato.toFixed(1)}h</div>
                         </div>
-                    </div>
-
-                    ${m.pulado ? '' : `
-                    <!-- Indicadores -->
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px;">
-                        ${horasMensais > 0 ? `
+                        ${m.horasUsadas > horasTotaisContrato
+                            ? `<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:9px;text-align:center;">
+                                <div style="font-size:10px;color:#991b1b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Horas Extras</div>
+                                <div style="font-size:17px;font-weight:800;color:#dc2626;">+${(m.horasUsadas - horasTotaisContrato).toFixed(1)}h</div>
+                               </div>`
+                            : `<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:9px;text-align:center;">
+                                <div style="font-size:10px;color:#065f46;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Restam</div>
+                                <div style="font-size:17px;font-weight:800;color:#059669;">${(horasTotaisContrato - m.horasUsadas).toFixed(1)}h</div>
+                               </div>`}
+                    ` : (m.horasUsadas > 0 ? `
+                        <div style="background:#f1f5f9;border-radius:8px;padding:9px;text-align:center;">
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Horas Usadas</div>
+                            <div style="font-size:17px;font-weight:800;color:#0369a1;">${m.horasUsadas.toFixed(1)}h</div>
+                        </div>` : ''))
+                    : (horasMensais > 0 ? `
                         <div style="background:#f1f5f9;border-radius:8px;padding:9px;text-align:center;">
                             <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Horas Prev.</div>
                             <div style="font-size:17px;font-weight:800;color:#334155;">${horasMensais.toFixed(1)}h</div>
@@ -6369,7 +6448,26 @@ async function verHistoricoContrato(contratoId) {
                             <div style="font-size:10px;color:#065f46;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Sobram</div>
                             <div style="font-size:17px;font-weight:800;color:#059669;">${m.horasSobrando.toFixed(1)}h</div>
                         </div>` : ''}
-                        ` : ''}
+                    ` : '');
+
+                return `
+                <div style="border:1px solid ${borderCard};border-radius:12px;padding:16px 18px;background:${bgCard};margin-bottom:10px;${m.pulado ? 'opacity:.7;' : ''}">
+                    <!-- Cabeçalho -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="font-size:14px;font-weight:700;color:#1e293b;text-transform:capitalize;">${m.mesLabel}</span>
+                            ${!isUnico && m.isCurrent ? '<span style="background:#fbbf24;color:#78350f;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">MÊS ATUAL</span>' : ''}
+                            ${!isUnico && m.pulado ? '<span style="background:#e2e8f0;color:#64748b;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">MÊS PULADO</span>' : ''}
+                        </div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;">
+                            ${btnNF}${btnPag}${btnEntrega}${btnDataPag}${btnPular}
+                        </div>
+                    </div>
+
+                    ${m.pulado ? '' : `
+                    <!-- Indicadores -->
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px;">
+                        ${indicadoresHoras}
                         <div style="background:${m.nfBg};border-radius:8px;padding:9px;text-align:center;">
                             <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">NF</div>
                             <div style="font-size:12px;font-weight:700;color:${m.nfColor};">${m.nfStatus}</div>
@@ -6386,10 +6484,10 @@ async function verHistoricoContrato(contratoId) {
                         </div>
                     </div>
 
-                    <!-- Sessões do mês (colapsável) -->
-                    <details>
+                    <!-- Sessões (colapsável) -->
+                    <details ${isUnico ? 'open' : ''}>
                         <summary style="cursor:pointer;font-size:12px;color:#64748b;font-weight:600;user-select:none;list-style:none;display:flex;align-items:center;gap:4px;">
-                            <span>▶</span> ${m.sessMes.length} sessão(ões) neste mês
+                            <span>▶</span> ${m.sessMes.length} sessão(ões)${isUnico ? '' : ' neste mês'}
                         </summary>
                         <div style="margin-top:8px;padding:8px;background:#f8fafc;border-radius:6px;">${sessoesHtml}</div>
                     </details>
@@ -6415,11 +6513,35 @@ async function verHistoricoContrato(contratoId) {
                     <div style="text-align:right;">
                         <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Valor Total</div>
                         <div style="font-size:24px;font-weight:800;color:#059669;">${fmt(contrato.valor || contrato.valor_total || 0)}</div>
-                        <div style="font-size:12px;color:#64748b;margin-top:3px;">${fmt(valorMensal)}/mês · ${qtdMeses} meses</div>
+                        ${isUnico
+                            ? `<div style="font-size:12px;color:#64748b;margin-top:3px;">Contrato único</div>`
+                            : `<div style="font-size:12px;color:#64748b;margin-top:3px;">${fmt(valorMensal)}/mês · ${qtdMeses} meses</div>`
+                        }
                     </div>
                 </div>
                 <!-- Resumo meses -->
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid #e2e8f0;">
+                    ${isUnico ? `
+                    <div style="text-align:center;">
+                        <div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:3px;">Sessões</div>
+                        <div style="font-size:20px;font-weight:800;color:#334155;">${sessoes.length}</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:3px;">Horas Usadas</div>
+                        <div style="font-size:20px;font-weight:800;color:#d97706;">${horasTotalUsadas.toFixed(1)}h</div>
+                    </div>
+                    ${horasTotaisContrato > 0 ? `
+                    <div style="text-align:center;">
+                        <div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:3px;">Horas Totais</div>
+                        <div style="font-size:20px;font-weight:800;color:#0369a1;">${horasTotaisContrato.toFixed(1)}h</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:3px;">${horasTotalUsadas > horasTotaisContrato ? 'Extras' : 'Restam'}</div>
+                        <div style="font-size:20px;font-weight:800;color:${horasTotalUsadas > horasTotaisContrato ? '#dc2626' : '#059669'};">
+                            ${horasTotalUsadas > horasTotaisContrato ? '+' : ''}${Math.abs(horasTotaisContrato - horasTotalUsadas).toFixed(1)}h
+                        </div>
+                    </div>` : ''}
+                    ` : `
                     <div style="text-align:center;">
                         <div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:3px;">Meses Totais</div>
                         <div style="font-size:20px;font-weight:800;color:#334155;">${qtdMeses}</div>
@@ -6435,14 +6557,14 @@ async function verHistoricoContrato(contratoId) {
                     ${horasMensais > 0 ? `<div style="text-align:center;">
                         <div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:3px;">Horas Usadas</div>
                         <div style="font-size:20px;font-weight:800;color:#d97706;">${horasTotalUsadas.toFixed(1)}h</div>
-                    </div>` : ''}
+                    </div>` : ''}`}
                 </div>
             </div>
 
             <!-- Título meses -->
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-                <span style="font-size:14px;font-weight:700;color:#1e293b;">Histórico Mensal</span>
-                <span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">${meses.length} meses</span>
+                <span style="font-size:14px;font-weight:700;color:#1e293b;">${isUnico ? 'Sessões do Contrato' : 'Histórico Mensal'}</span>
+                <span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">${meses.length} ${isUnico ? 'período(s)' : 'meses'}</span>
                 ${semNF && !meses.some(m => m.nfEmitida) ? '<span style="background:#fef9c3;color:#854d0e;font-size:11px;padding:2px 8px;border-radius:10px;">Sem NF</span>' : ''}
             </div>
 
