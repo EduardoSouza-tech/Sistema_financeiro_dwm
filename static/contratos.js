@@ -207,20 +207,22 @@ async function editarContrato(id) {
 }
 
 async function excluirContrato(id) {
-    if (!confirm('Deseja realmente excluir este contrato?')) return;
+    if (!confirm('⚠️ Tem certeza que deseja excluir este contrato?\n\nEsta ação não pode ser desfeita!')) return;
     
     try {
         const response = await fetch(`/api/contratos/${id}`, { method: 'DELETE' });
         
         if (response.ok) {
-            showToast('Contrato excluído com sucesso!', 'success');
-            carregarContratos();
+            showToast('✅ Contrato excluído com sucesso!', 'success');
+            if (typeof loadContratos === 'function') {
+                loadContratos();
+            }
         } else {
-            showToast('Erro ao excluir contrato', 'error');
+            showToast('❌ Erro ao excluir contrato', 'error');
         }
     } catch (error) {
         console.error('Erro:', error);
-        showToast('Erro ao excluir contrato', 'error');
+        showToast('❌ Erro ao excluir contrato', 'error');
     }
 }
 
