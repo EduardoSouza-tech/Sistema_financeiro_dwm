@@ -5351,7 +5351,7 @@ async function loadSessoes() {
         logError(context, error);
         const tbody = document.getElementById('tbody-sessoes');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #e74c3c;">Erro ao carregar sessões</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #e74c3c;">Erro ao carregar sessões</td></tr>';
         }
     }
 }
@@ -5360,7 +5360,6 @@ function filtrarSessoesTabela() {
     const fData    = (document.getElementById('filtro-sessao-data')?.value    || '').trim();
     const fHorario = (document.getElementById('filtro-sessao-horario')?.value || '').toLowerCase().trim();
     const fCliente = (document.getElementById('filtro-sessao-cliente')?.value || '').toLowerCase().trim();
-    const fContrato= (document.getElementById('filtro-sessao-contrato')?.value|| '').toLowerCase().trim();
     const fLocal   = (document.getElementById('filtro-sessao-local')?.value   || '').toLowerCase().trim();
     const fTipo    = (document.getElementById('filtro-sessao-tipo')?.value    || '');
     const fPrazo   = (document.getElementById('filtro-sessao-prazo')?.value   || '').trim();
@@ -5370,7 +5369,6 @@ function filtrarSessoesTabela() {
         if (fData    && (s.data || '').substring(0, 10) !== fData) return false;
         if (fHorario && !(s.horario || '').toLowerCase().includes(fHorario)) return false;
         if (fCliente && !((s.cliente_nome_fantasia || s.cliente_nome || '').toLowerCase().includes(fCliente))) return false; // busca em nome_fantasia E razao_social
-        if (fContrato&& !((s.contrato_numero || '') + ' ' + (s.contrato_nome || '')).toLowerCase().includes(fContrato)) return false;
         if (fLocal   && !(s.endereco || '').toLowerCase().includes(fLocal)) return false;
         if (fTipo) {
             const tipos = [];
@@ -5388,7 +5386,7 @@ function filtrarSessoesTabela() {
 }
 
 function limparFiltrosSessoesTabela() {
-    ['filtro-sessao-data','filtro-sessao-horario','filtro-sessao-cliente','filtro-sessao-contrato',
+    ['filtro-sessao-data','filtro-sessao-horario','filtro-sessao-cliente',
      'filtro-sessao-local','filtro-sessao-tipo','filtro-sessao-prazo','filtro-sessao-status']
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     renderSessoesTabela(_todasSessoesCache);
@@ -5409,7 +5407,7 @@ function renderSessoesTabela(sessoes) {
     
     if (!sessoes || sessoes.length === 0) {
         console.log('📋 [DEBUG] Nenhuma sessão encontrada, mostrando mensagem');
-        const mensagem = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: #666;">Nenhuma sessão cadastrada</td></tr>';
+        const mensagem = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #666;">Nenhuma sessão cadastrada</td></tr>';
         tbody.innerHTML = mensagem;
         return;
     }
@@ -5470,7 +5468,6 @@ function renderSessoesTabela(sessoes) {
                 <td>${fmtData(sessao.data)}</td>
                 <td>${escapeHtml(sessao.horario || '-')}</td>
                 <td>${escapeHtml(sessao.cliente_nome_fantasia || sessao.cliente_nome || '-')}</td><!-- REGRA: sempre preferir nome_fantasia sobre razao_social -->
-                <td>${escapeHtml(sessao.contrato_numero || sessao.contrato_nome || '-')}</td>
                 <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(sessao.endereco || '')}">${escapeHtml(sessao.endereco || '-')}</td>
                 <td>${tiposCaptacao}</td>
                 <td>${fmtData(sessao.prazo_entrega)}</td>
