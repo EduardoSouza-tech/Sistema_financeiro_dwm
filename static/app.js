@@ -6429,17 +6429,6 @@ async function verHistoricoContrato(contratoId) {
             }
         }
 
-        const mesesAtivos   = meses.filter(m => !m.pulado).length;
-        const mesesPulados  = meses.filter(m => m.pulado).length;
-        // Para Único: contar horas de TODAS as sessões (não apenas das que caem em meses gerados)
-        const horasTotalUsadas = isUnico
-            ? sessoes.filter(s => s.status !== 'cancelada').reduce((a, s) => a + parseFloat(s.quantidade_horas || 0), 0)
-            : meses.filter(m => !m.pulado).reduce((a, m) => a + m.horasUsadas, 0);
-        // horasAcumuladas agora = saldo atual após todos os meses processados (para mensal)
-        const horasAcumuladasAtuais = isUnico ? 0 : horasAcumuladas;
-        // Salvar saldo atual no backend (fire-and-forget) para exibir na lista de contratos
-        if (!isUnico) window._setContratoObs(contratoId, 'horas_acumuladas_atual', horasAcumuladasAtuais).catch(() => {});
-
         // ── Gerar HTML dos meses ────────────────────────────────────────────
         const mesesAtivos   = isPacote ? meses.length : meses.filter(m => !m.pulado).length;
         const mesesPulados  = isPacote ? 0 : meses.filter(m => m.pulado).length;
