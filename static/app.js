@@ -6269,7 +6269,7 @@ async function verHistoricoContrato(contratoId) {
             const pagEfetivo = (pagStatusManual && PAG_DISPLAY[pagStatusManual]) ? PAG_DISPLAY[pagStatusManual]
                              : (isPast ? PAG_DISPLAY.atrasado : PAG_DISPLAY.nao_pago);
             const horasUsadas = sessoes.filter(s => s.status !== 'cancelada').reduce((a, s) => a + parseFloat(s.quantidade_horas || 0), 0);
-            const sessFin     = sessoes.filter(s => s.status === 'finalizada' || s.status === 'concluida').length;
+            const sessFin     = sessoes.filter(s => ['finalizada','concluida','entrega','arquivada'].includes(s.status)).length;
             const entEfetivo  = (entStatusManual && ENT_DISPLAY[entStatusManual]) ? ENT_DISPLAY[entStatusManual]
                              : (sessoes.length > 0 && sessFin === sessoes.length ? ENT_DISPLAY.entregue
                              : (sessoes.length > 0 && sessFin > 0 ? ENT_DISPLAY.parcial
@@ -6341,7 +6341,7 @@ async function verHistoricoContrato(contratoId) {
 
                 let entEfetivo;
                 if (entStatusManual && ENT_DISPLAY[entStatusManual]) entEfetivo = ENT_DISPLAY[entStatusManual];
-                else if (s.status === 'finalizada' || s.status === 'concluida') entEfetivo = ENT_DISPLAY.entregue;
+                else if (s.status === 'finalizada' || s.status === 'concluida' || s.status === 'entrega' || s.status === 'arquivada') entEfetivo = ENT_DISPLAY.entregue;
                 else if (isPast) entEfetivo = ENT_DISPLAY.nao_realizada;
                 else entEfetivo = FUTURO_DISP;
 
@@ -6457,7 +6457,7 @@ async function verHistoricoContrato(contratoId) {
                     entEfetivo = ENT_DISPLAY[entStatusManual];
                 } else {
                     // Auto-inferir de sessões
-                    const sessFin = sessMes.filter(s => s.status === 'finalizada' || s.status === 'concluida').length;
+                    const sessFin = sessMes.filter(s => ['finalizada','concluida','entrega','arquivada'].includes(s.status)).length;
                     if (sessMes.length > 0 && sessFin === sessMes.length)    entEfetivo = ENT_DISPLAY.entregue;
                     else if (sessMes.length > 0 && sessFin > 0)              entEfetivo = ENT_DISPLAY.parcial;
                     else if (isPast)                                          entEfetivo = ENT_DISPLAY.nao_realizada;

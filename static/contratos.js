@@ -1254,20 +1254,25 @@ function getCorStatusContrato(status) {
 
 function getCorStatusSessao(status) {
     const cores = {
-        'rascunho':      '#94a3b8',
-        'agendada':      '#3b82f6',
-        'em_andamento':  '#f59e0b',
-        'finalizada':    '#10b981',
-        'concluida':     '#059669',
-        'cancelada':     '#ef4444',
-        'reaberta':      '#8b5cf6',
-        // legacy values kept for backwards compat
-        'marcada':           '#95a5a6',
-        'reagendada':        '#7f8c8d',
-        'realizada':         '#3498db',
-        'entrega_parcial':   '#f39c12',
-        'entrega_completa':  '#27ae60',
-        'entrega_atrasada':  '#e67e22'
+        // Fase de Captação
+        'rascunho':          '#94a3b8',
+        'agendada':          '#3b82f6',
+        'reagendada':        '#f97316',
+        'realizada':         '#10b981',
+        'cancelada':         '#ef4444',
+        // Fase de Edição
+        'backup':            '#0ea5e9',
+        'tratamento_de_cor': '#8b5cf6',
+        'tratamento_final':  '#7c3aed',
+        // Fase de Entrega
+        'entrega':           '#14b8a6',
+        'concluida':         '#059669',
+        'alteracao':         '#f59e0b',
+        'arquivada':         '#475569',
+        // Legado
+        'em_andamento':      '#f59e0b',
+        'finalizada':        '#10b981',
+        'reaberta':          '#8b5cf6',
     };
     return cores[status] || '#95a5a6';
 }
@@ -1282,13 +1287,18 @@ async function atualizarStatusSessao(id) {
         
         // Opções de status disponíveis
         const statusOptions = [
-            { value: 'marcada', label: 'Marcada' },
-            { value: 'reagendada', label: 'Reagendada' },
-            { value: 'realizada', label: 'Realizada' },
-            { value: 'entrega_parcial', label: 'Entrega Parcial' },
-            { value: 'entrega_completa', label: 'Entrega Completa' },
-            { value: 'entrega_atrasada', label: 'Entrega Atrasada' },
-            { value: 'cancelada', label: 'Cancelada' }
+            { value: 'rascunho',          label: 'Rascunho' },
+            { value: 'agendada',          label: 'Agendada' },
+            { value: 'reagendada',        label: 'Reagendada' },
+            { value: 'realizada',         label: 'Realizada' },
+            { value: 'backup',            label: 'Backup' },
+            { value: 'tratamento_de_cor', label: 'Trat. de Cor' },
+            { value: 'tratamento_final',  label: 'Trat. Final' },
+            { value: 'entrega',           label: 'Entrega' },
+            { value: 'concluida',         label: 'Concluída' },
+            { value: 'alteracao',         label: 'Alteração' },
+            { value: 'cancelada',         label: 'Cancelada' },
+            { value: 'arquivada',         label: 'Arquivada' },
         ];
         
         // Criar modal
