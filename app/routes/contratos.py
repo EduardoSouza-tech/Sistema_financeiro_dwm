@@ -267,7 +267,7 @@ def atualizar_historico_mes(contrato_id):
     VALID_ENTREGA = ('entregue', 'parcial', 'atrasada', 'nao_realizada', '')
 
     import re
-    if not re.match(r'^\d{4}-\d{2}$', mes):
+    if not re.match(r'^\d{4}-\d{2}$', mes) and mes != 'unico':
         return jsonify({'error': 'Mês inválido'}), 400
     if campo not in CAMPOS_BOOL and campo not in CAMPOS_STR and campo != CAMPO_SESSAO_ENTREGA:
         return jsonify({'error': f'Campo inválido: {campo}'}), 400

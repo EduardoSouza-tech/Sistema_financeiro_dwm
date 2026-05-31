@@ -6266,8 +6266,10 @@ async function verHistoricoContrato(contratoId) {
                 const horasExtras   = horasDisponiveis > 0 ? Math.max(0, horasUsadas - horasDisponiveis) : 0;
                 const horasSobrando = horasDisponiveis > 0 ? Math.max(0, horasDisponiveis - horasUsadas) : 0;
 
-                // Atualiza acumuladas para o próximo mês (mês pulado = não consome nem acumula)
-                if (!pulado) horasAcumuladas = horasSobrando;
+                // APENAS meses já PASSADOS atualizam o saldo acumulado.
+                // Mês atual (em andamento) e futuros NÃO contribuem: o mês ainda não acabou.
+                // Mês pulado: saldo passa adiante inalterado.
+                if (!pulado && isPast) horasAcumuladas = horasSobrando;
 
                 // ── Paleta de status ───────────────────────────────────────
                 const NF_DISPLAY = {
