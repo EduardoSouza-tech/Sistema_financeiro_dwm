@@ -397,6 +397,86 @@ def atualizar_observacoes_raiz(contrato_id):
         return jsonify({'error': str(e)}), 500
 
 
+@contratos_bp.route('/<int:contrato_id>/historico-sessao', methods=['PATCH'])
+def atualizar_historico_sessao(contrato_id):
+    """Atualiza o estado de uma sessão no histórico do contrato Pacote.
+    Body: { "sessao_id": 123, "campo": "nf_status"|"pagamento_status"|..., "valor": "..." }
+    """
+    usuario = get_usuario_logado()
+    if not usuario:
+        return jsonify({'error': 'Não autenticado'}), 401
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'error': 'Empresa não selecionada'}), 403
+
+    data     = request.json or {}
+    sessao_id = str(data.get('sessao_id', '')).strip()
+    campo    = data.get('campo', '').strip()
+    valor    = data.get('valor')
+
+    CAMPOS_STR = {
+        'nf_status':        ('emitida', 'no_prazo', 'atrasada', 'na', ''),
+        'pagamento_status': ('pago', 'parcial', 'atrasado', 'nao_pago', ''),
+        'entrega_status':   ('entregue', 'parcial', 'atrasada', 'nao_realizada', ''),
+        'data_pagamento':   None,   # data livre
+    }
+    CAMPOS_FLOAT = ('horas_ajuste',)
+
+    if not sessao_id.isdigit():
+        return jsonify({'error': 'sessao_id inválido'}), 400
+    if campo not in CAMPOS_STR and campo not in CAMPOS_FLOAT:
+        return jsonify({'error': f'Campo inválido: {campo}'}), 400
+    if campo in CAMPOS_STR and CAMPOS_STR[campo] is not None:
+        if valor not in CAMPOS_STR[campo] and valor is not None:
+            return jsonify({'error': f'Valor inválido para {campo}: {valor}'}), 400
+
+    try:
+        import json
+        from database_postgresql import get_db_connection
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT observacoes FROM contratos WHERE id = %s", (contrato_id,))
+            row = cursor.fetchone()
+            if not row:
+                return jsonify({'error': 'Contrato não encontrado'}), 404
+            try:
+                obs = json.loads(row['observacoes']) if row['observacoes'] else {}
+            except Exception:
+                obs = {}
+
+            if 'historico_pacote' not in obs:
+                obs['historico_pacote'] = {}
+            if sessao_id not in obs['historico_pacote']:
+                obs['historico_pacote'][sessao_id] = {}
+
+            if campo in CAMPOS_FLOAT:
+                if valor == '' or valor is None:
+                    obs['historico_pacote'][sessao_id].pop(campo, None)
+                else:
+                    try:
+                        obs['historico_pacote'][sessao_id][campo] = float(valor)
+                    except (ValueError, TypeError):
+                        return jsonify({'error': f'Valor numérico inválido para {campo}'}), 400
+            else:
+                if valor == '' or valor is None:
+                    obs['historico_pacote'][sessao_id].pop(campo, None)
+                else:
+                    obs['historico_pacote'][sessao_id][campo] = str(valor)
+
+            cursor.execute(
+                "UPDATE contratos SET observacoes = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                (json.dumps(obs), contrato_id)
+            )
+            sucesso = cursor.rowcount > 0
+
+        if sucesso:
+            return jsonify({'success': True, 'sessao_id': sessao_id, 'campo': campo})
+        return jsonify({'error': 'Contrato não encontrado'}), 404
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 # ============================================================================
 # EXPORTAÇÕES
 # ============================================================================

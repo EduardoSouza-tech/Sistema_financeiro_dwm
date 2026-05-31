@@ -5080,6 +5080,7 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
     historico_mensal_existente = dados.get('historico_mensal')
     horas_acumuladas_inicial_existente = dados.get('horas_acumuladas_inicial')
     horas_acumuladas_atual_existente = dados.get('horas_acumuladas_atual')
+    historico_pacote_existente = dados.get('historico_pacote')
     if historico_mensal_existente is None:
         try:
             with get_db_connection(empresa_id=empresa_id) as conn_r:
@@ -5093,6 +5094,8 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
                         horas_acumuladas_inicial_existente = obs_atual.get('horas_acumuladas_inicial', 0)
                     if horas_acumuladas_atual_existente is None:
                         horas_acumuladas_atual_existente = obs_atual.get('horas_acumuladas_atual', 0)
+                    if historico_pacote_existente is None:
+                        historico_pacote_existente = obs_atual.get('historico_pacote', {})
         except Exception:
             historico_mensal_existente = {}
 
@@ -5112,6 +5115,7 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
         'historico_mensal': historico_mensal_existente or {},
         'horas_acumuladas_inicial': horas_acumuladas_inicial_existente or 0,
         'horas_acumuladas_atual':   horas_acumuladas_atual_existente or 0,
+        'historico_pacote':         historico_pacote_existente or {},
     }
     observacoes_json = json.dumps(observacoes_dict)
 

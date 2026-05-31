@@ -6152,6 +6152,7 @@ async function verHistoricoContrato(contratoId) {
         const _diDate = _diRaw ? new Date(_diRaw) : null;
         const dataInicio = _diDate && !isNaN(_diDate) ? _diDate : null;
         const isUnico   = (contrato.tipo || '').toLowerCase() === 'único';
+        const isPacote  = (contrato.tipo || '').toLowerCase() === 'pacote';
         // Único: horas mensais = 0 (sem controle por ciclo), usa apenas horas totais para análise
         const horasMensais = isUnico ? 0
             : parseFloat(contrato.horas_mensais || 0) || (qtdMeses > 0 ? parseFloat(contrato.horas_totais || 0) / qtdMeses : 0);
@@ -6229,6 +6230,83 @@ async function verHistoricoContrato(contratoId) {
                 pagStatus: pagEfetivo.label, pagColor: pagEfetivo.color, pagBg: pagEfetivo.bg,
                 entStatus: entEfetivo.label, entColor: entEfetivo.color, entBg: entEfetivo.bg,
                 NF_DISPLAY, PAG_DISPLAY, ENT_DISPLAY,
+            });
+        } else if (isPacote) {
+            // ── Pacote: um card por sessão vinculada ──────────────────────
+            const histPacote = contrato.historico_pacote || {};
+            const sessoesAtivas = sessoes.filter(s => s.status !== 'cancelada')
+                .sort((a, b) => new Date(a.data + 'T12:00:00') - new Date(b.data + 'T12:00:00'));
+
+            sessoesAtivas.forEach((s, idx) => {
+                const sessaoKey = String(s.id);
+                const estado = histPacote[sessaoKey] || {};
+                const nfStatusManual  = estado.nf_status       || null;
+                const pagStatusManual = estado.pagamento_status || null;
+                const entStatusManual = estado.entrega_status   || null;
+                const dataPagamento   = estado.data_pagamento   || '';
+                const horasAjuste     = (estado.horas_ajuste != null) ? parseFloat(estado.horas_ajuste) : null;
+
+                const dataS  = s.data ? new Date(s.data + 'T12:00:00') : null;
+                const isPast = dataS ? dataS < hoje : false;
+
+                const horasUsadas    = horasAjuste !== null ? horasAjuste : parseFloat(s.quantidade_horas || 0);
+                const horasEsperadas = horasMensais; // "Horas por Pacote" armazenado em horas_mensais
+                const diferencaHoras = horasEsperadas > 0 ? horasUsadas - horasEsperadas : 0;
+
+                const NF_DISPLAY = {
+                    emitida:  { label: 'Emitida',          color: '#15803d', bg: '#dcfce7', border: '#86efac' },
+                    no_prazo: { label: 'No prazo',          color: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+                    atrasada: { label: 'Emissão atrasada',  color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+                    na:       { label: 'N/A',               color: '#64748b', bg: '#f8fafc', border: '#e2e8f0' },
+                };
+                const PAG_DISPLAY = {
+                    pago:     { label: 'Pago',              color: '#15803d', bg: '#dcfce7', border: '#86efac' },
+                    parcial:  { label: 'Pag. parcial',      color: '#c2410c', bg: '#ffedd5', border: '#fdba74' },
+                    atrasado: { label: 'Pag. atrasado',     color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+                    nao_pago: { label: 'Não pago',          color: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+                };
+                const ENT_DISPLAY = {
+                    entregue:      { label: 'Entregue',          color: '#15803d', bg: '#dcfce7', border: '#86efac' },
+                    parcial:       { label: 'Entrega parcial',   color: '#c2410c', bg: '#ffedd5', border: '#fdba74' },
+                    atrasada:      { label: 'Entrega atrasada',  color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+                    nao_realizada: { label: 'Não realizada',     color: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+                };
+                const FUTURO_DISP = { label: 'Futuro', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' };
+
+                let nfEfetivo;
+                if (nfStatusManual && NF_DISPLAY[nfStatusManual]) nfEfetivo = NF_DISPLAY[nfStatusManual];
+                else if (semNF) nfEfetivo = { label: 'N/A', color: '#64748b', bg: '#f8fafc', border: '#e2e8f0' };
+                else if (isPast) nfEfetivo = NF_DISPLAY.atrasada;
+                else nfEfetivo = FUTURO_DISP;
+
+                let pagEfetivo;
+                if (pagStatusManual && PAG_DISPLAY[pagStatusManual]) pagEfetivo = PAG_DISPLAY[pagStatusManual];
+                else if (isPast) pagEfetivo = PAG_DISPLAY.atrasado;
+                else pagEfetivo = FUTURO_DISP;
+
+                let entEfetivo;
+                if (entStatusManual && ENT_DISPLAY[entStatusManual]) entEfetivo = ENT_DISPLAY[entStatusManual];
+                else if (s.status === 'finalizada' || s.status === 'concluida') entEfetivo = ENT_DISPLAY.entregue;
+                else if (isPast) entEfetivo = ENT_DISPLAY.nao_realizada;
+                else entEfetivo = FUTURO_DISP;
+
+                meses.push({
+                    mesKey: sessaoKey,
+                    mesLabel: `Sessão ${idx + 1}`,
+                    mesDescricao: s.descricao || s.horario || '',
+                    mesData: dataS,
+                    isPast, isCurrent: false, pulado: false,
+                    nfStatusManual, pagStatusManual, entStatusManual, dataPagamento,
+                    sessMes: [],      // vazio — a sessão É o card
+                    sessaoObj: s,
+                    horasUsadas, horasEsperadas, diferencaHoras, horasAjuste,
+                    nfEmitida: nfStatusManual === 'emitida', pago: pagStatusManual === 'pago',
+                    nfStatus: nfEfetivo.label, nfColor: nfEfetivo.color, nfBg: nfEfetivo.bg,
+                    pagStatus: pagEfetivo.label, pagColor: pagEfetivo.color, pagBg: pagEfetivo.bg,
+                    entStatus: entEfetivo.label, entColor: entEfetivo.color, entBg: entEfetivo.bg,
+                    NF_DISPLAY, PAG_DISPLAY, ENT_DISPLAY,
+                    _isPacote: true,
+                });
             });
         } else if (dataInicio && qtdMeses > 0) {
             for (let i = 0; i < qtdMeses; i++) {
@@ -6363,9 +6441,152 @@ async function verHistoricoContrato(contratoId) {
         if (!isUnico) window._setContratoObs(contratoId, 'horas_acumuladas_atual', horasAcumuladasAtuais).catch(() => {});
 
         // ── Gerar HTML dos meses ────────────────────────────────────────────
+        const mesesAtivos   = isPacote ? meses.length : meses.filter(m => !m.pulado).length;
+        const mesesPulados  = isPacote ? 0 : meses.filter(m => m.pulado).length;
+        // Para Único e Pacote: somar horas de TODAS as sessões
+        const horasTotalUsadas = (isUnico || isPacote)
+            ? sessoes.filter(s => s.status !== 'cancelada').reduce((a, s) => a + parseFloat(s.quantidade_horas || 0), 0)
+            : meses.filter(m => !m.pulado).reduce((a, m) => a + m.horasUsadas, 0);
+        // horasAcumuladas = saldo atual após todos os meses (apenas para Mensal)
+        const horasAcumuladasAtuais = (isUnico || isPacote) ? 0 : horasAcumuladas;
+        // Salvar saldo no backend (fire-and-forget) — apenas Mensal
+        if (!isUnico && !isPacote) window._setContratoObs(contratoId, 'horas_acumuladas_atual', horasAcumuladasAtuais).catch(() => {});
+
+        // ── Gerar HTML dos meses ────────────────────────────────────────────
         const mesesHtml = meses.length === 0
-            ? `<div style="text-align:center;padding:40px;color:#94a3b8;font-size:14px;">Sem dados de meses. Verifique a data de início e quantidade de meses do contrato.</div>`
+            ? `<div style="text-align:center;padding:40px;color:#94a3b8;font-size:14px;">${isPacote ? 'Nenhuma sessão cadastrada neste contrato ainda.' : 'Sem dados de meses. Verifique a data de início e quantidade de meses do contrato.'}</div>`
             : meses.map(m => {
+                // ═══ PACOTE: card por sessão ═══════════════════════════════
+                if (m._isPacote) {
+                    const s = m.sessaoObj;
+                    const bgCard     = m.isPast ? 'white' : '#fffbeb';
+                    const borderCard = m.isPast ? '#e2e8f0' : '#fbbf24';
+
+                    // Helper select para Pacote
+                    function _mkSelectP(label, campo, manual, displayMap, opts, extraStyle) {
+                        const eff = (manual && displayMap[manual]) ? displayMap[manual] : null;
+                        const bColor = eff ? eff.border : '#e2e8f0';
+                        const bgC    = eff ? eff.bg     : '#f8fafc';
+                        const txC    = eff ? eff.color  : '#64748b';
+                        const optsHtml = opts.map(o =>
+                            `<option value="${o.value}" ${manual === o.value ? 'selected' : ''}>${o.icon} ${o.label}</option>`
+                        ).join('');
+                        return `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
+                            <span style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;padding-left:2px;">${label}</span>
+                            <select onchange="window._setHistoricoSessao(${contratoId},${s.id},'${campo}',this.value)"
+                                    style="font-size:11px;padding:5px 8px;border-radius:8px;border:1.5px solid ${bColor};background:${bgC};color:${txC};cursor:pointer;font-weight:600;outline:none;min-width:130px;${extraStyle||''}">
+                                <option value="" ${!manual ? 'selected' : ''}>↺ Automático</option>
+                                ${optsHtml}
+                            </select>
+                        </div>`;
+                    }
+
+                    const optsNF = [
+                        { value: 'emitida',  icon: '✅', label: 'Emitida' },
+                        { value: 'no_prazo', icon: '⏳', label: 'No prazo' },
+                        { value: 'atrasada', icon: '❌', label: 'Emissão atrasada' },
+                        { value: 'na',       icon: '—',  label: 'N/A' },
+                    ];
+                    const optsPag = [
+                        { value: 'pago',     icon: '✅', label: 'Pago' },
+                        { value: 'parcial',  icon: '⚠️', label: 'Pag. parcial' },
+                        { value: 'atrasado', icon: '❌', label: 'Pag. atrasado' },
+                        { value: 'nao_pago', icon: '⏳', label: 'Não pago' },
+                    ];
+                    const optsEnt = [
+                        { value: 'entregue',      icon: '✅', label: 'Entregue' },
+                        { value: 'parcial',       icon: '⚠️', label: 'Entrega parcial' },
+                        { value: 'atrasada',      icon: '❌', label: 'Entrega atrasada' },
+                        { value: 'nao_realizada', icon: '⏳', label: 'Não realizada' },
+                    ];
+
+                    const showDataPagP = m.pagStatusManual === 'pago' || m.pagStatusManual === 'parcial';
+
+                    // Indicadores de horas (secundário — só mostra se houver informação)
+                    const horasHtml = (m.horasEsperadas > 0 || m.horasUsadas > 0) ? `
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:12px;">
+                        ${m.horasEsperadas > 0 ? `
+                        <div style="background:#f1f5f9;border-radius:8px;padding:8px;text-align:center;">
+                            <div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Previstas</div>
+                            <div style="font-size:16px;font-weight:800;color:#334155;">${m.horasEsperadas.toFixed(1)}h</div>
+                        </div>` : ''}
+                        <div style="background:#f1f5f9;border-radius:8px;padding:8px;text-align:center;">
+                            <div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">${m.horasAjuste !== null ? '⚙ Ajustadas' : 'Realizadas'}</div>
+                            <div style="font-size:16px;font-weight:800;color:#0369a1;">${m.horasUsadas.toFixed(1)}h</div>
+                            ${m.horasAjuste !== null ? `<div style="font-size:9px;color:#94a3b8;margin-top:1px;">manual</div>` : ''}
+                        </div>
+                        ${m.horasEsperadas > 0 && m.diferencaHoras !== 0 ? `
+                        <div style="background:${m.diferencaHoras > 0 ? '#ecfdf5' : '#fef9c3'};border:1px solid ${m.diferencaHoras > 0 ? '#a7f3d0' : '#fde68a'};border-radius:8px;padding:8px;text-align:center;">
+                            <div style="font-size:9px;color:${m.diferencaHoras > 0 ? '#065f46' : '#92400e'};text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">${m.diferencaHoras > 0 ? '✦ Compensação' : 'Devendo'}</div>
+                            <div style="font-size:16px;font-weight:800;color:${m.diferencaHoras > 0 ? '#059669' : '#d97706'};">${m.diferencaHoras > 0 ? '+' : ''}${m.diferencaHoras.toFixed(1)}h</div>
+                            <div style="font-size:9px;color:#94a3b8;margin-top:1px;">sem impacto no valor</div>
+                        </div>` : ''}
+                        ${m.horasAjuste !== null ? `
+                        <div style="display:flex;flex-direction:column;gap:2px;justify-content:flex-end;">
+                            <span style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;">⚙ Horas (ajuste)</span>
+                            <input type="number" min="0" step="0.5" placeholder="Auto"
+                                value="${m.horasAjuste}"
+                                onchange="window._setHistoricoSessao(${contratoId},${s.id},'horas_ajuste',this.value||'')"
+                                style="width:80px;font-size:12px;padding:4px 8px;border-radius:6px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#334155;outline:none;">
+                        </div>` : `
+                        <div style="display:flex;flex-direction:column;gap:2px;justify-content:flex-end;">
+                            <span style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;">⚙ Registrar ajuste</span>
+                            <input type="number" min="0" step="0.5" placeholder="Ex: 6"
+                                value=""
+                                onchange="if(this.value) window._setHistoricoSessao(${contratoId},${s.id},'horas_ajuste',this.value)"
+                                style="width:80px;font-size:12px;padding:4px 8px;border-radius:6px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#334155;outline:none;">
+                        </div>`}
+                    </div>` : '';
+
+                    return `
+                    <div style="border:1px solid ${borderCard};border-radius:12px;padding:16px 18px;background:${bgCard};margin-bottom:10px;">
+                        <!-- Cabeçalho da sessão -->
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <span style="font-size:14px;font-weight:700;color:#1e293b;">${m.mesLabel}</span>
+                                ${m.mesData ? `<span style="font-size:12px;color:#475569;">— ${m.mesData.toLocaleDateString('pt-BR')}</span>` : ''}
+                                ${m.mesDescricao ? `<span style="font-size:11px;color:#64748b;background:#f1f5f9;padding:2px 8px;border-radius:8px;">${escapeHtml(m.mesDescricao)}</span>` : ''}
+                                ${m.diferencaHoras > 0 ? `<span style="background:#dcfce7;color:#15803d;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">+${m.diferencaHoras.toFixed(1)}h compensação</span>` : ''}
+                                ${m.diferencaHoras < 0 ? `<span style="background:#fef9c3;color:#92400e;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">${m.diferencaHoras.toFixed(1)}h devendo</span>` : ''}
+                            </div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;">
+                                ${!semNF ? _mkSelectP('NF', 'nf_status', m.nfStatusManual, m.NF_DISPLAY, optsNF) : ''}
+                                ${_mkSelectP('Pagamento', 'pagamento_status', m.pagStatusManual, m.PAG_DISPLAY, optsPag)}
+                                ${_mkSelectP('Entrega', 'entrega_status', m.entStatusManual, m.ENT_DISPLAY, optsEnt)}
+                                ${showDataPagP ? `
+                                <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
+                                    <span style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;padding-left:2px;">Data pgto.</span>
+                                    <input type="date" value="${m.dataPagamento}"
+                                        onchange="window._setHistoricoSessao(${contratoId},${s.id},'data_pagamento',this.value)"
+                                        style="font-size:11px;padding:5px 8px;border-radius:8px;border:1.5px solid #86efac;background:#dcfce7;color:#15803d;cursor:pointer;font-weight:600;outline:none;">
+                                </div>` : ''}
+                                <button onclick="editarSessao(${s.id})" style="font-size:11px;padding:5px 10px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;color:#64748b;">✏️ Editar</button>
+                            </div>
+                        </div>
+
+                        <!-- Indicadores de horas -->
+                        ${horasHtml}
+
+                        <!-- Status NF / Pagamento / Entrega (badges) -->
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;">
+                            ${!semNF ? `<div style="background:${m.nfBg};border-radius:8px;padding:8px;text-align:center;">
+                                <div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">NF</div>
+                                <div style="font-size:12px;font-weight:700;color:${m.nfColor};">${m.nfStatus}</div>
+                            </div>` : ''}
+                            <div style="background:${m.pagBg};border-radius:8px;padding:8px;text-align:center;">
+                                <div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Pagamento</div>
+                                <div style="font-size:12px;font-weight:700;color:${m.pagColor};">${m.pagStatus}</div>
+                                ${m.dataPagamento ? `<div style="font-size:10px;color:#64748b;margin-top:2px;">${new Date(m.dataPagamento+'T12:00:00').toLocaleDateString('pt-BR')}</div>` : ''}
+                            </div>
+                            <div style="background:${m.entBg};border-radius:8px;padding:8px;text-align:center;">
+                                <div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Entrega</div>
+                                <div style="font-size:12px;font-weight:700;color:${m.entColor};">${m.entStatus}</div>
+                            </div>
+                        </div>
+                    </div>`;
+                }
+
+                // ═══ ÚNICO / MENSAL: card normal ═══════════════════════════
                 const bgCard     = m.pulado ? '#f8fafc' : m.isCurrent ? '#fffbeb' : 'white';
                 const borderCard = m.pulado ? '#e2e8f0' : m.isCurrent ? '#fbbf24' : '#e2e8f0';
 
@@ -6616,6 +6837,8 @@ async function verHistoricoContrato(contratoId) {
                         <div style="font-size:24px;font-weight:800;color:#059669;">${fmt(contrato.valor || contrato.valor_total || 0)}</div>
                         ${isUnico
                             ? `<div style="font-size:12px;color:#64748b;margin-top:3px;">Contrato único</div>`
+                            : isPacote
+                            ? `<div style="font-size:12px;color:#64748b;margin-top:3px;">${qtdMeses} sessões · ${horasMensais > 0 ? horasMensais.toFixed(1) + 'h/sessão' : 'horas livres'}</div>`
                             : `<div style="font-size:12px;color:#64748b;margin-top:3px;">${fmt(valorMensal)}/mês · ${qtdMeses} meses</div>`
                         }
                     </div>
@@ -6662,8 +6885,8 @@ async function verHistoricoContrato(contratoId) {
                 </div>
             </div>
 
-            <!-- Título meses + painel de horas acumuladas (mensal) -->
-            ${!isUnico && horasMensais > 0 ? `
+            <!-- Título meses + painel de horas acumuladas (apenas Mensal) -->
+            ${!isUnico && !isPacote && horasMensais > 0 ? `
             <div style="background:${horasAcumuladasAtuais > 0 ? '#eff6ff' : '#f8fafc'};border:1px solid ${horasAcumuladasAtuais > 0 ? '#bfdbfe' : '#e2e8f0'};border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                     <div>
@@ -6685,8 +6908,9 @@ async function verHistoricoContrato(contratoId) {
                 </div>
             </div>` : ''}
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-                <span style="font-size:14px;font-weight:700;color:#1e293b;">${isUnico ? 'Sessões do Contrato' : 'Histórico Mensal'}</span>
-                <span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">${meses.length} ${isUnico ? 'período(s)' : 'meses'}</span>
+                <span style="font-size:14px;font-weight:700;color:#1e293b;">${isUnico ? 'Sessões do Contrato' : isPacote ? 'Sessões do Pacote' : 'Histórico Mensal'}</span>
+                <span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">${meses.length} ${isUnico || isPacote ? 'sessão(ões)' : 'meses'}</span>
+                ${isPacote && meses.length < qtdMeses ? `<span style="background:#fef9c3;color:#854d0e;font-size:11px;padding:2px 8px;border-radius:10px;">${qtdMeses - meses.length} a realizar</span>` : ''}
                 ${semNF && !meses.some(m => m.nfEmitida) ? '<span style="background:#fef9c3;color:#854d0e;font-size:11px;padding:2px 8px;border-radius:10px;">Sem NF</span>' : ''}
                 ${!isUnico && horasAcumuladasAtuais > 0 ? `<span style="background:#dbeafe;color:#1d4ed8;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">✦ ${horasAcumuladasAtuais.toFixed(1)}h acumuladas</span>` : ''}
             </div>
@@ -6743,6 +6967,25 @@ window._setContratoObs = async function(contratoId, campo, valor) {
     const res = await r.json();
     if (!res.success) console.warn('[_setContratoObs] falha:', res.error);
     return res;
+};
+
+// Atualiza status de uma sessão no historico_pacote (Contrato Pacote)
+window._setHistoricoSessao = async function(contratoId, sessaoId, campo, valor) {
+    try {
+        const r = await fetch(`/api/contratos/${contratoId}/historico-sessao`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessao_id: sessaoId, campo, valor })
+        });
+        const res = await r.json();
+        if (res.success) {
+            verHistoricoContrato(contratoId);
+        } else {
+            showToast('Erro: ' + (res.error || 'falha ao atualizar'), 'error');
+        }
+    } catch (e) {
+        showToast('Erro de conexão', 'error');
+    }
 };
 
 // Abre prompt para editar horas acumuladas iniciais / bônus
