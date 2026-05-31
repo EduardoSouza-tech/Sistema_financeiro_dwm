@@ -6158,8 +6158,13 @@ async function verHistoricoContrato(contratoId) {
 
                 const estado = historico[mesKey] || {};
                 const pulado   = estado.pulado    === true;
-                const nfEmitida = estado.nf_emitida === true;
-                const pago      = estado.pago       === true;
+
+                // ── Leitura de status com backward-compat ──────────────────
+                // Campos novos (string) sobrepõem os campos legados (bool)
+                const nfStatusManual  = estado.nf_status        || (estado.nf_emitida === true ? 'emitida' : null);
+                const pagStatusManual = estado.pagamento_status  || (estado.pago === true ? 'pago' : null);
+                const entStatusManual = estado.entrega_status    || null;
+                const dataPagamento   = estado.data_pagamento    || '';
 
                 // Sessions deste mês (não canceladas)
                 const sessMes = sessoes.filter(s => (s.data || '').substring(0, 7) === mesKey && s.status !== 'cancelada');
@@ -6167,26 +6172,81 @@ async function verHistoricoContrato(contratoId) {
                 const horasExtras   = horasMensais > 0 ? Math.max(0, horasUsadas - horasMensais) : 0;
                 const horasSobrando = horasMensais > 0 ? Math.max(0, horasMensais - horasUsadas) : 0;
 
-                // Status NF
-                let nfStatus, nfColor, nfBg;
-                if (pulado)                { nfStatus = '—';              nfColor = '#94a3b8'; nfBg = '#f8fafc'; }
-                else if (nfEmitida)        { nfStatus = '✅ Emitida';      nfColor = '#15803d'; nfBg = '#dcfce7'; }
-                else if (semNF && !isCurrent) { nfStatus = '—';       nfColor = '#94a3b8'; nfBg = '#f8fafc'; }
-                else if (isPast)           { nfStatus = '❌ Atrasada';     nfColor = '#dc2626'; nfBg = '#fee2e2'; }
-                else if (isCurrent)        { nfStatus = '⏳ Pendente';     nfColor = '#d97706'; nfBg = '#fef3c7'; }
-                else                       { nfStatus = '🔵 Futuro';       nfColor = '#2563eb'; nfBg = '#eff6ff'; }
+                // ── Paleta de status ───────────────────────────────────────
+                const NF_DISPLAY = {
+                    emitida:  { label: 'Emitida',          color: '#15803d', bg: '#dcfce7', border: '#86efac' },
+                    no_prazo: { label: 'No prazo',          color: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+                    atrasada: { label: 'Emissão atrasada',  color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+                    na:       { label: 'N/A',               color: '#64748b', bg: '#f8fafc', border: '#e2e8f0' },
+                };
+                const PAG_DISPLAY = {
+                    pago:     { label: 'Pago',              color: '#15803d', bg: '#dcfce7', border: '#86efac' },
+                    parcial:  { label: 'Pag. parcial',      color: '#c2410c', bg: '#ffedd5', border: '#fdba74' },
+                    atrasado: { label: 'Pag. atrasado',     color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+                    nao_pago: { label: 'Não pago',          color: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+                };
+                const ENT_DISPLAY = {
+                    entregue:      { label: 'Entregue',          color: '#15803d', bg: '#dcfce7', border: '#86efac' },
+                    parcial:       { label: 'Entrega parcial',   color: '#c2410c', bg: '#ffedd5', border: '#fdba74' },
+                    atrasada:      { label: 'Entrega atrasada',  color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+                    nao_realizada: { label: 'Não realizada',     color: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+                };
+                const FUTURO_DISP  = { label: 'Futuro',  color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' };
+                const PULADO_DISP  = { label: '—',       color: '#94a3b8', bg: '#f8fafc', border: '#e2e8f0' };
 
-                // Status Pagamento
-                let pagStatus, pagColor, pagBg;
-                if (pulado)                { pagStatus = '—';              pagColor = '#94a3b8'; pagBg = '#f8fafc'; }
-                else if (pago)             { pagStatus = '✅ Pago';         pagColor = '#15803d'; pagBg = '#dcfce7'; }
-                else if (isPast)           { pagStatus = '❌ Atrasado';     pagColor = '#dc2626'; pagBg = '#fee2e2'; }
-                else if (isCurrent)        { pagStatus = '⏳ Aguardando';   pagColor = '#d97706'; pagBg = '#fef3c7'; }
-                else                       { pagStatus = '🔵 Futuro';       pagColor = '#2563eb'; pagBg = '#eff6ff'; }
+                // ── Status efetivo NF ──────────────────────────────────────
+                let nfEfetivo;
+                if (pulado)               nfEfetivo = PULADO_DISP;
+                else if (nfStatusManual && NF_DISPLAY[nfStatusManual]) nfEfetivo = NF_DISPLAY[nfStatusManual];
+                else if (semNF && !isCurrent) nfEfetivo = { ...PULADO_DISP, label: 'N/A' };
+                else if (isPast)          nfEfetivo = NF_DISPLAY.atrasada;
+                else if (isCurrent)       nfEfetivo = NF_DISPLAY.no_prazo;
+                else                      nfEfetivo = FUTURO_DISP;
+                const nfStatus = nfEfetivo.label;
+                const nfColor  = nfEfetivo.color;
+                const nfBg     = nfEfetivo.bg;
+
+                // ── Status efetivo Pagamento ───────────────────────────────
+                let pagEfetivo;
+                if (pulado)               pagEfetivo = PULADO_DISP;
+                else if (pagStatusManual && PAG_DISPLAY[pagStatusManual]) pagEfetivo = PAG_DISPLAY[pagStatusManual];
+                else if (isPast)          pagEfetivo = PAG_DISPLAY.atrasado;
+                else if (isCurrent)       pagEfetivo = PAG_DISPLAY.nao_pago;
+                else                      pagEfetivo = FUTURO_DISP;
+                const pagStatus = pagEfetivo.label;
+                const pagColor  = pagEfetivo.color;
+                const pagBg     = pagEfetivo.bg;
+
+                // ── Status efetivo Entrega (inferido de sessões ou manual) ─
+                let entEfetivo;
+                if (pulado) {
+                    entEfetivo = PULADO_DISP;
+                } else if (entStatusManual && ENT_DISPLAY[entStatusManual]) {
+                    entEfetivo = ENT_DISPLAY[entStatusManual];
+                } else {
+                    // Auto-inferir de sessões
+                    const sessFin = sessMes.filter(s => s.status === 'finalizada' || s.status === 'concluida').length;
+                    if (sessMes.length > 0 && sessFin === sessMes.length)    entEfetivo = ENT_DISPLAY.entregue;
+                    else if (sessMes.length > 0 && sessFin > 0)              entEfetivo = ENT_DISPLAY.parcial;
+                    else if (isPast)                                          entEfetivo = ENT_DISPLAY.nao_realizada;
+                    else if (isCurrent)                                       entEfetivo = ENT_DISPLAY.nao_realizada;
+                    else                                                      entEfetivo = FUTURO_DISP;
+                }
+                const entStatus = entEfetivo.label;
+                const entColor  = entEfetivo.color;
+                const entBg     = entEfetivo.bg;
+
+                // Flag para backward compat nas variáveis que pushamos
+                const nfEmitida = nfStatusManual === 'emitida';
+                const pago      = pagStatusManual === 'pago';
 
                 meses.push({ mesKey, mesLabel, isPast, isCurrent, pulado, nfEmitida, pago,
+                             nfStatusManual, pagStatusManual, entStatusManual, dataPagamento,
                              sessMes, horasUsadas, horasExtras, horasSobrando,
-                             nfStatus, nfColor, nfBg, pagStatus, pagColor, pagBg });
+                             nfStatus, nfColor, nfBg,
+                             pagStatus, pagColor, pagBg,
+                             entStatus, entColor, entBg,
+                             NF_DISPLAY, PAG_DISPLAY, ENT_DISPLAY });
             }
         }
 
@@ -6213,14 +6273,64 @@ async function verHistoricoContrato(contratoId) {
                             </div>
                         </div>`).join('');
 
-                const btnNF  = !m.pulado && (!semNF || m.isCurrent)
-                    ? `<button onclick="window._toggleHistoricoMes(${contratoId},'${m.mesKey}','nf_emitida',${!m.nfEmitida})"
-                         style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid ${m.nfEmitida ? '#bbf7d0' : '#e2e8f0'};background:${m.nfEmitida ? '#dcfce7' : '#f8fafc'};cursor:pointer;color:${m.nfEmitida ? '#15803d' : '#64748b'};">
-                         ${m.nfEmitida ? '✅ NF Emitida' : '○ Marcar NF'}</button>` : '';
+                // ── Helper: monta um <select> de status ──────────────────
+                function _mkSelect(label, campo, manual, displayMap, opts, contratoIdInner, mesKeyInner, extraStyle) {
+                    const eff = (manual && displayMap[manual]) ? displayMap[manual] : null;
+                    const borderColor = eff ? eff.border : '#e2e8f0';
+                    const bgColor     = eff ? eff.bg     : '#f8fafc';
+                    const textColor   = eff ? eff.color  : '#64748b';
+                    const optsHtml = opts.map(o =>
+                        `<option value="${o.value}" ${manual === o.value ? 'selected' : ''}>${o.icon} ${o.label}</option>`
+                    ).join('');
+                    return `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
+                        <span style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;padding-left:2px;">${label}</span>
+                        <select onchange="window._setHistoricoMes(${contratoIdInner},'${mesKeyInner}','${campo}',this.value)"
+                                style="font-size:11px;padding:5px 8px;border-radius:8px;border:1.5px solid ${borderColor};background:${bgColor};color:${textColor};cursor:pointer;font-weight:600;outline:none;min-width:130px;${extraStyle||''}">
+                            <option value="" ${!manual ? 'selected' : ''}>↺ Automático</option>
+                            ${optsHtml}
+                        </select>
+                    </div>`;
+                }
+
+                const optsNF = [
+                    { value: 'emitida',  icon: '✅', label: 'Emitida' },
+                    { value: 'no_prazo', icon: '⏳', label: 'No prazo' },
+                    { value: 'atrasada', icon: '❌', label: 'Emissão atrasada' },
+                    { value: 'na',       icon: '—',  label: 'N/A' },
+                ];
+                const optsPag = [
+                    { value: 'pago',     icon: '✅', label: 'Pago' },
+                    { value: 'parcial',  icon: '⚠️', label: 'Pag. parcial' },
+                    { value: 'atrasado', icon: '❌', label: 'Pag. atrasado' },
+                    { value: 'nao_pago', icon: '⏳', label: 'Não pago' },
+                ];
+                const optsEnt = [
+                    { value: 'entregue',      icon: '✅', label: 'Entregue' },
+                    { value: 'parcial',       icon: '⚠️', label: 'Entrega parcial' },
+                    { value: 'atrasada',      icon: '❌', label: 'Entrega atrasada' },
+                    { value: 'nao_realizada', icon: '⏳', label: 'Não realizada' },
+                ];
+
+                const btnNF  = !m.pulado && !semNF
+                    ? _mkSelect('NF', 'nf_status', m.nfStatusManual, m.NF_DISPLAY, optsNF, contratoId, m.mesKey)
+                    : '';
                 const btnPag = !m.pulado
-                    ? `<button onclick="window._toggleHistoricoMes(${contratoId},'${m.mesKey}','pago',${!m.pago})"
-                         style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid ${m.pago ? '#bbf7d0' : '#e2e8f0'};background:${m.pago ? '#dcfce7' : '#f8fafc'};cursor:pointer;color:${m.pago ? '#15803d' : '#64748b'};">
-                         ${m.pago ? '✅ Pago' : '○ Marcar Pago'}</button>` : '';
+                    ? _mkSelect('Pagamento', 'pagamento_status', m.pagStatusManual, m.PAG_DISPLAY, optsPag, contratoId, m.mesKey)
+                    : '';
+                const btnEntrega = !m.pulado
+                    ? _mkSelect('Entrega', 'entrega_status', m.entStatusManual, m.ENT_DISPLAY, optsEnt, contratoId, m.mesKey)
+                    : '';
+
+                // Campo data pagamento: mostra apenas quando pago ou parcial
+                const showDataPag = !m.pulado && (m.pagStatusManual === 'pago' || m.pagStatusManual === 'parcial');
+                const btnDataPag = showDataPag
+                    ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
+                        <span style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;padding-left:2px;">Data pgto.</span>
+                        <input type="date" value="${m.dataPagamento}"
+                            onchange="window._setHistoricoMes(${contratoId},'${m.mesKey}','data_pagamento',this.value)"
+                            style="font-size:11px;padding:5px 8px;border-radius:8px;border:1.5px solid #86efac;background:#dcfce7;color:#15803d;cursor:pointer;font-weight:600;outline:none;">
+                    </div>`
+                    : '';
                 const btnPular = `<button onclick="window._toggleHistoricoMes(${contratoId},'${m.mesKey}','pulado',${!m.pulado})"
                     style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid ${m.pulado ? '#fca5a5' : '#e2e8f0'};background:${m.pulado ? '#fee2e2' : '#f8fafc'};cursor:pointer;color:${m.pulado ? '#dc2626' : '#64748b'};">
                     ${m.pulado ? '↩ Reativar Mês' : '⏭ Pular Mês'}</button>`;
@@ -6234,8 +6344,8 @@ async function verHistoricoContrato(contratoId) {
                             ${m.isCurrent ? '<span style="background:#fbbf24;color:#78350f;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">MÊS ATUAL</span>' : ''}
                             ${m.pulado ? '<span style="background:#e2e8f0;color:#64748b;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">MÊS PULADO</span>' : ''}
                         </div>
-                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                            ${btnNF}${btnPag}${btnPular}
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;">
+                            ${btnNF}${btnPag}${btnEntrega}${btnDataPag}${btnPular}
                         </div>
                     </div>
 
@@ -6267,6 +6377,12 @@ async function verHistoricoContrato(contratoId) {
                         <div style="background:${m.pagBg};border-radius:8px;padding:9px;text-align:center;">
                             <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Pagamento</div>
                             <div style="font-size:12px;font-weight:700;color:${m.pagColor};">${m.pagStatus}</div>
+                            ${m.dataPagamento ? `<div style="font-size:10px;color:#64748b;margin-top:2px;">${new Date(m.dataPagamento+'T12:00:00').toLocaleDateString('pt-BR')}</div>` : ''}
+                        </div>
+                        <div style="background:${m.entBg};border-radius:8px;padding:9px;text-align:center;">
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Entrega</div>
+                            <div style="font-size:12px;font-weight:700;color:${m.entColor};">${m.entStatus}</div>
+                            ${!m.entStatusManual ? '<div style="font-size:9px;color:#94a3b8;margin-top:1px;">auto</div>' : ''}
                         </div>
                     </div>
 
@@ -6348,8 +6464,13 @@ async function verHistoricoContrato(contratoId) {
     }
 }
 
-// Toggle de estado de mês (NF, pagamento, pular)
+// Toggle de estado de mês (NF, pagamento, pular) — legado, mantido para "Pular Mês"
 window._toggleHistoricoMes = async function(contratoId, mes, campo, valor) {
+    await window._setHistoricoMes(contratoId, mes, campo, valor);
+};
+
+// Define qualquer campo do histórico mensal (bool ou string)
+window._setHistoricoMes = async function(contratoId, mes, campo, valor) {
     try {
         const r = await fetch(`/api/contratos/${contratoId}/historico-mes`, {
             method: 'PATCH',

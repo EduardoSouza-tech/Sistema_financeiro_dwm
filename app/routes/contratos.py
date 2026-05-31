@@ -248,12 +248,28 @@ def atualizar_historico_mes(contrato_id):
 
     data = request.json or {}
     mes = data.get('mes', '').strip()          # ex: "2025-04"
-    campo = data.get('campo', '').strip()       # "nf_emitida" | "pago" | "pulado"
-    valor = data.get('valor')                   # true | false
+    campo = data.get('campo', '').strip()
+    valor = data.get('valor')
+
+    # Campos booleanos legados
+    CAMPOS_BOOL = ('nf_emitida', 'pago', 'pulado')
+    # Campos de string com valores permitidos (None = qualquer string, incluindo vazio)
+    CAMPOS_STR = {
+        'nf_status':         ('emitida', 'no_prazo', 'atrasada', 'na', ''),
+        'pagamento_status':  ('pago', 'parcial', 'atrasado', 'nao_pago', ''),
+        'entrega_status':    ('entregue', 'parcial', 'atrasada', 'nao_realizada', ''),
+        'data_pagamento':    None,  # data livre (YYYY-MM-DD ou string vazia)
+    }
 
     import re
-    if not re.match(r'^\d{4}-\d{2}$', mes) or campo not in ('nf_emitida', 'pago', 'pulado'):
-        return jsonify({'error': 'Parâmetros inválidos'}), 400
+    if not re.match(r'^\d{4}-\d{2}$', mes):
+        return jsonify({'error': 'Mês inválido'}), 400
+    if campo not in CAMPOS_BOOL and campo not in CAMPOS_STR:
+        return jsonify({'error': f'Campo inválido: {campo}'}), 400
+    if campo in CAMPOS_STR and CAMPOS_STR[campo] is not None:
+        # Sanitização: aceitar apenas valores da lista permitida
+        if valor not in CAMPOS_STR[campo] and valor is not None:
+            return jsonify({'error': f'Valor inválido para {campo}: {valor}'}), 400
 
     try:
         import json
@@ -274,7 +290,15 @@ def atualizar_historico_mes(contrato_id):
                 obs['historico_mensal'] = {}
             if mes not in obs['historico_mensal']:
                 obs['historico_mensal'][mes] = {}
-            obs['historico_mensal'][mes][campo] = bool(valor)
+
+            if campo in CAMPOS_BOOL:
+                obs['historico_mensal'][mes][campo] = bool(valor)
+            else:
+                # String vazia ou None remove o campo para voltar ao modo automático
+                if valor == '' or valor is None:
+                    obs['historico_mensal'][mes].pop(campo, None)
+                else:
+                    obs['historico_mensal'][mes][campo] = str(valor)
 
             cursor.execute(
                 "UPDATE contratos SET observacoes = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
